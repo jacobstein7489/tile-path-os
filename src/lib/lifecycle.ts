@@ -42,6 +42,17 @@ export function stageIndex(stage: string) {
   return LIFECYCLE_STAGES.indexOf(stage as LifecycleStage);
 }
 
+/** The next master lifecycle stage, or null at Complete. */
+export function nextStage(stage: string): LifecycleStage | null {
+  const i = stageIndex(stage);
+  if (i < 0 || i >= LIFECYCLE_STAGES.length - 1) return null;
+  return LIFECYCLE_STAGES[i + 1]!;
+}
+
+export function subWorkflowFor(stage: string): string[] | undefined {
+  return STAGE_SUB_WORKFLOWS[stage as LifecycleStage];
+}
+
 /** Installation percentages are only meaningful once physical work starts. */
 export function showsInstallationProgress(stage: string) {
   return stageIndex(stage) >= stageIndex("Installation");

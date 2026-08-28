@@ -1,8 +1,9 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { MapPin, User } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
-import { LIFECYCLE_STAGES } from "@/lib/lifecycle";
 import { useProject, useUpdateProject } from "@/lib/data";
+import { Chip, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/projects/$projectId")({
@@ -10,12 +11,12 @@ export const Route = createFileRoute("/projects/$projectId")({
 });
 
 const PROJECT_TABS = [
-  { label: "Overview", to: "/projects/$projectId" as const, exact: true },
-  { label: "Scope & Details", to: "/projects/$projectId" as const, exact: true, disabled: true },
-  { label: "Field", to: "/projects/$projectId" as const, exact: true, disabled: true },
-  { label: "Materials", to: "/projects/$projectId" as const, exact: true, disabled: true },
-  { label: "Files", to: "/projects/$projectId" as const, exact: true, disabled: true },
-];
+  { label: "Overview", disabled: false },
+  { label: "Scope & Details", disabled: true },
+  { label: "Field", disabled: true },
+  { label: "Materials", disabled: true },
+  { label: "Files", disabled: true },
+] as const;
 
 function ProjectShell() {
   const { projectId } = Route.useParams();
@@ -46,46 +47,67 @@ function ProjectShell() {
     );
   }
 
+  const stepsDone = project.stage_steps_done ?? [];
+
   return (
     <>
-      <AppHeader
-        crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]}
-      />
+      <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
       <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h1 className="text-[30px] leading-tight font-bold">{project.name}</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {project.address ?? "Address not set"}
-            </p>
+        <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-[28px] leading-none font-semibold tracking-[-0.02em]">
+                {project.name}
+              </h1>
+              <Chip tone={stageTone(project.lifecycle_stage, project.exception_state)}>
+                {project.exception_state ?? project.lifecycle_stage}
+              </Chip>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="size-3.5" /> {project.address ?? "Address not set"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <User className="size-3.5" /> {project.customer ?? "Customer not set"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                {project.project_type}
+              </span>
+            </div>
           </div>
-          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            Stage
-            <select
-              value={project.lifecycle_stage}
-              onChange={(e) => update.mutate({ lifecycle_stage: e.target.value })}
-              className="h-9 rounded-lg border border-border bg-background px-3 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
-            >
-              {LIFECYCLE_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex items-center gap-2">
+            <Chip tone={materialTone(project.material_status)}>
+              Materials: {project.material_status}
+            </Chip>
+            {project.project_manager ? (
+              <Chip>PM: {project.project_manager}</Chip>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6">
-          <LifecycleTrack stage={project.lifecycle_stage} exceptionState={project.exception_state} />
+          <LifecycleTrack
+            stage={project.lifecycle_stage}
+            exceptionState={project.exception_state}
+            stepsDone={stepsDone}
+            onToggleStep={(step) =>
+              update.mutate({
+                stage_steps_done: stepsDone.includes(step)
+                  ? stepsDone.filter((s) => s !== step)
+                  : [...stepsDone, step],
+              })
+            }
+            onAdvance={(to) => update.mutate({ lifecycle_stage: to, stage_steps_done: [] })}
+          />
         </div>
 
-        <nav className="mt-6 flex items-center gap-1 border-b border-border">
+        <nav className="mt-7 flex items-center gap-1 border-b border-border">
           {PROJECT_TABS.map((tab) => {
             const active = !tab.disabled && pathname === `/projects/${projectId}`;
             return tab.disabled ? (
               <span
                 key={tab.label}
-                className="cursor-not-allowed px-3.5 pb-3 text-[13px] font-medium text-muted-foreground/60"
+                className="cursor-not-allowed px-3.5 pb-3 text-[13px] font-medium text-muted-foreground/50"
                 title="Available in a later phase"
               >
                 {tab.label}
@@ -93,10 +115,10 @@ function ProjectShell() {
             ) : (
               <Link
                 key={tab.label}
-                to={tab.to}
+                to="/projects/$projectId"
                 params={{ projectId }}
                 className={cn(
-                  "-mb-px border-b-2 px-3.5 pb-3 text-[13px] font-medium",
+                  "-mb-px border-b-2 px-3.5 pb-3 text-[13px] font-semibold",
                   active
                     ? "border-primary text-primary"
                     : "border-transparent text-secondary-foreground hover:text-foreground",

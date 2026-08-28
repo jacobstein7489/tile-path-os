@@ -19,6 +19,8 @@ export type Project = {
   needs_attention: string | null;
   next_move: string | null;
   next_move_owner: string | null;
+  stage_steps_done: string[];
+  project_manager: string | null;
 };
 
 export type Area = {
