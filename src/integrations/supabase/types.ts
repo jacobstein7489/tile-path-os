@@ -14,7 +14,272 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      project_areas: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          progress_pct: number
+          project_id: string
+          sort_order: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          progress_pct?: number
+          project_id: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          progress_pct?: number
+          project_id?: string
+          sort_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_areas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_surfaces: {
+        Row: {
+          area_id: string
+          created_at: string
+          field_sf: number | null
+          grout_color: string | null
+          id: string
+          joint_size: string | null
+          layout_pattern: string | null
+          manufacturer: string | null
+          metal_profile: string | null
+          name: string
+          notes: string | null
+          plan_sf: number | null
+          prep: string | null
+          progress_pct: number
+          sort_order: number
+          status: string
+          supplier: string | null
+          tile_size: string | null
+          tile_tag: string | null
+          updated_at: string
+          waterproofing: string | null
+        }
+        Insert: {
+          area_id: string
+          created_at?: string
+          field_sf?: number | null
+          grout_color?: string | null
+          id?: string
+          joint_size?: string | null
+          layout_pattern?: string | null
+          manufacturer?: string | null
+          metal_profile?: string | null
+          name: string
+          notes?: string | null
+          plan_sf?: number | null
+          prep?: string | null
+          progress_pct?: number
+          sort_order?: number
+          status?: string
+          supplier?: string | null
+          tile_size?: string | null
+          tile_tag?: string | null
+          updated_at?: string
+          waterproofing?: string | null
+        }
+        Update: {
+          area_id?: string
+          created_at?: string
+          field_sf?: number | null
+          grout_color?: string | null
+          id?: string
+          joint_size?: string | null
+          layout_pattern?: string | null
+          manufacturer?: string | null
+          metal_profile?: string | null
+          name?: string
+          notes?: string | null
+          plan_sf?: number | null
+          prep?: string | null
+          progress_pct?: number
+          sort_order?: number
+          status?: string
+          supplier?: string | null
+          tile_size?: string | null
+          tile_tag?: string | null
+          updated_at?: string
+          waterproofing?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_surfaces_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          address: string | null
+          created_at: string
+          crew_lead: string | null
+          customer: string | null
+          exception_state: string | null
+          id: string
+          installation_progress: number
+          lifecycle_stage: string
+          material_status: string
+          name: string
+          needs_attention: string | null
+          next_move: string | null
+          next_move_owner: string | null
+          project_type: string
+          readiness_note: string | null
+          readiness_pct: number
+          start_date: string | null
+          target_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          crew_lead?: string | null
+          customer?: string | null
+          exception_state?: string | null
+          id?: string
+          installation_progress?: number
+          lifecycle_stage?: string
+          material_status?: string
+          name: string
+          needs_attention?: string | null
+          next_move?: string | null
+          next_move_owner?: string | null
+          project_type?: string
+          readiness_note?: string | null
+          readiness_pct?: number
+          start_date?: string | null
+          target_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          crew_lead?: string | null
+          customer?: string | null
+          exception_state?: string | null
+          id?: string
+          installation_progress?: number
+          lifecycle_stage?: string
+          material_status?: string
+          name?: string
+          needs_attention?: string | null
+          next_move?: string | null
+          next_move_owner?: string | null
+          project_type?: string
+          readiness_note?: string | null
+          readiness_pct?: number
+          start_date?: string | null
+          target_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      work_items: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          impact: string | null
+          item_type: string
+          next_action: string | null
+          owner: string | null
+          project_id: string
+          status: string
+          surface_id: string | null
+          title: string
+          updated_at: string
+          waiting_on: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          impact?: string | null
+          item_type: string
+          next_action?: string | null
+          owner?: string | null
+          project_id: string
+          status?: string
+          surface_id?: string | null
+          title: string
+          updated_at?: string
+          waiting_on?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          impact?: string | null
+          item_type?: string
+          next_action?: string | null
+          owner?: string | null
+          project_id?: string
+          status?: string
+          surface_id?: string | null
+          title?: string
+          updated_at?: string
+          waiting_on?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_items_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
