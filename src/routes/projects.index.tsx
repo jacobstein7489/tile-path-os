@@ -104,7 +104,7 @@ function ProjectsPage() {
             <col className="w-[14%]" />
             <col className="w-[14%]" />
           </colgroup>
-          <thead className="border-b border-border bg-muted/50">
+          <thead className="border-b border-border bg-muted/60">
             <tr>
               {[
                 "Project",
@@ -150,16 +150,16 @@ function ProjectsPage() {
 function ProjectRow({ project: p }: { project: Project }) {
   const installing = showsInstallationProgress(p.lifecycle_stage);
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-muted/40">
+    <tr className="border-b border-border transition-colors last:border-0 hover:bg-muted/50">
       <td className="table-cell-base whitespace-nowrap">
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
-          className="font-semibold text-primary hover:underline"
+          className="text-[13px] font-semibold tracking-tight text-foreground hover:text-primary"
         >
           {p.name}
         </Link>
-        <div className="mt-0.5 text-xs text-muted-foreground">{p.project_type}</div>
+        <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
       </td>
       <td className="table-cell-base">
         <Chip tone={stageTone(p.lifecycle_stage, p.exception_state)}>
@@ -168,18 +168,18 @@ function ProjectRow({ project: p }: { project: Project }) {
       </td>
       <td className="table-cell-base">
         <div className="flex items-center gap-2">
-          <span className="w-8 text-xs font-semibold tabular-nums">{p.readiness_pct}%</span>
-          <ProgressBar value={p.readiness_pct} tone="success" className="w-20" />
+          <ProgressBar value={p.readiness_pct} tone="success" className="w-16" />
+          <span className="text-xs font-semibold tabular-nums">{p.readiness_pct}%</span>
         </div>
       </td>
       <td className="table-cell-base">
         {installing ? (
           <div className="flex items-center gap-2">
-            <span className="w-8 text-xs font-semibold tabular-nums">{p.installation_progress}%</span>
-            <ProgressBar value={p.installation_progress} className="w-20" />
+            <ProgressBar value={p.installation_progress} className="w-16" />
+            <span className="text-xs font-semibold tabular-nums">{p.installation_progress}%</span>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Not started</span>
+          <span className="text-xs text-muted-foreground/70">Not started</span>
         )}
       </td>
       <td className="table-cell-base">
