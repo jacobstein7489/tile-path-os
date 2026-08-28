@@ -14,6 +14,244 @@ export type Database = {
   }
   public: {
     Tables: {
+      crews: {
+        Row: {
+          created_at: string
+          id: string
+          initials: string
+          is_open_lane: boolean
+          name: string
+          sort_order: number
+          tone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          initials: string
+          is_open_lane?: boolean
+          name: string
+          sort_order?: number
+          tone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          initials?: string
+          is_open_lane?: boolean
+          name?: string
+          sort_order?: number
+          tone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      material_items: {
+        Row: {
+          area_id: string | null
+          category: string
+          created_at: string
+          damaged_qty: number
+          expected_date: string | null
+          goes_to: string | null
+          id: string
+          name: string
+          needs_attention: boolean
+          next_step: string | null
+          notes: string | null
+          ordered_qty: number
+          project_id: string
+          received_qty: number
+          required_qty: number | null
+          responsibility: string | null
+          spec: string | null
+          status: string
+          supplier: string | null
+          surface_id: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          category?: string
+          created_at?: string
+          damaged_qty?: number
+          expected_date?: string | null
+          goes_to?: string | null
+          id?: string
+          name: string
+          needs_attention?: boolean
+          next_step?: string | null
+          notes?: string | null
+          ordered_qty?: number
+          project_id: string
+          received_qty?: number
+          required_qty?: number | null
+          responsibility?: string | null
+          spec?: string | null
+          status?: string
+          supplier?: string | null
+          surface_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          category?: string
+          created_at?: string
+          damaged_qty?: number
+          expected_date?: string | null
+          goes_to?: string | null
+          id?: string
+          name?: string
+          needs_attention?: boolean
+          next_step?: string | null
+          notes?: string | null
+          ordered_qty?: number
+          project_id?: string
+          received_qty?: number
+          required_qty?: number | null
+          responsibility?: string | null
+          spec?: string | null
+          status?: string
+          supplier?: string | null
+          surface_id?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_items_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_items_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_receipts: {
+        Row: {
+          created_at: string
+          damaged_qty: number
+          id: string
+          material_item_id: string
+          notes: string | null
+          packing_slip: string | null
+          po_id: string | null
+          receipt_date: string
+          received_by: string | null
+          received_qty: number
+          wrong_qty: number
+        }
+        Insert: {
+          created_at?: string
+          damaged_qty?: number
+          id?: string
+          material_item_id: string
+          notes?: string | null
+          packing_slip?: string | null
+          po_id?: string | null
+          receipt_date?: string
+          received_by?: string | null
+          received_qty?: number
+          wrong_qty?: number
+        }
+        Update: {
+          created_at?: string
+          damaged_qty?: number
+          id?: string
+          material_item_id?: string
+          notes?: string | null
+          packing_slip?: string | null
+          po_id?: string | null
+          receipt_date?: string
+          received_by?: string | null
+          received_qty?: number
+          wrong_qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_receipts_material_item_id_fkey"
+            columns: ["material_item_id"]
+            isOneToOne: false
+            referencedRelation: "material_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      po_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          material_item_id: string | null
+          notes: string | null
+          po_id: string
+          qty: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          material_item_id?: string | null
+          notes?: string | null
+          po_id: string
+          qty?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          material_item_id?: string | null
+          notes?: string | null
+          po_id?: string
+          qty?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_lines_material_item_id_fkey"
+            columns: ["material_item_id"]
+            isOneToOne: false
+            referencedRelation: "material_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "po_lines_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_areas: {
         Row: {
           created_at: string
@@ -62,10 +300,14 @@ export type Database = {
         Row: {
           area_id: string
           created_at: string
+          detail_confirmed: boolean
           field_sf: number | null
+          finish_transition: string | null
           grout_color: string | null
+          grout_manufacturer: string | null
           id: string
           joint_size: string | null
+          layout_direction: string | null
           layout_pattern: string | null
           manufacturer: string | null
           metal_profile: string | null
@@ -75,20 +317,29 @@ export type Database = {
           prep: string | null
           progress_pct: number
           sort_order: number
+          start_point: string | null
           status: string
           supplier: string | null
+          tile_finish: string | null
+          tile_height: string | null
           tile_size: string | null
+          tile_sku: string | null
           tile_tag: string | null
+          underlayment: string | null
           updated_at: string
           waterproofing: string | null
         }
         Insert: {
           area_id: string
           created_at?: string
+          detail_confirmed?: boolean
           field_sf?: number | null
+          finish_transition?: string | null
           grout_color?: string | null
+          grout_manufacturer?: string | null
           id?: string
           joint_size?: string | null
+          layout_direction?: string | null
           layout_pattern?: string | null
           manufacturer?: string | null
           metal_profile?: string | null
@@ -98,20 +349,29 @@ export type Database = {
           prep?: string | null
           progress_pct?: number
           sort_order?: number
+          start_point?: string | null
           status?: string
           supplier?: string | null
+          tile_finish?: string | null
+          tile_height?: string | null
           tile_size?: string | null
+          tile_sku?: string | null
           tile_tag?: string | null
+          underlayment?: string | null
           updated_at?: string
           waterproofing?: string | null
         }
         Update: {
           area_id?: string
           created_at?: string
+          detail_confirmed?: boolean
           field_sf?: number | null
+          finish_transition?: string | null
           grout_color?: string | null
+          grout_manufacturer?: string | null
           id?: string
           joint_size?: string | null
+          layout_direction?: string | null
           layout_pattern?: string | null
           manufacturer?: string | null
           metal_profile?: string | null
@@ -121,10 +381,15 @@ export type Database = {
           prep?: string | null
           progress_pct?: number
           sort_order?: number
+          start_point?: string | null
           status?: string
           supplier?: string | null
+          tile_finish?: string | null
+          tile_height?: string | null
           tile_size?: string | null
+          tile_sku?: string | null
           tile_tag?: string | null
+          underlayment?: string | null
           updated_at?: string
           waterproofing?: string | null
         }
@@ -210,9 +475,149 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          expected_date: string | null
+          id: string
+          notes: string | null
+          po_number: string
+          project_id: string | null
+          status: string
+          supplier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          po_number: string
+          project_id?: string | null
+          status?: string
+          supplier: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_date?: string | null
+          id?: string
+          notes?: string | null
+          po_number?: string
+          project_id?: string | null
+          status?: string
+          supplier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_assignments: {
+        Row: {
+          created_at: string
+          crew_id: string | null
+          id: string
+          kind: string
+          notes: string | null
+          project_id: string
+          span_days: number
+          status: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          crew_id?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          project_id: string
+          span_days?: number
+          status?: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          crew_id?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          project_id?: string
+          span_days?: number
+          status?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_assignments_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_checklist_items: {
+        Row: {
+          created_at: string
+          done: boolean
+          id: string
+          label: string
+          project_id: string
+          sort_order: number
+          updated_at: string
+          visit_date: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          label: string
+          project_id: string
+          sort_order?: number
+          updated_at?: string
+          visit_date?: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          label?: string
+          project_id?: string
+          sort_order?: number
+          updated_at?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_checklist_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_items: {
         Row: {
           area_id: string | null
+          completed_at: string | null
           created_at: string
           description: string | null
           due_date: string | null
@@ -221,6 +626,7 @@ export type Database = {
           item_type: string
           next_action: string | null
           owner: string | null
+          priority: string
           project_id: string
           status: string
           surface_id: string | null
@@ -230,6 +636,7 @@ export type Database = {
         }
         Insert: {
           area_id?: string | null
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -238,6 +645,7 @@ export type Database = {
           item_type: string
           next_action?: string | null
           owner?: string | null
+          priority?: string
           project_id: string
           status?: string
           surface_id?: string | null
@@ -247,6 +655,7 @@ export type Database = {
         }
         Update: {
           area_id?: string | null
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -255,6 +664,7 @@ export type Database = {
           item_type?: string
           next_action?: string | null
           owner?: string | null
+          priority?: string
           project_id?: string
           status?: string
           surface_id?: string | null
