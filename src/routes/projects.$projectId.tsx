@@ -103,19 +103,12 @@ function ProjectShell() {
 
         <nav className="mt-7 flex items-center gap-1 border-b border-border">
           {PROJECT_TABS.map((tab) => {
-            const active = !tab.disabled && pathname === `/projects/${projectId}`;
-            return tab.disabled ? (
-              <span
-                key={tab.label}
-                className="cursor-not-allowed px-3.5 pb-3 text-[13px] font-medium text-muted-foreground/50"
-                title="Available in a later phase"
-              >
-                {tab.label}
-              </span>
-            ) : (
+            const href = tab.to.replace("$projectId", projectId);
+            const active = pathname === href;
+            return (
               <Link
                 key={tab.label}
-                to="/projects/$projectId"
+                to={tab.to}
                 params={{ projectId }}
                 className={cn(
                   "-mb-px border-b-2 px-3.5 pb-3 text-[13px] font-semibold",
