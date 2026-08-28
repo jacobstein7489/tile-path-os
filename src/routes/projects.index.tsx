@@ -203,9 +203,10 @@ function ProjectRow({ project: p }: { project: Project }) {
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-accent"
+          className="inline-flex max-w-[165px] items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-accent"
         >
-          {p.next_move ?? "Open project"} <ArrowRight className="size-3.5" />
+          <span className="truncate">{p.next_move ?? "Open project"}</span>
+          <ArrowRight className="size-3.5 shrink-0" />
         </Link>
         {p.next_move_owner ? (
           <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>

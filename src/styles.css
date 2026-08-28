@@ -139,7 +139,7 @@
 }
 
 @utility table-head-cell {
-  padding: 0.625rem 1rem;
+  padding: 0.625rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-muted-foreground);
@@ -148,7 +148,7 @@
 }
 
 @utility table-cell-base {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.75rem;
   font-size: 0.8125rem;
   vertical-align: middle;
 }
