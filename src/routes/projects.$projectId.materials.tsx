@@ -17,7 +17,8 @@ function ProjectMaterials() {
   const { projectId } = Route.useParams();
   const { data: items = [] } = useMaterialItems(projectId);
   const [request, setRequest] = useState(false);
-  const [receiveFor, setReceiveFor] = useState<MaterialItem | null>(null);
+  const [receiveId, setReceiveId] = useState<string | null>(null);
+  const [receiveOpen, setReceiveOpen] = useState(false);
   const [detailFor, setDetailFor] = useState<MaterialItem | null>(null);
 
   const finish = items.filter((i) => i.category !== "Installation Materials");
@@ -75,7 +76,13 @@ function ProjectMaterials() {
                   <Chip tone={materialTone(m.status)}>{m.status}</Chip>
                 </Td>
                 <Td className="text-right">
-                  <Button size="sm" onClick={() => setReceiveFor(m)}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setReceiveId(m.id);
+                      setReceiveOpen(true);
+                    }}
+                  >
                     Receive
                   </Button>
                 </Td>
@@ -112,7 +119,10 @@ function ProjectMaterials() {
         </Button>
         <Button
           variant="primary"
-          onClick={() => setReceiveFor(items[0] ?? null)}
+          onClick={() => {
+            setReceiveId(null);
+            setReceiveOpen(true);
+          }}
           disabled={items.length === 0}
           {...(items.length === 0 ? { disabledReason: "No material lines yet" } : {})}
         >
@@ -126,9 +136,11 @@ function ProjectMaterials() {
       </div>
 
       <RequestMaterialModal open={request} onClose={() => setRequest(false)} projectId={projectId} />
-      {receiveFor ? (
-        <ReceiveMaterialModal item={receiveFor} onClose={() => setReceiveFor(null)} />
-      ) : null}
+      <ReceiveMaterialModal
+        open={receiveOpen}
+        onClose={() => setReceiveOpen(false)}
+        {...(receiveId ? { presetItemId: receiveId } : {})}
+      />
       {detailFor ? (
         <MaterialDetailModal item={detailFor} onClose={() => setDetailFor(null)} />
       ) : null}
