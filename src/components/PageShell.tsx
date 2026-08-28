@@ -1,0 +1,45 @@
+import type { ReactNode } from "react";
+import { AppHeader, type Crumb } from "@/components/AppHeader";
+
+export function PageShell({
+  crumbs,
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  crumbs: Crumb[];
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <AppHeader crumbs={crumbs} />
+      <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <h1 className="text-[30px] leading-tight font-bold">{title}</h1>
+            {subtitle ? <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+          </div>
+          {actions}
+        </div>
+        <div className="mt-7 space-y-6">{children}</div>
+      </div>
+    </>
+  );
+}
+
+export function ComingLater({ crumbs, title, note }: { crumbs: Crumb[]; title: string; note: string }) {
+  return (
+    <PageShell crumbs={crumbs} title={title} subtitle={note}>
+      <div className="surface flex h-56 items-center justify-center px-8 text-center">
+        <p className="max-w-md text-sm text-muted-foreground">
+          This module is intentionally not built yet. Phase 1 covers the design system, navigation,
+          Projects, the project shell, the 12-stage lifecycle and Project Overview.
+        </p>
+      </div>
+    </PageShell>
+  );
+}

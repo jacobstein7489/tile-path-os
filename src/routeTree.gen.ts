@@ -10,33 +10,138 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as MaterialsRouteImport } from './routes/materials'
+import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TodayRouteImport } from './routes/today'
+import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
+import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects.$projectId.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaterialsRoute = MaterialsRouteImport.update({
+  id: '/materials',
+  path: '/materials',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TodayRoute = TodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/materials': typeof MaterialsRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/today': typeof TodayRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
+  '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/materials': typeof MaterialsRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/today': typeof TodayRoute
+  '/projects': typeof ProjectsIndexRoute
+  '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/materials': typeof MaterialsRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/today': typeof TodayRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
+  '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/materials'
+    | '/schedule'
+    | '/settings'
+    | '/today'
+    | '/projects/$projectId'
+    | '/projects/'
+    | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/materials'
+    | '/schedule'
+    | '/settings'
+    | '/today'
+    | '/projects'
+    | '/projects/$projectId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/materials'
+    | '/schedule'
+    | '/settings'
+    | '/today'
+    | '/projects/$projectId'
+    | '/projects/'
+    | '/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
+  MaterialsRoute: typeof MaterialsRoute
+  ScheduleRoute: typeof ScheduleRoute
+  SettingsRoute: typeof SettingsRoute
+  TodayRoute: typeof TodayRoute
+  ProjectsProjectIdRoute: typeof ProjectsProjectIdRouteWithChildren
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +153,85 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/materials': {
+      id: '/materials'
+      path: '/materials'
+      fullPath: '/materials'
+      preLoaderRoute: typeof MaterialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/today': {
+      id: '/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId': {
+      id: '/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ProjectsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId/': {
+      id: '/projects/$projectId/'
+      path: '/'
+      fullPath: '/projects/$projectId/'
+      preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
   }
 }
 
+interface ProjectsProjectIdRouteChildren {
+  ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
+}
+
+const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
+  ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
+}
+
+const ProjectsProjectIdRouteWithChildren =
+  ProjectsProjectIdRoute._addFileChildren(ProjectsProjectIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
+  MaterialsRoute: MaterialsRoute,
+  ScheduleRoute: ScheduleRoute,
+  SettingsRoute: SettingsRoute,
+  TodayRoute: TodayRoute,
+  ProjectsProjectIdRoute: ProjectsProjectIdRouteWithChildren,
+  ProjectsIndexRoute: ProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
