@@ -55,7 +55,7 @@ function Crumbed({ crumb }: { crumb: Crumb }): ReactNode {
   return (
     <Link
       to={crumb.to!}
-      params={crumb.params}
+      {...(crumb.params ? { params: crumb.params } : {})}
       className="truncate font-medium hover:text-foreground"
     >
       {crumb.label}
