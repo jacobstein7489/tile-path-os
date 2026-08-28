@@ -84,9 +84,11 @@ function ProjectsPage() {
 
       <div className="surface overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-[15px] font-semibold">{filter === "All" ? "All Projects" : filter}</h2>
-          <span className="text-xs text-muted-foreground">
-            Showing {rows.length} of {projects.length} projects
+          <h2 className="text-[15px] font-semibold tracking-tight">
+            {filter === "All" ? "All Projects" : filter}
+          </h2>
+          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+            {rows.length} of {projects.length} projects
           </span>
         </div>
         <div className="overflow-x-auto">
