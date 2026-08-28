@@ -11,12 +11,12 @@ export const Route = createFileRoute("/projects/$projectId")({
 });
 
 const PROJECT_TABS = [
-  { label: "Overview", disabled: false },
-  { label: "Scope & Details", disabled: true },
-  { label: "Field", disabled: true },
-  { label: "Materials", disabled: true },
-  { label: "Files", disabled: true },
-] as const;
+  { label: "Overview", to: "/projects/$projectId" as const },
+  { label: "Scope & Details", to: "/projects/$projectId/scope" as const },
+  { label: "Field", to: "/projects/$projectId/field" as const },
+  { label: "Materials", to: "/projects/$projectId/materials" as const },
+  { label: "Files", to: "/projects/$projectId/files" as const },
+];
 
 function ProjectShell() {
   const { projectId } = Route.useParams();
