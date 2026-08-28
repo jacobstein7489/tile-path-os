@@ -97,10 +97,10 @@ function ProjectsPage() {
             <col className="w-[10%]" />
             <col className="w-[12%]" />
             <col className="w-[8%]" />
-            <col className="w-[11%]" />
-            <col className="w-[11%]" />
-            <col className="w-[13%]" />
-            <col className="w-[12%]" />
+            <col className="w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
           </colgroup>
           <thead className="border-b border-border bg-muted/50">
             <tr>
@@ -214,7 +214,7 @@ function ProjectRow({ project: p }: { project: Project }) {
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
-          className="inline-flex max-w-[165px] items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-accent"
+          className="inline-flex w-full max-w-full items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-accent"
         >
           <span className="truncate">{p.next_move ?? "Open project"}</span>
           <ArrowRight className="size-3.5 shrink-0" />
