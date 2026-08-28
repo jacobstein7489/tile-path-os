@@ -18,6 +18,7 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects.$projectId.index'
+import { Route as ProjectsProjectIdFieldRouteImport } from './routes/projects.$projectId.field'
 import { Route as ProjectsProjectIdScopeRouteImport } from './routes/projects.$projectId.scope'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProjectsProjectIdRoute,
 } as any)
+const ProjectsProjectIdFieldRoute = ProjectsProjectIdFieldRouteImport.update({
+  id: '/field',
+  path: '/field',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
 const ProjectsProjectIdScopeRoute = ProjectsProjectIdScopeRouteImport.update({
   id: '/scope',
   path: '/scope',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/today': typeof TodayRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
   '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
   '/projects': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
   '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
 }
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/today': typeof TodayRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
   '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/projects/$projectId'
     | '/projects/'
+    | '/projects/$projectId/field'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/projects'
+    | '/projects/$projectId/field'
     | '/projects/$projectId/scope'
     | '/projects/$projectId'
   id:
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/projects/$projectId'
     | '/projects/'
+    | '/projects/$projectId/field'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/'
   fileRoutesById: FileRoutesById
@@ -221,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
+    '/projects/$projectId/field': {
+      id: '/projects/$projectId/field'
+      path: '/field'
+      fullPath: '/projects/$projectId/field'
+      preLoaderRoute: typeof ProjectsProjectIdFieldRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
     '/projects/$projectId/scope': {
       id: '/projects/$projectId/scope'
       path: '/scope'
@@ -232,11 +251,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProjectsProjectIdRouteChildren {
+  ProjectsProjectIdFieldRoute: typeof ProjectsProjectIdFieldRoute
   ProjectsProjectIdScopeRoute: typeof ProjectsProjectIdScopeRoute
   ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
 }
 
 const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
+  ProjectsProjectIdFieldRoute: ProjectsProjectIdFieldRoute,
   ProjectsProjectIdScopeRoute: ProjectsProjectIdScopeRoute,
   ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
 }
