@@ -18,6 +18,10 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects.$projectId.index'
+import { Route as ProjectsProjectIdFieldRouteImport } from './routes/projects.$projectId.field'
+import { Route as ProjectsProjectIdFilesRouteImport } from './routes/projects.$projectId.files'
+import { Route as ProjectsProjectIdMaterialsRouteImport } from './routes/projects.$projectId.materials'
+import { Route as ProjectsProjectIdScopeRouteImport } from './routes/projects.$projectId.scope'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +68,27 @@ const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProjectsProjectIdRoute,
 } as any)
+const ProjectsProjectIdFieldRoute = ProjectsProjectIdFieldRouteImport.update({
+  id: '/field',
+  path: '/field',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
+const ProjectsProjectIdFilesRoute = ProjectsProjectIdFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
+const ProjectsProjectIdMaterialsRoute =
+  ProjectsProjectIdMaterialsRouteImport.update({
+    id: '/materials',
+    path: '/materials',
+    getParentRoute: () => ProjectsProjectIdRoute,
+  } as any)
+const ProjectsProjectIdScopeRoute = ProjectsProjectIdScopeRouteImport.update({
+  id: '/scope',
+  path: '/scope',
+  getParentRoute: () => ProjectsProjectIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +99,10 @@ export interface FileRoutesByFullPath {
   '/today': typeof TodayRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
+  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
+  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -84,6 +113,10 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
   '/projects': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
+  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
+  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
@@ -96,6 +129,10 @@ export interface FileRoutesById {
   '/today': typeof TodayRoute
   '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
+  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
+  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
+  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
   '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -109,6 +146,10 @@ export interface FileRouteTypes {
     | '/today'
     | '/projects/$projectId'
     | '/projects/'
+    | '/projects/$projectId/field'
+    | '/projects/$projectId/files'
+    | '/projects/$projectId/materials'
+    | '/projects/$projectId/scope'
     | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,6 +160,10 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/projects'
+    | '/projects/$projectId/field'
+    | '/projects/$projectId/files'
+    | '/projects/$projectId/materials'
+    | '/projects/$projectId/scope'
     | '/projects/$projectId'
   id:
     | '__root__'
@@ -130,6 +175,10 @@ export interface FileRouteTypes {
     | '/today'
     | '/projects/$projectId'
     | '/projects/'
+    | '/projects/$projectId/field'
+    | '/projects/$projectId/files'
+    | '/projects/$projectId/materials'
+    | '/projects/$projectId/scope'
     | '/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
@@ -209,14 +258,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
       parentRoute: typeof ProjectsProjectIdRoute
     }
+    '/projects/$projectId/field': {
+      id: '/projects/$projectId/field'
+      path: '/field'
+      fullPath: '/projects/$projectId/field'
+      preLoaderRoute: typeof ProjectsProjectIdFieldRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/files': {
+      id: '/projects/$projectId/files'
+      path: '/files'
+      fullPath: '/projects/$projectId/files'
+      preLoaderRoute: typeof ProjectsProjectIdFilesRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/materials': {
+      id: '/projects/$projectId/materials'
+      path: '/materials'
+      fullPath: '/projects/$projectId/materials'
+      preLoaderRoute: typeof ProjectsProjectIdMaterialsRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
+    '/projects/$projectId/scope': {
+      id: '/projects/$projectId/scope'
+      path: '/scope'
+      fullPath: '/projects/$projectId/scope'
+      preLoaderRoute: typeof ProjectsProjectIdScopeRouteImport
+      parentRoute: typeof ProjectsProjectIdRoute
+    }
   }
 }
 
 interface ProjectsProjectIdRouteChildren {
+  ProjectsProjectIdFieldRoute: typeof ProjectsProjectIdFieldRoute
+  ProjectsProjectIdFilesRoute: typeof ProjectsProjectIdFilesRoute
+  ProjectsProjectIdMaterialsRoute: typeof ProjectsProjectIdMaterialsRoute
+  ProjectsProjectIdScopeRoute: typeof ProjectsProjectIdScopeRoute
   ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
 }
 
 const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
+  ProjectsProjectIdFieldRoute: ProjectsProjectIdFieldRoute,
+  ProjectsProjectIdFilesRoute: ProjectsProjectIdFilesRoute,
+  ProjectsProjectIdMaterialsRoute: ProjectsProjectIdMaterialsRoute,
+  ProjectsProjectIdScopeRoute: ProjectsProjectIdScopeRoute,
   ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
 }
 

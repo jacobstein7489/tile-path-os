@@ -4,11 +4,17 @@ import type { ReactNode } from "react";
 
 export type Crumb = { label: string; to?: string; params?: Record<string, string> };
 
-export function AppHeader({ crumbs }: { crumbs: Crumb[] }) {
+export function AppHeader({
+  crumbs,
+  viewLabel = "OFFICE / ADMIN VIEW",
+}: {
+  crumbs: Crumb[];
+  viewLabel?: string;
+}) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/95 px-8 backdrop-blur">
       <nav className="flex min-w-0 items-center gap-2 text-[13px]">
-        <span className="font-semibold tracking-wide text-primary">OFFICE / ADMIN VIEW</span>
+        <span className="font-semibold tracking-wide text-primary">{viewLabel}</span>
         {crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-2 text-muted-foreground">
             <span className="text-border-strong">/</span>
