@@ -74,36 +74,48 @@ export function LifecycleTrack({
           ) : null}
         </div>
 
-        <ol className="mt-5 flex items-stretch gap-1.5">
+        <ol className="mt-5 flex items-start">
           {LIFECYCLE_STAGES.map((s, i) => {
             const done = i < current;
             const active = i === current;
+            const last = i === LIFECYCLE_STAGES.length - 1;
             return (
-              <li key={s} className="flex min-w-0 flex-1 flex-col gap-2">
-                <span
-                  className={cn(
-                    "h-[5px] rounded-full",
-                    done && "bg-primary/45",
-                    active && "bg-primary",
-                    !done && !active && "bg-track",
-                  )}
-                />
-                <span className="flex min-w-0 items-start gap-1">
-                  {done ? (
-                    <Check className="mt-[1px] size-3 shrink-0 text-primary/60" strokeWidth={3} />
-                  ) : null}
+              <li key={s} className="flex min-w-0 flex-1 flex-col items-center">
+                <div className="flex w-full items-center">
                   <span
                     className={cn(
-                      "min-w-0 text-[10.5px] leading-[1.25] tracking-tight",
-                      active
-                        ? "font-semibold text-foreground"
-                        : done
-                          ? "text-secondary-foreground"
-                          : "text-muted-foreground/70",
+                      "h-[2px] flex-1 rounded-full",
+                      i === 0 ? "opacity-0" : done || active ? "bg-primary/40" : "bg-track",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "grid size-[26px] shrink-0 place-items-center rounded-full border-2 text-[11px] font-bold transition-colors",
+                      done && "border-primary/50 bg-primary/10 text-primary",
+                      active && "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--primary-soft)]",
+                      !done && !active && "border-border-strong bg-card text-muted-foreground",
                     )}
                   >
-                    {s}
+                    {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
                   </span>
+                  <span
+                    className={cn(
+                      "h-[2px] flex-1 rounded-full",
+                      last ? "opacity-0" : done ? "bg-primary/40" : "bg-track",
+                    )}
+                  />
+                </div>
+                <span
+                  className={cn(
+                    "mt-2 px-1 text-center text-[10.5px] leading-[1.25] tracking-tight",
+                    active
+                      ? "font-semibold text-foreground"
+                      : done
+                        ? "text-secondary-foreground"
+                        : "text-muted-foreground/70",
+                  )}
+                >
+                  {s}
                 </span>
               </li>
             );
