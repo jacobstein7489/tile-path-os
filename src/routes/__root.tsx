@@ -133,7 +133,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-canvas">
         <AppSidebar />
-        <div className="ml-[248px] min-w-[1100px]">
+        <div className="ml-[248px]">
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </div>
