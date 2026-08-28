@@ -90,7 +90,18 @@ function ProjectsPage() {
           </span>
         </div>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[1120px]">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[12%]" />
+            <col className="w-[8%]" />
+            <col className="w-[11%]" />
+            <col className="w-[11%]" />
+            <col className="w-[13%]" />
+            <col className="w-[12%]" />
+          </colgroup>
           <thead className="border-b border-border bg-muted/50">
             <tr>
               {[
@@ -153,13 +164,13 @@ function ProjectRow({ project: p }: { project: Project }) {
           {p.exception_state ?? p.lifecycle_stage}
         </Chip>
       </td>
-      <td className="table-cell-base w-[120px]">
+      <td className="table-cell-base">
         <div className="flex items-center gap-2">
           <span className="w-8 text-xs font-semibold tabular-nums">{p.readiness_pct}%</span>
           <ProgressBar value={p.readiness_pct} tone="success" className="w-20" />
         </div>
       </td>
-      <td className="table-cell-base w-[130px]">
+      <td className="table-cell-base">
         {installing ? (
           <div className="flex items-center gap-2">
             <span className="w-8 text-xs font-semibold tabular-nums">{p.installation_progress}%</span>
@@ -187,7 +198,7 @@ function ProjectRow({ project: p }: { project: Project }) {
       <td className="table-cell-base">
         <Chip tone={materialTone(p.material_status)}>{p.material_status}</Chip>
       </td>
-      <td className="table-cell-base w-[200px]">
+      <td className="table-cell-base">
         {p.needs_attention ? (
           <span className="flex items-start gap-2">
             <span className="mt-1.5">
@@ -199,7 +210,7 @@ function ProjectRow({ project: p }: { project: Project }) {
           <span className="text-xs text-muted-foreground">Clear</span>
         )}
       </td>
-      <td className="table-cell-base w-[175px]">
+      <td className="table-cell-base">
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
