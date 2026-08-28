@@ -1,16 +1,37 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, HardHat, Layers, Package, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  HardHat,
+  Layers,
+  ListChecks,
+  MessageSquarePlus,
+  Package,
+  TriangleAlert,
+} from "lucide-react";
 import { ProgressBar } from "@/components/ProgressBar";
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  SectionCard,
+  Table,
+  Td,
+  Th,
+} from "@/components/kit";
+import { CreateWorkItemModal, RequestMaterialModal, type WorkItemKind } from "@/components/WorkItemDialogs";
 import { showsInstallationProgress } from "@/lib/lifecycle";
 import {
-  useAreas,
+  useAreasWithSurfaces,
   useProject,
-  useSurfaces,
-  useUpdateProject,
+  useUpdateRow,
+  useVisitChecklist,
   useWorkItems,
-  type Area,
+  type WorkItemFull,
 } from "@/lib/data";
-import { Chip, Dot, areaStatusTone, materialTone, workItemTone } from "@/lib/status";
+import { Chip, areaStatusTone, materialTone, workItemTone } from "@/lib/status";
 
 export const Route = createFileRoute("/projects/$projectId/")({
   head: () => ({
@@ -36,220 +57,233 @@ export const Route = createFileRoute("/projects/$projectId/")({
 function ProjectOverview() {
   const { projectId } = Route.useParams();
   const { data: project } = useProject(projectId);
-  const { data: areas = [] } = useAreas(projectId);
-  const { data: surfaces = [] } = useSurfaces(areas.map((a) => a.id));
-  const { data: workItems = [] } = useWorkItems(projectId);
-  const update = useUpdateProject(projectId);
+  const { areas, surfaces } = useAreasWithSurfaces(projectId);
+  const { data: items = [] } = useWorkItems(projectId);
+  const { data: checklist = [] } = useVisitChecklist(projectId);
+  const updateChecklist = useUpdateRow("visit_checklist_items");
+  const updateItem = useUpdateRow("work_items");
+  const [create, setCreate] = useState<WorkItemKind | null>(null);
+  const [material, setMaterial] = useState(false);
 
   if (!project) return null;
+
+  const areaList = areas.data ?? [];
+  const surfaceList = surfaces.data ?? [];
   const installing = showsInstallationProgress(project.lifecycle_stage);
-  const open = workItems.filter(
-    (w) => w.status !== "Complete" && w.status !== "Resolved / Approved",
-  );
+  const open = (items as WorkItemFull[]).filter((i) => i.status !== "Complete");
+  const blockers = open.filter((i) => ["Issue", "Question", "Decision"].includes(i.item_type));
+  const headline = installing ? project.installation_progress : project.readiness_pct;
 
   return (
-    <div className="space-y-5">
-      {/* Fact strip */}
-      <section className="surface grid grid-cols-4 divide-x divide-border">
-        <Fact
-          icon={<HardHat className="size-4" />}
-          label="Crew"
-          value={project.crew_lead ?? "Not assigned"}
-        />
+    <>
+      {/* Progress headline */}
+      <section className="surface px-6 py-5">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              {installing ? "Overall installation progress" : "Setup & readiness completion"}
+            </div>
+            <div className="mt-1 flex items-end gap-2.5">
+              <span className="text-[34px] leading-none font-semibold tracking-[-0.02em]">
+                {headline}%
+              </span>
+              <span className="pb-1 text-[13px] text-muted-foreground">
+                {installing
+                  ? `${surfaceList.filter((s) => s.status === "Complete").length} of ${surfaceList.length} surfaces complete`
+                  : (project.readiness_note ?? "Readiness explains what is still outstanding.")}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Chip tone={materialTone(project.material_status)}>
+              Materials: {project.material_status}
+            </Chip>
+            {project.crew_lead ? <Chip tone="blue">Crew: {project.crew_lead}</Chip> : null}
+          </div>
+        </div>
+        <ProgressBar value={headline} className="mt-4" />
+        {!installing ? (
+          <p className="mt-2.5 text-[12px] text-muted-foreground">
+            Installation progress is intentionally hidden until the project reaches Installation.
+          </p>
+        ) : null}
+      </section>
+
+      {/* Facts */}
+      <div className="mt-5 grid grid-cols-4 gap-4">
+        <Fact icon={<HardHat className="size-4" />} label="Crew" value={project.crew_lead ?? "Not assigned"} />
         <Fact
           icon={<CalendarDays className="size-4" />}
           label="Dates"
-          value={`${fmt(project.start_date)} → ${fmt(project.target_date)}`}
-        />
-        <Fact
-          icon={<Package className="size-4" />}
-          label="Materials"
-          value={<Chip tone={materialTone(project.material_status)}>{project.material_status}</Chip>}
+          value={
+            project.start_date || project.target_date
+              ? `${project.start_date ?? "—"} → ${project.target_date ?? "—"}`
+              : "Not scheduled"
+          }
         />
         <Fact
           icon={<Layers className="size-4" />}
           label="Scope"
-          value={`${areas.length} area${areas.length === 1 ? "" : "s"} · ${surfaces.length} surface${surfaces.length === 1 ? "" : "s"}`}
+          value={`${areaList.length} areas · ${surfaceList.length} surfaces`}
         />
-      </section>
+        <Fact
+          icon={<Package className="size-4" />}
+          label="Next move owner"
+          value={project.next_move_owner ?? "Unassigned"}
+        />
+      </div>
 
-      <div className="grid grid-cols-3 gap-5">
-        {/* Readiness / progress */}
-        <section className="surface col-span-2 overflow-hidden">
-          <div className="border-b border-border px-6 py-5">
-            <div className="flex items-start justify-between gap-6">
-              <div>
-                <h2 className="text-[15px] font-semibold tracking-tight">
-                  {installing ? "Installation Progress" : "Setup & Readiness"}
-                </h2>
-                <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
-                  {installing
-                    ? "True physical progress rolled up from surfaces to areas to project."
-                    : "Physical installation has not started, so setup and readiness completion is shown instead of an installation percentage."}
-                </p>
+      {/* Next move */}
+      <SectionCard
+        className="mt-5"
+        title="Next move"
+        icon={<ListChecks className="size-[18px] text-primary" />}
+        bodyClassName="px-5 pb-5"
+      >
+        <p className="text-[14px] font-medium">
+          {project.next_move ?? "No next move recorded yet."}
+        </p>
+        {project.needs_attention ? (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] text-danger">
+            <TriangleAlert className="size-4" /> {project.needs_attention}
+          </p>
+        ) : null}
+      </SectionCard>
+
+      {/* Three panels */}
+      <div className="mt-5 grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-start gap-5">
+        <SectionCard
+          title="Where the job stands"
+          subtitle="Surface progress rolls up to the area, then to the project."
+          bodyClassName="divide-y divide-border"
+        >
+          {areaList.map((a) => (
+            <div key={a.id} className="px-5 py-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-[13px] font-semibold">{a.name}</span>
+                  <Chip tone={areaStatusTone(a.status)}>{a.status}</Chip>
+                </div>
+                <span className="text-[12.5px] font-semibold tabular-nums">{a.progress_pct}%</span>
               </div>
-              <div className="text-right">
-                <div className="text-[30px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
-                  {installing ? project.installation_progress : project.readiness_pct}
-                  <span className="text-lg font-medium text-muted-foreground">%</span>
-                </div>
-                <div className="mt-1 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                  {installing ? "Installed" : "Ready"}
-                </div>
+              <ProgressBar value={a.progress_pct} className="mt-2" />
+              <div className="mt-1.5 text-[11.5px] text-muted-foreground">
+                {surfaceList.filter((s) => s.area_id === a.id && s.status === "Complete").length} of{" "}
+                {surfaceList.filter((s) => s.area_id === a.id).length} surfaces complete
               </div>
             </div>
-            <ProgressBar
-              value={installing ? project.installation_progress : project.readiness_pct}
-              tone={installing ? "primary" : "success"}
-              className="mt-4 h-2"
-            />
-            {project.readiness_note ? (
-              <p className="mt-4 rounded-lg border border-info/15 bg-info-soft px-3 py-2.5 text-xs leading-relaxed text-info">
-                <span className="font-semibold">Why: </span>
-                {project.readiness_note}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="divide-y divide-border">
-            {areas.length === 0 ? (
-              <p className="px-6 py-5 text-xs text-muted-foreground">
-                No areas entered yet — the estimator builds areas and surfaces during takeoff.
-              </p>
-            ) : (
-              areas.map((area) => (
-                <AreaRow
-                  key={area.id}
-                  area={area}
-                  installing={installing}
-                  surfaces={surfaces.filter((s) => s.area_id === area.id)}
-                />
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Next move + blockers */}
-        <div className="space-y-5">
-          <section className="surface px-6 py-5">
-            <h2 className="text-[15px] font-semibold tracking-tight">Next Move</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              One action, one owner. This is what moves the project forward.
-            </p>
-            <input
-              value={project.next_move ?? ""}
-              onChange={(e) => update.mutate({ next_move: e.target.value })}
-              placeholder="What must happen next?"
-              className="mt-3.5 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] font-medium outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-            />
-            <label className="mt-2.5 block text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-              Owner
-              <input
-                value={project.next_move_owner ?? ""}
-                onChange={(e) => update.mutate({ next_move_owner: e.target.value })}
-                placeholder="Who owns it?"
-                className="mt-1.5 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13px] font-normal tracking-normal text-foreground normal-case outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              />
-            </label>
-          </section>
-
-          <section className="surface overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="text-[15px] font-semibold tracking-tight">Blockers & Open Items</h2>
-              <span className="text-[11px] font-semibold text-muted-foreground tabular-nums">
-                {open.length}
-              </span>
-            </div>
-            {open.length === 0 ? (
-              <p className="px-6 py-5 text-xs text-muted-foreground">
-                Nothing is holding this project up.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {open.map((item) => (
-                  <li key={item.id} className="px-6 py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-[13px] leading-snug font-medium">{item.title}</span>
-                      <Chip tone={workItemTone(item.status)}>{item.status}</Chip>
-                    </div>
-                    <div className="mt-1.5 text-xs text-muted-foreground">
-                      {item.item_type}
-                      {item.waiting_on ? ` · Waiting on ${item.waiting_on}` : ""}
-                      {item.owner ? ` · Owner ${item.owner}` : ""}
-                    </div>
-                    {item.next_action ? (
-                      <div className="mt-2 flex items-start gap-2 text-xs text-secondary-foreground">
-                        <span className="mt-1.5">
-                          <Dot tone="blue" />
-                        </span>
-                        <span>{item.next_action}</span>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {project.needs_attention ? (
-            <section className="surface border-danger/20 bg-danger-soft/50 px-6 py-4">
-              <div className="flex items-start gap-2.5">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" />
-                <div>
-                  <div className="text-[13px] font-semibold text-danger">Needs Attention</div>
-                  <p className="mt-1 text-xs leading-relaxed text-secondary-foreground">
-                    {project.needs_attention}
-                  </p>
-                </div>
-              </div>
-            </section>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AreaRow({
-  area,
-  installing,
-  surfaces,
-}: {
-  area: Area;
-  installing: boolean;
-  surfaces: { id: string; name: string; progress_pct: number; status: string }[];
-}) {
-  return (
-    <div className="px-6 py-4">
-      <div className="flex items-center gap-3">
-        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{area.name}</span>
-        <Chip tone={areaStatusTone(area.status)}>{area.status}</Chip>
-        <div className="flex w-48 items-center gap-3">
-          <ProgressBar
-            value={installing ? area.progress_pct : 0}
-            tone={installing ? "primary" : "muted"}
-          />
-          <span className="w-9 text-right text-xs font-semibold text-muted-foreground tabular-nums">
-            {installing ? `${area.progress_pct}%` : "—"}
-          </span>
-        </div>
-      </div>
-      {surfaces.length > 0 ? (
-        <ul className="mt-2.5 space-y-1.5 border-l border-border pl-4">
-          {surfaces.map((s) => (
-            <li key={s.id} className="flex items-center gap-3 text-xs">
-              <span className="min-w-0 flex-1 truncate text-secondary-foreground">{s.name}</span>
-              <span className="text-muted-foreground">{s.status}</span>
-              {installing ? (
-                <span className="w-9 text-right font-medium tabular-nums">{s.progress_pct}%</span>
-              ) : (
-                <span className="w-9" />
-              )}
-            </li>
           ))}
-        </ul>
+          {areaList.length === 0 ? (
+            <EmptyState
+              title="No areas yet"
+              note="Areas and surfaces are created during estimating and reused after approval."
+            />
+          ) : null}
+        </SectionCard>
+
+        <SectionCard
+          title="Today's site visit"
+          icon={<ClipboardCheck className="size-[18px] text-primary" />}
+          bodyClassName="space-y-2.5 px-5 pb-5"
+        >
+          {checklist.map((c) => (
+            <Checkbox
+              key={c.id}
+              checked={c.done}
+              strike
+              label={c.label}
+              onChange={(next) => updateChecklist.mutate({ id: c.id, patch: { done: next } })}
+            />
+          ))}
+          {checklist.length === 0 ? (
+            <p className="text-[12.5px] text-muted-foreground">
+              No visit items yet — add a task or field update below.
+            </p>
+          ) : null}
+        </SectionCard>
+      </div>
+
+      {/* Open items */}
+      <SectionCard
+        className="mt-5"
+        title="Open items and next actions"
+        badge={<Chip tone={blockers.length ? "red" : "green"}>{open.length} open</Chip>}
+      >
+        {open.length === 0 ? (
+          <EmptyState title="Nothing outstanding" note="Blockers, questions and needs appear here." />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>Type</Th>
+                <Th>Item</Th>
+                <Th>Owner</Th>
+                <Th>Waiting on</Th>
+                <Th>Impact</Th>
+                <Th>Next action</Th>
+                <Th className="text-right">Resolve</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {open.map((i) => (
+                <tr key={i.id} className="border-t border-border">
+                  <Td>
+                    <Chip tone={workItemTone(i.item_type)}>{i.item_type}</Chip>
+                  </Td>
+                  <Td>
+                    <div className="font-semibold">{i.title}</div>
+                    {i.description ? (
+                      <div className="text-muted-foreground">{i.description}</div>
+                    ) : null}
+                  </Td>
+                  <Td>{i.owner ?? "—"}</Td>
+                  <Td>{i.waiting_on ?? "—"}</Td>
+                  <Td>{i.impact ?? "—"}</Td>
+                  <Td>{i.next_action ?? "—"}</Td>
+                  <Td className="text-right">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        updateItem.mutate({
+                          id: i.id,
+                          patch: { status: "Complete", completed_at: new Date().toISOString() },
+                        })
+                      }
+                    >
+                      <CheckCircle2 className="size-3.5" /> Resolve
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </SectionCard>
+
+      {/* Footer quick actions */}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        {(["Field Update", "Task", "Question", "Punch / Return Item"] as WorkItemKind[]).map((k) => (
+          <Button key={k} onClick={() => setCreate(k)}>
+            <MessageSquarePlus className="size-4" /> Add {k}
+          </Button>
+        ))}
+        <Button variant="primary" onClick={() => setMaterial(true)}>
+          <Package className="size-4" /> Request material
+        </Button>
+        <Link
+          to="/projects/$projectId/scope"
+          params={{ projectId }}
+          className="ml-auto text-[13px] font-semibold text-primary hover:underline"
+        >
+          Open Scope &amp; Details →
+        </Link>
+      </div>
+
+      {create ? (
+        <CreateWorkItemModal open onClose={() => setCreate(null)} kind={create} projectId={projectId} />
       ) : null}
-    </div>
+      <RequestMaterialModal open={material} onClose={() => setMaterial(false)} projectId={projectId} />
+    </>
   );
 }
 
@@ -260,25 +294,15 @@ function Fact({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: React.ReactNode;
+  value: string;
 }) {
   return (
-    <div className="flex items-start gap-3 px-5 py-4">
-      <span className="mt-0.5 text-muted-foreground">{icon}</span>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          {label}
-        </div>
-        <div className="mt-1 truncate text-[13px] font-medium">{value}</div>
+    <div className="surface px-4 py-3.5">
+      <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
+        <span className="text-primary">{icon}</span>
+        {label}
       </div>
+      <div className="mt-1 truncate text-[13.5px] font-semibold">{value}</div>
     </div>
   );
-}
-
-function fmt(date: string | null) {
-  if (!date) return "—";
-  return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 }
