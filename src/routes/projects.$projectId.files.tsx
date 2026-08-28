@@ -34,7 +34,7 @@ function FilesTab() {
 
   return (
     <>
-      <InfoBanner tone="info">
+      <InfoBanner>
         File uploads arrive with storage in a later pass. Document references you add here are
         persistent project records and stay linked to this project.
       </InfoBanner>
