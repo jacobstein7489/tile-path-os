@@ -153,9 +153,11 @@ export type Database = {
           needs_attention: string | null
           next_move: string | null
           next_move_owner: string | null
+          project_manager: string | null
           project_type: string
           readiness_note: string | null
           readiness_pct: number
+          stage_steps_done: string[]
           start_date: string | null
           target_date: string | null
           updated_at: string
@@ -174,9 +176,11 @@ export type Database = {
           needs_attention?: string | null
           next_move?: string | null
           next_move_owner?: string | null
+          project_manager?: string | null
           project_type?: string
           readiness_note?: string | null
           readiness_pct?: number
+          stage_steps_done?: string[]
           start_date?: string | null
           target_date?: string | null
           updated_at?: string
@@ -195,9 +199,11 @@ export type Database = {
           needs_attention?: string | null
           next_move?: string | null
           next_move_owner?: string | null
+          project_manager?: string | null
           project_type?: string
           readiness_note?: string | null
           readiness_pct?: number
+          stage_steps_done?: string[]
           start_date?: string | null
           target_date?: string | null
           updated_at?: string
