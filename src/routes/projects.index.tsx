@@ -89,7 +89,8 @@ function ProjectsPage() {
             Showing {rows.length} of {projects.length} projects
           </span>
         </div>
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px]">
           <thead className="border-b border-border bg-muted/50">
             <tr>
               {[
@@ -127,6 +128,7 @@ function ProjectsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </PageShell>
   );
@@ -136,7 +138,7 @@ function ProjectRow({ project: p }: { project: Project }) {
   const installing = showsInstallationProgress(p.lifecycle_stage);
   return (
     <tr className="border-b border-border last:border-0 hover:bg-muted/40">
-      <td className="table-cell-base">
+      <td className="table-cell-base whitespace-nowrap">
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
@@ -185,7 +187,7 @@ function ProjectRow({ project: p }: { project: Project }) {
       <td className="table-cell-base">
         <Chip tone={materialTone(p.material_status)}>{p.material_status}</Chip>
       </td>
-      <td className="table-cell-base max-w-[240px]">
+      <td className="table-cell-base w-[230px] min-w-[200px]">
         {p.needs_attention ? (
           <span className="flex items-start gap-2">
             <span className="mt-1.5">
@@ -197,7 +199,7 @@ function ProjectRow({ project: p }: { project: Project }) {
           <span className="text-xs text-muted-foreground">Clear</span>
         )}
       </td>
-      <td className="table-cell-base">
+      <td className="table-cell-base w-[190px]">
         <Link
           to="/projects/$projectId"
           params={{ projectId: p.id }}
