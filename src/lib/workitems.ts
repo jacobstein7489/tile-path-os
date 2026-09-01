@@ -23,8 +23,6 @@ export const WORK_ITEM_TYPES = [
 
 export type WorkItemType = (typeof WORK_ITEM_TYPES)[number];
 
-export const OWNERS = ["Office", "PM", "Site Manager", "Designer", "Crew"] as const;
-
 export const WORK_ITEM_STATUSES = [
   "Open",
   "Waiting",
