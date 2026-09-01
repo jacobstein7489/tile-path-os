@@ -1,15 +1,16 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Building2,
   CalendarDays,
   FolderClosed,
   LayoutDashboard,
+  LogOut,
   Package,
   Settings,
   Sun,
-  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/kit";
+import { ROLE_LABELS, signOut, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
 const NAV = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
@@ -22,6 +23,9 @@ const NAV = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: profile } = useMyProfile();
+  const { data: roles = [] } = useMyRoles();
+  const primaryRole = roles[0];
 
   return (
     <aside className="fixed inset-y-0 left-0 flex w-[248px] flex-col border-r border-border bg-sidebar">
@@ -46,35 +50,42 @@ export function AppSidebar() {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground hover:bg-muted",
               )}
             >
-              <item.icon className="size-[18px]" strokeWidth={active ? 2.2 : 1.8} />
+              <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="m-3 rounded-xl border border-border bg-muted/40 p-4">
+      <div className="m-3 rounded-xl border border-border bg-muted/40 p-3.5">
         <div className="flex items-center gap-3">
-          <div className="grid size-9 place-items-center rounded-full bg-background text-muted-foreground ring-1 ring-border">
-            <Building2 className="size-4" />
-          </div>
+          <Avatar
+            initials={profile?.initials || profile?.full_name?.slice(0, 1) || "?"}
+            tone={profile?.avatar_tone ?? "blue"}
+            size={34}
+          />
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold">Cobblestone Tile Co.</div>
-            <div className="truncate text-xs text-muted-foreground">New York, NY</div>
+            <div className="truncate text-[13px] font-semibold">
+              {profile?.full_name || "Signed in"}
+            </div>
+            <div className="truncate text-[11.5px] text-muted-foreground">
+              {primaryRole ? ROLE_LABELS[primaryRole] : "No role assigned"}
+            </div>
           </div>
         </div>
-        <Link
-          to="/dashboard"
-          className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline"
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-secondary-foreground transition-colors hover:text-foreground"
         >
-          Company Overview <ArrowRight className="size-3.5" />
-        </Link>
+          <LogOut className="size-3.5" /> Sign out
+        </button>
       </div>
     </aside>
   );
