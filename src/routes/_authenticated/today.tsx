@@ -15,9 +15,7 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
-
-/** Current user. Later this comes from auth; every user reads the same records. */
-const ME = { name: "Yaakov", role: "Site Manager" };
+import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -39,12 +37,17 @@ export const Route = createFileRoute("/_authenticated/today")({
 
 function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
+  const { user } = useAuthUser();
+  const { data: profile } = useMyProfile();
   const save = useSaveWorkItem();
   const [active, setActive] = useState<WorkItemRow | null>(null);
   const [capture, setCapture] = useState(false);
   const [justDone, setJustDone] = useState<Record<string, boolean>>({});
 
-  const mine = useMemo(() => items.filter((i) => i.owner === ME.role), [items]);
+  const mine = useMemo(
+    () => items.filter((i) => i.owner_user_id ? i.owner_user_id === user?.id : i.owner === profile?.full_name),
+    [items, profile?.full_name, user?.id],
+  );
   const open = mine.filter((i) => !isComplete(i) || justDone[i.id]);
   const completed = mine.filter((i) => isComplete(i) && !justDone[i.id]);
   const blocked = mine.filter((i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"));
@@ -81,8 +84,10 @@ function TodayPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} viewLabel="SITE MANAGER VIEW" />
-      <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
-        <h1 className="text-[30px] leading-tight font-bold">Good morning, {ME.name}</h1>
+      <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
+        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">
+          Good morning, {profile?.full_name?.split(" ")[0] || "there"}
+        </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
 
         <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
@@ -124,7 +129,7 @@ function TodayPage() {
                       <li
                         key={i.id}
                         className={cn(
-                          "flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
+                          "group flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
                           done && "bg-success-soft/40",
                         )}
                       >
@@ -177,7 +182,7 @@ function TodayPage() {
                   {completed.map((i) => (
                     <li
                       key={i.id}
-                      className="flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
+                      className="group flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
                     >
                       <Checkbox checked onChange={() => toggle(i, false)} />
                       <button

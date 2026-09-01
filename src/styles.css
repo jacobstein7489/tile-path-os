@@ -7,7 +7,7 @@
 /*
  * Cobblestone Tile OS design system.
  * Premium light SaaS: soft neutral canvas, white surfaces, thin borders,
- * blue primary actions, restrained green / amber / red / violet status colors.
+ * blue primary actions and restrained green / amber / red status colors.
  * All colors are oklch tokens. Never hardcode colors in components.
  */
 
@@ -50,8 +50,6 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-neutral-chip: var(--neutral-chip);
-  --color-violet: var(--violet);
-  --color-violet-soft: var(--violet-soft);
   --color-track: var(--track);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -97,8 +95,6 @@
   --danger-soft: oklch(0.96 0.03 22);
   --info: oklch(0.55 0.16 250);
   --info-soft: oklch(0.96 0.025 250);
-  --violet: oklch(0.53 0.19 300);
-  --violet-soft: oklch(0.96 0.03 300);
   --neutral-chip: oklch(0.965 0.003 250);
   --track: oklch(0.92 0.005 255);
   --sidebar: oklch(1 0 0);

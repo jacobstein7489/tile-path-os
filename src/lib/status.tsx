@@ -12,7 +12,7 @@ export const chipVariants = cva(
         green: "bg-success-soft text-success",
         amber: "bg-warning-soft text-warning",
         red: "bg-danger-soft text-danger",
-        violet: "bg-violet-soft text-violet",
+        violet: "bg-neutral-chip text-secondary-foreground",
       },
     },
     defaultVariants: { tone: "neutral" },
@@ -40,7 +40,7 @@ export function Dot({ tone }: { tone: ChipTone }) {
     green: "bg-success",
     amber: "bg-warning",
     red: "bg-danger",
-    violet: "bg-violet",
+    violet: "bg-muted-foreground",
   };
   return <span className={cn("inline-block size-2 shrink-0 rounded-full", map[tone])} />;
 }
@@ -53,10 +53,10 @@ export function stageTone(stage: string, exception: string | null): ChipTone {
       return "blue";
     case "Complete":
       return "green";
-    case "Punch / Return":
-      return "violet";
+    case "Closeout / Return":
+      return "amber";
     case "Scheduled":
-    case "Ready to Schedule":
+    case "Ready":
       return "green";
     default:
       return "neutral";

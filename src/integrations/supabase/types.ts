@@ -177,6 +177,7 @@ export type Database = {
       }
       material_items: {
         Row: {
+          archived_at: string | null
           area_id: string | null
           category: string
           created_at: string
@@ -201,6 +202,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           area_id?: string | null
           category?: string
           created_at?: string
@@ -225,6 +227,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           area_id?: string | null
           category?: string
           created_at?: string
@@ -424,6 +427,7 @@ export type Database = {
       }
       project_areas: {
         Row: {
+          archived_at: string | null
           created_at: string
           id: string
           name: string
@@ -435,6 +439,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           id?: string
           name: string
@@ -446,6 +451,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -628,6 +634,7 @@ export type Database = {
       }
       project_surfaces: {
         Row: {
+          archived_at: string | null
           area_id: string
           created_at: string
           detail_confirmed: boolean
@@ -660,6 +667,7 @@ export type Database = {
           waterproofing: string | null
         }
         Insert: {
+          archived_at?: string | null
           area_id: string
           created_at?: string
           detail_confirmed?: boolean
@@ -692,6 +700,7 @@ export type Database = {
           waterproofing?: string | null
         }
         Update: {
+          archived_at?: string | null
           area_id?: string
           created_at?: string
           detail_confirmed?: boolean
@@ -1086,6 +1095,7 @@ export type Database = {
           item_type: string
           next_action: string | null
           owner: string | null
+          owner_user_id: string | null
           priority: string
           project_id: string
           status: string
@@ -1093,6 +1103,9 @@ export type Database = {
           title: string
           updated_at: string
           waiting_on: string | null
+          waiting_on_company_id: string | null
+          waiting_on_contact_id: string | null
+          waiting_on_user_id: string | null
           workflow_step: string | null
         }
         Insert: {
@@ -1107,6 +1120,7 @@ export type Database = {
           item_type: string
           next_action?: string | null
           owner?: string | null
+          owner_user_id?: string | null
           priority?: string
           project_id: string
           status?: string
@@ -1114,6 +1128,9 @@ export type Database = {
           title: string
           updated_at?: string
           waiting_on?: string | null
+          waiting_on_company_id?: string | null
+          waiting_on_contact_id?: string | null
+          waiting_on_user_id?: string | null
           workflow_step?: string | null
         }
         Update: {
@@ -1128,6 +1145,7 @@ export type Database = {
           item_type?: string
           next_action?: string | null
           owner?: string | null
+          owner_user_id?: string | null
           priority?: string
           project_id?: string
           status?: string
@@ -1135,6 +1153,9 @@ export type Database = {
           title?: string
           updated_at?: string
           waiting_on?: string | null
+          waiting_on_company_id?: string | null
+          waiting_on_contact_id?: string | null
+          waiting_on_user_id?: string | null
           workflow_step?: string | null
         }
         Relationships: [
@@ -1159,6 +1180,20 @@ export type Database = {
             referencedRelation: "project_surfaces"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "work_items_waiting_on_company_id_fkey"
+            columns: ["waiting_on_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_waiting_on_contact_id_fkey"
+            columns: ["waiting_on_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1166,15 +1201,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_admin_data: { Args: { _user_id: string }; Returns: boolean }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_staff: { Args: { _user_id: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       app_role:

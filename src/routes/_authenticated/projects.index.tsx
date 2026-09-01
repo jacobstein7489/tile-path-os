@@ -1,14 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Plus, Search } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
-import { Button } from "@/components/kit";
+import { Button, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
 import { PageShell } from "@/components/PageShell";
 import { ProgressBar } from "@/components/ProgressBar";
 import { useProjects, type Project } from "@/lib/data";
 import { PROJECT_FILTERS, matchesFilter, showsInstallationProgress, type ProjectFilter } from "@/lib/lifecycle";
 import { Chip, Dot, materialTone, stageTone } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -53,34 +52,19 @@ function ProjectsPage() {
         </Button>
       }
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {PROJECT_FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={cn(
-                "h-9 rounded-lg border px-3.5 text-[13px] font-medium transition-colors",
-                filter === f
-                  ? "border-primary/30 bg-primary-soft text-primary"
-                  : "border-border bg-background text-secondary-foreground hover:bg-muted",
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="relative">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search projects"
-              className="h-9 w-[220px] rounded-lg border border-border bg-background pr-3 pl-9 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
-            />
-          </label>
+      <div className="flex flex-wrap items-center gap-4">
+        <FilterGroup
+          options={PROJECT_FILTERS.map((f) => ({ value: f, label: f }))}
+          value={filter}
+          onChange={(v) => setFilter(v as ProjectFilter)}
+        />
+        <div className="ml-auto">
+          <SearchInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects"
+            className="w-[220px]"
+          />
         </div>
       </div>
 
@@ -93,8 +77,7 @@ function ProjectsPage() {
             {rows.length} of {projects.length} projects
           </span>
         </div>
-        <div className="overflow-x-auto">
-        <table className="w-full table-fixed">
+        <Table className="table-fixed">
           <colgroup>
             <col className="w-[13%]" />
             <col className="w-[10%]" />
@@ -106,8 +89,8 @@ function ProjectsPage() {
             <col className="w-[14%]" />
             <col className="w-[14%]" />
           </colgroup>
-          <thead className="border-b border-border bg-muted/60">
-            <tr>
+          <thead>
+            <tr className="bg-muted/60">
               {[
                 "Project",
                 "Stage",
@@ -119,31 +102,28 @@ function ProjectsPage() {
                 "Needs Attention",
                 "Next Move",
               ].map((h) => (
-                <th key={h} className="table-head-cell">
-                  {h}
-                </th>
+                <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={9} className="table-cell-base text-muted-foreground">
+                <Td colSpan={9} className="text-muted-foreground">
                   Loading projects…
-                </td>
+                </Td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="table-cell-base text-muted-foreground">
+                <Td colSpan={9} className="text-muted-foreground text-center py-12">
                   No projects in this view.
-                </td>
+                </Td>
               </tr>
             ) : (
               rows.map((p) => <ProjectRow key={p.id} project={p} />)
             )}
           </tbody>
-        </table>
-        </div>
+        </Table>
       </div>
       <NewProjectModal open={creating} onClose={() => setCreating(false)} />
     </PageShell>
@@ -156,24 +136,24 @@ function ProjectRow({ project: p }: { project: Project }) {
   return (
     <tr
       onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
-      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/50"
+      className="group cursor-pointer transition-colors hover:bg-muted/50"
     >
-      <td className="table-cell-base whitespace-nowrap">
+      <Td className="whitespace-nowrap group-last:border-0">
         <span className="text-[13px] font-semibold tracking-tight text-foreground">{p.name}</span>
         <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         <Chip tone={stageTone(p.lifecycle_stage, p.exception_state)}>
           {p.exception_state ?? p.lifecycle_stage}
         </Chip>
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         <div className="flex items-center gap-2">
           <ProgressBar value={p.readiness_pct} tone="success" className="w-16" />
           <span className="text-xs font-semibold tabular-nums">{p.readiness_pct}%</span>
         </div>
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         {installing ? (
           <div className="flex items-center gap-2">
             <ProgressBar value={p.installation_progress} className="w-16" />
@@ -182,8 +162,8 @@ function ProjectRow({ project: p }: { project: Project }) {
         ) : (
           <span className="text-xs text-muted-foreground/70">Not started</span>
         )}
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         {p.crew_lead ? (
           <span className="flex items-center gap-2">
             <span className="grid size-6 place-items-center rounded-full bg-primary-soft text-[10px] font-semibold text-primary">
@@ -194,14 +174,14 @@ function ProjectRow({ project: p }: { project: Project }) {
         ) : (
           <span className="text-xs text-muted-foreground">Unassigned</span>
         )}
-      </td>
-      <td className="table-cell-base whitespace-nowrap text-muted-foreground">
+      </Td>
+      <Td className="whitespace-nowrap text-muted-foreground group-last:border-0">
         {fmt(p.start_date)} → {fmt(p.target_date)}
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         <Chip tone={materialTone(p.material_status)}>{p.material_status}</Chip>
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         {p.needs_attention ? (
           <span className="flex items-start gap-2">
             <span className="mt-1.5">
@@ -212,8 +192,8 @@ function ProjectRow({ project: p }: { project: Project }) {
         ) : (
           <span className="text-xs text-muted-foreground">Clear</span>
         )}
-      </td>
-      <td className="table-cell-base">
+      </Td>
+      <Td className="group-last:border-0">
         <span className="inline-flex w-full max-w-full items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">
           <span className="truncate">{p.next_move ?? "Open project"}</span>
           <ArrowRight className="size-3.5 shrink-0" />
@@ -221,7 +201,7 @@ function ProjectRow({ project: p }: { project: Project }) {
         {p.next_move_owner ? (
           <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>
         ) : null}
-      </td>
+      </Td>
     </tr>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
@@ -15,7 +16,7 @@ export function KpiCard({
   hint,
 }: {
   icon: ReactNode;
-  tone?: "blue" | "green" | "amber" | "red" | "violet" | "neutral";
+  tone?: "blue" | "green" | "amber" | "red" | "neutral";
   label: string;
   value: ReactNode;
   hint?: string;
@@ -25,7 +26,6 @@ export function KpiCard({
     green: "bg-success-soft text-success",
     amber: "bg-warning-soft text-warning",
     red: "bg-danger-soft text-danger",
-    violet: "bg-violet-soft text-violet",
     neutral: "bg-neutral-chip text-muted-foreground",
   };
   const valueTone: Record<string, string> = {
@@ -33,7 +33,6 @@ export function KpiCard({
     green: "text-success",
     amber: "text-warning",
     red: "text-danger",
-    violet: "text-violet",
     neutral: "text-foreground",
   };
   return (
@@ -111,33 +110,49 @@ export function UnderlineTabs({
   onChange,
   className,
 }: {
-  items: { value: string; label: string; count?: number }[];
+  items: { value: string; label: string; count?: number; to?: string; params?: any }[];
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   className?: string;
 }) {
   return (
     <nav className={cn("flex items-center gap-1 border-b border-border", className)}>
       {items.map((item) => {
         const active = item.value === value;
-        return (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => onChange(item.value)}
-            className={cn(
-              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] transition-colors",
-              active
-                ? "border-primary font-semibold text-primary"
-                : "border-transparent font-medium text-secondary-foreground hover:text-foreground",
-            )}
-          >
+        const base = cn(
+          "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+          active
+            ? "border-primary font-semibold text-primary"
+            : "border-transparent font-medium text-secondary-foreground hover:text-foreground",
+        );
+
+        const content = (
+          <>
             {item.label}
             {item.count ? (
               <span className="grid size-[18px] place-items-center rounded-full bg-danger text-[10px] font-bold text-primary-foreground">
                 {item.count}
               </span>
             ) : null}
+          </>
+        );
+
+        if (item.to) {
+          return (
+            <Link key={item.value} to={item.to as any} params={item.params} className={base}>
+              {content}
+            </Link>
+          );
+        }
+
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onChange?.(item.value)}
+            className={base}
+          >
+            {content}
           </button>
         );
       })}
@@ -185,6 +200,44 @@ export function Button({
   );
 }
 
+export function FilterGroup({
+  options,
+  value,
+  onChange,
+  className,
+}: {
+  options: { value: string; label: string; count?: number }[];
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "h-9 rounded-lg border px-3.5 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/25",
+              active
+                ? "border-primary/30 bg-primary-soft text-primary"
+                : "border-border bg-background text-secondary-foreground hover:bg-muted",
+            )}
+          >
+            {opt.label}
+            {opt.count !== undefined ? (
+              <span className="ml-1.5 text-[12px] tabular-nums opacity-70">{opt.count}</span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function QuickActionButton({
   icon,
   label,
@@ -201,7 +254,7 @@ export function QuickActionButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "surface flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:border-primary/40 hover:bg-accent/60",
+        "surface flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:border-primary/40 hover:bg-accent/60 outline-none focus-visible:ring-2 focus-visible:ring-primary/25",
         className,
       )}
     >
@@ -353,7 +406,7 @@ export function Modal({
 /* ---------------- Form fields ---------------- */
 
 const fieldClass =
-  "h-9 w-full rounded-lg border border-border bg-background px-3 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25";
+  "h-9 w-full rounded-lg border border-border bg-background px-3 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25 transition-all";
 
 export function Field({
   label,
@@ -377,6 +430,21 @@ export function Field({
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(fieldClass, props.className)} />;
+}
+
+export function SearchInput({
+  className,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        {...props}
+        className={cn(fieldClass, "pl-9")}
+      />
+    </div>
+  );
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -408,7 +476,7 @@ export function Checkbox({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-start gap-3 text-left"
+      className="flex items-start gap-3 text-left group outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-sm px-1 -mx-1"
     >
       <span
         className={cn(
@@ -425,8 +493,9 @@ export function Checkbox({
       {label ? (
         <span
           className={cn(
-            "text-[13px] leading-snug",
+            "text-[13px] leading-snug transition-colors",
             strike && checked ? "text-muted-foreground line-through" : "text-foreground",
+            !checked && "group-hover:text-primary",
           )}
         >
           {label}
@@ -724,7 +793,6 @@ export function Avatar({
     green: "bg-success-soft text-success",
     amber: "bg-warning-soft text-warning",
     red: "bg-danger-soft text-danger",
-    violet: "bg-violet-soft text-violet",
     neutral: "bg-neutral-chip text-muted-foreground",
   };
   return (

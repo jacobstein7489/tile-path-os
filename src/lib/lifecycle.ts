@@ -1,15 +1,13 @@
 export const LIFECYCLE_STAGES = [
   "New Submission",
   "Estimating",
-  "Proposal / Revision",
-  "Approved",
-  "Office Setup",
-  "Site Walkthrough / Decisions",
-  "Materials & Readiness",
-  "Ready to Schedule",
+  "Proposal",
+  "Awarded",
+  "Setup",
+  "Ready",
   "Scheduled",
   "Installation",
-  "Punch / Return",
+  "Closeout / Return",
   "Complete",
 ] as const;
 
@@ -20,16 +18,16 @@ export type ExceptionState = (typeof EXCEPTION_STATES)[number];
 
 export const STAGE_SUB_WORKFLOWS: Partial<Record<LifecycleStage, string[]>> = {
   Estimating: ["Takeoff", "Questions", "Estimate", "Internal Review", "Ready to Send"],
-  "Office Setup": [
+  Setup: [
     "Project Info",
-    "Areas & Surfaces",
-    "Tile / Grout / Metals",
-    "Installation Systems",
-    "Site Requirements",
+    "Scope & Plans",
+    "Tiles & Finishes",
+    "Install Materials",
+    "Site Conditions",
     "Setup Review",
   ],
-  "Materials & Readiness": ["Requirements Confirmed", "To Order", "Ordered", "Receiving", "Ready"],
-  "Punch / Return": [
+  Ready: ["Scope Ready", "Finishes Ready", "Materials On Site", "Crew Ready", "Schedule Ready"],
+  "Closeout / Return": [
     "Punch Open",
     "Waiting on Material / Trade",
     "Ready for Return",
@@ -72,19 +70,11 @@ export const PROJECT_FILTERS = [
 export type ProjectFilter = (typeof PROJECT_FILTERS)[number];
 
 const FILTER_STAGES: Record<Exclude<ProjectFilter, "All" | "On Hold">, LifecycleStage[]> = {
-  Preconstruction: [
-    "New Submission",
-    "Estimating",
-    "Proposal / Revision",
-    "Approved",
-    "Office Setup",
-    "Site Walkthrough / Decisions",
-    "Materials & Readiness",
-  ],
-  Ready: ["Ready to Schedule"],
+  Preconstruction: ["New Submission", "Estimating", "Proposal", "Awarded", "Setup"],
+  Ready: ["Ready"],
   Scheduled: ["Scheduled"],
   Installation: ["Installation"],
-  Closeout: ["Punch / Return"],
+  Closeout: ["Closeout / Return"],
   Complete: ["Complete"],
 };
 

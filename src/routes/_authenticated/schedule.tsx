@@ -77,35 +77,35 @@ function SchedulePage() {
   const unassigned = projects.filter(
     (p) =>
       !p.exception_state &&
-      !["Complete", "New Submission", "Estimating", "Proposal / Revision"].includes(
+      !["Complete", "New Submission", "Estimating", "Proposal"].includes(
         p.lifecycle_stage,
       ) &&
       !assignments.some((a) => a.project_id === p.id && a.crew_id),
   );
   const returnVisits = weekAssignments.filter((a) => a.kind === "Return Visit");
-  const finishingSoon = projects.filter((p) => p.lifecycle_stage === "Punch / Return");
+  const finishingSoon = projects.filter((p) => p.lifecycle_stage === "Closeout / Return");
 
   const readyToAssign = projects
     .filter((p) =>
-      ["Punch / Return", "Ready to Schedule", "Office Setup", "Materials & Readiness"].includes(
+      ["Closeout / Return", "Ready", "Setup"].includes(
         p.lifecycle_stage,
       ),
     )
     .slice(0, 4);
 
   const readyLabel = (p: Project) =>
-    p.lifecycle_stage === "Punch / Return"
+    p.lifecycle_stage === "Closeout / Return"
       ? p.needs_attention
         ? { text: "Confirm touch-ups", kind: "Return Visit" }
         : { text: "Assign return visit", kind: "Return Visit" }
-      : p.lifecycle_stage === "Ready to Schedule"
+      : p.lifecycle_stage === "Ready"
         ? { text: "Assign crew and resume", kind: "Tile / Grout" }
         : { text: "Start setup", kind: "Tile / Grout" };
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
-      <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
+      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
         <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Schedule &amp; Crews</h1>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           View crew schedules, manage assignments and plan the week ahead.
@@ -135,7 +135,7 @@ function SchedulePage() {
           />
           <KpiCard
             icon={<Flag className="size-5" />}
-            tone="violet"
+            tone="amber"
             label="Jobs Finishing Soon"
             value={finishingSoon.length}
             hint="keep momentum going"
@@ -344,7 +344,7 @@ function SchedulePage() {
                     ? `Return visit scheduled for ${values.work_date}`
                     : `Crew ${crewName ?? "TBD"} scheduled for ${values.work_date}`,
                 next_move_owner: "Office",
-                ...(assignFor.project.lifecycle_stage === "Ready to Schedule"
+                ...(assignFor.project.lifecycle_stage === "Ready"
                   ? { lifecycle_stage: "Scheduled" }
                   : {}),
               },

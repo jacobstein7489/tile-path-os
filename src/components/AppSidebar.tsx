@@ -28,17 +28,16 @@ export function AppSidebar() {
   const primaryRole = roles[0];
 
   return (
-    <aside className="fixed inset-y-0 left-0 flex w-[248px] flex-col border-r border-border bg-sidebar">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[232px] flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center gap-2.5 px-5 pt-6 pb-7">
-        <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+        <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
             <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
           </svg>
         </div>
-        <div className="text-[15px] leading-tight font-bold tracking-tight">
-          Cobblestone
-          <br />
-          Tile OS
+        <div className="text-[14px] leading-[1.15] font-bold tracking-[-0.02em]">
+          COBBLESTONE
+          <div className="mt-0.5 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground">TILE OS</div>
         </div>
       </div>
 
@@ -63,7 +62,7 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="m-3 rounded-xl border border-border bg-muted/40 p-3.5">
+      <div className="m-3 rounded-xl border border-border bg-card p-3.5 shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-3">
           <Avatar
             initials={profile?.initials || profile?.full_name?.slice(0, 1) || "?"}
