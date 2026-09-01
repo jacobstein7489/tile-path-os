@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
