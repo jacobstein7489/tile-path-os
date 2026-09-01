@@ -1,15 +1,10 @@
 import { Check, ChevronRight, Lock } from "lucide-react";
-import {
-  LIFECYCLE_STAGES,
-  STAGE_SUB_WORKFLOWS,
-  nextStage,
-  stageIndex,
-} from "@/lib/lifecycle";
+import { LIFECYCLE_STAGES, STAGE_SUB_WORKFLOWS, nextStage, stageIndex } from "@/lib/lifecycle";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
- * Reusable FULL 12-stage master lifecycle. Status/context above the project —
+ * Reusable full 10-stage master lifecycle. Status/context above the project —
  * never a navigation menu. The stage sub-workflow is rendered as a visually
  * separate band so it can never be confused with the master lifecycle.
  */
@@ -92,7 +87,8 @@ export function LifecycleTrack({
                     className={cn(
                       "grid size-[26px] shrink-0 place-items-center rounded-full border-2 text-[11px] font-bold transition-colors",
                       done && "border-primary/50 bg-primary/10 text-primary",
-                      active && "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--primary-soft)]",
+                      active &&
+                        "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--primary-soft)]",
                       !done && !active && "border-border-strong bg-card text-muted-foreground",
                     )}
                   >

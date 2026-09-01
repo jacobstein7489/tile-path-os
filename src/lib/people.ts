@@ -125,8 +125,9 @@ export function useSaveCompany() {
         if (error) throw error;
         return;
       }
-      const { error } = await supabase.from("companies").insert(values);
+      const { data, error } = await supabase.from("companies").insert(values).select("*").single();
       if (error) throw error;
+      return data as Company;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["companies"] });
@@ -157,8 +158,9 @@ export function useSaveContact() {
         if (error) throw error;
         return;
       }
-      const { error } = await supabase.from("contacts").insert(values);
+      const { data, error } = await supabase.from("contacts").insert(values).select("*").single();
       if (error) throw error;
+      return data as Contact;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["contacts"] });

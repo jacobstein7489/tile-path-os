@@ -405,7 +405,7 @@ function MaterialTable({
               <tr key={m.id} className="hover:bg-muted/40">
                 <Td className="font-semibold">{m.name}</Td>
                 <Td>
-                  <Chip tone={m.category === "Finish Tile" ? "blue" : m.category === "Grout & Metals" ? "violet" : "green"}>
+                  <Chip tone={m.category === "Finish Tile" ? "blue" : m.category === "Grout & Metals" ? "amber" : "green"}>
                     {m.category}
                   </Chip>
                 </Td>
@@ -481,7 +481,7 @@ function MaterialTable({
               <div className="text-[11.5px] text-muted-foreground">{m.spec ?? "—"}</div>
             </Td>
             <Td>
-              <Chip tone={m.category === "Finish Tile" ? "blue" : m.category === "Grout & Metals" ? "violet" : "green"}>
+              <Chip tone={m.category === "Finish Tile" ? "blue" : m.category === "Grout & Metals" ? "amber" : "green"}>
                 {m.category}
               </Chip>
             </Td>

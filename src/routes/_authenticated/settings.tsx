@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
 import {
   Avatar,
@@ -38,6 +40,7 @@ import {
   type Contact,
 } from "@/lib/people";
 import { useCrews, useInsertRow, useUpdateRow } from "@/lib/data";
+import { inviteEmployee } from "@/lib/employees.functions";
 
 const TABS = ["Users & roles", "Companies", "Contacts", "Crews"] as const;
 const ROLE_ORDER: AppRole[] = [
@@ -88,16 +91,17 @@ function SettingsPage() {
         value={tab}
         onChange={setTab}
       />
-      {!perms.canAdminData ? (
+      {!perms.canManageLibraries ? (
         <InfoBanner>
-          You can view these libraries. Editing people, roles and companies is limited to
-          Administrators, the General Manager and Office Coordinators.
+          You can view these libraries. Company, contact and crew maintenance is limited to
+          Administrators, the General Manager and Office Coordinators. Employee access is
+          Administrator-only.
         </InfoBanner>
       ) : null}
-      {tab === "Users & roles" ? <UsersTab canEdit={perms.canAdminData} /> : null}
-      {tab === "Companies" ? <CompaniesTab canEdit={perms.canAdminData} /> : null}
-      {tab === "Contacts" ? <ContactsTab canEdit={perms.canAdminData} /> : null}
-      {tab === "Crews" ? <CrewsTab canEdit={perms.canAdminData} /> : null}
+      {tab === "Users & roles" ? <UsersTab canEdit={perms.canManageUsers} /> : null}
+      {tab === "Companies" ? <CompaniesTab canEdit={perms.canManageLibraries} /> : null}
+      {tab === "Contacts" ? <ContactsTab canEdit={perms.canManageLibraries} /> : null}
+      {tab === "Crews" ? <CrewsTab canEdit={perms.canManageLibraries} /> : null}
     </PageShell>
   );
 }
@@ -109,6 +113,7 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
   const { data: roleRows = [] } = useUserRoles();
   const toggleRole = useToggleRole();
   const [editing, setEditing] = useState<Profile | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   const rolesByUser = useMemo(() => {
     const map = new Map<string, AppRole[]>();
@@ -121,6 +126,13 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
       <SectionCard
         title="Employees"
         subtitle="Every person who signs in. Roles decide what they can see and change."
+        actions={
+          canEdit ? (
+            <Button variant="primary" onClick={() => setInviting(true)}>
+              <Plus className="size-3.5" /> Invite employee
+            </Button>
+          ) : undefined
+        }
       >
         {isLoading ? (
           <TableSkeleton cols={4} />
@@ -188,7 +200,74 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
           onClose={() => setEditing(null)}
         />
       ) : null}
+      <InviteEmployeeModal open={inviting} onClose={() => setInviting(false)} />
     </>
+  );
+}
+
+function InviteEmployeeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ fullName: "", email: "", role: "viewer" as AppRole });
+  const invite = useMutation({
+    mutationFn: () => inviteEmployee({ data: form }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      void queryClient.invalidateQueries({ queryKey: ["user-roles"] });
+      toast.success("Employee invitation sent");
+      setForm({ fullName: "", email: "", role: "viewer" });
+      onClose();
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Invitation failed"),
+  });
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Invite employee"
+      subtitle="Creates a controlled employee account and sends a secure sign-in invitation."
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            loading={invite.isPending}
+            disabled={!form.fullName.trim() || !form.email.trim()}
+            onClick={() => invite.mutate()}
+          >
+            Send invitation
+          </Button>
+        </>
+      }
+    >
+      <Field label="Full name">
+        <TextInput
+          value={form.fullName}
+          onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
+        />
+      </Field>
+      <Field label="Work email">
+        <TextInput
+          type="email"
+          value={form.email}
+          onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+        />
+      </Field>
+      <Field label="Initial role">
+        <Select
+          value={form.role}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, role: event.target.value as AppRole }))
+          }
+        >
+          {ROLE_ORDER.map((role) => (
+            <option key={role} value={role}>
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </Modal>
   );
 }
 
@@ -671,15 +750,18 @@ function ContactModal({ contact, onClose }: { contact: Contact | null; onClose: 
 
 /* ----------------------------------- Crews ----------------------------------- */
 
-const TONES = ["blue", "green", "amber", "violet", "neutral"];
+const TONES = ["blue", "green", "amber", "neutral"];
 
 function CrewsTab({ canEdit }: { canEdit: boolean }) {
   const { data: crews = [], isLoading } = useCrews();
   const insert = useInsertRow("crews");
   const update = useUpdateRow("crews");
-  const [open, setOpen] = useState<null | { id?: string; name: string; initials: string; tone: string }>(
-    null,
-  );
+  const [open, setOpen] = useState<null | {
+    id?: string;
+    name: string;
+    initials: string;
+    tone: string;
+  }>(null);
 
   return (
     <>

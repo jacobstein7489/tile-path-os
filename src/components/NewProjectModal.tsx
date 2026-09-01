@@ -124,7 +124,8 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
           onChange={(next) => set("customer_company_id", next)}
           placeholder="Search customers…"
           onCreate={async (label) => {
-            await saveCompany.mutateAsync({ values: { name: label, kind: "customer" } });
+            const company = await saveCompany.mutateAsync({ values: { name: label, kind: "customer" } });
+            if (company) set("customer_company_id", company.id);
           }}
           createLabel="Add customer"
         />
@@ -138,7 +139,8 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
             onChange={(next) => set("gc_company_id", next)}
             placeholder="Search companies…"
             onCreate={async (label) => {
-              await saveCompany.mutateAsync({ values: { name: label, kind: "gc" } });
+              const company = await saveCompany.mutateAsync({ values: { name: label, kind: "gc" } });
+              if (company) set("gc_company_id", company.id);
             }}
             createLabel="Add company"
           />
@@ -150,9 +152,10 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
             onChange={(next) => set("primary_contact_id", next)}
             placeholder="Search contacts…"
             onCreate={async (label) => {
-              await saveContact.mutateAsync({
+              const contact = await saveContact.mutateAsync({
                 values: { full_name: label, company_id: form.customer_company_id },
               });
+              if (contact) set("primary_contact_id", contact.id);
             }}
             createLabel="Add contact"
           />
