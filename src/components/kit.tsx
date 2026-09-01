@@ -221,7 +221,7 @@ export function FilterGroup({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "h-9 cursor-pointer rounded-lg border px-3.5 text-[13px] font-medium outline-none transition-colors duration-150 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/25",
+              "h-9 shrink-0 cursor-pointer whitespace-nowrap rounded-lg border px-3.5 text-[13px] font-semibold outline-none transition-colors duration-150 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/25",
               active
                 ? "border-primary/30 bg-primary-soft text-primary"
                 : "border-border bg-background text-secondary-foreground hover:bg-muted",

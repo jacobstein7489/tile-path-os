@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
@@ -80,7 +80,7 @@ function ProjectsPage() {
         </Button>
       }
     >
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <FilterGroup
           options={PRIMARY_PROJECT_FILTERS.map((f) => ({ value: f, label: f }))}
           value={filter}
@@ -97,17 +97,17 @@ function ProjectsPage() {
             <option key={f}>{f}</option>
           ))}
         </Select>
-        <div className="ml-auto">
+        <div className="w-full md:ml-auto md:w-auto">
           <SearchInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search projects"
-            className="w-[220px]"
+            className="w-full md:w-[240px]"
           />
         </div>
       </div>
 
-      <div className="surface overflow-hidden">
+      <div className="surface hidden overflow-hidden md:block">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-[15px] font-semibold tracking-tight">
             {filter === "All" ? "All Projects" : filter}
@@ -163,6 +163,57 @@ function ProjectsPage() {
           </tbody>
         </Table>
       </div>
+      {/* Mobile: cards instead of a squeezed table. */}
+      <div className="space-y-2.5 md:hidden">
+        {isLoading ? (
+          <div className="surface px-4 py-8 text-[13px] text-muted-foreground">Loading projects…</div>
+        ) : rows.length === 0 ? (
+          <div className="surface px-4 py-10 text-center text-[13px] text-muted-foreground">
+            No projects in this view.
+          </div>
+        ) : (
+          rows.map((p) => {
+            const work = workByProject.get(p.id) ?? [];
+            const lead = work[0];
+            const installing = showsInstallationProgress(p.lifecycle_stage);
+            return (
+              <Link
+                key={p.id}
+                to="/projects/$projectId"
+                params={{ projectId: p.id }}
+                className="surface block px-4 py-3.5 transition-colors duration-150 active:bg-muted"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[15px] leading-snug font-bold tracking-[-0.01em]">{p.name}</p>
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">
+                      {p.exception_state ?? p.lifecycle_stage} · {p.project_type}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[12.5px] font-semibold tabular-nums">
+                    {installing ? p.installation_progress : p.readiness_pct}%
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <ProgressBar
+                    value={installing ? p.installation_progress : p.readiness_pct}
+                    tone="primary"
+                  />
+                </div>
+                <p className="mt-2.5 text-[13px] leading-snug font-semibold">
+                  {lead ? lead.title : "No open work"}
+                </p>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">
+                  {[p.crew_lead ?? "Unassigned", fmt(p.start_date) + " → " + fmt(p.target_date)].join(
+                    " · ",
+                  )}
+                </p>
+              </Link>
+            );
+          })
+        )}
+      </div>
+
       <NewProjectModal open={creating} onClose={() => setCreating(false)} />
     </PageShell>
   );
@@ -199,17 +250,21 @@ function ProjectRow({
       </Td>
       <Td className="group-last:border-0">
         <span className="flex items-start gap-2 text-[12.5px] font-medium">
-          <span className="mt-[5px]">
-            <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
+          {p.exception_state ? (
+            <span className="mt-[5px]">
+              <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
+            </span>
+          ) : null}
+          <span className="min-w-0 leading-snug text-secondary-foreground">
+            {p.exception_state ?? p.lifecycle_stage}
           </span>
-          <span className="min-w-0 leading-snug">{p.exception_state ?? p.lifecycle_stage}</span>
         </span>
       </Td>
       <Td className="group-last:border-0">
         <div className="flex items-center gap-2">
           <ProgressBar
             value={installing ? p.installation_progress : p.readiness_pct}
-            tone={installing ? "primary" : "success"}
+            tone="primary"
             className="w-12"
           />
           <span className="text-xs font-semibold tabular-nums">
@@ -237,10 +292,12 @@ function ProjectRow({
       </Td>
       <Td className="group-last:border-0">
         <span className="flex items-start gap-2 text-[12.5px]">
-          <span className="mt-[5px]">
-            <Dot tone={materialTone(p.material_status)} />
-          </span>
-          <span className="min-w-0 leading-snug">{p.material_status}</span>
+          {["red", "amber"].includes(materialTone(p.material_status)) ? (
+            <span className="mt-[5px]">
+              <Dot tone={materialTone(p.material_status)} />
+            </span>
+          ) : null}
+          <span className="min-w-0 leading-snug text-secondary-foreground">{p.material_status}</span>
         </span>
       </Td>
       {/* Single operational column, sourced from the same open Work Items as Company Work. */}

@@ -10,7 +10,16 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
-import { Combobox, EmptyState, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
+import {
+  Button,
+  Combobox,
+  EmptyState,
+  FilterGroup,
+  SearchInput,
+  Table,
+  Td,
+  Th,
+} from "@/components/kit";
 import { Highlight } from "@/components/InlineEdit";
 import { profileOptions, useProfiles } from "@/lib/people";
 import {
@@ -74,19 +83,20 @@ function StarButton({ item, onToggle }: { item: WorkItemRow; onToggle: () => voi
         onToggle();
       }}
       className={cn(
-        "grid size-9 cursor-pointer place-items-center rounded-lg outline-none",
+        "-m-1 grid size-11 cursor-pointer place-items-center rounded-full outline-none",
         "transition-[background-color,transform] duration-150 active:scale-90",
-        "hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30",
+        on ? "hover:bg-warning-soft" : "hover:bg-muted",
+        "focus-visible:ring-2 focus-visible:ring-primary/30",
       )}
     >
       <Star
         className={cn(
-          "size-[17px] transition-colors duration-150",
+          "size-[18px] transition-[color,transform] duration-150",
           on
-            ? "fill-warning text-warning"
-            : "text-muted-foreground/50 hover:text-secondary-foreground",
+            ? "scale-110 fill-warning text-warning"
+            : "text-muted-foreground/60 hover:scale-110 hover:text-foreground",
         )}
-        strokeWidth={on ? 2 : 1.8}
+        strokeWidth={on ? 2 : 1.9}
       />
     </button>
   );
@@ -104,34 +114,34 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
         e.stopPropagation();
         onChange(!done);
       }}
-      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="-m-1 grid size-11 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,transform] duration-150 hover:bg-success-soft active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       <span
         className={cn(
-          "grid size-[18px] place-items-center rounded-[5px] border",
-          "transition-[background-color,border-color,transform,opacity] duration-150",
+          "grid size-[20px] place-items-center rounded-full border-[1.5px]",
+          "transition-[background-color,border-color,transform] duration-150",
           done
             ? "scale-110 border-success bg-success text-primary-foreground"
-            : "border-border-strong bg-background opacity-60 group-hover:scale-105 group-hover:opacity-100",
+            : "border-border-strong bg-background text-transparent group-hover:border-success/70 group-hover:text-success/50",
         )}
       >
-
         <svg
           viewBox="0 0 20 20"
           className={cn(
-            "size-3 transition-opacity duration-150",
-            done ? "opacity-100" : "opacity-0",
+            "size-3 transition-transform duration-150",
+            done ? "scale-100" : "scale-75",
           )}
           fill="none"
           stroke="currentColor"
           strokeWidth={3}
         >
-          <path d="M4 10.5l4 4 8-8" strokeLinecap="round" />
+          <path d="M4 10.5l4 4 8-8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     </button>
   );
 }
+
 
 export function WorkList({
   items,
@@ -321,18 +331,19 @@ export function WorkList({
     });
   };
 
-  const addItem = async (projectKey: string, title: string) => {
-    const t = title.trim();
+  const addItem = async (projectKey: string, draft: Partial<WorkItemRow> & { title: string }) => {
+    const t = draft.title.trim();
     if (!t) return;
     await create.mutateAsync([
       {
+        ...draft,
         project_id: projectKey === "unassigned" ? null : projectKey,
         item_type: "Task",
         title: t,
         status: "Open",
       },
     ]);
-    toast.success("Added");
+    toast.success("Item added");
   };
 
   /* ---------------- Desktop rows ---------------- */
@@ -351,7 +362,7 @@ export function WorkList({
   );
 
   const HeaderCells = ({ withProject }: { withProject: boolean }) => (
-    <tr className="bg-muted/60">
+    <tr className="bg-muted/70">
       <Th>
         <span className="sr-only">Important</span>★
       </Th>
@@ -367,7 +378,7 @@ export function WorkList({
 
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
-    <div className="surface sticky top-[104px] z-[9] hidden overflow-hidden md:block">
+    <div className="surface sticky top-[152px] z-[9] hidden overflow-hidden md:block">
       <Table className="table-fixed">
         <Cols withProject={false} />
         <thead>
@@ -505,31 +516,34 @@ export function WorkList({
                 }
               }}
               className={cn(
-                "flex cursor-pointer items-start gap-2 px-3 py-3 transition-colors duration-150 active:bg-muted",
+                "flex min-h-[64px] cursor-pointer items-start gap-3 px-3 py-3.5 transition-colors duration-150 active:bg-muted",
                 done && "bg-success-soft/70",
                 selectedId === i.id && !done && "bg-primary-soft/70",
               )}
             >
-              <StarButton item={i} onToggle={() => toggleStar(i)} />
+              <span className="pt-0.5">
+                <StarButton item={i} onToggle={() => toggleStar(i)} />
+              </span>
               <div className="min-w-0 flex-1">
                 {withProject ? (
-                  <p className="text-[11.5px] font-semibold text-muted-foreground">
+                  <p className="truncate text-[11.5px] font-semibold text-muted-foreground">
                     <Highlight text={projectLabel(i)} query={q} />
                   </p>
                 ) : null}
                 <p
                   className={cn(
-                    "text-[14px] font-medium",
+                    "text-[14.5px] leading-snug font-semibold",
                     done && "text-muted-foreground line-through",
                   )}
                 >
                   <Highlight text={i.title} query={q} />
                 </p>
-                <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                  {i.owner ?? "Unassigned"} · {i.next_action ?? "Open item"}
+                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                  {i.owner ?? "Unassigned"}
+                  {i.next_action ? ` · ${i.next_action}` : ""}
                 </p>
                 {i.waiting_on || i.due_date ? (
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-[12px]">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                     {i.waiting_on ? (
                       <span className="flex items-center gap-1.5 text-warning">
                         <span className="size-1.5 rounded-full bg-warning" />
@@ -542,8 +556,11 @@ export function WorkList({
                   </p>
                 ) : null}
               </div>
-              <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
+              <span className="pt-0.5">
+                <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
+              </span>
             </div>
+
           </li>
         );
       })}
@@ -569,46 +586,156 @@ export function WorkList({
     </>
   );
 
+  /** Deliberate inline composer: title first, optional detail fields alongside. */
   const AddRow = ({ projectKey }: { projectKey: string }) => {
     const open = Boolean(adding[projectKey]);
-    const [value, setValue] = useState("");
-    return (
-      <div className="border-t border-border/70 px-3 py-2">
-        {open ? (
-          <input
-            autoFocus
-            value={value}
-            aria-label="What needs to happen"
-            placeholder="What needs to happen…"
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={() => {
-              if (!value.trim()) setAdding((s) => ({ ...s, [projectKey]: false }));
-            }}
-            onKeyDown={async (e) => {
-              if (e.key === "Escape") {
-                setValue("");
-                setAdding((s) => ({ ...s, [projectKey]: false }));
-              }
-              if (e.key === "Enter") {
-                const t = value;
-                setValue("");
-                await addItem(projectKey, t);
-              }
-            }}
-            className="h-9 w-full rounded-lg border border-ring bg-background px-3 text-[13px] outline-none ring-2 ring-ring/25"
-          />
-        ) : (
+    const [title, setTitle] = useState("");
+    const [ownerId, setOwnerId] = useState<string | null>(null);
+    const [waiting, setWaiting] = useState("");
+    const [due, setDue] = useState("");
+    const [next, setNext] = useState("");
+    const [notes, setNotes] = useState("");
+    const [expanded, setExpanded] = useState(false);
+
+    const close = () => {
+      setAdding((s) => ({ ...s, [projectKey]: false }));
+      setTitle("");
+      setOwnerId(null);
+      setWaiting("");
+      setDue("");
+      setNext("");
+      setNotes("");
+      setExpanded(false);
+    };
+
+    const submit = async () => {
+      if (!title.trim()) return;
+      await addItem(projectKey, {
+        title: title.trim(),
+        owner_user_id: ownerId,
+        owner: owners.find((o) => o.value === ownerId)?.label ?? null,
+        waiting_on: waiting.trim() || null,
+        due_date: due || null,
+        next_action: next.trim() || null,
+        description: notes.trim() || null,
+      });
+      close();
+    };
+
+    if (!open) {
+      return (
+        <div className="border-t border-border/70 px-3 py-2">
           <button
             type="button"
             onClick={() => setAdding((s) => ({ ...s, [projectKey]: true }))}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary-soft hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            <Plus className="size-3.5" /> Add item
+            <Plus className="size-4" /> Add item
           </button>
-        )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="border-t border-border/70 bg-muted/30 px-3 py-3">
+        <div className="space-y-2.5">
+          <input
+            autoFocus
+            value={title}
+            aria-label="What needs to happen"
+            placeholder="What needs to happen…"
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") close();
+              if (e.key === "Enter") void submit();
+            }}
+            className="h-10 w-full rounded-lg border border-ring bg-background px-3 text-[13.5px] font-medium outline-none ring-2 ring-ring/25"
+          />
+          {expanded ? (
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Owner
+                </span>
+                <Combobox
+                  options={owners}
+                  value={ownerId}
+                  onChange={setOwnerId}
+                  placeholder="Unassigned"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Needed by
+                </span>
+                <input
+                  type="date"
+                  value={due}
+                  aria-label="Needed by"
+                  onChange={(e) => setDue(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Waiting on
+                </span>
+                <input
+                  value={waiting}
+                  aria-label="Waiting on"
+                  placeholder="Nobody"
+                  onChange={(e) => setWaiting(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Next action
+                </span>
+                <input
+                  value={next}
+                  aria-label="Next action"
+                  placeholder="The very next step"
+                  onChange={(e) => setNext(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Notes
+                </span>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  aria-label="Notes"
+                  placeholder="Context, decisions, anything useful."
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+            </div>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!title.trim()}>
+              Add item
+            </Button>
+            <Button size="sm" onClick={close}>
+              Cancel
+            </Button>
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="ml-auto cursor-pointer text-[12px] font-semibold text-primary outline-none hover:underline"
+            >
+              {expanded ? "Fewer details" : "More details"}
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
+
 
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
@@ -617,64 +744,70 @@ export function WorkList({
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
-        <FilterGroup
-          options={filters.map((f) => ({
-            value: f,
-            label: f === "Important" ? "★ Important" : f,
-            count: counts[f] ?? 0,
-          }))}
-          value={filter}
-          onChange={setFilter}
-        />
-        {showViewToggle ? (
-          <>
-            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-              {VIEWS.map((v) => (
+      <div className="sticky top-14 z-10 -mx-1 space-y-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
+        <div className="-mx-0.5 overflow-x-auto px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterGroup
+            className="flex-nowrap"
+            options={filters.map((f) => ({
+              value: f,
+              label: f === "Important" ? "★ Important" : f,
+              count: counts[f] ?? 0,
+            }))}
+            value={filter}
+            onChange={setFilter}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          {showViewToggle ? (
+            <>
+              <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
+                {VIEWS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => chooseView(v)}
+                    className={cn(
+                      "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-semibold outline-none",
+                      "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+                      view === v
+                        ? "bg-primary-soft text-primary"
+                        : "text-secondary-foreground hover:bg-muted",
+                    )}
+                  >
+                    {v === "Grouped by Project" ? "Grouped" : v}
+                  </button>
+                ))}
+              </div>
+              {view === "Grouped by Project" ? (
                 <button
-                  key={v}
                   type="button"
-                  onClick={() => chooseView(v)}
-                  className={cn(
-                    "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
-                    "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                    view === v
-                      ? "bg-primary-soft text-primary"
-                      : "text-secondary-foreground hover:bg-muted",
-                  )}
+                  onClick={() => setAllCollapsed(anyExpanded)}
+                  className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-semibold text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
                 >
-                  {v === "Grouped by Project" ? "Grouped" : v}
+                  {anyExpanded ? (
+                    <ChevronsDownUp className="size-3.5" />
+                  ) : (
+                    <ChevronsUpDown className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {anyExpanded ? "Collapse all" : "Expand all"}
+                  </span>
                 </button>
-              ))}
-            </div>
-            {view === "Grouped by Project" ? (
-              <button
-                type="button"
-                onClick={() => setAllCollapsed(anyExpanded)}
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border px-2 text-[12.5px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
-              >
-                {anyExpanded ? (
-                  <ChevronsDownUp className="size-3.5" />
-                ) : (
-                  <ChevronsUpDown className="size-3.5" />
-                )}
-                {anyExpanded ? "Collapse all" : "Expand all"}
-              </button>
-            ) : null}
-          </>
-        ) : null}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+              ) : null}
+            </>
+          ) : null}
           {showSearch ? (
             <SearchInput
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search work  /"
-              className="w-[170px] lg:w-[220px]"
+              placeholder="Search work, owner, next action…"
+              className="min-w-0 flex-1 md:max-w-[340px]"
             />
           ) : null}
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="surface px-5 py-10 text-[13px] text-muted-foreground">Loading work…</div>
@@ -700,13 +833,13 @@ export function WorkList({
             const isCollapsed = q ? false : Boolean(collapsed[key]);
             return (
               <div key={key} className="surface overflow-hidden">
-                <div className="flex items-center gap-1.5 border-b border-border-strong/70 bg-muted/70 px-2.5 py-2.5">
+                <div className="flex items-center gap-2 border-b border-border-strong/70 bg-muted/60 px-2 py-2.5 md:px-2.5">
                   <button
                     type="button"
                     aria-label={isCollapsed ? "Expand project" : "Collapse project"}
                     aria-expanded={!isCollapsed}
                     onClick={() => setCollapsed((s) => ({ ...s, [key]: !isCollapsed }))}
-                    className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-background hover:text-foreground active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
+                    className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-background hover:text-foreground active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     {isCollapsed ? (
                       <ChevronRight className="size-4" />
@@ -714,9 +847,9 @@ export function WorkList({
                       <ChevronDown className="size-4" />
                     )}
                   </button>
-                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <div className="min-w-0">
                     {key === "unassigned" ? (
-                      <span className="text-[14.5px] font-semibold tracking-tight">
+                      <span className="block truncate text-[15px] font-bold tracking-[-0.01em]">
                         {group.name}
                       </span>
                     ) : (
@@ -724,23 +857,23 @@ export function WorkList({
                         to="/projects/$projectId"
                         params={{ projectId: key }}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[14.5px] font-semibold tracking-tight transition-colors duration-150 hover:text-primary hover:underline"
+                        className="block truncate text-[15px] font-bold tracking-[-0.01em] transition-colors duration-150 hover:text-primary hover:underline"
                       >
                         <Highlight text={group.name} query={q} />
                       </Link>
                     )}
-                    <span className="text-[12px] text-muted-foreground tabular-nums">
+                    <span className="mt-0.5 block text-[11.5px] font-medium text-muted-foreground tabular-nums">
                       {[
                         openCount ? `${openCount} open` : "",
                         starCount ? `${starCount} important` : "",
                         waitCount ? `${waitCount} waiting` : "",
                       ]
                         .filter(Boolean)
-                        .map((s) => `· ${s}`)
-                        .join(" ")}
+                        .join(" · ") || "No open work"}
                     </span>
                   </div>
                 </div>
+
 
                 <div
                   className={cn(

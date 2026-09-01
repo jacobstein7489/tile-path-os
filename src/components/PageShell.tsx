@@ -20,8 +20,8 @@ export function PageShell({
       <main className="mx-auto w-full max-w-[1480px] px-4 pt-6 pb-14 md:px-7 md:pt-7">
         <div className="flex flex-wrap items-start justify-between gap-4 md:gap-6">
           <div>
-            <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">{title}</h1>
-            {subtitle ? <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p> : null}
+            <h1 className="text-[24px] leading-tight font-bold tracking-[-0.03em] md:text-[29px]">{title}</h1>
+            {subtitle ? <p className="mt-1.5 max-w-2xl text-[13px] text-muted-foreground">{subtitle}</p> : null}
           </div>
           {actions}
         </div>
