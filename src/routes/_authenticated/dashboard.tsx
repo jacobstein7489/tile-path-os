@@ -32,6 +32,9 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: search['view'] === "grouped" ? ("grouped" as const) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Company Work — Cobblestone Tile OS" },
