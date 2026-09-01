@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/client";
+import { lovable } from "@/integrations/lovable";
 import { Button, Field, TextInput } from "@/components/kit";
 
 export const Route = createFileRoute("/auth")({
