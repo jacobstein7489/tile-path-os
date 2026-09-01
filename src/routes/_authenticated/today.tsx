@@ -1,20 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Clock, Plus } from "lucide-react";
-import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
-import { Button, Checkbox, EmptyState, KpiCard, SectionCard } from "@/components/kit";
-import { Chip } from "@/lib/status";
-import {
-  isComplete,
-  statusTone,
-  useSaveWorkItem,
-  useWorkFeed,
-  type WorkItemRow,
-} from "@/lib/workitems";
-import { cn } from "@/lib/utils";
+import { WorkList } from "@/components/WorkList";
+import { Button, KpiCard, SectionCard } from "@/components/kit";
+import { isComplete, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
 import { ROLE_LABELS, useAuthUser, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
@@ -40,53 +32,32 @@ function TodayPage() {
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
   const { data: roles = [] } = useMyRoles();
-  const save = useSaveWorkItem();
   const [active, setActive] = useState<WorkItemRow | null>(null);
   const [capture, setCapture] = useState(false);
-  const [justDone, setJustDone] = useState<Record<string, boolean>>({});
 
+  // Same work_items records as Company Work, narrowed to what this user owns.
   const mine = useMemo(
-    () => items.filter((i) => i.owner_user_id ? i.owner_user_id === user?.id : i.owner === profile?.full_name),
+    () =>
+      items.filter((i) =>
+        i.owner_user_id ? i.owner_user_id === user?.id : i.owner === profile?.full_name,
+      ),
     [items, profile?.full_name, user?.id],
   );
-  const open = mine.filter((i) => !isComplete(i) || justDone[i.id]);
-  const completed = mine.filter((i) => isComplete(i) && !justDone[i.id]);
-  const blocked = mine.filter((i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"));
+
+  const openCount = mine.filter((i) => !isComplete(i)).length;
+  const completedCount = mine.filter((i) => isComplete(i)).length;
+  const waitingCount = mine.filter(
+    (i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"),
+  ).length;
 
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
-  const toggle = (item: WorkItemRow, next: boolean) => {
-    // Optimistic: flip the row instantly, persist in the background.
-    if (next) {
-      setJustDone((s) => ({ ...s, [item.id]: true }));
-      toast.success("Marked complete");
-      setTimeout(
-        () =>
-          setJustDone((s) => {
-            const { [item.id]: _drop, ...rest } = s;
-            return rest;
-          }),
-        700,
-      );
-    } else {
-      setJustDone((s) => {
-        const { [item.id]: _drop, ...rest } = s;
-        return rest;
-      });
-      toast.success("Item restored");
-    }
-    save.mutate({
-      id: item.id,
-      patch: next
-        ? { status: "Complete", completed_at: new Date().toISOString() }
-        : { status: "Open", completed_at: null },
-      note: next ? "Marked complete" : "Reopened",
-    });
-  };
-
   return (
     <>
-      <AppHeader crumbs={[{ label: "Today" }]} viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`} />
+      <AppHeader
+        crumbs={[{ label: "Today" }]}
+        viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`}
+      />
       <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
         <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">
           Good morning, {profile?.full_name?.split(" ")[0] || "there"}
@@ -97,122 +68,32 @@ function TodayPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <KpiCard
-                icon={<CheckCircle2 className="size-5" />}
-                tone="green"
-                label="Completed"
-                value={completed.length}
-              />
-              <KpiCard
                 icon={<Clock className="size-5" />}
                 tone="blue"
-                label="Remaining"
-                value={open.filter((i) => !isComplete(i)).length}
+                label="Active"
+                value={openCount}
               />
               <KpiCard
                 icon={<AlertTriangle className="size-5" />}
                 tone="amber"
                 label="Waiting"
-                value={blocked.length}
+                value={waitingCount}
+              />
+              <KpiCard
+                icon={<CheckCircle2 className="size-5" />}
+                tone="green"
+                label="Completed"
+                value={completedCount}
               />
             </div>
 
-            <SectionCard title="Today's work" subtitle="The same records the company sees.">
-              {isLoading ? (
-                <div className="px-5 py-8 text-[13px] text-muted-foreground">Loading…</div>
-              ) : open.length === 0 ? (
-                <EmptyState
-                  title="You're clear"
-                  note="Nothing assigned to you is open right now."
-                />
-              ) : (
-                <ul className="divide-y divide-border/70">
-                  {open.map((i) => {
-                    const done = isComplete(i);
-                    return (
-                      <li
-                        key={i.id}
-                        className={cn(
-                          "group flex items-center gap-4 px-5 py-3 transition-colors duration-100 hover:bg-muted/40",
-                          done && "bg-success-soft/40",
-                          active?.id === i.id &&
-                            "bg-primary-soft/60 ring-1 ring-inset ring-primary/30",
-                        )}
-                      >
-                        <Checkbox checked={done} onChange={(next) => toggle(i, next)} />
-                        <button
-                          type="button"
-                          onClick={() => setActive(i)}
-                          className="flex min-w-0 flex-1 items-center gap-4 text-left"
-                        >
-                          <span className="w-[150px] shrink-0 truncate text-[13px] font-semibold text-primary">
-                            {i.projects?.name ?? "—"}
-                          </span>
-                          <span
-                            className={cn(
-                              "min-w-0 flex-1 truncate text-[13px]",
-                              done && "text-muted-foreground line-through",
-                            )}
-                          >
-                            {i.title}
-                          </span>
-                          <span className="shrink-0">
-                            <Chip tone={statusTone(i.status)}>{i.status}</Chip>
-                          </span>
-                          <span className="w-[160px] shrink-0 truncate text-right text-[13px] font-medium text-primary">
-                            {done ? "" : (i.next_action ?? "Open item")}
-                          </span>
-                        </button>
-                        {done ? (
-                          <span className="flex shrink-0 items-center gap-2 text-[12.5px] font-semibold text-success">
-                            Completed
-                            <button
-                              type="button"
-                              onClick={() => toggle(i, false)}
-                              className="text-primary underline"
-                            >
-                              Undo
-                            </button>
-                          </span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </SectionCard>
-
-            {completed.length ? (
-              <SectionCard title={`Completed (${completed.length})`}>
-                <ul className="divide-y divide-border/70">
-                  {completed.map((i) => (
-                    <li
-                      key={i.id}
-                      className={cn(
-                        "group flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40",
-                        active?.id === i.id && "bg-primary-soft/60",
-                      )}
-                    >
-                      <Checkbox checked onChange={() => toggle(i, false)} />
-                      <button
-                        type="button"
-                        onClick={() => setActive(i)}
-                        className="flex min-w-0 flex-1 items-center gap-4 text-left"
-                      >
-                        <span className="w-[150px] shrink-0 truncate text-[13px] font-medium text-muted-foreground line-through">
-                          {i.projects?.name ?? "—"}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground line-through">
-                          {i.title}
-                        </span>
-                        <span className="shrink-0 text-[12.5px] font-semibold text-success">
-                          ✓ Completed
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </SectionCard>
-            ) : null}
+            <WorkList
+              items={mine}
+              isLoading={isLoading}
+              onOpen={setActive}
+              emptyTitle="You're clear"
+              emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
+            />
           </div>
 
           <aside className="space-y-3">
