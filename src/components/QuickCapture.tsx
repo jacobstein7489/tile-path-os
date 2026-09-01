@@ -645,13 +645,22 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                       }))
                     }
                   />
-                  <span className="text-[13.5px] font-semibold">{group.label}</span>
+                  <span className="text-[13.5px] font-semibold">
+                    {group.pending && group.heading
+                      ? `Unmatched project: ${group.heading}`
+                      : group.label}
+                  </span>
                   <span className="text-[12px] text-muted-foreground">
                     · {group.items.length} proposed
                   </span>
-                  {group.pending ? (
+                  {group.pending && group.heading ? (
                     <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
-                      No matching project
+                      Choose existing project or create a stub
+                    </span>
+                  ) : null}
+                  {group.fuzzy ? (
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
+                      Matched from “{group.heading}” — confirm
                     </span>
                   ) : null}
                   <div className="ml-auto flex items-center gap-2">
@@ -661,13 +670,14 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                       onChange={(e) => {
                         if (e.target.value === "__stub__") {
                           setStubFor(groupKey);
-                          setStub({ name: group.pending ? group.label : "", address: "" });
+                          setStub({ name: group.heading || "", address: "" });
                           return;
                         }
                         setStubFor((s) => (s === groupKey ? null : s));
                         updateMany(keys, { project_id: e.target.value, groupName: "" });
                       }}
                     >
+
                       <option value="">Company / Unassigned</option>
                       {projects.map((p) => (
                         <option key={p.id} value={p.id}>
