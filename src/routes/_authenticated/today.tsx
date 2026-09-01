@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { Button, KpiCard, SectionCard } from "@/components/kit";
+import { Button, MetricTile, SectionCard } from "@/components/kit";
 import {
   isComplete,
   matchesTodayFilter,
