@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, ChevronRight, Plus, Star } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Plus,
+  Star,
+} from "lucide-react";
+
 import { toast } from "sonner";
 import { Combobox, EmptyState, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
-import { Highlight, InlineText } from "@/components/InlineEdit";
+import { Highlight } from "@/components/InlineEdit";
 import { profileOptions, useProfiles } from "@/lib/people";
 import {
   compareWorkItems,
@@ -96,17 +104,18 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
         e.stopPropagation();
         onChange(!done);
       }}
-      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       <span
         className={cn(
           "grid size-[18px] place-items-center rounded-[5px] border",
-          "transition-[background-color,border-color,transform] duration-150",
+          "transition-[background-color,border-color,transform,opacity] duration-150",
           done
             ? "scale-110 border-success bg-success text-primary-foreground"
-            : "border-border-strong bg-background",
+            : "border-border-strong bg-background opacity-60 group-hover:scale-105 group-hover:opacity-100",
         )}
       >
+
         <svg
           viewBox="0 0 20 20"
           className={cn(
@@ -328,6 +337,46 @@ export function WorkList({
 
   /* ---------------- Desktop rows ---------------- */
 
+  const Cols = ({ withProject }: { withProject: boolean }) => (
+    <colgroup>
+      <col className="w-[48px]" />
+      {withProject ? <col className="w-[15%]" /> : null}
+      <col className={withProject ? "w-[26%]" : "w-[33%]"} />
+      <col className="w-[16%]" />
+      <col className="w-[12%]" />
+      <col className="w-[10%]" />
+      <col className="w-[16%]" />
+      <col className="w-[52px]" />
+    </colgroup>
+  );
+
+  const HeaderCells = ({ withProject }: { withProject: boolean }) => (
+    <tr className="bg-muted/60">
+      <Th>
+        <span className="sr-only">Important</span>★
+      </Th>
+      {withProject ? <Th>Project</Th> : null}
+      <Th>What Needs To Happen</Th>
+      <Th>Owner</Th>
+      <Th>Waiting On</Th>
+      <Th>Needed By</Th>
+      <Th>Next Action</Th>
+      <Th>Done</Th>
+    </tr>
+  );
+
+  /** One sticky header row shared by all project groups in the grouped view. */
+  const GroupedHeader = () => (
+    <div className="surface sticky top-[104px] z-[9] hidden overflow-hidden md:block">
+      <Table className="table-fixed">
+        <Cols withProject={false} />
+        <thead>
+          <HeaderCells withProject={false} />
+        </thead>
+      </Table>
+    </div>
+  );
+
   const Rows = ({
     list,
     withProject,
@@ -338,28 +387,11 @@ export function WorkList({
     withHeader?: boolean;
   }) => (
     <Table className="table-fixed">
-      <colgroup>
-        <col className="w-[48px]" />
-        {withProject ? <col className="w-[15%]" /> : null}
-        <col className={withProject ? "w-[27%]" : "w-[34%]"} />
-        <col className="w-[14%]" />
-        <col className="w-[12%]" />
-        <col className="w-[10%]" />
-        <col className="w-[17%]" />
-        <col className="w-[48px]" />
-      </colgroup>
+      <Cols withProject={withProject} />
       <thead className={withHeader ? undefined : "sr-only"}>
-        <tr className={withHeader ? "bg-muted/60" : undefined}>
-          <Th> </Th>
-          {withProject ? <Th>Project</Th> : null}
-          <Th>What Needs To Happen</Th>
-          <Th>Owner</Th>
-          <Th>Waiting On</Th>
-          <Th>Needed By</Th>
-          <Th>Next Action</Th>
-          <Th> </Th>
-        </tr>
+        <HeaderCells withProject={withProject} />
       </thead>
+
       <tbody>
         {list.map((i) => {
           const done = isComplete(i) || Boolean(justDone[i.id]);
@@ -395,14 +427,14 @@ export function WorkList({
                 </Td>
               ) : null}
               <Td className="group-last:border-0">
-                <InlineText
-                  ariaLabel="what needs to happen"
-                  value={i.title}
-                  query={q}
-                  strike={done}
-                  className="font-medium"
-                  onSave={(v) => (v ? patch(i, { title: v }, "Title updated") : undefined)}
-                />
+                <span
+                  className={cn(
+                    "block font-medium break-words",
+                    done && "text-muted-foreground line-through",
+                  )}
+                >
+                  <Highlight text={i.title} query={q} />
+                </span>
               </Td>
               <Td className="group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
@@ -411,49 +443,39 @@ export function WorkList({
                     value={i.owner_user_id}
                     onChange={(v) => setOwner(i, v)}
                     placeholder={i.owner ?? "Unassigned"}
-                    className="w-[140px]"
+                    className="w-full min-w-0"
                   />
                 </div>
               </Td>
               <Td className="group-last:border-0">
-                <div className="flex items-center gap-1.5">
-                  {i.waiting_on ? (
-                    <span className="size-1.5 shrink-0 rounded-full bg-warning" />
-                  ) : null}
-                  <InlineText
-                    ariaLabel="waiting on"
-                    value={i.waiting_on}
-                    query={q}
-                    className={i.waiting_on ? "text-secondary-foreground" : undefined}
-                    onSave={(v) => patch(i, { waiting_on: v }, v ? `Waiting on ${v}` : "Not waiting")}
-                  />
-                </div>
+                {i.waiting_on ? (
+                  <span className="flex items-start gap-1.5 text-secondary-foreground">
+                    <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-warning" />
+                    <span className="block break-words">
+                      <Highlight text={i.waiting_on} query={q} />
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </Td>
               <Td className="group-last:border-0">
-                <InlineText
-                  ariaLabel="needed by"
-                  type="date"
-                  value={i.due_date}
-                  onSave={(v) => patch(i, { due_date: v }, v ? `Needed by ${v}` : "Date cleared")}
-                  className="whitespace-nowrap text-muted-foreground"
-                  placeholder="—"
-                />
-                {i.due_date ? <span className="sr-only">{dueLabel(i.due_date)}</span> : null}
+                <span className="whitespace-nowrap text-muted-foreground">
+                  {dueLabel(i.due_date)}
+                </span>
               </Td>
               <Td className="group-last:border-0">
                 {done ? (
                   <span className="text-[12.5px] font-medium text-success">Completed</span>
+                ) : i.next_action ? (
+                  <span className="block break-words text-secondary-foreground">
+                    <Highlight text={i.next_action} query={q} />
+                  </span>
                 ) : (
-                  <InlineText
-                    ariaLabel="next action"
-                    value={i.next_action}
-                    query={q}
-                    placeholder="Open item"
-                    className="text-secondary-foreground"
-                    onSave={(v) => patch(i, { next_action: v }, "Next action updated")}
-                  />
+                  <span className="text-muted-foreground">—</span>
                 )}
               </Td>
+
               <Td className="group-last:border-0">
                 <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
               </Td>
@@ -591,6 +613,8 @@ export function WorkList({
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
 
+  const anyExpanded = groups.some(([key]) => !collapsed[key]);
+
   return (
     <div className="space-y-3">
       <div className="sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
@@ -603,6 +627,42 @@ export function WorkList({
           value={filter}
           onChange={setFilter}
         />
+        {showViewToggle ? (
+          <>
+            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => chooseView(v)}
+                  className={cn(
+                    "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
+                    "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+                    view === v
+                      ? "bg-primary-soft text-primary"
+                      : "text-secondary-foreground hover:bg-muted",
+                  )}
+                >
+                  {v === "Grouped by Project" ? "Grouped" : v}
+                </button>
+              ))}
+            </div>
+            {view === "Grouped by Project" ? (
+              <button
+                type="button"
+                onClick={() => setAllCollapsed(anyExpanded)}
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border px-2 text-[12.5px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {anyExpanded ? (
+                  <ChevronsDownUp className="size-3.5" />
+                ) : (
+                  <ChevronsUpDown className="size-3.5" />
+                )}
+                {anyExpanded ? "Collapse all" : "Expand all"}
+              </button>
+            ) : null}
+          </>
+        ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {showSearch ? (
             <SearchInput
@@ -612,47 +672,6 @@ export function WorkList({
               placeholder="Search work  /"
               className="w-[170px] lg:w-[220px]"
             />
-          ) : null}
-          {showViewToggle ? (
-            <>
-              <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-                {VIEWS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => chooseView(v)}
-                    className={cn(
-                      "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
-                      "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                      view === v
-                        ? "bg-primary-soft text-primary"
-                        : "text-secondary-foreground hover:bg-muted",
-                    )}
-                  >
-                    {v === "Grouped by Project" ? "Grouped" : v}
-                  </button>
-                ))}
-              </div>
-              {view === "Grouped by Project" ? (
-                <div className="flex items-center gap-1 text-[12.5px]">
-                  <button
-                    type="button"
-                    onClick={() => setAllCollapsed(true)}
-                    className="h-8 cursor-pointer rounded-md px-2 font-medium text-secondary-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    Collapse All
-                  </button>
-                  <span className="text-border-strong">|</span>
-                  <button
-                    type="button"
-                    onClick={() => setAllCollapsed(false)}
-                    className="h-8 cursor-pointer rounded-md px-2 font-medium text-secondary-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    Expand All
-                  </button>
-                </div>
-              ) : null}
-            </>
           ) : null}
         </div>
       </div>
@@ -669,7 +688,9 @@ export function WorkList({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          <GroupedHeader />
           {groups.map(([key, group]) => {
+
             const openCount = group.items.filter((i) => !isComplete(i) && !justDone[i.id]).length;
             const starCount = group.items.filter((i) => i.is_important && !isComplete(i)).length;
             const waitCount = group.items.filter(
@@ -679,13 +700,13 @@ export function WorkList({
             const isCollapsed = q ? false : Boolean(collapsed[key]);
             return (
               <div key={key} className="surface overflow-hidden">
-                <div className="flex items-start gap-2 border-b border-border bg-muted/50 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 border-b border-border-strong/70 bg-muted/70 px-2.5 py-2.5">
                   <button
                     type="button"
                     aria-label={isCollapsed ? "Expand project" : "Collapse project"}
                     aria-expanded={!isCollapsed}
                     onClick={() => setCollapsed((s) => ({ ...s, [key]: !isCollapsed }))}
-                    className="mt-0.5 grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
+                    className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-background hover:text-foreground active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     {isCollapsed ? (
                       <ChevronRight className="size-4" />
@@ -693,9 +714,9 @@ export function WorkList({
                       <ChevronDown className="size-4" />
                     )}
                   </button>
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                     {key === "unassigned" ? (
-                      <span className="block text-[14.5px] font-semibold tracking-tight">
+                      <span className="text-[14.5px] font-semibold tracking-tight">
                         {group.name}
                       </span>
                     ) : (
@@ -703,18 +724,24 @@ export function WorkList({
                         to="/projects/$projectId"
                         params={{ projectId: key }}
                         onClick={(e) => e.stopPropagation()}
-                        className="block text-[14.5px] font-semibold tracking-tight transition-colors duration-150 hover:text-primary"
+                        className="text-[14.5px] font-semibold tracking-tight transition-colors duration-150 hover:text-primary hover:underline"
                       >
                         <Highlight text={group.name} query={q} />
                       </Link>
                     )}
-                    <span className="mt-0.5 block text-[12px] text-muted-foreground tabular-nums">
-                      {openCount} open
-                      {starCount ? ` · ${starCount} important` : ""}
-                      {waitCount ? ` · ${waitCount} waiting` : ""}
+                    <span className="text-[12px] text-muted-foreground tabular-nums">
+                      {[
+                        openCount ? `${openCount} open` : "",
+                        starCount ? `${starCount} important` : "",
+                        waitCount ? `${waitCount} waiting` : "",
+                      ]
+                        .filter(Boolean)
+                        .map((s) => `· ${s}`)
+                        .join(" ")}
                     </span>
                   </div>
                 </div>
+
                 <div
                   className={cn(
                     "grid transition-[grid-template-rows] duration-200",

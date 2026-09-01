@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronDown, Paperclip } from "lucide-react";
+import { Check, ChevronDown, Paperclip, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -187,6 +187,25 @@ export function WorkItemDrawer({
             placeholder="The very next step"
           />
         </Field>
+
+        <button
+          type="button"
+          onClick={() =>
+            save.mutate({
+              id: item.id,
+              patch: { is_important: !item.is_important },
+              note: item.is_important ? "Unmarked important" : "Marked important",
+            })
+          }
+          aria-pressed={Boolean(item.is_important)}
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border px-3 text-[12.5px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary/30"
+        >
+          <Star
+            className={`size-4 ${item.is_important ? "fill-warning text-warning" : "text-muted-foreground"}`}
+          />
+          {item.is_important ? "Important" : "Mark important"}
+        </button>
+
 
         <div className="grid grid-cols-3 gap-3.5">
           <Field label="Owner">
