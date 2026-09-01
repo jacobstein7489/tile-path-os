@@ -105,11 +105,6 @@ function TodayPage() {
               defaultView="Grouped by Project"
               viewStorageKey="cobblestone.today.view"
               showProjectColumn={false}
-              toolbarRight={
-                <Button variant="primary" className="md:hidden" onClick={() => setCapture(true)}>
-                  <Plus className="size-4" /> Capture
-                </Button>
-              }
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
