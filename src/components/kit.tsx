@@ -96,15 +96,14 @@ export function MetricTile({
     green: "bg-success-soft/70 text-success",
     neutral: "bg-muted text-secondary-foreground",
   };
+  const Tag = onClick ? "button" : "div";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
+    <Tag
+      {...(onClick ? { type: "button" as const, onClick, "aria-pressed": active } : {})}
       className={cn(
-        "surface flex cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left outline-none",
-        "transition-[background-color,border-color,transform] duration-150 hover:border-border-strong active:translate-y-[0.5px]",
-        "focus-visible:ring-2 focus-visible:ring-primary/30",
+        "surface flex items-center gap-2.5 px-3 py-2.5 text-left outline-none",
+        onClick &&
+          "cursor-pointer transition-[background-color,border-color,transform] duration-150 hover:border-border-strong active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/30",
         active && "border-primary/35 ring-1 ring-inset ring-primary/20",
       )}
     >
