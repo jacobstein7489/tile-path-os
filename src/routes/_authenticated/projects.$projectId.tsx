@@ -4,7 +4,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { UnderlineTabs } from "@/components/kit";
-import { useProject, useUpdateProject } from "@/lib/data";
+import { useProject, useUpdateProject, useWorkItems } from "@/lib/data";
+import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
 import { Chip, materialTone, stageTone } from "@/lib/status";
 
