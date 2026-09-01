@@ -17,7 +17,6 @@ export type WorkItemKind =
   | "Approval"
   | "Punch / Return Item";
 
-const OWNERS = ["Office", "Office / Materials", "Site Manager", "Designer / PM", "Crew"];
 
 /** Creates a real structured work item. Comments are context — this changes the project. */
 export function CreateWorkItemModal({
@@ -126,11 +125,15 @@ export function CreateWorkItemModal({
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Owner">
-          <Select value={form.owner} onChange={(e) => set("owner", e.target.value)}>
-            {OWNERS.map((o) => (
-              <option key={o}>{o}</option>
-            ))}
-          </Select>
+          <Combobox
+            options={profileOptions(profiles)}
+            value={ownerId}
+            onChange={(v) => {
+              setOwnerId(v);
+              set("owner", profiles.find((p) => p.user_id === v)?.full_name ?? "");
+            }}
+            placeholder="Search employees…"
+          />
         </Field>
         <Field label="Waiting on">
           <TextInput

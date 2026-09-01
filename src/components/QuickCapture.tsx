@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { profileOptions, useProfiles } from "@/lib/people";
 import { useProjects } from "@/lib/data";
 import {
-  OWNERS,
   useCreateWorkItems,
   WORK_ITEM_STATUSES,
   WORK_ITEM_TYPES,
@@ -215,12 +215,19 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                   </Select>
                 </Field>
                 <Field label="Owner">
-                  <Select value={d.owner} onChange={(e) => update(d.key, { owner: e.target.value })}>
-                    <option value="">Unassigned</option>
-                    {OWNERS.map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </Select>
+                  <Combobox
+                    options={profileOptions(profiles)}
+                    value={
+                      profiles.find((p) => p.full_name === d.owner)?.user_id ?? null
+                    }
+                    onChange={(v) =>
+                      update(d.key, {
+                        owner: profiles.find((p) => p.user_id === v)?.full_name ?? "",
+                        owner_user_id: v ?? null,
+                      })
+                    }
+                    placeholder="Search employees…"
+                  />
                 </Field>
                 <Field label="Waiting on">
                   <TextInput
