@@ -120,10 +120,10 @@ export function UnderlineTabs({
       {items.map((item) => {
         const active = item.value === value;
         const base = cn(
-          "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+          "-mb-px inline-flex cursor-pointer items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/20",
           active
             ? "border-primary font-semibold text-primary"
-            : "border-transparent font-medium text-secondary-foreground hover:text-foreground",
+            : "border-transparent font-medium text-secondary-foreground hover:border-border-strong hover:text-foreground",
         );
 
         const content = (
@@ -177,7 +177,7 @@ export function Button({
   loading?: boolean;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/35 active:translate-y-[0.5px] disabled:cursor-not-allowed disabled:opacity-55";
+    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/35 active:translate-y-[0.5px] disabled:cursor-not-allowed disabled:opacity-55";
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
     secondary:
@@ -221,7 +221,7 @@ export function FilterGroup({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "h-9 rounded-lg border px-3.5 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/25",
+              "h-9 cursor-pointer rounded-lg border px-3.5 text-[13px] font-medium outline-none transition-colors duration-150 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/25",
               active
                 ? "border-primary/30 bg-primary-soft text-primary"
                 : "border-border bg-background text-secondary-foreground hover:bg-muted",
@@ -387,7 +387,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
+            className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
           >
             <X className="size-4" />
           </button>
@@ -476,12 +476,14 @@ export function Checkbox({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="flex items-start gap-3 text-left group outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-sm px-1 -mx-1"
+      className="group/check -mx-1 flex cursor-pointer items-start gap-3 rounded-sm px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
     >
       <span
         className={cn(
-          "mt-[1px] grid size-[18px] shrink-0 place-items-center rounded-[5px] border transition-colors",
-          checked ? "border-success bg-success text-primary-foreground" : "border-border-strong bg-background",
+          "mt-[1px] grid size-[18px] shrink-0 place-items-center rounded-[5px] border transition-[background-color,border-color,transform] duration-150",
+          checked
+            ? "scale-105 border-success bg-success text-primary-foreground"
+            : "border-border-strong bg-background group-active/check:scale-95",
         )}
       >
         {checked ? (
@@ -495,7 +497,7 @@ export function Checkbox({
           className={cn(
             "text-[13px] leading-snug transition-colors",
             strike && checked ? "text-muted-foreground line-through" : "text-foreground",
-            !checked && "group-hover:text-primary",
+            !checked && "group-hover/check:text-primary",
           )}
         >
           {label}
@@ -559,7 +561,7 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
+            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
           >
             <X className="size-4" />
           </button>
@@ -678,7 +680,7 @@ export function Combobox({
         }}
         className={cn(
           fieldClass,
-          "flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60",
+          "flex cursor-pointer items-center justify-between gap-2 text-left transition-colors duration-150 hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-60",
           !selected && "text-muted-foreground",
         )}
       >
@@ -721,7 +723,7 @@ export function Combobox({
                     onChange(o.value);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted"
+                  className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left transition-colors duration-150 hover:bg-muted"
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-[13px]">{o.label}</span>

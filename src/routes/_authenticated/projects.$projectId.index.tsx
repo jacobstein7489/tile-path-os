@@ -24,9 +24,12 @@ import { WorkList } from "@/components/WorkList";
 import {
   compareWorkItems,
   isComplete,
+  matchesTodayFilter,
+  TODAY_FILTERS,
   useWorkFeed,
   type WorkItemRow,
 } from "@/lib/workitems";
+
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
@@ -237,6 +240,10 @@ function ProjectOverview() {
         <WorkList
           items={projectWork}
           onOpen={setOpenItem}
+          selectedId={openItem?.id ?? null}
+          filters={TODAY_FILTERS}
+          matchFilter={matchesTodayFilter}
+          defaultFilter="Active"
           showProjectColumn={false}
           showViewToggle={false}
           showSearch={false}

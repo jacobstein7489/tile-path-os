@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,32 +41,34 @@ export type Profile = {
   default_commission_rate?: number;
 };
 
-/** Current auth user (client-side session). */
+/**
+ * Current auth user. Backed by a single cached query keyed ["auth-user"] and read
+ * from the LOCAL session — previously every component instance issued its own
+ * network getUser() call, which made each route switch wait on the network.
+ */
 export function useAuthUser() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["auth-user"],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async (): Promise<User | null> => {
+      const { data: session } = await supabase.auth.getSession();
+      return session.session?.user ?? null;
+    },
+  });
+
   useEffect(() => {
-    let cancelled = false;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) {
-        setUser(data.user ?? null);
-        setLoading(false);
-      }
-    });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      setUser(session?.user ?? null);
+      queryClient.setQueryData(["auth-user"], session?.user ?? null);
       if (event === "SIGNED_OUT") queryClient.clear();
     });
-    return () => {
-      cancelled = true;
-      sub.subscription.unsubscribe();
-    };
+    return () => sub.subscription.unsubscribe();
   }, [queryClient]);
 
-  return { user, loading };
+  return { user: data ?? null, loading: isLoading };
 }
 
 export function useMyProfile() {

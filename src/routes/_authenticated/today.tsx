@@ -6,7 +6,14 @@ import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
 import { Button, KpiCard, SectionCard } from "@/components/kit";
-import { isComplete, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
+import {
+  isComplete,
+  matchesTodayFilter,
+  TODAY_FILTERS,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
+
 import { ROLE_LABELS, useAuthUser, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
@@ -91,9 +98,16 @@ function TodayPage() {
               items={mine}
               isLoading={isLoading}
               onOpen={setActive}
+              selectedId={active?.id ?? null}
+              filters={TODAY_FILTERS}
+              matchFilter={matchesTodayFilter}
+              defaultFilter="Active"
+              viewStorageKey="cobblestone.today.view"
+              showProjectColumn={false}
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
+
           </div>
 
           <aside className="space-y-3">
