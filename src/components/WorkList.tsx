@@ -74,19 +74,20 @@ function StarButton({ item, onToggle }: { item: WorkItemRow; onToggle: () => voi
         onToggle();
       }}
       className={cn(
-        "grid size-9 cursor-pointer place-items-center rounded-lg outline-none",
+        "-m-1 grid size-11 cursor-pointer place-items-center rounded-full outline-none",
         "transition-[background-color,transform] duration-150 active:scale-90",
-        "hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30",
+        on ? "hover:bg-warning-soft" : "hover:bg-muted",
+        "focus-visible:ring-2 focus-visible:ring-primary/30",
       )}
     >
       <Star
         className={cn(
-          "size-[17px] transition-colors duration-150",
+          "size-[18px] transition-[color,transform] duration-150",
           on
-            ? "fill-warning text-warning"
-            : "text-muted-foreground/50 hover:text-secondary-foreground",
+            ? "scale-110 fill-warning text-warning"
+            : "text-muted-foreground/60 hover:scale-110 hover:text-foreground",
         )}
-        strokeWidth={on ? 2 : 1.8}
+        strokeWidth={on ? 2 : 1.9}
       />
     </button>
   );
@@ -104,34 +105,34 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
         e.stopPropagation();
         onChange(!done);
       }}
-      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="-m-1 grid size-11 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,transform] duration-150 hover:bg-success-soft active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       <span
         className={cn(
-          "grid size-[18px] place-items-center rounded-[5px] border",
-          "transition-[background-color,border-color,transform,opacity] duration-150",
+          "grid size-[20px] place-items-center rounded-full border-[1.5px]",
+          "transition-[background-color,border-color,transform] duration-150",
           done
             ? "scale-110 border-success bg-success text-primary-foreground"
-            : "border-border-strong bg-background opacity-60 group-hover:scale-105 group-hover:opacity-100",
+            : "border-border-strong bg-background text-transparent group-hover:border-success/70 group-hover:text-success/50",
         )}
       >
-
         <svg
           viewBox="0 0 20 20"
           className={cn(
-            "size-3 transition-opacity duration-150",
-            done ? "opacity-100" : "opacity-0",
+            "size-3 transition-transform duration-150",
+            done ? "scale-100" : "scale-75",
           )}
           fill="none"
           stroke="currentColor"
           strokeWidth={3}
         >
-          <path d="M4 10.5l4 4 8-8" strokeLinecap="round" />
+          <path d="M4 10.5l4 4 8-8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     </button>
   );
 }
+
 
 export function WorkList({
   items,
