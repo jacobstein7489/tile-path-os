@@ -25,7 +25,7 @@ import {
   type SurfaceFull,
 } from "@/lib/data";
 
-export const Route = createFileRoute("/_authenticated/_authenticated/projects/$projectId/scope")({
+export const Route = createFileRoute("/_authenticated/projects/$projectId/scope")({
   component: ScopeAndDetails,
 });
 
