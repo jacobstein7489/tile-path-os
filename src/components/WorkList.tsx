@@ -395,14 +395,14 @@ export function WorkList({
                 </Td>
               ) : null}
               <Td className="group-last:border-0">
-                <InlineText
-                  ariaLabel="what needs to happen"
-                  value={i.title}
-                  query={q}
-                  strike={done}
-                  className="font-medium"
-                  onSave={(v) => (v ? patch(i, { title: v }, "Title updated") : undefined)}
-                />
+                <span
+                  className={cn(
+                    "block font-medium break-words",
+                    done && "text-muted-foreground line-through",
+                  )}
+                >
+                  <Highlight text={i.title} query={q} />
+                </span>
               </Td>
               <Td className="group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
@@ -411,49 +411,39 @@ export function WorkList({
                     value={i.owner_user_id}
                     onChange={(v) => setOwner(i, v)}
                     placeholder={i.owner ?? "Unassigned"}
-                    className="w-[140px]"
+                    className="w-full min-w-0"
                   />
                 </div>
               </Td>
               <Td className="group-last:border-0">
-                <div className="flex items-center gap-1.5">
-                  {i.waiting_on ? (
-                    <span className="size-1.5 shrink-0 rounded-full bg-warning" />
-                  ) : null}
-                  <InlineText
-                    ariaLabel="waiting on"
-                    value={i.waiting_on}
-                    query={q}
-                    className={i.waiting_on ? "text-secondary-foreground" : undefined}
-                    onSave={(v) => patch(i, { waiting_on: v }, v ? `Waiting on ${v}` : "Not waiting")}
-                  />
-                </div>
+                {i.waiting_on ? (
+                  <span className="flex items-start gap-1.5 text-secondary-foreground">
+                    <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-warning" />
+                    <span className="block break-words">
+                      <Highlight text={i.waiting_on} query={q} />
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </Td>
               <Td className="group-last:border-0">
-                <InlineText
-                  ariaLabel="needed by"
-                  type="date"
-                  value={i.due_date}
-                  onSave={(v) => patch(i, { due_date: v }, v ? `Needed by ${v}` : "Date cleared")}
-                  className="whitespace-nowrap text-muted-foreground"
-                  placeholder="—"
-                />
-                {i.due_date ? <span className="sr-only">{dueLabel(i.due_date)}</span> : null}
+                <span className="whitespace-nowrap text-muted-foreground">
+                  {dueLabel(i.due_date)}
+                </span>
               </Td>
               <Td className="group-last:border-0">
                 {done ? (
                   <span className="text-[12.5px] font-medium text-success">Completed</span>
+                ) : i.next_action ? (
+                  <span className="block break-words text-secondary-foreground">
+                    <Highlight text={i.next_action} query={q} />
+                  </span>
                 ) : (
-                  <InlineText
-                    ariaLabel="next action"
-                    value={i.next_action}
-                    query={q}
-                    placeholder="Open item"
-                    className="text-secondary-foreground"
-                    onSave={(v) => patch(i, { next_action: v }, "Next action updated")}
-                  />
+                  <span className="text-muted-foreground">—</span>
                 )}
               </Td>
+
               <Td className="group-last:border-0">
                 <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
               </Td>
