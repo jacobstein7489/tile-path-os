@@ -105,49 +105,84 @@ export function useContacts(companyId?: string | null) {
 
 /* ---------------- Mutations ---------------- */
 
-function useTableMutation<T extends Record<string, unknown>>(
-  table: "companies" | "contacts" | "user_roles" | "profiles" | "project_assignments",
-  invalidate: string[],
-  successMessage: string,
-) {
+export type CompanyInput = {
+  name: string;
+  kind: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  website?: string | null;
+  notes?: string | null;
+  is_active?: boolean;
+};
+
+export function useSaveCompany() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { id?: string; values: T; remove?: boolean }) => {
-      if (payload.remove && payload.id) {
-        const { error } = await supabase.from(table).delete().eq("id", payload.id);
+    mutationFn: async ({ id, values }: { id?: string; values: CompanyInput }) => {
+      if (id) {
+        const { error } = await supabase.from("companies").update(values).eq("id", id);
         if (error) throw error;
         return;
       }
-      if (payload.id) {
-        const { error } = await supabase.from(table).update(payload.values).eq("id", payload.id);
-        if (error) throw error;
-        return;
-      }
-      const { error } = await supabase.from(table).insert(payload.values);
+      const { error } = await supabase.from("companies").insert(values);
       if (error) throw error;
     },
     onSuccess: () => {
-      invalidate.forEach((key) => void qc.invalidateQueries({ queryKey: [key] }));
-      toast.success(successMessage);
+      void qc.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Company saved");
     },
-    onError: (error: unknown) => {
-      toast.error(error instanceof Error ? error.message : "Save failed");
-    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Save failed"),
   });
 }
 
-export function useSaveCompany() {
-  return useTableMutation<Record<string, unknown>>("companies", ["companies"], "Company saved");
-}
+export type ContactInput = {
+  full_name: string;
+  company_id?: string | null;
+  title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  kind?: string;
+  notes?: string | null;
+  is_active?: boolean;
+};
 
 export function useSaveContact() {
-  return useTableMutation<Record<string, unknown>>("contacts", ["contacts"], "Contact saved");
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, values }: { id?: string; values: ContactInput }) => {
+      if (id) {
+        const { error } = await supabase.from("contacts").update(values).eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("contacts").insert(values);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["contacts"] });
+      toast.success("Contact saved");
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Save failed"),
+  });
 }
+
+export type ProfileInput = {
+  full_name?: string;
+  initials?: string;
+  phone?: string | null;
+  job_title?: string | null;
+  avatar_tone?: string;
+  default_route?: string;
+  is_active?: boolean;
+};
 
 export function useSaveProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, values }: { userId: string; values: Record<string, unknown> }) => {
+    mutationFn: async ({ userId, values }: { userId: string; values: ProfileInput }) => {
       const { error } = await supabase.from("profiles").update(values).eq("user_id", userId);
       if (error) throw error;
     },
