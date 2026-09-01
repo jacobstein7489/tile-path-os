@@ -49,7 +49,11 @@ export type WorkItemRow = {
   title: string;
   description: string | null;
   owner: string | null;
+  owner_user_id: string | null;
   waiting_on: string | null;
+  waiting_on_user_id: string | null;
+  waiting_on_contact_id: string | null;
+  waiting_on_company_id: string | null;
   status: string;
   due_date: string | null;
   priority: string;

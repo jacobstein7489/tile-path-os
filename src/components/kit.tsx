@@ -16,7 +16,7 @@ export function KpiCard({
   hint,
 }: {
   icon: ReactNode;
-  tone?: "blue" | "green" | "amber" | "red" | "violet" | "neutral";
+  tone?: "blue" | "green" | "amber" | "red" | "neutral";
   label: string;
   value: ReactNode;
   hint?: string;
@@ -26,7 +26,6 @@ export function KpiCard({
     green: "bg-success-soft text-success",
     amber: "bg-warning-soft text-warning",
     red: "bg-danger-soft text-danger",
-    violet: "bg-violet-soft text-violet",
     neutral: "bg-neutral-chip text-muted-foreground",
   };
   const valueTone: Record<string, string> = {
@@ -34,7 +33,6 @@ export function KpiCard({
     green: "text-success",
     amber: "text-warning",
     red: "text-danger",
-    violet: "text-violet",
     neutral: "text-foreground",
   };
   return (
@@ -795,7 +793,6 @@ export function Avatar({
     green: "bg-success-soft text-success",
     amber: "bg-warning-soft text-warning",
     red: "bg-danger-soft text-danger",
-    violet: "bg-violet-soft text-violet",
     neutral: "bg-neutral-chip text-muted-foreground",
   };
   return (

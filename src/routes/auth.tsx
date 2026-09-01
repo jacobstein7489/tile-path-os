@@ -28,10 +28,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -54,22 +52,8 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { full_name: fullName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Account created. Check your email to confirm, then sign in.");
-        setMode("signin");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign-in failed");
     } finally {
@@ -104,27 +88,12 @@ function AuthPage() {
         </div>
 
         <div className="surface p-6">
-          <h1 className="text-[20px] font-semibold tracking-[-0.01em]">
-            {mode === "signin" ? "Sign in" : "Create your account"}
-          </h1>
+          <h1 className="text-[20px] font-semibold tracking-[-0.01em]">Welcome back</h1>
           <p className="mt-1 text-[12.5px] text-muted-foreground">
-            {mode === "signin"
-              ? "Company operating system for tile installation."
-              : "Ask an administrator to grant your role after signing up."}
+            Sign in with your invited Cobblestone employee account.
           </p>
 
           <form onSubmit={submit} className="mt-5 space-y-3.5">
-            {mode === "signup" ? (
-              <Field label="Full name">
-                <TextInput
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Jordan Rivera"
-                  autoComplete="name"
-                  required
-                />
-              </Field>
-            ) : null}
             <Field label="Work email">
               <TextInput
                 type="email"
@@ -141,7 +110,7 @@ function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                autoComplete="current-password"
                 minLength={8}
                 required
               />
@@ -153,7 +122,7 @@ function AuthPage() {
               className="w-full"
               disabled={busy}
             >
-              {mode === "signin" ? "Sign in" : "Create account"}
+              Sign in
             </Button>
           </form>
 
@@ -185,15 +154,8 @@ function AuthPage() {
             Continue with Google
           </Button>
 
-          <p className="mt-5 text-center text-[12.5px] text-muted-foreground">
-            {mode === "signin" ? "New to Cobblestone?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="font-semibold text-primary hover:underline"
-            >
-              {mode === "signin" ? "Create an account" : "Sign in"}
-            </button>
+          <p className="mt-5 text-center text-[12px] text-muted-foreground">
+            Need access? Contact your Cobblestone administrator.
           </p>
         </div>
       </div>
