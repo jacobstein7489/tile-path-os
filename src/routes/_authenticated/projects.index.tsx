@@ -53,7 +53,7 @@ function ProjectsPage() {
       subtitle="Every project, where it is up to and what must happen next."
       actions={
         <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus className="size-4" /> New Project
+          <Plus className="size-4" /> New Lead
         </Button>
       }
     >
