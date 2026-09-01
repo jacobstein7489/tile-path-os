@@ -6,6 +6,7 @@ import {
   LogOut,
   Package,
   Settings,
+  Sparkles,
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import { ROLE_LABELS, signOut, useMyProfile, useMyRoles } from "@/hooks/useAuth"
 const NAV = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Today", to: "/today", icon: Sun },
+  { label: "Leads", to: "/leads", icon: Sparkles },
   { label: "Projects", to: "/projects", icon: FolderClosed },
   { label: "Schedule", to: "/schedule", icon: CalendarDays },
   { label: "Install Materials", to: "/materials", icon: Package },

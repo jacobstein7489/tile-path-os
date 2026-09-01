@@ -13,7 +13,8 @@ import {
   showsInstallationProgress,
   type ProjectFilter,
 } from "@/lib/lifecycle";
-import { Chip, Dot, materialTone, stageTone } from "@/lib/status";
+import { Dot, materialTone, stageTone } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -96,14 +97,13 @@ function ProjectsPage() {
         </div>
         <Table className="table-fixed">
           <colgroup>
-            <col className="w-[15%]" />
-            <col className="w-[10%]" />
+            <col className="w-[17%]" />
             <col className="w-[11%]" />
-            <col className="w-[9%]" />
-            <col className="w-[9%]" />
-            <col className="w-[9%]" />
-            <col className="w-[18%]" />
-            <col className="w-[19%]" />
+            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[31%]" />
           </colgroup>
           <thead>
             <tr className="bg-muted/60">
@@ -114,8 +114,7 @@ function ProjectsPage() {
                 "Crew",
                 "Dates",
                 "Materials",
-                "Needs Attention",
-                "Next Move",
+                "What needs to happen",
               ].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
@@ -124,13 +123,13 @@ function ProjectsPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <Td colSpan={8} className="text-muted-foreground">
+                <Td colSpan={7} className="text-muted-foreground">
                   Loading projects…
                 </Td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <Td colSpan={8} className="text-muted-foreground text-center py-12">
+                <Td colSpan={7} className="text-muted-foreground text-center py-12">
                   No projects in this view.
                 </Td>
               </tr>
@@ -158,9 +157,10 @@ function ProjectRow({ project: p }: { project: Project }) {
         <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
       </Td>
       <Td className="group-last:border-0">
-        <Chip tone={stageTone(p.lifecycle_stage, p.exception_state)}>
-          {p.exception_state ?? p.lifecycle_stage}
-        </Chip>
+        <span className="flex items-center gap-2 text-[12.5px] font-medium">
+          <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
+          <span className="truncate">{p.exception_state ?? p.lifecycle_stage}</span>
+        </span>
       </Td>
       <Td className="group-last:border-0">
         <div className="flex items-center gap-2">
@@ -193,27 +193,36 @@ function ProjectRow({ project: p }: { project: Project }) {
         {fmt(p.start_date)} → {fmt(p.target_date)}
       </Td>
       <Td className="group-last:border-0">
-        <Chip tone={materialTone(p.material_status)}>{p.material_status}</Chip>
+        <span className="flex items-center gap-2 text-[12.5px]">
+          <Dot tone={materialTone(p.material_status)} />
+          <span className="truncate">{p.material_status}</span>
+        </span>
       </Td>
+      {/* One operational column: the problem on the first line, the next action beneath it. */}
       <Td className="group-last:border-0">
         {p.needs_attention ? (
           <span className="flex items-start gap-2">
-            <span className="mt-1.5">
+            <span className="mt-[5px]">
               <Dot tone="red" />
             </span>
-            <span className="text-[12px] leading-snug">{p.needs_attention}</span>
+            <span className="min-w-0 flex-1 text-[12.5px] leading-snug font-semibold whitespace-normal text-foreground">
+              {p.needs_attention}
+            </span>
           </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Clear</span>
-        )}
-      </Td>
-      <Td className="group-last:border-0">
-        <span className="flex w-full max-w-full items-start gap-1.5 text-[12.5px] leading-snug font-medium text-foreground transition-colors duration-100 group-hover:text-primary">
-          <span className="min-w-0 flex-1 whitespace-normal">{p.next_move ?? "Open project"}</span>
-          <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-colors duration-100 group-hover:text-primary" />
+        ) : null}
+        <span
+          className={cn(
+            "flex items-start gap-1.5 text-[12.5px] leading-snug whitespace-normal text-secondary-foreground transition-colors duration-100 group-hover:text-foreground",
+            p.needs_attention ? "mt-1 pl-4" : "",
+          )}
+        >
+          <span className="min-w-0 flex-1">{p.next_move ?? "Open project"}</span>
+          <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60 transition-colors duration-100 group-hover:text-foreground" />
         </span>
         {p.next_move_owner ? (
-          <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>
+          <div className={cn("mt-0.5 text-[11px] text-muted-foreground", p.needs_attention && "pl-4")}>
+            {p.next_move_owner}
+          </div>
         ) : null}
       </Td>
     </tr>

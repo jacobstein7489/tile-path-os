@@ -38,6 +38,7 @@ export type Profile = {
   avatar_tone: string;
   default_route: string;
   is_active: boolean;
+  default_commission_rate?: number;
 };
 
 /** Current auth user (client-side session). */

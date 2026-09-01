@@ -31,7 +31,16 @@ export type Project = {
   estimator_user_id?: string | null;
   source?: string | null;
   bid_due_date?: string | null;
+  follow_up_date?: string | null;
   intake_notes?: string | null;
+  job_number?: string | null;
+  commission_user_id?: string | null;
+  /** Manual for now; later this comes from the approved contract/estimate. */
+  commissionable_amount?: number | null;
+  commissionable_source?: string;
+  /** Project-level override of the salesperson default rate (percent). */
+  commission_rate_override?: number | null;
+  commission_status?: string;
 };
 
 export type Area = {
@@ -144,6 +153,21 @@ export function useWorkItems(projectId: string) {
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as WorkItem[];
+    },
+  });
+}
+
+/** Patch any project by id — used by cross-project sheets (leads, commissions). */
+export function useUpdateAnyProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Project> }) => {
+      const { error } = await supabase.from("projects").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["project", vars.id] });
     },
   });
 }

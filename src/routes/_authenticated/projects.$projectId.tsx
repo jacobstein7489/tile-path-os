@@ -133,7 +133,6 @@ function ProjectShell() {
 
         <div className="mt-6">
           <LifecycleTrack
-            collapsible
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
             stepsDone={stepsDone}
