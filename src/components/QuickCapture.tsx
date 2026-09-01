@@ -28,10 +28,16 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
+type MatchKind = "exact" | "fuzzy" | "none";
+
 type Draft = {
   key: string;
+  /** Stable id of the parsed section this row came from — sections never merge. */
+  sectionKey: string;
   /** Heading text this row came from when no project matched — drives stub creation. */
   groupName: string;
+  /** How the heading was resolved to a project, so review can warn before import. */
+  matchKind: MatchKind;
   project_id: string;
   item_type: string;
   title: string;
@@ -44,6 +50,7 @@ type Draft = {
   is_important: boolean;
   dupAction: "keep" | "skip" | "replace";
 };
+
 
 /** Heuristic classification. Designed so smarter classification can replace this later. */
 function classify(line: string): { item_type: string; status: string; next_action: string; waiting_on: string } {
