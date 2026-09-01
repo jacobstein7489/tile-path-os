@@ -3,20 +3,20 @@ import { MapPin, User } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
+import { UnderlineTabs } from "@/components/kit";
 import { useProject, useUpdateProject } from "@/lib/data";
 import { Chip, materialTone, stageTone } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,
 });
 
 const PROJECT_TABS = [
-  { label: "Overview", to: "/projects/$projectId" as const },
-  { label: "Tiles & Finishes", to: "/projects/$projectId/scope" as const },
-  { label: "Field", to: "/projects/$projectId/field" as const },
-  { label: "Install Materials", to: "/projects/$projectId/materials" as const },
-  { label: "Files", to: "/projects/$projectId/files" as const },
+  { label: "Overview", to: "/projects/$projectId" as const, value: "/projects/$projectId" },
+  { label: "Tiles & Finishes", to: "/projects/$projectId/scope" as const, value: "/projects/$projectId/scope" },
+  { label: "Field", to: "/projects/$projectId/field" as const, value: "/projects/$projectId/field" },
+  { label: "Install Materials", to: "/projects/$projectId/materials" as const, value: "/projects/$projectId/materials" },
+  { label: "Files", to: "/projects/$projectId/files" as const, value: "/projects/$projectId/files" },
 ];
 
 function ProjectShell() {
@@ -49,11 +49,12 @@ function ProjectShell() {
   }
 
   const stepsDone = project.stage_steps_done ?? [];
+  const activeTab = PROJECT_TABS.find(t => pathname === t.value.replace("$projectId", projectId))?.value ?? PROJECT_TABS[0].value;
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
-      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
         <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
@@ -101,27 +102,11 @@ function ProjectShell() {
           />
         </div>
 
-        <nav className="mt-7 flex items-center gap-1 border-b border-border">
-          {PROJECT_TABS.map((tab) => {
-            const href = tab.to.replace("$projectId", projectId);
-            const active = pathname === href;
-            return (
-              <Link
-                key={tab.label}
-                to={tab.to}
-                params={{ projectId }}
-                className={cn(
-                  "-mb-px border-b-2 px-3.5 pb-3 text-[13px] font-semibold",
-                  active
-                    ? "border-primary text-primary"
-                    : "border-transparent text-secondary-foreground hover:text-foreground",
-                )}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <UnderlineTabs
+          className="mt-7"
+          items={PROJECT_TABS.map(t => ({ ...t, params: { projectId } }))}
+          value={activeTab}
+        />
 
         <div className="mt-6">
           <Outlet />

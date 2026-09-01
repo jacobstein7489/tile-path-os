@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
-import { Button, EmptyState, Select, Table, Td, Th } from "@/components/kit";
+import { Button, EmptyState, FilterGroup, SearchInput, Select, Table, Td, Th } from "@/components/kit";
 import { Chip } from "@/lib/status";
 import {
   matchesWorkFilter,
@@ -16,7 +16,6 @@ import {
   type WorkFilter,
   type WorkItemRow,
 } from "@/lib/workitems";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -89,34 +88,20 @@ function CompanyWorkPage() {
         </Button>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {WORK_FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={cn(
-              "h-9 rounded-lg border px-3.5 text-[13px] font-medium transition-colors",
-              filter === f
-                ? "border-primary/30 bg-primary-soft text-primary"
-                : "border-border bg-background text-secondary-foreground hover:bg-muted",
-            )}
-          >
-            {f}
-            <span className="ml-1.5 text-[12px] tabular-nums opacity-70">{counts[f]}</span>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-4">
+        <FilterGroup
+          options={WORK_FILTERS.map((f) => ({ value: f, label: f, count: counts[f] }))}
+          value={filter}
+          onChange={(v) => setFilter(v as WorkFilter)}
+        />
 
         <div className="ml-auto flex items-center gap-2">
-          <label className="relative">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search work"
-              className="h-9 w-[190px] rounded-lg border border-border bg-background pr-3 pl-9 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
-            />
-          </label>
+          <SearchInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search work"
+            className="w-[190px]"
+          />
           <Select
             value={project}
             onChange={(e) => setProject(e.target.value)}
@@ -185,8 +170,8 @@ function CompanyWorkPage() {
               <col className="w-[8%]" />
               <col className="w-[13%]" />
             </colgroup>
-            <thead className="bg-muted/60">
-              <tr>
+            <thead>
+              <tr className="bg-muted/60">
                 {[
                   "Project",
                   "What Needs To Happen",
@@ -206,23 +191,23 @@ function CompanyWorkPage() {
                 <tr
                   key={i.id}
                   onClick={() => setActive(i)}
-                  className="cursor-pointer transition-colors last:[&>td]:border-0 hover:bg-muted/50"
+                  className="group cursor-pointer transition-colors hover:bg-muted/50"
                 >
-                  <Td className="font-semibold whitespace-nowrap">
+                  <Td className="font-semibold whitespace-nowrap group-last:border-0">
                     {i.projects?.name ?? "—"}
                   </Td>
-                  <Td>
+                  <Td className="group-last:border-0">
                     <span className="line-clamp-2">{i.title}</span>
                   </Td>
-                  <Td>
+                  <Td className="group-last:border-0">
                     <Chip tone={typeTone(i.item_type)}>{i.item_type}</Chip>
                   </Td>
-                  <Td className="text-secondary-foreground">{i.owner ?? "—"}</Td>
-                  <Td className="text-secondary-foreground">{i.waiting_on ?? "—"}</Td>
-                  <Td>
+                  <Td className="text-secondary-foreground group-last:border-0">{i.owner ?? "—"}</Td>
+                  <Td className="text-secondary-foreground group-last:border-0">{i.waiting_on ?? "—"}</Td>
+                  <Td className="group-last:border-0">
                     <Chip tone={statusTone(i.status)}>{i.status}</Chip>
                   </Td>
-                  <Td className="whitespace-nowrap text-muted-foreground">
+                  <Td className="whitespace-nowrap text-muted-foreground group-last:border-0">
                     {i.due_date
                       ? new Date(i.due_date + "T00:00:00").toLocaleDateString("en-US", {
                           month: "short",
@@ -230,7 +215,7 @@ function CompanyWorkPage() {
                         })
                       : "—"}
                   </Td>
-                  <Td className="font-medium text-primary">
+                  <Td className="font-medium text-primary group-last:border-0">
                     <span className="line-clamp-2">{i.next_action ?? "Open item"}</span>
                   </Td>
                 </tr>
