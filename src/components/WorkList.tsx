@@ -738,64 +738,70 @@ export function WorkList({
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
-        <FilterGroup
-          options={filters.map((f) => ({
-            value: f,
-            label: f === "Important" ? "★ Important" : f,
-            count: counts[f] ?? 0,
-          }))}
-          value={filter}
-          onChange={setFilter}
-        />
-        {showViewToggle ? (
-          <>
-            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-              {VIEWS.map((v) => (
+      <div className="sticky top-14 z-10 -mx-1 space-y-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
+        <div className="-mx-0.5 overflow-x-auto px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <FilterGroup
+            className="flex-nowrap"
+            options={filters.map((f) => ({
+              value: f,
+              label: f === "Important" ? "★ Important" : f,
+              count: counts[f] ?? 0,
+            }))}
+            value={filter}
+            onChange={setFilter}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          {showViewToggle ? (
+            <>
+              <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
+                {VIEWS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => chooseView(v)}
+                    className={cn(
+                      "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-semibold outline-none",
+                      "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+                      view === v
+                        ? "bg-primary-soft text-primary"
+                        : "text-secondary-foreground hover:bg-muted",
+                    )}
+                  >
+                    {v === "Grouped by Project" ? "Grouped" : v}
+                  </button>
+                ))}
+              </div>
+              {view === "Grouped by Project" ? (
                 <button
-                  key={v}
                   type="button"
-                  onClick={() => chooseView(v)}
-                  className={cn(
-                    "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
-                    "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                    view === v
-                      ? "bg-primary-soft text-primary"
-                      : "text-secondary-foreground hover:bg-muted",
-                  )}
+                  onClick={() => setAllCollapsed(anyExpanded)}
+                  className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-semibold text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
                 >
-                  {v === "Grouped by Project" ? "Grouped" : v}
+                  {anyExpanded ? (
+                    <ChevronsDownUp className="size-3.5" />
+                  ) : (
+                    <ChevronsUpDown className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {anyExpanded ? "Collapse all" : "Expand all"}
+                  </span>
                 </button>
-              ))}
-            </div>
-            {view === "Grouped by Project" ? (
-              <button
-                type="button"
-                onClick={() => setAllCollapsed(anyExpanded)}
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border px-2 text-[12.5px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
-              >
-                {anyExpanded ? (
-                  <ChevronsDownUp className="size-3.5" />
-                ) : (
-                  <ChevronsUpDown className="size-3.5" />
-                )}
-                {anyExpanded ? "Collapse all" : "Expand all"}
-              </button>
-            ) : null}
-          </>
-        ) : null}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+              ) : null}
+            </>
+          ) : null}
           {showSearch ? (
             <SearchInput
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search work  /"
-              className="w-[170px] lg:w-[220px]"
+              placeholder="Search work, owner, next action…"
+              className="min-w-0 flex-1 md:max-w-[340px]"
             />
           ) : null}
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="surface px-5 py-10 text-[13px] text-muted-foreground">Loading work…</div>
