@@ -1,0 +1,2 @@
+ALTER TABLE public.work_items ADD COLUMN IF NOT EXISTS is_important boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS work_items_important_idx ON public.work_items (is_important) WHERE is_important;

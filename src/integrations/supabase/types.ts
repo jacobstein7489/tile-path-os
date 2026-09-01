@@ -1122,6 +1122,7 @@ export type Database = {
           due_date: string | null
           id: string
           impact: string | null
+          is_important: boolean
           item_type: string
           next_action: string | null
           owner: string | null
@@ -1147,6 +1148,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           impact?: string | null
+          is_important?: boolean
           item_type: string
           next_action?: string | null
           owner?: string | null
@@ -1172,6 +1174,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           impact?: string | null
+          is_important?: boolean
           item_type?: string
           next_action?: string | null
           owner?: string | null
