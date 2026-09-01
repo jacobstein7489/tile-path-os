@@ -1114,6 +1114,7 @@ export type Database = {
       }
       work_items: {
         Row: {
+          archived_at: string | null
           area_id: string | null
           completed_at: string | null
           created_at: string
@@ -1128,7 +1129,7 @@ export type Database = {
           owner: string | null
           owner_user_id: string | null
           priority: string
-          project_id: string
+          project_id: string | null
           status: string
           surface_id: string | null
           title: string
@@ -1140,6 +1141,7 @@ export type Database = {
           workflow_step: string | null
         }
         Insert: {
+          archived_at?: string | null
           area_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -1154,7 +1156,7 @@ export type Database = {
           owner?: string | null
           owner_user_id?: string | null
           priority?: string
-          project_id: string
+          project_id?: string | null
           status?: string
           surface_id?: string | null
           title: string
@@ -1166,6 +1168,7 @@ export type Database = {
           workflow_step?: string | null
         }
         Update: {
+          archived_at?: string | null
           area_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -1180,7 +1183,7 @@ export type Database = {
           owner?: string | null
           owner_user_id?: string | null
           priority?: string
-          project_id?: string
+          project_id?: string | null
           status?: string
           surface_id?: string | null
           title?: string
