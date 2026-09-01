@@ -1,7 +1,124 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Loader2, Search, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+
+/** Friendly short date for a yyyy-mm-dd value, e.g. "Sep 4". */
+export function friendlyDate(value: string | null | undefined) {
+  if (!value) return "";
+  return new Date(value + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Date field with an obvious calendar affordance: clicking anywhere opens the
+ * native picker, the chosen value shows as a friendly date, and Clear is easy.
+ */
+export function DateField({
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  label = "Date",
+  className,
+}: {
+  value: string | null;
+  onChange: (next: string | null) => void;
+  placeholder?: string;
+  label?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+  const openPicker = () => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof el.showPicker === "function") el.showPicker();
+    else el.focus();
+  };
+  return (
+    <div
+      onClick={openPicker}
+      className={cn(
+        "relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-[13px]",
+        "transition-colors duration-150 hover:border-border-strong focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25",
+        className,
+      )}
+    >
+      <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+      <span className={cn("min-w-0 flex-1 truncate", !value && "text-muted-foreground")}>
+        {value ? friendlyDate(value) : placeholder}
+      </span>
+      {value ? (
+        <button
+          type="button"
+          aria-label="Clear date"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(null);
+          }}
+          className="relative z-10 grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : null}
+      <input
+        ref={ref}
+        type="date"
+        aria-label={label}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="absolute inset-0 z-0 size-full cursor-pointer opacity-0"
+      />
+    </div>
+  );
+}
+
+/** Compact metric tile used for the restrained status strips (not a big KPI card). */
+export function MetricTile({
+  label,
+  value,
+  tone = "neutral",
+  icon,
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: "blue" | "amber" | "green" | "neutral";
+  icon?: ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const tones: Record<string, string> = {
+    blue: "bg-info-soft/70 text-info",
+    amber: "bg-warning-soft/70 text-warning",
+    green: "bg-success-soft/70 text-success",
+    neutral: "bg-muted text-secondary-foreground",
+  };
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      {...(onClick ? { type: "button" as const, onClick, "aria-pressed": active } : {})}
+      className={cn(
+        "surface flex items-center gap-2.5 px-3 py-2.5 text-left outline-none",
+        onClick &&
+          "cursor-pointer transition-[background-color,border-color,transform] duration-150 hover:border-border-strong active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/30",
+        active && "border-primary/35 ring-1 ring-inset ring-primary/20",
+      )}
+    >
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", tones[tone])}>
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[19px] leading-none font-bold tabular-nums">{value}</span>
+        <span className="mt-1 block truncate text-[11.5px] font-medium text-muted-foreground">
+          {label}
+        </span>
+      </span>
+    </Tag>
+  );
+}
 
 /* ============================================================
  * Cobblestone Tile OS design kit.
@@ -534,20 +651,22 @@ export function Drawer({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex items-end justify-end md:items-stretch">
       <button
         type="button"
         aria-label="Close drawer"
         onClick={onClose}
         className="absolute inset-0 bg-foreground/20 backdrop-blur-[1px]"
       />
+      {/* Phone: full-height bottom sheet. Desktop: right-side drawer. */}
       <aside
         className={cn(
-          "relative flex h-full w-full flex-col border-l border-border bg-card shadow-[var(--shadow-raised)]",
+          "relative flex w-full flex-col border-border bg-card shadow-[var(--shadow-raised)]",
+          "h-[93vh] rounded-t-2xl border-t md:h-full md:rounded-none md:border-t-0 md:border-l",
           width,
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 rounded-t-2xl border-b border-border bg-card px-4 py-3.5 md:rounded-none md:px-5 md:py-4">
           <div className="min-w-0">
             <h2 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] break-words">
               {title}
@@ -560,14 +679,14 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
+            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
           >
             <X className="size-4" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">{children}</div>
         {footer ? (
-          <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+          <footer className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-5 md:py-3.5">
             {footer}
           </footer>
         ) : null}

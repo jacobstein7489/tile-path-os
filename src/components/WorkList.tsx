@@ -1,20 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
+  Clock,
   Plus,
+  SlidersHorizontal,
   Star,
+  X,
 } from "lucide-react";
 
 import { toast } from "sonner";
 import {
   Button,
   Combobox,
+  DateField,
   EmptyState,
   FilterGroup,
+  MetricTile,
   SearchInput,
   Table,
   Td,
@@ -159,6 +166,8 @@ export function WorkList({
   isLoading = false,
   emptyTitle = "Nothing open",
   emptyNote = "No work matches this view.",
+  showSummary = false,
+  toolbarRight,
 }: {
   items: WorkItemRow[];
   onOpen: (item: WorkItemRow) => void;
@@ -179,6 +188,10 @@ export function WorkList({
   isLoading?: boolean;
   emptyTitle?: string;
   emptyNote?: string;
+  /** Compact status strip above the controls (Company Work). */
+  showSummary?: boolean;
+  /** Right-side toolbar slot, e.g. Quick Capture. */
+  toolbarRight?: ReactNode;
 }) {
   const { data: profiles = [] } = useProfiles();
   const save = useSaveWorkItem();
@@ -191,6 +204,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
+  const [filterSheet, setFilterSheet] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Restore the remembered view after hydration (localStorage is client-only).
@@ -352,11 +366,11 @@ export function WorkList({
     <colgroup>
       <col className="w-[48px]" />
       {withProject ? <col className="w-[15%]" /> : null}
-      <col className={withProject ? "w-[26%]" : "w-[33%]"} />
-      <col className="w-[16%]" />
-      <col className="w-[12%]" />
+      <col className={withProject ? "w-[26%]" : "w-[28%]"} />
+      <col className={withProject ? "w-[19%]" : "w-[24%]"} />
+      <col className="w-[11%]" />
       <col className="w-[10%]" />
-      <col className="w-[16%]" />
+      <col className="w-[14%]" />
       <col className="w-[52px]" />
     </colgroup>
   );
@@ -378,7 +392,7 @@ export function WorkList({
 
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
-    <div className="surface sticky top-[152px] z-[9] hidden overflow-hidden md:block">
+    <div className="surface sticky top-[116px] z-[9] hidden overflow-hidden md:block">
       <Table className="table-fixed">
         <Cols withProject={false} />
         <thead>
@@ -447,7 +461,7 @@ export function WorkList({
                   <Highlight text={i.title} query={q} />
                 </span>
               </Td>
-              <Td className="group-last:border-0">
+              <Td className="min-w-[140px] group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
                   <Combobox
                     options={owners}
@@ -669,12 +683,11 @@ export function WorkList({
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
                   Needed by
                 </span>
-                <input
-                  type="date"
-                  value={due}
-                  aria-label="Needed by"
-                  onChange={(e) => setDue(e.target.value)}
-                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                <DateField
+                  value={due || null}
+                  label="Needed by"
+                  placeholder="No date"
+                  onChange={(v) => setDue(v ?? "")}
                 />
               </div>
               <div>
@@ -742,10 +755,71 @@ export function WorkList({
 
   const anyExpanded = groups.some(([key]) => !collapsed[key]);
 
+  const ViewToggle = () => (
+    <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
+      {VIEWS.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => chooseView(v)}
+          className={cn(
+            "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-semibold outline-none",
+            "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+            view === v ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted",
+          )}
+        >
+          {v === "Grouped by Project" ? "Grouped" : v}
+        </button>
+      ))}
+    </div>
+  );
+
+  const CollapseButton = () => (
+    <button
+      type="button"
+      onClick={() => setAllCollapsed(anyExpanded)}
+      className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[12.5px] font-semibold text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
+    >
+      {anyExpanded ? (
+        <ChevronsDownUp className="size-3.5" />
+      ) : (
+        <ChevronsUpDown className="size-3.5" />
+      )}
+      {anyExpanded ? "Collapse all" : "Expand all"}
+    </button>
+  );
+
+  /** Restrained status strip — compact tiles, not giant KPI cards. */
+  const summaryTiles = (
+    [
+      { key: "My Work", tone: "blue" as const, icon: <Clock className="size-4" /> },
+      { key: "Important", tone: "neutral" as const, icon: <Star className="size-4" /> },
+      { key: "Waiting", tone: "amber" as const, icon: <AlertTriangle className="size-4" /> },
+      { key: "Completed", tone: "green" as const, icon: <CheckCircle2 className="size-4" /> },
+    ] as const
+  ).filter((t) => filters.includes(t.key));
+
   return (
     <div className="space-y-3">
-      <div className="sticky top-14 z-10 -mx-1 space-y-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
-        <div className="-mx-0.5 overflow-x-auto px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {showSummary && summaryTiles.length ? (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5">
+          {summaryTiles.map((t) => (
+            <MetricTile
+              key={t.key}
+              label={t.key}
+              tone={t.tone}
+              icon={t.icon}
+              value={counts[t.key] ?? 0}
+              active={filter === t.key}
+              onClick={() => setFilter(filter === t.key ? defaultFilter : t.key)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="sticky top-14 z-10 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
+        {/* Desktop: one deliberate row. */}
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
           <FilterGroup
             className="flex-nowrap"
             options={filters.map((f) => ({
@@ -756,57 +830,109 @@ export function WorkList({
             value={filter}
             onChange={setFilter}
           />
+          {showViewToggle ? <ViewToggle /> : null}
+          {showViewToggle && view === "Grouped by Project" ? <CollapseButton /> : null}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {showSearch ? (
+              <SearchInput
+                ref={searchRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search work, owner, next action…"
+                className="w-[200px] min-w-0 lg:w-[260px]"
+              />
+            ) : null}
+            {toolbarRight}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {showViewToggle ? (
-            <>
-              <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
-                {VIEWS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => chooseView(v)}
-                    className={cn(
-                      "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-semibold outline-none",
-                      "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                      view === v
-                        ? "bg-primary-soft text-primary"
-                        : "text-secondary-foreground hover:bg-muted",
-                    )}
-                  >
-                    {v === "Grouped by Project" ? "Grouped" : v}
-                  </button>
-                ))}
-              </div>
-              {view === "Grouped by Project" ? (
-                <button
-                  type="button"
-                  onClick={() => setAllCollapsed(anyExpanded)}
-                  className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-semibold text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
-                >
-                  {anyExpanded ? (
-                    <ChevronsDownUp className="size-3.5" />
-                  ) : (
-                    <ChevronsUpDown className="size-3.5" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {anyExpanded ? "Collapse all" : "Expand all"}
-                  </span>
-                </button>
-              ) : null}
-            </>
-          ) : null}
+
+        {/* Phone: search first, then one compact controls row. */}
+        <div className="space-y-2 md:hidden">
           {showSearch ? (
             <SearchInput
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search work, owner, next action…"
-              className="min-w-0 flex-1 md:max-w-[340px]"
+              placeholder="Search work…"
+              className="w-full"
             />
           ) : null}
+          <div className="flex items-center gap-2">
+            {showViewToggle ? <ViewToggle /> : null}
+            <button
+              type="button"
+              onClick={() => setFilterSheet(true)}
+              className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[12.5px] font-semibold text-secondary-foreground active:scale-[0.97]"
+            >
+              <SlidersHorizontal className="size-3.5" />
+              {filter === defaultFilter ? "Filters" : filter}
+            </button>
+            {showViewToggle && view === "Grouped by Project" ? (
+              <button
+                type="button"
+                aria-label={anyExpanded ? "Collapse all" : "Expand all"}
+                onClick={() => setAllCollapsed(anyExpanded)}
+                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-border bg-background text-secondary-foreground active:scale-[0.95]"
+              >
+                {anyExpanded ? (
+                  <ChevronsDownUp className="size-4" />
+                ) : (
+                  <ChevronsUpDown className="size-4" />
+                )}
+              </button>
+            ) : null}
+            {toolbarRight ? <div className="ml-auto shrink-0">{toolbarRight}</div> : null}
+          </div>
         </div>
       </div>
+
+      {/* Secondary filters live in a small bottom sheet on phones. */}
+      {filterSheet ? (
+        <div className="fixed inset-0 z-40 flex items-end md:hidden">
+          <button
+            type="button"
+            aria-label="Close filters"
+            onClick={() => setFilterSheet(false)}
+            className="absolute inset-0 bg-foreground/25"
+          />
+          <div className="relative w-full rounded-t-2xl border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between">
+              <p className="text-[14px] font-bold">Filter work</p>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setFilterSheet(false)}
+                className="grid size-9 place-items-center rounded-lg text-muted-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <ul className="mt-2 divide-y divide-border/70">
+              {filters.map((f) => (
+                <li key={f}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilter(f);
+                      setFilterSheet(false);
+                    }}
+                    className={cn(
+                      "flex min-h-[48px] w-full items-center justify-between gap-3 px-1 text-left text-[14px] font-medium",
+                      filter === f ? "text-primary" : "text-foreground",
+                    )}
+                  >
+                    <span>{f === "Important" ? "★ Important" : f}</span>
+                    <span className="text-[13px] text-muted-foreground tabular-nums">
+                      {counts[f] ?? 0}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
 
 
       {isLoading ? (

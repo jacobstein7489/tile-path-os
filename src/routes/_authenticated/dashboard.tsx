@@ -68,6 +68,7 @@ function CompanyWorkPage() {
         matchFilter={(f, item) => matchesWorkFilter(f as WorkFilter, item, user?.id)}
         defaultFilter="All"
         viewStorageKey="cobblestone.companywork.view"
+        showSummary
         emptyTitle="Nothing here"
         emptyNote="No work items match this view. Use Quick Capture to log what came in from the field."
       />

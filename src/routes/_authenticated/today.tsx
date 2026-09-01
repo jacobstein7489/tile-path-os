@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { Button, KpiCard, SectionCard } from "@/components/kit";
+import { Button, MetricTile, SectionCard } from "@/components/kit";
 import {
   isComplete,
   matchesTodayFilter,
@@ -73,21 +73,21 @@ function TodayPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
-              <KpiCard
-                icon={<Clock className="size-5" />}
+            <div className="grid grid-cols-3 gap-2 md:gap-2.5">
+              <MetricTile
+                icon={<Clock className="size-4" />}
                 tone="blue"
                 label="Active"
                 value={openCount}
               />
-              <KpiCard
-                icon={<AlertTriangle className="size-5" />}
+              <MetricTile
+                icon={<AlertTriangle className="size-4" />}
                 tone="amber"
                 label="Waiting"
                 value={waitingCount}
               />
-              <KpiCard
-                icon={<CheckCircle2 className="size-5" />}
+              <MetricTile
+                icon={<CheckCircle2 className="size-4" />}
                 tone="green"
                 label="Completed"
                 value={completedCount}

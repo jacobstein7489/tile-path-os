@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   Button,
   Combobox,
+  DateField,
   Drawer,
   Field,
   Select,
@@ -207,7 +208,7 @@ export function WorkItemDrawer({
         </button>
 
 
-        <div className="grid grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
               options={profileOptions(profiles)}
@@ -224,10 +225,11 @@ export function WorkItemDrawer({
             />
           </Field>
           <Field label="Needed by">
-            <TextInput
-              type="date"
-              value={form.due_date}
-              onChange={(e) => set("due_date", e.target.value)}
+            <DateField
+              value={form.due_date || null}
+              label="Needed by"
+              placeholder="No date"
+              onChange={(v) => set("due_date", v ?? "")}
             />
           </Field>
         </div>
@@ -304,7 +306,7 @@ export function WorkItemDrawer({
           </button>
           {more ? (
             <div className="space-y-3.5 border-t border-border px-4 py-3.5">
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <Field label="Type">
                   <Select value={form.item_type} onChange={(e) => set("item_type", e.target.value)}>
                     {WORK_ITEM_TYPES.map((t) => (
