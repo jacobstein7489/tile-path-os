@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { Button, FilterGroup, SearchInput, Select, Table, Td, Th } from "@/components/kit";
@@ -155,7 +155,9 @@ function ProjectsPage() {
                 </Td>
               </tr>
             ) : (
-              rows.map((p) => <ProjectRow key={p.id} project={p} />)
+              rows.map((p) => (
+                <ProjectRow key={p.id} project={p} work={workByProject.get(p.id) ?? []} />
+              ))
             )}
           </tbody>
         </Table>
