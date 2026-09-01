@@ -41,7 +41,7 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen bg-canvas">
       <AppSidebar />
-      <div className="ml-[232px] min-w-0">
+      <div className="min-w-0 md:ml-[232px]">
         <Outlet />
       </div>
     </div>

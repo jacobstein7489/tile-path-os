@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   FolderClosed,
   LayoutDashboard,
   LogOut,
+  Menu,
   Package,
   Settings,
   Sparkles,
@@ -28,9 +30,36 @@ export function AppSidebar() {
   const { data: profile } = useMyProfile();
   const { data: roles = [] } = useMyRoles();
   const primaryRole = roles[0];
+  const [open, setOpen] = useState(false);
+
+  // Navigating on a phone closes the drawer.
+  useEffect(() => setOpen(false), [pathname]);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[232px] flex-col border-r border-sidebar-border bg-sidebar">
+    <>
+    <button
+      type="button"
+      aria-label="Open navigation"
+      onClick={() => setOpen(true)}
+      className="fixed top-2.5 left-2.5 z-40 grid size-10 cursor-pointer place-items-center rounded-xl border border-border bg-card text-secondary-foreground shadow-[var(--shadow-card)] md:hidden"
+    >
+      <Menu className="size-5" />
+    </button>
+    {open ? (
+      <button
+        type="button"
+        aria-label="Close navigation"
+        onClick={() => setOpen(false)}
+        className="fixed inset-0 z-30 bg-foreground/20 md:hidden"
+      />
+    ) : null}
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col border-r border-sidebar-border bg-sidebar",
+        "transition-transform duration-200 md:z-30 md:translate-x-0",
+        open ? "translate-x-0" : "-translate-x-full",
+      )}
+    >
       <div className="flex items-center gap-2.5 px-5 pt-6 pb-7">
         <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
@@ -91,5 +120,6 @@ export function AppSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

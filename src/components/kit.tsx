@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
@@ -432,20 +432,17 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(fieldClass, props.className)} />;
 }
 
-export function SearchInput({
-  className,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+export const SearchInput = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(function SearchInput({ className, ...props }, ref) {
   return (
     <div className={cn("relative", className)}>
       <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        {...props}
-        className={cn(fieldClass, "pl-9")}
-      />
+      <input ref={ref} {...props} className={cn(fieldClass, "pl-9")} />
     </div>
   );
-}
+});
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -552,7 +549,9 @@ export function Drawer({
       >
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] break-words">
+              {title}
+            </h2>
             {subtitle ? (
               <div className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</div>
             ) : null}

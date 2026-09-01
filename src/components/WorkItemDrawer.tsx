@@ -42,6 +42,7 @@ export function WorkItemDrawer({
   const { data: events = [] } = useWorkItemEvents(item?.id ?? null);
   const { data: profiles = [] } = useProfiles();
   const [form, setForm] = useState({
+    title: "",
     owner_user_id: "" as string | null,
     waiting_on: "",
     status: "Open",
@@ -56,6 +57,7 @@ export function WorkItemDrawer({
   useEffect(() => {
     if (!item) return;
     setForm({
+      title: item.title,
       owner_user_id: item.owner_user_id ?? null,
       waiting_on: item.waiting_on ?? "",
       status: item.status,
@@ -78,6 +80,7 @@ export function WorkItemDrawer({
     await save.mutateAsync({
       id: item.id,
       patch: {
+        title: form.title.trim() || item.title,
         owner_user_id: form.owner_user_id || null,
         owner: form.owner_user_id
           ? (profiles.find((p) => p.user_id === form.owner_user_id)?.full_name ?? null)
@@ -124,20 +127,24 @@ export function WorkItemDrawer({
     <Drawer
       open
       onClose={onClose}
-      title={item.title}
-      subtitle={
-        item.project_id ? (
-        <Link
-          to="/projects/$projectId"
-          params={{ projectId: item.project_id }}
-          className="font-medium text-primary hover:underline"
-        >
-          {item.projects?.name ?? "Project"}
-        </Link>
-        ) : (
-          <span className="font-medium text-muted-foreground">Company / Unassigned</span>
-        )
+      title={
+        <span>
+          {item.project_id ? (
+            <Link
+              to="/projects/$projectId"
+              params={{ projectId: item.project_id }}
+              className="text-primary hover:underline"
+            >
+              {item.projects?.name ?? "Project"}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">Company / Unassigned</span>
+          )}
+          <span className="px-1.5 text-muted-foreground">/</span>
+          {item.title}
+        </span>
       }
+      subtitle={`${item.item_type} · ${item.status}`}
       footer={
         <>
           {done ? (
@@ -165,14 +172,21 @@ export function WorkItemDrawer({
       }
     >
       <div className="space-y-5">
-        <div className="rounded-xl border border-primary/25 bg-primary-soft px-4 py-3">
-          <div className="text-[10.5px] font-semibold tracking-[0.14em] text-primary/80 uppercase">
-            Next action
-          </div>
-          <p className="mt-0.5 text-[14px] font-semibold text-primary">
-            {item.next_action ?? "No next action set"}
-          </p>
-        </div>
+        <Field label="What needs to happen">
+          <TextInput
+            value={form.title}
+            onChange={(e) => set("title", e.target.value)}
+            placeholder="Describe the work"
+          />
+        </Field>
+
+        <Field label="Next action">
+          <TextInput
+            value={form.next_action}
+            onChange={(e) => set("next_action", e.target.value)}
+            placeholder="The very next step"
+          />
+        </Field>
 
         <div className="grid grid-cols-3 gap-3.5">
           <Field label="Owner">
@@ -287,12 +301,6 @@ export function WorkItemDrawer({
                   </Select>
                 </Field>
               </div>
-              <Field label="Next action text">
-                <TextInput
-                  value={form.next_action}
-                  onChange={(e) => set("next_action", e.target.value)}
-                />
-              </Field>
               {wf ? (
                 <div className="rounded-lg bg-muted/40 px-3 py-3">
                   <div className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">

@@ -370,7 +370,6 @@ function useInvalidateWork() {
 }
 
 export function useSaveWorkItem() {
-  const invalidate = useInvalidateWork();
   const qc = useQueryClient();
   return useMutation({
     // Optimistic: the row flips in the UI immediately, the write catches up.
@@ -410,7 +409,12 @@ export function useSaveWorkItem() {
           });
       }
     },
-    onSuccess: (_d, vars) => invalidate(vars.id),
+    // The row already flipped optimistically, so only the feed and this item's
+    // history need refreshing — no project-wide refetch on every keystroke.
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: FEED_KEY });
+      qc.invalidateQueries({ queryKey: ["work_item_events", vars.id] });
+    },
   });
 }
 
