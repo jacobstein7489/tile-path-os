@@ -88,22 +88,51 @@ function cleanLine(line: string) {
     .trim();
 }
 
-/** Fuzzy project match: any distinctive token of the job name appearing in the text. */
-function matchProject(text: string, projects: { id: string; name: string }[]) {
-  const t = text.toLowerCase();
+/** Comparison form of a project name: "5:30 Mark" and "530 Mark" collapse to "530mark". */
+function normalizeName(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function nameTokens(s: string) {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Resolve a heading line to a project. Punctuation, spacing, hyphens and case are
+ * ignored; a partial name still matches, but only confidently.
+ */
+export function matchProjectHeading(
+  heading: string,
+  projects: { id: string; name: string }[],
+): { id: string; kind: MatchKind } {
+  const h = normalizeName(heading);
+  if (!h) return { id: "", kind: "none" };
+
+  for (const p of projects) {
+    if (normalizeName(p.name) === h) return { id: p.id, kind: "exact" };
+  }
+
+  const ht = new Set(nameTokens(heading));
   let best: { id: string; score: number } | null = null;
   for (const p of projects) {
-    const name = p.name.toLowerCase();
+    const n = normalizeName(p.name);
     let score = 0;
-    if (t.includes(name)) score = 100 + name.length;
-    else {
-      const tokens = name.split(/[^a-z0-9-]+/).filter((w) => w.length > 2 || /\d/.test(w));
-      const hits = tokens.filter((w) => t.includes(w));
-      if (hits.length) score = hits.reduce((a, w) => a + w.length, 0) * (hits.length > 1 ? 2 : 1);
+    if (n.length >= 4 && h.length >= 4 && (n.includes(h) || h.includes(n))) {
+      score = Math.min(n.length, h.length) / Math.max(n.length, h.length);
+    } else {
+      const pt = new Set(nameTokens(p.name));
+      let shared = 0;
+      pt.forEach((t) => {
+        if (ht.has(t)) shared += 1;
+      });
+      if (shared) score = shared / Math.max(pt.size, ht.size);
     }
-    if (score > 6 && (!best || score > best.score)) best = { id: p.id, score };
+    if (score >= 0.6 && (!best || score > best.score)) best = { id: p.id, score };
   }
-  return best?.id ?? "";
+  return best ? { id: best.id, kind: "fuzzy" } : { id: "", kind: "none" };
 }
 
 /** Strip the matched job name out of the item summary so titles read cleanly. */
@@ -119,7 +148,9 @@ const emptyDraft = (
   extra: Partial<Draft>,
 ): Draft => ({
   key,
+  sectionKey: "unassigned",
   groupName: "",
+  matchKind: "none",
   project_id: "",
   title,
   owner: "",
@@ -131,61 +162,75 @@ const emptyDraft = (
   ...extra,
 });
 
+const ACTION_START =
+  /^(confirm|order|call|check|measure|schedule|follow|send|get|need|price|verify|fix|install|remove|replace|deliver|pick|drop|reorder|review|update|finish|start|clean|cut|set|make|ask|email|text|meet|assign|approve)\b/i;
+
+/**
+ * Structural heading test — runs BEFORE any database matching so an unknown or
+ * mistyped project name still starts its own section.
+ */
+function looksLikeHeading(original: string, clean: string, indentMode: boolean) {
+  const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
+  if (indentMode) return !indented;
+  if (indented) return false;
+  return (
+    clean.length <= 46 &&
+    !/[,;?]/.test(clean) &&
+    !/[—–]|\s-\s|:/.test(clean) &&
+    clean.split(" ").length <= 5 &&
+    !ACTION_START.test(clean)
+  );
+}
+
 /* ============================================================
- * Bulk parse: a grouped paste where a bare line is a project
- * heading and the lines under it are that project's work.
+ * Bulk parse: a grouped paste where a standalone line starts a
+ * new project section and the lines under it are its work.
+ * Sections are structural — they never merge into each other.
  * ============================================================ */
 function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
   const drafts: Draft[] = [];
-  let currentId = "";
-  let currentName = "";
   const lines = text.split(/\r?\n/);
+
+  // If the paste uses indentation or bullets at all, indentation defines the sections.
+  const indentMode = lines.some(
+    (l) => /^([ \t]+|\s*[-–—•*·>])/.test(l) && /[a-z0-9]{2}/i.test(cleanLine(l)),
+  );
+
+  let section = { key: "unassigned", id: "", name: "", kind: "none" as MatchKind };
+  let sectionIndex = 0;
 
   lines.forEach((original, i) => {
     const clean = cleanLine(original);
     if (!/[a-z0-9]{2}/i.test(clean)) return;
 
-    const indented = /^[\s\t]+|^[-–—•*·>]/.test(original);
-    const matchedId = matchProject(original, projects);
-    const matchedName = projects.find((p) => p.id === matchedId)?.name;
-    const stripped = stripProject(clean, matchedName);
-
-    // A line that is just a job name is a heading for everything under it.
-    if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) {
-      currentId = matchedId;
-      currentName = matchedName ?? clean;
+    if (looksLikeHeading(original, clean, indentMode)) {
+      const match = matchProjectHeading(clean, projects);
+      sectionIndex += 1;
+      section = {
+        key: `s${sectionIndex}`,
+        id: match.id,
+        name: projects.find((p) => p.id === match.id)?.name ?? clean,
+        kind: match.kind,
+      };
+      // Remember the pasted heading so an unmatched section can become a stub.
+      if (!match.id) section.name = clean;
       return;
     }
 
-    // An un-indented short line with no action language is an unmatched heading.
-    const looksLikeHeading =
-      !indented &&
-      !matchedId &&
-      clean.length <= 46 &&
-      !/[,;?]/.test(clean) &&
-      !/[—–]|\s-\s|:/.test(clean) &&
-      clean.split(" ").length <= 5 &&
-      !/^(confirm|order|call|check|measure|schedule|follow|send|get|need|price|verify|fix|install)/i.test(
-        clean,
-      );
-    if (looksLikeHeading) {
-      currentId = "";
-      currentName = clean;
-      return;
-    }
-
-    const projectId = matchedId || currentId;
-    const title = (matchedId ? stripped : clean) || clean;
+    const title = stripProject(clean, section.id ? section.name : undefined) || clean;
     drafts.push(
       emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
-        project_id: projectId,
-        groupName: projectId ? "" : currentName,
+        sectionKey: section.key,
+        project_id: section.id,
+        groupName: section.id ? "" : section.name,
+        matchKind: section.kind,
       }),
     );
   });
 
   return drafts;
 }
+
 
 /** Quick-note parse: sentence/line splitting with sticky project context. */
 function parseNote(text: string, projects: { id: string; name: string }[]): Draft[] {
