@@ -79,26 +79,24 @@ function ProjectsPage() {
         </div>
         <Table className="table-fixed">
           <colgroup>
-            <col className="w-[13%]" />
+            <col className="w-[15%]" />
             <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[12%]" />
-            <col className="w-[8%]" />
+            <col className="w-[11%]" />
             <col className="w-[9%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
+            <col className="w-[9%]" />
+            <col className="w-[9%]" />
+            <col className="w-[18%]" />
+            <col className="w-[19%]" />
           </colgroup>
           <thead>
             <tr className="bg-muted/60">
               {[
                 "Project",
                 "Stage",
-                "Readiness",
-                "Installation Progress",
+                "Progress",
                 "Crew",
                 "Dates",
-                "Material Status",
+                "Materials",
                 "Needs Attention",
                 "Next Move",
               ].map((h) => (
@@ -109,13 +107,13 @@ function ProjectsPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <Td colSpan={9} className="text-muted-foreground">
+                <Td colSpan={8} className="text-muted-foreground">
                   Loading projects…
                 </Td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <Td colSpan={9} className="text-muted-foreground text-center py-12">
+                <Td colSpan={8} className="text-muted-foreground text-center py-12">
                   No projects in this view.
                 </Td>
               </tr>
@@ -149,19 +147,18 @@ function ProjectRow({ project: p }: { project: Project }) {
       </Td>
       <Td className="group-last:border-0">
         <div className="flex items-center gap-2">
-          <ProgressBar value={p.readiness_pct} tone="success" className="w-16" />
-          <span className="text-xs font-semibold tabular-nums">{p.readiness_pct}%</span>
+          <ProgressBar
+            value={installing ? p.installation_progress : p.readiness_pct}
+            tone={installing ? "primary" : "success"}
+            className="w-12"
+          />
+          <span className="text-xs font-semibold tabular-nums">
+            {installing ? p.installation_progress : p.readiness_pct}%
+          </span>
         </div>
-      </Td>
-      <Td className="group-last:border-0">
-        {installing ? (
-          <div className="flex items-center gap-2">
-            <ProgressBar value={p.installation_progress} className="w-16" />
-            <span className="text-xs font-semibold tabular-nums">{p.installation_progress}%</span>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground/70">Not started</span>
-        )}
+        <div className="mt-0.5 text-[10.5px] tracking-tight text-muted-foreground">
+          {installing ? "Installation" : "Readiness"}
+        </div>
       </Td>
       <Td className="group-last:border-0">
         {p.crew_lead ? (
@@ -169,7 +166,7 @@ function ProjectRow({ project: p }: { project: Project }) {
             <span className="grid size-6 place-items-center rounded-full bg-primary-soft text-[10px] font-semibold text-primary">
               {initials(p.crew_lead)}
             </span>
-            {p.crew_lead}
+            <span className="truncate">{p.crew_lead}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Unassigned</span>
@@ -187,16 +184,16 @@ function ProjectRow({ project: p }: { project: Project }) {
             <span className="mt-1.5">
               <Dot tone="red" />
             </span>
-            <span>{p.needs_attention}</span>
+            <span className="text-[12px] leading-snug">{p.needs_attention}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Clear</span>
         )}
       </Td>
       <Td className="group-last:border-0">
-        <span className="inline-flex w-full max-w-full items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">
-          <span className="truncate">{p.next_move ?? "Open project"}</span>
-          <ArrowRight className="size-3.5 shrink-0" />
+        <span className="flex w-full max-w-full items-start gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-[12px] leading-snug font-medium text-primary">
+          <span className="min-w-0 flex-1 whitespace-normal">{p.next_move ?? "Open project"}</span>
+          <ArrowRight className="mt-0.5 size-3.5 shrink-0" />
         </span>
         {p.next_move_owner ? (
           <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>
