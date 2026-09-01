@@ -533,7 +533,25 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
         </>
       ) : (
         <div className="space-y-3">
+          {unmatchedSections.length || fuzzySections.length ? (
+            <div className="rounded-xl border border-warning/40 bg-warning-soft/50 px-3 py-2.5">
+              <p className="text-[12.5px] font-semibold text-warning">
+                Review project names before importing
+              </p>
+              <ul className="mt-1 space-y-0.5 text-[12px] text-secondary-foreground">
+                {unmatchedSections.map(([k, g]) => (
+                  <li key={k}>Unmatched project: “{g.heading}” — choose a project or create a stub</li>
+                ))}
+                {fuzzySections.map(([k, g]) => (
+                  <li key={k}>
+                    “{g.heading || g.label}” matched to {g.label} — confirm it is the right project
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {/* Batch tools */}
+
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
             <span className="text-[12.5px] font-semibold">
               {selectedKeys.length ? `${selectedKeys.length} selected` : `${drafts.length} proposed`}
