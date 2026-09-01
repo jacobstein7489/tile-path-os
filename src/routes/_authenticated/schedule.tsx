@@ -105,7 +105,7 @@ function SchedulePage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
-      <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
+      <div className="mx-auto max-w-7xl mx-auto px-8 pt-7 pb-16">
         <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Schedule &amp; Crews</h1>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           View crew schedules, manage assignments and plan the week ahead.

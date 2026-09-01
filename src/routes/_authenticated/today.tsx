@@ -81,7 +81,7 @@ function TodayPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} viewLabel="SITE MANAGER VIEW" />
-      <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
         <h1 className="text-[30px] leading-tight font-bold">Good morning, {ME.name}</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
 

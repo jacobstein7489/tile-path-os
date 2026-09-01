@@ -106,7 +106,7 @@ function MaterialsPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Install Materials" }]} />
-      <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
+      <div className="mx-auto max-w-7xl mx-auto px-8 pt-7 pb-16">
         <div className="flex items-start justify-between gap-6">
           <div>
             <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Install Materials</h1>

@@ -177,6 +177,7 @@ export type Database = {
       }
       material_items: {
         Row: {
+          archived_at: string | null
           area_id: string | null
           category: string
           created_at: string
@@ -201,6 +202,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           area_id?: string | null
           category?: string
           created_at?: string
@@ -225,6 +227,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           area_id?: string | null
           category?: string
           created_at?: string
@@ -424,6 +427,7 @@ export type Database = {
       }
       project_areas: {
         Row: {
+          archived_at: string | null
           created_at: string
           id: string
           name: string
@@ -435,6 +439,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           id?: string
           name: string
@@ -446,6 +451,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -628,6 +634,7 @@ export type Database = {
       }
       project_surfaces: {
         Row: {
+          archived_at: string | null
           area_id: string
           created_at: string
           detail_confirmed: boolean
@@ -660,6 +667,7 @@ export type Database = {
           waterproofing: string | null
         }
         Insert: {
+          archived_at?: string | null
           area_id: string
           created_at?: string
           detail_confirmed?: boolean
@@ -692,6 +700,7 @@ export type Database = {
           waterproofing?: string | null
         }
         Update: {
+          archived_at?: string | null
           area_id?: string
           created_at?: string
           detail_confirmed?: boolean
@@ -1166,7 +1175,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_access_project_path: {
+        Args: { _path: string; _user_id: string }
+        Returns: boolean
+      }
       can_admin_data: { Args: { _user_id: string }; Returns: boolean }
+      can_edit_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_field_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1174,6 +1199,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_operator: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

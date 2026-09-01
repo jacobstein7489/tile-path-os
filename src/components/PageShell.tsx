@@ -17,7 +17,7 @@ export function PageShell({
   return (
     <>
       <AppHeader crumbs={crumbs} />
-      <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
         <div className="flex items-start justify-between gap-6">
           <div>
             <h1 className="text-[30px] leading-tight font-bold">{title}</h1>
