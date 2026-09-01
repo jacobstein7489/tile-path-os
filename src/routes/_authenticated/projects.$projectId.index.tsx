@@ -19,11 +19,11 @@ import {
   Drawer,
   EmptyState,
   Field,
-  Input,
+  TextInput,
   SectionCard,
   Table,
   Td,
-  Textarea,
+  TextArea,
   Th,
 } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
@@ -287,7 +287,7 @@ function ProjectOverview() {
                       <div className="text-muted-foreground">{i.description}</div>
                     ) : null}
                   </Td>
-                  <Td>{nameOf(i.owner_user_id) ?? i.owner ?? "—"}</Td>
+                  <Td>{nameOf((i as { owner_user_id?: string | null }).owner_user_id) ?? i.owner ?? "—"}</Td>
                   <Td>{i.waiting_on ?? "—"}</Td>
                   <Td>{i.impact ?? "—"}</Td>
                   <Td>{i.next_action ?? "—"}</Td>
@@ -340,11 +340,11 @@ function ProjectOverview() {
       >
         <div className="space-y-4">
           <Field label="Crew lead">
-            <Input
+            <TextInput
               defaultValue={project.crew_lead ?? ""}
               placeholder="Crew lead"
               disabled={!canEdit}
-              onBlur={(e) => canEdit && updateProject.mutate({ crew_lead: e.target.value || null })}
+              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => canEdit && updateProject.mutate({ crew_lead: e.target.value || null })}
             />
           </Field>
           <ReadRow label="Project manager" value={pmName} />
@@ -375,19 +375,19 @@ function ProjectOverview() {
       >
         <div className="space-y-4">
           <Field label="Start date">
-            <Input
+            <TextInput
               type="date"
               defaultValue={project.start_date ?? ""}
               disabled={!canEdit}
-              onChange={(e) => canEdit && updateProject.mutate({ start_date: e.target.value || null })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => canEdit && updateProject.mutate({ start_date: e.target.value || null })}
             />
           </Field>
           <Field label="Target completion">
-            <Input
+            <TextInput
               type="date"
               defaultValue={project.target_date ?? ""}
               disabled={!canEdit}
-              onChange={(e) => canEdit && updateProject.mutate({ target_date: e.target.value || null })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => canEdit && updateProject.mutate({ target_date: e.target.value || null })}
             />
           </Field>
           <Link
@@ -445,19 +445,19 @@ function ProjectOverview() {
       >
         <div className="space-y-4">
           <Field label="Next move">
-            <Textarea
+            <TextArea
               rows={3}
               defaultValue={project.next_move ?? ""}
               disabled={!canEdit}
-              onBlur={(e) => canEdit && updateProject.mutate({ next_move: e.target.value || null })}
+              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => canEdit && updateProject.mutate({ next_move: e.target.value || null })}
             />
           </Field>
           <Field label="Needs attention">
-            <Textarea
+            <TextArea
               rows={2}
               defaultValue={project.needs_attention ?? ""}
               disabled={!canEdit}
-              onBlur={(e) =>
+              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                 canEdit && updateProject.mutate({ needs_attention: e.target.value || null })
               }
             />
