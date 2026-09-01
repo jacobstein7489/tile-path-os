@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { profileOptions, useProfiles } from "@/lib/people";
 import {
   useInsertRow,
   useProjects,
@@ -36,11 +37,13 @@ export function CreateWorkItemModal({
 }) {
   const { data: projects = [] } = useProjects();
   const insert = useInsertRow("work_items");
+  const { data: profiles = [] } = useProfiles();
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [form, setForm] = useState({
     project_id: projectId ?? "",
     title: "",
     description: "",
-    owner: kind === "Material Need" ? "Office / Materials" : "Site Manager",
+    owner: "",
     waiting_on: "",
     priority: "Medium",
     due_date: "",
@@ -62,6 +65,7 @@ export function CreateWorkItemModal({
       title: form.title.trim(),
       description: form.description || null,
       owner: form.owner || null,
+      owner_user_id: ownerId,
       waiting_on: form.waiting_on || null,
       priority: form.priority,
       due_date: form.due_date || null,
