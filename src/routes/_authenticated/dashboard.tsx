@@ -198,8 +198,8 @@ function CompanyWorkPage() {
                       "bg-primary-soft/60 ring-1 ring-inset ring-primary/25",
                   )}
                 >
-                  <Td className="font-semibold whitespace-nowrap group-last:border-0">
-                    {i.projects?.name ?? "—"}
+                  <Td className="max-w-[160px] font-semibold group-last:border-0">
+                    <span className="block break-words">{i.projects?.name ?? "—"}</span>
                   </Td>
                   <Td className="group-last:border-0">
                     <span className="line-clamp-2">{i.title}</span>
