@@ -569,13 +569,6 @@ function CompanyModal({ company, onClose }: { company: Company | null; onClose: 
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
           />
         </Field>
-        <Field label="Default commission rate %" hint="Projects can override this individually">
-          <TextInput
-            value={form.default_commission_rate}
-            inputMode="decimal"
-            onChange={(e) => setForm((f) => ({ ...f, default_commission_rate: e.target.value }))}
-          />
-        </Field>
         <Field label="Email">
           <TextInput
             value={form.email}
@@ -765,13 +758,6 @@ function ContactModal({ contact, onClose }: { contact: Contact | null; onClose: 
           <TextInput
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          />
-        </Field>
-        <Field label="Default commission rate %" hint="Projects can override this individually">
-          <TextInput
-            value={form.default_commission_rate}
-            inputMode="decimal"
-            onChange={(e) => setForm((f) => ({ ...f, default_commission_rate: e.target.value }))}
           />
         </Field>
         <Field label="Email">
