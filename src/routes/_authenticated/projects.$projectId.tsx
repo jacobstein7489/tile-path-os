@@ -128,7 +128,7 @@ function ProjectShell() {
             <Chip tone={materialTone(project.material_status)}>
               Materials: {project.material_status}
             </Chip>
-            {project.project_manager ? <Chip>PM: {project.project_manager}</Chip> : null}
+            {pmName ? <Chip>PM: {pmName}</Chip> : null}
             <ProjectMoreMenu project={project} />
           </div>
         </div>
@@ -138,6 +138,7 @@ function ProjectShell() {
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
             stepsDone={stepsDone}
+            systemStepState={systemStepState}
             {...(canEdit
               ? {
                   onToggleStep: (step: string) =>
