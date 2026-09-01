@@ -640,7 +640,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
             label={mode === "bulk" ? "Grouped work list" : "Raw note"}
             hint={
               mode === "bulk"
-                ? "Project name on its own line, then its items underneath. Repeat for each project."
+                ? "Safest format: start each project with a PROJECT: line and each item with a dash. Freeform grouped pastes still work."
                 : "One line per thing, or just paste the message — we split it for you."
             }
           >
@@ -650,10 +650,11 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               onChange={(e) => setRaw(e.target.value)}
               placeholder={
                 mode === "bulk"
-                  ? "114 Park Place\n  Master mosaic — confirm ETA\n  Drains — confirm details\n  PO — confirm PO\n\nWilkinson\n  Master door saddle — confirm detail\n  Window area — confirm install timing"
+                  ? "PROJECT: 8-28 Clyde\n- Listelos for Philip — confirm ETA\n- Finish kitchen grout\n\nPROJECT: Coughlin\n- Remaining touch-up / return work"
                   : "Wilkinson — need to measure master saddle. Contractor still has to finish window opening. Confirm curb was ordered."
               }
             />
+
           </Field>
         </>
       ) : (
