@@ -104,14 +104,17 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     const rawLines = text
       .split(/\r?\n+/)
       .flatMap((l) => l.split(/(?<=[a-z0-9)])\.\s+|\s*;\s*|\s+—\s+/i))
-      .map(cleanLine)
-      .filter((l) => /[a-z]{3}/i.test(l) && l.replace(/[^a-z0-9]/gi, "").length > 3);
+      .map((l) => ({ original: l, clean: cleanLine(l) }))
+      .filter(
+        ({ clean }) => /[a-z]{3}/i.test(clean) && clean.replace(/[^a-z0-9]/gi, "").length > 3,
+      );
 
     // A job named on its own line stays in effect for the lines beneath it.
     let sticky = matchProject(text, projects);
     const drafted: Draft[] = [];
-    rawLines.forEach((l, i) => {
-      const matchedId = matchProject(l, projects);
+    rawLines.forEach(({ original, clean: l }, i) => {
+      // Match against the original text: a "Mark Drive: ..." prefix names the job.
+      const matchedId = matchProject(original, projects);
       if (matchedId) sticky = matchedId;
       const matchedName = projects.find((p) => p.id === matchedId)?.name;
       const stripped = stripProject(l, matchedName);
