@@ -8,7 +8,7 @@ visuals. No sprint starts before its predecessor's acceptance criteria pass.
 | Sprint | Name | Why here |
 | --- | --- | --- |
 | 0 | Architecture + audit | this document set |
-| 1 | Users, roles, company libraries, design system, RLS | everything else depends on real users and locked data |
+| 1 | Design freeze, users/roles, company libraries, minimal lead intake, RLS | one visual system plus real people and data must exist before more screens |
 | 2 | Company Work / My Work / Quick Capture / work-item engine v2 | the daily operating surface; delivers value immediately |
 | 3 | **Project spine + Setup readiness + rules engine v1** (was Sprint 6) | *moved earlier* — readiness gating is the product's core promise and unblocks scheduling and materials; sales/takeoff can wait |
 | 4 | Tiles & Finishes + product catalog (was 7) | *moved earlier* — needed for readiness to be truthful and for ordering |
@@ -16,7 +16,7 @@ visuals. No sprint starts before its predecessor's acceptance criteria pass.
 | 6 | Schedule + crews (was 9) | schedulability now means something |
 | 7 | Field, visits, verifications, changes captured (was 10) | closes the loop on live jobs |
 | 8 | Punch / Return / closeout (was 11) | |
-| 9 | Sales / lead pipeline (was 3) | *moved later* — the company can log leads manually far more cheaply than it can run installs manually |
+| 9 | Full Sales / lead pipeline (was 3) | *moved later* — **minimal lead/job intake ships in Sprint 1** so the system is usable immediately; the pipeline, proposals and conversion tooling land here |
 | 10 | Plans upload, revisions, scope builder (was 4) | heavy; valuable only once scope is central |
 | 11 | Takeoff + Estimating tied to structured scope (was 5) | after plans |
 | 12 | Commercial, contracts, changes, commissions (was 12) | |
@@ -31,38 +31,72 @@ once the spine is trustworthy.
 
 ---
 
-## Sprint 1 — Foundation
-Scope: auth (email + Google), `profile`/`role`/`user_role`, `has_role()`, admin user
-management, companies/contacts/crews libraries, project participants/assignments, RLS on
-every table replacing open policies, Settings shell, design-system hardening (combobox,
-inline edit, skeleton, avatar, timeline, button states) and migration of existing routes onto
-the kit, nav rename to final 7 items, seed real users and backfill text owners.
-Done when: no open policies remain, every owner is a real user, all existing screens render
-with kit components at 1440×900, no dead controls.
+## Sprint 1 — Foundation, design freeze, real people, minimal intake
+
+**Design freeze first.** One production design system (DESIGN_SYSTEM_PLAN.md §7) is
+implemented and every existing route migrated onto it before further screens exist.
+
+Scope:
+1. Design system: tokens, page shell, sidebar 248px, 64px header, tables, buttons, inputs,
+   **searchable reusable selectors** (no repeated typing for people/companies/products),
+   drawers/modals, lifecycle rail, status chips, progress, toasts, loading/error/empty states,
+   click/hover/pressed/focus behaviour. Migrate existing routes; delete local styling.
+2. Auth: email + Google, `profile` / `role` / `user_role` / `has_role()`, admin user
+   management, **safe Admin bootstrap only** — all other internal users onboard via real
+   invitation. No invented passwords, no shared accounts.
+3. Libraries: real `company`, `contact`, `crew`; `project_participant` / `project_assignment`;
+   backfill legacy owner/customer/supplier text into references. **Legacy columns retained as
+   deprecated read-only rollback data — nothing dropped this sprint.**
+4. Minimal New Lead / Job intake: address, customer/GC company, primary contact, salesperson,
+   estimator, source, bid due, follow-up, notes, **plans/files upload** — so the company can
+   start using the system immediately. Full Sales pipeline still lands in Sprint 9.
+5. Commercial identity from day one: `salesperson_user_id`, `commission_user_id`,
+   `commission_rule_id?` stored on the job (calculation stays in Sprint 12).
+6. Project CRUD: New Project, Edit, Hold, Cancel, Lost, Archive, Delete — permission-gated
+   and fully wired.
+7. Nav rename to the final items; visible lifecycle set to the frozen 10 stages.
+8. RLS cutover **table by table**, each with a lockout-safety test before the open policy is
+   dropped: Admin, PM, Site Manager, Office Coordinator, and one unauthorized/non-assigned
+   scenario, verifying allowed AND denied reads and writes.
+
+Done when: one design system in use everywhere; no open `USING (true)` policies; every owner
+is a real user; searchable selectors replace typing; lead intake with file upload works; no
+dead controls; no clipped layouts at 1440x900 and 1280x800; full-row click targets everywhere.
 
 ## Sprint 2 — Work
-Scope: work-item schema v2 (5 kinds, 5 statuses, subtype, links, real owner/waiting-on),
-workflow engine with step metadata and data-driven advancement, Company Work + My Work views,
-Quick Capture with project/contact matching and review, drawer v2 with history and
-attachments, undo-completion standard, `/today` retired.
+Scope: work-item schema v2 (5 kinds, 5 statuses, subtype, links, real owner and
+`waiting_on_user_id` / `waiting_on_contact_id` / `waiting_on_company_id`), workflow engine with
+step metadata and data-driven advancement, Company Work + My Work views, Quick Capture with
+project/contact matching and review, drawer v2 with history and attachments, undo-completion
+standard, `/today` retired.
 Done when: one record updates everywhere; GM sees all work; every row opens the drawer.
 
-## Sprint 3 — Project spine, Setup, rules v1
-Scope: area/surface normalization (surface_kind, uom, qty), room-type + surface templates,
-rules/requirements/answers tables, `evaluateRules`, `computeReadiness`, readiness categories
-on Overview with drill-in drawers, 10-stage lifecycle with derived gating, retire
-`stage_steps_done`, seeded rule library.
-Done when: readiness is fully calculated and every incomplete category opens what's missing.
+## Sprint 3 — Project spine, measurements, Setup, rules v1
+Scope: area/surface normalization (surface_kind, uom), **`surface_measurement` (plan/field) +
+`finish_zone` with one implicit default zone + `surface.governing_measurement_id`**, backfill
+from `plan_qty`/`field_qty`, room-type + surface templates, rules/requirements/answers tables,
+`evaluateRules`, `computeReadiness`, readiness categories on Overview with drill-in drawers,
+10-stage lifecycle with derived gating, derived installation progress per quantity family plus
+optional `installation_weight`, retire `stage_steps_done` usage.
+Done when: readiness and progress are fully calculated (never editable) and every incomplete
+category opens exactly what is missing.
 
-## Sprint 4 — Tiles & Finishes
-Scope: manufacturer/collection/tile_product/finish_product catalog with actual dimensions,
-`finish_selection` per surface, migration of legacy surface spec columns, Tiles & Finishes tab,
-tile follow-up workflow, selection completeness feeding readiness.
+## Sprint 4 — Tiles & Finishes (specification, then fulfillment)
+Scope: manufacturer/collection/tile_product/finish_product catalog with actual manufactured
+dimensions, `finish_selection` as **specification only** (Draft/Selected/Confirmed/Superseded),
+`finish_requirement` per surface/zone for quantity and derived order state (**no `Installed`
+state**), `finish_procurement_requirement` consolidating identical products across surfaces
+into one order requirement, `finish_allocation` back to surfaces/zones, append-only
+`finish_receipt` carrying shade/caliber and optional actual-dimension overrides, migration of
+legacy surface spec columns (copy only), Tiles & Finishes tab, tile follow-up workflow,
+selection completeness feeding readiness.
 
-## Sprint 5 — Install Materials
+## Sprint 5 — Install Materials & commitments
 Scope: install material catalog + coverage formulas, requirement derivation, on-hand check,
-PO builder and lifecycle, append-only receiving with damage handling, delivery to project,
-Needs Attention view, readiness integration.
+**generalized `commitment` / `commitment_line` (material / finish / labor / service)** migrated
+from `purchase_orders` / `po_lines`, labor commitment path for return work (price → recorded
+approval → labor PO → schedule), append-only receiving with damage handling, delivery to
+project, Needs Attention view, readiness integration.
 
 ## Sprint 6 — Schedule & crews
 Scope: crew capacity/lanes, area-level assignments, confirm/move states, Ready-to-Assign
@@ -73,8 +107,9 @@ Scope: visits, checklists tied to work items, surface progress with qty, field v
 workflow, plan-vs-field variance → CHANGE candidates, photos.
 
 ## Sprint 8 — Punch / Return
-Scope: punch capture by surface, return-work workflow end to end (installer, price, labor PO,
-schedule, perform, verify), closeout gate, aging reports.
+Scope: punch capture by surface, return-work workflow end to end (installer, price, recorded
+approval, labor commitment, schedule, perform, verify — the labor commitment mechanics are
+pulled forward to Sprint 5), closeout gate, aging reports.
 
 ## Sprint 9 — Sales
 Scope: lead capture, submission intake, pipeline board, proposal status, conversion into a
