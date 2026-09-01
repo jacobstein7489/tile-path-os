@@ -188,6 +188,10 @@ export function WorkList({
   isLoading?: boolean;
   emptyTitle?: string;
   emptyNote?: string;
+  /** Compact status strip above the controls (Company Work). */
+  showSummary?: boolean;
+  /** Right-side toolbar slot, e.g. Quick Capture. */
+  toolbarRight?: ReactNode;
 }) {
   const { data: profiles = [] } = useProfiles();
   const save = useSaveWorkItem();
