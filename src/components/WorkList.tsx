@@ -10,7 +10,16 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
-import { Combobox, EmptyState, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
+import {
+  Button,
+  Combobox,
+  EmptyState,
+  FilterGroup,
+  SearchInput,
+  Table,
+  Td,
+  Th,
+} from "@/components/kit";
 import { Highlight } from "@/components/InlineEdit";
 import { profileOptions, useProfiles } from "@/lib/people";
 import {
@@ -322,18 +331,19 @@ export function WorkList({
     });
   };
 
-  const addItem = async (projectKey: string, title: string) => {
-    const t = title.trim();
+  const addItem = async (projectKey: string, draft: Partial<WorkItemRow> & { title: string }) => {
+    const t = draft.title.trim();
     if (!t) return;
     await create.mutateAsync([
       {
+        ...draft,
         project_id: projectKey === "unassigned" ? null : projectKey,
         item_type: "Task",
         title: t,
         status: "Open",
       },
     ]);
-    toast.success("Added");
+    toast.success("Item added");
   };
 
   /* ---------------- Desktop rows ---------------- */
