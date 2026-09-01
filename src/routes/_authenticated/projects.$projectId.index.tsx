@@ -245,15 +245,11 @@ function ProjectOverview() {
         </SectionCard>
       </div>
 
-      {/* Footer quick actions */}
+      {/* Footer: two actions only — everything else lives on its own tab. */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {(["Field Update", "Task", "Question", "Punch / Return Item"] as WorkItemKind[]).map(
-          (k) => (
-            <Button key={k} onClick={() => setCreate(k)}>
-              <MessageSquarePlus className="size-4" /> Add {k}
-            </Button>
-          ),
-        )}
+        <Button onClick={() => setCreate("Task")}>
+          <MessageSquarePlus className="size-4" /> Add work item
+        </Button>
         <Button variant="primary" onClick={() => setMaterial(true)}>
           <Package className="size-4" /> Request material
         </Button>
