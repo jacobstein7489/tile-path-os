@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { Button, FilterGroup, SearchInput, Select, Table, Td, Th } from "@/components/kit";
@@ -13,6 +13,12 @@ import {
   showsInstallationProgress,
   type ProjectFilter,
 } from "@/lib/lifecycle";
+import {
+  compareWorkItems,
+  isComplete,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
 import { Dot, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +44,21 @@ export const Route = createFileRoute("/_authenticated/projects/")({
 
 function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects();
+  const { data: feed = [] } = useWorkFeed();
+
+  // What needs to happen comes from the same open Work Items Company Work uses.
+  const workByProject = useMemo(() => {
+    const map = new Map<string, WorkItemRow[]>();
+    feed
+      .filter((i) => i.project_id && !isComplete(i))
+      .forEach((i) => {
+        const list = map.get(i.project_id!) ?? [];
+        list.push(i);
+        map.set(i.project_id!, list);
+      });
+    map.forEach((list) => list.sort(compareWorkItems));
+    return map;
+  }, [feed]);
   const [filter, setFilter] = useState<ProjectFilter>("All");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -134,7 +155,9 @@ function ProjectsPage() {
                 </Td>
               </tr>
             ) : (
-              rows.map((p) => <ProjectRow key={p.id} project={p} />)
+              rows.map((p) => (
+                <ProjectRow key={p.id} project={p} work={workByProject.get(p.id) ?? []} />
+              ))
             )}
           </tbody>
         </Table>
@@ -144,9 +167,18 @@ function ProjectsPage() {
   );
 }
 
-function ProjectRow({ project: p }: { project: Project }) {
+function ProjectRow({
+  project: p,
+  work,
+}: {
+  project: Project;
+  /** Open work items for this project, already sorted: important first. */
+  work: WorkItemRow[];
+}) {
   const installing = showsInstallationProgress(p.lifecycle_stage);
   const navigate = useNavigate();
+  const lead = work[0];
+  const rest = work.length - 1;
   return (
     <tr
       onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
@@ -198,32 +230,38 @@ function ProjectRow({ project: p }: { project: Project }) {
           <span className="truncate">{p.material_status}</span>
         </span>
       </Td>
-      {/* One operational column: the problem on the first line, the next action beneath it. */}
+      {/* Single operational column, sourced from the same open Work Items as Company Work. */}
       <Td className="group-last:border-0">
-        {p.needs_attention ? (
-          <span className="flex items-start gap-2">
-            <span className="mt-[5px]">
-              <Dot tone="red" />
+        {lead ? (
+          <>
+            <span className="flex items-start gap-2">
+              {lead.is_important ? (
+                <span className="mt-[5px]">
+                  <Dot tone="red" />
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1 text-[12.5px] leading-snug font-semibold whitespace-normal text-foreground">
+                {lead.title}
+              </span>
+              <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60 transition-colors duration-100 group-hover:text-foreground" />
             </span>
-            <span className="min-w-0 flex-1 text-[12.5px] leading-snug font-semibold whitespace-normal text-foreground">
-              {p.needs_attention}
-            </span>
-          </span>
-        ) : null}
-        <span
-          className={cn(
-            "flex items-start gap-1.5 text-[12.5px] leading-snug whitespace-normal text-secondary-foreground transition-colors duration-100 group-hover:text-foreground",
-            p.needs_attention ? "mt-1 pl-4" : "",
-          )}
-        >
-          <span className="min-w-0 flex-1">{p.next_move ?? "Open project"}</span>
-          <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60 transition-colors duration-100 group-hover:text-foreground" />
-        </span>
-        {p.next_move_owner ? (
-          <div className={cn("mt-0.5 text-[11px] text-muted-foreground", p.needs_attention && "pl-4")}>
-            {p.next_move_owner}
-          </div>
-        ) : null}
+            <div
+              className={cn(
+                "mt-0.5 text-[11px] text-muted-foreground",
+                lead.is_important && "pl-4",
+              )}
+            >
+              {[lead.next_action, lead.owner].filter(Boolean).join(" · ") || lead.status}
+              {rest > 0 ? (
+                <span className="ml-1 text-muted-foreground">
+                  · +{rest} other open item{rest === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <span className="text-[12.5px] text-muted-foreground">No open work</span>
+        )}
       </Td>
     </tr>
   );

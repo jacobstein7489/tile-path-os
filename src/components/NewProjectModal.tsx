@@ -65,8 +65,6 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
       intake_notes: form.intake_notes || null,
       created_by: user?.id ?? null,
       lifecycle_stage: "New Submission",
-      next_move: "Qualify the lead and book a takeoff",
-      next_move_owner: "Sales",
     })) as { id: string } | null;
     onClose();
     setForm(EMPTY);

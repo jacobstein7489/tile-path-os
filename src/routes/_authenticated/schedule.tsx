@@ -86,9 +86,7 @@ function SchedulePage() {
 
   const readyLabel = (p: Project) =>
     p.lifecycle_stage === "Closeout / Return"
-      ? p.needs_attention
-        ? { text: "Confirm touch-ups", kind: "Return Visit" }
-        : { text: "Assign return visit", kind: "Return Visit" }
+      ? { text: "Assign return visit", kind: "Return Visit" }
       : p.lifecycle_stage === "Ready"
         ? { text: "Assign crew and resume", kind: "Tile / Grout" }
         : { text: "Start setup", kind: "Tile / Grout" };
@@ -290,11 +288,6 @@ function SchedulePage() {
               id: assignFor.project.id,
               patch: {
                 crew_lead: crewName,
-                next_move:
-                  values.kind === "Return Visit"
-                    ? `Return visit scheduled for ${values.work_date}`
-                    : `Crew ${crewName ?? "TBD"} scheduled for ${values.work_date}`,
-                next_move_owner: "Office",
                 ...(assignFor.project.lifecycle_stage === "Ready"
                   ? { lifecycle_stage: "Scheduled" }
                   : {}),

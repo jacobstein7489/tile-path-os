@@ -21,7 +21,12 @@ import {
 } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { useWorkFeed, type WorkItemRow } from "@/lib/workitems";
+import {
+  compareWorkItems,
+  isComplete,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
@@ -89,6 +94,9 @@ function ProjectOverview() {
   const siteName = nameOf(project.site_manager_user_id);
   const crewLabel = project.crew_lead ?? siteName ?? "Not assigned";
   const nextOwner = nameOf(project.pm_user_id) ?? project.next_move_owner ?? "Unassigned";
+  // Next move is derived from the same open Work Items as Company Work.
+  const leadWork = [...projectWork.filter((i) => !isComplete(i))].sort(compareWorkItems)[0] ?? null;
+  const openCount = projectWork.filter((i) => !isComplete(i)).length;
 
   return (
     <>
@@ -162,11 +170,16 @@ function ProjectOverview() {
               Next move
             </div>
             <p className="mt-1 text-[14px] font-medium">
-              {project.next_move ?? "No next move recorded yet."}
+              {leadWork ? leadWork.title : "No open work"}
             </p>
-            {project.needs_attention ? (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-danger">
-                <TriangleAlert className="size-4 shrink-0" /> {project.needs_attention}
+            {leadWork ? (
+              <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-secondary-foreground">
+                {leadWork.is_important ? (
+                  <TriangleAlert className="size-4 shrink-0 text-danger" />
+                ) : null}
+                {[leadWork.next_action, leadWork.owner].filter(Boolean).join(" · ") ||
+                  leadWork.status}
+                {openCount > 1 ? ` · +${openCount - 1} other open items` : ""}
               </p>
             ) : null}
           </div>
