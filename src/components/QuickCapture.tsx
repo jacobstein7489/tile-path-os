@@ -232,6 +232,25 @@ function parseBulk(text: string, projects: { id: string; name: string }[]): Draf
 }
 
 
+/** Quick-note mode only: find a job name mentioned inside free-flowing text. */
+function matchProjectMention(text: string, projects: { id: string; name: string }[]) {
+  const t = text.toLowerCase();
+  const tn = normalizeName(text);
+  let best: { id: string; score: number } | null = null;
+  for (const p of projects) {
+    const name = p.name.toLowerCase();
+    let score = 0;
+    if (t.includes(name) || tn.includes(normalizeName(p.name))) score = 100 + name.length;
+    else {
+      const tokens = nameTokens(p.name).filter((w) => w.length > 2);
+      const hits = tokens.filter((w) => t.includes(w));
+      if (hits.length > 1) score = hits.reduce((a, w) => a + w.length, 0) * 2;
+    }
+    if (score > 6 && (!best || score > best.score)) best = { id: p.id, score };
+  }
+  return best?.id ?? "";
+}
+
 /** Quick-note parse: sentence/line splitting with sticky project context. */
 function parseNote(text: string, projects: { id: string; name: string }[]): Draft[] {
   const rawLines = text
@@ -240,21 +259,27 @@ function parseNote(text: string, projects: { id: string; name: string }[]): Draf
     .map((l) => ({ original: l, clean: cleanLine(l) }))
     .filter(({ clean }) => /[a-z]{3}/i.test(clean) && clean.replace(/[^a-z0-9]/gi, "").length > 3);
 
-  let sticky = matchProject(text, projects);
+  let sticky = matchProjectMention(text, projects);
   const drafted: Draft[] = [];
   rawLines.forEach(({ original, clean: l }, i) => {
-    const matchedId = matchProject(original, projects);
+    const matchedId = matchProjectMention(original, projects);
     if (matchedId) sticky = matchedId;
     const matchedName = projects.find((p) => p.id === matchedId)?.name;
     const stripped = stripProject(l, matchedName);
     if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) return;
     const title = stripped || l;
+    const projectId = matchedId || sticky;
     drafted.push(
-      emptyDraft(`${i}-${l.slice(0, 10)}`, title, { project_id: matchedId || sticky }),
+      emptyDraft(`${i}-${l.slice(0, 10)}`, title, {
+        project_id: projectId,
+        sectionKey: projectId || "unassigned",
+        matchKind: projectId ? "exact" : "none",
+      }),
     );
   });
   return drafted;
 }
+
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
