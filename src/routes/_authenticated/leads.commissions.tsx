@@ -35,13 +35,13 @@ const STATUSES = ["Pending", "Earned", "Paid"] as const;
  * The commissionable amount is manual for now; `commissionable_source` lets a
  * later contract/estimate feed the same field without rebuilding this sheet.
  */
-export function effectiveRate(project: Project, salesperson?: Profile) {
+export function effectiveRate(project: Project, salesperson: Profile | undefined) {
   const override = project.commission_rate_override;
   if (override !== null && override !== undefined) return Number(override);
   return Number(salesperson?.default_commission_rate ?? 0);
 }
 
-export function commissionAmount(project: Project, salesperson?: Profile) {
+export function commissionAmount(project: Project, salesperson: Profile | undefined) {
   const base = Number(project.commissionable_amount ?? 0);
   return (base * effectiveRate(project, salesperson)) / 100;
 }
@@ -132,7 +132,7 @@ function CommissionRow({
   onPatch,
 }: {
   project: Project;
-  salesperson?: Profile;
+  salesperson: Profile | undefined;
   onPatch: (patch: Partial<Project>) => void;
 }) {
   const [amount, setAmount] = useState(

@@ -19,6 +19,7 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
+import { Route as AuthenticatedLeadsCommissionsRouteImport } from './routes/_authenticated/leads.commissions'
 import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
@@ -78,6 +79,12 @@ const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedLeadsRoute,
 } as any)
+const AuthenticatedLeadsCommissionsRoute =
+  AuthenticatedLeadsCommissionsRouteImport.update({
+    id: '/commissions',
+    path: '/commissions',
+    getParentRoute: () => AuthenticatedLeadsRoute,
+  } as any)
 const AuthenticatedLeadsCustomersRoute =
   AuthenticatedLeadsCustomersRouteImport.update({
     id: '/customers',
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
@@ -160,6 +168,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
@@ -181,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/leads/commissions'
     | '/leads/customers'
     | '/projects/$projectId'
     | '/api/public/qa-provision'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/leads/commissions'
     | '/leads/customers'
     | '/api/public/qa-provision'
     | '/leads'
@@ -242,6 +254,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/today'
+    | '/_authenticated/leads/commissions'
     | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
     | '/api/public/qa-provision'
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedLeadsRoute
     }
+    '/_authenticated/leads/commissions': {
+      id: '/_authenticated/leads/commissions'
+      path: '/commissions'
+      fullPath: '/leads/commissions'
+      preLoaderRoute: typeof AuthenticatedLeadsCommissionsRouteImport
+      parentRoute: typeof AuthenticatedLeadsRoute
+    }
     '/_authenticated/leads/customers': {
       id: '/_authenticated/leads/customers'
       path: '/customers'
@@ -400,11 +420,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedLeadsRouteChildren {
+  AuthenticatedLeadsCommissionsRoute: typeof AuthenticatedLeadsCommissionsRoute
   AuthenticatedLeadsCustomersRoute: typeof AuthenticatedLeadsCustomersRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
 }
 
 const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
+  AuthenticatedLeadsCommissionsRoute: AuthenticatedLeadsCommissionsRoute,
   AuthenticatedLeadsCustomersRoute: AuthenticatedLeadsCustomersRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
 }
