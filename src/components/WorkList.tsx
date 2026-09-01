@@ -392,7 +392,7 @@ export function WorkList({
 
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
-    <div className="surface sticky top-[152px] z-[9] hidden overflow-hidden md:block">
+    <div className="surface sticky top-[116px] z-[9] hidden overflow-hidden md:block">
       <Table className="table-fixed">
         <Cols withProject={false} />
         <thead>
