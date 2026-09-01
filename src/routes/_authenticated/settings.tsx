@@ -159,13 +159,6 @@ function UsersTab({
       <SectionCard
         title="Employees"
         subtitle="Every person who signs in. Roles decide what they can see and change."
-        actions={
-          canEdit ? (
-            <Button variant="primary" onClick={() => setInviting(true)}>
-              <Plus className="size-3.5" /> Invite employee
-            </Button>
-          ) : undefined
-        }
       >
         {isLoading ? (
           <TableSkeleton cols={4} />
