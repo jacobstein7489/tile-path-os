@@ -328,6 +328,46 @@ export function WorkList({
 
   /* ---------------- Desktop rows ---------------- */
 
+  const Cols = ({ withProject }: { withProject: boolean }) => (
+    <colgroup>
+      <col className="w-[48px]" />
+      {withProject ? <col className="w-[15%]" /> : null}
+      <col className={withProject ? "w-[26%]" : "w-[33%]"} />
+      <col className="w-[16%]" />
+      <col className="w-[12%]" />
+      <col className="w-[10%]" />
+      <col className="w-[16%]" />
+      <col className="w-[52px]" />
+    </colgroup>
+  );
+
+  const HeaderCells = ({ withProject }: { withProject: boolean }) => (
+    <tr className="bg-muted/60">
+      <Th>
+        <span className="sr-only">Important</span>★
+      </Th>
+      {withProject ? <Th>Project</Th> : null}
+      <Th>What Needs To Happen</Th>
+      <Th>Owner</Th>
+      <Th>Waiting On</Th>
+      <Th>Needed By</Th>
+      <Th>Next Action</Th>
+      <Th>Done</Th>
+    </tr>
+  );
+
+  /** One sticky header row shared by all project groups in the grouped view. */
+  const GroupedHeader = () => (
+    <div className="surface sticky top-[104px] z-[9] hidden overflow-hidden md:block">
+      <Table className="table-fixed">
+        <Cols withProject={false} />
+        <thead>
+          <HeaderCells withProject={false} />
+        </thead>
+      </Table>
+    </div>
+  );
+
   const Rows = ({
     list,
     withProject,
@@ -338,28 +378,11 @@ export function WorkList({
     withHeader?: boolean;
   }) => (
     <Table className="table-fixed">
-      <colgroup>
-        <col className="w-[48px]" />
-        {withProject ? <col className="w-[15%]" /> : null}
-        <col className={withProject ? "w-[27%]" : "w-[34%]"} />
-        <col className="w-[14%]" />
-        <col className="w-[12%]" />
-        <col className="w-[10%]" />
-        <col className="w-[17%]" />
-        <col className="w-[48px]" />
-      </colgroup>
+      <Cols withProject={withProject} />
       <thead className={withHeader ? undefined : "sr-only"}>
-        <tr className={withHeader ? "bg-muted/60" : undefined}>
-          <Th> </Th>
-          {withProject ? <Th>Project</Th> : null}
-          <Th>What Needs To Happen</Th>
-          <Th>Owner</Th>
-          <Th>Waiting On</Th>
-          <Th>Needed By</Th>
-          <Th>Next Action</Th>
-          <Th> </Th>
-        </tr>
+        <HeaderCells withProject={withProject} />
       </thead>
+
       <tbody>
         {list.map((i) => {
           const done = isComplete(i) || Boolean(justDone[i.id]);
