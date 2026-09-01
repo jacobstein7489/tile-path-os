@@ -570,46 +570,156 @@ export function WorkList({
     </>
   );
 
+  /** Deliberate inline composer: title first, optional detail fields alongside. */
   const AddRow = ({ projectKey }: { projectKey: string }) => {
     const open = Boolean(adding[projectKey]);
-    const [value, setValue] = useState("");
-    return (
-      <div className="border-t border-border/70 px-3 py-2">
-        {open ? (
-          <input
-            autoFocus
-            value={value}
-            aria-label="What needs to happen"
-            placeholder="What needs to happen…"
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={() => {
-              if (!value.trim()) setAdding((s) => ({ ...s, [projectKey]: false }));
-            }}
-            onKeyDown={async (e) => {
-              if (e.key === "Escape") {
-                setValue("");
-                setAdding((s) => ({ ...s, [projectKey]: false }));
-              }
-              if (e.key === "Enter") {
-                const t = value;
-                setValue("");
-                await addItem(projectKey, t);
-              }
-            }}
-            className="h-9 w-full rounded-lg border border-ring bg-background px-3 text-[13px] outline-none ring-2 ring-ring/25"
-          />
-        ) : (
+    const [title, setTitle] = useState("");
+    const [ownerId, setOwnerId] = useState<string | null>(null);
+    const [waiting, setWaiting] = useState("");
+    const [due, setDue] = useState("");
+    const [next, setNext] = useState("");
+    const [notes, setNotes] = useState("");
+    const [expanded, setExpanded] = useState(false);
+
+    const close = () => {
+      setAdding((s) => ({ ...s, [projectKey]: false }));
+      setTitle("");
+      setOwnerId(null);
+      setWaiting("");
+      setDue("");
+      setNext("");
+      setNotes("");
+      setExpanded(false);
+    };
+
+    const submit = async () => {
+      if (!title.trim()) return;
+      await addItem(projectKey, {
+        title: title.trim(),
+        owner_user_id: ownerId,
+        owner: owners.find((o) => o.value === ownerId)?.label ?? null,
+        waiting_on: waiting.trim() || null,
+        due_date: due || null,
+        next_action: next.trim() || null,
+        description: notes.trim() || null,
+      });
+      close();
+    };
+
+    if (!open) {
+      return (
+        <div className="border-t border-border/70 px-3 py-2">
           <button
             type="button"
             onClick={() => setAdding((s) => ({ ...s, [projectKey]: true }))}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:bg-primary-soft hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            <Plus className="size-3.5" /> Add item
+            <Plus className="size-4" /> Add item
           </button>
-        )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="border-t border-border/70 bg-muted/30 px-3 py-3">
+        <div className="space-y-2.5">
+          <input
+            autoFocus
+            value={title}
+            aria-label="What needs to happen"
+            placeholder="What needs to happen…"
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") close();
+              if (e.key === "Enter") void submit();
+            }}
+            className="h-10 w-full rounded-lg border border-ring bg-background px-3 text-[13.5px] font-medium outline-none ring-2 ring-ring/25"
+          />
+          {expanded ? (
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Owner
+                </span>
+                <Combobox
+                  options={owners}
+                  value={ownerId}
+                  onChange={setOwnerId}
+                  placeholder="Unassigned"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Needed by
+                </span>
+                <input
+                  type="date"
+                  value={due}
+                  aria-label="Needed by"
+                  onChange={(e) => setDue(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Waiting on
+                </span>
+                <input
+                  value={waiting}
+                  aria-label="Waiting on"
+                  placeholder="Nobody"
+                  onChange={(e) => setWaiting(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div>
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Next action
+                </span>
+                <input
+                  value={next}
+                  aria-label="Next action"
+                  placeholder="The very next step"
+                  onChange={(e) => setNext(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Notes
+                </span>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  aria-label="Notes"
+                  placeholder="Context, decisions, anything useful."
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+            </div>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!title.trim()}>
+              Add item
+            </Button>
+            <Button size="sm" onClick={close}>
+              Cancel
+            </Button>
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="ml-auto cursor-pointer text-[12px] font-semibold text-primary outline-none hover:underline"
+            >
+              {expanded ? "Fewer details" : "More details"}
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
+
 
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
