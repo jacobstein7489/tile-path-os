@@ -80,7 +80,7 @@ function ProjectsPage() {
         </Button>
       }
     >
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <FilterGroup
           options={PRIMARY_PROJECT_FILTERS.map((f) => ({ value: f, label: f }))}
           value={filter}
@@ -97,12 +97,12 @@ function ProjectsPage() {
             <option key={f}>{f}</option>
           ))}
         </Select>
-        <div className="ml-auto">
+        <div className="w-full md:ml-auto md:w-auto">
           <SearchInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search projects"
-            className="w-[220px]"
+            className="w-full md:w-[240px]"
           />
         </div>
       </div>

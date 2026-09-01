@@ -66,7 +66,7 @@ function TodayPage() {
         viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`}
       />
       <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8 md:pt-8">
-        <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">
+        <h1 className="text-[24px] leading-tight font-bold tracking-[-0.03em] md:text-[29px]">
           Good morning, {profile?.full_name?.split(" ")[0] || "there"}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
@@ -102,10 +102,9 @@ function TodayPage() {
               filters={TODAY_FILTERS}
               matchFilter={matchesTodayFilter}
               defaultFilter="Active"
-              defaultView={mine.length > 6 ? "Grouped by Project" : "List"}
+              defaultView="Grouped by Project"
               viewStorageKey="cobblestone.today.view"
               showProjectColumn={false}
-              allowAdd={false}
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
