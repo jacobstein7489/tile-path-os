@@ -222,11 +222,11 @@ function ProjectRow({
       </Td>
       <Td className="group-last:border-0">
         {p.crew_lead ? (
-          <span className="flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-full bg-primary-soft text-[10px] font-semibold text-primary">
+          <span className="flex items-start gap-1.5">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary-soft text-[9px] font-semibold text-primary">
               {initials(p.crew_lead)}
             </span>
-            <span className="truncate">{p.crew_lead.split(" ")[0]}</span>
+            <span className="min-w-0 text-[12.5px] leading-snug">{p.crew_lead}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Unassigned</span>
