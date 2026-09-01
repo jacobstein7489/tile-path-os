@@ -166,6 +166,8 @@ export function WorkList({
   isLoading = false,
   emptyTitle = "Nothing open",
   emptyNote = "No work matches this view.",
+  showSummary = false,
+  toolbarRight,
 }: {
   items: WorkItemRow[];
   onOpen: (item: WorkItemRow) => void;
