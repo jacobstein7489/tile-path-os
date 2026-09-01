@@ -366,8 +366,8 @@ export function WorkList({
     <colgroup>
       <col className="w-[48px]" />
       {withProject ? <col className="w-[15%]" /> : null}
-      <col className={withProject ? "w-[26%]" : "w-[30%]"} />
-      <col className="w-[19%] min-w-[150px]" />
+      <col className={withProject ? "w-[26%]" : "w-[28%]"} />
+      <col className={withProject ? "w-[19%]" : "w-[24%]"} />
       <col className="w-[11%]" />
       <col className="w-[10%]" />
       <col className="w-[14%]" />
