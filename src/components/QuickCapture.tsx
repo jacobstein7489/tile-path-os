@@ -187,7 +187,7 @@ function looksLikeHeading(original: string, clean: string, indentMode: boolean) 
  * new project section and the lines under it are its work.
  * Sections are structural — they never merge into each other.
  * ============================================================ */
-function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
+export function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
   const drafts: Draft[] = [];
   const lines = text.split(/\r?\n/);
 
