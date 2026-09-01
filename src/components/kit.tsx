@@ -652,16 +652,18 @@ export function Drawer({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex items-end justify-end md:items-stretch">
       <button
         type="button"
         aria-label="Close drawer"
         onClick={onClose}
         className="absolute inset-0 bg-foreground/20 backdrop-blur-[1px]"
       />
+      {/* Phone: full-height bottom sheet. Desktop: right-side drawer. */}
       <aside
         className={cn(
-          "relative flex h-full w-full flex-col border-l border-border bg-card shadow-[var(--shadow-raised)]",
+          "relative flex w-full flex-col border-border bg-card shadow-[var(--shadow-raised)]",
+          "h-[93vh] rounded-t-2xl border-t md:h-full md:rounded-none md:border-t-0 md:border-l",
           width,
         )}
       >
