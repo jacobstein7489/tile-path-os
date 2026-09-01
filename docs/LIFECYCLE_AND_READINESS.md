@@ -1,10 +1,10 @@
 # Lifecycle and Readiness
 
-## 1. Master lifecycle (final, 10 stages)
+## 1. Master lifecycle (frozen, 10 visible stages)
 
 | # | Stage | Meaning | Primary owner |
 | --- | --- | --- | --- |
-| 1 | New Lead / Submission | opportunity captured | Sales |
+| 1 | New Submission | opportunity captured (lead intake) | Sales |
 | 2 | Estimating | plans, scope, takeoff, pricing | Estimator |
 | 3 | Proposal | proposal issued / revised | Sales |
 | 4 | Awarded | won; contract/authorization in place | Sales → PM |
@@ -14,6 +14,13 @@
 | 8 | Installation | physical work in progress | Site Manager |
 | 9 | Closeout / Return | punch, return work, final verification | Site Manager |
 | 10 | Complete | closed operationally and commercially | Accounting |
+
+Detailed setup/readiness requirements live **underneath** these stages and complete
+automatically from data — never as manual checkboxes.
+
+The full rail renders on **Project Overview only**. The Projects list shows a single compact
+Stage chip per row.
+
 
 Exception states (orthogonal flag, stage preserved): **On Hold · Lost · Cancelled**.
 
