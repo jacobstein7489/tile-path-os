@@ -291,7 +291,11 @@ export function useWorkFeed() {
         .is("archived_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as WorkItemRow[];
+      const rows = (data ?? []) as unknown as (WorkItemRow & {
+        projects?: { name: string; archived_at?: string | null } | null;
+      })[];
+      // Company-level work (no project) always shows; project work hides with its project.
+      return rows.filter((r) => !r.project_id || !r.projects?.archived_at);
     },
   });
 }
