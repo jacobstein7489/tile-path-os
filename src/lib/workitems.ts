@@ -435,9 +435,48 @@ export type NewWorkItem = {
   due_date?: string | null;
   priority?: string;
   next_action?: string | null;
+  is_important?: boolean;
   area_id?: string | null;
   surface_id?: string | null;
 };
+
+/* ---------------- Duplicate protection (bulk import) ---------------- */
+
+function normalizeTitle(s: string) {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\b(the|a|an|to|for|of|on|in|and|please|need|needs|confirm)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Token overlap similarity, 0–1. Cheap and good enough for paste-time warnings. */
+export function titleSimilarity(a: string, b: string) {
+  const ta = new Set(normalizeTitle(a).split(" ").filter(Boolean));
+  const tb = new Set(normalizeTitle(b).split(" ").filter(Boolean));
+  if (!ta.size || !tb.size) return 0;
+  let shared = 0;
+  ta.forEach((t) => {
+    if (tb.has(t)) shared += 1;
+  });
+  return shared / Math.min(ta.size, tb.size);
+}
+
+/** The most likely existing OPEN work item a proposed line duplicates. */
+export function findDuplicate(
+  proposed: { title: string; project_id: string | null },
+  open: WorkItemRow[],
+) {
+  let best: { item: WorkItemRow; score: number } | null = null;
+  for (const item of open) {
+    if (isComplete(item)) continue;
+    if ((item.project_id ?? null) !== (proposed.project_id ?? null)) continue;
+    const score = titleSimilarity(proposed.title, item.title);
+    if (score >= 0.6 && (!best || score > best.score)) best = { item, score };
+  }
+  return best?.item ?? null;
+}
 
 export function useCreateWorkItems() {
   const invalidate = useInvalidateWork();
