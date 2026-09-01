@@ -70,6 +70,30 @@ function ProjectShell() {
   }
 
   const stepsDone = project.stage_steps_done ?? [];
+  const nameOf = (userId?: string | null) =>
+    profiles.find((p) => p.user_id === userId)?.full_name ?? null;
+  const pmName = nameOf(project.pm_user_id) ?? project.project_manager;
+
+  // Closeout / Return is derived from punch & return records, never ticked by hand.
+  const punch = workItems.filter((w) =>
+    /punch|return/i.test(`${w.item_type} ${w.title}`),
+  );
+  const punchOpen = punch.filter((w) => w.status !== "Complete");
+  const waiting = punchOpen.filter((w) => /wait|block/i.test(w.status));
+  const systemStepState: Record<string, { done: boolean; detail?: string }> = {
+    "Punch Open": {
+      done: punch.length > 0,
+      detail: punch.length ? `${punchOpen.length} open` : "none logged",
+    },
+    "Waiting on Material / Trade": {
+      done: punchOpen.length > 0 && waiting.length === 0,
+      detail: waiting.length ? `${waiting.length} waiting` : "clear",
+    },
+    "Ready for Return": { done: punch.length > 0 && punchOpen.length === 0 },
+    "Return Scheduled": { done: Boolean(project.start_date) && punchOpen.length === 0 },
+    Verified: { done: punch.length > 0 && punchOpen.length === 0 && project.readiness_pct >= 100 },
+  };
+
   const firstTab = PROJECT_TABS[0];
   const activeTab =
     PROJECT_TABS.find((tab) => pathname === tab.value.replace("$projectId", projectId))?.value ??
