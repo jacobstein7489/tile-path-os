@@ -17,16 +17,16 @@ export function PageShell({
   return (
     <>
       <AppHeader crumbs={crumbs} />
-      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
+      <main className="mx-auto w-full max-w-[1480px] px-7 pt-7 pb-14">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="text-[30px] leading-tight font-bold">{title}</h1>
-            {subtitle ? <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+            <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">{title}</h1>
+            {subtitle ? <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p> : null}
           </div>
           {actions}
         </div>
-        <div className="mt-7 space-y-6">{children}</div>
-      </div>
+        <div className="mt-6 space-y-5">{children}</div>
+      </main>
     </>
   );
 }

@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, ChevronDown, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import type { ReactNode } from "react";
+import { Avatar } from "@/components/kit";
+import { useMyProfile } from "@/hooks/useAuth";
 
 export type Crumb = { label: string; to?: string; params?: Record<string, string> };
 
@@ -11,10 +13,11 @@ export function AppHeader({
   crumbs: Crumb[];
   viewLabel?: string;
 }) {
+  const { data: profile } = useMyProfile();
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/95 px-8 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-7 backdrop-blur">
       <nav className="flex min-w-0 items-center gap-2 text-[13px]">
-        <span className="font-semibold tracking-wide text-primary">{viewLabel}</span>
+        <span className="text-[11px] font-bold tracking-[0.08em] text-primary">{viewLabel}</span>
         {crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-2 text-muted-foreground">
             <span className="text-border-strong">/</span>
@@ -47,10 +50,7 @@ export function AppHeader({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
-          <div className="grid size-9 place-items-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
-            OT
-          </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
+          <Avatar initials={profile?.initials || "?"} tone={profile?.avatar_tone ?? "blue"} size={32} />
         </div>
       </div>
     </header>
