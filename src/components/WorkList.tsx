@@ -700,13 +700,13 @@ export function WorkList({
             const isCollapsed = q ? false : Boolean(collapsed[key]);
             return (
               <div key={key} className="surface overflow-hidden">
-                <div className="flex items-start gap-2 border-b border-border bg-muted/50 px-3 py-2.5">
+                <div className="flex items-center gap-1.5 border-b border-border-strong/70 bg-muted/70 px-2.5 py-2.5">
                   <button
                     type="button"
                     aria-label={isCollapsed ? "Expand project" : "Collapse project"}
                     aria-expanded={!isCollapsed}
                     onClick={() => setCollapsed((s) => ({ ...s, [key]: !isCollapsed }))}
-                    className="mt-0.5 grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
+                    className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-background hover:text-foreground active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
                   >
                     {isCollapsed ? (
                       <ChevronRight className="size-4" />
@@ -714,9 +714,9 @@ export function WorkList({
                       <ChevronDown className="size-4" />
                     )}
                   </button>
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
                     {key === "unassigned" ? (
-                      <span className="block text-[14.5px] font-semibold tracking-tight">
+                      <span className="text-[14.5px] font-semibold tracking-tight">
                         {group.name}
                       </span>
                     ) : (
@@ -724,18 +724,24 @@ export function WorkList({
                         to="/projects/$projectId"
                         params={{ projectId: key }}
                         onClick={(e) => e.stopPropagation()}
-                        className="block text-[14.5px] font-semibold tracking-tight transition-colors duration-150 hover:text-primary"
+                        className="text-[14.5px] font-semibold tracking-tight transition-colors duration-150 hover:text-primary hover:underline"
                       >
                         <Highlight text={group.name} query={q} />
                       </Link>
                     )}
-                    <span className="mt-0.5 block text-[12px] text-muted-foreground tabular-nums">
-                      {openCount} open
-                      {starCount ? ` · ${starCount} important` : ""}
-                      {waitCount ? ` · ${waitCount} waiting` : ""}
+                    <span className="text-[12px] text-muted-foreground tabular-nums">
+                      {[
+                        openCount ? `${openCount} open` : "",
+                        starCount ? `${starCount} important` : "",
+                        waitCount ? `${waitCount} waiting` : "",
+                      ]
+                        .filter(Boolean)
+                        .map((s) => `· ${s}`)
+                        .join(" ")}
                     </span>
                   </div>
                 </div>
+
                 <div
                   className={cn(
                     "grid transition-[grid-template-rows] duration-200",
