@@ -28,7 +28,7 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
-type MatchKind = "exact" | "fuzzy" | "none";
+type MatchKind = "exact" | "fuzzy" | "none" | "stub";
 
 type Draft = {
   key: string;
@@ -38,6 +38,8 @@ type Draft = {
   groupName: string;
   /** How the heading was resolved to a project, so review can warn before import. */
   matchKind: MatchKind;
+  /** Captured during review; the project is created only when the import is approved. */
+  stub_address: string;
   project_id: string;
   item_type: string;
   title: string;
@@ -79,7 +81,9 @@ function classify(line: string): { item_type: string; status: string; next_actio
 function cleanLine(line: string) {
   return line
     .replace(/^\s*[[(][^\])]{0,40}[\])]\s*/, "")
-    .replace(/^\s*\d{1,2}[:/]\d{2}(\s*[ap]m)?[,\s-]+/i, "")
+    // Only remove an actual message timestamp. A project such as "5:30 Mark"
+    // must remain intact; bare clock-shaped text is not enough evidence.
+    .replace(/^\s*\d{1,2}:\d{2}\s*[ap]m(?:[,\s-]+)+/i, "")
     .replace(/^\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?[,\s]+/, "")
     .replace(/^\s*[A-Z][\w'’.\- ]{1,24}:\s+/, "")
     .replace(/^[-–—•*·>\s]+/, "")
@@ -101,8 +105,8 @@ function nameTokens(s: string) {
 }
 
 /**
- * Resolve a heading line to a project. Punctuation, spacing, hyphens and case are
- * ignored; a partial name still matches, but only confidently.
+ * Resolve a heading line to a project. Only harmless formatting is ignored.
+ * Similar street names and differing address numbers are never auto-matched.
  */
 export function matchProjectHeading(
   heading: string,
@@ -115,24 +119,7 @@ export function matchProjectHeading(
     if (normalizeName(p.name) === h) return { id: p.id, kind: "exact" };
   }
 
-  const ht = new Set(nameTokens(heading));
-  let best: { id: string; score: number } | null = null;
-  for (const p of projects) {
-    const n = normalizeName(p.name);
-    let score = 0;
-    if (n.length >= 4 && h.length >= 4 && (n.includes(h) || h.includes(n))) {
-      score = Math.min(n.length, h.length) / Math.max(n.length, h.length);
-    } else {
-      const pt = new Set(nameTokens(p.name));
-      let shared = 0;
-      pt.forEach((t) => {
-        if (ht.has(t)) shared += 1;
-      });
-      if (shared) score = shared / Math.max(pt.size, ht.size);
-    }
-    if (score >= 0.6 && (!best || score > best.score)) best = { id: p.id, score };
-  }
-  return best ? { id: best.id, kind: "fuzzy" } : { id: "", kind: "none" };
+  return { id: "", kind: "none" };
 }
 
 /** Strip the matched job name out of the item summary so titles read cleanly. */
@@ -151,6 +138,7 @@ const emptyDraft = (
   sectionKey: "unassigned",
   groupName: "",
   matchKind: "none",
+  stub_address: "",
   project_id: "",
   title,
   owner: "",
@@ -231,7 +219,7 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
 
     const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
     const match = matchProjectHeading(clean, projects);
-    // A confident project name on its own line is always a heading; otherwise the
+    // An exact normalized project name on its own line is always a heading; otherwise the
     // structural test decides, so unknown names still open their own section.
     const isHeading =
       (match.id && !indented && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
@@ -391,25 +379,19 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
 
   const selectedKeys = Object.keys(selected).filter((k) => selected[k]);
 
-  /** A stub is a real project with only a name/address — full setup happens later. */
-  const createStub = async (groupKey: string, keys: string[]) => {
+  /** Queue a stub for approval. No project record is created during review. */
+  const queueStub = (groupKey: string, keys: string[]) => {
     const name = stub.name.trim();
     if (name.length < 2) {
       toast.error("Give the project a name or address");
       return;
     }
-    const row = (await insertProject.mutateAsync({
-      name,
-      address: stub.address.trim() || null,
-      project_type: "New Job",
-      lifecycle_stage: "New Submission",
-      created_by: user?.id ?? null,
-      intake_notes: "Created as a stub from Quick Capture. Details to be completed.",
-    })) as { id: string } | null;
-    if (row?.id) {
-      updateMany(keys, { project_id: row.id, groupName: "" });
-      toast.success(`Project stub "${name}" created`);
-    }
+    updateMany(keys, {
+      project_id: "",
+      groupName: name,
+      matchKind: "stub",
+      stub_address: stub.address.trim(),
+    });
     setStubFor(null);
     setStub({ name: "", address: "" });
     void groupKey;
@@ -428,7 +410,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const groups = useMemo(() => {
     const map = new Map<
       string,
-      { label: string; heading: string; pending: boolean; fuzzy: boolean; items: Draft[] }
+      { label: string; heading: string; pending: boolean; fuzzy: boolean; stub: boolean; items: Draft[] }
     >();
     (drafts ?? []).forEach((d) => {
       const key = d.sectionKey || (d.project_id || "unassigned");
@@ -438,8 +420,9 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
             ? (projects.find((p) => p.id === d.project_id)?.name ?? "Project")
             : d.groupName || "Company / Unassigned",
           heading: d.groupName,
-          pending: !d.project_id,
+          pending: !d.project_id && d.matchKind !== "stub",
           fuzzy: Boolean(d.project_id) && d.matchKind === "fuzzy",
+          stub: d.matchKind === "stub",
           items: [],
         });
       }
@@ -450,10 +433,17 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
 
   const unmatchedSections = groups.filter(([, g]) => g.pending && g.heading);
   const fuzzySections = groups.filter(([, g]) => g.fuzzy);
+  const matchedSectionCount = groups.filter(([, g]) => !g.pending && !g.fuzzy && !g.stub).length;
+  const needsReviewCount = unmatchedSections.length + fuzzySections.length;
+  const stubSectionCount = groups.filter(([, g]) => g.stub).length;
 
 
   const saveAll = async () => {
     if (!drafts) return;
+    if (needsReviewCount) {
+      toast.error("Resolve every project before importing");
+      return;
+    }
     const keep = drafts.filter((d) => d.title.trim() && d.dupAction !== "skip");
     const skipped = drafts.length - keep.length;
     if (!keep.length) {
@@ -473,8 +463,24 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
       }
     }
 
+    const stubIds = new Map<string, string>();
+    for (const [, group] of groups.filter(([, g]) => g.stub)) {
+      const first = group.items[0];
+      if (!first) continue;
+      const row = (await insertProject.mutateAsync({
+        name: first.groupName,
+        address: first.stub_address || null,
+        project_type: "New Job",
+        lifecycle_stage: "New Submission",
+        created_by: user?.id ?? null,
+        intake_notes: "Created as a stub from Quick Capture. Details to be completed.",
+      })) as { id: string } | null;
+      if (!row?.id) throw new Error(`Could not create project stub: ${first.groupName}`);
+      stubIds.set(first.sectionKey, row.id);
+    }
+
     const rows: NewWorkItem[] = keep.map((d) => ({
-      project_id: d.project_id || null,
+      project_id: d.matchKind === "stub" ? (stubIds.get(d.sectionKey) ?? null) : d.project_id || null,
       item_type: d.item_type,
       title: d.title.trim(),
       owner: d.owner || null,
@@ -487,11 +493,10 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     }));
 
     await create.mutateAsync(rows);
-    const needsReview = keep.filter((d) => !d.project_id && d.groupName).length;
     toast.success(`Created ${rows.length}`, {
       description: [
         `Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}`,
-        `${needsReview} require project review`,
+        `${stubSectionCount} project stub${stubSectionCount === 1 ? "" : "s"} created`,
       ].join(" · "),
       duration: 8000,
     });
@@ -520,8 +525,12 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
             <Button
               variant="primary"
               onClick={() => void saveAll()}
-              disabled={!importable || create.isPending}
-              {...(!importable ? { disabledReason: "Each item needs a summary" } : {})}
+              disabled={!importable || needsReviewCount > 0 || create.isPending || insertProject.isPending}
+              {...(!importable
+                ? { disabledReason: "Each item needs a summary" }
+                : needsReviewCount > 0
+                  ? { disabledReason: "Resolve every project before importing" }
+                  : {})}
             >
               {create.isPending ? "Importing…" : `Import ${importable} Work Item${importable === 1 ? "" : "s"}`}
             </Button>
@@ -588,6 +597,11 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
         </>
       ) : (
         <div className="space-y-3">
+          <div className="grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-muted/30 px-2 py-2">
+            <div className="px-3"><span className="text-[11px] text-muted-foreground">Matched existing</span><p className="text-sm font-semibold">{matchedSectionCount}</p></div>
+            <div className="px-3"><span className="text-[11px] text-muted-foreground">Needs review</span><p className="text-sm font-semibold">{needsReviewCount}</p></div>
+            <div className="px-3"><span className="text-[11px] text-muted-foreground">New project stubs</span><p className="text-sm font-semibold">{stubSectionCount}</p></div>
+          </div>
           {unmatchedSections.length || fuzzySections.length ? (
             <div className="rounded-xl border border-warning/40 bg-warning-soft/50 px-3 py-2.5">
               <p className="text-[12.5px] font-semibold text-warning">
@@ -711,6 +725,11 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                       Matched from “{group.heading}” — confirm
                     </span>
                   ) : null}
+                  {group.stub ? (
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      New project stub — creates on import
+                    </span>
+                  ) : null}
                   <div className="ml-auto flex items-center gap-2">
                     <Select
                       className="h-8 w-[210px]"
@@ -722,7 +741,11 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                           return;
                         }
                         setStubFor((s) => (s === groupKey ? null : s));
-                        updateMany(keys, { project_id: e.target.value, groupName: "" });
+                        updateMany(keys, {
+                          project_id: e.target.value,
+                          matchKind: e.target.value ? "exact" : "none",
+                          stub_address: "",
+                        });
                       }}
                     >
 
@@ -756,9 +779,9 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                     <Button
                       variant="primary"
                       loading={insertProject.isPending}
-                      onClick={() => void createStub(groupKey, keys)}
+                      onClick={() => queueStub(groupKey, keys)}
                     >
-                      Create stub
+                      Queue stub
                     </Button>
                   </div>
                 ) : null}
