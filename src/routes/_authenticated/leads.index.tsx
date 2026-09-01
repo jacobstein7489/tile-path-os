@@ -4,8 +4,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { Button, EmptyState, SearchInput, Table, Td, Th } from "@/components/kit";
 import { useProjects, type Project } from "@/lib/data";
-import { useCompanies } from "@/lib/people";
-import { useProfiles } from "@/lib/people";
+import { useCompanies, useProfiles } from "@/lib/people";
 import { Dot, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
