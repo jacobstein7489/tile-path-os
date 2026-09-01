@@ -104,17 +104,18 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
         e.stopPropagation();
         onChange(!done);
       }}
-      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="grid size-9 cursor-pointer place-items-center rounded-lg outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-90 focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       <span
         className={cn(
           "grid size-[18px] place-items-center rounded-[5px] border",
-          "transition-[background-color,border-color,transform] duration-150",
+          "transition-[background-color,border-color,transform,opacity] duration-150",
           done
             ? "scale-110 border-success bg-success text-primary-foreground"
-            : "border-border-strong bg-background",
+            : "border-border-strong bg-background opacity-60 group-hover:scale-105 group-hover:opacity-100",
         )}
       >
+
         <svg
           viewBox="0 0 20 20"
           className={cn(
