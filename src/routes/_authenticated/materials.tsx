@@ -46,7 +46,7 @@ const TABS = [
 
 type Search = { tab: string };
 
-export const Route = createFileRoute("/materials")({
+export const Route = createFileRoute("/_authenticated/_authenticated/materials")({
   validateSearch: (search: Record<string, unknown>): Search => ({
     tab:
       typeof search["tab"] === "string" && TABS.some((t) => t.value === search["tab"])

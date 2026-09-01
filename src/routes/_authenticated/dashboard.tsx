@@ -18,7 +18,7 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_authenticated/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Company Work — Cobblestone Tile OS" },

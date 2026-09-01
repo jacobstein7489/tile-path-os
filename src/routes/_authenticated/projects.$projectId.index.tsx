@@ -35,7 +35,7 @@ import {
 } from "@/lib/data";
 import { Chip, areaStatusTone, materialTone, workItemTone } from "@/lib/status";
 
-export const Route = createFileRoute("/projects/$projectId/")({
+export const Route = createFileRoute("/_authenticated/_authenticated/projects/$projectId/")({
   head: () => ({
     meta: [
       { title: "Project Overview — Cobblestone Tile OS" },

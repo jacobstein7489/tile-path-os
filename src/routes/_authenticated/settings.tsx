@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ComingLater } from "@/components/PageShell";
 
-export const Route = createFileRoute("/settings")({
+export const Route = createFileRoute("/_authenticated/_authenticated/settings")({
   head: () => ({
     meta: [
       { title: "Settings — Cobblestone Tile OS" },

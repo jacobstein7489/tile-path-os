@@ -10,130 +10,136 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as MaterialsRouteImport } from './routes/materials'
-import { Route as ScheduleRouteImport } from './routes/schedule'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as TodayRouteImport } from './routes/today'
-import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
-import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
-import { Route as ProjectsProjectIdIndexRouteImport } from './routes/projects.$projectId.index'
-import { Route as ProjectsProjectIdFieldRouteImport } from './routes/projects.$projectId.field'
-import { Route as ProjectsProjectIdFilesRouteImport } from './routes/projects.$projectId.files'
-import { Route as ProjectsProjectIdMaterialsRouteImport } from './routes/projects.$projectId.materials'
-import { Route as ProjectsProjectIdScopeRouteImport } from './routes/projects.$projectId.scope'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedMaterialsRouteImport } from './routes/_authenticated/materials'
+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
+import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
+import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
+import { Route as AuthenticatedProjectsProjectIdFieldRouteImport } from './routes/_authenticated/projects.$projectId.field'
+import { Route as AuthenticatedProjectsProjectIdFilesRouteImport } from './routes/_authenticated/projects.$projectId.files'
+import { Route as AuthenticatedProjectsProjectIdMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.materials'
+import { Route as AuthenticatedProjectsProjectIdScopeRouteImport } from './routes/_authenticated/projects.$projectId.scope'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/_authenticated/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MaterialsRoute = MaterialsRouteImport.update({
-  id: '/materials',
+const AuthenticatedMaterialsRoute = AuthenticatedMaterialsRouteImport.update({
+  id: '/_authenticated/materials',
   path: '/materials',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ScheduleRoute = ScheduleRouteImport.update({
-  id: '/schedule',
+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
+  id: '/_authenticated/schedule',
   path: '/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/_authenticated/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TodayRoute = TodayRouteImport.update({
-  id: '/today',
+const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
+  id: '/_authenticated/today',
   path: '/today',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
-  id: '/projects/',
-  path: '/projects/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
-  id: '/projects/$projectId',
-  path: '/projects/$projectId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsProjectIdIndexRoute = ProjectsProjectIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProjectsProjectIdRoute,
-} as any)
-const ProjectsProjectIdFieldRoute = ProjectsProjectIdFieldRouteImport.update({
-  id: '/field',
-  path: '/field',
-  getParentRoute: () => ProjectsProjectIdRoute,
-} as any)
-const ProjectsProjectIdFilesRoute = ProjectsProjectIdFilesRouteImport.update({
-  id: '/files',
-  path: '/files',
-  getParentRoute: () => ProjectsProjectIdRoute,
-} as any)
-const ProjectsProjectIdMaterialsRoute =
-  ProjectsProjectIdMaterialsRouteImport.update({
+const AuthenticatedProjectsIndexRoute =
+  AuthenticatedProjectsIndexRouteImport.update({
+    id: '/_authenticated/projects/',
+    path: '/projects/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedProjectsProjectIdRoute =
+  AuthenticatedProjectsProjectIdRouteImport.update({
+    id: '/_authenticated/projects/$projectId',
+    path: '/projects/$projectId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedProjectsProjectIdIndexRoute =
+  AuthenticatedProjectsProjectIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdFieldRoute =
+  AuthenticatedProjectsProjectIdFieldRouteImport.update({
+    id: '/field',
+    path: '/field',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdFilesRoute =
+  AuthenticatedProjectsProjectIdFilesRouteImport.update({
+    id: '/files',
+    path: '/files',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdMaterialsRoute =
+  AuthenticatedProjectsProjectIdMaterialsRouteImport.update({
     id: '/materials',
     path: '/materials',
-    getParentRoute: () => ProjectsProjectIdRoute,
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
-const ProjectsProjectIdScopeRoute = ProjectsProjectIdScopeRouteImport.update({
-  id: '/scope',
-  path: '/scope',
-  getParentRoute: () => ProjectsProjectIdRoute,
-} as any)
+const AuthenticatedProjectsProjectIdScopeRoute =
+  AuthenticatedProjectsProjectIdScopeRouteImport.update({
+    id: '/scope',
+    path: '/scope',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/materials': typeof MaterialsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/today': typeof TodayRoute
-  '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
-  '/projects/': typeof ProjectsIndexRoute
-  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
-  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
-  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
-  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
-  '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/materials': typeof AuthenticatedMaterialsRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/today': typeof AuthenticatedTodayRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
+  '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/materials': typeof MaterialsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/today': typeof TodayRoute
-  '/projects': typeof ProjectsIndexRoute
-  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
-  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
-  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
-  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
-  '/projects/$projectId': typeof ProjectsProjectIdIndexRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/materials': typeof AuthenticatedMaterialsRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/today': typeof AuthenticatedTodayRoute
+  '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
+  '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
-  '/materials': typeof MaterialsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/today': typeof TodayRoute
-  '/projects/$projectId': typeof ProjectsProjectIdRouteWithChildren
-  '/projects/': typeof ProjectsIndexRoute
-  '/projects/$projectId/field': typeof ProjectsProjectIdFieldRoute
-  '/projects/$projectId/files': typeof ProjectsProjectIdFilesRoute
-  '/projects/$projectId/materials': typeof ProjectsProjectIdMaterialsRoute
-  '/projects/$projectId/scope': typeof ProjectsProjectIdScopeRoute
-  '/projects/$projectId/': typeof ProjectsProjectIdIndexRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/materials': typeof AuthenticatedMaterialsRoute
+  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
+  '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/_authenticated/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/_authenticated/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/_authenticated/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,29 +174,29 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/dashboard'
-    | '/materials'
-    | '/schedule'
-    | '/settings'
-    | '/today'
-    | '/projects/$projectId'
-    | '/projects/'
-    | '/projects/$projectId/field'
-    | '/projects/$projectId/files'
-    | '/projects/$projectId/materials'
-    | '/projects/$projectId/scope'
-    | '/projects/$projectId/'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/materials'
+    | '/_authenticated/schedule'
+    | '/_authenticated/settings'
+    | '/_authenticated/today'
+    | '/_authenticated/projects/$projectId'
+    | '/_authenticated/projects/'
+    | '/_authenticated/projects/$projectId/field'
+    | '/_authenticated/projects/$projectId/files'
+    | '/_authenticated/projects/$projectId/materials'
+    | '/_authenticated/projects/$projectId/scope'
+    | '/_authenticated/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRoute: typeof DashboardRoute
-  MaterialsRoute: typeof MaterialsRoute
-  ScheduleRoute: typeof ScheduleRoute
-  SettingsRoute: typeof SettingsRoute
-  TodayRoute: typeof TodayRoute
-  ProjectsProjectIdRoute: typeof ProjectsProjectIdRouteWithChildren
-  ProjectsIndexRoute: typeof ProjectsIndexRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedMaterialsRoute: typeof AuthenticatedMaterialsRoute
+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
+  AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -202,121 +208,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/materials': {
-      id: '/materials'
+    '/_authenticated/materials': {
+      id: '/_authenticated/materials'
       path: '/materials'
       fullPath: '/materials'
-      preLoaderRoute: typeof MaterialsRouteImport
+      preLoaderRoute: typeof AuthenticatedMaterialsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/schedule': {
-      id: '/schedule'
+    '/_authenticated/schedule': {
+      id: '/_authenticated/schedule'
       path: '/schedule'
       fullPath: '/schedule'
-      preLoaderRoute: typeof ScheduleRouteImport
+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/today': {
-      id: '/today'
+    '/_authenticated/today': {
+      id: '/_authenticated/today'
       path: '/today'
       fullPath: '/today'
-      preLoaderRoute: typeof TodayRouteImport
+      preLoaderRoute: typeof AuthenticatedTodayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/': {
-      id: '/projects/'
+    '/_authenticated/projects/': {
+      id: '/_authenticated/projects/'
       path: '/projects'
       fullPath: '/projects/'
-      preLoaderRoute: typeof ProjectsIndexRouteImport
+      preLoaderRoute: typeof AuthenticatedProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/$projectId': {
-      id: '/projects/$projectId'
+    '/_authenticated/projects/$projectId': {
+      id: '/_authenticated/projects/$projectId'
       path: '/projects/$projectId'
       fullPath: '/projects/$projectId'
-      preLoaderRoute: typeof ProjectsProjectIdRouteImport
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/$projectId/': {
-      id: '/projects/$projectId/'
+    '/_authenticated/projects/$projectId/': {
+      id: '/_authenticated/projects/$projectId/'
       path: '/'
       fullPath: '/projects/$projectId/'
-      preLoaderRoute: typeof ProjectsProjectIdIndexRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
-    '/projects/$projectId/field': {
-      id: '/projects/$projectId/field'
+    '/_authenticated/projects/$projectId/field': {
+      id: '/_authenticated/projects/$projectId/field'
       path: '/field'
       fullPath: '/projects/$projectId/field'
-      preLoaderRoute: typeof ProjectsProjectIdFieldRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdFieldRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
-    '/projects/$projectId/files': {
-      id: '/projects/$projectId/files'
+    '/_authenticated/projects/$projectId/files': {
+      id: '/_authenticated/projects/$projectId/files'
       path: '/files'
       fullPath: '/projects/$projectId/files'
-      preLoaderRoute: typeof ProjectsProjectIdFilesRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdFilesRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
-    '/projects/$projectId/materials': {
-      id: '/projects/$projectId/materials'
+    '/_authenticated/projects/$projectId/materials': {
+      id: '/_authenticated/projects/$projectId/materials'
       path: '/materials'
       fullPath: '/projects/$projectId/materials'
-      preLoaderRoute: typeof ProjectsProjectIdMaterialsRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdMaterialsRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
-    '/projects/$projectId/scope': {
-      id: '/projects/$projectId/scope'
+    '/_authenticated/projects/$projectId/scope': {
+      id: '/_authenticated/projects/$projectId/scope'
       path: '/scope'
       fullPath: '/projects/$projectId/scope'
-      preLoaderRoute: typeof ProjectsProjectIdScopeRouteImport
-      parentRoute: typeof ProjectsProjectIdRoute
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdScopeRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
   }
 }
 
-interface ProjectsProjectIdRouteChildren {
-  ProjectsProjectIdFieldRoute: typeof ProjectsProjectIdFieldRoute
-  ProjectsProjectIdFilesRoute: typeof ProjectsProjectIdFilesRoute
-  ProjectsProjectIdMaterialsRoute: typeof ProjectsProjectIdMaterialsRoute
-  ProjectsProjectIdScopeRoute: typeof ProjectsProjectIdScopeRoute
-  ProjectsProjectIdIndexRoute: typeof ProjectsProjectIdIndexRoute
+interface AuthenticatedProjectsProjectIdRouteChildren {
+  AuthenticatedProjectsProjectIdFieldRoute: typeof AuthenticatedProjectsProjectIdFieldRoute
+  AuthenticatedProjectsProjectIdFilesRoute: typeof AuthenticatedProjectsProjectIdFilesRoute
+  AuthenticatedProjectsProjectIdMaterialsRoute: typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  AuthenticatedProjectsProjectIdScopeRoute: typeof AuthenticatedProjectsProjectIdScopeRoute
+  AuthenticatedProjectsProjectIdIndexRoute: typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 
-const ProjectsProjectIdRouteChildren: ProjectsProjectIdRouteChildren = {
-  ProjectsProjectIdFieldRoute: ProjectsProjectIdFieldRoute,
-  ProjectsProjectIdFilesRoute: ProjectsProjectIdFilesRoute,
-  ProjectsProjectIdMaterialsRoute: ProjectsProjectIdMaterialsRoute,
-  ProjectsProjectIdScopeRoute: ProjectsProjectIdScopeRoute,
-  ProjectsProjectIdIndexRoute: ProjectsProjectIdIndexRoute,
-}
+const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectIdRouteChildren =
+  {
+    AuthenticatedProjectsProjectIdFieldRoute:
+      AuthenticatedProjectsProjectIdFieldRoute,
+    AuthenticatedProjectsProjectIdFilesRoute:
+      AuthenticatedProjectsProjectIdFilesRoute,
+    AuthenticatedProjectsProjectIdMaterialsRoute:
+      AuthenticatedProjectsProjectIdMaterialsRoute,
+    AuthenticatedProjectsProjectIdScopeRoute:
+      AuthenticatedProjectsProjectIdScopeRoute,
+    AuthenticatedProjectsProjectIdIndexRoute:
+      AuthenticatedProjectsProjectIdIndexRoute,
+  }
 
-const ProjectsProjectIdRouteWithChildren =
-  ProjectsProjectIdRoute._addFileChildren(ProjectsProjectIdRouteChildren)
+const AuthenticatedProjectsProjectIdRouteWithChildren =
+  AuthenticatedProjectsProjectIdRoute._addFileChildren(
+    AuthenticatedProjectsProjectIdRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRoute: DashboardRoute,
-  MaterialsRoute: MaterialsRoute,
-  ScheduleRoute: ScheduleRoute,
-  SettingsRoute: SettingsRoute,
-  TodayRoute: TodayRoute,
-  ProjectsProjectIdRoute: ProjectsProjectIdRouteWithChildren,
-  ProjectsIndexRoute: ProjectsIndexRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedMaterialsRoute: AuthenticatedMaterialsRoute,
+  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTodayRoute: AuthenticatedTodayRoute,
+  AuthenticatedProjectsProjectIdRoute:
+    AuthenticatedProjectsProjectIdRouteWithChildren,
+  AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

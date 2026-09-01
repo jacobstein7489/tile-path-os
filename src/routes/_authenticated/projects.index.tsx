@@ -10,7 +10,7 @@ import { PROJECT_FILTERS, matchesFilter, showsInstallationProgress, type Project
 import { Chip, Dot, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/projects/")({
+export const Route = createFileRoute("/_authenticated/_authenticated/projects/")({
   head: () => ({
     meta: [
       { title: "Projects — Cobblestone Tile OS" },

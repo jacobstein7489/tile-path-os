@@ -21,7 +21,7 @@ import {
   type WorkItemFull,
 } from "@/lib/data";
 
-export const Route = createFileRoute("/projects/$projectId/field")({
+export const Route = createFileRoute("/_authenticated/_authenticated/projects/$projectId/field")({
   component: FieldTab,
 });
 
