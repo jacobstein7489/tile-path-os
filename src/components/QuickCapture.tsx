@@ -82,7 +82,7 @@ function matchProject(text: string, projects: { id: string; name: string }[]) {
 function stripProject(line: string, name?: string) {
   if (!name) return line;
   const cleaned = line.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "");
-  return cleaned.replace(/^[\s—–\-:,]+/, "").trim() || line;
+  return cleaned.replace(/^[\s—–\-:,]+/, "").trim();
 }
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -114,9 +114,10 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
       const matchedId = matchProject(l, projects);
       if (matchedId) sticky = matchedId;
       const matchedName = projects.find((p) => p.id === matchedId)?.name;
-      const title = stripProject(l, matchedName);
-      // A bare job name (heading line) is context, not a work item.
-      if (matchedId && title.replace(/[^a-z0-9]/gi, "").length < 4) return;
+      const stripped = stripProject(l, matchedName);
+      // A bare job name (heading line) is context for the lines below, not a work item.
+      if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) return;
+      const title = stripped || l;
       drafted.push({
         key: `${i}-${l.slice(0, 10)}`,
         project_id: matchedId || sticky,
