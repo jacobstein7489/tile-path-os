@@ -40,7 +40,7 @@ export type Project = {
   commissionable_source?: string | null;
   /** Project-level override of the salesperson default rate (percent). */
   commission_rate_override?: number | null;
-  commission_status?: string | null;
+  commission_status?: string;
 };
 
 export type Area = {
