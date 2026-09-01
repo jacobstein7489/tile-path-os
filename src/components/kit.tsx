@@ -432,20 +432,17 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(fieldClass, props.className)} />;
 }
 
-export function SearchInput({
-  className,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+export const SearchInput = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(function SearchInput({ className, ...props }, ref) {
   return (
     <div className={cn("relative", className)}>
       <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-      <input
-        {...props}
-        className={cn(fieldClass, "pl-9")}
-      />
+      <input ref={ref} {...props} className={cn(fieldClass, "pl-9")} />
     </div>
   );
-}
+});
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (

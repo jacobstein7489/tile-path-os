@@ -19,15 +19,15 @@ export function InlineText({
 }: {
   value: string | null;
   onSave: (next: string | null) => void;
-  placeholder?: string;
-  className?: string;
-  inputClassName?: string;
-  multiline?: boolean;
-  type?: "text" | "date";
+  placeholder?: string | undefined;
+  className?: string | undefined;
+  inputClassName?: string | undefined;
+  multiline?: boolean | undefined;
+  type?: ("text" | "date") | undefined;
   ariaLabel: string;
   /** Search term to highlight while not editing. */
-  query?: string;
-  strike?: boolean;
+  query?: string | undefined;
+  strike?: boolean | undefined;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
@@ -131,7 +131,7 @@ export function InlineText({
 }
 
 /** Subtle highlight of matching search text. */
-export function Highlight({ text, query }: { text: string; query?: string }) {
+export function Highlight({ text, query }: { text: string; query?: string | undefined }) {
   const q = (query ?? "").trim();
   if (!q) return <>{text}</>;
   const idx = text.toLowerCase().indexOf(q.toLowerCase());
