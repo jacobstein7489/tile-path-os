@@ -369,17 +369,22 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     if (!drafted.length) toast.error("Nothing to capture yet");
   };
 
-  /** Grouped review: project appears once, rows stay compact underneath. */
+  /** Grouped review: one section per pasted heading — sections never merge. */
   const groups = useMemo(() => {
-    const map = new Map<string, { label: string; pending: boolean; items: Draft[] }>();
+    const map = new Map<
+      string,
+      { label: string; heading: string; pending: boolean; fuzzy: boolean; items: Draft[] }
+    >();
     (drafts ?? []).forEach((d) => {
-      const key = d.project_id || (d.groupName ? `pending:${d.groupName}` : "unassigned");
+      const key = d.sectionKey || (d.project_id || "unassigned");
       if (!map.has(key)) {
         map.set(key, {
           label: d.project_id
             ? (projects.find((p) => p.id === d.project_id)?.name ?? "Project")
             : d.groupName || "Company / Unassigned",
-          pending: !d.project_id && Boolean(d.groupName),
+          heading: d.groupName,
+          pending: !d.project_id,
+          fuzzy: Boolean(d.project_id) && d.matchKind === "fuzzy",
           items: [],
         });
       }
@@ -387,6 +392,10 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     });
     return [...map.entries()];
   }, [drafts, projects]);
+
+  const unmatchedSections = groups.filter(([, g]) => g.pending && g.heading);
+  const fuzzySections = groups.filter(([, g]) => g.fuzzy);
+
 
   const saveAll = async () => {
     if (!drafts) return;
