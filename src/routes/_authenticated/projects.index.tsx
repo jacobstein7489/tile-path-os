@@ -13,6 +13,12 @@ import {
   showsInstallationProgress,
   type ProjectFilter,
 } from "@/lib/lifecycle";
+import {
+  compareWorkItems,
+  isComplete,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
 import { Dot, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
