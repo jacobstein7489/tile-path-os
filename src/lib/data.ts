@@ -37,7 +37,7 @@ export type Project = {
   commission_user_id?: string | null;
   /** Manual for now; later this comes from the approved contract/estimate. */
   commissionable_amount?: number | null;
-  commissionable_source?: string | null;
+  commissionable_source?: string;
   /** Project-level override of the salesperson default rate (percent). */
   commission_rate_override?: number | null;
   commission_status?: string;
