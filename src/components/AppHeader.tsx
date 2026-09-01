@@ -15,7 +15,7 @@ export function AppHeader({
 }) {
   const { data: profile } = useMyProfile();
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-7 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border bg-background/95 pr-4 pl-14 backdrop-blur md:px-7">
       <nav className="flex min-w-0 items-center gap-2 text-[13px]">
         <span className="text-[11px] font-bold tracking-[0.08em] text-primary">{viewLabel}</span>
         {crumbs.map((c, i) => (

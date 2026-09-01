@@ -17,8 +17,8 @@ export function PageShell({
   return (
     <>
       <AppHeader crumbs={crumbs} />
-      <main className="mx-auto w-full max-w-[1480px] px-7 pt-7 pb-14">
-        <div className="flex items-start justify-between gap-6">
+      <main className="mx-auto w-full max-w-[1480px] px-4 pt-6 pb-14 md:px-7 md:pt-7">
+        <div className="flex flex-wrap items-start justify-between gap-4 md:gap-6">
           <div>
             <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">{title}</h1>
             {subtitle ? <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p> : null}
