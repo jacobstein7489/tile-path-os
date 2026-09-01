@@ -102,11 +102,14 @@ function TodayPage() {
               filters={TODAY_FILTERS}
               matchFilter={matchesTodayFilter}
               defaultFilter="Active"
+              defaultView={mine.length > 6 ? "Grouped by Project" : "List"}
               viewStorageKey="cobblestone.today.view"
               showProjectColumn={false}
+              allowAdd={false}
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
+
 
           </div>
 
