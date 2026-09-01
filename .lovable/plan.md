@@ -32,18 +32,30 @@ Two phases in one pass: (A) fold the final corrections into `docs/`, then freeze
 ### 1. Design system freeze (before any new screen)
 One production system in `src/styles.css` + `src/components/kit.tsx`: type scale (28/20/16/14/13/12, tabular numerals), 4px spacing tokens, page shell and fixed sidebar/header dimensions, neutral + restrained semantic OKLCH tokens, single blue primary, radii 8/12/999, two shadows, 120–180ms motion. Components: PageShell, Sidebar, PageHeader, Table set with full-row click, Button (all variants + states), IconButton, Input/Textarea/Select, **searchable Combobox**, DateField, InlineEdit, StatusChip, ProgressBar, ReadinessMeter, Avatar, Drawer, Modal, Toast (sonner), Skeleton, EmptyState, ErrorState, LifecycleRail. Every interactive component defines default/hover/focus-visible/pressed/loading/disabled/error/success. Then migrate every existing route onto it and remove local styling.
 
-### 2. Backend (single migration, submitted for approval)
-`profile`, `role`, `user_role` (+ `app_role` enum, `has_role()` security definer), `company`, `contact`, `crew` extensions, `project_assignment`, `file_object`, project columns for lead intake (source, bid_due_date, follow_up_on, salesperson_user_id, estimator_user_id, customer_company_id, gc_company_id, primary_contact_id, commission_user_id) plus private `project-files` storage bucket. GRANTs + RLS with role/assignment-based policies replacing every open `USING (true)` policy. Real user/company/contact/crew seed data, text owners backfilled.
+### 2. Backend — small ordered migrations, validated between phases
+No single giant migration. Each phase is additive and independently verifiable; legacy columns/policies are only removed after verification.
+
+1. **People & roles** — `profile`, `role` (configurable records keyed by `key`, label, can_see_money), `user_role` join, `has_role(_user_id uuid, _role_key text)` security definer. **One source of truth: role records, no `app_role` enum** — new roles are data, not migrations.
+2. **Companies & contacts** — `company`, `contact`, plus `crew` columns (company_id, lead_contact_id, capacity_per_day, is_active).
+3. **Backfill** — seed real users/roles/companies/contacts/crews; map existing text owners, customers and suppliers onto real records (legacy text columns retained, read-only).
+4. **Project refs & assignments** — project columns (job_number, source, bid_due_date, follow_up_on, salesperson_user_id, estimator_user_id, commission_user_id, customer_company_id, gc_company_id, primary_contact_id, pm_user_id, site_manager_user_id) + `project_assignment`.
+5. **Storage & files** — private `project-files` bucket + `file_object` table with storage policies.
+6. **RLS transition** — replace every open `USING (true)` policy with role/assignment-based policies, table by table, verifying reads/writes after each.
+7. **Legacy cleanup** — only after the app is verified running on the new refs.
 
 ### 3. Auth
-Email + password and Google sign-in, `/auth` route, `_authenticated` gating, profile bootstrap on first sign-in, role-aware nav.
+Email + password and Google sign-in, `/auth` route, `_authenticated` gating, profile bootstrap on first sign-in, role-aware nav and permissions.
 
 ### 4. Screens in scope
-Settings (users & roles, companies, contacts, crews) · New Lead / Job intake modal with all intake fields, searchable selectors and file upload · Projects list with the simplified 10-stage rail from New Submission · Project header with working Edit / Hold / Cancel / Lost / Archive / Delete gated by role · existing Dashboard/Today/Schedule/Install Materials/project tabs migrated to the frozen kit.
+Settings (users & roles, companies, contacts, crews) · New Lead / Job intake modal (address, customer/GC, contact, salesperson, estimator, source, bid due, follow-up, notes, file upload) with searchable selectors · Projects list showing **one compact Stage chip per row** (no lifecycle rail in rows, no horizontal scroll) · Project Overview carrying the **full 10-stage master rail** · project header Edit / Hold / Cancel / Lost / Archive / Delete gated by role · existing Dashboard/Today/Schedule/Install Materials/project tabs migrated onto the frozen kit.
 
 Visible lifecycle: New Submission → Estimating → Proposal → Awarded → Setup → Ready → Scheduled → Installation → Closeout/Return → Complete (On Hold, Lost, Cancelled as exceptions).
 
 ### 5. Validation before reporting done
-Playwright pass at 1440×900 and 1280×800 on every route: no clipped layouts, no dead controls, full-row click targets, RLS verified by signing in as a non-privileged user, intake + edit + archive round-tripped against the database, no raw color classes left in routes.
+- RLS tested by signing in as a non-privileged user and confirming denied reads/writes.
+- Intake, edit, archive and permission paths round-tripped against the database.
+- No raw color classes or local styling left in routes.
+- **Visual QA:** Playwright screenshots at 1440×900 (and a 1280×800 clipping check) of Dashboard, Projects, one Project Overview, Schedule, Install Materials, Settings and New Lead/Job intake — reviewed for one consistent system, no clipping, no excessive scrolling, no dead controls.
 
-Sprint 2 is not started.
+Final report: migrations in order, security tests, data backfilled, frozen tokens/components, routes migrated, screenshots, any unmet criterion, any architectural issue found. Nothing deferred silently. Sprint 2 is not started.
+
