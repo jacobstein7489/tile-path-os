@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 /** Current user. Later this comes from auth; every user reads the same records. */
 const ME = { name: "Yaakov", role: "Site Manager" };
 
-export const Route = createFileRoute("/today")({
+export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
     meta: [
       { title: "Today — Cobblestone Tile OS" },

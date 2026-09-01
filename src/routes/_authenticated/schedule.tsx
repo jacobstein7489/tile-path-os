@@ -22,7 +22,7 @@ import {
   type Project,
 } from "@/lib/data";
 
-export const Route = createFileRoute("/schedule")({
+export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
       { title: "Schedule & Crews — Cobblestone Tile OS" },

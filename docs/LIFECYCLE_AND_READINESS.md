@@ -1,10 +1,10 @@
 # Lifecycle and Readiness
 
-## 1. Master lifecycle (final, 10 stages)
+## 1. Master lifecycle (frozen, 10 visible stages)
 
 | # | Stage | Meaning | Primary owner |
 | --- | --- | --- | --- |
-| 1 | New Lead / Submission | opportunity captured | Sales |
+| 1 | New Submission | opportunity captured (lead intake) | Sales |
 | 2 | Estimating | plans, scope, takeoff, pricing | Estimator |
 | 3 | Proposal | proposal issued / revised | Sales |
 | 4 | Awarded | won; contract/authorization in place | Sales → PM |
@@ -14,6 +14,13 @@
 | 8 | Installation | physical work in progress | Site Manager |
 | 9 | Closeout / Return | punch, return work, final verification | Site Manager |
 | 10 | Complete | closed operationally and commercially | Accounting |
+
+Detailed setup/readiness requirements live **underneath** these stages and complete
+automatically from data — never as manual checkboxes.
+
+The full rail renders on **Project Overview only**. The Projects list shows a single compact
+Stage chip per row.
+
 
 Exception states (orthogonal flag, stage preserved): **On Hold · Lost · Cancelled**.
 
@@ -88,8 +95,29 @@ project header shows the number plus the top blocking reason.
   install materials + rule answers are satisfied).
 - Area state = rollup of its surfaces (any Blocked → Blocked; all Complete → Complete;
   any Working → Working; all Ready → Ready; else Not Ready).
-- Install progress % = qty-weighted complete surfaces (falls back to count-weighted when
-  quantities are missing).
+### Physical installation progress (derived, never editable)
+
+Every surface has a **governing measurement** (`project_surfaces.governing_measurement_id`
+→ a `surface_measurement` record of kind `plan` or `field`). Progress uses the governing
+quantity only:
+
+```text
+surface_progress = completed_governing_qty / governing_qty        (undefined when governing_qty = 0)
+area_progress[uom]    = Σ completed_governing_qty / Σ governing_qty   over that area's non-archived surfaces
+project_progress[uom] = Σ completed_governing_qty / Σ governing_qty   over all in-scope areas
+```
+
+Rules:
+
+- Quantity-weighted, **never** an average of percentages, never manually typed.
+- Rolled up **per compatible quantity family** (`sf`, `lf`, `ea`). No conversions between
+  families are invented. Until an effort model exists, families are reported side by side.
+- Optional `installation_weight` (estimated labor effort per surface, populated from
+  estimating data in a later sprint) enables one trustworthy blended project % :
+  `Σ(weight × surface_progress) / Σ(weight)`. It is used only when every in-scope surface
+  has a weight; otherwise the app shows per-family progress.
+- Finish and material readiness are likewise derived, never user-editable.
+
 
 ## 5. Readiness computation architecture
 

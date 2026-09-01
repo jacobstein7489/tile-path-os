@@ -7,7 +7,7 @@ import { useProject, useUpdateProject } from "@/lib/data";
 import { Chip, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/projects/$projectId")({
+export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,
 });
 

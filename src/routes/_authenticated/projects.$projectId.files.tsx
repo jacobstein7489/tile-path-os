@@ -15,7 +15,7 @@ import {
 } from "@/components/kit";
 import { useInsertRow, useWorkItems, type WorkItemFull } from "@/lib/data";
 
-export const Route = createFileRoute("/projects/$projectId/files")({
+export const Route = createFileRoute("/_authenticated/projects/$projectId/files")({
   component: FilesTab,
 });
 

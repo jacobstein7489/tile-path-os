@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronDown, Loader2, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
@@ -152,15 +152,17 @@ export function Button({
   size = "md",
   className,
   disabledReason,
+  loading = false,
   children,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md";
   disabledReason?: string;
+  loading?: boolean;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-55";
+    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/35 active:translate-y-[0.5px] disabled:cursor-not-allowed disabled:opacity-55";
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
     secondary:
@@ -173,9 +175,11 @@ export function Button({
     <button
       type="button"
       {...rest}
+      disabled={rest.disabled || loading}
       {...(disabledReason ? { title: disabledReason } : {})}
       className={cn(base, variants[variant], sizes[size], className)}
     >
+      {loading ? <Loader2 className="size-3.5 animate-spin" /> : null}
       {children}
     </button>
   );
@@ -534,5 +538,205 @@ export function StepSequence({ steps, current }: { steps: string[]; current: str
         );
       })}
     </ol>
+  );
+}
+
+
+/* ---------------- Searchable selector (canonical reference picker) ---------------- */
+
+export type ComboOption = { value: string; label: string; hint?: string };
+
+export function Combobox({
+  options,
+  value,
+  onChange,
+  placeholder = "Search…",
+  emptyLabel = "No matches",
+  allowClear = true,
+  disabled,
+  className,
+  onCreate,
+  createLabel = "Add",
+}: {
+  options: ComboOption[];
+  value: string | null;
+  onChange: (next: string | null) => void;
+  placeholder?: string;
+  emptyLabel?: string;
+  allowClear?: boolean;
+  disabled?: boolean;
+  className?: string;
+  onCreate?: (label: string) => void | Promise<void>;
+  createLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const selected = options.find((o) => o.value === value) ?? null;
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options.slice(0, 60);
+    return options
+      .filter((o) => (o.label + " " + (o.hint ?? "")).toLowerCase().includes(q))
+      .slice(0, 60);
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className={cn("relative", className)}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setOpen((v) => !v);
+          setQuery("");
+        }}
+        className={cn(
+          fieldClass,
+          "flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60",
+          !selected && "text-muted-foreground",
+        )}
+      >
+        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+      </button>
+
+      {open ? (
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-raised)]">
+          <div className="flex items-center gap-2 border-b border-border px-3">
+            <Search className="size-3.5 text-muted-foreground" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Type to search"
+              className="h-9 w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1">
+            {allowClear && selected ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(null);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center px-3 py-2 text-left text-[12.5px] text-muted-foreground hover:bg-muted"
+                >
+                  Clear selection
+                </button>
+              </li>
+            ) : null}
+            {filtered.map((o) => (
+              <li key={o.value}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px]">{o.label}</span>
+                    {o.hint ? (
+                      <span className="block truncate text-[11.5px] text-muted-foreground">
+                        {o.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                  {o.value === value ? <Check className="size-3.5 text-primary" /> : null}
+                </button>
+              </li>
+            ))}
+            {filtered.length === 0 ? (
+              <li className="px-3 py-3 text-[12.5px] text-muted-foreground">{emptyLabel}</li>
+            ) : null}
+          </ul>
+          {onCreate && query.trim() ? (
+            <button
+              type="button"
+              onClick={async () => {
+                await onCreate(query.trim());
+                setOpen(false);
+              }}
+              className="w-full border-t border-border px-3 py-2.5 text-left text-[12.5px] font-semibold text-primary hover:bg-accent"
+            >
+              {createLabel} “{query.trim()}”
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------------- Skeleton / Avatar ---------------- */
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
+}
+
+export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="space-y-2 px-4 py-3">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex gap-3">
+          {Array.from({ length: cols }).map((_, c) => (
+            <Skeleton key={c} className={cn("h-4 flex-1", c === 0 && "flex-[2]")} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Avatar({
+  initials,
+  tone = "blue",
+  size = 28,
+  title,
+}: {
+  initials: string;
+  tone?: string;
+  size?: number;
+  title?: string;
+}) {
+  const tones: Record<string, string> = {
+    blue: "bg-info-soft text-info",
+    green: "bg-success-soft text-success",
+    amber: "bg-warning-soft text-warning",
+    red: "bg-danger-soft text-danger",
+    violet: "bg-violet-soft text-violet",
+    neutral: "bg-neutral-chip text-muted-foreground",
+  };
+  return (
+    <span
+      title={title}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+      className={cn(
+        "inline-grid shrink-0 place-items-center rounded-full font-bold",
+        tones[tone] ?? tones["blue"],
+      )}
+    >
+      {initials || "?"}
+    </span>
   );
 }

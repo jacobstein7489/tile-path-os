@@ -41,16 +41,40 @@ append-only receipts) · `delivered_qty` (sum of deliveries).
 `ceil(surface_sf / coverage_per_bag * (1 + waste))` per installation system. The estimator/PM
 can override with a note (override is data, not a silent edit).
 
-## 3. Purchase orders
+## 3. Commitments (generalized purchase orders)
 
-`purchase_order` (supplier company, project optional for stock POs, status
-`Draft → Sent → Confirmed → Partial → Received → Closed`, expected date, created_by) with
-`po_line` rows linking to `material_requirement` **or** `finish_selection` (tile POs live
-here too, presented under Tiles & Finishes).
+Purchases are **not** material-only. One model covers every outbound commitment:
 
+`commitment`: kind (`material` | `finish` | `labor` | `service`), vendor_company_id,
+vendor_contact_id?, project_id? (null for stock POs), number, status
+`Draft → Sent → Confirmed → Partial → Received/Performed → Closed → Cancelled`, value,
+expected_date, approved_by_user_id, approved_at, created_by_user_id, notes.
+
+`commitment_line`: commitment_id, line kind, reference — `material_requirement_id`,
+`finish_procurement_requirement_id`, or `work_item_id` (labor/service, e.g. return work) —
+description, qty, uom, unit_cost?, total?, notes.
+
+- The existing `purchase_orders` / `po_lines` tables are the material-only ancestor of this
+  model and are migrated into it, not extended sideways.
 - PO builder starts from selected requirement lines ("Order these 6 needs") — the current
   `CreatePoModal` flow is the right idea and should be kept + modified.
-- Sending a PO advances every linked NEED work item to the Expected step.
+- Finish lines reference the **consolidated** procurement requirement, so one tile order can
+  satisfy many surfaces (see TILES_AND_FINISHES_MODEL.md §4).
+- Sending a commitment advances every linked NEED work item to the Expected step.
+
+### Labor commitments and return work
+
+Return work needs a purchase path before the Commercial sprint:
+
+```text
+Return work identified → installer selected → installer price entered
+  → price approved (role-gated) → labor commitment issued → scheduled
+  → performed → verified → closed
+```
+
+Approval is an explicit recorded event (`approved_by_user_id`, `approved_at`), not a status
+someone types. Money visibility on labor commitments respects `role.can_see_money`.
+
 
 ## 4. Receiving (append-only, non-negotiable)
 

@@ -33,13 +33,48 @@ The estimator confirms/removes with checkboxes — **select > confirm > type**.
 Room-type library lives in Settings (`room_type` + `room_type_surface_template`), so the
 company can tune it without a release.
 
-## 4. Quantities
+## 4. Measurements, zones and quantities
 
-- `takeoff_line` holds the measured quantity, method (drawn/manual/imported), waste %.
-- `surface.plan_qty` = sum of takeoff lines (design intent). `surface.field_qty` = verified
-  in the field. Variance surfaces as a Field alert and can create a CHANGE work item.
-- UOM per surface: `sf`, `lf`, `ea`. Layout/ordering math converts using tile
-  `sf_per_carton` and actual sizes (see TILES_AND_FINISHES_MODEL.md).
+Precise layout cannot depend on two flat numbers. Structured measurement records replace
+`plan_qty` / `field_qty` as the source of truth.
+
+### `surface_measurement`
+
+| Field | Notes |
+| --- | --- |
+| surface_id / zone_id? | measurement can belong to a surface or a specific finish zone |
+| kind | `plan` \| `field` (a manual override is a `field` record explicitly marked verified) |
+| width, height, length, area, uom | store what was actually measured; area derived when dimensions given |
+| source | drawn · manual · imported · field |
+| measured_by_user_id, measured_at | provenance |
+| verified_by_user_id, verified_at | verification, required before a record can govern after install starts |
+| notes | |
+
+There is **no third copied "governing" row**. `project_surfaces.governing_measurement_id`
+points at the record currently controlling layout and quantity, so it can never drift from
+the record it names. Default rule: the latest verified `field` record if one exists,
+otherwise the current `plan` record; a user may repoint it explicitly and the change is
+logged.
+
+`takeoff_line` still holds priced takeoff quantity and waste %; it references the measurement
+it came from. Plan-vs-field variance is computed by comparing the two records and can raise a
+CHANGE work item.
+
+### `finish_zone`
+
+Every surface has exactly **one default zone**, created implicitly and hidden in the UI —
+the simple case stays a single spec with no extra clicks. Additional zones appear only when a
+surface genuinely carries more than one finish (e.g. a feature band, a wainscot break).
+
+Zone fields: surface_id, name, sort_order, `measurement_id?` (own dimensions), `offset_x`,
+`offset_y`, `geometry jsonb` (polygon/rect in surface coordinates, nullable). Zones are
+architected for real geometry and offsets from day one — share/percentage is only a fallback
+when no geometry is supplied.
+
+UOM per surface: `sf`, `lf`, `ea`. Layout/ordering math uses actual tile dimensions plus
+joint (see TILES_AND_FINISHES_MODEL.md). `surface.plan_qty` / `field_qty` remain only as
+derived read caches over measurements, documented read-only.
+
 
 ## 5. Revisions and change control
 

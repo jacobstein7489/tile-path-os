@@ -66,3 +66,35 @@ Drawer, Chip, Button, Field, EmptyState, StepSequence). Gaps: no combobox/inline
 skeleton/avatar/history-timeline; button lacks loading/pressed states; several routes still
 style locally; density and spacing drift page to page. Sprint 1 hardens the kit and migrates
 existing routes onto it rather than restyling each page again.
+
+## 7. Sprint 1 design freeze (binding)
+
+Sprint 1 establishes ONE production Cobblestone design system **before** any additional
+application screens are developed. Frozen values:
+
+| Element | Frozen spec |
+| --- | --- |
+| Type scale | 28 / 20 / 16 / 14 / 13 / 12 px; headings tracking -0.01em; body leading 1.45; tabular figures in every numeric column |
+| Spacing tokens | 4px base; page padding 32; section rhythm 24/32; card padding 20/24; table cell 12/14 |
+| Sidebar | fixed 248px, light surface, 13px nav labels, 36px rows, single active state |
+| Header | 64px project/page header, title 20px, actions right-aligned, one primary button |
+| Page shell | max content width 1440, single scroll container, no nested scrollbars |
+| Table density | 40px header row, 44px body row, 13px text, hover tint, full-row click target |
+| Drawer | 480px right-side; Modal 560px standard / 720px builder; both radius 12, shadow lg |
+| Buttons | primary / secondary / ghost / danger x default, hover, focus-visible, pressed, loading, disabled |
+| Inputs | 36px height, radius 8, 1px border, focus ring 2px primary at 30%; searchable selector is the default for any reference field |
+| Status | one chip component driven by `src/lib/status.tsx`; families never share colors |
+| Progress | one bar component; 6px track; derived values only |
+| Feedback | sonner toast; skeletons for >400ms; inline error under the field; success = state change, not a banner |
+| Empty states | one component: icon, one line of meaning, one primary action |
+
+Rules:
+
+1. **No route may introduce independent local styling when a shared component or token
+   exists.** No new color, radius, shadow, or font size in a page file.
+2. Every core screen must be migrated onto the shared kit within Sprint 1.
+3. Visual goal: premium, modern, extremely clean, bright/light, restrained color, minimal
+   scrolling, summary-first / detail-on-click. The approved Cobblestone references are the
+   quality bar.
+4. Sprint 1 is not done until every screen is verified at **1440x900 and 1280x800** with no
+   clipped content, no dead controls, and full-row natural click targets.

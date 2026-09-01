@@ -7,7 +7,7 @@ import { RequestMaterialModal } from "@/components/WorkItemDialogs";
 import { Chip, materialTone } from "@/lib/status";
 import { useMaterialItems, type MaterialItem } from "@/lib/data";
 
-export const Route = createFileRoute("/projects/$projectId/materials")({
+export const Route = createFileRoute("/_authenticated/projects/$projectId/materials")({
   component: ProjectMaterials,
 });
 
