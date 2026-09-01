@@ -57,5 +57,12 @@ Visible lifecycle: New Submission → Estimating → Proposal → Awarded → Se
 - No raw color classes or local styling left in routes.
 - **Visual QA:** Playwright screenshots at 1440×900 (and a 1280×800 clipping check) of Dashboard, Projects, one Project Overview, Schedule, Install Materials, Settings and New Lead/Job intake — reviewed for one consistent system, no clipping, no excessive scrolling, no dead controls.
 
+### 6. Implementation guardrails
+- **No legacy drops in Sprint 1.** Legacy owner/customer/supplier/status text columns are backfilled and no longer written by the app, but stay in place as deprecated read-only rollback data through at least the next sprint. Phase 7 ("legacy cleanup") is limited to policy cleanup, not column removal.
+- **Safe auth bootstrap.** Bootstrap one Admin safely, then onboard real internal users through the normal invite flow. Historical text owners map to profile records where a real person exists; no invented passwords, no shared accounts, no fake credentials in seeds.
+- **RLS lockout-safety test, table by table.** Before each open policy is removed, confirm Admin retains access; after each cutover, test allowed **and** denied reads/writes for Admin, PM, Site Manager, Office Coordinator, and one unauthorized/non-assigned user. No blanket flip of all tables at once.
+- If an architectural issue appears, that portion stops and is reported rather than improvised around. No silent scope reduction.
+
 Final report: migrations in order, security tests, data backfilled, frozen tokens/components, routes migrated, screenshots, any unmet criterion, any architectural issue found. Nothing deferred silently. Sprint 2 is not started.
+
 
