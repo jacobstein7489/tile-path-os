@@ -126,6 +126,7 @@ export function WorkItemDrawer({
       onClose={onClose}
       title={item.title}
       subtitle={
+        item.project_id ? (
         <Link
           to="/projects/$projectId"
           params={{ projectId: item.project_id }}
@@ -133,6 +134,9 @@ export function WorkItemDrawer({
         >
           {item.projects?.name ?? "Project"}
         </Link>
+        ) : (
+          <span className="font-medium text-muted-foreground">Company / Unassigned</span>
+        )
       }
       footer={
         <>
@@ -245,6 +249,7 @@ export function WorkItemDrawer({
           </ul>
         </div>
 
+        {item.project_id ? (
         <Link
           to="/projects/$projectId/files"
           params={{ projectId: item.project_id }}
@@ -252,6 +257,7 @@ export function WorkItemDrawer({
         >
           <Paperclip className="size-4" /> Open project files and photos
         </Link>
+        ) : null}
 
         {/* Technical classification stays out of the way. */}
         <div className="rounded-xl border border-border">

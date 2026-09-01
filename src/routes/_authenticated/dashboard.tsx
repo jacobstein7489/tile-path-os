@@ -22,6 +22,7 @@ import {
   compareWorkItems,
   isComplete,
   matchesWorkFilter,
+  projectLabel,
   useSaveWorkItem,
   useWorkFeed,
   WORK_FILTERS,
@@ -101,7 +102,7 @@ function CompanyWorkPage() {
           (matchesWorkFilter(filter, i, user?.id) || justDone[i.id]) &&
           (!q ||
             i.title.toLowerCase().includes(q) ||
-            (i.projects?.name ?? "").toLowerCase().includes(q)),
+            projectLabel(i).toLowerCase().includes(q)),
       )
       .sort(compareWorkItems);
   }, [items, filter, search, user?.id, justDone]);
@@ -109,8 +110,8 @@ function CompanyWorkPage() {
   const groups = useMemo(() => {
     const map = new Map<string, { name: string; items: WorkItemRow[] }>();
     for (const i of rows) {
-      const key = i.project_id;
-      if (!map.has(key)) map.set(key, { name: i.projects?.name ?? "Unassigned", items: [] });
+      const key = i.project_id ?? "unassigned";
+      if (!map.has(key)) map.set(key, { name: projectLabel(i), items: [] });
       map.get(key)!.items.push(i);
     }
     return [...map.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
@@ -323,7 +324,7 @@ function CompanyWorkPage() {
                     <StarButton item={i} />
                   </Td>
                   <Td className="font-semibold group-last:border-0">
-                    <span className="block break-words">{i.projects?.name ?? "—"}</span>
+                    <span className="block break-words">{projectLabel(i)}</span>
                   </Td>
                   <Td className="group-last:border-0">
                     <span className="line-clamp-2">{i.title}</span>
@@ -373,13 +374,17 @@ function CompanyWorkPage() {
                       <ChevronDown className="size-4" />
                     )}
                   </button>
-                  <Link
-                    to="/projects/$projectId"
-                    params={{ projectId }}
-                    className="text-[14.5px] font-semibold tracking-tight transition-colors hover:text-primary"
-                  >
-                    {group.name}
-                  </Link>
+                  {projectId === "unassigned" ? (
+                    <span className="text-[14.5px] font-semibold tracking-tight">{group.name}</span>
+                  ) : (
+                    <Link
+                      to="/projects/$projectId"
+                      params={{ projectId }}
+                      className="text-[14.5px] font-semibold tracking-tight transition-colors hover:text-primary"
+                    >
+                      {group.name}
+                    </Link>
+                  )}
                   <span className="text-[12.5px] text-muted-foreground tabular-nums">
                     · {openCount} open
                     {starCount ? ` · ${starCount} important` : ""}
