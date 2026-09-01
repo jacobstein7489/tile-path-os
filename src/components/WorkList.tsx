@@ -362,7 +362,7 @@ export function WorkList({
   );
 
   const HeaderCells = ({ withProject }: { withProject: boolean }) => (
-    <tr className="bg-muted/60">
+    <tr className="bg-muted/70">
       <Th>
         <span className="sr-only">Important</span>★
       </Th>
@@ -378,7 +378,7 @@ export function WorkList({
 
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
-    <div className="surface sticky top-[104px] z-[9] hidden overflow-hidden md:block">
+    <div className="surface sticky top-[152px] z-[9] hidden overflow-hidden md:block">
       <Table className="table-fixed">
         <Cols withProject={false} />
         <thead>
