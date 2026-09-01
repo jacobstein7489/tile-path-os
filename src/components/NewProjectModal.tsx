@@ -1,52 +1,72 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
-import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
+import { Button, Combobox, Field, InfoBanner, Modal, Select, TextArea, TextInput } from "@/components/kit";
 import { useInsertRow } from "@/lib/data";
+import { useAuthUser } from "@/hooks/useAuth";
+import {
+  companyOptions,
+  contactOptions,
+  profileOptions,
+  useCompanies,
+  useContacts,
+  useProfiles,
+  useSaveCompany,
+  useSaveContact,
+} from "@/lib/people";
 
 const TYPES = ["New Job", "Existing Client", "Commercial", "Warranty / Return"];
-const OWNERS = ["Yaakov", "Office", "PM"];
+const SOURCES = ["Referral", "Repeat client", "GC invite", "Walk-in", "Website", "Other"];
+
+const EMPTY = {
+  name: "",
+  address: "",
+  project_type: "New Job",
+  source: "Referral",
+  customer_company_id: null as string | null,
+  gc_company_id: null as string | null,
+  primary_contact_id: null as string | null,
+  salesperson_user_id: null as string | null,
+  estimator_user_id: null as string | null,
+  bid_due_date: "",
+  intake_notes: "",
+};
 
 export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const insert = useInsertRow("projects");
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: "",
-    address: "",
-    customer: "",
-    project_type: "New Job",
-    project_manager: "Yaakov",
-    crew_lead: "",
-    target_date: "",
-  });
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const valid = Boolean(form.name.trim());
+  const { user } = useAuthUser();
+  const { data: companies = [] } = useCompanies();
+  const { data: contacts = [] } = useContacts();
+  const { data: profiles = [] } = useProfiles();
+  const saveCompany = useSaveCompany();
+  const saveContact = useSaveContact();
+  const [form, setForm] = useState(EMPTY);
+
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+  const valid = form.name.trim().length > 1;
 
   const save = async () => {
     if (!valid) return;
     const row = (await insert.mutateAsync({
       name: form.name.trim(),
       address: form.address || null,
-      customer: form.customer || null,
       project_type: form.project_type,
-      project_manager: form.project_manager || null,
-      crew_lead: form.crew_lead || null,
-      target_date: form.target_date || null,
+      source: form.source,
+      customer_company_id: form.customer_company_id,
+      gc_company_id: form.gc_company_id,
+      primary_contact_id: form.primary_contact_id,
+      salesperson_user_id: form.salesperson_user_id,
+      estimator_user_id: form.estimator_user_id,
+      bid_due_date: form.bid_due_date || null,
+      intake_notes: form.intake_notes || null,
+      created_by: user?.id ?? null,
       lifecycle_stage: "New Submission",
-      next_move: "Start estimating",
-      next_move_owner: "Office",
+      next_move: "Qualify the lead and book a takeoff",
+      next_move_owner: "Sales",
     })) as { id: string } | null;
-    toast.success("Project created");
     onClose();
-    setForm({
-      name: "",
-      address: "",
-      customer: "",
-      project_type: "New Job",
-      project_manager: "Yaakov",
-      crew_lead: "",
-      target_date: "",
-    });
+    setForm(EMPTY);
     if (row?.id) navigate({ to: "/projects/$projectId", params: { projectId: row.id } });
   };
 
@@ -54,68 +74,132 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
     <Modal
       open={open}
       onClose={onClose}
-      title="New project"
-      subtitle="Just the basics — the rest is filled in as the project moves through its lifecycle."
+      title="New lead"
+      subtitle="Capture only what is known today. Everything else is filled in as the job moves through its lifecycle."
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
           <Button
             variant="primary"
+            loading={insert.isPending}
+            disabled={!valid}
+            {...(!valid ? { disabledReason: "Enter a job name or address" } : {})}
             onClick={save}
-            disabled={!valid || insert.isPending}
-            {...(!valid ? { disabledReason: "Enter a project name" } : {})}
           >
-            {insert.isPending ? "Creating…" : "Create project"}
+            Create lead
           </Button>
         </>
       }
     >
-      <Field label="Project name / address">
+      <InfoBanner>
+        New leads start at <strong>New Submission</strong>. Areas and surfaces get built during
+        estimating and are reused for the life of the job.
+      </InfoBanner>
+
+      <Field label="Job name / address">
         <TextInput
           value={form.name}
           onChange={(e) => set("name", e.target.value)}
           placeholder="118 Park Place"
         />
       </Field>
+
       <div className="grid grid-cols-2 gap-3.5">
-        <Field label="Address">
+        <Field label="Full address" hint="Optional">
           <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
         </Field>
-        <Field label="Customer / GC">
-          <TextInput value={form.customer} onChange={(e) => set("customer", e.target.value)} />
-        </Field>
-        <Field label="Project type">
+        <Field label="Job type">
           <Select value={form.project_type} onChange={(e) => set("project_type", e.target.value)}>
             {TYPES.map((t) => (
               <option key={t}>{t}</option>
             ))}
           </Select>
         </Field>
-        <Field label="PM / owner">
-          <Select
-            value={form.project_manager}
-            onChange={(e) => set("project_manager", e.target.value)}
-          >
-            {OWNERS.map((o) => (
-              <option key={o}>{o}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Main contact">
-          <TextInput
-            value={form.crew_lead}
-            onChange={(e) => set("crew_lead", e.target.value)}
-            placeholder="Site contact or crew lead"
+      </div>
+
+      <Field label="Customer" hint="Search, or type a new name to add it">
+        <Combobox
+          options={companyOptions(companies)}
+          value={form.customer_company_id}
+          onChange={(next) => set("customer_company_id", next)}
+          placeholder="Search customers…"
+          onCreate={async (label) => {
+            await saveCompany.mutateAsync({ values: { name: label, kind: "customer" } });
+          }}
+          createLabel="Add customer"
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3.5">
+        <Field label="General contractor" hint="Optional">
+          <Combobox
+            options={companyOptions(companies)}
+            value={form.gc_company_id}
+            onChange={(next) => set("gc_company_id", next)}
+            placeholder="Search companies…"
+            onCreate={async (label) => {
+              await saveCompany.mutateAsync({ values: { name: label, kind: "gc" } });
+            }}
+            createLabel="Add company"
           />
         </Field>
-        <Field label="Bid due / target date" hint="Optional">
-          <TextInput
-            type="date"
-            value={form.target_date}
-            onChange={(e) => set("target_date", e.target.value)}
+        <Field label="Main contact" hint="Optional">
+          <Combobox
+            options={contactOptions(contacts, companies)}
+            value={form.primary_contact_id}
+            onChange={(next) => set("primary_contact_id", next)}
+            placeholder="Search contacts…"
+            onCreate={async (label) => {
+              await saveContact.mutateAsync({
+                values: { full_name: label, company_id: form.customer_company_id },
+              });
+            }}
+            createLabel="Add contact"
           />
         </Field>
       </div>
+
+      <div className="grid grid-cols-2 gap-3.5">
+        <Field label="Salesperson">
+          <Combobox
+            options={profileOptions(profiles)}
+            value={form.salesperson_user_id}
+            onChange={(next) => set("salesperson_user_id", next)}
+            placeholder="Search employees…"
+          />
+        </Field>
+        <Field label="Estimator">
+          <Combobox
+            options={profileOptions(profiles)}
+            value={form.estimator_user_id}
+            onChange={(next) => set("estimator_user_id", next)}
+            placeholder="Search employees…"
+          />
+        </Field>
+        <Field label="How did it come in?">
+          <Select value={form.source} onChange={(e) => set("source", e.target.value)}>
+            {SOURCES.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Bid due date" hint="Optional">
+          <TextInput
+            type="date"
+            value={form.bid_due_date}
+            onChange={(e) => set("bid_due_date", e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Field label="Intake notes" hint="Anything said on the call">
+        <TextArea
+          rows={3}
+          value={form.intake_notes}
+          onChange={(e) => set("intake_notes", e.target.value)}
+          placeholder="Two bathrooms plus kitchen backsplash. Wants large format porcelain."
+        />
+      </Field>
     </Modal>
   );
 }
