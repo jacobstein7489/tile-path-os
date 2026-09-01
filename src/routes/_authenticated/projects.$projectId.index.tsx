@@ -2,12 +2,9 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
-  ClipboardCheck,
   HardHat,
   Layers,
-  ListChecks,
   MessageSquarePlus,
   Package,
   TriangleAlert,
@@ -15,16 +12,12 @@ import {
 import { ProgressBar } from "@/components/ProgressBar";
 import {
   Button,
-  Checkbox,
   Drawer,
   EmptyState,
   Field,
   TextInput,
   SectionCard,
-  Table,
-  Td,
   TextArea,
-  Th,
 } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import type { WorkItemRow } from "@/lib/workitems";
@@ -38,15 +31,13 @@ import {
   useAreasWithSurfaces,
   useProject,
   useUpdateProject,
-  useUpdateRow,
-  useVisitChecklist,
   useWorkItems,
   type WorkItemFull,
 } from "@/lib/data";
 import { useCrews } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
-import { Chip, areaStatusTone, materialTone, workItemTone } from "@/lib/status";
+import { Chip, areaStatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
@@ -77,13 +68,10 @@ function ProjectOverview() {
   const { data: project } = useProject(projectId);
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
   const { data: items = [] } = useWorkItems(projectId);
-  const { data: checklist = [] } = useVisitChecklist(projectId);
   const { data: profiles = [] } = useProfiles();
   const { data: crews = [] } = useCrews();
   const { canEdit } = useCanEditProject(projectId);
   const updateProject = useUpdateProject(projectId);
-  const updateChecklist = useUpdateRow("visit_checklist_items");
-  const updateItem = useUpdateRow("work_items");
   const [create, setCreate] = useState<WorkItemKind | null>(null);
   const [material, setMaterial] = useState(false);
   const [openItem, setOpenItem] = useState<WorkItemRow | null>(null);
@@ -124,12 +112,6 @@ function ProjectOverview() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Chip tone={materialTone(project.material_status)}>
-              Materials: {project.material_status}
-            </Chip>
-            <Chip>PM: {pmName}</Chip>
-          </div>
         </div>
         <ProgressBar value={headline} className="mt-3.5" />
         {!installing ? (
@@ -162,7 +144,7 @@ function ProjectOverview() {
             onClick={() => setPanel("scope")}
           />
           <Fact
-            icon={<ListChecks className="size-4" />}
+            icon={<Layers className="size-4" />}
             label="Next move owner"
             value={nextOwner}
             onClick={() => setPanel("next")}
@@ -194,27 +176,23 @@ function ProjectOverview() {
         </div>
       </button>
 
-      {/* Two panels */}
+      {/* Where the job stands + what is holding it up */}
       <div className="mt-4 grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-start gap-4">
         <SectionCard
-          title="Where the job stands"
+          title="Area status"
           subtitle="Surface progress rolls up to the area, then to the project."
           bodyClassName="divide-y divide-border"
         >
           {areaList.map((a) => (
-            <div key={a.id} className="px-5 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="truncate text-[13px] font-semibold">{a.name}</span>
-                  <Chip tone={areaStatusTone(a.status)}>{a.status}</Chip>
-                </div>
-                <span className="text-[12.5px] font-semibold tabular-nums">{a.progress_pct}%</span>
+            <div key={a.id} className="flex items-center gap-4 px-5 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate text-[13px] font-semibold">{a.name}</span>
+                <Chip tone={areaStatusTone(a.status)}>{a.status}</Chip>
               </div>
-              <ProgressBar value={a.progress_pct} className="mt-2" />
-              <div className="mt-1.5 text-[11.5px] text-muted-foreground">
-                {surfaceList.filter((s) => s.area_id === a.id && s.status === "Complete").length} of{" "}
-                {surfaceList.filter((s) => s.area_id === a.id).length} surfaces complete
-              </div>
+              <ProgressBar value={a.progress_pct} className="w-[38%]" />
+              <span className="w-9 text-right text-[12.5px] font-semibold tabular-nums">
+                {a.progress_pct}%
+              </span>
             </div>
           ))}
           {areaList.length === 0 ? (
@@ -226,98 +204,46 @@ function ProjectOverview() {
         </SectionCard>
 
         <SectionCard
-          title="Today's site visit"
-          icon={<ClipboardCheck className="size-[18px] text-primary" />}
-          bodyClassName="space-y-2.5 px-5 pb-5"
+          title="What is holding it up"
+          badge={<Chip tone={blockers.length ? "red" : "green"}>{blockers.length}</Chip>}
+          bodyClassName="divide-y divide-border"
         >
-          {checklist.map((c) => (
-            <Checkbox
-              key={c.id}
-              checked={c.done}
-              strike
-              label={c.label}
-              onChange={(next) => updateChecklist.mutate({ id: c.id, patch: { done: next } })}
-            />
-          ))}
-          {checklist.length === 0 ? (
-            <p className="text-[12.5px] text-muted-foreground">
-              No visit items yet — add a task or field update below.
-            </p>
+          {blockers.length === 0 ? (
+            <EmptyState title="Nothing blocking" note="Questions, issues and needs appear here." />
+          ) : (
+            blockers.slice(0, 3).map((i) => (
+              <button
+                key={i.id}
+                type="button"
+                onClick={() => setOpenItem(i as unknown as WorkItemRow)}
+                className={cn(
+                  "flex w-full items-start gap-3 px-5 py-3 text-left transition-colors duration-100 hover:bg-muted/50",
+                  openItem?.id === i.id && "bg-primary-soft/60",
+                )}
+              >
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold">{i.title}</span>
+                  <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                    {i.waiting_on ? `Waiting on ${i.waiting_on} · ` : ""}
+                    {i.next_action ?? "No next action set"}
+                  </span>
+                </span>
+                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))
+          )}
+          {open.length > blockers.length || blockers.length > 3 ? (
+            <Link
+              to="/projects/$projectId/field"
+              params={{ projectId }}
+              className="block px-5 py-2.5 text-[12.5px] font-semibold text-primary hover:underline"
+            >
+              See all {open.length} open items →
+            </Link>
           ) : null}
         </SectionCard>
       </div>
-
-      {/* Open items */}
-      <SectionCard
-        className="mt-4"
-        title="Open items and next actions"
-        badge={<Chip tone={blockers.length ? "red" : "green"}>{open.length} open</Chip>}
-      >
-        {open.length === 0 ? (
-          <EmptyState
-            title="Nothing outstanding"
-            note="Blockers, questions and needs appear here."
-          />
-        ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>Type</Th>
-                <Th>Item</Th>
-                <Th>Owner</Th>
-                <Th>Waiting on</Th>
-                <Th>Impact</Th>
-                <Th>Next action</Th>
-                <Th className="text-right">Resolve</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {open.map((i) => (
-                <tr
-                  key={i.id}
-                  onClick={() => setOpenItem(i as unknown as WorkItemRow)}
-                  className={cn(
-                    "cursor-pointer border-t border-border transition-colors hover:bg-muted/50",
-                    openItem?.id === i.id && "bg-primary-soft/60",
-                  )}
-                >
-                  <Td>
-                    <Chip tone={workItemTone(i.item_type)}>{i.item_type}</Chip>
-                  </Td>
-                  <Td>
-                    <div className="font-semibold">{i.title}</div>
-                    {i.description ? (
-                      <div className="text-muted-foreground">{i.description}</div>
-                    ) : null}
-                  </Td>
-                  <Td>
-                    {nameOf((i as { owner_user_id?: string | null }).owner_user_id) ??
-                      i.owner ??
-                      "—"}
-                  </Td>
-                  <Td>{i.waiting_on ?? "—"}</Td>
-                  <Td>{i.impact ?? "—"}</Td>
-                  <Td>{i.next_action ?? "—"}</Td>
-                  <Td className="text-right">
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateItem.mutate({
-                          id: i.id,
-                          patch: { status: "Complete", completed_at: new Date().toISOString() },
-                        });
-                      }}
-                    >
-                      <CheckCircle2 className="size-3.5" /> Resolve
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </SectionCard>
 
       {/* Footer quick actions */}
       <div className="mt-4 flex flex-wrap items-center gap-2">

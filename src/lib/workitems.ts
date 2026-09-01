@@ -269,12 +269,40 @@ export function useWorkFeed() {
     queryFn: async (): Promise<WorkItemRow[]> => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("*, projects(name)")
+        .select("*, projects!inner(name, archived_at)")
+        .is("projects.archived_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as WorkItemRow[];
     },
   });
+}
+
+/**
+ * The plain-language action a user takes on a workflow item. The software
+ * advances the underlying workflow itself — the user never sees "advance step".
+ */
+export function workflowActionLabel(item: WorkItemRow): string | null {
+  const wf = workflowFor(item);
+  if (!wf) return null;
+  const step = item.workflow_step ?? wf.steps[0] ?? "";
+  const s = step.toLowerCase();
+  if (/order|stock/.test(s)) return "Mark ordered";
+  if (/receive|pick up/.test(s)) return "Mark received";
+  if (/deliver/.test(s)) return "Confirm delivery";
+  if (/schedule/.test(s)) return "Schedule return";
+  if (/verif/.test(s)) return "Mark verified";
+  if (/measure/.test(s)) return "Mark measured";
+  if (/dimension/.test(s)) return "Record dimensions";
+  if (/price/.test(s)) return "Mark priced";
+  if (/install|perform/.test(s)) return "Mark work done";
+  if (/installer/.test(s)) return "Installer assigned";
+  if (/waiting|contractor/.test(s)) return "Mark ready";
+  if (/release/.test(s)) return "Release affected work";
+  if (/close/.test(s)) return "Close item";
+  if (/scope/.test(s)) return "Scope confirmed";
+  if (/field verify/.test(s)) return "Mark verified";
+  return `Mark ${step.toLowerCase()} done`;
 }
 
 export function useWorkItemEvents(workItemId: string | null) {
@@ -305,7 +333,20 @@ function useInvalidateWork() {
 
 export function useSaveWorkItem() {
   const invalidate = useInvalidateWork();
+  const qc = useQueryClient();
   return useMutation({
+    // Optimistic: the row flips in the UI immediately, the write catches up.
+    onMutate: ({ id, patch }: { id: string; patch: Partial<WorkItemRow>; note?: string }) => {
+      const previous = qc.getQueryData<WorkItemRow[]>(FEED_KEY);
+      qc.setQueryData<WorkItemRow[]>(FEED_KEY, (rows) =>
+        rows?.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      );
+      return { previous };
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(FEED_KEY, ctx.previous);
+    },
+
     mutationFn: async ({
       id,
       patch,
@@ -367,7 +408,9 @@ export type NewWorkItem = {
   title: string;
   description?: string | null;
   owner?: string | null;
+  owner_user_id?: string | null;
   waiting_on?: string | null;
+  waiting_on_user_id?: string | null;
   status?: string;
   due_date?: string | null;
   priority?: string;

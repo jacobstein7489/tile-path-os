@@ -1,4 +1,5 @@
-import { Check, ChevronRight, Lock } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { LIFECYCLE_STAGES, STAGE_SUB_WORKFLOWS, nextStage, stageIndex } from "@/lib/lifecycle";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export function LifecycleTrack({
   onToggleStep,
   onAdvance,
   systemStepState,
+  collapsible = false,
 }: {
   stage: string;
   exceptionState?: string | null;
@@ -31,7 +33,10 @@ export function LifecycleTrack({
   onAdvance?: (to: string) => void;
   /** For system-driven stages: the derived state of each step. */
   systemStepState?: Record<string, { done: boolean; detail?: string }>;
+  /** Keep the rail visually quiet: summary only until the user expands it. */
+  collapsible?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(!collapsible);
   const current = stageIndex(stage);
   const sub = STAGE_SUB_WORKFLOWS[stage as keyof typeof STAGE_SUB_WORKFLOWS];
   const next = nextStage(stage);
@@ -83,6 +88,18 @@ export function LifecycleTrack({
           ) : null}
         </div>
 
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary hover:underline"
+          >
+            {expanded ? "Hide" : "Show"} full lifecycle
+            <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+          </button>
+        ) : null}
+
+        {expanded ? (
         <ol className="mt-4 flex items-start">
           {LIFECYCLE_STAGES.map((s, i) => {
             const done = i < current;
@@ -137,10 +154,11 @@ export function LifecycleTrack({
             );
           })}
         </ol>
+        ) : null}
       </div>
 
       {/* Stage sub-workflow — clearly separate from the master lifecycle */}
-      {sub ? (
+      {sub && expanded ? (
         <div className="border-t border-border bg-muted/40 px-6 py-3.5">
           <div className="flex items-center justify-between gap-4">
             <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">

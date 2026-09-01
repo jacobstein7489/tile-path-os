@@ -2,12 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { NewProjectModal } from "@/components/NewProjectModal";
-import { Button, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
+import { Button, FilterGroup, SearchInput, Select, Table, Td, Th } from "@/components/kit";
 import { PageShell } from "@/components/PageShell";
 import { ProgressBar } from "@/components/ProgressBar";
 import { useProjects, type Project } from "@/lib/data";
 import {
-  PROJECT_FILTERS,
+  MORE_PROJECT_FILTERS,
+  PRIMARY_PROJECT_FILTERS,
   matchesFilter,
   showsInstallationProgress,
   type ProjectFilter,
@@ -59,10 +60,21 @@ function ProjectsPage() {
     >
       <div className="flex flex-wrap items-center gap-4">
         <FilterGroup
-          options={PROJECT_FILTERS.map((f) => ({ value: f, label: f }))}
+          options={PRIMARY_PROJECT_FILTERS.map((f) => ({ value: f, label: f }))}
           value={filter}
           onChange={(v) => setFilter(v as ProjectFilter)}
         />
+        <Select
+          value={(MORE_PROJECT_FILTERS as readonly string[]).includes(filter) ? filter : ""}
+          onChange={(e) => setFilter((e.target.value || "All") as ProjectFilter)}
+          className="w-[160px]"
+          aria-label="More filters"
+        >
+          <option value="">More filters</option>
+          {MORE_PROJECT_FILTERS.map((f) => (
+            <option key={f}>{f}</option>
+          ))}
+        </Select>
         <div className="ml-auto">
           <SearchInput
             value={search}
@@ -139,7 +151,7 @@ function ProjectRow({ project: p }: { project: Project }) {
   return (
     <tr
       onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
-      className="group cursor-pointer transition-colors hover:bg-muted/50"
+      className="group cursor-pointer transition-colors duration-100 hover:bg-muted/50"
     >
       <Td className="whitespace-nowrap group-last:border-0">
         <span className="text-[13px] font-semibold tracking-tight text-foreground">{p.name}</span>
@@ -196,9 +208,9 @@ function ProjectRow({ project: p }: { project: Project }) {
         )}
       </Td>
       <Td className="group-last:border-0">
-        <span className="flex w-full max-w-full items-start gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-[12px] leading-snug font-medium text-primary">
+        <span className="flex w-full max-w-full items-start gap-1.5 text-[12.5px] leading-snug font-medium text-foreground transition-colors duration-100 group-hover:text-primary">
           <span className="min-w-0 flex-1 whitespace-normal">{p.next_move ?? "Open project"}</span>
-          <ArrowRight className="mt-0.5 size-3.5 shrink-0" />
+          <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-colors duration-100 group-hover:text-primary" />
         </span>
         {p.next_move_owner ? (
           <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>

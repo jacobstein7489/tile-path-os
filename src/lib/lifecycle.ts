@@ -67,6 +67,18 @@ export const PROJECT_FILTERS = [
   "Complete",
 ] as const;
 
+/** Filters shown on the Projects page by default. */
+export const PRIMARY_PROJECT_FILTERS = [
+  "All",
+  "Ready",
+  "Scheduled",
+  "Installation",
+  "Closeout",
+] as const;
+
+/** Everything else lives behind More filters. */
+export const MORE_PROJECT_FILTERS = ["Preconstruction", "On Hold", "Complete"] as const;
+
 export type ProjectFilter = (typeof PROJECT_FILTERS)[number];
 
 const FILTER_STAGES: Record<Exclude<ProjectFilter, "All" | "On Hold">, LifecycleStage[]> = {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Clock, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -53,26 +53,21 @@ function TodayPage() {
   const completed = mine.filter((i) => isComplete(i) && !justDone[i.id]);
   const blocked = mine.filter((i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"));
 
-  useEffect(() => {
-    const keys = Object.keys(justDone);
-    if (!keys.length) return;
-    const t = setTimeout(() => setJustDone({}), 4500);
-    return () => clearTimeout(t);
-  }, [justDone]);
-
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
-  const toggle = async (item: WorkItemRow, next: boolean) => {
-    await save.mutateAsync({
-      id: item.id,
-      patch: next
-        ? { status: "Complete", completed_at: new Date().toISOString() }
-        : { status: "Open", completed_at: null },
-      note: next ? "Marked complete" : "Reopened",
-    });
+  const toggle = (item: WorkItemRow, next: boolean) => {
+    // Optimistic: flip the row instantly, persist in the background.
     if (next) {
       setJustDone((s) => ({ ...s, [item.id]: true }));
       toast.success("Marked complete");
+      setTimeout(
+        () =>
+          setJustDone((s) => {
+            const { [item.id]: _drop, ...rest } = s;
+            return rest;
+          }),
+        700,
+      );
     } else {
       setJustDone((s) => {
         const { [item.id]: _drop, ...rest } = s;
@@ -80,6 +75,13 @@ function TodayPage() {
       });
       toast.success("Item restored");
     }
+    save.mutate({
+      id: item.id,
+      patch: next
+        ? { status: "Complete", completed_at: new Date().toISOString() }
+        : { status: "Open", completed_at: null },
+      note: next ? "Marked complete" : "Reopened",
+    });
   };
 
   return (
@@ -130,7 +132,7 @@ function TodayPage() {
                       <li
                         key={i.id}
                         className={cn(
-                          "group flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
+                          "group flex items-center gap-4 px-5 py-3 transition-colors duration-100 hover:bg-muted/40",
                           done && "bg-success-soft/40",
                           active?.id === i.id &&
                             "bg-primary-soft/60 ring-1 ring-inset ring-primary/30",

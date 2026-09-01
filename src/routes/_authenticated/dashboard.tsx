@@ -5,14 +5,10 @@ import { PageShell } from "@/components/PageShell";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { Button, EmptyState, FilterGroup, SearchInput, Select, Table, Td, Th } from "@/components/kit";
-import { Chip } from "@/lib/status";
 import {
   matchesWorkFilter,
-  statusTone,
-  typeTone,
   useWorkFeed,
   WORK_FILTERS,
-  WORK_ITEM_TYPES,
   type WorkFilter,
   type WorkItemRow,
 } from "@/lib/workitems";
@@ -44,7 +40,6 @@ function CompanyWorkPage() {
   const [filter, setFilter] = useState<WorkFilter>("Open");
   const [project, setProject] = useState("");
   const [owner, setOwner] = useState("");
-  const [type, setType] = useState("");
   const [search, setSearch] = useState("");
   const [capture, setCapture] = useState(false);
   const [active, setActive] = useState<WorkItemRow | null>(null);
@@ -71,7 +66,6 @@ function CompanyWorkPage() {
       matchesWorkFilter(filter, i) &&
       (!project || i.projects?.name === project) &&
       (!owner || i.owner === owner) &&
-      (!type || i.item_type === type) &&
       (!search.trim() || i.title.toLowerCase().includes(search.trim().toLowerCase())),
   );
 
@@ -125,17 +119,6 @@ function CompanyWorkPage() {
               <option key={o}>{o}</option>
             ))}
           </Select>
-          <Select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-[170px]"
-            aria-label="Filter by type"
-          >
-            <option value="">All types</option>
-            {WORK_ITEM_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </Select>
         </div>
       </div>
 
@@ -162,24 +145,20 @@ function CompanyWorkPage() {
         ) : (
           <Table className="table-fixed">
             <colgroup>
-              <col className="w-[12%]" />
-              <col className="w-[24%]" />
+              <col className="w-[15%]" />
+              <col className="w-[32%]" />
+              <col className="w-[13%]" />
               <col className="w-[13%]" />
               <col className="w-[9%]" />
-              <col className="w-[10%]" />
-              <col className="w-[11%]" />
-              <col className="w-[8%]" />
-              <col className="w-[13%]" />
+              <col className="w-[18%]" />
             </colgroup>
             <thead>
               <tr className="bg-muted/60">
                 {[
                   "Project",
                   "What Needs To Happen",
-                  "Type",
                   "Owner",
                   "Waiting On",
-                  "Status",
                   "Needed By",
                   "Next Action",
                 ].map((h) => (
@@ -204,14 +183,8 @@ function CompanyWorkPage() {
                   <Td className="group-last:border-0">
                     <span className="line-clamp-2">{i.title}</span>
                   </Td>
-                  <Td className="group-last:border-0">
-                    <Chip tone={typeTone(i.item_type)}>{i.item_type}</Chip>
-                  </Td>
                   <Td className="text-secondary-foreground group-last:border-0">{i.owner ?? "—"}</Td>
                   <Td className="text-secondary-foreground group-last:border-0">{i.waiting_on ?? "—"}</Td>
-                  <Td className="group-last:border-0">
-                    <Chip tone={statusTone(i.status)}>{i.status}</Chip>
-                  </Td>
                   <Td className="whitespace-nowrap text-muted-foreground group-last:border-0">
                     {i.due_date
                       ? new Date(i.due_date + "T00:00:00").toLocaleDateString("en-US", {
@@ -220,8 +193,10 @@ function CompanyWorkPage() {
                         })
                       : "—"}
                   </Td>
-                  <Td className="font-medium text-primary group-last:border-0">
-                    <span className="line-clamp-2">{i.next_action ?? "Open item"}</span>
+                  <Td className="group-last:border-0">
+                    <span className="line-clamp-2 font-medium text-foreground transition-colors group-hover:text-primary">
+                      {i.next_action ?? "Open item"}
+                    </span>
                   </Td>
                 </tr>
               ))}

@@ -27,22 +27,62 @@ type Draft = {
 /** Heuristic classification. Designed so smarter classification can replace this later. */
 function classify(line: string): { item_type: string; status: string; next_action: string; waiting_on: string } {
   const l = line.toLowerCase();
-  if (/waiting|still has to|contractor|depend/.test(l))
+  if (/waiting|still has to|still needs to|contractor|depend|hold up|holding/.test(l))
     return {
       item_type: "Dependency",
       status: "Waiting",
       next_action: "Follow up",
-      waiting_on: /contractor/.test(l) ? "Contractor" : "",
+      waiting_on: /contractor|gc\b/.test(l) ? "Contractor" : /plumb/.test(l) ? "Plumber" : "",
     };
-  if (/measure|verify|check|test/.test(l))
+  if (/measure|verify|check|confirm dimension|template|test/.test(l))
     return { item_type: "Field Verification", status: "Measurement Needed", next_action: "Verify on site", waiting_on: "" };
-  if (/order|thinset|primer|adhesive|mortar|sand|portland|membrane|material/.test(l))
+  if (/order|thinset|primer|adhesive|mortar|sand|portland|membrane|schluter|material|supply|supplies|grout|caulk/.test(l))
     return { item_type: "Install Material Need", status: "To Order", next_action: "Order material", waiting_on: "" };
-  if (/price|change|extra/.test(l))
+  if (/price|pricing|quote|change order|extra|add(ing|ed)? work/.test(l))
     return { item_type: "Potential Change", status: "Needs Pricing", next_action: "Price change", waiting_on: "" };
-  if (/touch.?up|punch|repair|redo/.test(l))
+  if (/touch.?up|punch|repair|redo|crack|regrout|fix/.test(l))
     return { item_type: "Punch / Return Work", status: "Crew Needed", next_action: "Assign installer", waiting_on: "" };
+  if (/\?\s*$|^(can|does|should|who|what|when|why|how|is |are )/i.test(line.trim()))
+    return { item_type: "Question", status: "Open", next_action: "Get an answer", waiting_on: "" };
   return { item_type: "Task", status: "Open", next_action: "", waiting_on: "" };
+}
+
+/** Chat noise: WhatsApp timestamps, sender prefixes, bullets, list numbers. */
+function cleanLine(line: string) {
+  return line
+    .replace(/^\s*[[(][^\])]{0,40}[\])]\s*/, "")
+    .replace(/^\s*\d{1,2}[:/]\d{2}(\s*[ap]m)?[,\s-]+/i, "")
+    .replace(/^\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?[,\s]+/, "")
+    .replace(/^\s*[A-Z][\w'’.\- ]{1,24}:\s+/, "")
+    .replace(/^[-–—•*·>\s]+/, "")
+    .replace(/^\d{1,2}[.)]\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Fuzzy project match: any distinctive token of the job name appearing in the text. */
+function matchProject(text: string, projects: { id: string; name: string }[]) {
+  const t = text.toLowerCase();
+  let best: { id: string; score: number } | null = null;
+  for (const p of projects) {
+    const name = p.name.toLowerCase();
+    let score = 0;
+    if (t.includes(name)) score = 100 + name.length;
+    else {
+      const tokens = name.split(/[^a-z0-9-]+/).filter((w) => w.length > 2 || /\d/.test(w));
+      const hits = tokens.filter((w) => t.includes(w));
+      if (hits.length) score = hits.reduce((a, w) => a + w.length, 0) * (hits.length > 1 ? 2 : 1);
+    }
+    if (score > 6 && (!best || score > best.score)) best = { id: p.id, score };
+  }
+  return best?.id ?? "";
+}
+
+/** Strip the matched job name out of the item summary so titles read cleanly. */
+function stripProject(line: string, name?: string) {
+  if (!name) return line;
+  const cleaned = line.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "");
+  return cleaned.replace(/^[\s—–\-:,]+/, "").trim() || line;
 }
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -60,28 +100,35 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const split = () => {
     const text = raw.trim();
     if (!text) return;
-    const guessedProject =
-      projects.find((p) => text.toLowerCase().includes(p.name.toLowerCase()))?.id ?? "";
-    const lines = text
-      .split(/\n|(?<=[a-z0-9)])\.\s+|\s*;\s*|\s+—\s+|\s*\.\s*$/i)
-      .map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim())
-      .filter((l) => l.length > 3)
-      .map((l, i) => {
-        const matched = projects.find((p) => l.toLowerCase().includes(p.name.toLowerCase()));
-        const title = matched ? l.replace(new RegExp(matched.name, "i"), "").replace(/^[\s—–-]+/, "") : l;
-        const guess = classify(l);
-        return {
-          key: `${i}-${l.slice(0, 8)}`,
-          project_id: matched?.id ?? guessedProject,
-          title: (title || l).replace(/\s+/g, " ").trim(),
-          owner: "",
-          owner_user_id: null,
-          due_date: "",
-          ...guess,
-        } satisfies Draft;
+    // Newlines first (chat / list pastes), then sentence boundaries inside a line.
+    const rawLines = text
+      .split(/\r?\n+/)
+      .flatMap((l) => l.split(/(?<=[a-z0-9)])\.\s+|\s*;\s*|\s+—\s+/i))
+      .map(cleanLine)
+      .filter((l) => /[a-z]{3}/i.test(l) && l.replace(/[^a-z0-9]/gi, "").length > 3);
+
+    // A job named on its own line stays in effect for the lines beneath it.
+    let sticky = matchProject(text, projects);
+    const drafted: Draft[] = [];
+    rawLines.forEach((l, i) => {
+      const matchedId = matchProject(l, projects);
+      if (matchedId) sticky = matchedId;
+      const matchedName = projects.find((p) => p.id === matchedId)?.name;
+      const title = stripProject(l, matchedName);
+      // A bare job name (heading line) is context, not a work item.
+      if (matchedId && title.replace(/[^a-z0-9]/gi, "").length < 4) return;
+      drafted.push({
+        key: `${i}-${l.slice(0, 10)}`,
+        project_id: matchedId || sticky,
+        title,
+        owner: "",
+        owner_user_id: null,
+        due_date: "",
+        ...classify(l),
       });
-    setDrafts(lines.length ? lines : null);
-    if (!lines.length) toast.error("Nothing to capture yet");
+    });
+    setDrafts(drafted.length ? drafted : null);
+    if (!drafted.length) toast.error("Nothing to capture yet");
   };
 
   const update = (key: string, patch: Partial<Draft>) =>
