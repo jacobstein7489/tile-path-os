@@ -402,6 +402,7 @@ export type Database = {
         Row: {
           avatar_tone: string
           created_at: string
+          default_commission_rate: number
           default_route: string
           email: string | null
           full_name: string
@@ -415,6 +416,7 @@ export type Database = {
         Insert: {
           avatar_tone?: string
           created_at?: string
+          default_commission_rate?: number
           default_route?: string
           email?: string | null
           full_name?: string
@@ -428,6 +430,7 @@ export type Database = {
         Update: {
           avatar_tone?: string
           created_at?: string
+          default_commission_rate?: number
           default_route?: string
           email?: string | null
           full_name?: string
@@ -763,8 +766,12 @@ export type Database = {
           archived_at: string | null
           awarded_at: string | null
           bid_due_date: string | null
+          commission_rate_override: number | null
           commission_rule_ref: string | null
+          commission_status: string
           commission_user_id: string | null
+          commissionable_amount: number | null
+          commissionable_source: string
           created_at: string
           created_by: string | null
           crew_lead: string | null
@@ -803,8 +810,12 @@ export type Database = {
           archived_at?: string | null
           awarded_at?: string | null
           bid_due_date?: string | null
+          commission_rate_override?: number | null
           commission_rule_ref?: string | null
+          commission_status?: string
           commission_user_id?: string | null
+          commissionable_amount?: number | null
+          commissionable_source?: string
           created_at?: string
           created_by?: string | null
           crew_lead?: string | null
@@ -843,8 +854,12 @@ export type Database = {
           archived_at?: string | null
           awarded_at?: string | null
           bid_due_date?: string | null
+          commission_rate_override?: number | null
           commission_rule_ref?: string | null
+          commission_status?: string
           commission_user_id?: string | null
+          commissionable_amount?: number | null
+          commissionable_source?: string
           created_at?: string
           created_by?: string | null
           crew_lead?: string | null
