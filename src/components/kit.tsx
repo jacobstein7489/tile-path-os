@@ -116,7 +116,7 @@ export function MetricTile({
           {label}
         </span>
       </span>
-    </button>
+    </Tag>
   );
 }
 
