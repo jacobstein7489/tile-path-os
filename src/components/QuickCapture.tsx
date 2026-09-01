@@ -196,7 +196,13 @@ function parseBulk(text: string, projects: { id: string; name: string }[]): Draf
     (l) => /^([ \t]+|\s*[-–—•*·>])/.test(l) && /[a-z0-9]{2}/i.test(cleanLine(l)),
   );
 
-  let section = { key: "unassigned", id: "", name: "", kind: "none" as MatchKind };
+  let section = {
+    key: "unassigned",
+    id: "",
+    name: "",
+    headingText: "",
+    kind: "none" as MatchKind,
+  };
   let sectionIndex = 0;
 
   lines.forEach((original, i) => {
@@ -210,12 +216,13 @@ function parseBulk(text: string, projects: { id: string; name: string }[]): Draf
         key: `s${sectionIndex}`,
         id: match.id,
         name: projects.find((p) => p.id === match.id)?.name ?? clean,
+        // The pasted heading, kept verbatim so an unmatched section can become a stub.
+        headingText: clean,
         kind: match.kind,
       };
-      // Remember the pasted heading so an unmatched section can become a stub.
-      if (!match.id) section.name = clean;
       return;
     }
+
 
     const title = stripProject(clean, section.id ? section.name : undefined) || clean;
     drafts.push(
