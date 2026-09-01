@@ -77,7 +77,7 @@ export function useMyProfile() {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", user?.id ?? "")
         .maybeSingle();
       if (error) throw error;
       return (data as Profile | null) ?? null;
@@ -94,7 +94,7 @@ export function useMyRoles() {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user!.id);
+        .eq("user_id", user?.id ?? "");
       if (error) throw error;
       return (data ?? []).map((r) => r.role as AppRole);
     },
@@ -109,11 +109,39 @@ export function usePermissions() {
     roles,
     isLoading,
     isAdmin: has("admin"),
-    canAdminData: has("admin", "gm", "office_coordinator"),
-    canManageProjects: has("admin", "gm", "office_coordinator", "pm", "sales"),
+    canManageUsers: has("admin"),
+    canManageLibraries: has("admin", "gm", "office_coordinator"),
+    canManageProjects: has("admin", "gm", "pm", "sales"),
     canSeeMoney: has("admin", "gm", "accounting", "sales"),
     canRunField: has("admin", "gm", "pm", "site_manager"),
     has,
+  };
+}
+
+export function useCanEditProject(projectId: string) {
+  const { user } = useAuthUser();
+  const { data: roles = [], isLoading: rolesLoading } = useMyRoles();
+  const assignment = useQuery({
+    queryKey: ["my-project-assignment", projectId, user?.id],
+    enabled: Boolean(user?.id && projectId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_assignments")
+        .select("role_in_project")
+        .eq("project_id", projectId)
+        .eq("user_id", user?.id ?? "")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  return {
+    canEdit:
+      roles.includes("admin") ||
+      roles.includes("gm") ||
+      (roles.includes("pm") && assignment.data?.role_in_project === "pm"),
+    isLoading: rolesLoading || assignment.isLoading,
   };
 }
 

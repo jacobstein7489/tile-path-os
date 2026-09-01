@@ -4,16 +4,37 @@ import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
 import { useDeleteRow, useUpdateProject, type Project } from "@/lib/data";
+import { useCanEditProject, usePermissions } from "@/hooks/useAuth";
+import {
+  companyOptions,
+  contactOptions,
+  profileOptions,
+  useCompanies,
+  useContacts,
+  useProfiles,
+  useSaveCompany,
+  useSaveContact,
+} from "@/lib/people";
+import { Combobox } from "@/components/kit";
 import { cn } from "@/lib/utils";
 
 export function ProjectMoreMenu({ project }: { project: Project }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    title: string;
+    note: string;
+    confirmLabel: string;
+    danger?: boolean;
+    run: () => Promise<void>;
+  } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const update = useUpdateProject(project.id);
   const del = useDeleteRow("projects");
   const navigate = useNavigate();
+  const perms = usePermissions();
+  const { canEdit, isLoading: accessLoading } = useCanEditProject(project.id);
 
   useEffect(() => {
     if (!open) return;
@@ -40,16 +61,68 @@ export function ProjectMoreMenu({ project }: { project: Project }) {
     { label: "Edit project", run: () => (setOpen(false), setEdit(true)) },
     project.exception_state === "On Hold"
       ? { label: "Take off hold", run: () => setException(null, "Project resumed") }
-      : { label: "Put on hold", run: () => setException("On Hold", "Project put on hold") },
-    { label: "Mark cancelled", run: () => setException("Cancelled", "Project marked cancelled") },
-    { label: "Mark lost", run: () => setException("Lost", "Project marked lost") },
-    { label: "Archive project", run: archive },
+      : {
+          label: "Put on hold",
+          run: () => (
+            setOpen(false),
+            setPendingAction({
+              title: "Put project on hold?",
+              note: "The project stays active and keeps its full history, but will be clearly marked as paused.",
+              confirmLabel: "Put on hold",
+              run: () => setException("On Hold", "Project put on hold"),
+            })
+          ),
+        },
     {
-      label: "Delete permanently",
-      run: () => (setOpen(false), setConfirmDelete(true)),
-      danger: true,
+      label: "Mark cancelled",
+      run: () => (
+        setOpen(false),
+        setPendingAction({
+          title: "Mark project cancelled?",
+          note: "The project stays in the database with its full history and can be restored later.",
+          confirmLabel: "Mark cancelled",
+          danger: true,
+          run: () => setException("Cancelled", "Project marked cancelled"),
+        })
+      ),
     },
+    {
+      label: "Mark lost",
+      run: () => (
+        setOpen(false),
+        setPendingAction({
+          title: "Mark project lost?",
+          note: "The project stays in the database with its full history and can be restored later.",
+          confirmLabel: "Mark lost",
+          danger: true,
+          run: () => setException("Lost", "Project marked lost"),
+        })
+      ),
+    },
+    {
+      label: "Archive project",
+      run: () => (
+        setOpen(false),
+        setPendingAction({
+          title: "Archive project?",
+          note: "The project will leave active lists but its records and history remain intact.",
+          confirmLabel: "Archive project",
+          run: archive,
+        })
+      ),
+    },
+    ...(perms.isAdmin
+      ? [
+          {
+            label: "Delete permanently",
+            run: () => (setOpen(false), setConfirmDelete(true)),
+            danger: true,
+          },
+        ]
+      : []),
   ];
+
+  if (accessLoading || (!canEdit && !perms.isAdmin)) return null;
 
   return (
     <div className="relative" ref={ref}>
@@ -79,6 +152,31 @@ export function ProjectMoreMenu({ project }: { project: Project }) {
       ) : null}
 
       <EditProjectModal open={edit} onClose={() => setEdit(false)} project={project} />
+
+      <Modal
+        open={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        title={pendingAction?.title ?? "Confirm action"}
+        footer={
+          <>
+            <Button onClick={() => setPendingAction(null)}>Cancel</Button>
+            <Button
+              variant={pendingAction?.danger ? "danger" : "primary"}
+              loading={update.isPending}
+              onClick={async () => {
+                const action = pendingAction;
+                if (!action) return;
+                await action.run();
+                setPendingAction(null);
+              }}
+            >
+              {pendingAction?.confirmLabel ?? "Confirm"}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-secondary-foreground">{pendingAction?.note}</p>
+      </Modal>
 
       <Modal
         open={confirmDelete}
@@ -121,6 +219,11 @@ function EditProjectModal({
   project: Project;
 }) {
   const update = useUpdateProject(project.id);
+  const { data: companies = [] } = useCompanies();
+  const { data: contacts = [] } = useContacts();
+  const { data: profiles = [] } = useProfiles();
+  const saveCompany = useSaveCompany();
+  const saveContact = useSaveContact();
   const [form, setForm] = useState({
     name: project.name,
     address: project.address ?? "",
@@ -129,8 +232,13 @@ function EditProjectModal({
     project_manager: project.project_manager ?? "",
     crew_lead: project.crew_lead ?? "",
     target_date: project.target_date ?? "",
+    customer_company_id: project.customer_company_id ?? (null as string | null),
+    gc_company_id: project.gc_company_id ?? (null as string | null),
+    primary_contact_id: project.primary_contact_id ?? (null as string | null),
+    pm_user_id: project.pm_user_id ?? (null as string | null),
   });
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <Modal
@@ -152,6 +260,10 @@ function EditProjectModal({
                 project_manager: form.project_manager || null,
                 crew_lead: form.crew_lead || null,
                 target_date: form.target_date || null,
+                customer_company_id: form.customer_company_id,
+                gc_company_id: form.gc_company_id,
+                primary_contact_id: form.primary_contact_id,
+                pm_user_id: form.pm_user_id,
               });
               toast.success("Saved");
               onClose();
@@ -170,7 +282,19 @@ function EditProjectModal({
           <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
         </Field>
         <Field label="Customer / GC">
-          <TextInput value={form.customer} onChange={(e) => set("customer", e.target.value)} />
+          <Combobox
+            options={companyOptions(companies)}
+            value={form.customer_company_id}
+            onChange={(value) => set("customer_company_id", value)}
+            placeholder="Search customers…"
+            onCreate={async (label) => {
+              const company = await saveCompany.mutateAsync({
+                values: { name: label, kind: "customer" },
+              });
+              if (company) set("customer_company_id", company.id);
+            }}
+            createLabel="Add customer"
+          />
         </Field>
         <Field label="Project type">
           <Select value={form.project_type} onChange={(e) => set("project_type", e.target.value)}>
@@ -180,9 +304,11 @@ function EditProjectModal({
           </Select>
         </Field>
         <Field label="PM / owner">
-          <TextInput
-            value={form.project_manager}
-            onChange={(e) => set("project_manager", e.target.value)}
+          <Combobox
+            options={profileOptions(profiles)}
+            value={form.pm_user_id}
+            onChange={(value) => set("pm_user_id", value)}
+            placeholder="Search employees…"
           />
         </Field>
         <Field label="Crew lead / contact">
@@ -193,6 +319,38 @@ function EditProjectModal({
             type="date"
             value={form.target_date}
             onChange={(e) => set("target_date", e.target.value)}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3.5">
+        <Field label="General contractor">
+          <Combobox
+            options={companyOptions(companies)}
+            value={form.gc_company_id}
+            onChange={(value) => set("gc_company_id", value)}
+            placeholder="Search companies…"
+            onCreate={async (label) => {
+              const company = await saveCompany.mutateAsync({
+                values: { name: label, kind: "gc" },
+              });
+              if (company) set("gc_company_id", company.id);
+            }}
+            createLabel="Add company"
+          />
+        </Field>
+        <Field label="Main contact">
+          <Combobox
+            options={contactOptions(contacts, companies)}
+            value={form.primary_contact_id}
+            onChange={(value) => set("primary_contact_id", value)}
+            placeholder="Search contacts…"
+            onCreate={async (label) => {
+              const contact = await saveContact.mutateAsync({
+                values: { full_name: label, company_id: form.customer_company_id },
+              });
+              if (contact) set("primary_contact_id", contact.id);
+            }}
+            createLabel="Add contact"
           />
         </Field>
       </div>

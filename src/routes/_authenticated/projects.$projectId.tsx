@@ -5,6 +5,7 @@ import { LifecycleTrack } from "@/components/LifecycleTrack";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { UnderlineTabs } from "@/components/kit";
 import { useProject, useUpdateProject } from "@/lib/data";
+import { useCanEditProject } from "@/hooks/useAuth";
 import { Chip, materialTone, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
@@ -13,16 +14,33 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
 
 const PROJECT_TABS = [
   { label: "Overview", to: "/projects/$projectId" as const, value: "/projects/$projectId" },
-  { label: "Tiles & Finishes", to: "/projects/$projectId/scope" as const, value: "/projects/$projectId/scope" },
-  { label: "Field", to: "/projects/$projectId/field" as const, value: "/projects/$projectId/field" },
-  { label: "Install Materials", to: "/projects/$projectId/materials" as const, value: "/projects/$projectId/materials" },
-  { label: "Files", to: "/projects/$projectId/files" as const, value: "/projects/$projectId/files" },
+  {
+    label: "Tiles & Finishes",
+    to: "/projects/$projectId/scope" as const,
+    value: "/projects/$projectId/scope",
+  },
+  {
+    label: "Field",
+    to: "/projects/$projectId/field" as const,
+    value: "/projects/$projectId/field",
+  },
+  {
+    label: "Install Materials",
+    to: "/projects/$projectId/materials" as const,
+    value: "/projects/$projectId/materials",
+  },
+  {
+    label: "Files",
+    to: "/projects/$projectId/files" as const,
+    value: "/projects/$projectId/files",
+  },
 ];
 
 function ProjectShell() {
   const { projectId } = Route.useParams();
   const { data: project, isLoading } = useProject(projectId);
   const update = useUpdateProject(projectId);
+  const { canEdit } = useCanEditProject(projectId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (isLoading) {
@@ -76,9 +94,7 @@ function ProjectShell() {
               <span className="inline-flex items-center gap-1.5">
                 <User className="size-3.5" /> {project.customer ?? "Customer not set"}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                {project.project_type}
-              </span>
+              <span className="inline-flex items-center gap-1.5">{project.project_type}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -95,20 +111,24 @@ function ProjectShell() {
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
             stepsDone={stepsDone}
-            onToggleStep={(step) =>
-              update.mutate({
-                stage_steps_done: stepsDone.includes(step)
-                  ? stepsDone.filter((s) => s !== step)
-                  : [...stepsDone, step],
-              })
-            }
-            onAdvance={(to) => update.mutate({ lifecycle_stage: to, stage_steps_done: [] })}
+            {...(canEdit
+              ? {
+                  onToggleStep: (step: string) =>
+                    update.mutate({
+                      stage_steps_done: stepsDone.includes(step)
+                        ? stepsDone.filter((s) => s !== step)
+                        : [...stepsDone, step],
+                    }),
+                  onAdvance: (to: string) =>
+                    update.mutate({ lifecycle_stage: to, stage_steps_done: [] }),
+                }
+              : {})}
           />
         </div>
 
         <UnderlineTabs
           className="mt-7"
-          items={PROJECT_TABS.map(t => ({ ...t, params: { projectId } }))}
+          items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
           value={activeTab}
         />
 

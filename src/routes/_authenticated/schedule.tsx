@@ -215,8 +215,8 @@ function SchedulePage() {
                                     ? "border-info/40 bg-info-soft"
                                     : crew.tone === "green"
                                       ? "border-success/40 bg-success-soft"
-                                      : crew.tone === "violet"
-                                        ? "border-violet/40 bg-violet-soft"
+                                      : crew.tone === "blue"
+                                        ? "border-info/40 bg-info-soft"
                                         : crew.tone === "amber"
                                           ? "border-warning/40 bg-warning-soft"
                                           : "border-primary/30 bg-primary-soft";
@@ -287,13 +287,13 @@ function SchedulePage() {
         <SectionCard
           className="mt-5"
           title="Jobs Finishing Soon"
-          icon={<Flag className="size-[18px] text-violet" />}
+          icon={<Flag className="size-[18px] text-warning" />}
           bodyClassName="grid grid-cols-3 divide-x divide-border"
         >
           {finishingSoon.slice(0, 2).map((p) => (
             <div key={p.id} className="px-5 py-4">
               <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-violet" />
+                <span className="size-2 rounded-full bg-warning" />
                 <Link
                   to="/projects/$projectId"
                   params={{ projectId: p.id }}

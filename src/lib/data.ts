@@ -22,6 +22,16 @@ export type Project = {
   stage_steps_done: string[];
   project_manager: string | null;
   archived_at?: string | null;
+  customer_company_id?: string | null;
+  gc_company_id?: string | null;
+  primary_contact_id?: string | null;
+  pm_user_id?: string | null;
+  site_manager_user_id?: string | null;
+  salesperson_user_id?: string | null;
+  estimator_user_id?: string | null;
+  source?: string | null;
+  bid_due_date?: string | null;
+  intake_notes?: string | null;
 };
 
 export type Area = {

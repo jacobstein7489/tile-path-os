@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_bootstrap: {
+        Row: {
+          administrator_bootstrapped_at: string | null
+          singleton: boolean
+        }
+        Insert: {
+          administrator_bootstrapped_at?: string | null
+          singleton?: boolean
+        }
+        Update: {
+          administrator_bootstrapped_at?: string | null
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null
@@ -1201,7 +1216,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_access_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_access_project_path: {
+        Args: { _path: string; _user_id: string }
+        Returns: boolean
+      }
+      can_admin_data: { Args: { _user_id: string }; Returns: boolean }
+      can_edit_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_field_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_company_operator: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
