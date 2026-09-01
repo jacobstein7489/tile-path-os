@@ -28,10 +28,16 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
+type MatchKind = "exact" | "fuzzy" | "none";
+
 type Draft = {
   key: string;
+  /** Stable id of the parsed section this row came from — sections never merge. */
+  sectionKey: string;
   /** Heading text this row came from when no project matched — drives stub creation. */
   groupName: string;
+  /** How the heading was resolved to a project, so review can warn before import. */
+  matchKind: MatchKind;
   project_id: string;
   item_type: string;
   title: string;
@@ -44,6 +50,7 @@ type Draft = {
   is_important: boolean;
   dupAction: "keep" | "skip" | "replace";
 };
+
 
 /** Heuristic classification. Designed so smarter classification can replace this later. */
 function classify(line: string): { item_type: string; status: string; next_action: string; waiting_on: string } {
@@ -81,22 +88,51 @@ function cleanLine(line: string) {
     .trim();
 }
 
-/** Fuzzy project match: any distinctive token of the job name appearing in the text. */
-function matchProject(text: string, projects: { id: string; name: string }[]) {
-  const t = text.toLowerCase();
+/** Comparison form of a project name: "5:30 Mark" and "530 Mark" collapse to "530mark". */
+function normalizeName(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function nameTokens(s: string) {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Resolve a heading line to a project. Punctuation, spacing, hyphens and case are
+ * ignored; a partial name still matches, but only confidently.
+ */
+export function matchProjectHeading(
+  heading: string,
+  projects: { id: string; name: string }[],
+): { id: string; kind: MatchKind } {
+  const h = normalizeName(heading);
+  if (!h) return { id: "", kind: "none" };
+
+  for (const p of projects) {
+    if (normalizeName(p.name) === h) return { id: p.id, kind: "exact" };
+  }
+
+  const ht = new Set(nameTokens(heading));
   let best: { id: string; score: number } | null = null;
   for (const p of projects) {
-    const name = p.name.toLowerCase();
+    const n = normalizeName(p.name);
     let score = 0;
-    if (t.includes(name)) score = 100 + name.length;
-    else {
-      const tokens = name.split(/[^a-z0-9-]+/).filter((w) => w.length > 2 || /\d/.test(w));
-      const hits = tokens.filter((w) => t.includes(w));
-      if (hits.length) score = hits.reduce((a, w) => a + w.length, 0) * (hits.length > 1 ? 2 : 1);
+    if (n.length >= 4 && h.length >= 4 && (n.includes(h) || h.includes(n))) {
+      score = Math.min(n.length, h.length) / Math.max(n.length, h.length);
+    } else {
+      const pt = new Set(nameTokens(p.name));
+      let shared = 0;
+      pt.forEach((t) => {
+        if (ht.has(t)) shared += 1;
+      });
+      if (shared) score = shared / Math.max(pt.size, ht.size);
     }
-    if (score > 6 && (!best || score > best.score)) best = { id: p.id, score };
+    if (score >= 0.6 && (!best || score > best.score)) best = { id: p.id, score };
   }
-  return best?.id ?? "";
+  return best ? { id: best.id, kind: "fuzzy" } : { id: "", kind: "none" };
 }
 
 /** Strip the matched job name out of the item summary so titles read cleanly. */
@@ -112,7 +148,9 @@ const emptyDraft = (
   extra: Partial<Draft>,
 ): Draft => ({
   key,
+  sectionKey: "unassigned",
   groupName: "",
+  matchKind: "none",
   project_id: "",
   title,
   owner: "",
@@ -124,60 +162,148 @@ const emptyDraft = (
   ...extra,
 });
 
+const ACTION_START =
+  /^(confirm|order|call|check|measure|schedule|follow|send|get|need|price|verify|fix|install|remove|replace|deliver|pick|drop|reorder|review|update|finish|start|clean|cut|set|make|ask|email|text|meet|assign|approve)\b/i;
+
+/**
+ * Structural heading test — runs BEFORE any database matching so an unknown or
+ * mistyped project name still starts its own section.
+ */
+function looksLikeHeading(
+  original: string,
+  clean: string,
+  indentMode: boolean,
+  startsBlock: boolean,
+) {
+  const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
+  if (indentMode) return !indented;
+  if (indented) return false;
+  // Flat paste: a name-like line only starts a section when a blank line (or the
+  // top of the paste) sets it apart, otherwise it is just short work wording.
+  return (
+    startsBlock &&
+    clean.length <= 46 &&
+    !/[,;?]/.test(clean) &&
+    !/[—–]|\s-\s|:/.test(clean) &&
+    clean.split(" ").length <= 5 &&
+    !ACTION_START.test(clean)
+  );
+}
+
 /* ============================================================
- * Bulk parse: a grouped paste where a bare line is a project
- * heading and the lines under it are that project's work.
+ * Bulk parse: a grouped paste where a standalone line starts a
+ * new project section and the lines under it are its work.
+ * Sections are structural — they never merge into each other.
  * ============================================================ */
-function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
-  const drafts: Draft[] = [];
-  let currentId = "";
-  let currentName = "";
+export function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
   const lines = text.split(/\r?\n/);
+
+  // If the paste uses indentation or bullets at all, indentation defines the sections.
+  const indentMode = lines.some(
+    (l) => /^([ \t]+|\s*[-–—•*·>])/.test(l) && /[a-z0-9]{2}/i.test(cleanLine(l)),
+  );
+
+  type Section = {
+    key: string;
+    id: string;
+    name: string;
+    headingText: string;
+    kind: MatchKind;
+    lines: { i: number; clean: string }[];
+  };
+
+  const sections: Section[] = [
+    { key: "unassigned", id: "", name: "", headingText: "", kind: "none", lines: [] },
+  ];
+  let sectionIndex = 0;
+  let seenContent = false;
+  let blankBefore = true;
 
   lines.forEach((original, i) => {
     const clean = cleanLine(original);
-    if (!/[a-z0-9]{2}/i.test(clean)) return;
+    if (!/[a-z0-9]{2}/i.test(clean)) {
+      if (!original.trim()) blankBefore = true;
+      return;
+    }
+    const startsBlock = blankBefore || !seenContent;
+    blankBefore = false;
+    seenContent = true;
 
-    const indented = /^[\s\t]+|^[-–—•*·>]/.test(original);
-    const matchedId = matchProject(original, projects);
-    const matchedName = projects.find((p) => p.id === matchedId)?.name;
-    const stripped = stripProject(clean, matchedName);
+    const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
+    const match = matchProjectHeading(clean, projects);
+    // A confident project name on its own line is always a heading; otherwise the
+    // structural test decides, so unknown names still open their own section.
+    const isHeading =
+      (match.id && !indented && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
+      looksLikeHeading(original, clean, indentMode, startsBlock);
 
-    // A line that is just a job name is a heading for everything under it.
-    if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) {
-      currentId = matchedId;
-      currentName = matchedName ?? clean;
+    if (isHeading) {
+      sectionIndex += 1;
+      sections.push({
+        key: `s${sectionIndex}`,
+        id: match.id,
+        name: projects.find((p) => p.id === match.id)?.name ?? clean,
+        // The pasted heading, kept verbatim so an unmatched section can become a stub.
+        headingText: clean,
+        kind: match.kind,
+        lines: [],
+      });
       return;
     }
 
-    // An un-indented short line with no action language is an unmatched heading.
-    const looksLikeHeading =
-      !indented &&
-      !matchedId &&
-      clean.length <= 46 &&
-      !/[,;?]/.test(clean) &&
-      !/[—–]|\s-\s|:/.test(clean) &&
-      clean.split(" ").length <= 5 &&
-      !/^(confirm|order|call|check|measure|schedule|follow|send|get|need|price|verify|fix|install)/i.test(
-        clean,
+    sections[sections.length - 1]!.lines.push({ i, clean });
+  });
+
+
+  // Without indentation a short work line can look like a heading. A heading that
+  // matched no project and gathered no work under it is really an item of the
+  // section above it, so fold it back instead of losing it.
+  if (!indentMode) {
+    for (let s = sections.length - 1; s > 0; s -= 1) {
+      const sec = sections[s]!;
+      if (sec.lines.length || sec.id) continue;
+      sections[s - 1]!.lines.push({ i: 1000 + s, clean: sec.headingText });
+      sections.splice(s, 1);
+    }
+  }
+
+  const drafts: Draft[] = [];
+  sections.forEach((section) => {
+    section.lines.forEach(({ i, clean }) => {
+      const title = stripProject(clean, section.id ? section.name : undefined) || clean;
+      drafts.push(
+        emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
+          sectionKey: section.key,
+          project_id: section.id,
+          groupName: section.headingText,
+          matchKind: section.kind,
+        }),
       );
-    if (looksLikeHeading) {
-      currentId = "";
-      currentName = clean;
-      return;
-    }
-
-    const projectId = matchedId || currentId;
-    const title = (matchedId ? stripped : clean) || clean;
-    drafts.push(
-      emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
-        project_id: projectId,
-        groupName: projectId ? "" : currentName,
-      }),
-    );
+    });
   });
 
   return drafts;
+}
+
+
+
+/** Quick-note mode only: find a job name mentioned inside free-flowing text. */
+function matchProjectMention(text: string, projects: { id: string; name: string }[]) {
+  const t = text.toLowerCase();
+  const tn = normalizeName(text);
+  let best: { id: string; score: number } | null = null;
+  for (const p of projects) {
+    const name = p.name.toLowerCase();
+    let score = 0;
+    if (t.includes(name) || tn.includes(normalizeName(p.name))) score = 100 + name.length;
+    else {
+      const tokens = nameTokens(p.name).filter((w) => w.length > 2);
+      const hits = tokens.filter((w) => t.includes(w));
+      if (hits.length > 1) score = hits.reduce((a, w) => a + w.length, 0) * 2;
+    }
+    if (score > 6 && (!best || score > best.score)) best = { id: p.id, score };
+  }
+  return best?.id ?? "";
 }
 
 /** Quick-note parse: sentence/line splitting with sticky project context. */
@@ -188,21 +314,27 @@ function parseNote(text: string, projects: { id: string; name: string }[]): Draf
     .map((l) => ({ original: l, clean: cleanLine(l) }))
     .filter(({ clean }) => /[a-z]{3}/i.test(clean) && clean.replace(/[^a-z0-9]/gi, "").length > 3);
 
-  let sticky = matchProject(text, projects);
+  let sticky = matchProjectMention(text, projects);
   const drafted: Draft[] = [];
   rawLines.forEach(({ original, clean: l }, i) => {
-    const matchedId = matchProject(original, projects);
+    const matchedId = matchProjectMention(original, projects);
     if (matchedId) sticky = matchedId;
     const matchedName = projects.find((p) => p.id === matchedId)?.name;
     const stripped = stripProject(l, matchedName);
     if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) return;
     const title = stripped || l;
+    const projectId = matchedId || sticky;
     drafted.push(
-      emptyDraft(`${i}-${l.slice(0, 10)}`, title, { project_id: matchedId || sticky }),
+      emptyDraft(`${i}-${l.slice(0, 10)}`, title, {
+        project_id: projectId,
+        sectionKey: projectId || "unassigned",
+        matchKind: projectId ? "exact" : "none",
+      }),
     );
   });
   return drafted;
 }
+
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
@@ -292,17 +424,22 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     if (!drafted.length) toast.error("Nothing to capture yet");
   };
 
-  /** Grouped review: project appears once, rows stay compact underneath. */
+  /** Grouped review: one section per pasted heading — sections never merge. */
   const groups = useMemo(() => {
-    const map = new Map<string, { label: string; pending: boolean; items: Draft[] }>();
+    const map = new Map<
+      string,
+      { label: string; heading: string; pending: boolean; fuzzy: boolean; items: Draft[] }
+    >();
     (drafts ?? []).forEach((d) => {
-      const key = d.project_id || (d.groupName ? `pending:${d.groupName}` : "unassigned");
+      const key = d.sectionKey || (d.project_id || "unassigned");
       if (!map.has(key)) {
         map.set(key, {
           label: d.project_id
             ? (projects.find((p) => p.id === d.project_id)?.name ?? "Project")
             : d.groupName || "Company / Unassigned",
-          pending: !d.project_id && Boolean(d.groupName),
+          heading: d.groupName,
+          pending: !d.project_id,
+          fuzzy: Boolean(d.project_id) && d.matchKind === "fuzzy",
           items: [],
         });
       }
@@ -310,6 +447,10 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     });
     return [...map.entries()];
   }, [drafts, projects]);
+
+  const unmatchedSections = groups.filter(([, g]) => g.pending && g.heading);
+  const fuzzySections = groups.filter(([, g]) => g.fuzzy);
+
 
   const saveAll = async () => {
     if (!drafts) return;
@@ -447,7 +588,25 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
         </>
       ) : (
         <div className="space-y-3">
+          {unmatchedSections.length || fuzzySections.length ? (
+            <div className="rounded-xl border border-warning/40 bg-warning-soft/50 px-3 py-2.5">
+              <p className="text-[12.5px] font-semibold text-warning">
+                Review project names before importing
+              </p>
+              <ul className="mt-1 space-y-0.5 text-[12px] text-secondary-foreground">
+                {unmatchedSections.map(([k, g]) => (
+                  <li key={k}>Unmatched project: “{g.heading}” — choose a project or create a stub</li>
+                ))}
+                {fuzzySections.map(([k, g]) => (
+                  <li key={k}>
+                    “{g.heading || g.label}” matched to {g.label} — confirm it is the right project
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {/* Batch tools */}
+
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
             <span className="text-[12.5px] font-semibold">
               {selectedKeys.length ? `${selectedKeys.length} selected` : `${drafts.length} proposed`}
@@ -534,13 +693,22 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                       }))
                     }
                   />
-                  <span className="text-[13.5px] font-semibold">{group.label}</span>
+                  <span className="text-[13.5px] font-semibold">
+                    {group.pending && group.heading
+                      ? `Unmatched project: ${group.heading}`
+                      : group.label}
+                  </span>
                   <span className="text-[12px] text-muted-foreground">
                     · {group.items.length} proposed
                   </span>
-                  {group.pending ? (
+                  {group.pending && group.heading ? (
                     <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
-                      No matching project
+                      Choose existing project or create a stub
+                    </span>
+                  ) : null}
+                  {group.fuzzy ? (
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
+                      Matched from “{group.heading}” — confirm
                     </span>
                   ) : null}
                   <div className="ml-auto flex items-center gap-2">
@@ -550,13 +718,14 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                       onChange={(e) => {
                         if (e.target.value === "__stub__") {
                           setStubFor(groupKey);
-                          setStub({ name: group.pending ? group.label : "", address: "" });
+                          setStub({ name: group.heading || "", address: "" });
                           return;
                         }
                         setStubFor((s) => (s === groupKey ? null : s));
                         updateMany(keys, { project_id: e.target.value, groupName: "" });
                       }}
                     >
+
                       <option value="">Company / Unassigned</option>
                       {projects.map((p) => (
                         <option key={p.id} value={p.id}>
