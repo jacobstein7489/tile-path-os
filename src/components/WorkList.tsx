@@ -604,6 +604,8 @@ export function WorkList({
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
 
+  const anyExpanded = groups.some(([key]) => !collapsed[key]);
+
   return (
     <div className="space-y-3">
       <div className="sticky top-14 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
@@ -616,6 +618,42 @@ export function WorkList({
           value={filter}
           onChange={setFilter}
         />
+        {showViewToggle ? (
+          <>
+            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => chooseView(v)}
+                  className={cn(
+                    "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
+                    "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+                    view === v
+                      ? "bg-primary-soft text-primary"
+                      : "text-secondary-foreground hover:bg-muted",
+                  )}
+                >
+                  {v === "Grouped by Project" ? "Grouped" : v}
+                </button>
+              ))}
+            </div>
+            {view === "Grouped by Project" ? (
+              <button
+                type="button"
+                onClick={() => setAllCollapsed(anyExpanded)}
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-lg border border-border px-2 text-[12.5px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {anyExpanded ? (
+                  <ChevronsDownUp className="size-3.5" />
+                ) : (
+                  <ChevronsUpDown className="size-3.5" />
+                )}
+                {anyExpanded ? "Collapse all" : "Expand all"}
+              </button>
+            ) : null}
+          </>
+        ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {showSearch ? (
             <SearchInput
@@ -625,47 +663,6 @@ export function WorkList({
               placeholder="Search work  /"
               className="w-[170px] lg:w-[220px]"
             />
-          ) : null}
-          {showViewToggle ? (
-            <>
-              <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-                {VIEWS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => chooseView(v)}
-                    className={cn(
-                      "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-medium outline-none",
-                      "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                      view === v
-                        ? "bg-primary-soft text-primary"
-                        : "text-secondary-foreground hover:bg-muted",
-                    )}
-                  >
-                    {v === "Grouped by Project" ? "Grouped" : v}
-                  </button>
-                ))}
-              </div>
-              {view === "Grouped by Project" ? (
-                <div className="flex items-center gap-1 text-[12.5px]">
-                  <button
-                    type="button"
-                    onClick={() => setAllCollapsed(true)}
-                    className="h-8 cursor-pointer rounded-md px-2 font-medium text-secondary-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    Collapse All
-                  </button>
-                  <span className="text-border-strong">|</span>
-                  <button
-                    type="button"
-                    onClick={() => setAllCollapsed(false)}
-                    className="h-8 cursor-pointer rounded-md px-2 font-medium text-secondary-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
-                  >
-                    Expand All
-                  </button>
-                </div>
-              ) : null}
-            </>
           ) : null}
         </div>
       </div>
@@ -682,7 +679,9 @@ export function WorkList({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          <GroupedHeader />
           {groups.map(([key, group]) => {
+
             const openCount = group.items.filter((i) => !isComplete(i) && !justDone[i.id]).length;
             const starCount = group.items.filter((i) => i.is_important && !isComplete(i)).length;
             const waitCount = group.items.filter(
