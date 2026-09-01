@@ -254,7 +254,10 @@ function ProjectOverview() {
         badge={<Chip tone={blockers.length ? "red" : "green"}>{open.length} open</Chip>}
       >
         {open.length === 0 ? (
-          <EmptyState title="Nothing outstanding" note="Blockers, questions and needs appear here." />
+          <EmptyState
+            title="Nothing outstanding"
+            note="Blockers, questions and needs appear here."
+          />
         ) : (
           <Table>
             <thead>
@@ -287,7 +290,11 @@ function ProjectOverview() {
                       <div className="text-muted-foreground">{i.description}</div>
                     ) : null}
                   </Td>
-                  <Td>{nameOf((i as { owner_user_id?: string | null }).owner_user_id) ?? i.owner ?? "—"}</Td>
+                  <Td>
+                    {nameOf((i as { owner_user_id?: string | null }).owner_user_id) ??
+                      i.owner ??
+                      "—"}
+                  </Td>
                   <Td>{i.waiting_on ?? "—"}</Td>
                   <Td>{i.impact ?? "—"}</Td>
                   <Td>{i.next_action ?? "—"}</Td>
@@ -314,11 +321,13 @@ function ProjectOverview() {
 
       {/* Footer quick actions */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {(["Field Update", "Task", "Question", "Punch / Return Item"] as WorkItemKind[]).map((k) => (
-          <Button key={k} onClick={() => setCreate(k)}>
-            <MessageSquarePlus className="size-4" /> Add {k}
-          </Button>
-        ))}
+        {(["Field Update", "Task", "Question", "Punch / Return Item"] as WorkItemKind[]).map(
+          (k) => (
+            <Button key={k} onClick={() => setCreate(k)}>
+              <MessageSquarePlus className="size-4" /> Add {k}
+            </Button>
+          ),
+        )}
         <Button variant="primary" onClick={() => setMaterial(true)}>
           <Package className="size-4" /> Request material
         </Button>
@@ -344,7 +353,9 @@ function ProjectOverview() {
               defaultValue={project.crew_lead ?? ""}
               placeholder="Crew lead"
               disabled={!canEdit}
-              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => canEdit && updateProject.mutate({ crew_lead: e.target.value || null })}
+              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                canEdit && updateProject.mutate({ crew_lead: e.target.value || null })
+              }
             />
           </Field>
           <ReadRow label="Project manager" value={pmName} />
@@ -379,7 +390,9 @@ function ProjectOverview() {
               type="date"
               defaultValue={project.start_date ?? ""}
               disabled={!canEdit}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => canEdit && updateProject.mutate({ start_date: e.target.value || null })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                canEdit && updateProject.mutate({ start_date: e.target.value || null })
+              }
             />
           </Field>
           <Field label="Target completion">
@@ -387,7 +400,9 @@ function ProjectOverview() {
               type="date"
               defaultValue={project.target_date ?? ""}
               disabled={!canEdit}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => canEdit && updateProject.mutate({ target_date: e.target.value || null })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                canEdit && updateProject.mutate({ target_date: e.target.value || null })
+              }
             />
           </Field>
           <Link
@@ -449,7 +464,9 @@ function ProjectOverview() {
               rows={3}
               defaultValue={project.next_move ?? ""}
               disabled={!canEdit}
-              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => canEdit && updateProject.mutate({ next_move: e.target.value || null })}
+              onBlur={(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                canEdit && updateProject.mutate({ next_move: e.target.value || null })
+              }
             />
           </Field>
           <Field label="Needs attention">
@@ -472,10 +489,19 @@ function ProjectOverview() {
       </Drawer>
 
       {create ? (
-        <CreateWorkItemModal open onClose={() => setCreate(null)} kind={create} projectId={projectId} />
+        <CreateWorkItemModal
+          open
+          onClose={() => setCreate(null)}
+          kind={create}
+          projectId={projectId}
+        />
       ) : null}
       <WorkItemDrawer item={openItem} onClose={() => setOpenItem(null)} />
-      <RequestMaterialModal open={material} onClose={() => setMaterial(false)} projectId={projectId} />
+      <RequestMaterialModal
+        open={material}
+        onClose={() => setMaterial(false)}
+        projectId={projectId}
+      />
     </>
   );
 }

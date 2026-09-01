@@ -94,7 +94,13 @@ export function LifecycleTrack({
                   <span
                     className={cn(
                       "h-[2px] flex-1 rounded-full",
-                      i === 0 ? "opacity-0" : done ? "bg-success/50" : active ? "bg-success/50" : "bg-track",
+                      i === 0
+                        ? "opacity-0"
+                        : done
+                          ? "bg-success/50"
+                          : active
+                            ? "bg-success/50"
+                            : "bg-track",
                     )}
                   />
                   <span

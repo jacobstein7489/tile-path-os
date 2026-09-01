@@ -6,7 +6,12 @@ import { Button, FilterGroup, SearchInput, Table, Td, Th } from "@/components/ki
 import { PageShell } from "@/components/PageShell";
 import { ProgressBar } from "@/components/ProgressBar";
 import { useProjects, type Project } from "@/lib/data";
-import { PROJECT_FILTERS, matchesFilter, showsInstallationProgress, type ProjectFilter } from "@/lib/lifecycle";
+import {
+  PROJECT_FILTERS,
+  matchesFilter,
+  showsInstallationProgress,
+  type ProjectFilter,
+} from "@/lib/lifecycle";
 import { Chip, Dot, materialTone, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/projects/")({

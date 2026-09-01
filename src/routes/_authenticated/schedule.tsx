@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Flag, RefreshCw, Users } from "lucide-react";
-import { AppHeader } from "@/components/AppHeader";
 import {
-  Button,
-  Field,
-  KpiCard,
-  Modal,
-  SectionCard,
-  Select,
-  TextInput,
-} from "@/components/kit";
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Flag,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+import { AppHeader } from "@/components/AppHeader";
+import { Button, Field, KpiCard, Modal, SectionCard, Select, TextInput } from "@/components/kit";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -77,20 +77,14 @@ function SchedulePage() {
   const unassigned = projects.filter(
     (p) =>
       !p.exception_state &&
-      !["Complete", "New Submission", "Estimating", "Proposal"].includes(
-        p.lifecycle_stage,
-      ) &&
+      !["Complete", "New Submission", "Estimating", "Proposal"].includes(p.lifecycle_stage) &&
       !assignments.some((a) => a.project_id === p.id && a.crew_id),
   );
   const returnVisits = weekAssignments.filter((a) => a.kind === "Return Visit");
   const finishingSoon = projects.filter((p) => p.lifecycle_stage === "Closeout / Return");
 
   const readyToAssign = projects
-    .filter((p) =>
-      ["Closeout / Return", "Ready", "Setup"].includes(
-        p.lifecycle_stage,
-      ),
-    )
+    .filter((p) => ["Closeout / Return", "Ready", "Setup"].includes(p.lifecycle_stage))
     .slice(0, 4);
 
   const readyLabel = (p: Project) =>
@@ -106,7 +100,9 @@ function SchedulePage() {
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
       <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
-        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Schedule &amp; Crews</h1>
+        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">
+          Schedule &amp; Crews
+        </h1>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           View crew schedules, manage assignments and plan the week ahead.
         </p>
@@ -121,7 +117,9 @@ function SchedulePage() {
             jobs ready to assign
           </span>
           <span>
-            <span className="font-semibold text-foreground tabular-nums">{returnVisits.length}</span>{" "}
+            <span className="font-semibold text-foreground tabular-nums">
+              {returnVisits.length}
+            </span>{" "}
             return visits this week
           </span>
         </div>
@@ -135,10 +133,18 @@ function SchedulePage() {
                 <Button size="sm" onClick={() => setWeekOffset(0)}>
                   Today
                 </Button>
-                <Button size="sm" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Previous week">
+                <Button
+                  size="sm"
+                  onClick={() => setWeekOffset((w) => w - 1)}
+                  aria-label="Previous week"
+                >
                   <ChevronLeft className="size-4" />
                 </Button>
-                <Button size="sm" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Next week">
+                <Button
+                  size="sm"
+                  onClick={() => setWeekOffset((w) => w + 1)}
+                  aria-label="Next week"
+                >
                   <ChevronRight className="size-4" />
                 </Button>
               </>
@@ -176,10 +182,7 @@ function SchedulePage() {
                         </div>
                       </td>
                       {crew.is_open_lane ? (
-                        <td
-                          colSpan={6}
-                          className="border-b border-border/70 px-3 py-3 text-center"
-                        >
+                        <td colSpan={6} className="border-b border-border/70 px-3 py-3 text-center">
                           <div className="rounded-lg border border-dashed border-border-strong py-3 text-[12.5px] text-muted-foreground">
                             Open for assignment
                           </div>
@@ -191,7 +194,10 @@ function SchedulePage() {
                             (a) => a.crew_id === crew.id && a.work_date === day,
                           );
                           return (
-                            <td key={day} className="border-b border-border/70 px-1.5 py-2 align-top">
+                            <td
+                              key={day}
+                              className="border-b border-border/70 px-1.5 py-2 align-top"
+                            >
                               {cell.map((a) => {
                                 const p = projectById(a.project_id);
                                 const tone =
@@ -267,7 +273,6 @@ function SchedulePage() {
             </Link>
           </SectionCard>
         </div>
-
       </div>
 
       {assignFor ? (

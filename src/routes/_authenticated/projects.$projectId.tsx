@@ -75,9 +75,7 @@ function ProjectShell() {
   const pmName = nameOf(project.pm_user_id) ?? project.project_manager;
 
   // Closeout / Return is derived from punch & return records, never ticked by hand.
-  const punch = workItems.filter((w) =>
-    /punch|return/i.test(`${w.item_type} ${w.title}`),
-  );
+  const punch = workItems.filter((w) => /punch|return/i.test(`${w.item_type} ${w.title}`));
   const punchOpen = punch.filter((w) => w.status !== "Complete");
   const waiting = punchOpen.filter((w) => /wait|block/i.test(w.status));
   const systemStepState: Record<string, { done: boolean; detail?: string }> = {

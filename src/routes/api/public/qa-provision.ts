@@ -8,7 +8,11 @@ import { createFileRoute } from "@tanstack/react-router";
 const QA_USERS = [
   { email: "qa.pm@cobblestone.test", full_name: "QA Project Manager", role: "pm" },
   { email: "qa.site@cobblestone.test", full_name: "QA Site Manager", role: "site_manager" },
-  { email: "qa.office@cobblestone.test", full_name: "QA Office Coordinator", role: "office_coordinator" },
+  {
+    email: "qa.office@cobblestone.test",
+    full_name: "QA Office Coordinator",
+    role: "office_coordinator",
+  },
   { email: "qa.norole@cobblestone.test", full_name: "QA No Role", role: null },
 ] as const;
 
