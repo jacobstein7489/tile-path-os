@@ -6,7 +6,14 @@ import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
 import { Button, KpiCard, SectionCard } from "@/components/kit";
-import { isComplete, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
+import {
+  isComplete,
+  matchesTodayFilter,
+  TODAY_FILTERS,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
+
 import { ROLE_LABELS, useAuthUser, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
