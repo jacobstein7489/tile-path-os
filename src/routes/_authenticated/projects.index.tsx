@@ -117,14 +117,15 @@ function ProjectsPage() {
           </span>
         </div>
         <Table className="table-fixed">
+          {/* Widths tuned so nothing truncates at 1280px. */}
           <colgroup>
-            <col className="w-[17%]" />
+            <col className="w-[15%]" />
+            <col className="w-[13%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
             <col className="w-[11%]" />
-            <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[31%]" />
+            <col className="w-[12%]" />
+            <col className="w-[29%]" />
           </colgroup>
           <thead>
             <tr className="bg-muted/60">
@@ -181,17 +182,27 @@ function ProjectRow({
   const rest = work.length - 1;
   return (
     <tr
+      tabIndex={0}
+      role="button"
       onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
-      className="group cursor-pointer transition-colors duration-100 hover:bg-muted/50"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          void navigate({ to: "/projects/$projectId", params: { projectId: p.id } });
+        }
+      }}
+      className="group cursor-pointer outline-none transition-colors duration-150 hover:bg-muted/60 active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/35"
     >
       <Td className="whitespace-nowrap group-last:border-0">
         <span className="text-[13px] font-semibold tracking-tight text-foreground">{p.name}</span>
         <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
       </Td>
       <Td className="group-last:border-0">
-        <span className="flex items-center gap-2 text-[12.5px] font-medium">
-          <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
-          <span className="truncate">{p.exception_state ?? p.lifecycle_stage}</span>
+        <span className="flex items-start gap-2 text-[12.5px] font-medium">
+          <span className="mt-[5px]">
+            <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
+          </span>
+          <span className="min-w-0 leading-snug">{p.exception_state ?? p.lifecycle_stage}</span>
         </span>
       </Td>
       <Td className="group-last:border-0">
@@ -211,23 +222,25 @@ function ProjectRow({
       </Td>
       <Td className="group-last:border-0">
         {p.crew_lead ? (
-          <span className="flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-full bg-primary-soft text-[10px] font-semibold text-primary">
+          <span className="flex items-start gap-1.5">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary-soft text-[9px] font-semibold text-primary">
               {initials(p.crew_lead)}
             </span>
-            <span className="truncate">{p.crew_lead}</span>
+            <span className="min-w-0 text-[12.5px] leading-snug">{p.crew_lead}</span>
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Unassigned</span>
         )}
       </Td>
-      <Td className="whitespace-nowrap text-muted-foreground group-last:border-0">
+      <Td className="text-[12px] whitespace-nowrap text-muted-foreground group-last:border-0">
         {fmt(p.start_date)} → {fmt(p.target_date)}
       </Td>
       <Td className="group-last:border-0">
-        <span className="flex items-center gap-2 text-[12.5px]">
-          <Dot tone={materialTone(p.material_status)} />
-          <span className="truncate">{p.material_status}</span>
+        <span className="flex items-start gap-2 text-[12.5px]">
+          <span className="mt-[5px]">
+            <Dot tone={materialTone(p.material_status)} />
+          </span>
+          <span className="min-w-0 leading-snug">{p.material_status}</span>
         </span>
       </Td>
       {/* Single operational column, sourced from the same open Work Items as Company Work. */}
