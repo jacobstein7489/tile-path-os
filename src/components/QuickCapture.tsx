@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Sparkles, Star, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Mic, Sparkles, Star, Trash2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -404,6 +404,72 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const [stubFor, setStubFor] = useState<string | null>(null);
   const [stub, setStub] = useState({ name: "", address: "" });
   const [batchDate, setBatchDate] = useState("");
+  // Quick Note: project + what happened (+ optional owner). Everything else is inferred.
+  const [noteProject, setNoteProject] = useState<string | null>(null);
+  const [noteOwner, setNoteOwner] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [speechOk, setSpeechOk] = useState(false);
+  const recognition = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const Ctor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition ?? null;
+    setSpeechOk(Boolean(Ctor));
+  }, []);
+
+  /** Dictation only fills the box — nothing is created without review. */
+  const toggleMic = () => {
+    const Ctor =
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition ?? null;
+    if (!Ctor) return;
+    if (listening) {
+      recognition.current?.stop();
+      setListening(false);
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.continuous = true;
+    rec.onresult = (e: any) => {
+      let text = "";
+      for (let i = e.resultIndex; i < e.results.length; i += 1) text += e.results[i][0].transcript;
+      setRaw((r) => (r ? `${r.trim()} ${text.trim()}` : text.trim()));
+    };
+    rec.onerror = () => {
+      setListening(false);
+      toast.error("Could not hear that — try again");
+    };
+    rec.onend = () => setListening(false);
+    recognition.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
+  const saveNote = async () => {
+    const text = raw.trim();
+    if (!text) return;
+    const guess = classify(text);
+    await create.mutateAsync([
+      {
+        project_id: noteProject || null,
+        item_type: guess.item_type,
+        title: text.length > 160 ? `${text.slice(0, 157)}…` : text,
+        description: text.length > 160 ? text : null,
+        status: guess.status,
+        next_action: guess.next_action || null,
+        waiting_on: guess.waiting_on || null,
+        owner_user_id: noteOwner,
+        owner: profiles.find((pr) => pr.user_id === noteOwner)?.full_name ?? null,
+      },
+    ]);
+    toast.success("Work item created");
+    setNoteProject(null);
+    setNoteOwner(null);
+    reset();
+    onClose();
+  };
 
   const owners = useMemo(() => profileOptions(profiles), [profiles]);
   const openItems = useMemo(() => feed.filter((i) => !isComplete(i)), [feed]);
@@ -600,14 +666,24 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
           <>
             <Button onClick={closeAll}>Cancel</Button>
             <Button
-              variant="primary"
               onClick={split}
               disabled={!raw.trim()}
               {...(!raw.trim() ? { disabledReason: "Paste or type a note first" } : {})}
             >
               <Sparkles className="size-4" />{" "}
-              {mode === "bulk" ? "Parse into review" : "Split into work items"}
+              {mode === "bulk" ? "Parse into review" : "Split into items"}
             </Button>
+            {mode === "note" ? (
+              <Button
+                variant="primary"
+                onClick={() => void saveNote()}
+                loading={create.isPending}
+                disabled={!raw.trim()}
+                {...(!raw.trim() ? { disabledReason: "Say or type what happened" } : {})}
+              >
+                Save
+              </Button>
+            ) : null}
           </>
         )
       }
@@ -636,12 +712,48 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               </button>
             ))}
           </div>
+          {mode === "note" ? (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Field label="Project">
+                <Combobox
+                  options={[
+                    { value: "", label: "Company / Unassigned" },
+                    ...projects.map((p) => ({ value: p.id, label: p.name })),
+                  ]}
+                  value={noteProject ?? ""}
+                  onChange={(v) => setNoteProject(v || null)}
+                  placeholder="Search projects…"
+                />
+              </Field>
+              <Field label="Owner (optional)">
+                <Combobox
+                  options={owners}
+                  value={noteOwner}
+                  onChange={(v) => setNoteOwner(v ?? null)}
+                  placeholder="Assign later"
+                />
+              </Field>
+            </div>
+          ) : null}
+          {mode === "note" && speechOk ? (
+            <div className="mt-3 flex items-center gap-2">
+              <Button variant={listening ? "danger" : "secondary"} onClick={toggleMic}>
+                <Mic className={cn("size-4", listening && "animate-pulse")} />
+                {listening ? "Stop dictating" : "Dictate"}
+              </Button>
+              <span className="text-[12px] text-muted-foreground">
+                {listening
+                  ? "Listening… speak, then review before saving."
+                  : "Dictate a note — it lands here for review, never saved automatically."}
+              </span>
+            </div>
+          ) : null}
           <Field
-            label={mode === "bulk" ? "Grouped work list" : "Raw note"}
+            label={mode === "bulk" ? "Grouped work list" : "What happened / what needs to happen"}
             hint={
               mode === "bulk"
                 ? "Safest format: start each project with a PROJECT: line and each item with a dash. Freeform grouped pastes still work."
-                : "One line per thing, or just paste the message — we split it for you."
+                : "Save it as one item, or split it into several."
             }
           >
             <TextArea
@@ -651,7 +763,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               placeholder={
                 mode === "bulk"
                   ? "PROJECT: 8-28 Clyde\n- Listelos for Philip — confirm ETA\n- Finish kitchen grout\n\nPROJECT: Coughlin\n- Remaining touch-up / return work"
-                  : "Wilkinson — need to measure master saddle. Contractor still has to finish window opening. Confirm curb was ordered."
+                  : "Call Millie about niche material and confirm ETA"
               }
             />
 
