@@ -1,6 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Filter, Search } from "lucide-react";
+import { ArrowRight, Plus, Search } from "lucide-react";
+import { NewProjectModal } from "@/components/NewProjectModal";
+import { Button } from "@/components/kit";
 import { PageShell } from "@/components/PageShell";
 import { ProgressBar } from "@/components/ProgressBar";
 import { useProjects, type Project } from "@/lib/data";
@@ -32,6 +34,7 @@ function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects();
   const [filter, setFilter] = useState<ProjectFilter>("All");
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const rows = projects.filter(
     (p) =>
@@ -44,6 +47,11 @@ function ProjectsPage() {
       crumbs={[{ label: "Projects" }]}
       title="Projects"
       subtitle="Every project, where it is up to and what must happen next."
+      actions={
+        <Button variant="primary" onClick={() => setCreating(true)}>
+          <Plus className="size-4" /> New Project
+        </Button>
+      }
     >
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -73,12 +81,6 @@ function ProjectsPage() {
               className="h-9 w-[220px] rounded-lg border border-border bg-background pr-3 pl-9 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
             />
           </label>
-          <button
-            type="button"
-            className="flex h-9 items-center gap-2 rounded-lg border border-border bg-background px-3.5 text-[13px] font-medium hover:bg-muted"
-          >
-            <Filter className="size-4" /> Filters
-          </button>
         </div>
       </div>
 
@@ -143,22 +145,21 @@ function ProjectsPage() {
         </table>
         </div>
       </div>
+      <NewProjectModal open={creating} onClose={() => setCreating(false)} />
     </PageShell>
   );
 }
 
 function ProjectRow({ project: p }: { project: Project }) {
   const installing = showsInstallationProgress(p.lifecycle_stage);
+  const navigate = useNavigate();
   return (
-    <tr className="border-b border-border transition-colors last:border-0 hover:bg-muted/50">
+    <tr
+      onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
+      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/50"
+    >
       <td className="table-cell-base whitespace-nowrap">
-        <Link
-          to="/projects/$projectId"
-          params={{ projectId: p.id }}
-          className="text-[13px] font-semibold tracking-tight text-foreground hover:text-primary"
-        >
-          {p.name}
-        </Link>
+        <span className="text-[13px] font-semibold tracking-tight text-foreground">{p.name}</span>
         <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
       </td>
       <td className="table-cell-base">
@@ -213,14 +214,10 @@ function ProjectRow({ project: p }: { project: Project }) {
         )}
       </td>
       <td className="table-cell-base">
-        <Link
-          to="/projects/$projectId"
-          params={{ projectId: p.id }}
-          className="inline-flex w-full max-w-full items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-accent"
-        >
+        <span className="inline-flex w-full max-w-full items-center gap-1.5 rounded-lg border border-primary/25 bg-primary-soft px-2.5 py-1.5 text-xs font-medium text-primary">
           <span className="truncate">{p.next_move ?? "Open project"}</span>
           <ArrowRight className="size-3.5 shrink-0" />
-        </Link>
+        </span>
         {p.next_move_owner ? (
           <div className="mt-1 text-[11px] text-muted-foreground">Owner: {p.next_move_owner}</div>
         ) : null}
