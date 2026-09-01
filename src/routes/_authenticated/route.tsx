@@ -4,19 +4,35 @@ import { AppSidebar } from "@/components/AppSidebar";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    const { data: roles, error: roleError } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", data.user.id)
-      .limit(1);
-    if (roleError || !roles?.length) {
+  /**
+   * Runs on EVERY navigation inside the app, so it must not hit the network.
+   * getSession() reads the local session, and the role check is cached in the
+   * query client instead of re-querying user_roles on each route switch.
+   */
+  beforeLoad: async ({ context }) => {
+    const { data, error } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (error || !user) throw redirect({ to: "/auth" });
+
+    const roles = await context.queryClient.ensureQueryData({
+      queryKey: ["my-roles", user.id],
+      staleTime: 5 * 60 * 1000,
+      queryFn: async () => {
+        const { data: rows, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+        if (roleError) throw roleError;
+        return (rows ?? []).map((r) => r.role);
+      },
+    });
+
+    if (!roles.length) {
       await supabase.auth.signOut();
       throw redirect({ to: "/auth" });
     }
-    return { user: data.user };
+
+    return { user };
   },
   component: AuthenticatedLayout,
 });
