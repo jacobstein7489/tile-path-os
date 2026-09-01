@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronDown, Paperclip } from "lucide-react";
+import { Check, ChevronDown, Paperclip, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
