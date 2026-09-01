@@ -49,7 +49,11 @@ function ProjectShell() {
   }
 
   const stepsDone = project.stage_steps_done ?? [];
-  const activeTab = PROJECT_TABS.find(t => pathname === t.value.replace("$projectId", projectId))?.value ?? PROJECT_TABS[0].value;
+  const firstTab = PROJECT_TABS[0];
+  const activeTab =
+    PROJECT_TABS.find((tab) => pathname === tab.value.replace("$projectId", projectId))?.value ??
+    firstTab?.value ??
+    "/projects/$projectId";
 
   return (
     <>
