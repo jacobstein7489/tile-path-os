@@ -839,7 +839,7 @@ export function WorkList({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search work, owner, next action…"
-                className="w-[260px]"
+                className="w-[200px] min-w-0 lg:w-[260px]"
               />
             ) : null}
             {toolbarRight}
