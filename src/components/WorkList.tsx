@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Plus, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Combobox, EmptyState, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
-import { Highlight, InlineText } from "@/components/InlineEdit";
+import { Highlight } from "@/components/InlineEdit";
 import { profileOptions, useProfiles } from "@/lib/people";
 import {
   compareWorkItems,
