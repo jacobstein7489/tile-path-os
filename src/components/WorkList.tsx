@@ -204,6 +204,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
+  const [filterSheet, setFilterSheet] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Restore the remembered view after hydration (localStorage is client-only).
