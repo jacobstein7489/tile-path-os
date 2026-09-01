@@ -1095,6 +1095,7 @@ export type Database = {
           item_type: string
           next_action: string | null
           owner: string | null
+          owner_user_id: string | null
           priority: string
           project_id: string
           status: string
@@ -1102,6 +1103,9 @@ export type Database = {
           title: string
           updated_at: string
           waiting_on: string | null
+          waiting_on_company_id: string | null
+          waiting_on_contact_id: string | null
+          waiting_on_user_id: string | null
           workflow_step: string | null
         }
         Insert: {
@@ -1116,6 +1120,7 @@ export type Database = {
           item_type: string
           next_action?: string | null
           owner?: string | null
+          owner_user_id?: string | null
           priority?: string
           project_id: string
           status?: string
@@ -1123,6 +1128,9 @@ export type Database = {
           title: string
           updated_at?: string
           waiting_on?: string | null
+          waiting_on_company_id?: string | null
+          waiting_on_contact_id?: string | null
+          waiting_on_user_id?: string | null
           workflow_step?: string | null
         }
         Update: {
@@ -1137,6 +1145,7 @@ export type Database = {
           item_type?: string
           next_action?: string | null
           owner?: string | null
+          owner_user_id?: string | null
           priority?: string
           project_id?: string
           status?: string
@@ -1144,6 +1153,9 @@ export type Database = {
           title?: string
           updated_at?: string
           waiting_on?: string | null
+          waiting_on_company_id?: string | null
+          waiting_on_contact_id?: string | null
+          waiting_on_user_id?: string | null
           workflow_step?: string | null
         }
         Relationships: [
@@ -1166,6 +1178,20 @@ export type Database = {
             columns: ["surface_id"]
             isOneToOne: false
             referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_waiting_on_company_id_fkey"
+            columns: ["waiting_on_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_waiting_on_contact_id_fkey"
+            columns: ["waiting_on_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
