@@ -204,13 +204,21 @@ function ProjectOverview() {
 
       {/* Open Work — the same work_items records as Company Work and Today. */}
       <section className="mt-4">
-        <div className="mb-2.5 flex items-end justify-between gap-4">
+        <div className="mb-2.5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight">Open Work</h2>
             <p className="text-[12.5px] text-muted-foreground">
               The same records the company board and Today use. Completed work stays under the
               Completed filter.
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setCreate("Task")}>
+              <MessageSquarePlus className="size-4" /> Add work item
+            </Button>
+            <Button size="sm" onClick={() => setMaterial(true)}>
+              <Package className="size-4" /> Request material
+            </Button>
           </div>
         </div>
         <WorkList
@@ -223,24 +231,6 @@ function ProjectOverview() {
           emptyNote="Use Add work item or Quick Capture to log what came in from the field."
         />
       </section>
-
-
-      {/* Footer: two actions only — everything else lives on its own tab. */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button onClick={() => setCreate("Task")}>
-          <MessageSquarePlus className="size-4" /> Add work item
-        </Button>
-        <Button variant="primary" onClick={() => setMaterial(true)}>
-          <Package className="size-4" /> Request material
-        </Button>
-        <Link
-          to="/projects/$projectId/scope"
-          params={{ projectId }}
-          className="ml-auto text-[13px] font-semibold text-primary hover:underline"
-        >
-          Open Tiles &amp; Finishes →
-        </Link>
-      </div>
 
       {/* Contextual fact drawers */}
       <Drawer
