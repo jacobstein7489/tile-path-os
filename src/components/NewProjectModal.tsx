@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button, Combobox, Field, InfoBanner, Modal, Select, TextArea, TextInput } from "@/components/kit";
 import { useInsertRow } from "@/lib/data";
 import { useAuthUser } from "@/hooks/useAuth";
@@ -41,6 +43,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
   const saveCompany = useSaveCompany();
   const saveContact = useSaveContact();
   const [form, setForm] = useState(EMPTY);
+  const [more, setMore] = useState(false);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -67,6 +70,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
     })) as { id: string } | null;
     onClose();
     setForm(EMPTY);
+    setMore(false);
     if (row?.id) navigate({ to: "/projects/$projectId", params: { projectId: row.id } });
   };
 
