@@ -135,7 +135,7 @@ function SchedulePage() {
           />
           <KpiCard
             icon={<Flag className="size-5" />}
-            tone="violet"
+            tone="amber"
             label="Jobs Finishing Soon"
             value={finishingSoon.length}
             hint="keep momentum going"

@@ -106,7 +106,7 @@ function ProjectMaterials() {
         />
         <KpiCard
           icon={<Package className="size-5" />}
-          tone="violet"
+          tone="blue"
           label="Needs Action"
           value={attention}
         />
