@@ -22,6 +22,13 @@ Everything more specific ("Price Needed", "Measure saddle", "Waiting for supplie
 Fields shown to users: Project · What needs to happen · Owner · Waiting On · Status ·
 Next Action · (Needed by, only when meaningful).
 
+**Owner** is always an internal user (`owner_user_id`). **Waiting On** is exactly one of
+three references, chosen from one searchable selector:
+`waiting_on_user_id` (internal) · `waiting_on_contact_id` (external person) ·
+`waiting_on_company_id` (external company, when no named person applies — "waiting on
+Home Depot", "waiting on the GC"). A DB check constraint allows at most one to be set.
+
+
 ## 2. Internal model (what the system tracks)
 
 `work_item.kind` (5 values) + `work_item.internal_subtype`, e.g.
