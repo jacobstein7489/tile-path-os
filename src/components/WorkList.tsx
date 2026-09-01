@@ -683,12 +683,11 @@ export function WorkList({
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
                   Needed by
                 </span>
-                <input
-                  type="date"
-                  value={due}
-                  aria-label="Needed by"
-                  onChange={(e) => setDue(e.target.value)}
-                  className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                <DateField
+                  value={due || null}
+                  label="Needed by"
+                  placeholder="No date"
+                  onChange={(v) => setDue(v ?? "")}
                 />
               </div>
               <div>
