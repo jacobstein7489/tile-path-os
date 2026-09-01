@@ -21,6 +21,7 @@ export type Project = {
   next_move_owner: string | null;
   stage_steps_done: string[];
   project_manager: string | null;
+  archived_at?: string | null;
 };
 
 export type Area = {
@@ -68,6 +69,7 @@ export function useProjects() {
       const { data, error } = await supabase
         .from("projects")
         .select("*")
+        .is("archived_at", null)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Project[];
