@@ -4,13 +4,10 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
-  Flag,
-  RefreshCw,
   Users,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button, Field, KpiCard, Modal, SectionCard, Select, TextInput } from "@/components/kit";
+import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
