@@ -24,9 +24,12 @@ import { WorkList } from "@/components/WorkList";
 import {
   compareWorkItems,
   isComplete,
+  matchesTodayFilter,
+  TODAY_FILTERS,
   useWorkFeed,
   type WorkItemRow,
 } from "@/lib/workitems";
+
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
