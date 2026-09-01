@@ -23,8 +23,6 @@ export const WORK_ITEM_TYPES = [
 
 export type WorkItemType = (typeof WORK_ITEM_TYPES)[number];
 
-export const OWNERS = ["Office", "PM", "Site Manager", "Designer", "Crew"] as const;
-
 export const WORK_ITEM_STATUSES = [
   "Open",
   "Waiting",
@@ -42,7 +40,7 @@ export const WORK_ITEM_STATUSES = [
 
 export type WorkItemRow = {
   id: string;
-  project_id: string;
+  project_id: string | null;
   area_id: string | null;
   surface_id: string | null;
   item_type: string;
@@ -64,6 +62,7 @@ export type WorkItemRow = {
   created_by: string | null;
   created_at: string;
   completed_at: string | null;
+  archived_at?: string | null;
   projects?: { name: string } | null;
 };
 
@@ -207,6 +206,11 @@ export function advanceWorkflow(item: WorkItemRow) {
 export const WORK_FILTERS = ["All", "Important", "My Work", "Waiting", "Completed"] as const;
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
+/** Company-level work has no project; label it plainly instead of "—". */
+export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">) {
+  return item.project_id ? (item.projects?.name ?? "Project") : "Company / Unassigned";
+}
+
 export function isComplete(item: WorkItemRow) {
   return item.status === "Complete" || Boolean(item.completed_at);
 }
@@ -281,11 +285,15 @@ export function useWorkFeed() {
     queryFn: async (): Promise<WorkItemRow[]> => {
       const { data, error } = await supabase
         .from("work_items")
-        .select("*, projects!inner(name, archived_at)")
-        .is("projects.archived_at", null)
+        .select("*, projects(name, archived_at)")
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as WorkItemRow[];
+      const rows = (data ?? []) as unknown as (WorkItemRow & {
+        projects?: { name: string; archived_at?: string | null } | null;
+      })[];
+      // Company-level work (no project) always shows; project work hides with its project.
+      return rows.filter((r) => !r.project_id || !r.projects?.archived_at);
     },
   });
 }
@@ -415,7 +423,7 @@ export function useAddWorkNote() {
 }
 
 export type NewWorkItem = {
-  project_id: string;
+  project_id: string | null;
   item_type: string;
   title: string;
   description?: string | null;

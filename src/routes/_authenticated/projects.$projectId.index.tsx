@@ -20,7 +20,8 @@ import {
   TextArea,
 } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
-import type { WorkItemRow } from "@/lib/workitems";
+import { WorkList } from "@/components/WorkList";
+import { useWorkFeed, type WorkItemRow } from "@/lib/workitems";
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
@@ -31,8 +32,6 @@ import {
   useAreasWithSurfaces,
   useProject,
   useUpdateProject,
-  useWorkItems,
-  type WorkItemFull,
 } from "@/lib/data";
 import { useCrews } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
@@ -67,7 +66,7 @@ function ProjectOverview() {
   const { projectId } = Route.useParams();
   const { data: project } = useProject(projectId);
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
-  const { data: items = [] } = useWorkItems(projectId);
+  const { data: feed = [] } = useWorkFeed();
   const { data: profiles = [] } = useProfiles();
   const { data: crews = [] } = useCrews();
   const { canEdit } = useCanEditProject(projectId);
@@ -82,8 +81,7 @@ function ProjectOverview() {
   const areaList = areas.data ?? [];
   const surfaceList = surfaces.data ?? [];
   const installing = showsInstallationProgress(project.lifecycle_stage);
-  const open = (items as WorkItemFull[]).filter((i) => i.status !== "Complete");
-  const blockers = open.filter((i) => ["Issue", "Question", "Decision"].includes(i.item_type));
+  const projectWork = feed.filter((i) => i.project_id === projectId);
   const headline = installing ? project.installation_progress : project.readiness_pct;
   const nameOf = (userId?: string | null) =>
     profiles.find((p) => p.user_id === userId)?.full_name ?? null;
@@ -176,8 +174,8 @@ function ProjectOverview() {
         </div>
       </button>
 
-      {/* Where the job stands + what is holding it up */}
-      <div className="mt-4 grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-start gap-4">
+      {/* Where the job stands */}
+      <div className="mt-4">
         <SectionCard
           title="Area status"
           subtitle="Surface progress rolls up to the area, then to the project."
@@ -202,48 +200,30 @@ function ProjectOverview() {
             />
           ) : null}
         </SectionCard>
-
-        <SectionCard
-          title="What is holding it up"
-          badge={<Chip tone={blockers.length ? "red" : "green"}>{blockers.length}</Chip>}
-          bodyClassName="divide-y divide-border"
-        >
-          {blockers.length === 0 ? (
-            <EmptyState title="Nothing blocking" note="Questions, issues and needs appear here." />
-          ) : (
-            blockers.slice(0, 3).map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                onClick={() => setOpenItem(i as unknown as WorkItemRow)}
-                className={cn(
-                  "flex w-full items-start gap-3 px-5 py-3 text-left transition-colors duration-100 hover:bg-muted/50",
-                  openItem?.id === i.id && "bg-primary-soft/60",
-                )}
-              >
-                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold">{i.title}</span>
-                  <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                    {i.waiting_on ? `Waiting on ${i.waiting_on} · ` : ""}
-                    {i.next_action ?? "No next action set"}
-                  </span>
-                </span>
-                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              </button>
-            ))
-          )}
-          {open.length > blockers.length || blockers.length > 3 ? (
-            <Link
-              to="/projects/$projectId/field"
-              params={{ projectId }}
-              className="block px-5 py-2.5 text-[12.5px] font-semibold text-primary hover:underline"
-            >
-              See all {open.length} open items →
-            </Link>
-          ) : null}
-        </SectionCard>
       </div>
+
+      {/* Open Work — the same work_items records as Company Work and Today. */}
+      <section className="mt-4">
+        <div className="mb-2.5 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-tight">Open Work</h2>
+            <p className="text-[12.5px] text-muted-foreground">
+              The same records the company board and Today use. Completed work stays under the
+              Completed filter.
+            </p>
+          </div>
+        </div>
+        <WorkList
+          items={projectWork}
+          onOpen={setOpenItem}
+          showProjectColumn={false}
+          showViewToggle={false}
+          showSearch={false}
+          emptyTitle="Nothing open on this project"
+          emptyNote="Use Add work item or Quick Capture to log what came in from the field."
+        />
+      </section>
+
 
       {/* Footer: two actions only — everything else lives on its own tab. */}
       <div className="mt-4 flex flex-wrap items-center gap-2">

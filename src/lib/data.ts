@@ -150,6 +150,7 @@ export function useWorkItems(projectId: string) {
         .from("work_items")
         .select("*")
         .eq("project_id", projectId)
+        .is("archived_at", null)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as WorkItem[];

@@ -3,7 +3,8 @@ import { Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
 import { profileOptions, useProfiles } from "@/lib/people";
-import { useProjects } from "@/lib/data";
+import { useInsertRow, useProjects } from "@/lib/data";
+import { useAuthUser } from "@/hooks/useAuth";
 import {
   useCreateWorkItems,
   WORK_ITEM_STATUSES,
@@ -88,13 +89,43 @@ function stripProject(line: string, name?: string) {
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: projects = [] } = useProjects();
   const { data: profiles = [] } = useProfiles();
+  const { user } = useAuthUser();
   const create = useCreateWorkItems();
+  const insertProject = useInsertRow("projects");
   const [raw, setRaw] = useState("");
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  // Inline project stub creation during review: name (+ optional address) only.
+  const [stubFor, setStubFor] = useState<string | null>(null);
+  const [stub, setStub] = useState({ name: "", address: "" });
 
   const reset = () => {
     setRaw("");
     setDrafts(null);
+    setStubFor(null);
+    setStub({ name: "", address: "" });
+  };
+
+  /** A stub is a real project with only a name/address — full setup happens later. */
+  const createStub = async (key: string) => {
+    const name = stub.name.trim();
+    if (name.length < 2) {
+      toast.error("Give the project a name or address");
+      return;
+    }
+    const row = (await insertProject.mutateAsync({
+      name,
+      address: stub.address.trim() || null,
+      project_type: "New Job",
+      lifecycle_stage: "New Submission",
+      created_by: user?.id ?? null,
+      intake_notes: "Created as a stub from Quick Capture. Details to be completed.",
+    })) as { id: string } | null;
+    if (row?.id) {
+      update(key, { project_id: row.id });
+      toast.success(`Project stub "${name}" created`);
+    }
+    setStubFor(null);
+    setStub({ name: "", address: "" });
   };
 
   const split = () => {
@@ -141,9 +172,9 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const saveAll = async () => {
     if (!drafts) return;
     const rows: NewWorkItem[] = drafts
-      .filter((d) => d.project_id && d.title.trim())
+      .filter((d) => d.title.trim())
       .map((d) => ({
-        project_id: d.project_id,
+        project_id: d.project_id || null,
         item_type: d.item_type,
         title: d.title.trim(),
         owner: d.owner || null,
@@ -154,7 +185,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
         due_date: d.due_date || null,
       }));
     if (!rows.length) {
-      toast.error("Each item needs a project and a summary");
+      toast.error("Each item needs a summary");
       return;
     }
     await create.mutateAsync(rows);
@@ -163,7 +194,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     onClose();
   };
 
-  const valid = Boolean(drafts?.some((d) => d.project_id && d.title.trim()));
+  const valid = Boolean(drafts?.some((d) => d.title.trim()));
 
   return (
     <Modal
@@ -183,7 +214,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               variant="primary"
               onClick={saveAll}
               disabled={!valid || create.isPending}
-              {...(!valid ? { disabledReason: "Each item needs a project and a summary" } : {})}
+              {...(!valid ? { disabledReason: "Each item needs a summary" } : {})}
             >
               {create.isPending ? "Saving…" : `Create ${drafts.length} work item${drafts.length > 1 ? "s" : ""}`}
             </Button>
@@ -249,14 +280,22 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                 <Field label="Project">
                   <Select
                     value={d.project_id}
-                    onChange={(e) => update(d.key, { project_id: e.target.value })}
+                    onChange={(e) => {
+                      if (e.target.value === "__stub__") {
+                        setStubFor(d.key);
+                        return;
+                      }
+                      setStubFor((s) => (s === d.key ? null : s));
+                      update(d.key, { project_id: e.target.value });
+                    }}
                   >
-                    <option value="">Select project…</option>
+                    <option value="">Company / Unassigned</option>
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>
                     ))}
+                    <option value="__stub__">+ Create project stub…</option>
                   </Select>
                 </Field>
                 <Field label="Type">
@@ -304,8 +343,38 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                   />
                 </Field>
               </div>
+
+              {stubFor === d.key ? (
+                <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2 rounded-lg border border-dashed border-border bg-background p-2.5">
+                  <Field label="New project name">
+                    <TextInput
+                      value={stub.name}
+                      onChange={(e) => setStub((v) => ({ ...v, name: e.target.value }))}
+                      placeholder="118 Park Place"
+                    />
+                  </Field>
+                  <Field label="Address (optional)">
+                    <TextInput
+                      value={stub.address}
+                      onChange={(e) => setStub((v) => ({ ...v, address: e.target.value }))}
+                      placeholder="Street, town"
+                    />
+                  </Field>
+                  <Button
+                    variant="primary"
+                    loading={insertProject.isPending}
+                    onClick={() => void createStub(d.key)}
+                  >
+                    Create stub
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ))}
+          <p className="text-[12px] text-muted-foreground">
+            Customer, GC and full setup are not required now — leave them blank and clean them up
+            later. Administrative work can stay on Company / Unassigned.
+          </p>
         </div>
       )}
     </Modal>
