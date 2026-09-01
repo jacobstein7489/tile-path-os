@@ -229,11 +229,12 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     blankBefore = false;
     seenContent = true;
 
+    const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
     const match = matchProjectHeading(clean, projects);
     // A confident project name on its own line is always a heading; otherwise the
     // structural test decides, so unknown names still open their own section.
     const isHeading =
-      (match.id && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
+      (match.id && !indented && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
       looksLikeHeading(original, clean, indentMode, startsBlock);
 
     if (isHeading) {
