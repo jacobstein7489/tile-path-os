@@ -78,7 +78,11 @@ function CompanyWorkPage() {
   const { data: profiles = [] } = useProfiles();
   const save = useSaveWorkItem();
 
-  const [view, setView] = useState<View>("List");
+  // An import lands here with ?view=grouped so the new work is grouped by project.
+  const { view: viewParam } = Route.useSearch();
+  const [view, setView] = useState<View>(
+    viewParam === "grouped" ? "Grouped by Project" : "List",
+  );
   const [filter, setFilter] = useState<WorkFilter>("All");
   const [search, setSearch] = useState("");
   const [capture, setCapture] = useState(false);
