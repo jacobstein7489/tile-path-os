@@ -15,7 +15,7 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
-import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
+import { ROLE_LABELS, useAuthUser, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -39,6 +39,7 @@ function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
+  const { data: roles = [] } = useMyRoles();
   const save = useSaveWorkItem();
   const [active, setActive] = useState<WorkItemRow | null>(null);
   const [capture, setCapture] = useState(false);
@@ -83,7 +84,7 @@ function TodayPage() {
 
   return (
     <>
-      <AppHeader crumbs={[{ label: "Today" }]} viewLabel="SITE MANAGER VIEW" />
+      <AppHeader crumbs={[{ label: "Today" }]} viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`} />
       <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
         <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">
           Good morning, {profile?.full_name?.split(" ")[0] || "there"}
@@ -131,6 +132,8 @@ function TodayPage() {
                         className={cn(
                           "group flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
                           done && "bg-success-soft/40",
+                          active?.id === i.id &&
+                            "bg-primary-soft/60 ring-1 ring-inset ring-primary/30",
                         )}
                       >
                         <Checkbox checked={done} onChange={(next) => toggle(i, next)} />
@@ -182,7 +185,10 @@ function TodayPage() {
                   {completed.map((i) => (
                     <li
                       key={i.id}
-                      className="group flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
+                      className={cn(
+                        "group flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40",
+                        active?.id === i.id && "bg-primary-soft/60",
+                      )}
                     >
                       <Checkbox checked onChange={() => toggle(i, false)} />
                       <button
