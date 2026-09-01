@@ -203,27 +203,38 @@ export function advanceWorkflow(item: WorkItemRow) {
 
 /* ---------------- Buckets & tones ---------------- */
 
-export const WORK_FILTERS = ["Open", "Needs Action", "Waiting", "Upcoming", "Completed"] as const;
+export const WORK_FILTERS = ["All", "Important", "My Work", "Waiting", "Completed"] as const;
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
 export function isComplete(item: WorkItemRow) {
   return item.status === "Complete" || Boolean(item.completed_at);
 }
 
-export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow) {
+export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow, userId?: string | null) {
   const done = isComplete(item);
   switch (filter) {
     case "Completed":
       return done;
-    case "Open":
+    case "All":
       return !done;
+    case "Important":
+      return !done && Boolean(item.is_important);
+    case "My Work":
+      return !done && Boolean(userId) && item.owner_user_id === userId;
     case "Waiting":
       return !done && (Boolean(item.waiting_on) || item.status === "Waiting");
-    case "Needs Action":
-      return !done && !item.waiting_on && item.status !== "Waiting";
-    case "Upcoming":
-      return !done && Boolean(item.due_date);
   }
+}
+
+/** Starred work first, then earliest needed-by, then newest. */
+export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
+  if (Boolean(a.is_important) !== Boolean(b.is_important)) return a.is_important ? -1 : 1;
+  if (a.due_date !== b.due_date) {
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date < b.due_date ? -1 : 1;
+  }
+  return a.created_at < b.created_at ? 1 : -1;
 }
 
 export function statusTone(status: string): ChipTone {
