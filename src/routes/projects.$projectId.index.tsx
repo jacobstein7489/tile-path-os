@@ -21,6 +21,8 @@ import {
   Td,
   Th,
 } from "@/components/kit";
+import { WorkItemDrawer } from "@/components/WorkItemDrawer";
+import type { WorkItemRow } from "@/lib/workitems";
 import { CreateWorkItemModal, RequestMaterialModal, type WorkItemKind } from "@/components/WorkItemDialogs";
 import { showsInstallationProgress } from "@/lib/lifecycle";
 import {
@@ -64,6 +66,7 @@ function ProjectOverview() {
   const updateItem = useUpdateRow("work_items");
   const [create, setCreate] = useState<WorkItemKind | null>(null);
   const [material, setMaterial] = useState(false);
+  const [openItem, setOpenItem] = useState<WorkItemRow | null>(null);
 
   if (!project) return null;
 
@@ -226,7 +229,11 @@ function ProjectOverview() {
             </thead>
             <tbody>
               {open.map((i) => (
-                <tr key={i.id} className="border-t border-border">
+                <tr
+                  key={i.id}
+                  onClick={() => setOpenItem(i as unknown as WorkItemRow)}
+                  className="cursor-pointer border-t border-border transition-colors hover:bg-muted/50"
+                >
                   <Td>
                     <Chip tone={workItemTone(i.item_type)}>{i.item_type}</Chip>
                   </Td>
@@ -243,12 +250,13 @@ function ProjectOverview() {
                   <Td className="text-right">
                     <Button
                       size="sm"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
                         updateItem.mutate({
                           id: i.id,
                           patch: { status: "Complete", completed_at: new Date().toISOString() },
-                        })
-                      }
+                        });
+                      }}
                     >
                       <CheckCircle2 className="size-3.5" /> Resolve
                     </Button>
@@ -275,13 +283,14 @@ function ProjectOverview() {
           params={{ projectId }}
           className="ml-auto text-[13px] font-semibold text-primary hover:underline"
         >
-          Open Scope &amp; Details →
+          Open Tiles &amp; Finishes →
         </Link>
       </div>
 
       {create ? (
         <CreateWorkItemModal open onClose={() => setCreate(null)} kind={create} projectId={projectId} />
       ) : null}
+      <WorkItemDrawer item={openItem} onClose={() => setOpenItem(null)} />
       <RequestMaterialModal open={material} onClose={() => setMaterial(false)} projectId={projectId} />
     </>
   );

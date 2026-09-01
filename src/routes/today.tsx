@@ -1,19 +1,23 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Clock, FileEdit, HelpCircle, ListChecks, Package } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { AlertTriangle, CheckCircle2, Clock, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
+import { QuickCapture } from "@/components/QuickCapture";
+import { WorkItemDrawer } from "@/components/WorkItemDrawer";
+import { Button, Checkbox, EmptyState, KpiCard, SectionCard } from "@/components/kit";
+import { Chip } from "@/lib/status";
 import {
-  Button,
-  Checkbox,
-  QuickActionButton,
-  SectionCard,
-  Table,
-  Td,
-  Th,
-} from "@/components/kit";
-import { CreateWorkItemModal, RequestMaterialModal, type WorkItemKind } from "@/components/WorkItemDialogs";
-import { Chip, type ChipTone } from "@/lib/status";
-import { useAllWorkItems, useProjects, useUpdateRow, type WorkItemFull } from "@/lib/data";
+  isComplete,
+  statusTone,
+  useSaveWorkItem,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
+import { cn } from "@/lib/utils";
+
+/** Current user. Later this comes from auth; every user reads the same records. */
+const ME = { name: "Yaakov", role: "Site Manager" };
 
 export const Route = createFileRoute("/today")({
   head: () => ({
@@ -21,13 +25,11 @@ export const Route = createFileRoute("/today")({
       { title: "Today — Cobblestone Tile OS" },
       {
         name: "description",
-        content: "Your owned tasks, questions and material needs that must move today.",
+        content:
+          "Your work for today: the work items you own, their status and the next action for each one.",
       },
       { property: "og:title", content: "Today — Cobblestone Tile OS" },
-      {
-        property: "og:description",
-        content: "Tasks, questions and material needs assigned to you today.",
-      },
+      { property: "og:description", content: "The work items you own today and the next action." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -35,218 +37,189 @@ export const Route = createFileRoute("/today")({
   component: TodayPage,
 });
 
-function priorityTone(p: string): ChipTone {
-  return p === "High" ? "red" : p === "Medium" ? "amber" : "neutral";
-}
-
 function TodayPage() {
-  const { data: items = [], isLoading } = useAllWorkItems();
-  const { data: projects = [] } = useProjects();
-  const updateItem = useUpdateRow("work_items");
-  const [dialog, setDialog] = useState<WorkItemKind | "material" | null>(null);
+  const { data: items = [], isLoading } = useWorkFeed();
+  const save = useSaveWorkItem();
+  const [active, setActive] = useState<WorkItemRow | null>(null);
+  const [capture, setCapture] = useState(false);
+  const [justDone, setJustDone] = useState<Record<string, boolean>>({});
 
-  const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? "Project";
+  const mine = useMemo(() => items.filter((i) => i.owner === ME.role), [items]);
+  const open = mine.filter((i) => !isComplete(i) || justDone[i.id]);
+  const completed = mine.filter((i) => isComplete(i) && !justDone[i.id]);
+  const blocked = mine.filter((i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"));
 
-  const open = items.filter((i) => i.status !== "Complete");
-  const completed = items.filter((i) => i.status === "Complete");
-  const blocked = open.filter((i) => i.status === "Waiting");
+  useEffect(() => {
+    const keys = Object.keys(justDone);
+    if (!keys.length) return;
+    const t = setTimeout(() => setJustDone({}), 4500);
+    return () => clearTimeout(t);
+  }, [justDone]);
 
-  const toggleComplete = (item: WorkItemFull) =>
-    updateItem.mutate({
+  const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
+
+  const toggle = async (item: WorkItemRow, next: boolean) => {
+    await save.mutateAsync({
       id: item.id,
-      patch:
-        item.status === "Complete"
-          ? { status: "Open", completed_at: null }
-          : { status: "Complete", completed_at: new Date().toISOString() },
+      patch: next
+        ? { status: "Complete", completed_at: new Date().toISOString() }
+        : { status: "Open", completed_at: null },
+      note: next ? "Marked complete" : "Reopened",
     });
+    if (next) {
+      setJustDone((s) => ({ ...s, [item.id]: true }));
+      toast.success("Marked complete");
+    } else {
+      setJustDone((s) => {
+        const { [item.id]: _drop, ...rest } = s;
+        return rest;
+      });
+      toast.success("Item restored");
+    }
+  };
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} viewLabel="SITE MANAGER VIEW" />
-      <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
-        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">
-          Good morning, Yaakov
-        </h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">Here is your work for today.</p>
+      <div className="mx-auto max-w-[1400px] px-8 pt-8 pb-16">
+        <h1 className="text-[30px] leading-tight font-bold">Good morning, {ME.name}</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
 
-        <div className="mt-6 grid grid-cols-[minmax(0,1fr)_300px] items-start gap-6">
-          <div className="space-y-5">
-            <div className="surface grid grid-cols-3 divide-x divide-border">
-              <SummaryCell
+        <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
+          <div className="space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <KpiCard
                 icon={<CheckCircle2 className="size-5" />}
                 tone="green"
                 label="Completed"
                 value={completed.length}
               />
-              <SummaryCell
+              <KpiCard
                 icon={<Clock className="size-5" />}
                 tone="blue"
                 label="Remaining"
-                value={open.length}
+                value={open.filter((i) => !isComplete(i)).length}
               />
-              <SummaryCell
+              <KpiCard
                 icon={<AlertTriangle className="size-5" />}
                 tone="amber"
-                label="Blocked"
+                label="Waiting"
                 value={blocked.length}
               />
             </div>
 
-            <SectionCard title="Today's Visit &amp; To-Do List" bodyClassName="pb-2">
-              <Table>
-                <thead>
-                  <tr>
-                    <Th className="w-9" />
-                    <Th className="w-[170px]">Project</Th>
-                    <Th>Task Summary</Th>
-                    <Th className="w-[130px]">Priority / Status</Th>
-                    <Th className="w-[170px]">Next Action</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <Td colSpan={5} className="text-muted-foreground">
-                        Loading work items…
-                      </Td>
-                    </tr>
-                  ) : null}
-                  {open.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/40">
-                      <Td>
-                        <Checkbox checked={false} onChange={() => toggleComplete(item)} />
-                      </Td>
-                      <Td>
-                        <Link
-                          to="/projects/$projectId"
-                          params={{ projectId: item.project_id }}
-                          className="font-semibold text-primary hover:underline"
+            <SectionCard title="Today's work" subtitle="The same records the company sees.">
+              {isLoading ? (
+                <div className="px-5 py-8 text-[13px] text-muted-foreground">Loading…</div>
+              ) : open.length === 0 ? (
+                <EmptyState
+                  title="You're clear"
+                  note="Nothing assigned to you is open right now."
+                />
+              ) : (
+                <ul className="divide-y divide-border/70">
+                  {open.map((i) => {
+                    const done = isComplete(i);
+                    return (
+                      <li
+                        key={i.id}
+                        className={cn(
+                          "flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
+                          done && "bg-success-soft/40",
+                        )}
+                      >
+                        <Checkbox checked={done} onChange={(next) => toggle(i, next)} />
+                        <button
+                          type="button"
+                          onClick={() => setActive(i)}
+                          className="flex min-w-0 flex-1 items-center gap-4 text-left"
                         >
-                          {projectName(item.project_id)}
-                        </Link>
-                      </Td>
-                      <Td className="text-secondary-foreground">{item.title}</Td>
-                      <Td>
-                        <Chip tone={priorityTone(item.priority)}>
-                          {item.status === "Waiting" ? `Waiting · ${item.priority}` : item.priority}
-                        </Chip>
-                      </Td>
-                      <Td>
-                        <Link
-                          to="/projects/$projectId"
-                          params={{ projectId: item.project_id }}
-                          className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
-                        >
-                          {item.next_action ?? "Open project"} <span aria-hidden>→</span>
-                        </Link>
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-
-              <div className="border-t border-border px-5 pt-4 pb-1">
-                <div className="flex items-center gap-2 text-[14px] font-semibold">
-                  <CheckCircle2 className="size-[18px] text-success" />
-                  Completed ({completed.length})
-                </div>
-              </div>
-              <Table>
-                <tbody>
-                  {completed.map((item) => (
-                    <tr key={item.id}>
-                      <Td className="w-9">
-                        <Checkbox checked onChange={() => toggleComplete(item)} />
-                      </Td>
-                      <Td className="w-[170px]">
-                        <Link
-                          to="/projects/$projectId"
-                          params={{ projectId: item.project_id }}
-                          className="font-semibold text-muted-foreground line-through hover:underline"
-                        >
-                          {projectName(item.project_id)}
-                        </Link>
-                      </Td>
-                      <Td className="text-muted-foreground line-through">{item.title}</Td>
-                      <Td className="w-[130px]">
-                        <Chip>{item.priority}</Chip>
-                      </Td>
-                      <Td className="w-[170px] font-semibold text-success">✓ Completed</Td>
-                    </tr>
-                  ))}
-                  {completed.length === 0 ? (
-                    <tr>
-                      <Td colSpan={5} className="text-muted-foreground">
-                        Nothing completed yet today.
-                      </Td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </Table>
+                          <span className="w-[150px] shrink-0 truncate text-[13px] font-semibold text-primary">
+                            {i.projects?.name ?? "—"}
+                          </span>
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1 truncate text-[13px]",
+                              done && "text-muted-foreground line-through",
+                            )}
+                          >
+                            {i.title}
+                          </span>
+                          <span className="shrink-0">
+                            <Chip tone={statusTone(i.status)}>{i.status}</Chip>
+                          </span>
+                          <span className="w-[160px] shrink-0 truncate text-right text-[13px] font-medium text-primary">
+                            {done ? "" : (i.next_action ?? "Open item")}
+                          </span>
+                        </button>
+                        {done ? (
+                          <span className="flex shrink-0 items-center gap-2 text-[12.5px] font-semibold text-success">
+                            Completed
+                            <button
+                              type="button"
+                              onClick={() => toggle(i, false)}
+                              className="text-primary underline"
+                            >
+                              Undo
+                            </button>
+                          </span>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </SectionCard>
+
+            {completed.length ? (
+              <SectionCard title={`Completed (${completed.length})`}>
+                <ul className="divide-y divide-border/70">
+                  {completed.map((i) => (
+                    <li
+                      key={i.id}
+                      className="flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
+                    >
+                      <Checkbox checked onChange={() => toggle(i, false)} />
+                      <button
+                        type="button"
+                        onClick={() => setActive(i)}
+                        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                      >
+                        <span className="w-[150px] shrink-0 truncate text-[13px] font-medium text-muted-foreground line-through">
+                          {i.projects?.name ?? "—"}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground line-through">
+                          {i.title}
+                        </span>
+                        <span className="shrink-0 text-[12.5px] font-semibold text-success">
+                          ✓ Completed
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </SectionCard>
+            ) : null}
           </div>
 
-          <SectionCard title="Quick Actions" bodyClassName="space-y-3 px-4 pb-4">
-            <QuickActionButton
-              icon={<FileEdit className="size-[18px]" />}
-              label="Add Site Update"
-              onClick={() => setDialog("Field Update")}
-            />
-            <QuickActionButton
-              icon={<ListChecks className="size-[18px]" />}
-              label="Create Task"
-              onClick={() => setDialog("Task")}
-            />
-            <QuickActionButton
-              icon={<HelpCircle className="size-[18px]" />}
-              label="Create Question"
-              onClick={() => setDialog("Question")}
-            />
-            <QuickActionButton
-              icon={<Package className="size-[18px]" />}
-              label="Request Material"
-              onClick={() => setDialog("material")}
-            />
-            <Button className="w-full" onClick={() => setDialog("Issue")}>
-              Log an issue
-            </Button>
-          </SectionCard>
+          <aside className="space-y-3">
+            <SectionCard title="Quick Actions">
+              <div className="space-y-2.5 px-4 pt-1 pb-4">
+                <Button variant="primary" className="w-full" onClick={() => setCapture(true)}>
+                  <Plus className="size-4" /> Quick Capture
+                </Button>
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  Log anything from a site visit, call or message. It becomes a real work item on the
+                  company board and on the project.
+                </p>
+              </div>
+            </SectionCard>
+          </aside>
         </div>
       </div>
 
-      <RequestMaterialModal open={dialog === "material"} onClose={() => setDialog(null)} />
-      {dialog && dialog !== "material" ? (
-        <CreateWorkItemModal open onClose={() => setDialog(null)} kind={dialog} />
-      ) : null}
+      <QuickCapture open={capture} onClose={() => setCapture(false)} />
+      <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
     </>
-  );
-}
-
-function SummaryCell({
-  icon,
-  tone,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  tone: "green" | "blue" | "amber";
-  label: string;
-  value: number;
-}) {
-  const ring =
-    tone === "green"
-      ? "bg-success-soft text-success"
-      : tone === "blue"
-        ? "bg-info-soft text-info"
-        : "bg-warning-soft text-warning";
-  const text = tone === "green" ? "text-success" : tone === "blue" ? "text-info" : "text-warning";
-  return (
-    <div className="flex items-center gap-4 px-6 py-5">
-      <span className={`grid size-11 shrink-0 place-items-center rounded-full ${ring}`}>{icon}</span>
-      <div>
-        <div className="text-[13px] font-medium text-secondary-foreground">{label}</div>
-        <div className={`text-[28px] leading-[1.1] font-semibold ${text}`}>{value}</div>
-      </div>
-    </div>
   );
 }

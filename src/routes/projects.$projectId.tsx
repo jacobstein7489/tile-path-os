@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { MapPin, User } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
+import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { useProject, useUpdateProject } from "@/lib/data";
 import { Chip, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -12,9 +13,9 @@ export const Route = createFileRoute("/projects/$projectId")({
 
 const PROJECT_TABS = [
   { label: "Overview", to: "/projects/$projectId" as const },
-  { label: "Scope & Details", to: "/projects/$projectId/scope" as const },
+  { label: "Tiles & Finishes", to: "/projects/$projectId/scope" as const },
   { label: "Field", to: "/projects/$projectId/field" as const },
-  { label: "Materials", to: "/projects/$projectId/materials" as const },
+  { label: "Install Materials", to: "/projects/$projectId/materials" as const },
   { label: "Files", to: "/projects/$projectId/files" as const },
 ];
 
@@ -79,9 +80,8 @@ function ProjectShell() {
             <Chip tone={materialTone(project.material_status)}>
               Materials: {project.material_status}
             </Chip>
-            {project.project_manager ? (
-              <Chip>PM: {project.project_manager}</Chip>
-            ) : null}
+            {project.project_manager ? <Chip>PM: {project.project_manager}</Chip> : null}
+            <ProjectMoreMenu project={project} />
           </div>
         </div>
 

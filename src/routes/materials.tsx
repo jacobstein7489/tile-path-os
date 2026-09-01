@@ -38,9 +38,9 @@ import {
 
 const TABS = [
   { value: "needs", label: "Needs Attention" },
-  { value: "finish", label: "Finish Tile" },
-  { value: "grout", label: "Grout & Metals" },
-  { value: "install", label: "Installation Materials" },
+  { value: "install", label: "Install Materials" },
+  { value: "finish", label: "Tiles & Finishes (linked)" },
+  { value: "grout", label: "Grout & Metals (linked)" },
   { value: "receiving", label: "Receiving" },
 ];
 
@@ -55,13 +55,13 @@ export const Route = createFileRoute("/materials")({
   }),
   head: () => ({
     meta: [
-      { title: "Materials — Cobblestone Tile OS" },
+      { title: "Install Materials — Cobblestone Tile OS" },
       {
         name: "description",
         content:
           "Track finish tile, grout, metals and installation materials, purchase orders and receiving.",
       },
-      { property: "og:title", content: "Materials — Cobblestone Tile OS" },
+      { property: "og:title", content: "Install Materials — Cobblestone Tile OS" },
       {
         property: "og:description",
         content: "Finish and installation materials, purchase orders and receiving.",
@@ -105,13 +105,13 @@ function MaterialsPage() {
 
   return (
     <>
-      <AppHeader crumbs={[{ label: "Materials" }]} />
+      <AppHeader crumbs={[{ label: "Install Materials" }]} />
       <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Materials</h1>
+            <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Install Materials</h1>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
-              Track installation materials, tile, grout and metal for every job and area.
+              Cobblestone installation supplies — thinset, mortar, primer, membrane, leveling and consumables. Tile, grout and metal selections live on the project under Tiles & Finishes and are linked here.
             </p>
           </div>
           <div className="flex items-center gap-2.5">
