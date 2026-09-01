@@ -83,7 +83,11 @@ function SettingsPage() {
       title="Settings"
       subtitle="People, roles, companies, contacts and crews — the libraries every other screen selects from."
     >
-      <UnderlineTabs tabs={[...TABS]} value={tab} onChange={setTab} />
+      <UnderlineTabs
+        items={TABS.map((t) => ({ value: t, label: t }))}
+        value={tab}
+        onChange={setTab}
+      />
       {!perms.canAdminData ? (
         <InfoBanner>
           You can view these libraries. Editing people, roles and companies is limited to
@@ -312,7 +316,7 @@ function CompaniesTab({ canEdit }: { canEdit: boolean }) {
       <SectionCard
         title="Companies"
         subtitle="Customers, general contractors, designers, suppliers and installers."
-        action={
+        actions={
           canEdit ? (
             <Button variant="primary" onClick={() => setEditing("new")}>
               <Plus className="size-3.5" /> New company
@@ -500,7 +504,7 @@ function ContactsTab({ canEdit }: { canEdit: boolean }) {
       <SectionCard
         title="Contacts"
         subtitle="People outside the company — the ones a job can be waiting on."
-        action={
+        actions={
           canEdit ? (
             <Button variant="primary" onClick={() => setEditing("new")}>
               <Plus className="size-3.5" /> New contact
@@ -682,7 +686,7 @@ function CrewsTab({ canEdit }: { canEdit: boolean }) {
       <SectionCard
         title="Install crews"
         subtitle="Crew lanes on the weekly schedule."
-        action={
+        actions={
           canEdit ? (
             <Button
               variant="primary"
@@ -758,7 +762,7 @@ function CrewsTab({ canEdit }: { canEdit: boolean }) {
                     initials: (open.initials || open.name.slice(0, 2)).toUpperCase(),
                     tone: open.tone,
                   };
-                  if (open.id) await update.mutateAsync({ id: open.id, values });
+                  if (open.id) await update.mutateAsync({ id: open.id, patch: values });
                   else await insert.mutateAsync(values);
                   setOpen(null);
                 }}
