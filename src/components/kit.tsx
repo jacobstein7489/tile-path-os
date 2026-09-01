@@ -733,7 +733,7 @@ export function Avatar({
       style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
       className={cn(
         "inline-grid shrink-0 place-items-center rounded-full font-bold",
-        tones[tone] ?? tones.blue,
+        tones[tone] ?? tones["blue"],
       )}
     >
       {initials || "?"}
