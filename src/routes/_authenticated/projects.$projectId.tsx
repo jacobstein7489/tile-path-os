@@ -42,6 +42,8 @@ function ProjectShell() {
   const { data: project, isLoading } = useProject(projectId);
   const update = useUpdateProject(projectId);
   const { canEdit } = useCanEditProject(projectId);
+  const { data: profiles = [] } = useProfiles();
+  const { data: workItems = [] } = useWorkItems(projectId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (isLoading) {
