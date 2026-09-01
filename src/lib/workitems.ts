@@ -55,6 +55,7 @@ export type WorkItemRow = {
   waiting_on_contact_id: string | null;
   waiting_on_company_id: string | null;
   status: string;
+  is_important: boolean;
   due_date: string | null;
   priority: string;
   impact: string | null;
