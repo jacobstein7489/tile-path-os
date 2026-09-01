@@ -21,7 +21,12 @@ import {
 } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { useWorkFeed, type WorkItemRow } from "@/lib/workitems";
+import {
+  compareWorkItems,
+  isComplete,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
