@@ -81,7 +81,7 @@ function TodayPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} viewLabel="SITE MANAGER VIEW" />
-      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
         <h1 className="text-[30px] leading-tight font-bold">Good morning, {ME.name}</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
 
@@ -124,7 +124,7 @@ function TodayPage() {
                       <li
                         key={i.id}
                         className={cn(
-                          "flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
+                          "group flex items-center gap-4 px-5 py-3 transition-colors hover:bg-muted/40",
                           done && "bg-success-soft/40",
                         )}
                       >
@@ -177,7 +177,7 @@ function TodayPage() {
                   {completed.map((i) => (
                     <li
                       key={i.id}
-                      className="flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
+                      className="group flex items-center gap-4 px-5 py-2.5 hover:bg-muted/40"
                     >
                       <Checkbox checked onChange={() => toggle(i, false)} />
                       <button
