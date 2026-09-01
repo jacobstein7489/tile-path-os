@@ -406,6 +406,7 @@ export type Database = {
       projects: {
         Row: {
           address: string | null
+          archived_at: string | null
           created_at: string
           crew_lead: string | null
           customer: string | null
@@ -429,6 +430,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archived_at?: string | null
           created_at?: string
           crew_lead?: string | null
           customer?: string | null
@@ -452,6 +454,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archived_at?: string | null
           created_at?: string
           crew_lead?: string | null
           customer?: string | null
@@ -614,11 +617,47 @@ export type Database = {
           },
         ]
       }
+      work_item_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          work_item_id: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          message: string
+          work_item_id: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          work_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_item_events_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "work_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_items: {
         Row: {
           area_id: string | null
           completed_at: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -633,11 +672,13 @@ export type Database = {
           title: string
           updated_at: string
           waiting_on: string | null
+          workflow_step: string | null
         }
         Insert: {
           area_id?: string | null
           completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -652,11 +693,13 @@ export type Database = {
           title: string
           updated_at?: string
           waiting_on?: string | null
+          workflow_step?: string | null
         }
         Update: {
           area_id?: string | null
           completed_at?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -671,6 +714,7 @@ export type Database = {
           title?: string
           updated_at?: string
           waiting_on?: string | null
+          workflow_step?: string | null
         }
         Relationships: [
           {

@@ -431,3 +431,108 @@ export function Checkbox({
     </button>
   );
 }
+
+/* ---------------- Right-side drawer ---------------- */
+
+export function Drawer({
+  open,
+  onClose,
+  title,
+  subtitle,
+  footer,
+  children,
+  width = "max-w-[560px]",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+  width?: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <button
+        type="button"
+        aria-label="Close drawer"
+        onClick={onClose}
+        className="absolute inset-0 bg-foreground/20 backdrop-blur-[1px]"
+      />
+      <aside
+        className={cn(
+          "relative flex h-full w-full flex-col border-l border-border bg-card shadow-[var(--shadow-raised)]",
+          width,
+        )}
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
+            {subtitle ? (
+              <div className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
+          >
+            <X className="size-4" />
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer ? (
+          <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+            {footer}
+          </footer>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
+/** Subtle vertical workflow sequence — only the current step is emphasized. */
+export function StepSequence({ steps, current }: { steps: string[]; current: string | null }) {
+  const idx = current ? steps.indexOf(current) : -1;
+  return (
+    <ol className="space-y-1.5">
+      {steps.map((step, i) => {
+        const done = idx > -1 && i < idx;
+        const active = i === idx;
+        return (
+          <li key={step} className="flex items-center gap-2.5">
+            <span
+              className={cn(
+                "size-2 shrink-0 rounded-full",
+                active ? "bg-primary ring-3 ring-primary/20" : done ? "bg-success" : "bg-border-strong",
+              )}
+            />
+            <span
+              className={cn(
+                "text-[12.5px]",
+                active
+                  ? "font-semibold text-foreground"
+                  : done
+                    ? "text-muted-foreground line-through"
+                    : "text-muted-foreground/70",
+              )}
+            >
+              {step}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
