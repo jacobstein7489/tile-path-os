@@ -222,7 +222,7 @@ function parseBulk(text: string, projects: { id: string; name: string }[]): Draf
       emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
         sectionKey: section.key,
         project_id: section.id,
-        groupName: section.id ? "" : section.name,
+        groupName: section.headingText,
         matchKind: section.kind,
       }),
     );
