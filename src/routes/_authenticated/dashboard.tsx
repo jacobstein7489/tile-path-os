@@ -16,6 +16,7 @@ import {
   type WorkFilter,
   type WorkItemRow,
 } from "@/lib/workitems";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -191,10 +192,14 @@ function CompanyWorkPage() {
                 <tr
                   key={i.id}
                   onClick={() => setActive(i)}
-                  className="group cursor-pointer transition-colors hover:bg-muted/50"
+                  className={cn(
+                    "group cursor-pointer transition-colors hover:bg-muted/50",
+                    active?.id === i.id &&
+                      "bg-primary-soft/60 ring-1 ring-inset ring-primary/25",
+                  )}
                 >
-                  <Td className="font-semibold whitespace-nowrap group-last:border-0">
-                    {i.projects?.name ?? "—"}
+                  <Td className="max-w-[160px] font-semibold group-last:border-0">
+                    <span className="block break-words">{i.projects?.name ?? "—"}</span>
                   </Td>
                   <Td className="group-last:border-0">
                     <span className="line-clamp-2">{i.title}</span>

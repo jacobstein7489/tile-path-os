@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { profileOptions, useProfiles } from "@/lib/people";
 import { useProjects } from "@/lib/data";
 import {
-  OWNERS,
   useCreateWorkItems,
   WORK_ITEM_STATUSES,
   WORK_ITEM_TYPES,
@@ -17,6 +17,7 @@ type Draft = {
   item_type: string;
   title: string;
   owner: string;
+  owner_user_id: string | null;
   waiting_on: string;
   status: string;
   next_action: string;
@@ -46,6 +47,7 @@ function classify(line: string): { item_type: string; status: string; next_actio
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: projects = [] } = useProjects();
+  const { data: profiles = [] } = useProfiles();
   const create = useCreateWorkItems();
   const [raw, setRaw] = useState("");
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
@@ -72,7 +74,8 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
           key: `${i}-${l.slice(0, 8)}`,
           project_id: matched?.id ?? guessedProject,
           title: (title || l).replace(/\s+/g, " ").trim(),
-          owner: guess.item_type === "Install Material Need" ? "Office" : "Site Manager",
+          owner: "",
+          owner_user_id: null,
           due_date: "",
           ...guess,
         } satisfies Draft;
@@ -93,6 +96,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
         item_type: d.item_type,
         title: d.title.trim(),
         owner: d.owner || null,
+        owner_user_id: d.owner_user_id,
         waiting_on: d.waiting_on || null,
         status: d.status,
         next_action: d.next_action || null,
@@ -215,12 +219,19 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                   </Select>
                 </Field>
                 <Field label="Owner">
-                  <Select value={d.owner} onChange={(e) => update(d.key, { owner: e.target.value })}>
-                    <option value="">Unassigned</option>
-                    {OWNERS.map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </Select>
+                  <Combobox
+                    options={profileOptions(profiles)}
+                    value={
+                      profiles.find((p) => p.full_name === d.owner)?.user_id ?? null
+                    }
+                    onChange={(v) =>
+                      update(d.key, {
+                        owner: profiles.find((p) => p.user_id === v)?.full_name ?? "",
+                        owner_user_id: v ?? null,
+                      })
+                    }
+                    placeholder="Search employees…"
+                  />
                 </Field>
                 <Field label="Waiting on">
                   <TextInput

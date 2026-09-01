@@ -323,11 +323,29 @@ export function useSaveWorkItem() {
       if (note) {
         await supabase
           .from("work_item_events")
-          .insert({ work_item_id: id, kind: "update", message: note, actor: "Yaakov" });
+          .insert({
+            work_item_id: id,
+            kind: "update",
+            message: note,
+            actor: await currentActorName(),
+          });
       }
     },
     onSuccess: (_d, vars) => invalidate(vars.id),
   });
+}
+
+/** The signed-in user's display name, used as the actor on work-item history. */
+export async function currentActorName(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return "System";
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  return profile?.full_name ?? user.email ?? "System";
 }
 
 export function useAddWorkNote() {
@@ -336,7 +354,7 @@ export function useAddWorkNote() {
     mutationFn: async ({ id, message }: { id: string; message: string }) => {
       const { error } = await supabase
         .from("work_item_events")
-        .insert({ work_item_id: id, kind: "note", message, actor: "Yaakov" });
+        .insert({ work_item_id: id, kind: "note", message, actor: await currentActorName() });
       if (error) throw error;
     },
     onSuccess: (_d, vars) => invalidate(vars.id),
@@ -362,11 +380,12 @@ export function useCreateWorkItems() {
   const invalidate = useInvalidateWork();
   return useMutation({
     mutationFn: async (rows: NewWorkItem[]) => {
+      const actor = await currentActorName();
       const payload = rows.map((r) => ({
         ...r,
         status: r.status ?? "Open",
         priority: r.priority ?? "Medium",
-        created_by: "Yaakov",
+        created_by: actor,
         workflow_step: WORKFLOWS[r.item_type]?.steps[0] ?? null,
       }));
       const { data, error } = await supabase
@@ -381,7 +400,7 @@ export function useCreateWorkItems() {
             work_item_id: id,
             kind: "created",
             message: "Work item created",
-            actor: "Yaakov",
+            actor,
           })) as never,
         );
       }

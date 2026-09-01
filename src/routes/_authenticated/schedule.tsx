@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Flag, RefreshCw, Users } from "lucide-react";
-import { AppHeader } from "@/components/AppHeader";
 import {
-  Button,
-  Field,
-  KpiCard,
-  Modal,
-  SectionCard,
-  Select,
-  TextInput,
-} from "@/components/kit";
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+} from "lucide-react";
+import { AppHeader } from "@/components/AppHeader";
+import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -77,20 +74,14 @@ function SchedulePage() {
   const unassigned = projects.filter(
     (p) =>
       !p.exception_state &&
-      !["Complete", "New Submission", "Estimating", "Proposal"].includes(
-        p.lifecycle_stage,
-      ) &&
+      !["Complete", "New Submission", "Estimating", "Proposal"].includes(p.lifecycle_stage) &&
       !assignments.some((a) => a.project_id === p.id && a.crew_id),
   );
   const returnVisits = weekAssignments.filter((a) => a.kind === "Return Visit");
   const finishingSoon = projects.filter((p) => p.lifecycle_stage === "Closeout / Return");
 
   const readyToAssign = projects
-    .filter((p) =>
-      ["Closeout / Return", "Ready", "Setup"].includes(
-        p.lifecycle_stage,
-      ),
-    )
+    .filter((p) => ["Closeout / Return", "Ready", "Setup"].includes(p.lifecycle_stage))
     .slice(0, 4);
 
   const readyLabel = (p: Project) =>
@@ -106,40 +97,28 @@ function SchedulePage() {
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
       <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
-        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">Schedule &amp; Crews</h1>
+        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">
+          Schedule &amp; Crews
+        </h1>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           View crew schedules, manage assignments and plan the week ahead.
         </p>
 
-        <div className="mt-6 grid grid-cols-4 gap-4">
-          <KpiCard
-            icon={<Users className="size-5" />}
-            tone="green"
-            label="Crews Working Today"
-            value={crewsWorking}
-            hint={`of ${crews.length} crews`}
-          />
-          <KpiCard
-            icon={<ClipboardList className="size-5" />}
-            tone="amber"
-            label="Unassigned Jobs"
-            value={unassigned.length}
-            hint="need assignment"
-          />
-          <KpiCard
-            icon={<RefreshCw className="size-5" />}
-            tone="blue"
-            label="Return Visits"
-            value={returnVisits.length}
-            hint="scheduled this week"
-          />
-          <KpiCard
-            icon={<Flag className="size-5" />}
-            tone="amber"
-            label="Jobs Finishing Soon"
-            value={finishingSoon.length}
-            hint="keep momentum going"
-          />
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] text-muted-foreground">
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">{crewsWorking}</span> of{" "}
+            {crews.length} crews working today
+          </span>
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">{unassigned.length}</span>{" "}
+            jobs ready to assign
+          </span>
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {returnVisits.length}
+            </span>{" "}
+            return visits this week
+          </span>
         </div>
 
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
@@ -151,10 +130,18 @@ function SchedulePage() {
                 <Button size="sm" onClick={() => setWeekOffset(0)}>
                   Today
                 </Button>
-                <Button size="sm" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Previous week">
+                <Button
+                  size="sm"
+                  onClick={() => setWeekOffset((w) => w - 1)}
+                  aria-label="Previous week"
+                >
                   <ChevronLeft className="size-4" />
                 </Button>
-                <Button size="sm" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Next week">
+                <Button
+                  size="sm"
+                  onClick={() => setWeekOffset((w) => w + 1)}
+                  aria-label="Next week"
+                >
                   <ChevronRight className="size-4" />
                 </Button>
               </>
@@ -192,10 +179,7 @@ function SchedulePage() {
                         </div>
                       </td>
                       {crew.is_open_lane ? (
-                        <td
-                          colSpan={6}
-                          className="border-b border-border/70 px-3 py-3 text-center"
-                        >
+                        <td colSpan={6} className="border-b border-border/70 px-3 py-3 text-center">
                           <div className="rounded-lg border border-dashed border-border-strong py-3 text-[12.5px] text-muted-foreground">
                             Open for assignment
                           </div>
@@ -207,7 +191,10 @@ function SchedulePage() {
                             (a) => a.crew_id === crew.id && a.work_date === day,
                           );
                           return (
-                            <td key={day} className="border-b border-border/70 px-1.5 py-2 align-top">
+                            <td
+                              key={day}
+                              className="border-b border-border/70 px-1.5 py-2 align-top"
+                            >
                               {cell.map((a) => {
                                 const p = projectById(a.project_id);
                                 const tone =
@@ -283,42 +270,6 @@ function SchedulePage() {
             </Link>
           </SectionCard>
         </div>
-
-        <SectionCard
-          className="mt-5"
-          title="Jobs Finishing Soon"
-          icon={<Flag className="size-[18px] text-warning" />}
-          bodyClassName="grid grid-cols-3 divide-x divide-border"
-        >
-          {finishingSoon.slice(0, 2).map((p) => (
-            <div key={p.id} className="px-5 py-4">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-warning" />
-                <Link
-                  to="/projects/$projectId"
-                  params={{ projectId: p.id }}
-                  className="text-[13.5px] font-semibold hover:underline"
-                >
-                  {p.name}
-                </Link>
-                {p.target_date ? <Chip tone="amber">{p.target_date}</Chip> : null}
-              </div>
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
-                {p.next_move ?? "Prepare return visit and close-out"}
-              </p>
-            </div>
-          ))}
-          <div className="flex items-center gap-3 px-5 py-4">
-            <span className="grid size-10 place-items-center rounded-full bg-info-soft text-info">
-              <CalendarDays className="size-5" />
-            </span>
-            <p className="text-[12.5px] text-muted-foreground">
-              <span className="font-semibold text-foreground">Keep projects moving forward.</span>
-              <br />
-              Prepare next work and communicate return visits.
-            </p>
-          </div>
-        </SectionCard>
       </div>
 
       {assignFor ? (

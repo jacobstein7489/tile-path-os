@@ -266,7 +266,14 @@ export type SurfaceFull = Surface & {
   detail_confirmed: boolean;
 };
 
-export type WorkItemFull = WorkItem & { priority: string; completed_at: string | null };
+export type WorkItemFull = WorkItem & {
+  priority: string;
+  completed_at: string | null;
+  owner_user_id?: string | null;
+  waiting_on_user_id?: string | null;
+  waiting_on_contact_id?: string | null;
+  waiting_on_company_id?: string | null;
+};
 
 export function useCrews() {
   return useQuery({

@@ -19,6 +19,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
 import { Route as AuthenticatedProjectsProjectIdFieldRouteImport } from './routes/_authenticated/projects.$projectId.field'
 import { Route as AuthenticatedProjectsProjectIdFilesRouteImport } from './routes/_authenticated/projects.$projectId.files'
@@ -76,6 +77,11 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicQaProvisionRoute = ApiPublicQaProvisionRouteImport.update({
+  id: '/api/public/qa-provision',
+  path: '/api/public/qa-provision',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectsProjectIdIndexRoute =
   AuthenticatedProjectsProjectIdIndexRouteImport.update({
     id: '/',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/projects/$projectId'
+    | '/api/public/qa-provision'
     | '/projects/'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/api/public/qa-provision'
     | '/projects'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/today'
     | '/_authenticated/projects/$projectId'
+    | '/api/public/qa-provision'
     | '/_authenticated/projects/'
     | '/_authenticated/projects/$projectId/field'
     | '/_authenticated/projects/$projectId/files'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicQaProvisionRoute: typeof ApiPublicQaProvisionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$projectId'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/qa-provision': {
+      id: '/api/public/qa-provision'
+      path: '/api/public/qa-provision'
+      fullPath: '/api/public/qa-provision'
+      preLoaderRoute: typeof ApiPublicQaProvisionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/projects/$projectId/': {
       id: '/_authenticated/projects/$projectId/'
@@ -378,6 +398,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicQaProvisionRoute: ApiPublicQaProvisionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

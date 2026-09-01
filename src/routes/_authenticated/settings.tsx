@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
 import {
@@ -78,6 +78,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const [tab, setTab] = useState<string>(TABS[0]);
+  const [invitingTop, setInvitingTop] = useState(false);
   const perms = usePermissions();
 
   return (
@@ -85,6 +86,19 @@ function SettingsPage() {
       crumbs={[{ label: "Settings" }]}
       title="Settings"
       subtitle="People, roles, companies, contacts and crews — the libraries every other screen selects from."
+      actions={
+        perms.canManageUsers ? (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setTab("Users & roles");
+              setInvitingTop(true);
+            }}
+          >
+            <UserPlus className="size-4" /> Invite employee
+          </Button>
+        ) : undefined
+      }
     >
       <UnderlineTabs
         items={TABS.map((t) => ({ value: t, label: t }))}
@@ -98,7 +112,13 @@ function SettingsPage() {
           Administrator-only.
         </InfoBanner>
       ) : null}
-      {tab === "Users & roles" ? <UsersTab canEdit={perms.canManageUsers} /> : null}
+      {tab === "Users & roles" ? (
+        <UsersTab
+          canEdit={perms.canManageUsers}
+          inviting={invitingTop}
+          onInvitingChange={setInvitingTop}
+        />
+      ) : null}
       {tab === "Companies" ? <CompaniesTab canEdit={perms.canManageLibraries} /> : null}
       {tab === "Contacts" ? <ContactsTab canEdit={perms.canManageLibraries} /> : null}
       {tab === "Crews" ? <CrewsTab canEdit={perms.canManageLibraries} /> : null}
@@ -108,12 +128,25 @@ function SettingsPage() {
 
 /* ------------------------------- Users & roles ------------------------------- */
 
-function UsersTab({ canEdit }: { canEdit: boolean }) {
+function UsersTab({
+  canEdit,
+  inviting: invitingProp = false,
+  onInvitingChange,
+}: {
+  canEdit: boolean;
+  inviting?: boolean;
+  onInvitingChange?: (open: boolean) => void;
+}) {
   const { data: profiles = [], isLoading } = useProfiles();
   const { data: roleRows = [] } = useUserRoles();
   const toggleRole = useToggleRole();
   const [editing, setEditing] = useState<Profile | null>(null);
-  const [inviting, setInviting] = useState(false);
+  const [invitingLocal, setInvitingLocal] = useState(false);
+  const inviting = invitingProp || invitingLocal;
+  const setInviting = (open: boolean) => {
+    setInvitingLocal(open);
+    onInvitingChange?.(open);
+  };
 
   const rolesByUser = useMemo(() => {
     const map = new Map<string, AppRole[]>();
@@ -126,13 +159,6 @@ function UsersTab({ canEdit }: { canEdit: boolean }) {
       <SectionCard
         title="Employees"
         subtitle="Every person who signs in. Roles decide what they can see and change."
-        actions={
-          canEdit ? (
-            <Button variant="primary" onClick={() => setInviting(true)}>
-              <Plus className="size-3.5" /> Invite employee
-            </Button>
-          ) : undefined
-        }
       >
         {isLoading ? (
           <TableSkeleton cols={4} />

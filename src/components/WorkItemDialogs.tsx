@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import { profileOptions, useProfiles } from "@/lib/people";
 import {
   useInsertRow,
   useProjects,
@@ -17,7 +18,6 @@ export type WorkItemKind =
   | "Approval"
   | "Punch / Return Item";
 
-const OWNERS = ["Office", "Office / Materials", "Site Manager", "Designer / PM", "Crew"];
 
 /** Creates a real structured work item. Comments are context — this changes the project. */
 export function CreateWorkItemModal({
@@ -37,11 +37,13 @@ export function CreateWorkItemModal({
 }) {
   const { data: projects = [] } = useProjects();
   const insert = useInsertRow("work_items");
+  const { data: profiles = [] } = useProfiles();
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [form, setForm] = useState({
     project_id: projectId ?? "",
     title: "",
     description: "",
-    owner: kind === "Material Need" ? "Office / Materials" : "Site Manager",
+    owner: "",
     waiting_on: "",
     priority: "Medium",
     due_date: "",
@@ -63,6 +65,7 @@ export function CreateWorkItemModal({
       title: form.title.trim(),
       description: form.description || null,
       owner: form.owner || null,
+      owner_user_id: ownerId,
       waiting_on: form.waiting_on || null,
       priority: form.priority,
       due_date: form.due_date || null,
@@ -126,11 +129,15 @@ export function CreateWorkItemModal({
 
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Owner">
-          <Select value={form.owner} onChange={(e) => set("owner", e.target.value)}>
-            {OWNERS.map((o) => (
-              <option key={o}>{o}</option>
-            ))}
-          </Select>
+          <Combobox
+            options={profileOptions(profiles)}
+            value={ownerId}
+            onChange={(v) => {
+              setOwnerId(v);
+              set("owner", profiles.find((p) => p.user_id === v)?.full_name ?? "");
+            }}
+            placeholder="Search employees…"
+          />
         </Field>
         <Field label="Waiting on">
           <TextInput
