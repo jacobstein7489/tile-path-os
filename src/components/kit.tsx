@@ -549,7 +549,9 @@ export function Drawer({
       >
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] break-words">
+              {title}
+            </h2>
             {subtitle ? (
               <div className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</div>
             ) : null}
