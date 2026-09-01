@@ -206,6 +206,24 @@ export function advanceWorkflow(item: WorkItemRow) {
 export const WORK_FILTERS = ["All", "Important", "My Work", "Waiting", "Completed"] as const;
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
+/** Today / My Work uses the same records, already narrowed to the signed-in user. */
+export const TODAY_FILTERS = ["Active", "Important", "Waiting", "Completed"] as const;
+
+export function matchesTodayFilter(filter: string, item: WorkItemRow) {
+  const done = isComplete(item);
+  switch (filter) {
+    case "Completed":
+      return done;
+    case "Important":
+      return !done && Boolean(item.is_important);
+    case "Waiting":
+      return !done && (Boolean(item.waiting_on) || item.status === "Waiting");
+    default:
+      return !done;
+  }
+}
+
+
 /** Company-level work has no project; label it plainly instead of "—". */
 export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">) {
   return item.project_id ? (item.projects?.name ?? "Project") : "Company / Unassigned";
