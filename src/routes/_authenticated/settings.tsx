@@ -314,6 +314,7 @@ function UserModal({
     initials: profile.initials ?? "",
     job_title: profile.job_title ?? "",
     phone: profile.phone ?? "",
+    default_commission_rate: String(profile.default_commission_rate ?? 0),
     is_active: profile.is_active,
   });
 
@@ -337,6 +338,7 @@ function UserModal({
                   initials: (form.initials || form.full_name.slice(0, 2)).toUpperCase(),
                   job_title: form.job_title || null,
                   phone: form.phone || null,
+                  default_commission_rate: Number(form.default_commission_rate) || 0,
                   is_active: form.is_active,
                 },
               });
@@ -372,6 +374,13 @@ function UserModal({
           <TextInput
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          />
+        </Field>
+        <Field label="Default commission rate %" hint="Projects can override this individually">
+          <TextInput
+            value={form.default_commission_rate}
+            inputMode="decimal"
+            onChange={(e) => setForm((f) => ({ ...f, default_commission_rate: e.target.value }))}
           />
         </Field>
       </div>
@@ -558,6 +567,13 @@ function CompanyModal({ company, onClose }: { company: Company | null; onClose: 
           <TextInput
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          />
+        </Field>
+        <Field label="Default commission rate %" hint="Projects can override this individually">
+          <TextInput
+            value={form.default_commission_rate}
+            inputMode="decimal"
+            onChange={(e) => setForm((f) => ({ ...f, default_commission_rate: e.target.value }))}
           />
         </Field>
         <Field label="Email">
@@ -749,6 +765,13 @@ function ContactModal({ contact, onClose }: { contact: Contact | null; onClose: 
           <TextInput
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          />
+        </Field>
+        <Field label="Default commission rate %" hint="Projects can override this individually">
+          <TextInput
+            value={form.default_commission_rate}
+            inputMode="decimal"
+            onChange={(e) => setForm((f) => ({ ...f, default_commission_rate: e.target.value }))}
           />
         </Field>
         <Field label="Email">
