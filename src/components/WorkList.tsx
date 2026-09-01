@@ -118,6 +118,7 @@ export function WorkList({
   defaultFilter,
   defaultView = "Grouped by Project",
   viewStorageKey,
+  showProjectColumn = true,
   showViewToggle = true,
   showSearch = true,
   isLoading = false,
@@ -134,6 +135,8 @@ export function WorkList({
   defaultView?: View;
   /** localStorage key so the last selected view is remembered per surface. */
   viewStorageKey?: string;
+  /** Project surfaces already know the project, so the column is redundant there. */
+  showProjectColumn?: boolean;
   showViewToggle?: boolean;
   showSearch?: boolean;
   isLoading?: boolean;
@@ -362,7 +365,7 @@ export function WorkList({
           options={filters.map((f) => ({
             value: f,
             label: f === "Important" ? "★ Important" : f,
-            count: counts[f],
+            count: counts[f] ?? 0,
           }))}
           value={filter}
           onChange={setFilter}
@@ -407,7 +410,7 @@ export function WorkList({
         </div>
       ) : !showViewToggle || view === "List" ? (
         <div className="surface overflow-hidden">
-          <Rows list={rows} withProject />
+          <Rows list={rows} withProject={showProjectColumn} />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
