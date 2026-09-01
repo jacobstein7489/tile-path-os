@@ -32,8 +32,6 @@ import {
   useAreasWithSurfaces,
   useProject,
   useUpdateProject,
-  useWorkItems,
-  type WorkItemFull,
 } from "@/lib/data";
 import { useCrews } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
@@ -68,7 +66,6 @@ function ProjectOverview() {
   const { projectId } = Route.useParams();
   const { data: project } = useProject(projectId);
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
-  const { data: items = [] } = useWorkItems(projectId);
   const { data: feed = [] } = useWorkFeed();
   const { data: profiles = [] } = useProfiles();
   const { data: crews = [] } = useCrews();
@@ -84,7 +81,6 @@ function ProjectOverview() {
   const areaList = areas.data ?? [];
   const surfaceList = surfaces.data ?? [];
   const installing = showsInstallationProgress(project.lifecycle_stage);
-  const open = (items as WorkItemFull[]).filter((i) => i.status !== "Complete");
   const projectWork = feed.filter((i) => i.project_id === projectId);
   const headline = installing ? project.installation_progress : project.readiness_pct;
   const nameOf = (userId?: string | null) =>
