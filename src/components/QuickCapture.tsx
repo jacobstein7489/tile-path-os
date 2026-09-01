@@ -169,11 +169,19 @@ const ACTION_START =
  * Structural heading test — runs BEFORE any database matching so an unknown or
  * mistyped project name still starts its own section.
  */
-function looksLikeHeading(original: string, clean: string, indentMode: boolean) {
+function looksLikeHeading(
+  original: string,
+  clean: string,
+  indentMode: boolean,
+  startsBlock: boolean,
+) {
   const indented = /^([ \t]+|\s*[-–—•*·>])/.test(original);
   if (indentMode) return !indented;
   if (indented) return false;
+  // Flat paste: a name-like line only starts a section when a blank line (or the
+  // top of the paste) sets it apart, otherwise it is just short work wording.
   return (
+    startsBlock &&
     clean.length <= 46 &&
     !/[,;?]/.test(clean) &&
     !/[—–]|\s-\s|:/.test(clean) &&
@@ -208,13 +216,27 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     { key: "unassigned", id: "", name: "", headingText: "", kind: "none", lines: [] },
   ];
   let sectionIndex = 0;
+  let seenContent = false;
+  let blankBefore = true;
 
   lines.forEach((original, i) => {
     const clean = cleanLine(original);
-    if (!/[a-z0-9]{2}/i.test(clean)) return;
+    if (!/[a-z0-9]{2}/i.test(clean)) {
+      if (!original.trim()) blankBefore = true;
+      return;
+    }
+    const startsBlock = blankBefore || !seenContent;
+    blankBefore = false;
+    seenContent = true;
 
-    if (looksLikeHeading(original, clean, indentMode)) {
-      const match = matchProjectHeading(clean, projects);
+    const match = matchProjectHeading(clean, projects);
+    // A confident project name on its own line is always a heading; otherwise the
+    // structural test decides, so unknown names still open their own section.
+    const isHeading =
+      (match.id && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
+      looksLikeHeading(original, clean, indentMode, startsBlock);
+
+    if (isHeading) {
       sectionIndex += 1;
       sections.push({
         key: `s${sectionIndex}`,
@@ -230,6 +252,7 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
 
     sections[sections.length - 1]!.lines.push({ i, clean });
   });
+
 
   // Without indentation a short work line can look like a heading. A heading that
   // matched no project and gathered no work under it is really an item of the
