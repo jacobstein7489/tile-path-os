@@ -44,6 +44,21 @@ export const Route = createFileRoute("/_authenticated/projects/")({
 
 function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects();
+  const { data: feed = [] } = useWorkFeed();
+
+  // What needs to happen comes from the same open Work Items Company Work uses.
+  const workByProject = useMemo(() => {
+    const map = new Map<string, WorkItemRow[]>();
+    feed
+      .filter((i) => i.project_id && !isComplete(i))
+      .forEach((i) => {
+        const list = map.get(i.project_id!) ?? [];
+        list.push(i);
+        map.set(i.project_id!, list);
+      });
+    map.forEach((list) => list.sort(compareWorkItems));
+    return map;
+  }, [feed]);
   const [filter, setFilter] = useState<ProjectFilter>("All");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
