@@ -91,9 +91,16 @@ function TodayPage() {
               items={mine}
               isLoading={isLoading}
               onOpen={setActive}
+              selectedId={active?.id ?? null}
+              filters={TODAY_FILTERS}
+              matchFilter={matchesTodayFilter}
+              defaultFilter="Active"
+              viewStorageKey="cobblestone.today.view"
+              showProjectColumn={false}
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
+
           </div>
 
           <aside className="space-y-3">
