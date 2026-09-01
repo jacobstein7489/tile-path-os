@@ -461,7 +461,7 @@ export function WorkList({
                   <Highlight text={i.title} query={q} />
                 </span>
               </Td>
-              <Td className="group-last:border-0">
+              <Td className="min-w-[140px] group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
                   <Combobox
                     options={owners}
