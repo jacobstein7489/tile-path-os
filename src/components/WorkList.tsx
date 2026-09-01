@@ -516,31 +516,34 @@ export function WorkList({
                 }
               }}
               className={cn(
-                "flex cursor-pointer items-start gap-2 px-3 py-3 transition-colors duration-150 active:bg-muted",
+                "flex min-h-[64px] cursor-pointer items-start gap-3 px-3 py-3.5 transition-colors duration-150 active:bg-muted",
                 done && "bg-success-soft/70",
                 selectedId === i.id && !done && "bg-primary-soft/70",
               )}
             >
-              <StarButton item={i} onToggle={() => toggleStar(i)} />
+              <span className="pt-0.5">
+                <StarButton item={i} onToggle={() => toggleStar(i)} />
+              </span>
               <div className="min-w-0 flex-1">
                 {withProject ? (
-                  <p className="text-[11.5px] font-semibold text-muted-foreground">
+                  <p className="truncate text-[11.5px] font-semibold text-muted-foreground">
                     <Highlight text={projectLabel(i)} query={q} />
                   </p>
                 ) : null}
                 <p
                   className={cn(
-                    "text-[14px] font-medium",
+                    "text-[14.5px] leading-snug font-semibold",
                     done && "text-muted-foreground line-through",
                   )}
                 >
                   <Highlight text={i.title} query={q} />
                 </p>
-                <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                  {i.owner ?? "Unassigned"} · {i.next_action ?? "Open item"}
+                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                  {i.owner ?? "Unassigned"}
+                  {i.next_action ? ` · ${i.next_action}` : ""}
                 </p>
                 {i.waiting_on || i.due_date ? (
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-[12px]">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                     {i.waiting_on ? (
                       <span className="flex items-center gap-1.5 text-warning">
                         <span className="size-1.5 rounded-full bg-warning" />
@@ -553,8 +556,11 @@ export function WorkList({
                   </p>
                 ) : null}
               </div>
-              <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
+              <span className="pt-0.5">
+                <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
+              </span>
             </div>
+
           </li>
         );
       })}
