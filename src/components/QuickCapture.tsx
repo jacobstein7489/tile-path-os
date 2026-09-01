@@ -222,7 +222,7 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     // An exact normalized project name on its own line is always a heading; otherwise the
     // structural test decides, so unknown names still open their own section.
     const isHeading =
-      (match.id && !indented && !/[—–]|\s-\s|:|[,;?]/.test(clean)) ||
+      (match.id && !indented && !/[—–]|\s-\s|[,;?]/.test(clean)) ||
       looksLikeHeading(original, clean, indentMode, startsBlock);
 
     if (isHeading) {
