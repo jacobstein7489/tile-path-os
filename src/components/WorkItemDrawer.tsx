@@ -306,7 +306,7 @@ export function WorkItemDrawer({
           </button>
           {more ? (
             <div className="space-y-3.5 border-t border-border px-4 py-3.5">
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <Field label="Type">
                   <Select value={form.item_type} onChange={(e) => set("item_type", e.target.value)}>
                     {WORK_ITEM_TYPES.map((t) => (
