@@ -667,7 +667,7 @@ export function Drawer({
           width,
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 rounded-t-2xl border-b border-border bg-card px-4 py-3.5 md:rounded-none md:px-5 md:py-4">
           <div className="min-w-0">
             <h2 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] break-words">
               {title}
@@ -680,14 +680,14 @@ export function Drawer({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
+            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
           >
             <X className="size-4" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">{children}</div>
         {footer ? (
-          <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+          <footer className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-5 md:py-3.5">
             {footer}
           </footer>
         ) : null}
