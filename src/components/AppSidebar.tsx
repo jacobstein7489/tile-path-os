@@ -16,7 +16,7 @@ const NAV = [
   { label: "Today", to: "/today", icon: Sun },
   { label: "Projects", to: "/projects", icon: FolderClosed },
   { label: "Schedule", to: "/schedule", icon: CalendarDays },
-  { label: "Materials", to: "/materials", icon: Package },
+  { label: "Install Materials", to: "/materials", icon: Package },
   { label: "Settings", to: "/settings", icon: Settings },
 ] as const;
 

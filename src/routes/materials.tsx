@@ -55,13 +55,13 @@ export const Route = createFileRoute("/materials")({
   }),
   head: () => ({
     meta: [
-      { title: "Materials — Cobblestone Tile OS" },
+      { title: "Install Materials — Cobblestone Tile OS" },
       {
         name: "description",
         content:
           "Track finish tile, grout, metals and installation materials, purchase orders and receiving.",
       },
-      { property: "og:title", content: "Materials — Cobblestone Tile OS" },
+      { property: "og:title", content: "Install Materials — Cobblestone Tile OS" },
       {
         property: "og:description",
         content: "Finish and installation materials, purchase orders and receiving.",
@@ -105,7 +105,7 @@ function MaterialsPage() {
 
   return (
     <>
-      <AppHeader crumbs={[{ label: "Materials" }]} />
+      <AppHeader crumbs={[{ label: "Install Materials" }]} />
       <div className="mx-auto max-w-[1400px] px-8 pt-7 pb-16">
         <div className="flex items-start justify-between gap-6">
           <div>
