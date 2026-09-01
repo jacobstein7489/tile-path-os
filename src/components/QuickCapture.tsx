@@ -1,19 +1,37 @@
-import { useState } from "react";
-import { Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Sparkles, Star, Trash2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import {
+  Button,
+  Checkbox,
+  Combobox,
+  Field,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/kit";
 import { profileOptions, useProfiles } from "@/lib/people";
 import { useInsertRow, useProjects } from "@/lib/data";
 import { useAuthUser } from "@/hooks/useAuth";
 import {
+  findDuplicate,
+  isComplete,
   useCreateWorkItems,
+  useSaveWorkItem,
+  useWorkFeed,
   WORK_ITEM_STATUSES,
   WORK_ITEM_TYPES,
   type NewWorkItem,
+  type WorkItemRow,
 } from "@/lib/workitems";
+import { cn } from "@/lib/utils";
 
 type Draft = {
   key: string;
+  /** Heading text this row came from when no project matched — drives stub creation. */
+  groupName: string;
   project_id: string;
   item_type: string;
   title: string;
@@ -23,6 +41,8 @@ type Draft = {
   status: string;
   next_action: string;
   due_date: string;
+  is_important: boolean;
+  dupAction: "keep" | "skip" | "replace";
 };
 
 /** Heuristic classification. Designed so smarter classification can replace this later. */
@@ -44,7 +64,7 @@ function classify(line: string): { item_type: string; status: string; next_actio
   if (/touch.?up|punch|repair|redo|crack|regrout|fix/.test(l))
     return { item_type: "Punch / Return Work", status: "Crew Needed", next_action: "Assign installer", waiting_on: "" };
   if (/\?\s*$|^(can|does|should|who|what|when|why|how|is |are )/i.test(line.trim()))
-    return { item_type: "Question", status: "Open", next_action: "Get an answer", waiting_on: "" };
+    return { item_type: "Question / Decision", status: "Open", next_action: "Get an answer", waiting_on: "" };
   return { item_type: "Task", status: "Open", next_action: "", waiting_on: "" };
 }
 
@@ -86,27 +106,161 @@ function stripProject(line: string, name?: string) {
   return cleaned.replace(/^[\s—–\-:,]+/, "").trim();
 }
 
+const emptyDraft = (
+  key: string,
+  title: string,
+  extra: Partial<Draft>,
+): Draft => ({
+  key,
+  groupName: "",
+  project_id: "",
+  title,
+  owner: "",
+  owner_user_id: null,
+  due_date: "",
+  is_important: false,
+  dupAction: "keep",
+  ...classify(title),
+  ...extra,
+});
+
+/* ============================================================
+ * Bulk parse: a grouped paste where a bare line is a project
+ * heading and the lines under it are that project's work.
+ * ============================================================ */
+function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
+  const drafts: Draft[] = [];
+  let currentId = "";
+  let currentName = "";
+  const lines = text.split(/\r?\n/);
+
+  lines.forEach((original, i) => {
+    const clean = cleanLine(original);
+    if (!/[a-z0-9]{2}/i.test(clean)) return;
+
+    const indented = /^[\s\t]+|^[-–—•*·>]/.test(original);
+    const matchedId = matchProject(original, projects);
+    const matchedName = projects.find((p) => p.id === matchedId)?.name;
+    const stripped = stripProject(clean, matchedName);
+
+    // A line that is just a job name is a heading for everything under it.
+    if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) {
+      currentId = matchedId;
+      currentName = matchedName ?? clean;
+      return;
+    }
+
+    // An un-indented short line with no action language is an unmatched heading.
+    const looksLikeHeading =
+      !indented &&
+      !matchedId &&
+      clean.length <= 46 &&
+      !/[,;?]/.test(clean) &&
+      !/[—–]|\s-\s|:/.test(clean) &&
+      clean.split(" ").length <= 5 &&
+      !/^(confirm|order|call|check|measure|schedule|follow|send|get|need|price|verify|fix|install)/i.test(
+        clean,
+      );
+    if (looksLikeHeading) {
+      currentId = "";
+      currentName = clean;
+      return;
+    }
+
+    const projectId = matchedId || currentId;
+    const title = (matchedId ? stripped : clean) || clean;
+    drafts.push(
+      emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
+        project_id: projectId,
+        groupName: projectId ? "" : currentName,
+      }),
+    );
+  });
+
+  return drafts;
+}
+
+/** Quick-note parse: sentence/line splitting with sticky project context. */
+function parseNote(text: string, projects: { id: string; name: string }[]): Draft[] {
+  const rawLines = text
+    .split(/\r?\n+/)
+    .flatMap((l) => l.split(/(?<=[a-z0-9)])\.\s+|\s*;\s*|\s+—\s+/i))
+    .map((l) => ({ original: l, clean: cleanLine(l) }))
+    .filter(({ clean }) => /[a-z]{3}/i.test(clean) && clean.replace(/[^a-z0-9]/gi, "").length > 3);
+
+  let sticky = matchProject(text, projects);
+  const drafted: Draft[] = [];
+  rawLines.forEach(({ original, clean: l }, i) => {
+    const matchedId = matchProject(original, projects);
+    if (matchedId) sticky = matchedId;
+    const matchedName = projects.find((p) => p.id === matchedId)?.name;
+    const stripped = stripProject(l, matchedName);
+    if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) return;
+    const title = stripped || l;
+    drafted.push(
+      emptyDraft(`${i}-${l.slice(0, 10)}`, title, { project_id: matchedId || sticky }),
+    );
+  });
+  return drafted;
+}
+
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const { data: profiles = [] } = useProfiles();
+  const { data: feed = [] } = useWorkFeed();
   const { user } = useAuthUser();
   const create = useCreateWorkItems();
+  const save = useSaveWorkItem();
   const insertProject = useInsertRow("projects");
+
+  const [mode, setMode] = useState<"note" | "bulk">("note");
   const [raw, setRaw] = useState("");
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // Inline project stub creation during review: name (+ optional address) only.
   const [stubFor, setStubFor] = useState<string | null>(null);
   const [stub, setStub] = useState({ name: "", address: "" });
+  const [batchDate, setBatchDate] = useState("");
+
+  const owners = useMemo(() => profileOptions(profiles), [profiles]);
+  const openItems = useMemo(() => feed.filter((i) => !isComplete(i)), [feed]);
+
+  const duplicates = useMemo(() => {
+    const map: Record<string, WorkItemRow> = {};
+    (drafts ?? []).forEach((d) => {
+      const hit = findDuplicate({ title: d.title, project_id: d.project_id || null }, openItems);
+      if (hit) map[d.key] = hit;
+    });
+    return map;
+  }, [drafts, openItems]);
 
   const reset = () => {
     setRaw("");
     setDrafts(null);
+    setSelected({});
+    setExpanded({});
     setStubFor(null);
     setStub({ name: "", address: "" });
+    setBatchDate("");
   };
 
+  const closeAll = () => {
+    reset();
+    onClose();
+  };
+
+  const update = (key: string, patch: Partial<Draft>) =>
+    setDrafts((d) => (d ? d.map((x) => (x.key === key ? { ...x, ...patch } : x)) : d));
+
+  const updateMany = (keys: string[], patch: Partial<Draft>) =>
+    setDrafts((d) => (d ? d.map((x) => (keys.includes(x.key) ? { ...x, ...patch } : x)) : d));
+
+  const selectedKeys = Object.keys(selected).filter((k) => selected[k]);
+
   /** A stub is a real project with only a name/address — full setup happens later. */
-  const createStub = async (key: string) => {
+  const createStub = async (groupKey: string, keys: string[]) => {
     const name = stub.name.trim();
     if (name.length < 2) {
       toast.error("Give the project a name or address");
@@ -121,259 +275,473 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
       intake_notes: "Created as a stub from Quick Capture. Details to be completed.",
     })) as { id: string } | null;
     if (row?.id) {
-      update(key, { project_id: row.id });
+      updateMany(keys, { project_id: row.id, groupName: "" });
       toast.success(`Project stub "${name}" created`);
     }
     setStubFor(null);
     setStub({ name: "", address: "" });
+    void groupKey;
   };
 
   const split = () => {
     const text = raw.trim();
     if (!text) return;
-    // Newlines first (chat / list pastes), then sentence boundaries inside a line.
-    const rawLines = text
-      .split(/\r?\n+/)
-      .flatMap((l) => l.split(/(?<=[a-z0-9)])\.\s+|\s*;\s*|\s+—\s+/i))
-      .map((l) => ({ original: l, clean: cleanLine(l) }))
-      .filter(
-        ({ clean }) => /[a-z]{3}/i.test(clean) && clean.replace(/[^a-z0-9]/gi, "").length > 3,
-      );
-
-    // A job named on its own line stays in effect for the lines beneath it.
-    let sticky = matchProject(text, projects);
-    const drafted: Draft[] = [];
-    rawLines.forEach(({ original, clean: l }, i) => {
-      // Match against the original text: a "Mark Drive: ..." prefix names the job.
-      const matchedId = matchProject(original, projects);
-      if (matchedId) sticky = matchedId;
-      const matchedName = projects.find((p) => p.id === matchedId)?.name;
-      const stripped = stripProject(l, matchedName);
-      // A bare job name (heading line) is context for the lines below, not a work item.
-      if (matchedId && stripped.replace(/[^a-z0-9]/gi, "").length < 4) return;
-      const title = stripped || l;
-      drafted.push({
-        key: `${i}-${l.slice(0, 10)}`,
-        project_id: matchedId || sticky,
-        title,
-        owner: "",
-        owner_user_id: null,
-        due_date: "",
-        ...classify(l),
-      });
-    });
+    const drafted = mode === "bulk" ? parseBulk(text, projects) : parseNote(text, projects);
     setDrafts(drafted.length ? drafted : null);
+    setSelected({});
     if (!drafted.length) toast.error("Nothing to capture yet");
   };
 
-  const update = (key: string, patch: Partial<Draft>) =>
-    setDrafts((d) => (d ? d.map((x) => (x.key === key ? { ...x, ...patch } : x)) : d));
+  /** Grouped review: project appears once, rows stay compact underneath. */
+  const groups = useMemo(() => {
+    const map = new Map<string, { label: string; pending: boolean; items: Draft[] }>();
+    (drafts ?? []).forEach((d) => {
+      const key = d.project_id || (d.groupName ? `pending:${d.groupName}` : "unassigned");
+      if (!map.has(key)) {
+        map.set(key, {
+          label: d.project_id
+            ? (projects.find((p) => p.id === d.project_id)?.name ?? "Project")
+            : d.groupName || "Company / Unassigned",
+          pending: !d.project_id && Boolean(d.groupName),
+          items: [],
+        });
+      }
+      map.get(key)!.items.push(d);
+    });
+    return [...map.entries()];
+  }, [drafts, projects]);
 
   const saveAll = async () => {
     if (!drafts) return;
-    const rows: NewWorkItem[] = drafts
-      .filter((d) => d.title.trim())
-      .map((d) => ({
-        project_id: d.project_id || null,
-        item_type: d.item_type,
-        title: d.title.trim(),
-        owner: d.owner || null,
-        owner_user_id: d.owner_user_id,
-        waiting_on: d.waiting_on || null,
-        status: d.status,
-        next_action: d.next_action || null,
-        due_date: d.due_date || null,
-      }));
-    if (!rows.length) {
-      toast.error("Each item needs a summary");
+    const keep = drafts.filter((d) => d.title.trim() && d.dupAction !== "skip");
+    const skipped = drafts.length - keep.length;
+    if (!keep.length) {
+      toast.error("Nothing left to import");
       return;
     }
+
+    // "Replace existing" retires the old open item and imports the new wording.
+    for (const d of keep.filter((x) => x.dupAction === "replace")) {
+      const existing = duplicates[d.key];
+      if (existing) {
+        await save.mutateAsync({
+          id: existing.id,
+          patch: { archived_at: new Date().toISOString() },
+          note: "Replaced by a bulk import item",
+        });
+      }
+    }
+
+    const rows: NewWorkItem[] = keep.map((d) => ({
+      project_id: d.project_id || null,
+      item_type: d.item_type,
+      title: d.title.trim(),
+      owner: d.owner || null,
+      owner_user_id: d.owner_user_id,
+      waiting_on: d.waiting_on || null,
+      status: d.status,
+      next_action: d.next_action || null,
+      due_date: d.due_date || null,
+      is_important: d.is_important,
+    }));
+
     await create.mutateAsync(rows);
-    toast.success(`${rows.length} work item${rows.length > 1 ? "s" : ""} created`);
+    const needsReview = keep.filter((d) => !d.project_id && d.groupName).length;
+    toast.success(`Created ${rows.length}`, {
+      description: [
+        `Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}`,
+        `${needsReview} require project review`,
+      ].join(" · "),
+      duration: 8000,
+    });
     reset();
     onClose();
+    if (mode === "bulk") navigate({ to: "/dashboard", search: { view: "grouped" } });
   };
 
-  const valid = Boolean(drafts?.some((d) => d.title.trim()));
+  const importable = (drafts ?? []).filter((d) => d.title.trim() && d.dupAction !== "skip").length;
 
   return (
     <Modal
       open={open}
-      onClose={() => {
-        reset();
-        onClose();
-      }}
+      onClose={closeAll}
       title="Quick Capture"
-      subtitle="Paste raw notes from WhatsApp, email, a site visit or a phone call. Review, then save as real work items."
-      width="max-w-3xl"
+      subtitle={
+        mode === "bulk"
+          ? "Paste a grouped list — project name on its own line, its work underneath. Nothing is created until you import."
+          : "Paste raw notes from WhatsApp, email, a site visit or a phone call. Review, then save as real work items."
+      }
+      width={drafts && mode === "bulk" ? "max-w-[1200px]" : "max-w-3xl"}
       footer={
         drafts ? (
           <>
             <Button onClick={() => setDrafts(null)}>Back to notes</Button>
             <Button
               variant="primary"
-              onClick={saveAll}
-              disabled={!valid || create.isPending}
-              {...(!valid ? { disabledReason: "Each item needs a summary" } : {})}
+              onClick={() => void saveAll()}
+              disabled={!importable || create.isPending}
+              {...(!importable ? { disabledReason: "Each item needs a summary" } : {})}
             >
-              {create.isPending ? "Saving…" : `Create ${drafts.length} work item${drafts.length > 1 ? "s" : ""}`}
+              {create.isPending ? "Importing…" : `Import ${importable} Work Item${importable === 1 ? "" : "s"}`}
             </Button>
           </>
         ) : (
           <>
-            <Button
-              onClick={() => {
-                reset();
-                onClose();
-              }}
-            >
-              Cancel
-            </Button>
+            <Button onClick={closeAll}>Cancel</Button>
             <Button
               variant="primary"
               onClick={split}
               disabled={!raw.trim()}
               {...(!raw.trim() ? { disabledReason: "Paste or type a note first" } : {})}
             >
-              <Sparkles className="size-4" /> Split into work items
+              <Sparkles className="size-4" />{" "}
+              {mode === "bulk" ? "Parse into review" : "Split into work items"}
             </Button>
           </>
         )
       }
     >
       {!drafts ? (
-        <Field
-          label="Raw note"
-          hint="One line per thing, or just paste the message — we split it for you."
-        >
-          <TextArea
-            rows={7}
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-            placeholder={
-              "Wilkinson — need to measure master saddle. Contractor still has to finish window opening. Confirm curb was ordered."
+        <>
+          <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
+            {(
+              [
+                ["note", "Quick Note"],
+                ["bulk", "Bulk Import"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={cn(
+                  "h-7 rounded-md px-3 text-[12.5px] font-semibold transition-colors",
+                  mode === value
+                    ? "bg-card text-foreground shadow-[var(--shadow-card)]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Field
+            label={mode === "bulk" ? "Grouped work list" : "Raw note"}
+            hint={
+              mode === "bulk"
+                ? "Project name on its own line, then its items underneath. Repeat for each project."
+                : "One line per thing, or just paste the message — we split it for you."
             }
-          />
-        </Field>
+          >
+            <TextArea
+              rows={mode === "bulk" ? 14 : 7}
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              placeholder={
+                mode === "bulk"
+                  ? "114 Park Place\n  Master mosaic — confirm ETA\n  Drains — confirm details\n  PO — confirm PO\n\nWilkinson\n  Master door saddle — confirm detail\n  Window area — confirm install timing"
+                  : "Wilkinson — need to measure master saddle. Contractor still has to finish window opening. Confirm curb was ordered."
+              }
+            />
+          </Field>
+        </>
       ) : (
         <div className="space-y-3">
-          {drafts.map((d, i) => (
-            <div key={d.key} className="rounded-xl border border-border bg-muted/30 p-3.5">
-              <div className="mb-2.5 flex items-center gap-2">
-                <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                  {i + 1}
-                </span>
-                <TextInput
-                  value={d.title}
-                  onChange={(e) => update(d.key, { title: e.target.value })}
-                />
-                <button
-                  type="button"
-                  aria-label="Remove item"
-                  onClick={() => setDrafts((x) => (x ? x.filter((y) => y.key !== d.key) : x))}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-danger-soft hover:text-danger"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2.5">
-                <Field label="Project">
-                  <Select
-                    value={d.project_id}
-                    onChange={(e) => {
-                      if (e.target.value === "__stub__") {
-                        setStubFor(d.key);
-                        return;
-                      }
-                      setStubFor((s) => (s === d.key ? null : s));
-                      update(d.key, { project_id: e.target.value });
-                    }}
-                  >
-                    <option value="">Company / Unassigned</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                    <option value="__stub__">+ Create project stub…</option>
-                  </Select>
-                </Field>
-                <Field label="Type">
-                  <Select
-                    value={d.item_type}
-                    onChange={(e) => update(d.key, { item_type: e.target.value })}
-                  >
-                    {WORK_ITEM_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Owner">
+          {/* Batch tools */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+            <span className="text-[12.5px] font-semibold">
+              {selectedKeys.length ? `${selectedKeys.length} selected` : `${drafts.length} proposed`}
+            </span>
+            {selectedKeys.length ? (
+              <>
+                <div className="w-44">
                   <Combobox
-                    options={profileOptions(profiles)}
-                    value={
-                      profiles.find((p) => p.full_name === d.owner)?.user_id ?? null
-                    }
+                    options={owners}
+                    value={null}
                     onChange={(v) =>
-                      update(d.key, {
-                        owner: profiles.find((p) => p.user_id === v)?.full_name ?? "",
+                      updateMany(selectedKeys, {
                         owner_user_id: v ?? null,
+                        owner: profiles.find((p) => p.user_id === v)?.full_name ?? "",
                       })
                     }
-                    placeholder="Search employees…"
+                    placeholder="Assign owner…"
                   />
-                </Field>
-                <Field label="Waiting on">
-                  <TextInput
-                    value={d.waiting_on}
-                    onChange={(e) => update(d.key, { waiting_on: e.target.value })}
-                  />
-                </Field>
-                <Field label="Status">
-                  <Select value={d.status} onChange={(e) => update(d.key, { status: e.target.value })}>
-                    {[...new Set([d.status, ...WORK_ITEM_STATUSES])].map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Next action">
-                  <TextInput
-                    value={d.next_action}
-                    onChange={(e) => update(d.key, { next_action: e.target.value })}
-                  />
-                </Field>
-              </div>
-
-              {stubFor === d.key ? (
-                <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2 rounded-lg border border-dashed border-border bg-background p-2.5">
-                  <Field label="New project name">
-                    <TextInput
-                      value={stub.name}
-                      onChange={(e) => setStub((v) => ({ ...v, name: e.target.value }))}
-                      placeholder="118 Park Place"
-                    />
-                  </Field>
-                  <Field label="Address (optional)">
-                    <TextInput
-                      value={stub.address}
-                      onChange={(e) => setStub((v) => ({ ...v, address: e.target.value }))}
-                      placeholder="Street, town"
-                    />
-                  </Field>
-                  <Button
-                    variant="primary"
-                    loading={insertProject.isPending}
-                    onClick={() => void createStub(d.key)}
-                  >
-                    Create stub
-                  </Button>
                 </div>
-              ) : null}
-            </div>
-          ))}
+                <Button size="sm" onClick={() => updateMany(selectedKeys, { is_important: true })}>
+                  <Star className="size-3.5" /> Star
+                </Button>
+                <Button size="sm" onClick={() => updateMany(selectedKeys, { is_important: false })}>
+                  Unstar
+                </Button>
+                <TextInput
+                  type="date"
+                  className="h-8 w-[150px]"
+                  value={batchDate}
+                  onChange={(e) => {
+                    setBatchDate(e.target.value);
+                    updateMany(selectedKeys, { due_date: e.target.value });
+                  }}
+                />
+                <Select
+                  className="h-8 w-[190px]"
+                  value=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    updateMany(selectedKeys, {
+                      project_id: e.target.value === "__none__" ? "" : e.target.value,
+                      groupName: "",
+                    });
+                  }}
+                >
+                  <option value="">Move to project…</option>
+                  <option value="__none__">Company / Unassigned</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    setDrafts((d) => (d ? d.filter((x) => !selectedKeys.includes(x.key)) : d));
+                    setSelected({});
+                  }}
+                >
+                  <Trash2 className="size-3.5" /> Delete
+                </Button>
+              </>
+            ) : (
+              <span className="text-[12px] text-muted-foreground">
+                Select rows to assign an owner, star, set a needed-by date or move them to a project.
+              </span>
+            )}
+          </div>
+
+          {groups.map(([groupKey, group]) => {
+            const keys = group.items.map((i) => i.key);
+            const allSelected = keys.every((k) => selected[k]);
+            return (
+              <div key={groupKey} className="overflow-hidden rounded-xl border border-border">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2">
+                  <Checkbox
+                    checked={allSelected}
+                    onChange={(next) =>
+                      setSelected((s) => ({
+                        ...s,
+                        ...Object.fromEntries(keys.map((k) => [k, next])),
+                      }))
+                    }
+                  />
+                  <span className="text-[13.5px] font-semibold">{group.label}</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    · {group.items.length} proposed
+                  </span>
+                  {group.pending ? (
+                    <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">
+                      No matching project
+                    </span>
+                  ) : null}
+                  <div className="ml-auto flex items-center gap-2">
+                    <Select
+                      className="h-8 w-[210px]"
+                      value={group.items[0]?.project_id ?? ""}
+                      onChange={(e) => {
+                        if (e.target.value === "__stub__") {
+                          setStubFor(groupKey);
+                          setStub({ name: group.pending ? group.label : "", address: "" });
+                          return;
+                        }
+                        setStubFor((s) => (s === groupKey ? null : s));
+                        updateMany(keys, { project_id: e.target.value, groupName: "" });
+                      }}
+                    >
+                      <option value="">Company / Unassigned</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                      <option value="__stub__">+ Create project stub…</option>
+                    </Select>
+                  </div>
+                </div>
+
+                {stubFor === groupKey ? (
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2 border-b border-dashed border-border bg-background px-3 py-2.5">
+                    <Field label="New project name">
+                      <TextInput
+                        value={stub.name}
+                        onChange={(e) => setStub((v) => ({ ...v, name: e.target.value }))}
+                        placeholder="118 Park Place"
+                      />
+                    </Field>
+                    <Field label="Address (optional)">
+                      <TextInput
+                        value={stub.address}
+                        onChange={(e) => setStub((v) => ({ ...v, address: e.target.value }))}
+                        placeholder="Street, town"
+                      />
+                    </Field>
+                    <Button
+                      variant="primary"
+                      loading={insertProject.isPending}
+                      onClick={() => void createStub(groupKey, keys)}
+                    >
+                      Create stub
+                    </Button>
+                  </div>
+                ) : null}
+
+                <div className="divide-y divide-border/70">
+                  {group.items.map((d) => {
+                    const dup = duplicates[d.key];
+                    return (
+                      <div key={d.key} className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={Boolean(selected[d.key])}
+                            onChange={(next) => setSelected((s) => ({ ...s, [d.key]: next }))}
+                          />
+                          <button
+                            type="button"
+                            aria-label={d.is_important ? "Unstar item" : "Star item"}
+                            onClick={() => update(d.key, { is_important: !d.is_important })}
+                            className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                          >
+                            <Star
+                              className={cn(
+                                "size-4",
+                                d.is_important && "fill-warning text-warning",
+                              )}
+                            />
+                          </button>
+                          <TextInput
+                            className="h-8 min-w-0 flex-1"
+                            value={d.title}
+                            onChange={(e) => update(d.key, { title: e.target.value })}
+                          />
+                          <div className="w-[150px] shrink-0">
+                            <Combobox
+                              options={owners}
+                              value={d.owner_user_id}
+                              onChange={(v) =>
+                                update(d.key, {
+                                  owner_user_id: v ?? null,
+                                  owner: profiles.find((p) => p.user_id === v)?.full_name ?? "",
+                                })
+                              }
+                              placeholder="Owner"
+                            />
+                          </div>
+                          <TextInput
+                            className="h-8 w-[120px] shrink-0"
+                            placeholder="Waiting on"
+                            value={d.waiting_on}
+                            onChange={(e) => update(d.key, { waiting_on: e.target.value })}
+                          />
+                          <TextInput
+                            type="date"
+                            className="h-8 w-[140px] shrink-0"
+                            value={d.due_date}
+                            onChange={(e) => update(d.key, { due_date: e.target.value })}
+                          />
+                          <TextInput
+                            className="h-8 w-[150px] shrink-0"
+                            placeholder="Next action"
+                            value={d.next_action}
+                            onChange={(e) => update(d.key, { next_action: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpanded((s) => ({ ...s, [d.key]: !s[d.key] }))
+                            }
+                            className="shrink-0 rounded-md px-2 py-1 text-[11.5px] font-semibold text-primary hover:bg-accent"
+                          >
+                            {expanded[d.key] ? "Less" : "More"}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Remove item"
+                            onClick={() =>
+                              setDrafts((x) => (x ? x.filter((y) => y.key !== d.key) : x))
+                            }
+                            className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+
+                        {dup ? (
+                          <div className="mt-1.5 ml-11 flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning-soft/50 px-2.5 py-1.5">
+                            <span className="text-[11.5px] font-semibold text-warning">
+                              Possible duplicate
+                            </span>
+                            <span className="truncate text-[11.5px] text-secondary-foreground">
+                              of “{dup.title}”
+                            </span>
+                            <div className="ml-auto flex items-center gap-1">
+                              {(["keep", "skip", "replace"] as const).map((a) => (
+                                <button
+                                  key={a}
+                                  type="button"
+                                  onClick={() => update(d.key, { dupAction: a })}
+                                  className={cn(
+                                    "rounded-md px-2 py-1 text-[11.5px] font-semibold",
+                                    d.dupAction === a
+                                      ? "bg-card text-foreground shadow-[var(--shadow-card)]"
+                                      : "text-muted-foreground hover:bg-card/70",
+                                  )}
+                                >
+                                  {a === "keep"
+                                    ? "Keep new"
+                                    : a === "skip"
+                                      ? "Skip"
+                                      : "Replace existing"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {expanded[d.key] ? (
+                          <div className="mt-2 ml-11 grid grid-cols-2 gap-2.5">
+                            <Field label="Type">
+                              <Select
+                                value={d.item_type}
+                                onChange={(e) => update(d.key, { item_type: e.target.value })}
+                              >
+                                {WORK_ITEM_TYPES.map((t) => (
+                                  <option key={t}>{t}</option>
+                                ))}
+                              </Select>
+                            </Field>
+                            <Field label="Status">
+                              <Select
+                                value={d.status}
+                                onChange={(e) => update(d.key, { status: e.target.value })}
+                              >
+                                {[...new Set([d.status, ...WORK_ITEM_STATUSES])].map((s) => (
+                                  <option key={s}>{s}</option>
+                                ))}
+                              </Select>
+                            </Field>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
           <p className="text-[12px] text-muted-foreground">
-            Customer, GC and full setup are not required now — leave them blank and clean them up
-            later. Administrative work can stay on Company / Unassigned.
+            Customers, contacts and users are never created from pasted text. Projects are only
+            created when you approve a stub here. Administrative work can stay on Company /
+            Unassigned.
           </p>
         </div>
       )}
