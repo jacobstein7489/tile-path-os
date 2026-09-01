@@ -50,11 +50,13 @@ export function AppSidebar() {
             <Link
               key={item.to}
               to={item.to}
+              preload="intent"
               className={cn(
-                "flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors",
+                "flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium outline-none",
+                "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30 active:translate-y-[0.5px]",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-muted",
+                  : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
@@ -83,7 +85,7 @@ export function AppSidebar() {
         <button
           type="button"
           onClick={() => void signOut()}
-          className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-secondary-foreground transition-colors hover:text-foreground"
+          className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md text-[12.5px] font-medium text-secondary-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
         >
           <LogOut className="size-3.5" /> Sign out
         </button>

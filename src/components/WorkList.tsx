@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -193,6 +193,17 @@ export function WorkList({
     return [...map.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
   }, [rows]);
 
+  // Linger timers are tracked so an unmount (route switch) never fires a
+  // state update on a dead component.
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(
+    () => () => {
+      Object.values(timers.current).forEach(clearTimeout);
+      timers.current = {};
+    },
+    [],
+  );
+
   const clearJustDone = useCallback(
     (id: string) =>
       setJustDone((s) => {
@@ -226,6 +237,8 @@ export function WorkList({
         action: {
           label: "Undo",
           onClick: () => {
+            clearTimeout(timers.current[item.id]);
+            delete timers.current[item.id];
             clearJustDone(item.id);
             save.mutate({
               id: item.id,
@@ -235,8 +248,14 @@ export function WorkList({
           },
         },
       });
-      setTimeout(() => clearJustDone(item.id), COMPLETE_LINGER_MS);
+      clearTimeout(timers.current[item.id]);
+      timers.current[item.id] = setTimeout(() => {
+        delete timers.current[item.id];
+        clearJustDone(item.id);
+      }, COMPLETE_LINGER_MS);
     } else {
+      clearTimeout(timers.current[item.id]);
+      delete timers.current[item.id];
       clearJustDone(item.id);
       toast.success("Item restored");
     }
@@ -249,7 +268,15 @@ export function WorkList({
     });
   };
 
-  const Rows = ({ list, withProject }: { list: WorkItemRow[]; withProject: boolean }) => (
+  const Rows = ({
+    list,
+    withProject,
+    withHeader = true,
+  }: {
+    list: WorkItemRow[];
+    withProject: boolean;
+    withHeader?: boolean;
+  }) => (
     <Table className="table-fixed">
       <colgroup>
         <col className="w-[46px]" />
@@ -261,8 +288,8 @@ export function WorkList({
         <col className="w-[17%]" />
         <col className="w-[46px]" />
       </colgroup>
-      <thead>
-        <tr className="bg-muted/60">
+      <thead className={withHeader ? undefined : "sr-only"}>
+        <tr className={withHeader ? "bg-muted/60" : undefined}>
           <Th> </Th>
           {withProject ? <Th>Project</Th> : null}
           <Th>What Needs To Happen</Th>
@@ -456,7 +483,7 @@ export function WorkList({
                   )}
                 >
                   <div className="overflow-hidden">
-                    <Rows list={group.items} withProject={false} />
+                    <Rows list={group.items} withProject={false} withHeader={false} />
                   </div>
                 </div>
               </div>
