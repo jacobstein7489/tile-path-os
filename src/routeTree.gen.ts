@@ -19,6 +19,7 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
+import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
@@ -77,6 +78,12 @@ const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedLeadsRoute,
 } as any)
+const AuthenticatedLeadsCustomersRoute =
+  AuthenticatedLeadsCustomersRouteImport.update({
+    id: '/customers',
+    path: '/customers',
+    getParentRoute: () => AuthenticatedLeadsRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -152,6 +160,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -172,6 +181,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/leads/customers'
     | '/projects/$projectId'
     | '/api/public/qa-provision'
     | '/leads/'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/leads/customers'
     | '/api/public/qa-provision'
     | '/leads'
     | '/projects'
@@ -230,6 +242,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/today'
+    | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
     | '/api/public/qa-provision'
     | '/_authenticated/leads/'
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedLeadsRoute
     }
+    '/_authenticated/leads/customers': {
+      id: '/_authenticated/leads/customers'
+      path: '/customers'
+      fullPath: '/leads/customers'
+      preLoaderRoute: typeof AuthenticatedLeadsCustomersRouteImport
+      parentRoute: typeof AuthenticatedLeadsRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -380,10 +400,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedLeadsRouteChildren {
+  AuthenticatedLeadsCustomersRoute: typeof AuthenticatedLeadsCustomersRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
 }
 
 const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
+  AuthenticatedLeadsCustomersRoute: AuthenticatedLeadsCustomersRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
 }
 
