@@ -501,6 +501,76 @@ export type Database = {
           },
         ]
       }
+      project_files: {
+        Row: {
+          area_id: string | null
+          caption: string | null
+          created_at: string
+          filename: string
+          id: string
+          kind: string
+          mime_type: string | null
+          project_id: string
+          size_bytes: number | null
+          storage_path: string
+          surface_id: string | null
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          caption?: string | null
+          created_at?: string
+          filename: string
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          project_id: string
+          size_bytes?: number | null
+          storage_path: string
+          surface_id?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          caption?: string | null
+          created_at?: string
+          filename?: string
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          project_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          surface_id?: string | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_participants: {
         Row: {
           company_id: string | null
