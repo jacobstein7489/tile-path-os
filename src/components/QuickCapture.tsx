@@ -183,8 +183,69 @@ function looksLikeHeading(
  * new project section and the lines under it are its work.
  * Sections are structural — they never merge into each other.
  * ============================================================ */
+const EXPLICIT_HEADING = /^\s*(?:\*\*)?project\s*:\s*(.+?)\s*(?:\*\*)?$/i;
+const EXPLICIT_ITEM = /^\s*[-–—•*]\s*(.+)$/;
+
+/**
+ * Deterministic grouped format (recommended, safe):
+ *   PROJECT: 8-28 Clyde
+ *   - Listelos for Philip — ...
+ * A `PROJECT:` line ALWAYS starts a new section and is never work text.
+ */
+function parseExplicit(text: string, projects: { id: string; name: string }[]): Draft[] {
+  type Section = { key: string; id: string; name: string; headingText: string; kind: MatchKind; lines: string[] };
+  const sections: Section[] = [];
+  let n = 0;
+
+  for (const raw of text.split(/\r?\n/)) {
+    const head = raw.match(EXPLICIT_HEADING);
+    if (head) {
+      const headingText = cleanLine(head[1] ?? "");
+      const match = matchProjectHeading(headingText, projects);
+      n += 1;
+      sections.push({
+        key: `p${n}`,
+        id: match.id,
+        name: projects.find((p) => p.id === match.id)?.name ?? headingText,
+        headingText,
+        kind: match.kind,
+        lines: [],
+      });
+      continue;
+    }
+    const item = raw.match(EXPLICIT_ITEM);
+    const clean = cleanLine(item ? (item[1] ?? "") : raw);
+    if (!/[a-z0-9]{2}/i.test(clean)) continue;
+    if (!sections.length) {
+      sections.push({ key: "unassigned", id: "", name: "", headingText: "", kind: "none", lines: [] });
+    }
+    sections[sections.length - 1]!.lines.push(clean);
+  }
+
+  const drafts: Draft[] = [];
+  sections.forEach((section, si) => {
+    section.lines.forEach((clean, li) => {
+      const title = stripProject(clean, section.id ? section.name : undefined) || clean;
+      drafts.push(
+        emptyDraft(`${si}-${li}-${title.slice(0, 12)}`, title, {
+          sectionKey: section.key,
+          project_id: section.id,
+          groupName: section.headingText,
+          matchKind: section.kind,
+        }),
+      );
+    });
+  });
+  return drafts;
+}
+
 export function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
+  // Explicit format wins whenever a single PROJECT: line is present.
+  if (text.split(/\r?\n/).some((l) => EXPLICIT_HEADING.test(l))) {
+    return parseExplicit(text, projects);
+  }
   const lines = text.split(/\r?\n/);
+
 
   // If the paste uses indentation or bullets at all, indentation defines the sections.
   const indentMode = lines.some(
