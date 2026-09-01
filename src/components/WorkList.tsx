@@ -819,7 +819,7 @@ export function WorkList({
 
       <div className="sticky top-14 z-10 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
         {/* Desktop: one deliberate row. */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
           <FilterGroup
             className="flex-nowrap"
             options={filters.map((f) => ({
