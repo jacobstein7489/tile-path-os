@@ -188,7 +188,6 @@ function looksLikeHeading(original: string, clean: string, indentMode: boolean) 
  * Sections are structural — they never merge into each other.
  * ============================================================ */
 export function parseBulk(text: string, projects: { id: string; name: string }[]): Draft[] {
-  const drafts: Draft[] = [];
   const lines = text.split(/\r?\n/);
 
   // If the paste uses indentation or bullets at all, indentation defines the sections.
@@ -196,13 +195,18 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     (l) => /^([ \t]+|\s*[-–—•*·>])/.test(l) && /[a-z0-9]{2}/i.test(cleanLine(l)),
   );
 
-  let section = {
-    key: "unassigned",
-    id: "",
-    name: "",
-    headingText: "",
-    kind: "none" as MatchKind,
+  type Section = {
+    key: string;
+    id: string;
+    name: string;
+    headingText: string;
+    kind: MatchKind;
+    lines: { i: number; clean: string }[];
   };
+
+  const sections: Section[] = [
+    { key: "unassigned", id: "", name: "", headingText: "", kind: "none", lines: [] },
+  ];
   let sectionIndex = 0;
 
   lines.forEach((original, i) => {
@@ -212,31 +216,51 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     if (looksLikeHeading(original, clean, indentMode)) {
       const match = matchProjectHeading(clean, projects);
       sectionIndex += 1;
-      section = {
+      sections.push({
         key: `s${sectionIndex}`,
         id: match.id,
         name: projects.find((p) => p.id === match.id)?.name ?? clean,
         // The pasted heading, kept verbatim so an unmatched section can become a stub.
         headingText: clean,
         kind: match.kind,
-      };
+        lines: [],
+      });
       return;
     }
 
+    sections[sections.length - 1]!.lines.push({ i, clean });
+  });
 
-    const title = stripProject(clean, section.id ? section.name : undefined) || clean;
-    drafts.push(
-      emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
-        sectionKey: section.key,
-        project_id: section.id,
-        groupName: section.headingText,
-        matchKind: section.kind,
-      }),
-    );
+  // Without indentation a short work line can look like a heading. A heading that
+  // matched no project and gathered no work under it is really an item of the
+  // section above it, so fold it back instead of losing it.
+  if (!indentMode) {
+    for (let s = sections.length - 1; s > 0; s -= 1) {
+      const sec = sections[s]!;
+      if (sec.lines.length || sec.id) continue;
+      sections[s - 1]!.lines.push({ i: 1000 + s, clean: sec.headingText });
+      sections.splice(s, 1);
+    }
+  }
+
+  const drafts: Draft[] = [];
+  sections.forEach((section) => {
+    section.lines.forEach(({ i, clean }) => {
+      const title = stripProject(clean, section.id ? section.name : undefined) || clean;
+      drafts.push(
+        emptyDraft(`${i}-${title.slice(0, 12)}`, title, {
+          sectionKey: section.key,
+          project_id: section.id,
+          groupName: section.headingText,
+          matchKind: section.kind,
+        }),
+      );
+    });
   });
 
   return drafts;
 }
+
 
 
 /** Quick-note mode only: find a job name mentioned inside free-flowing text. */
