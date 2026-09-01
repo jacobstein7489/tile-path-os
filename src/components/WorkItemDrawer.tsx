@@ -2,12 +2,21 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Paperclip } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Drawer, Field, Select, StepSequence, TextArea, TextInput } from "@/components/kit";
+import {
+  Button,
+  Combobox,
+  Drawer,
+  Field,
+  Select,
+  StepSequence,
+  TextArea,
+  TextInput,
+} from "@/components/kit";
+import { profileOptions, useProfiles } from "@/lib/people";
 import { Chip } from "@/lib/status";
 import {
   advanceWorkflow,
   isComplete,
-  OWNERS,
   statusTone,
   typeTone,
   useAddWorkNote,
@@ -29,8 +38,9 @@ export function WorkItemDrawer({
   const save = useSaveWorkItem();
   const addNote = useAddWorkNote();
   const { data: events = [] } = useWorkItemEvents(item?.id ?? null);
+  const { data: profiles = [] } = useProfiles();
   const [form, setForm] = useState({
-    owner: "",
+    owner_user_id: "" as string | null,
     waiting_on: "",
     status: "Open",
     due_date: "",
@@ -43,7 +53,7 @@ export function WorkItemDrawer({
   useEffect(() => {
     if (!item) return;
     setForm({
-      owner: item.owner ?? "",
+      owner_user_id: item.owner_user_id ?? null,
       waiting_on: item.waiting_on ?? "",
       status: item.status,
       due_date: item.due_date ?? "",
@@ -57,13 +67,16 @@ export function WorkItemDrawer({
   if (!item) return null;
   const wf = workflowFor(item);
   const done = isComplete(item);
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof typeof form, v: string | null) => setForm((f) => ({ ...f, [k]: v }));
 
   const saveChanges = async () => {
     await save.mutateAsync({
       id: item.id,
       patch: {
-        owner: form.owner || null,
+        owner_user_id: form.owner_user_id || null,
+        owner: form.owner_user_id
+          ? (profiles.find((p) => p.user_id === form.owner_user_id)?.full_name ?? null)
+          : null,
         waiting_on: form.waiting_on || null,
         status: form.status,
         due_date: form.due_date || null,
@@ -110,7 +123,7 @@ export function WorkItemDrawer({
     <Drawer
       open
       onClose={onClose}
-      title={item.title}
+      title={`${item.projects?.name ? `${item.projects.name} — ` : ""}${item.title}`}
       subtitle={
         <span className="flex flex-wrap items-center gap-2">
           <Link
@@ -147,6 +160,15 @@ export function WorkItemDrawer({
       }
     >
       <div className="space-y-5">
+        <div className="rounded-xl border border-primary/25 bg-primary-soft px-4 py-3">
+          <div className="text-[10.5px] font-semibold tracking-[0.14em] text-primary/80 uppercase">
+            Next action
+          </div>
+          <p className="mt-0.5 text-[14px] font-semibold text-primary">
+            {item.next_action ?? "No next action set"}
+          </p>
+        </div>
+
         {wf ? (
           <div className="rounded-xl border border-border bg-muted/40 px-4 py-3.5">
             <div className="mb-2.5 flex items-center justify-between">
@@ -176,13 +198,13 @@ export function WorkItemDrawer({
               ))}
             </Select>
           </Field>
-          <Field label="Owner">
-            <Select value={form.owner} onChange={(e) => set("owner", e.target.value)}>
-              <option value="">Unassigned</option>
-              {[...new Set([...(form.owner ? [form.owner] : []), ...OWNERS])].map((o) => (
-                <option key={o}>{o}</option>
-              ))}
-            </Select>
+          <Field label="Owner" hint="Configured employees only">
+            <Combobox
+              options={profileOptions(profiles)}
+              value={form.owner_user_id}
+              onChange={(v) => set("owner_user_id", v)}
+              placeholder="Search employees…"
+            />
           </Field>
           <Field label="Waiting on">
             <TextInput
@@ -257,9 +279,13 @@ export function WorkItemDrawer({
           </ul>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] text-muted-foreground">
-          <Paperclip className="size-4" /> Files and photos attach here once storage is enabled.
-        </div>
+        <Link
+          to="/projects/$projectId/files"
+          params={{ projectId: item.project_id }}
+          className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
+        >
+          <Paperclip className="size-4" /> Open project files and photos
+        </Link>
       </div>
     </Drawer>
   );
