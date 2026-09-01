@@ -65,15 +65,15 @@ function TodayPage() {
         crumbs={[{ label: "Today" }]}
         viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`}
       />
-      <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8 md:pt-8">
         <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">
           Good morning, {profile?.full_name?.split(" ")[0] || "there"}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
 
-        <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
+        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3 md:gap-4">
               <KpiCard
                 icon={<Clock className="size-5" />}
                 tone="blue"
