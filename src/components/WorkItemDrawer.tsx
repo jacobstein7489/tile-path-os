@@ -207,7 +207,7 @@ export function WorkItemDrawer({
         </button>
 
 
-        <div className="grid grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
               options={profileOptions(profiles)}
@@ -224,10 +224,11 @@ export function WorkItemDrawer({
             />
           </Field>
           <Field label="Needed by">
-            <TextInput
-              type="date"
-              value={form.due_date}
-              onChange={(e) => set("due_date", e.target.value)}
+            <DateField
+              value={form.due_date || null}
+              label="Needed by"
+              placeholder="No date"
+              onChange={(v) => set("due_date", v ?? "")}
             />
           </Field>
         </div>
