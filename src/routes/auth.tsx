@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
-import { Button, Field, Input } from "@/components/kit";
+import { lovable } from "@/integrations/lovable/client";
+import { Button, Field, TextInput } from "@/components/kit";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -50,7 +50,7 @@ function AuthPage() {
     };
   }, [navigate]);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     try {
@@ -116,7 +116,7 @@ function AuthPage() {
           <form onSubmit={submit} className="mt-5 space-y-3.5">
             {mode === "signup" ? (
               <Field label="Full name">
-                <Input
+                <TextInput
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Jordan Rivera"
@@ -126,7 +126,7 @@ function AuthPage() {
               </Field>
             ) : null}
             <Field label="Work email">
-              <Input
+              <TextInput
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -136,7 +136,7 @@ function AuthPage() {
               />
             </Field>
             <Field label="Password">
-              <Input
+              <TextInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
