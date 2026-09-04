@@ -85,7 +85,7 @@ export function MetricTile({
 }: {
   label: string;
   value: ReactNode;
-  tone?: "blue" | "amber" | "green" | "neutral";
+  tone?: "blue" | "amber" | "green" | "red" | "neutral";
   icon?: ReactNode;
   active?: boolean;
   onClick?: () => void;
@@ -94,6 +94,7 @@ export function MetricTile({
     blue: "bg-info-soft/70 text-info",
     amber: "bg-warning-soft/70 text-warning",
     green: "bg-success-soft/70 text-success",
+    red: "bg-danger-soft/70 text-danger",
     neutral: "bg-muted text-secondary-foreground",
   };
   const Tag = onClick ? "button" : "div";
