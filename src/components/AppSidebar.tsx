@@ -5,10 +5,8 @@ import {
   CheckSquare,
   FolderClosed,
   LogOut,
-  Package,
   Plus,
   Settings,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,18 +14,13 @@ import { Avatar } from "@/components/kit";
 import { QuickCapture } from "@/components/QuickCapture";
 import { ROLE_LABELS, signOut, useMyProfile, useMyRoles } from "@/hooks/useAuth";
 
-/** The five things a job runs on. Everything else is secondary. */
+/** The five screens a job actually runs on. Everything else is hidden for now. */
 const NAV = [
   { label: "Today", short: "Today", to: "/today", icon: Sun },
   { label: "Work", short: "Work", to: "/dashboard", icon: CheckSquare },
   { label: "Projects", short: "Jobs", to: "/projects", icon: FolderClosed },
   { label: "Schedule", short: "Sched", to: "/schedule", icon: CalendarDays },
   { label: "Settings", short: "More", to: "/settings", icon: Settings },
-] as const;
-
-const SECONDARY = [
-  { label: "Leads", to: "/leads", icon: Sparkles },
-  { label: "Install Materials", to: "/materials", icon: Package },
 ] as const;
 
 function useIsActive() {
@@ -87,29 +80,6 @@ export function AppSidebar() {
                 )}
               >
                 <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
-                {item.label}
-              </Link>
-            );
-          })}
-
-          <div className="mt-5 mb-1 px-3 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/80 uppercase">
-            More
-          </div>
-          {SECONDARY.map((item) => {
-            const active = isActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                preload="intent"
-                className={cn(
-                  "flex h-8 cursor-pointer items-center gap-3 rounded-lg px-3 text-[12.5px] outline-none transition-colors duration-150",
-                  active
-                    ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <item.icon className="size-4" strokeWidth={1.8} />
                 {item.label}
               </Link>
             );
