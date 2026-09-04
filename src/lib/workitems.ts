@@ -347,16 +347,19 @@ export function workSummary(items: WorkItemRow[]) {
 }
 
 
-/** Starred work first, then earliest needed-by, then newest. */
+/** Starred work first, then overdue, then earliest action date, then newest. */
 export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   if (Boolean(a.is_important) !== Boolean(b.is_important)) return a.is_important ? -1 : 1;
-  if (a.due_date !== b.due_date) {
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return a.due_date < b.due_date ? -1 : 1;
+  const da = actionDate(a);
+  const db = actionDate(b);
+  if (da !== db) {
+    if (!da) return 1;
+    if (!db) return -1;
+    return da < db ? -1 : 1;
   }
   return a.created_at < b.created_at ? 1 : -1;
 }
+
 
 export function statusTone(status: string): ChipTone {
   if (status === "Complete") return "green";
