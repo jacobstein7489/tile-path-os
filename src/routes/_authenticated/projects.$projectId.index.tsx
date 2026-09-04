@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarDays,
   ChevronRight,
+  ClipboardCheck,
   HardHat,
   Layers,
   MessageSquarePlus,
@@ -19,8 +20,10 @@ import {
   SectionCard,
   TextArea,
 } from "@/components/kit";
+import { FieldReportSheet } from "@/components/FieldReportSheet";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
+import { useFieldReports } from "@/lib/fieldreports";
 import {
   compareWorkItems,
   isComplete,
@@ -29,6 +32,7 @@ import {
   useWorkFeed,
   type WorkItemRow,
 } from "@/lib/workitems";
+
 
 import {
   CreateWorkItemModal,
