@@ -930,3 +930,63 @@ export function Avatar({
     </span>
   );
 }
+
+/* ---------------- Substantial summary card (Work / Today headers) ---------------- */
+
+/**
+ * Big, calm, clickable number card. Four of these open Work and Today, so they
+ * are deliberately generous: large count, quiet label, one restrained accent.
+ */
+export function SummaryCard({
+  label,
+  value,
+  tone = "neutral",
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: "blue" | "amber" | "green" | "red" | "neutral";
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const accent: Record<string, string> = {
+    blue: "text-primary",
+    amber: "text-warning",
+    green: "text-success",
+    red: "text-danger",
+    neutral: "text-foreground",
+  };
+  const bar: Record<string, string> = {
+    blue: "bg-primary",
+    amber: "bg-warning",
+    green: "bg-success",
+    red: "bg-danger",
+    neutral: "bg-border-strong",
+  };
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      {...(onClick ? { type: "button" as const, onClick, "aria-pressed": active } : {})}
+      className={cn(
+        "surface relative w-full overflow-hidden px-4 py-4 text-left md:px-5 md:py-[18px]",
+        onClick &&
+          "cursor-pointer outline-none transition-[background-color,border-color,box-shadow,transform] duration-150 hover:border-border-strong hover:bg-muted/30 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/30",
+        active && "border-foreground/25 bg-muted/40 ring-1 ring-inset ring-foreground/10",
+      )}
+    >
+      <span className={cn("absolute inset-y-0 left-0 w-[3px]", active ? bar[tone] : "bg-transparent")} />
+      <span
+        className={cn(
+          "block text-[30px] leading-none font-bold tracking-[-0.03em] tabular-nums md:text-[34px]",
+          accent[tone],
+        )}
+      >
+        {value}
+      </span>
+      <span className="mt-2 block text-[11.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+        {label}
+      </span>
+    </Tag>
+  );
+}
