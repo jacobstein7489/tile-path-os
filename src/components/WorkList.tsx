@@ -201,9 +201,6 @@ export function WorkList({
   showSummary?: boolean;
   /** Grouped sections start closed so the page opens as a short scannable list. */
   startCollapsed?: boolean;
-
-  /** Compact status strip above the controls (Company Work). */
-  showSummary?: boolean;
   /** Right-side toolbar slot, e.g. Quick Capture. */
   toolbarRight?: ReactNode;
 }) {
