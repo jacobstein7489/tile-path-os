@@ -485,6 +485,15 @@ function ProjectOverview() {
         onClose={() => setMaterial(false)}
         projectId={projectId}
       />
+      {report ? (
+        <FieldReportSheet
+          projectId={projectId}
+          projectName={project.name}
+          onClose={() => setReport(false)}
+          defaultCrewId={null}
+        />
+      ) : null}
+
     </>
   );
 }
