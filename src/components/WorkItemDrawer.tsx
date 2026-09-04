@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronDown, Paperclip, Star } from "lucide-react";
+import { Check, ChevronDown, FileText, History, MessageSquareText, Paperclip, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
   Avatar,
@@ -25,8 +25,10 @@ import {
   storedStatus,
   TASK_CATEGORIES,
   TASK_STATUSES,
+  type TaskStatus,
   type WorkItemRow,
 } from "@/lib/workitems";
+import { cn } from "@/lib/utils";
 
 /**
  * Action editor. Desktop: right-side drawer. Phone: full-height sheet.
@@ -36,6 +38,7 @@ import {
 
 type Outcome = "Done" | "Still waiting" | "Keep open" | "New action needed";
 const OUTCOMES: Outcome[] = ["Done", "Still waiting", "Keep open", "New action needed"];
+type DetailTab = "Updates" | "Notes" | "Files";
 
 export function WorkItemDrawer({
   item,
@@ -67,6 +70,7 @@ export function WorkItemDrawer({
   const [outcome, setOutcome] = useState<Outcome>("Keep open");
   const [newTitle, setNewTitle] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [detailTab, setDetailTab] = useState<DetailTab>("Updates");
 
   useEffect(() => {
     if (!item) return;
@@ -85,6 +89,7 @@ export function WorkItemDrawer({
     setOutcome("Keep open");
     setNewTitle("");
     setHistoryOpen(false);
+    setDetailTab("Updates");
   }, [item]);
 
   /** Waiting On searches the people and companies already configured. */
@@ -197,14 +202,14 @@ export function WorkItemDrawer({
       open
       onClose={onClose}
       width="max-w-[520px]"
-      title={
-        <span className="block">
-          <span className="block text-[12.5px] font-semibold text-muted-foreground">
+       title={
+         <span className="block pr-2">
+           <span className="block text-[12px] font-semibold text-primary">
             {item.project_id ? (
               <Link
                 to="/projects/$projectId"
                 params={{ projectId: item.project_id }}
-                className="text-primary hover:underline"
+                 className="hover:underline"
               >
                 {item.projects?.name ?? "Project"}
               </Link>
@@ -212,12 +217,17 @@ export function WorkItemDrawer({
               "Company / no job"
             )}
           </span>
-          <span className="mt-0.5 block text-[17px] leading-snug font-bold tracking-[-0.02em]">
+           <span className="mt-1 block text-[19px] leading-snug font-bold md:text-[21px]">
             {item.title}
           </span>
         </span>
       }
-      subtitle={simpleStatus(item.status)}
+       subtitle={
+         <span className="inline-flex items-center gap-1.5 font-semibold text-secondary-foreground">
+           <span className="size-1.5 rounded-full bg-primary" />
+           {simpleStatus(item.status)}
+         </span>
+       }
       footer={
         <>
           {done ? (
@@ -235,7 +245,7 @@ export function WorkItemDrawer({
         </>
       }
     >
-      <div className="space-y-5">
+       <div className="space-y-5">
         <Field label="Action">
           <TextInput
             value={form.title}
@@ -245,7 +255,7 @@ export function WorkItemDrawer({
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+         <div className="grid grid-cols-1 gap-3 border-y border-border bg-muted/30 py-4 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
               options={profileOptions(profiles)}
@@ -255,15 +265,15 @@ export function WorkItemDrawer({
             />
           </Field>
           <Field label="Status">
-            <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
+             <Select
+               value={form.status}
+               onChange={(e) => set("status", e.target.value as TaskStatus)}
+             >
               {TASK_STATUSES.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </Select>
           </Field>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <Field label="Due">
             <DateField
               value={form.due_date || null}
@@ -272,30 +282,28 @@ export function WorkItemDrawer({
               onChange={(v) => set("due_date", v ?? "")}
             />
           </Field>
-          <Field label="Important">
-            <button
-              type="button"
-              onClick={() =>
-                save.mutate({
-                  id: item.id,
-                  patch: { is_important: !item.is_important },
-                  note: item.is_important ? "Unmarked important" : "Marked important",
-                })
-              }
-              aria-pressed={Boolean(item.is_important)}
-              className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-border px-3 text-[13px] font-medium text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary/30"
-            >
-              <Star
-                className={
-                  item.is_important
-                    ? "size-4 fill-warning text-warning"
-                    : "size-4 text-muted-foreground"
-                }
-              />
-              {item.is_important ? "Important" : "Mark important"}
-            </button>
-          </Field>
         </div>
+
+         <Button
+           variant="ghost"
+           size="sm"
+           className={cn(
+             "-mt-2 w-fit",
+             item.is_important ? "text-warning hover:bg-warning-soft" : "text-muted-foreground",
+           )}
+           onClick={() =>
+             save.mutate({
+               id: item.id,
+               patch: { is_important: !item.is_important },
+               note: item.is_important ? "Unmarked important" : "Marked important",
+             })
+           }
+           aria-pressed={Boolean(item.is_important)}
+           title={item.is_important ? "Remove important mark" : "Mark important"}
+         >
+           <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
+           {item.is_important ? "Important" : "Mark important"}
+         </Button>
 
         {waiting ? (
           <div className="grid grid-cols-1 gap-3.5 rounded-xl bg-warning-soft/40 p-3.5 sm:grid-cols-2">
@@ -320,19 +328,10 @@ export function WorkItemDrawer({
           </div>
         ) : null}
 
-        <Field label="Notes">
-          <TextArea
-            rows={3}
-            value={form.description}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder="Context, decisions, anything useful."
-          />
-        </Field>
-
         {/* Log update — the everyday follow-up path, no duplicate actions. */}
-        <section className="rounded-xl border border-border">
+         <section className="overflow-hidden rounded-xl border border-primary/20 bg-primary-soft/25 shadow-[var(--shadow-card)]">
           {logOpen ? (
-            <div className="space-y-3.5 px-4 py-4">
+             <div className="space-y-4 px-4 py-4">
               <VoiceField
                 label="What happened?"
                 value={log}
@@ -340,7 +339,9 @@ export function WorkItemDrawer({
                 placeholder="Spoke with Millie. Material expected Monday."
                 rows={3}
               />
-              <div className="flex flex-wrap gap-2">
+               <div>
+                 <p className="mb-2 text-[12px] font-semibold text-secondary-foreground">Where does it stand?</p>
+                 <div className="grid grid-cols-2 gap-2">
                 {OUTCOMES.map((o) => (
                   <button
                     key={o}
@@ -349,13 +350,14 @@ export function WorkItemDrawer({
                     aria-pressed={outcome === o}
                     className={
                       outcome === o
-                        ? "h-9 cursor-pointer rounded-lg bg-foreground px-3 text-[12.5px] font-semibold text-background"
-                        : "h-9 cursor-pointer rounded-lg border border-border px-3 text-[12.5px] font-semibold text-secondary-foreground transition-colors hover:bg-muted"
+                         ? "min-h-10 cursor-pointer rounded-lg bg-foreground px-3 text-[12.5px] font-semibold text-background"
+                         : "min-h-10 cursor-pointer rounded-lg border border-border bg-card px-3 text-[12.5px] font-semibold text-secondary-foreground transition-colors hover:bg-muted"
                     }
                   >
                     {o}
                   </button>
                 ))}
+                 </div>
               </div>
               {outcome === "Still waiting" ? (
                 <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -402,61 +404,106 @@ export function WorkItemDrawer({
               </div>
             </div>
           ) : (
-            <button
-              type="button"
+             <Button
+               variant="ghost"
               onClick={() => setLogOpen(true)}
-              className="flex w-full cursor-pointer items-center justify-between px-4 py-3.5 text-[13.5px] font-semibold text-primary transition-colors hover:bg-primary-soft/50"
+               className="h-auto w-full justify-between rounded-none px-4 py-4 text-left hover:bg-primary-soft/60"
             >
-              Log update
-              <span className="text-[12.5px] font-medium text-muted-foreground">
-                {events.length ? `${events.length} in history` : "Nothing logged yet"}
+               <span className="flex min-w-0 items-center gap-3">
+                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+                   <MessageSquareText className="size-4" />
+                 </span>
+                 <span>
+                   <span className="block text-[14px] font-bold text-foreground">Log an update</span>
+                   <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
+                     Record what happened and decide what comes next
+                   </span>
+                 </span>
               </span>
-            </button>
+               <span className="text-primary">→</span>
+             </Button>
           )}
         </section>
 
-        {item.project_id ? (
-          <Link
-            to="/projects/$projectId/files"
-            params={{ projectId: item.project_id }}
-            className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3.5 text-[13px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
-          >
-            <Paperclip className="size-4" /> Files and photos for this job
-          </Link>
-        ) : null}
+         <section className="border-t border-border pt-1">
+           <div className="flex items-center gap-5 border-b border-border">
+             {(["Updates", "Notes", "Files"] as DetailTab[]).map((tab) => (
+               <button
+                 key={tab}
+                 type="button"
+                 onClick={() => setDetailTab(tab)}
+                 className={cn(
+                   "relative flex h-11 cursor-pointer items-center gap-1.5 text-[12.5px] font-semibold transition-colors duration-150",
+                   detailTab === tab ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                 )}
+               >
+                 {tab === "Updates" ? <History className="size-3.5" /> : null}
+                 {tab === "Notes" ? <FileText className="size-3.5" /> : null}
+                 {tab === "Files" ? <Paperclip className="size-3.5" /> : null}
+                 {tab}
+                 {tab === "Updates" && events.length ? ` ${events.length}` : ""}
+                 {detailTab === tab ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" /> : null}
+               </button>
+             ))}
+           </div>
 
-        {/* History is read-only and deliberately secondary. */}
-        <section className="rounded-xl border border-border">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((v) => !v)}
-            className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-[12.5px] font-semibold text-secondary-foreground"
-          >
-            History
-            <ChevronDown
-              className={`size-4 transition-transform ${historyOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-          {historyOpen ? (
-            <ul className="space-y-2.5 border-t border-border px-4 py-3.5">
-              {events.map((e) => (
-                <li key={e.id} className="text-[12.5px]">
-                  <span className="font-medium">{e.message}</span>
-                  <span className="text-muted-foreground">
-                    {" · "}
-                    {new Date(e.created_at).toLocaleString()}
-                    {e.actor ? ` · ${e.actor}` : ""}
-                  </span>
-                </li>
-              ))}
-              <li className="text-[12.5px] text-muted-foreground">
-                Created {new Date(item.created_at).toLocaleDateString()}
-                {item.created_by ? ` by ${item.created_by}` : ""}
-                {ownerName ? ` · owner ${ownerName}` : ""}
-              </li>
-            </ul>
-          ) : null}
-        </section>
+           {detailTab === "Notes" ? (
+             <div className="pt-4">
+               <TextArea
+                 rows={4}
+                 value={form.description}
+                 onChange={(e) => set("description", e.target.value)}
+                 placeholder="Context, decisions, anything useful."
+               />
+             </div>
+           ) : null}
+
+           {detailTab === "Files" ? (
+             <div className="pt-4">
+               {item.project_id ? (
+                 <Link
+                   to="/projects/$projectId/files"
+                   params={{ projectId: item.project_id }}
+                   className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-[13px] font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
+                 >
+                   <Paperclip className="size-4" /> Open files and photos for this job
+                 </Link>
+               ) : (
+                 <p className="py-3 text-[12.5px] text-muted-foreground">Link this action to a job to add files.</p>
+               )}
+             </div>
+           ) : null}
+
+           {detailTab === "Updates" ? (
+             <div className="pt-2">
+               <button
+                 type="button"
+                 onClick={() => setHistoryOpen((v) => !v)}
+                 className="flex min-h-11 w-full cursor-pointer items-center justify-between text-[12.5px] font-semibold text-secondary-foreground"
+               >
+                 Activity history
+                 <ChevronDown className={cn("size-4 transition-transform", historyOpen && "rotate-180")} />
+               </button>
+               {historyOpen ? (
+                 <ul className="space-y-3 border-t border-border py-3">
+                   {events.map((e) => (
+                     <li key={e.id} className="text-[12.5px] leading-relaxed">
+                       <span className="font-medium">{e.message}</span>
+                       <span className="text-muted-foreground">
+                         {" · "}{new Date(e.created_at).toLocaleString()}{e.actor ? ` · ${e.actor}` : ""}
+                       </span>
+                     </li>
+                   ))}
+                   <li className="text-[12.5px] text-muted-foreground">
+                     Created {new Date(item.created_at).toLocaleDateString()}
+                     {item.created_by ? ` by ${item.created_by}` : ""}
+                     {ownerName ? ` · owner ${ownerName}` : ""}
+                   </li>
+                 </ul>
+               ) : null}
+             </div>
+           ) : null}
+         </section>
 
         <details className="text-[12.5px] text-muted-foreground">
           <summary className="cursor-pointer font-semibold">Category (optional)</summary>
