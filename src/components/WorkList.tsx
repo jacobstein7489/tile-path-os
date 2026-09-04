@@ -215,7 +215,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
-  const [filterSheet, setFilterSheet] = useState(false);
+  
   /** Summary strip focus — Open / Unassigned / Waiting / Overdue. */
   const [focus, setFocus] = useState<SummaryKey | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
