@@ -66,7 +66,7 @@ export function simpleStatus(status: string): TaskStatus {
 }
 
 /** What we write back when the user picks one of the four statuses. */
-export function storedStatus(status: TaskStatus): string {
+export function storedStatus(status: TaskStatus | string): string {
   if (status === "Done") return "Complete";
   if (status === "To Do") return "Open";
   return status;
