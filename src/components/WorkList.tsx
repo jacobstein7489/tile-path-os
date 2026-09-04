@@ -900,7 +900,7 @@ export function WorkList({
           <div className="w-full min-w-0 md:w-auto">
             <FilterChips />
           </div>
-          <div className="flex w-full min-w-0 items-center gap-2 md:ml-auto md:w-auto">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:ml-auto md:w-auto md:flex-nowrap">
 
             {showViewToggle ? <ViewToggle /> : null}
             {showViewToggle && view !== "List" ? <CollapseButton /> : null}
