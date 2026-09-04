@@ -87,6 +87,10 @@ function ProjectOverview() {
   const [material, setMaterial] = useState(false);
   const [openItem, setOpenItem] = useState<WorkItemRow | null>(null);
   const [panel, setPanel] = useState<FactPanel | null>(null);
+  const [report, setReport] = useState(false);
+  const { data: reports = [] } = useFieldReports(projectId);
+  const latestReport = reports[0] ?? null;
+
 
   if (!project) return null;
 
