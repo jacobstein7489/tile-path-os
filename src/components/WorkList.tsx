@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
-  Clock,
   Plus,
-  SlidersHorizontal,
   Star,
-  X,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -20,8 +15,6 @@ import {
   Combobox,
   DateField,
   EmptyState,
-  FilterGroup,
-  MetricTile,
   SearchInput,
   Table,
   Td,
@@ -32,6 +25,7 @@ import { profileOptions, useProfiles } from "@/lib/people";
 import {
   compareWorkItems,
   isComplete,
+  isDueToday,
   isOverdue,
   isWaiting,
   projectLabel,
@@ -180,6 +174,7 @@ export function WorkList({
   emptyTitle = "Nothing open",
   emptyNote = "No work matches this view.",
   showSummary = false,
+  startCollapsed = true,
   toolbarRight,
 }: {
   items: WorkItemRow[];
@@ -201,8 +196,10 @@ export function WorkList({
   isLoading?: boolean;
   emptyTitle?: string;
   emptyNote?: string;
-  /** Compact status strip above the controls (Company Work). */
+  /** Quiet one-line summary above the controls (Company Work / Today). */
   showSummary?: boolean;
+  /** Grouped sections start closed so the page opens as a short scannable list. */
+  startCollapsed?: boolean;
   /** Right-side toolbar slot, e.g. Quick Capture. */
   toolbarRight?: ReactNode;
 }) {
@@ -217,7 +214,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
-  const [filterSheet, setFilterSheet] = useState(false);
+
   /** Summary strip focus — Open / Unassigned / Waiting / Overdue. */
   const [focus, setFocus] = useState<SummaryKey | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -396,29 +393,27 @@ export function WorkList({
 
   const Cols = ({ withProject }: { withProject: boolean }) => (
     <colgroup>
+      <col className="w-[44px]" />
+      {withProject ? <col className="w-[17%]" /> : null}
+      <col />
+      <col className="w-[168px]" />
+      <col className="w-[92px]" />
       <col className="w-[48px]" />
-      {withProject ? <col className="w-[15%]" /> : null}
-      <col className={withProject ? "w-[26%]" : "w-[28%]"} />
-      <col className={withProject ? "w-[19%]" : "w-[24%]"} />
-      <col className="w-[11%]" />
-      <col className="w-[10%]" />
-      <col className="w-[14%]" />
-      <col className="w-[52px]" />
     </colgroup>
   );
 
   const HeaderCells = ({ withProject }: { withProject: boolean }) => (
-    <tr className="bg-muted/70">
+    <tr className="bg-muted/50">
       <Th>
-        <span className="sr-only">Important</span>★
+        <span className="sr-only">Important</span>
       </Th>
       {withProject ? <Th>Project</Th> : null}
-      <Th>What Needs To Happen</Th>
+      <Th>Action</Th>
       <Th>Owner</Th>
-      <Th>Waiting On</Th>
-      <Th>Needed By</Th>
-      <Th>Next Action</Th>
-      <Th>Done</Th>
+      <Th>Due</Th>
+      <Th>
+        <span className="sr-only">Done</span>
+      </Th>
     </tr>
   );
 
@@ -473,12 +468,12 @@ export function WorkList({
                 selected && !done && "bg-primary-soft/70 ring-1 ring-inset ring-primary/25",
               )}
             >
-              <Td className="group-last:border-0">
+              <Td className="pr-0 pl-3 group-last:border-0">
                 <StarButton item={i} onToggle={() => toggleStar(i)} />
               </Td>
               {withProject ? (
-                <Td className="font-semibold group-last:border-0">
-                  <span className="block break-words">
+                <Td className="group-last:border-0">
+                  <span className="block truncate text-[12.5px] font-semibold text-secondary-foreground">
                     <Highlight text={projectLabel(i)} query={q} />
                   </span>
                 </Td>
@@ -486,51 +481,52 @@ export function WorkList({
               <Td className="group-last:border-0">
                 <span
                   className={cn(
-                    "block font-medium break-words",
+                    "block text-[13.5px] leading-snug font-semibold break-words",
                     done && "text-muted-foreground line-through",
                   )}
                 >
                   <Highlight text={i.title} query={q} />
                 </span>
+                {/* One quiet subline instead of three extra columns. */}
+                {!done && (i.waiting_on || i.next_action) ? (
+                  <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+                    {i.waiting_on ? (
+                      <span className="text-warning">Waiting on {i.waiting_on}</span>
+                    ) : null}
+                    {i.waiting_on && i.next_action ? " · " : ""}
+                    {i.next_action ? <Highlight text={i.next_action} query={q} /> : null}
+                  </span>
+                ) : null}
+                {done ? (
+                  <span className="mt-0.5 block text-[12px] font-medium text-success">
+                    Completed
+                  </span>
+                ) : null}
               </Td>
-              <Td className="min-w-[140px] group-last:border-0">
+              <Td className="group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
                   <Combobox
                     options={owners}
                     value={i.owner_user_id}
                     onChange={(v) => setOwner(i, v)}
                     placeholder={i.owner ?? "Unassigned"}
-                    className="w-full min-w-0"
+                    className="w-full min-w-0 [&>button]:border-transparent [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:hover:bg-muted"
                   />
                 </div>
               </Td>
               <Td className="group-last:border-0">
-                {i.waiting_on ? (
-                  <span className="flex items-start gap-1.5 text-secondary-foreground">
-                    <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-warning" />
-                    <span className="block break-words">
-                      <Highlight text={i.waiting_on} query={q} />
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </Td>
-              <Td className="group-last:border-0">
-                <span className="whitespace-nowrap text-muted-foreground">
-                  {dueLabel(i.due_date)}
+                <span
+                  className={cn(
+                    "text-[12.5px] font-medium whitespace-nowrap tabular-nums",
+                    !done && isOverdue(i)
+                      ? "text-danger"
+                      : !done && isDueToday(i)
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {!done && isDueToday(i) ? "Today" : dueLabel(i.due_date)}
                 </span>
-              </Td>
-              <Td className="group-last:border-0">
-                {done ? (
-                  <span className="text-[12.5px] font-medium text-success">Completed</span>
-                ) : i.next_action ? (
-                  <span className="block break-words text-secondary-foreground">
-                    <Highlight text={i.next_action} query={q} />
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
               </Td>
 
               <Td className="group-last:border-0">
@@ -790,7 +786,7 @@ export function WorkList({
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
 
-  const anyExpanded = groups.some(([key]) => !collapsed[key]);
+  const anyExpanded = groups.some(([key]) => !(collapsed[key] ?? startCollapsed));
 
   const ViewToggle = () => (
     <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
@@ -828,148 +824,99 @@ export function WorkList({
     </button>
   );
 
-  /** Management answer strip: how much is open, unowned, waiting, late. */
+  /** Quiet management answer line: how much is open, unowned, waiting, late. */
   const summary = useMemo(() => workSummary(items), [items]);
-  const summaryTiles = [
-    { key: "Open" as const, tone: "blue" as const, icon: <Clock className="size-4" /> },
-    { key: "Unassigned" as const, tone: "neutral" as const, icon: <Star className="size-4" /> },
-    { key: "Waiting" as const, tone: "amber" as const, icon: <AlertTriangle className="size-4" /> },
-    { key: "Overdue" as const, tone: "red" as const, icon: <AlertTriangle className="size-4" /> },
-  ];
+  const summaryKeys: SummaryKey[] = ["Open", "Unassigned", "Waiting", "Overdue"];
+  const summaryTone: Record<SummaryKey, string> = {
+    Open: "text-secondary-foreground",
+    Unassigned: "text-secondary-foreground",
+    Waiting: "text-warning",
+    Overdue: "text-danger",
+  };
+
+  /** Filter chips: one scannable row, scrollable on a phone rather than hidden. */
+  const FilterChips = () => (
+    <div className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {filters.map((f) => {
+        const active = filter === f;
+        return (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={cn(
+              "flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold whitespace-nowrap outline-none",
+              "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+              active
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {f === "Important" ? "★ Important" : f}
+            <span className={cn("tabular-nums", active ? "opacity-80" : "opacity-60")}>
+              {counts[f] ?? 0}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="space-y-3">
-      {showSummary && summaryTiles.length ? (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5">
-          {summaryTiles.map((t) => (
-            <MetricTile
-              key={t.key}
-              label={t.key}
-              tone={t.tone}
-              icon={t.icon}
-              value={summary[t.key]}
-              active={focus === t.key}
-              onClick={() => setFocus(focus === t.key ? null : t.key)}
-            />
+      {showSummary ? (
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px]">
+          {summaryKeys.map((key, idx) => (
+            <span key={key} className="flex items-center gap-1.5">
+              {idx > 0 ? <span className="text-border-strong">·</span> : null}
+              <button
+                type="button"
+                onClick={() => setFocus(focus === key ? null : key)}
+                aria-pressed={focus === key}
+                className={cn(
+                  "cursor-pointer rounded-md px-1 py-0.5 font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30",
+                  focus === key ? "bg-foreground text-background" : summaryTone[key],
+                )}
+              >
+                <span className="font-bold tabular-nums">{summary[key]}</span> {key.toLowerCase()}
+              </button>
+            </span>
           ))}
+          {focus ? (
+            <button
+              type="button"
+              onClick={() => setFocus(null)}
+              className="ml-1 cursor-pointer text-[12px] font-semibold text-primary hover:underline"
+            >
+              Clear
+            </button>
+          ) : null}
         </div>
       ) : null}
 
       <div className="sticky top-14 z-10 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
-        {/* Desktop: one deliberate row. */}
-        <div className="hidden flex-wrap items-center gap-2 md:flex">
-          <FilterGroup
-            className="flex-nowrap"
-            options={filters.map((f) => ({
-              value: f,
-              label: f === "Important" ? "★ Important" : f,
-              count: counts[f] ?? 0,
-            }))}
-            value={filter}
-            onChange={setFilter}
-          />
-          {showViewToggle ? <ViewToggle /> : null}
-          {showViewToggle && view !== "List" ? <CollapseButton /> : null}
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+        {/* One control row on desktop; wraps to two on a phone. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="w-full min-w-0 md:w-auto">
+            <FilterChips />
+          </div>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:ml-auto md:w-auto md:flex-nowrap">
+
+            {showViewToggle ? <ViewToggle /> : null}
+            {showViewToggle && view !== "List" ? <CollapseButton /> : null}
             {showSearch ? (
               <SearchInput
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search work, owner, next action…"
-                className="w-[200px] min-w-0 lg:w-[260px]"
+                placeholder="Search work…"
+                className="w-full min-w-0 md:w-[220px] md:flex-none"
               />
             ) : null}
-            {toolbarRight}
-          </div>
-        </div>
-
-        {/* Phone: search first, then one compact controls row. */}
-        <div className="space-y-2 md:hidden">
-          {showSearch ? (
-            <SearchInput
-              ref={searchRef}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search work…"
-              className="w-full"
-            />
-          ) : null}
-          <div className="flex items-center gap-2">
-            {showViewToggle ? <ViewToggle /> : null}
-            <button
-              type="button"
-              onClick={() => setFilterSheet(true)}
-              className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-[12.5px] font-semibold text-secondary-foreground active:scale-[0.97]"
-            >
-              <SlidersHorizontal className="size-3.5" />
-              {filter === defaultFilter ? "Filters" : filter}
-            </button>
-            {showViewToggle && view !== "List" ? (
-              <button
-                type="button"
-                aria-label={anyExpanded ? "Collapse all" : "Expand all"}
-                onClick={() => setAllCollapsed(anyExpanded)}
-                className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-border bg-background text-secondary-foreground active:scale-[0.95]"
-              >
-                {anyExpanded ? (
-                  <ChevronsDownUp className="size-4" />
-                ) : (
-                  <ChevronsUpDown className="size-4" />
-                )}
-              </button>
-            ) : null}
-            {toolbarRight ? <div className="ml-auto shrink-0">{toolbarRight}</div> : null}
+            {toolbarRight ? <div className="shrink-0">{toolbarRight}</div> : null}
           </div>
         </div>
       </div>
-
-      {/* Secondary filters live in a small bottom sheet on phones. */}
-      {filterSheet ? (
-        <div className="fixed inset-0 z-40 flex items-end md:hidden">
-          <button
-            type="button"
-            aria-label="Close filters"
-            onClick={() => setFilterSheet(false)}
-            className="absolute inset-0 bg-foreground/25"
-          />
-          <div className="relative w-full rounded-t-2xl border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <div className="flex items-center justify-between">
-              <p className="text-[14px] font-bold">Filter work</p>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => setFilterSheet(false)}
-                className="grid size-9 place-items-center rounded-lg text-muted-foreground"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <ul className="mt-2 divide-y divide-border/70">
-              {filters.map((f) => (
-                <li key={f}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilter(f);
-                      setFilterSheet(false);
-                    }}
-                    className={cn(
-                      "flex min-h-[48px] w-full items-center justify-between gap-3 px-1 text-left text-[14px] font-medium",
-                      filter === f ? "text-primary" : "text-foreground",
-                    )}
-                  >
-                    <span>{f === "Important" ? "★ Important" : f}</span>
-                    <span className="text-[13px] text-muted-foreground tabular-nums">
-                      {counts[f] ?? 0}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
 
       {isLoading ? (
         <div className="surface px-5 py-10 text-[13px] text-muted-foreground">Loading work…</div>
@@ -991,7 +938,7 @@ export function WorkList({
               (i) => !isComplete(i) && (Boolean(i.waiting_on) || i.status === "Waiting"),
             ).length;
             // While searching, matching sections open regardless of session state.
-            const isCollapsed = q ? false : Boolean(collapsed[key]);
+            const isCollapsed = q ? false : (collapsed[key] ?? startCollapsed);
             return (
               <div key={key} className="surface overflow-hidden">
                 <div className="flex items-center gap-2 border-b border-border-strong/70 bg-muted/60 px-2 py-2.5 md:px-2.5">

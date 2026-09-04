@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
-import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { Button } from "@/components/kit";
 import { useAuthUser } from "@/hooks/useAuth";
 import {
   matchesWorkFilter,
@@ -20,16 +17,16 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     search["view"] === "grouped" ? { view: "grouped" } : {},
   head: () => ({
     meta: [
-      { title: "Company Work — Cobblestone Tile OS" },
+      { title: "Work — Cobblestone Job Operations" },
       {
         name: "description",
         content:
-          "Every open piece of company work in one board: what needs to happen, who owns it, who we are waiting on and the next action.",
+          "Every open action across all jobs: what needs to happen, who owns it, who we are waiting on and when it is due.",
       },
-      { property: "og:title", content: "Company Work — Cobblestone Tile OS" },
+      { property: "og:title", content: "Work — Cobblestone Job Operations" },
       {
         property: "og:description",
-        content: "One workboard for every open item across all tile projects.",
+        content: "One board for every open action across all jobs.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -42,23 +39,13 @@ function CompanyWorkPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
 
-  const [capture, setCapture] = useState(false);
   const [active, setActive] = useState<WorkItemRow | null>(null);
 
   // The drawer always reflects the live row, so optimistic edits show instantly.
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
   return (
-    <PageShell
-      crumbs={[{ label: "Company Work" }]}
-      title="Company Work"
-      subtitle="Every actionable record in the company. One item, one record — updating it here updates it everywhere."
-      actions={
-        <Button variant="primary" onClick={() => setCapture(true)}>
-          <Plus className="size-4" /> Quick Capture
-        </Button>
-      }
-    >
+    <PageShell crumbs={[{ label: "Work" }]} title="Work">
       <WorkList
         items={items}
         isLoading={isLoading}
@@ -70,10 +57,9 @@ function CompanyWorkPage() {
         viewStorageKey="cobblestone.companywork.view"
         showSummary
         emptyTitle="Nothing here"
-        emptyNote="No work items match this view. Use Quick Capture to log what came in from the field."
+        emptyNote="No actions match this view. Use Capture to log what came in from the field."
       />
 
-      <QuickCapture open={capture} onClose={() => setCapture(false)} />
       <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
     </PageShell>
   );

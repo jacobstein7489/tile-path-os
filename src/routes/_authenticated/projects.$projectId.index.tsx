@@ -105,33 +105,19 @@ function ProjectOverview() {
 
   return (
     <>
-      {/* Command bar: progress + the four contextual facts, one viewport band */}
-      <section className="surface px-6 py-5">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {installing ? "Overall installation progress" : "Setup & readiness completion"}
-            </div>
-            <div className="mt-1 flex items-end gap-2.5">
-              <span className="text-[32px] leading-none font-semibold tracking-[-0.02em]">
-                {headline}%
-              </span>
-              <span className="pb-1 text-[13px] text-muted-foreground">
-                {installing
-                  ? `${surfaceList.filter((s) => s.status === "Complete").length} of ${surfaceList.length} surfaces complete`
-                  : (project.readiness_note ?? "Readiness explains what is still outstanding.")}
-              </span>
-            </div>
-          </div>
+      {/* Compact status band: where it stands, then the facts people actually edit. */}
+      <section className="surface px-5 py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-[13px] font-semibold whitespace-nowrap">
+            {installing ? "Installing" : "Getting ready"}
+          </span>
+          <span className="text-[13px] font-bold tabular-nums">{headline}%</span>
+          <ProgressBar value={headline} className="min-w-[120px] flex-1" />
+          <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">
+            {openCount} open action{openCount === 1 ? "" : "s"}
+          </span>
         </div>
-        <ProgressBar value={headline} className="mt-3.5" />
-        {!installing ? (
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            Installation progress stays hidden until the project reaches Installation.
-          </p>
-        ) : null}
-
-        <div className="mt-4 grid grid-cols-4 gap-3 border-t border-border pt-4">
+        <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-border pt-3.5 md:grid-cols-4 md:gap-3">
           <Fact
             icon={<HardHat className="size-4" />}
             label="Crew"
@@ -252,34 +238,6 @@ function ProjectOverview() {
           </ul>
         ) : null}
       </section>
-
-      {/* Where the job stands */}
-      <div className="mt-4">
-        <SectionCard
-          title="Area status"
-          subtitle="Surface progress rolls up to the area, then to the project."
-          bodyClassName="divide-y divide-border"
-        >
-          {areaList.map((a) => (
-            <div key={a.id} className="flex items-center gap-4 px-5 py-2.5">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate text-[13px] font-semibold">{a.name}</span>
-                <Chip tone={areaStatusTone(a.status)}>{a.status}</Chip>
-              </div>
-              <ProgressBar value={a.progress_pct} className="w-[38%]" />
-              <span className="w-9 text-right text-[12.5px] font-semibold tabular-nums">
-                {a.progress_pct}%
-              </span>
-            </div>
-          ))}
-          {areaList.length === 0 ? (
-            <EmptyState
-              title="No areas yet"
-              note="Areas and surfaces are created during estimating and reused after approval."
-            />
-          ) : null}
-        </SectionCard>
-      </div>
 
       {/* Open Work — the same work_items records as Company Work and Today. */}
       <section className="mt-4">

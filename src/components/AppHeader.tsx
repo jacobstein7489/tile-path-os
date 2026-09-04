@@ -1,62 +1,27 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, Search } from "lucide-react";
 import type { ReactNode } from "react";
-import { Avatar } from "@/components/kit";
-import { useMyProfile } from "@/hooks/useAuth";
 
 export type Crumb = { label: string; to?: string; params?: Record<string, string> };
 
-export function AppHeader({
-  crumbs,
-  viewLabel = "OFFICE / ADMIN VIEW",
-}: {
-  crumbs: Crumb[];
-  viewLabel?: string;
-}) {
-  const { data: profile } = useMyProfile();
+/**
+ * Quiet context bar. Breadcrumb only — no decorative search or fake badges.
+ * Identity and sign-out live in the sidebar, so this stays out of the way.
+ */
+export function AppHeader({ crumbs }: { crumbs: Crumb[]; viewLabel?: string }) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border bg-background/95 pr-4 pl-14 backdrop-blur md:px-7">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-background/95 px-4 backdrop-blur md:px-7">
       <nav className="flex min-w-0 items-center gap-2 text-[13px]">
-        <span className="text-[11px] font-bold tracking-[0.08em] text-primary">{viewLabel}</span>
         {crumbs.map((c, i) => (
-          <span key={i} className="flex items-center gap-2 text-muted-foreground">
-            <span className="text-border-strong">/</span>
+          <span key={i} className="flex min-w-0 items-center gap-2">
+            {i > 0 ? <span className="text-border-strong">/</span> : null}
             {c.to ? (
               <Crumbed crumb={c} />
             ) : (
-              <span className="truncate font-medium text-foreground">{c.label}</span>
+              <span className="truncate font-semibold text-foreground">{c.label}</span>
             )}
           </span>
         ))}
       </nav>
-
-      <div className="ml-auto flex items-center gap-4">
-        <label className="relative hidden lg:block">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Search projects, people, or tasks"
-            className="h-9 w-[300px] rounded-lg border border-border bg-background pr-3 pl-9 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25"
-          />
-        </label>
-        <button
-          type="button"
-          className="relative grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
-          aria-label="Notifications"
-        >
-          <Bell className="size-[18px]" />
-          <span className="absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-            2
-          </span>
-        </button>
-        <div className="flex items-center gap-1.5">
-          <Avatar
-            initials={profile?.initials || "?"}
-            tone={profile?.avatar_tone ?? "blue"}
-            size={32}
-          />
-        </div>
-      </div>
     </header>
   );
 }
@@ -66,7 +31,7 @@ function Crumbed({ crumb }: { crumb: Crumb }): ReactNode {
     <Link
       to={crumb.to!}
       {...(crumb.params ? { params: crumb.params } : {})}
-      className="truncate font-medium hover:text-foreground"
+      className="truncate font-medium text-muted-foreground hover:text-foreground"
     >
       {crumb.label}
     </Link>

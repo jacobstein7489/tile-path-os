@@ -1,13 +1,9 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Clock, Plus } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { QuickCapture } from "@/components/QuickCapture";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
-import { Button, MetricTile, SectionCard } from "@/components/kit";
 import {
-  isComplete,
   matchesTodayFilter,
   todayBucket,
   TODAY_FILTERS,
@@ -15,19 +11,19 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 
-import { ROLE_LABELS, useAuthUser, useMyProfile, useMyRoles } from "@/hooks/useAuth";
+import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
     meta: [
-      { title: "Today — Cobblestone Tile OS" },
+      { title: "Today — Cobblestone Job Operations" },
       {
         name: "description",
         content:
-          "Your work for today: the work items you own, their status and the next action for each one.",
+          "Your day on one screen: what is late, what is due today, what you are waiting on and what comes next.",
       },
-      { property: "og:title", content: "Today — Cobblestone Tile OS" },
-      { property: "og:description", content: "The work items you own today and the next action." },
+      { property: "og:title", content: "Today — Cobblestone Job Operations" },
+      { property: "og:description", content: "What is late, due today, waiting and next up." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -39,11 +35,9 @@ function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
-  const { data: roles = [] } = useMyRoles();
   const [active, setActive] = useState<WorkItemRow | null>(null);
-  const [capture, setCapture] = useState(false);
 
-  // Same work_items records as Company Work, narrowed to what this user owns.
+  // Same work_items records as Work, narrowed to what this user owns.
   const mine = useMemo(
     () =>
       items.filter((i) =>
@@ -52,89 +46,54 @@ function TodayPage() {
     [items, profile?.full_name, user?.id],
   );
 
-  // The four buckets that answer "what do I do next" without reading a list.
-  const bucketCount = (bucket: string) => mine.filter((i) => todayBucket(i) === bucket).length;
-  const overdueCount = bucketCount("Overdue");
-  const dueTodayCount = bucketCount("Today");
-  const waitingCount = bucketCount("Waiting Follow-Ups");
-  const completedCount = mine.filter((i) => isComplete(i)).length;
+  const late = mine.filter((i) => todayBucket(i) === "Overdue").length;
+  const due = mine.filter((i) => todayBucket(i) === "Today").length;
 
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
   return (
     <>
-      <AppHeader
-        crumbs={[{ label: "Today" }]}
-        viewLabel={`${(roles[0] ? ROLE_LABELS[roles[0]] : "My").toUpperCase()} VIEW`}
-      />
-      <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8 md:pt-8">
+      <AppHeader crumbs={[{ label: "Today" }]} />
+      <main className="mx-auto w-full max-w-[1480px] px-4 pt-6 pb-14 md:px-7 md:pt-7">
         <h1 className="text-[24px] leading-tight font-bold tracking-[-0.03em] md:text-[29px]">
-          Good morning, {profile?.full_name?.split(" ")[0] || "there"}
+          {profile?.full_name?.split(" ")[0]
+            ? `Good morning, ${profile.full_name.split(" ")[0]}`
+            : "Today"}
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">Here is your work for today.</p>
+        {/* One plain-English line instead of a card wall. */}
+        <p className="mt-1.5 text-[13.5px] text-secondary-foreground">
+          {late || due ? (
+            <>
+              {late ? <span className="font-semibold text-danger">{late} late</span> : null}
+              {late && due ? " · " : ""}
+              {due ? <span className="font-semibold text-primary">{due} due today</span> : null}
+              <span className="text-muted-foreground"> · everything else is under Next Up.</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">
+              Nothing late and nothing due today. Nice place to be.
+            </span>
+          )}
+        </p>
 
-        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5">
-              <MetricTile
-                icon={<AlertTriangle className="size-4" />}
-                tone="red"
-                label="Overdue"
-                value={overdueCount}
-              />
-              <MetricTile
-                icon={<Clock className="size-4" />}
-                tone="blue"
-                label="Due today"
-                value={dueTodayCount}
-              />
-              <MetricTile
-                icon={<AlertTriangle className="size-4" />}
-                tone="amber"
-                label="Waiting"
-                value={waitingCount}
-              />
-              <MetricTile
-                icon={<CheckCircle2 className="size-4" />}
-                tone="green"
-                label="Completed"
-                value={completedCount}
-              />
-            </div>
-
-            <WorkList
-              items={mine}
-              isLoading={isLoading}
-              onOpen={setActive}
-              selectedId={active?.id ?? null}
-              filters={TODAY_FILTERS}
-              matchFilter={matchesTodayFilter}
-              defaultFilter="Active"
-              defaultView="Grouped by Project"
-              viewStorageKey="cobblestone.today.view"
-              showProjectColumn={false}
-              emptyTitle="You're clear"
-              emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
-            />
-          </div>
-
-          <aside className="space-y-3">
-            <SectionCard title="Quick Actions">
-              <div className="space-y-2.5 px-4 pt-1 pb-4">
-                <Button variant="primary" className="w-full" onClick={() => setCapture(true)}>
-                  <Plus className="size-4" /> Quick Capture
-                </Button>
-                <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  Log anything from a site visit, call or message. It becomes a real work item on
-                  the company board and on the project.
-                </p>
-              </div>
-            </SectionCard>
-          </aside>
+        <div className="mt-5">
+          <WorkList
+            items={mine}
+            isLoading={isLoading}
+            onOpen={setActive}
+            selectedId={active?.id ?? null}
+            filters={TODAY_FILTERS}
+            matchFilter={matchesTodayFilter}
+            defaultFilter="Active"
+            defaultView="Grouped by Project"
+            viewStorageKey="cobblestone.today.view"
+            showProjectColumn={false}
+            emptyTitle="You're clear"
+            emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
+          />
         </div>
-      </div>
+      </main>
 
-      <QuickCapture open={capture} onClose={() => setCapture(false)} />
       <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
     </>
   );
