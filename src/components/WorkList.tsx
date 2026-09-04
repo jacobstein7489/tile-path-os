@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
-  Clock,
   Plus,
-  SlidersHorizontal,
   Star,
-  X,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -20,8 +15,6 @@ import {
   Combobox,
   DateField,
   EmptyState,
-  FilterGroup,
-  MetricTile,
   SearchInput,
   Table,
   Td,
@@ -32,6 +25,7 @@ import { profileOptions, useProfiles } from "@/lib/people";
 import {
   compareWorkItems,
   isComplete,
+  isDueToday,
   isOverdue,
   isWaiting,
   projectLabel,
@@ -41,6 +35,7 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
+
 
 /**
  * Canonical work list. Company Work, Today and Project → Open Work all render
