@@ -556,12 +556,16 @@ export type NewWorkItem = {
   waiting_on_user_id?: string | null;
   status?: string;
   due_date?: string | null;
+  follow_up_on?: string | null;
+  category?: string | null;
+  source_field_report_id?: string | null;
   priority?: string;
   next_action?: string | null;
   is_important?: boolean;
   area_id?: string | null;
   surface_id?: string | null;
 };
+
 
 /* ---------------- Duplicate protection (bulk import) ---------------- */
 
