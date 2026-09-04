@@ -470,12 +470,12 @@ export function WorkList({
                 selected && !done && "bg-primary-soft/70 ring-1 ring-inset ring-primary/25",
               )}
             >
-              <Td className="group-last:border-0">
+              <Td className="pr-0 pl-3 group-last:border-0">
                 <StarButton item={i} onToggle={() => toggleStar(i)} />
               </Td>
               {withProject ? (
-                <Td className="font-semibold group-last:border-0">
-                  <span className="block break-words">
+                <Td className="group-last:border-0">
+                  <span className="block truncate text-[12.5px] font-semibold text-secondary-foreground">
                     <Highlight text={projectLabel(i)} query={q} />
                   </span>
                 </Td>
@@ -483,52 +483,54 @@ export function WorkList({
               <Td className="group-last:border-0">
                 <span
                   className={cn(
-                    "block font-medium break-words",
+                    "block text-[13.5px] leading-snug font-semibold break-words",
                     done && "text-muted-foreground line-through",
                   )}
                 >
                   <Highlight text={i.title} query={q} />
                 </span>
+                {/* One quiet subline instead of three extra columns. */}
+                {!done && (i.waiting_on || i.next_action) ? (
+                  <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+                    {i.waiting_on ? (
+                      <span className="text-warning">Waiting on {i.waiting_on}</span>
+                    ) : null}
+                    {i.waiting_on && i.next_action ? " · " : ""}
+                    {i.next_action ? <Highlight text={i.next_action} query={q} /> : null}
+                  </span>
+                ) : null}
+                {done ? (
+                  <span className="mt-0.5 block text-[12px] font-medium text-success">
+                    Completed
+                  </span>
+                ) : null}
               </Td>
-              <Td className="min-w-[140px] group-last:border-0">
+              <Td className="group-last:border-0">
                 <div onClick={(e) => e.stopPropagation()}>
                   <Combobox
                     options={owners}
                     value={i.owner_user_id}
                     onChange={(v) => setOwner(i, v)}
                     placeholder={i.owner ?? "Unassigned"}
-                    className="w-full min-w-0"
+                    className="w-full min-w-0 [&>button]:border-transparent [&>button]:bg-transparent [&>button]:px-1.5 [&>button]:hover:bg-muted"
                   />
                 </div>
               </Td>
               <Td className="group-last:border-0">
-                {i.waiting_on ? (
-                  <span className="flex items-start gap-1.5 text-secondary-foreground">
-                    <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-warning" />
-                    <span className="block break-words">
-                      <Highlight text={i.waiting_on} query={q} />
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </Td>
-              <Td className="group-last:border-0">
-                <span className="whitespace-nowrap text-muted-foreground">
-                  {dueLabel(i.due_date)}
+                <span
+                  className={cn(
+                    "text-[12.5px] font-medium whitespace-nowrap tabular-nums",
+                    !done && isOverdue(i)
+                      ? "text-danger"
+                      : !done && isDueToday(i)
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {!done && isDueToday(i) ? "Today" : dueLabel(i.due_date)}
                 </span>
               </Td>
-              <Td className="group-last:border-0">
-                {done ? (
-                  <span className="text-[12.5px] font-medium text-success">Completed</span>
-                ) : i.next_action ? (
-                  <span className="block break-words text-secondary-foreground">
-                    <Highlight text={i.next_action} query={q} />
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </Td>
+
 
               <Td className="group-last:border-0">
                 <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
