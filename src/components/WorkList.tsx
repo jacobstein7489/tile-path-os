@@ -32,9 +32,12 @@ import { profileOptions, useProfiles } from "@/lib/people";
 import {
   compareWorkItems,
   isComplete,
+  isOverdue,
+  isWaiting,
   projectLabel,
   useCreateWorkItems,
   useSaveWorkItem,
+  workSummary,
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
@@ -45,7 +48,7 @@ import { cn } from "@/lib/utils";
  * inline edit / row-open behave identically everywhere.
  */
 
-const VIEWS = ["List", "Grouped by Project"] as const;
+const VIEWS = ["List", "Grouped by Project", "By Person"] as const;
 type View = (typeof VIEWS)[number];
 
 /** How long a just-completed row stays visible with its green success state. */
@@ -205,6 +208,8 @@ export function WorkList({
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
   const [filterSheet, setFilterSheet] = useState(false);
+  /** Summary strip focus — Open / Unassigned / Waiting / Overdue. */
+  const [focus, setFocus] = useState<SummaryKey | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   // Restore the remembered view after hydration (localStorage is client-only).
@@ -252,20 +257,35 @@ export function WorkList({
   const rows = useMemo(
     () =>
       items
-        .filter((i) => (matchFilter(filter, i) || justDone[i.id]) && matchesSearch(i, q))
+        .filter(
+          (i) =>
+            (matchFilter(filter, i) || justDone[i.id]) &&
+            matchesSearch(i, q) &&
+            (!focus || matchesSummaryKey(focus, i) || justDone[i.id]),
+        )
         .sort(compareWorkItems),
-    [items, filter, q, justDone, matchFilter],
+    [items, filter, q, justDone, matchFilter, focus],
   );
 
+  const byPerson = view === "By Person";
   const groups = useMemo(() => {
     const map = new Map<string, { name: string; items: WorkItemRow[] }>();
     for (const i of rows) {
-      const key = i.project_id ?? "unassigned";
-      if (!map.has(key)) map.set(key, { name: projectLabel(i), items: [] });
+      const key = byPerson ? (i.owner_user_id ?? "unassigned") : (i.project_id ?? "unassigned");
+      const name = byPerson
+        ? (profiles.find((p) => p.user_id === i.owner_user_id)?.full_name ??
+          i.owner ??
+          "Unassigned")
+        : projectLabel(i);
+      if (!map.has(key)) map.set(key, { name, items: [] });
       map.get(key)!.items.push(i);
     }
-    return [...map.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
-  }, [rows]);
+    // Unassigned work sits first — it is the pile that needs an owner.
+    return [...map.entries()].sort((a, b) => {
+      if (a[0] === "unassigned" !== (b[0] === "unassigned")) return a[0] === "unassigned" ? -1 : 1;
+      return a[1].name.localeCompare(b[1].name);
+    });
+  }, [rows, byPerson, profiles]);
 
   // Linger timers are tracked so an unmount (route switch) never fires a
   // state update on a dead component.
@@ -768,7 +788,7 @@ export function WorkList({
             view === v ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted",
           )}
         >
-          {v === "Grouped by Project" ? "Grouped" : v}
+          {v === "Grouped by Project" ? "By Project" : v}
         </button>
       ))}
     </div>
@@ -789,15 +809,14 @@ export function WorkList({
     </button>
   );
 
-  /** Restrained status strip — compact tiles, not giant KPI cards. */
-  const summaryTiles = (
-    [
-      { key: "My Work", tone: "blue" as const, icon: <Clock className="size-4" /> },
-      { key: "Important", tone: "neutral" as const, icon: <Star className="size-4" /> },
-      { key: "Waiting", tone: "amber" as const, icon: <AlertTriangle className="size-4" /> },
-      { key: "Completed", tone: "green" as const, icon: <CheckCircle2 className="size-4" /> },
-    ] as const
-  ).filter((t) => filters.includes(t.key));
+  /** Management answer strip: how much is open, unowned, waiting, late. */
+  const summary = useMemo(() => workSummary(items), [items]);
+  const summaryTiles = [
+    { key: "Open" as const, tone: "blue" as const, icon: <Clock className="size-4" /> },
+    { key: "Unassigned" as const, tone: "neutral" as const, icon: <Star className="size-4" /> },
+    { key: "Waiting" as const, tone: "amber" as const, icon: <AlertTriangle className="size-4" /> },
+    { key: "Overdue" as const, tone: "red" as const, icon: <AlertTriangle className="size-4" /> },
+  ];
 
   return (
     <div className="space-y-3">
@@ -809,9 +828,9 @@ export function WorkList({
               label={t.key}
               tone={t.tone}
               icon={t.icon}
-              value={counts[t.key] ?? 0}
-              active={filter === t.key}
-              onClick={() => setFilter(filter === t.key ? defaultFilter : t.key)}
+              value={summary[t.key]}
+              active={focus === t.key}
+              onClick={() => setFocus(focus === t.key ? null : t.key)}
             />
           ))}
         </div>
@@ -831,7 +850,7 @@ export function WorkList({
             onChange={setFilter}
           />
           {showViewToggle ? <ViewToggle /> : null}
-          {showViewToggle && view === "Grouped by Project" ? <CollapseButton /> : null}
+          {showViewToggle && view !== "List" ? <CollapseButton /> : null}
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {showSearch ? (
               <SearchInput
@@ -867,7 +886,7 @@ export function WorkList({
               <SlidersHorizontal className="size-3.5" />
               {filter === defaultFilter ? "Filters" : filter}
             </button>
-            {showViewToggle && view === "Grouped by Project" ? (
+            {showViewToggle && view !== "List" ? (
               <button
                 type="button"
                 aria-label={anyExpanded ? "Collapse all" : "Expand all"}
@@ -974,7 +993,7 @@ export function WorkList({
                     )}
                   </button>
                   <div className="min-w-0">
-                    {key === "unassigned" ? (
+                    {byPerson || key === "unassigned" ? (
                       <span className="block truncate text-[15px] font-bold tracking-[-0.01em]">
                         {group.name}
                       </span>
