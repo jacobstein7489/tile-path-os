@@ -198,6 +198,69 @@ function ProjectOverview() {
         </div>
       </button>
 
+      {/* Latest field update — what actually happened on site. */}
+      <section className="surface mt-4 px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Latest field update
+            </div>
+            {latestReport ? (
+              <>
+                <p className="mt-1 text-[13.5px] font-medium">
+                  {latestReport.progress_note ?? "Report submitted with no progress note."}
+                </p>
+                <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                  {[
+                    new Date(latestReport.report_date + "T00:00:00").toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    }),
+                    latestReport.crew_label,
+                    latestReport.worker_count ? `${latestReport.worker_count} on site` : null,
+                    latestReport.areas_worked,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {latestReport.blockers ? (
+                  <p className="mt-1.5 inline-flex items-start gap-1.5 text-[12.5px] text-danger">
+                    <TriangleAlert className="mt-px size-4 shrink-0" />
+                    {latestReport.blockers}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                No field reports yet on this job.
+              </p>
+            )}
+          </div>
+          <Button size="sm" variant="primary" onClick={() => setReport(true)}>
+            <ClipboardCheck className="size-4" /> Daily report
+          </Button>
+        </div>
+        {reports.length > 1 ? (
+          <ul className="mt-3.5 space-y-1.5 border-t border-border pt-3">
+            {reports.slice(1, 5).map((r) => (
+              <li key={r.id} className="flex gap-2.5 text-[12.5px]">
+                <span className="w-14 shrink-0 font-semibold tabular-nums text-muted-foreground">
+                  {new Date(r.report_date + "T00:00:00").toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-secondary-foreground">
+                  {r.progress_note ?? r.areas_worked ?? "Report submitted"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+
+
       {/* Where the job stands */}
       <div className="mt-4">
         <SectionCard
