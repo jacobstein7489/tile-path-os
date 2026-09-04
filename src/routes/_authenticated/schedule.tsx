@@ -56,8 +56,13 @@ function SchedulePage() {
   const { data: assignments = [] } = useScheduleAssignments();
   const insertAssignment = useInsertRow("schedule_assignments");
   const updateProject = useUpdateRow("projects");
+  const { data: allReports = [] } = useFieldReports();
   const [weekOffset, setWeekOffset] = useState(0);
   const [assignFor, setAssignFor] = useState<{ project: Project; kind: string } | null>(null);
+  const [reportFor, setReportFor] = useState<{ project: Project; crewId: string | null } | null>(
+    null,
+  );
+
 
   const start = mondayOf(new Date());
   start.setDate(start.getDate() + weekOffset * 7);
