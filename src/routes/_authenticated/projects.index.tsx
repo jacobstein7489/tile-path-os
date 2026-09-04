@@ -279,7 +279,7 @@ function ProjectRow({
               </span>
             ) : null}
             <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] leading-snug font-semibold text-foreground">
+              <span className="line-clamp-1 block text-[12.5px] leading-snug font-semibold text-foreground">
                 {lead.title}
               </span>
               <span className={cn("mt-0.5 block text-[11px] text-muted-foreground")}>
