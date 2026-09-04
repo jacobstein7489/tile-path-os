@@ -175,6 +175,7 @@ export function WorkList({
   emptyTitle = "Nothing open",
   emptyNote = "No work matches this view.",
   showSummary = false,
+  startCollapsed = true,
   toolbarRight,
 }: {
   items: WorkItemRow[];
@@ -196,6 +197,11 @@ export function WorkList({
   isLoading?: boolean;
   emptyTitle?: string;
   emptyNote?: string;
+  /** Quiet one-line summary above the controls (Company Work / Today). */
+  showSummary?: boolean;
+  /** Grouped sections start closed so the page opens as a short scannable list. */
+  startCollapsed?: boolean;
+
   /** Compact status strip above the controls (Company Work). */
   showSummary?: boolean;
   /** Right-side toolbar slot, e.g. Quick Capture. */
