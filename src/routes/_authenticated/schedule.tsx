@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   Users,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -169,7 +170,7 @@ function SchedulePage() {
                       Report missing
                     </Button>
                   ) : (
-                    <Chip tone="success">Reported</Chip>
+                    <Chip tone="green">Reported</Chip>
                   )}
                 </div>
               );
