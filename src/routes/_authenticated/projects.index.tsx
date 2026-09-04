@@ -295,9 +295,6 @@ function ProjectRow({
       </Td>
     </tr>
   );
-
-    </tr>
-  );
 }
 
 function initials(name: string) {
