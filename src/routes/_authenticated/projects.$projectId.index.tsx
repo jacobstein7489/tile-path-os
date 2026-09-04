@@ -253,33 +253,8 @@ function ProjectOverview() {
         ) : null}
       </section>
 
-      {/* Where the job stands */}
-      <div className="mt-4">
-        <SectionCard
-          title="Area status"
-          subtitle="Surface progress rolls up to the area, then to the project."
-          bodyClassName="divide-y divide-border"
-        >
-          {areaList.map((a) => (
-            <div key={a.id} className="flex items-center gap-4 px-5 py-2.5">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate text-[13px] font-semibold">{a.name}</span>
-                <Chip tone={areaStatusTone(a.status)}>{a.status}</Chip>
-              </div>
-              <ProgressBar value={a.progress_pct} className="w-[38%]" />
-              <span className="w-9 text-right text-[12.5px] font-semibold tabular-nums">
-                {a.progress_pct}%
-              </span>
-            </div>
-          ))}
-          {areaList.length === 0 ? (
-            <EmptyState
-              title="No areas yet"
-              note="Areas and surfaces are created during estimating and reused after approval."
-            />
-          ) : null}
-        </SectionCard>
-      </div>
+
+
 
       {/* Open Work — the same work_items records as Company Work and Today. */}
       <section className="mt-4">
