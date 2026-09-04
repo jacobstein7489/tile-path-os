@@ -132,6 +132,58 @@ function SchedulePage() {
           </span>
         </div>
 
+        {/* Who is out today, and which jobs still owe a daily field report. */}
+        <div className="mt-5">
+          <SectionCard
+            title="Working today"
+            subtitle="Every job scheduled today needs a daily field report before the day closes."
+            icon={<ClipboardCheck className="size-[18px] text-primary" />}
+            bodyClassName="divide-y divide-border"
+          >
+            {todayAssignments.map((a) => {
+              const p = projectById(a.project_id);
+              if (!p) return null;
+              const missing = !reportedToday.has(p.id);
+              return (
+                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <Link
+                      to="/projects/$projectId"
+                      params={{ projectId: p.id }}
+                      className="block truncate text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      {p.name}
+                    </Link>
+                    <div className="truncate text-[12px] text-muted-foreground">
+                      {[crews.find((c) => c.id === a.crew_id)?.name ?? "No crew", a.kind]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  </div>
+                  {missing ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
+                    >
+                      Report missing
+                    </Button>
+                  ) : (
+                    <Chip tone="success">Reported</Chip>
+                  )}
+                </div>
+              );
+            })}
+            {todayAssignments.length === 0 ? (
+              <div className="px-5 py-4 text-[12.5px] text-muted-foreground">
+                No crews are scheduled today.
+              </div>
+            ) : null}
+          </SectionCard>
+        </div>
+
+
+
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
           <SectionCard
             title="Weekly Crew Schedule"
