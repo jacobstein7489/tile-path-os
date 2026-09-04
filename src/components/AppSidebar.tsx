@@ -5,6 +5,7 @@ import {
   CheckSquare,
   FolderClosed,
   LogOut,
+  Package,
   Plus,
   Settings,
   Sun,
