@@ -363,6 +363,14 @@ function SchedulePage() {
           }}
         />
       ) : null}
+      {reportFor ? (
+        <FieldReportSheet
+          projectId={reportFor.project.id}
+          projectName={reportFor.project.name}
+          defaultCrewId={reportFor.crewId}
+          onClose={() => setReportFor(null)}
+        />
+      ) : null}
     </>
   );
 }
