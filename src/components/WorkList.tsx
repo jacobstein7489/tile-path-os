@@ -894,11 +894,14 @@ export function WorkList({
         </div>
       ) : null}
 
-      <div className="sticky top-14 z-10 -mx-1 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
+      <div className="sticky top-14 z-10 rounded-xl border border-border bg-background/95 px-2 py-2 backdrop-blur">
         {/* One control row on desktop; wraps to two on a phone. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterChips />
-          <div className="flex w-full items-center gap-2 md:ml-auto md:w-auto">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="w-full min-w-0 md:w-auto">
+            <FilterChips />
+          </div>
+          <div className="flex w-full min-w-0 items-center gap-2 md:ml-auto md:w-auto">
+
             {showViewToggle ? <ViewToggle /> : null}
             {showViewToggle && view !== "List" ? <CollapseButton /> : null}
             {showSearch ? (
