@@ -1,7 +1,7 @@
 # UX Redesign Roadmap
 
 - [ ] Map existing core surfaces and backend contracts
-- [ ] Define implementation plan from selected direction
+- [ ] Revise implementation plan: Project-first model, desktop Projects table, mobile cards
 - [ ] Rebuild shared design system and navigation
 - [ ] Rebuild Capture and Task command flows
 - [ ] Rebuild Today and Work
