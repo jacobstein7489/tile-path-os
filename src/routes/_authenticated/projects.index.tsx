@@ -222,6 +222,7 @@ function ProjectRow({
   const navigate = useNavigate();
   const lead = work[0];
   const rest = work.length - 1;
+  const pct = installing ? p.installation_progress : p.readiness_pct;
   return (
     <tr
       tabIndex={0}
@@ -233,11 +234,15 @@ function ProjectRow({
           void navigate({ to: "/projects/$projectId", params: { projectId: p.id } });
         }
       }}
-      className="group cursor-pointer outline-none transition-colors duration-150 hover:bg-muted/60 active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/35"
+      className="group cursor-pointer outline-none transition-colors duration-150 hover:bg-muted/50 active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/35"
     >
-      <Td className="whitespace-nowrap group-last:border-0">
-        <span className="text-[13px] font-semibold tracking-tight text-foreground">{p.name}</span>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{p.project_type}</div>
+      <Td className="group-last:border-0">
+        <span className="block truncate text-[13.5px] font-bold tracking-tight text-foreground">
+          {p.name}
+        </span>
+        <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+          {p.customer ?? p.project_type}
+        </span>
       </Td>
       <Td className="group-last:border-0">
         <span className="flex items-start gap-2 text-[12.5px] font-medium">
@@ -248,84 +253,49 @@ function ProjectRow({
           ) : null}
           <span className="min-w-0 leading-snug text-secondary-foreground">
             {p.exception_state ?? p.lifecycle_stage}
+            <span className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
+              {pct}% {installing ? "installed" : "ready"}
+            </span>
           </span>
         </span>
       </Td>
       <Td className="group-last:border-0">
-        <div className="flex items-center gap-2">
-          <ProgressBar
-            value={installing ? p.installation_progress : p.readiness_pct}
-            tone="primary"
-            className="w-12"
-          />
-          <span className="text-xs font-semibold tabular-nums">
-            {installing ? p.installation_progress : p.readiness_pct}%
-          </span>
-        </div>
-        <div className="mt-0.5 text-[10.5px] tracking-tight text-muted-foreground">
-          {installing ? "Installation" : "Readiness"}
-        </div>
-      </Td>
-      <Td className="group-last:border-0">
         {p.crew_lead ? (
-          <span className="flex items-start gap-1.5">
-            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary-soft text-[9px] font-semibold text-primary">
-              {initials(p.crew_lead)}
-            </span>
-            <span className="min-w-0 text-[12.5px] leading-snug">{p.crew_lead}</span>
-          </span>
+          <span className="block truncate text-[12.5px]">{p.crew_lead}</span>
         ) : (
-          <span className="text-xs text-muted-foreground">Unassigned</span>
+          <span className="text-[12px] text-muted-foreground">Unassigned</span>
         )}
       </Td>
       <Td className="text-[12px] whitespace-nowrap text-muted-foreground group-last:border-0">
         {fmt(p.start_date)} → {fmt(p.target_date)}
       </Td>
-      <Td className="group-last:border-0">
-        <span className="flex items-start gap-2 text-[12.5px]">
-          {["red", "amber"].includes(materialTone(p.material_status)) ? (
-            <span className="mt-[5px]">
-              <Dot tone={materialTone(p.material_status)} />
-            </span>
-          ) : null}
-          <span className="min-w-0 leading-snug text-secondary-foreground">
-            {p.material_status}
-          </span>
-        </span>
-      </Td>
-      {/* Single operational column, sourced from the same open Work Items as Company Work. */}
+      {/* One operational column, from the same open work items the Work board uses. */}
       <Td className="group-last:border-0">
         {lead ? (
-          <>
-            <span className="flex items-start gap-2">
-              {lead.is_important ? (
-                <span className="mt-[5px]">
-                  <Dot tone="red" />
-                </span>
-              ) : null}
-              <span className="min-w-0 flex-1 text-[12.5px] leading-snug font-semibold whitespace-normal text-foreground">
+          <span className="flex items-start gap-2">
+            {lead.is_important ? (
+              <span className="mt-[5px]">
+                <Dot tone="red" />
+              </span>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[12.5px] leading-snug font-semibold text-foreground">
                 {lead.title}
               </span>
-              <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60 transition-colors duration-100 group-hover:text-foreground" />
+              <span className={cn("mt-0.5 block text-[11px] text-muted-foreground")}>
+                {lead.owner ?? "Unassigned"}
+                {rest > 0 ? ` · +${rest} more open` : ""}
+              </span>
             </span>
-            <div
-              className={cn(
-                "mt-0.5 text-[11px] text-muted-foreground",
-                lead.is_important && "pl-4",
-              )}
-            >
-              {[lead.next_action, lead.owner].filter(Boolean).join(" · ") || lead.status}
-              {rest > 0 ? (
-                <span className="ml-1 text-muted-foreground">
-                  · +{rest} other open item{rest === 1 ? "" : "s"}
-                </span>
-              ) : null}
-            </div>
-          </>
+            <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/50 transition-colors duration-100 group-hover:text-foreground" />
+          </span>
         ) : (
           <span className="text-[12.5px] text-muted-foreground">No open work</span>
         )}
       </Td>
+    </tr>
+  );
+
     </tr>
   );
 }
