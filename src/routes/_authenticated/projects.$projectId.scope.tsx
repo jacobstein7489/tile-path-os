@@ -120,8 +120,11 @@ function ScopeAndDetails() {
                     {a.name}
                   </div>
                   <div className="text-[11.5px] text-muted-foreground">
-                    {surfaceList.filter((s) => s.area_id === a.id && s.status === "Complete").length} of{" "}
-                    {surfaceList.filter((s) => s.area_id === a.id).length} surfaces
+                    {
+                      surfaceList.filter((s) => s.area_id === a.id && s.status === "Complete")
+                        .length
+                    }{" "}
+                    of {surfaceList.filter((s) => s.area_id === a.id).length} surfaces
                   </div>
                 </div>
                 <span className="text-[12px] font-semibold text-secondary-foreground">
@@ -130,7 +133,10 @@ function ScopeAndDetails() {
               </button>
             ))}
             {areaList.length === 0 ? (
-              <EmptyState title="No rooms yet" note="Rooms are built during estimating and carry forward." />
+              <EmptyState
+                title="No rooms yet"
+                note="Rooms are built during estimating and carry forward."
+              />
             ) : null}
           </div>
         </SectionCard>
@@ -227,7 +233,10 @@ function ScopeAndDetails() {
           }
         >
           {!surface ? (
-            <EmptyState title="Select a surface" note="Tile, grout, metal and layout live on the surface." />
+            <EmptyState
+              title="Select a surface"
+              note="Tile, grout, metal and layout live on the surface."
+            />
           ) : (
             <div className="space-y-4 px-5 pt-1 pb-5">
               <div className="flex items-center justify-between">
@@ -269,7 +278,11 @@ function ScopeAndDetails() {
                 />
                 <DetailCard
                   label="Prep / Waterproofing"
-                  lines={[surface.prep ?? "—", surface.waterproofing ?? "", surface.underlayment ?? ""]}
+                  lines={[
+                    surface.prep ?? "—",
+                    surface.waterproofing ?? "",
+                    surface.underlayment ?? "",
+                  ]}
                 />
               </div>
               <DetailCard label="Notes" lines={[surface.notes ?? "No notes yet."]} />
@@ -283,7 +296,9 @@ function ScopeAndDetails() {
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-[12px]"
                     >
                       <span className="font-semibold">{m.name}</span>
-                      <Chip tone={m.status === "Ready" || m.status === "Received" ? "green" : "amber"}>
+                      <Chip
+                        tone={m.status === "Ready" || m.status === "Received" ? "green" : "amber"}
+                      >
                         {m.status}
                       </Chip>
                     </span>
@@ -371,7 +386,10 @@ function DetailCard({ label, lines }: { label: string; lines: string[] }) {
         {(shown.length ? shown : ["—"]).map((l, i) => (
           <div
             key={i}
-            className={cn("text-[12.5px]", i === 0 ? "font-semibold text-foreground" : "text-secondary-foreground")}
+            className={cn(
+              "text-[12.5px]",
+              i === 0 ? "font-semibold text-foreground" : "text-secondary-foreground",
+            )}
           >
             {l}
           </div>
@@ -416,7 +434,11 @@ function NameModal({
       }
     >
       <Field label="Name">
-        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder} />
+        <TextInput
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={placeholder}
+        />
       </Field>
     </Modal>
   );

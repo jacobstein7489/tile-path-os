@@ -22,7 +22,10 @@ import {
   useWorkItemEvents,
   workflowActionLabel,
   workflowFor,
-  WORK_ITEM_STATUSES,
+  simpleStatus,
+  storedStatus,
+  TASK_CATEGORIES,
+  TASK_STATUSES,
   WORK_ITEM_TYPES,
   type WorkItemRow,
 } from "@/lib/workitems";
@@ -46,8 +49,10 @@ export function WorkItemDrawer({
     title: "",
     owner_user_id: "" as string | null,
     waiting_on: "",
-    status: "Open",
+    status: "To Do",
     due_date: "",
+    follow_up_on: "",
+    category: "",
     next_action: "",
     item_type: "Task",
     description: "",
@@ -61,8 +66,10 @@ export function WorkItemDrawer({
       title: item.title,
       owner_user_id: item.owner_user_id ?? null,
       waiting_on: item.waiting_on ?? "",
-      status: item.status,
+      status: simpleStatus(item.status),
       due_date: item.due_date ?? "",
+      follow_up_on: item.follow_up_on ?? "",
+      category: item.category ?? "",
       next_action: item.next_action ?? "",
       item_type: item.item_type,
       description: item.description ?? "",
@@ -86,9 +93,11 @@ export function WorkItemDrawer({
         owner: form.owner_user_id
           ? (profiles.find((p) => p.user_id === form.owner_user_id)?.full_name ?? null)
           : null,
-        waiting_on: form.waiting_on || null,
-        status: form.status,
+        waiting_on: form.status === "Waiting" ? form.waiting_on || null : null,
+        status: storedStatus(form.status),
         due_date: form.due_date || null,
+        follow_up_on: form.status === "Waiting" ? form.follow_up_on || null : null,
+        category: form.category || null,
         next_action: form.next_action || null,
         item_type: form.item_type,
         description: form.description || null,
@@ -145,7 +154,7 @@ export function WorkItemDrawer({
           {item.title}
         </span>
       }
-      subtitle={`${item.item_type} · ${item.status}`}
+      subtitle={`${item.category ?? item.item_type} · ${simpleStatus(item.status)}`}
       footer={
         <>
           {done ? (
@@ -207,7 +216,6 @@ export function WorkItemDrawer({
           {item.is_important ? "Important" : "Mark important"}
         </button>
 
-
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
@@ -217,12 +225,12 @@ export function WorkItemDrawer({
               placeholder="Search employees…"
             />
           </Field>
-          <Field label="Waiting on">
-            <TextInput
-              value={form.waiting_on}
-              onChange={(e) => set("waiting_on", e.target.value)}
-              placeholder="Nobody"
-            />
+          <Field label="Status">
+            <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
+              {TASK_STATUSES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </Select>
           </Field>
           <Field label="Needed by">
             <DateField
@@ -233,6 +241,35 @@ export function WorkItemDrawer({
             />
           </Field>
         </div>
+
+        {form.status === "Waiting" ? (
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field label="Waiting on">
+              <TextInput
+                value={form.waiting_on}
+                onChange={(e) => set("waiting_on", e.target.value)}
+                placeholder="Person, company or trade"
+              />
+            </Field>
+            <Field label="Follow up on">
+              <DateField
+                value={form.follow_up_on || null}
+                label="Follow up on"
+                placeholder="No date"
+                onChange={(v) => set("follow_up_on", v ?? "")}
+              />
+            </Field>
+          </div>
+        ) : null}
+
+        <Field label="Category (optional)">
+          <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
+            <option value="">No category</option>
+            {TASK_CATEGORIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </Select>
+        </Field>
 
         <Field label="Notes / details">
           <TextArea
@@ -285,13 +322,13 @@ export function WorkItemDrawer({
         </div>
 
         {item.project_id ? (
-        <Link
-          to="/projects/$projectId/files"
-          params={{ projectId: item.project_id }}
-          className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
-        >
-          <Paperclip className="size-4" /> Open project files and photos
-        </Link>
+          <Link
+            to="/projects/$projectId/files"
+            params={{ projectId: item.project_id }}
+            className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
+          >
+            <Paperclip className="size-4" /> Open project files and photos
+          </Link>
         ) : null}
 
         {/* Technical classification stays out of the way. */}
@@ -306,18 +343,11 @@ export function WorkItemDrawer({
           </button>
           {more ? (
             <div className="space-y-3.5 border-t border-border px-4 py-3.5">
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3.5">
                 <Field label="Type">
                   <Select value={form.item_type} onChange={(e) => set("item_type", e.target.value)}>
                     {WORK_ITEM_TYPES.map((t) => (
                       <option key={t}>{t}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Status">
-                  <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-                    {[...new Set([form.status, ...WORK_ITEM_STATUSES])].map((s) => (
-                      <option key={s}>{s}</option>
                     ))}
                   </Select>
                 </Field>

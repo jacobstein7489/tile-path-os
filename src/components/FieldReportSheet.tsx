@@ -98,7 +98,9 @@ export function FieldReportSheet({
         );
       }
       toast.success(
-        keep.length ? `Report submitted · ${keep.length} task${keep.length > 1 ? "s" : ""} created` : "Report submitted",
+        keep.length
+          ? `Report submitted · ${keep.length} task${keep.length > 1 ? "s" : ""} created`
+          : "Report submitted",
       );
       onClose();
     } catch (e) {

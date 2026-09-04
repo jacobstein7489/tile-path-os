@@ -14,7 +14,10 @@ export function ProgressBar({
     tone === "success" ? "bg-success" : tone === "muted" ? "bg-border-strong" : "bg-primary";
   return (
     <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-track", className)}>
-      <div className={cn("h-full rounded-full transition-all", fill)} style={{ width: `${pct}%` }} />
+      <div
+        className={cn("h-full rounded-full transition-all", fill)}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }

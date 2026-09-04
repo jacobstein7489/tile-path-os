@@ -9,6 +9,7 @@ import { Button, MetricTile, SectionCard } from "@/components/kit";
 import {
   isComplete,
   matchesTodayFilter,
+  todayBucket,
   TODAY_FILTERS,
   useWorkFeed,
   type WorkItemRow,
@@ -51,11 +52,12 @@ function TodayPage() {
     [items, profile?.full_name, user?.id],
   );
 
-  const openCount = mine.filter((i) => !isComplete(i)).length;
+  // The four buckets that answer "what do I do next" without reading a list.
+  const bucketCount = (bucket: string) => mine.filter((i) => todayBucket(i) === bucket).length;
+  const overdueCount = bucketCount("Overdue");
+  const dueTodayCount = bucketCount("Today");
+  const waitingCount = bucketCount("Waiting Follow-Ups");
   const completedCount = mine.filter((i) => isComplete(i)).length;
-  const waitingCount = mine.filter(
-    (i) => !isComplete(i) && (i.waiting_on || i.status === "Waiting"),
-  ).length;
 
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
@@ -73,12 +75,18 @@ function TodayPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_270px]">
           <div className="space-y-6">
-            <div className="grid grid-cols-3 gap-2 md:gap-2.5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5">
+              <MetricTile
+                icon={<AlertTriangle className="size-4" />}
+                tone="red"
+                label="Overdue"
+                value={overdueCount}
+              />
               <MetricTile
                 icon={<Clock className="size-4" />}
                 tone="blue"
-                label="Active"
-                value={openCount}
+                label="Due today"
+                value={dueTodayCount}
               />
               <MetricTile
                 icon={<AlertTriangle className="size-4" />}
@@ -108,8 +116,6 @@ function TodayPage() {
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
-
-
           </div>
 
           <aside className="space-y-3">
@@ -119,8 +125,8 @@ function TodayPage() {
                   <Plus className="size-4" /> Quick Capture
                 </Button>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  Log anything from a site visit, call or message. It becomes a real work item on the
-                  company board and on the project.
+                  Log anything from a site visit, call or message. It becomes a real work item on
+                  the company board and on the project.
                 </p>
               </div>
             </SectionCard>

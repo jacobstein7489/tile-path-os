@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  Users,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Users } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
@@ -65,7 +59,6 @@ function SchedulePage() {
   const [reportFor, setReportFor] = useState<{ project: Project; crewId: string | null } | null>(
     null,
   );
-
 
   const start = mondayOf(new Date());
   start.setDate(start.getDate() + weekOffset * 7);
@@ -182,8 +175,6 @@ function SchedulePage() {
             ) : null}
           </SectionCard>
         </div>
-
-
 
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
           <SectionCard

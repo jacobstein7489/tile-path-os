@@ -53,9 +53,13 @@ type Draft = {
   dupAction: "keep" | "skip" | "replace";
 };
 
-
 /** Heuristic classification. Designed so smarter classification can replace this later. */
-function classify(line: string): { item_type: string; status: string; next_action: string; waiting_on: string } {
+function classify(line: string): {
+  item_type: string;
+  status: string;
+  next_action: string;
+  waiting_on: string;
+} {
   const l = line.toLowerCase();
   if (/waiting|still has to|still needs to|contractor|depend|hold up|holding/.test(l))
     return {
@@ -65,31 +69,62 @@ function classify(line: string): { item_type: string; status: string; next_actio
       waiting_on: /contractor|gc\b/.test(l) ? "Contractor" : /plumb/.test(l) ? "Plumber" : "",
     };
   if (/measure|verify|check|confirm dimension|template|test/.test(l))
-    return { item_type: "Field Verification", status: "Measurement Needed", next_action: "Verify on site", waiting_on: "" };
-  if (/order|thinset|primer|adhesive|mortar|sand|portland|membrane|schluter|material|supply|supplies|grout|caulk/.test(l))
-    return { item_type: "Install Material Need", status: "To Order", next_action: "Order material", waiting_on: "" };
+    return {
+      item_type: "Field Verification",
+      status: "Measurement Needed",
+      next_action: "Verify on site",
+      waiting_on: "",
+    };
+  if (
+    /order|thinset|primer|adhesive|mortar|sand|portland|membrane|schluter|material|supply|supplies|grout|caulk/.test(
+      l,
+    )
+  )
+    return {
+      item_type: "Install Material Need",
+      status: "To Order",
+      next_action: "Order material",
+      waiting_on: "",
+    };
   if (/price|pricing|quote|change order|extra|add(ing|ed)? work/.test(l))
-    return { item_type: "Potential Change", status: "Needs Pricing", next_action: "Price change", waiting_on: "" };
+    return {
+      item_type: "Potential Change",
+      status: "Needs Pricing",
+      next_action: "Price change",
+      waiting_on: "",
+    };
   if (/touch.?up|punch|repair|redo|crack|regrout|fix/.test(l))
-    return { item_type: "Punch / Return Work", status: "Crew Needed", next_action: "Assign installer", waiting_on: "" };
+    return {
+      item_type: "Punch / Return Work",
+      status: "Crew Needed",
+      next_action: "Assign installer",
+      waiting_on: "",
+    };
   if (/\?\s*$|^(can|does|should|who|what|when|why|how|is |are )/i.test(line.trim()))
-    return { item_type: "Question / Decision", status: "Open", next_action: "Get an answer", waiting_on: "" };
+    return {
+      item_type: "Question / Decision",
+      status: "Open",
+      next_action: "Get an answer",
+      waiting_on: "",
+    };
   return { item_type: "Task", status: "Open", next_action: "", waiting_on: "" };
 }
 
 /** Chat noise: WhatsApp timestamps, sender prefixes, bullets, list numbers. */
 function cleanLine(line: string) {
-  return line
-    .replace(/^\s*[[(][^\])]{0,40}[\])]\s*/, "")
-    // Only remove an actual message timestamp. A project such as "5:30 Mark"
-    // must remain intact; bare clock-shaped text is not enough evidence.
-    .replace(/^\s*\d{1,2}:\d{2}\s*[ap]m(?:[,\s-]+)+/i, "")
-    .replace(/^\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?[,\s]+/, "")
-    .replace(/^\s*[A-Z][\w'’.\- ]{1,24}:\s+/, "")
-    .replace(/^[-–—•*·>\s]+/, "")
-    .replace(/^\d{1,2}[.)]\s+/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    line
+      .replace(/^\s*[[(][^\])]{0,40}[\])]\s*/, "")
+      // Only remove an actual message timestamp. A project such as "5:30 Mark"
+      // must remain intact; bare clock-shaped text is not enough evidence.
+      .replace(/^\s*\d{1,2}:\d{2}\s*[ap]m(?:[,\s-]+)+/i, "")
+      .replace(/^\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?[,\s]+/, "")
+      .replace(/^\s*[A-Z][\w'’.\- ]{1,24}:\s+/, "")
+      .replace(/^[-–—•*·>\s]+/, "")
+      .replace(/^\d{1,2}[.)]\s+/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /** Comparison form of a project name: "5:30 Mark" and "530 Mark" collapse to "530mark". */
@@ -129,11 +164,7 @@ function stripProject(line: string, name?: string) {
   return cleaned.replace(/^[\s—–\-:,]+/, "").trim();
 }
 
-const emptyDraft = (
-  key: string,
-  title: string,
-  extra: Partial<Draft>,
-): Draft => ({
+const emptyDraft = (key: string, title: string, extra: Partial<Draft>): Draft => ({
   key,
   sectionKey: "unassigned",
   groupName: "",
@@ -193,7 +224,14 @@ const EXPLICIT_ITEM = /^\s*[-–—•*]\s*(.+)$/;
  * A `PROJECT:` line ALWAYS starts a new section and is never work text.
  */
 function parseExplicit(text: string, projects: { id: string; name: string }[]): Draft[] {
-  type Section = { key: string; id: string; name: string; headingText: string; kind: MatchKind; lines: string[] };
+  type Section = {
+    key: string;
+    id: string;
+    name: string;
+    headingText: string;
+    kind: MatchKind;
+    lines: string[];
+  };
   const sections: Section[] = [];
   let n = 0;
 
@@ -217,7 +255,14 @@ function parseExplicit(text: string, projects: { id: string; name: string }[]): 
     const clean = cleanLine(item ? (item[1] ?? "") : raw);
     if (!/[a-z0-9]{2}/i.test(clean)) continue;
     if (!sections.length) {
-      sections.push({ key: "unassigned", id: "", name: "", headingText: "", kind: "none", lines: [] });
+      sections.push({
+        key: "unassigned",
+        id: "",
+        name: "",
+        headingText: "",
+        kind: "none",
+        lines: [],
+      });
     }
     sections[sections.length - 1]!.lines.push(clean);
   }
@@ -245,7 +290,6 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     return parseExplicit(text, projects);
   }
   const lines = text.split(/\r?\n/);
-
 
   // If the paste uses indentation or bullets at all, indentation defines the sections.
   const indentMode = lines.some(
@@ -303,7 +347,6 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
     sections[sections.length - 1]!.lines.push({ i, clean });
   });
 
-
   // Without indentation a short work line can look like a heading. A heading that
   // matched no project and gathered no work under it is really an item of the
   // section above it, so fold it back instead of losing it.
@@ -333,8 +376,6 @@ export function parseBulk(text: string, projects: { id: string; name: string }[]
 
   return drafts;
 }
-
-
 
 /** Quick-note mode only: find a job name mentioned inside free-flowing text. */
 function matchProjectMention(text: string, projects: { id: string; name: string }[]) {
@@ -383,7 +424,6 @@ function parseNote(text: string, projects: { id: string; name: string }[]): Draf
   });
   return drafted;
 }
-
 
 export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
@@ -537,10 +577,17 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const groups = useMemo(() => {
     const map = new Map<
       string,
-      { label: string; heading: string; pending: boolean; fuzzy: boolean; stub: boolean; items: Draft[] }
+      {
+        label: string;
+        heading: string;
+        pending: boolean;
+        fuzzy: boolean;
+        stub: boolean;
+        items: Draft[];
+      }
     >();
     (drafts ?? []).forEach((d) => {
-      const key = d.sectionKey || (d.project_id || "unassigned");
+      const key = d.sectionKey || d.project_id || "unassigned";
       if (!map.has(key)) {
         map.set(key, {
           label: d.project_id
@@ -563,7 +610,6 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
   const matchedSectionCount = groups.filter(([, g]) => !g.pending && !g.fuzzy && !g.stub).length;
   const needsReviewCount = unmatchedSections.length + fuzzySections.length;
   const stubSectionCount = groups.filter(([, g]) => g.stub).length;
-
 
   const saveAll = async () => {
     if (!drafts) return;
@@ -607,7 +653,8 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
     }
 
     const rows: NewWorkItem[] = keep.map((d) => ({
-      project_id: d.matchKind === "stub" ? (stubIds.get(d.sectionKey) ?? null) : d.project_id || null,
+      project_id:
+        d.matchKind === "stub" ? (stubIds.get(d.sectionKey) ?? null) : d.project_id || null,
       item_type: d.item_type,
       title: d.title.trim(),
       owner: d.owner || null,
@@ -652,14 +699,18 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
             <Button
               variant="primary"
               onClick={() => void saveAll()}
-              disabled={!importable || needsReviewCount > 0 || create.isPending || insertProject.isPending}
+              disabled={
+                !importable || needsReviewCount > 0 || create.isPending || insertProject.isPending
+              }
               {...(!importable
                 ? { disabledReason: "Each item needs a summary" }
                 : needsReviewCount > 0
                   ? { disabledReason: "Resolve every project before importing" }
                   : {})}
             >
-              {create.isPending ? "Importing…" : `Import ${importable} Work Item${importable === 1 ? "" : "s"}`}
+              {create.isPending
+                ? "Importing…"
+                : `Import ${importable} Work Item${importable === 1 ? "" : "s"}`}
             </Button>
           </>
         ) : (
@@ -766,15 +817,23 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                   : "Call Millie about niche material and confirm ETA"
               }
             />
-
           </Field>
         </>
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-muted/30 px-2 py-2">
-            <div className="px-3"><span className="text-[11px] text-muted-foreground">Matched existing</span><p className="text-sm font-semibold">{matchedSectionCount}</p></div>
-            <div className="px-3"><span className="text-[11px] text-muted-foreground">Needs review</span><p className="text-sm font-semibold">{needsReviewCount}</p></div>
-            <div className="px-3"><span className="text-[11px] text-muted-foreground">New project stubs</span><p className="text-sm font-semibold">{stubSectionCount}</p></div>
+            <div className="px-3">
+              <span className="text-[11px] text-muted-foreground">Matched existing</span>
+              <p className="text-sm font-semibold">{matchedSectionCount}</p>
+            </div>
+            <div className="px-3">
+              <span className="text-[11px] text-muted-foreground">Needs review</span>
+              <p className="text-sm font-semibold">{needsReviewCount}</p>
+            </div>
+            <div className="px-3">
+              <span className="text-[11px] text-muted-foreground">New project stubs</span>
+              <p className="text-sm font-semibold">{stubSectionCount}</p>
+            </div>
           </div>
           {unmatchedSections.length || fuzzySections.length ? (
             <div className="rounded-xl border border-warning/40 bg-warning-soft/50 px-3 py-2.5">
@@ -783,7 +842,9 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               </p>
               <ul className="mt-1 space-y-0.5 text-[12px] text-secondary-foreground">
                 {unmatchedSections.map(([k, g]) => (
-                  <li key={k}>Unmatched project: “{g.heading}” — choose a project or create a stub</li>
+                  <li key={k}>
+                    Unmatched project: “{g.heading}” — choose a project or create a stub
+                  </li>
                 ))}
                 {fuzzySections.map(([k, g]) => (
                   <li key={k}>
@@ -797,7 +858,9 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
             <span className="text-[12.5px] font-semibold">
-              {selectedKeys.length ? `${selectedKeys.length} selected` : `${drafts.length} proposed`}
+              {selectedKeys.length
+                ? `${selectedKeys.length} selected`
+                : `${drafts.length} proposed`}
             </span>
             {selectedKeys.length ? (
               <>
@@ -861,7 +924,8 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
               </>
             ) : (
               <span className="text-[12px] text-muted-foreground">
-                Select rows to assign an owner, star, set a needed-by date or move them to a project.
+                Select rows to assign an owner, star, set a needed-by date or move them to a
+                project.
               </span>
             )}
           </div>
@@ -922,7 +986,6 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                         });
                       }}
                     >
-
                       <option value="">Company / Unassigned</option>
                       {projects.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -1021,9 +1084,7 @@ export function QuickCapture({ open, onClose }: { open: boolean; onClose: () => 
                           />
                           <button
                             type="button"
-                            onClick={() =>
-                              setExpanded((s) => ({ ...s, [d.key]: !s[d.key] }))
-                            }
+                            onClick={() => setExpanded((s) => ({ ...s, [d.key]: !s[d.key] }))}
                             className="shrink-0 rounded-md px-2 py-1 text-[11.5px] font-semibold text-primary hover:bg-accent"
                           >
                             {expanded[d.key] ? "Less" : "More"}

@@ -36,8 +36,7 @@ function matches(filter: Filter, m: MaterialItem) {
   switch (filter) {
     case "Needs Action":
       return (
-        m.needs_attention ||
-        ["Short", "Wrong", "Damaged", "Partially Received"].includes(m.status)
+        m.needs_attention || ["Short", "Wrong", "Damaged", "Partially Received"].includes(m.status)
       );
     case "To Order":
       return ["Needed", "To Order"].includes(m.status);
@@ -62,7 +61,9 @@ function MaterialsPage() {
     (m) =>
       matches(filter, m) &&
       (!search.trim() ||
-        `${m.name} ${projectName(m.project_id)}`.toLowerCase().includes(search.trim().toLowerCase())),
+        `${m.name} ${projectName(m.project_id)}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase())),
   );
 
   return (
@@ -173,9 +174,7 @@ function MaterialsPage() {
       </div>
 
       <ReceiveMaterialModal open={receiveOpen} onClose={() => setReceiveOpen(false)} />
-      {detail ? (
-        <MaterialDetailModal item={detail} onClose={() => setDetail(null)} />
-      ) : null}
+      {detail ? <MaterialDetailModal item={detail} onClose={() => setDetail(null)} /> : null}
     </PageShell>
   );
 }

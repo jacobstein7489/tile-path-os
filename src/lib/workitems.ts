@@ -66,14 +66,13 @@ export function simpleStatus(status: string): TaskStatus {
 }
 
 /** What we write back when the user picks one of the four statuses. */
-export function storedStatus(status: TaskStatus): string {
+export function storedStatus(status: TaskStatus | string): string {
   if (status === "Done") return "Complete";
   if (status === "To Do") return "Open";
   return status;
 }
 
 export type WorkItemRow = {
-
   id: string;
   project_id: string | null;
   area_id: string | null;
@@ -247,7 +246,14 @@ export const WORK_FILTERS = ["All", "My Work", "Important", "Due Soon", "Complet
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
 /** Today / My Work uses the same records, already narrowed to the signed-in user. */
-export const TODAY_FILTERS = ["Active", "Important", "Waiting", "Completed"] as const;
+export const TODAY_FILTERS = [
+  "Active",
+  "Overdue",
+  "Today",
+  "Next Up",
+  "Waiting Follow-Ups",
+  "Completed",
+] as const;
 
 export function todayIso() {
   const d = new Date();
@@ -302,13 +308,17 @@ export function matchesTodayFilter(filter: string, item: WorkItemRow) {
       return done;
     case "Important":
       return !done && Boolean(item.is_important);
+    case "Overdue":
+    case "Today":
+    case "Next Up":
+    case "Waiting Follow-Ups":
+      return todayBucket(item) === filter;
     case "Waiting":
       return isWaiting(item);
     default:
       return !done;
   }
 }
-
 
 /** Company-level work has no project; label it plainly instead of "—". */
 export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">) {
@@ -346,7 +356,6 @@ export function workSummary(items: WorkItemRow[]) {
   };
 }
 
-
 /** Starred work first, then overdue, then earliest action date, then newest. */
 export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   if (Boolean(a.is_important) !== Boolean(b.is_important)) return a.is_important ? -1 : 1;
@@ -359,7 +368,6 @@ export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   }
   return a.created_at < b.created_at ? 1 : -1;
 }
-
 
 export function statusTone(status: string): ChipTone {
   if (status === "Complete") return "green";
@@ -500,14 +508,12 @@ export function useSaveWorkItem() {
         .eq("id", id);
       if (error) throw error;
       if (note) {
-        await supabase
-          .from("work_item_events")
-          .insert({
-            work_item_id: id,
-            kind: "update",
-            message: note,
-            actor: await currentActorName(),
-          });
+        await supabase.from("work_item_events").insert({
+          work_item_id: id,
+          kind: "update",
+          message: note,
+          actor: await currentActorName(),
+        });
       }
     },
     // The row already flipped optimistically, so only the feed and this item's
@@ -565,7 +571,6 @@ export type NewWorkItem = {
   area_id?: string | null;
   surface_id?: string | null;
 };
-
 
 /* ---------------- Duplicate protection (bulk import) ---------------- */
 

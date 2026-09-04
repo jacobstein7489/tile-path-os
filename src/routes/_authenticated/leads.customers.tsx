@@ -172,7 +172,9 @@ function CustomersTab() {
 
             <Block title="Jobs">
               {projectsFor(open.id).length === 0 ? (
-                <p className="text-[12.5px] text-muted-foreground">No jobs for this customer yet.</p>
+                <p className="text-[12.5px] text-muted-foreground">
+                  No jobs for this customer yet.
+                </p>
               ) : (
                 <ul className="space-y-1.5">
                   {projectsFor(open.id).map((p) => (

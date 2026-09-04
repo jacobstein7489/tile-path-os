@@ -33,18 +33,13 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 
-
 import {
   CreateWorkItemModal,
   RequestMaterialModal,
   type WorkItemKind,
 } from "@/components/WorkItemDialogs";
 import { showsInstallationProgress } from "@/lib/lifecycle";
-import {
-  useAreasWithSurfaces,
-  useProject,
-  useUpdateProject,
-} from "@/lib/data";
+import { useAreasWithSurfaces, useProject, useUpdateProject } from "@/lib/data";
 import { useCrews } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
@@ -90,7 +85,6 @@ function ProjectOverview() {
   const [report, setReport] = useState(false);
   const { data: reports = [] } = useFieldReports(projectId);
   const latestReport = reports[0] ?? null;
-
 
   if (!project) return null;
 
@@ -258,8 +252,6 @@ function ProjectOverview() {
           </ul>
         ) : null}
       </section>
-
-
 
       {/* Where the job stands */}
       <div className="mt-4">
@@ -493,7 +485,6 @@ function ProjectOverview() {
           defaultCrewId={null}
         />
       ) : null}
-
     </>
   );
 }

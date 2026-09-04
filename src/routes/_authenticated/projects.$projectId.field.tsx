@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, HardHat, MessageSquarePlus, Plus } from "lucide-react";
-import {
-  Button,
-  Checkbox,
-  EmptyState,
-  SectionCard,
-  Table,
-  Td,
-  Th,
-} from "@/components/kit";
+import { Button, Checkbox, EmptyState, SectionCard, Table, Td, Th } from "@/components/kit";
 import { CreateWorkItemModal, type WorkItemKind } from "@/components/WorkItemDialogs";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Chip, areaStatusTone, workItemTone } from "@/lib/status";
@@ -69,7 +61,9 @@ function FieldTab() {
                       >
                         <span className="truncate text-[12.5px] font-medium">{s.name}</span>
                         <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-[12px] text-muted-foreground">{s.progress_pct}%</span>
+                          <span className="text-[12px] text-muted-foreground">
+                            {s.progress_pct}%
+                          </span>
                           <Button
                             size="sm"
                             variant={s.status === "Complete" ? "ghost" : "secondary"}
@@ -109,7 +103,10 @@ function FieldTab() {
             }
           >
             {open.length === 0 ? (
-              <EmptyState title="Nothing open in the field" note="New issues, questions and tasks appear here." />
+              <EmptyState
+                title="Nothing open in the field"
+                note="New issues, questions and tasks appear here."
+              />
             ) : (
               <Table>
                 <thead>
