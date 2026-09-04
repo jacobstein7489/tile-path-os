@@ -105,31 +105,20 @@ function ProjectOverview() {
 
   return (
     <>
-      {/* Command bar: progress + the four contextual facts, one viewport band */}
-      <section className="surface px-6 py-5">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {installing ? "Overall installation progress" : "Setup & readiness completion"}
-            </div>
-            <div className="mt-1 flex items-end gap-2.5">
-              <span className="text-[32px] leading-none font-semibold tracking-[-0.02em]">
-                {headline}%
-              </span>
-              <span className="pb-1 text-[13px] text-muted-foreground">
-                {installing
-                  ? `${surfaceList.filter((s) => s.status === "Complete").length} of ${surfaceList.length} surfaces complete`
-                  : (project.readiness_note ?? "Readiness explains what is still outstanding.")}
-              </span>
-            </div>
-          </div>
+      {/* Compact status band: where it stands, then the facts people actually edit. */}
+      <section className="surface px-5 py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-[13px] font-semibold whitespace-nowrap">
+            {installing ? "Installing" : "Getting ready"}
+          </span>
+          <span className="text-[13px] font-bold tabular-nums">{headline}%</span>
+          <ProgressBar value={headline} className="min-w-[120px] flex-1" />
+          <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">
+            {openCount} open action{openCount === 1 ? "" : "s"}
+          </span>
         </div>
-        <ProgressBar value={headline} className="mt-3.5" />
-        {!installing ? (
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            Installation progress stays hidden until the project reaches Installation.
-          </p>
-        ) : null}
+
+
 
         <div className="mt-4 grid grid-cols-4 gap-3 border-t border-border pt-4">
           <Fact
