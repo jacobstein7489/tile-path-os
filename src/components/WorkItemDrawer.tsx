@@ -190,13 +190,14 @@ export function WorkItemDrawer({
           />
         </Field>
 
-        <Field label="Next action">
+        <Field label="Next action (optional)">
           <TextInput
             value={form.next_action}
             onChange={(e) => set("next_action", e.target.value)}
             placeholder="The very next step"
           />
         </Field>
+
 
         <button
           type="button"
