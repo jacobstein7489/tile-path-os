@@ -70,7 +70,13 @@ function SchedulePage() {
   const weekAssignments = assignments.filter((a) => weekIsos.includes(a.work_date));
 
   const projectById = (id: string) => projects.find((p) => p.id === id);
-  const crewsWorking = new Set(weekAssignments.map((a) => a.crew_id)).size;
+  const todayIsoDate = iso(new Date());
+  const todayAssignments = assignments.filter((a) => a.work_date === todayIsoDate);
+  const reportedToday = new Set(
+    reportsToday.filter((r) => r.report_date === todayIsoDate).map((r) => r.project_id),
+  );
+  const crewsWorking = new Set(todayAssignments.map((a) => a.crew_id).filter(Boolean)).size;
+
   const unassigned = projects.filter(
     (p) =>
       !p.exception_state &&
