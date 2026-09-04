@@ -51,6 +51,17 @@ import { cn } from "@/lib/utils";
 const VIEWS = ["List", "Grouped by Project", "By Person"] as const;
 type View = (typeof VIEWS)[number];
 
+type SummaryKey = "Open" | "Unassigned" | "Waiting" | "Overdue";
+
+/** The summary strip narrows the list instead of just reporting a number. */
+function matchesSummaryKey(key: SummaryKey, i: WorkItemRow) {
+  if (isComplete(i)) return false;
+  if (key === "Open") return true;
+  if (key === "Unassigned") return !i.owner_user_id && !i.owner;
+  if (key === "Waiting") return isWaiting(i);
+  return isOverdue(i);
+}
+
 /** How long a just-completed row stays visible with its green success state. */
 const COMPLETE_LINGER_MS = 800;
 
