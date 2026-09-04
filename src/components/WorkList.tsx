@@ -910,7 +910,7 @@ export function WorkList({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search work…"
-                className="min-w-0 flex-1 md:w-[220px] md:flex-none"
+                className="w-full min-w-0 md:w-[220px] md:flex-none"
               />
             ) : null}
             {toolbarRight ? <div className="shrink-0">{toolbarRight}</div> : null}
