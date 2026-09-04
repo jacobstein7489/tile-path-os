@@ -198,7 +198,6 @@ export function WorkItemDrawer({
           />
         </Field>
 
-
         <button
           type="button"
           onClick={() =>

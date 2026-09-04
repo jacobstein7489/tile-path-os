@@ -36,7 +36,6 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
-
 /**
  * Canonical work list. Company Work, Today and Project → Open Work all render
  * THIS component against the SAME work_items rows, so star / owner / complete /
@@ -215,7 +214,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
-  
+
   /** Summary strip focus — Open / Unassigned / Waiting / Overdue. */
   const [focus, setFocus] = useState<SummaryKey | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -418,7 +417,6 @@ export function WorkList({
     </tr>
   );
 
-
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
     <div className="surface sticky top-[116px] z-[9] hidden overflow-hidden md:block">
@@ -530,7 +528,6 @@ export function WorkList({
                   {!done && isDueToday(i) ? "Today" : dueLabel(i.due_date)}
                 </span>
               </Td>
-
 
               <Td className="group-last:border-0">
                 <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
@@ -917,7 +914,6 @@ export function WorkList({
           </div>
         </div>
       </div>
-
 
       {isLoading ? (
         <div className="surface px-5 py-10 text-[13px] text-muted-foreground">Loading work…</div>

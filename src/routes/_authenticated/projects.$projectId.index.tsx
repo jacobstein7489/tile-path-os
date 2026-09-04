@@ -118,7 +118,6 @@ function ProjectOverview() {
           </span>
         </div>
         <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-border pt-3.5 md:grid-cols-4 md:gap-3">
-
           <Fact
             icon={<HardHat className="size-4" />}
             label="Crew"
@@ -239,9 +238,6 @@ function ProjectOverview() {
           </ul>
         ) : null}
       </section>
-
-
-
 
       {/* Open Work — the same work_items records as Company Work and Today. */}
       <section className="mt-4">
