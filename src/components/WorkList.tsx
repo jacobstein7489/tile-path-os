@@ -788,7 +788,7 @@ export function WorkList({
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
 
-  const anyExpanded = groups.some(([key]) => !collapsed[key]);
+  const anyExpanded = groups.some(([key]) => !(collapsed[key] ?? startCollapsed));
 
   const ViewToggle = () => (
     <div className="flex shrink-0 items-center rounded-lg border border-border bg-background p-0.5">
