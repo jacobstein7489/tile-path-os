@@ -938,7 +938,7 @@ export function WorkList({
               (i) => !isComplete(i) && (Boolean(i.waiting_on) || i.status === "Waiting"),
             ).length;
             // While searching, matching sections open regardless of session state.
-            const isCollapsed = q ? false : Boolean(collapsed[key]);
+            const isCollapsed = q ? false : (collapsed[key] ?? startCollapsed);
             return (
               <div key={key} className="surface overflow-hidden">
                 <div className="flex items-center gap-2 border-b border-border-strong/70 bg-muted/60 px-2 py-2.5 md:px-2.5">
