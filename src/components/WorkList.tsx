@@ -394,31 +394,30 @@ export function WorkList({
 
   const Cols = ({ withProject }: { withProject: boolean }) => (
     <colgroup>
+      <col className="w-[44px]" />
+      {withProject ? <col className="w-[17%]" /> : null}
+      <col />
+      <col className="w-[168px]" />
+      <col className="w-[92px]" />
       <col className="w-[48px]" />
-      {withProject ? <col className="w-[15%]" /> : null}
-      <col className={withProject ? "w-[26%]" : "w-[28%]"} />
-      <col className={withProject ? "w-[19%]" : "w-[24%]"} />
-      <col className="w-[11%]" />
-      <col className="w-[10%]" />
-      <col className="w-[14%]" />
-      <col className="w-[52px]" />
     </colgroup>
   );
 
   const HeaderCells = ({ withProject }: { withProject: boolean }) => (
-    <tr className="bg-muted/70">
+    <tr className="bg-muted/50">
       <Th>
-        <span className="sr-only">Important</span>★
+        <span className="sr-only">Important</span>
       </Th>
       {withProject ? <Th>Project</Th> : null}
-      <Th>What Needs To Happen</Th>
+      <Th>Action</Th>
       <Th>Owner</Th>
-      <Th>Waiting On</Th>
-      <Th>Needed By</Th>
-      <Th>Next Action</Th>
-      <Th>Done</Th>
+      <Th>Due</Th>
+      <Th>
+        <span className="sr-only">Done</span>
+      </Th>
     </tr>
   );
+
 
   /** One sticky header row shared by all project groups in the grouped view. */
   const GroupedHeader = () => (
