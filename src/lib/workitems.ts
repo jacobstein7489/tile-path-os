@@ -38,7 +38,42 @@ export const WORK_ITEM_STATUSES = [
   "Complete",
 ] as const;
 
+/* ---------------- Simple task model (Job Operations scope) ----------------
+ * Users only ever see four statuses and eight optional action categories.
+ * Legacy status values in the database still map cleanly onto these four.
+ */
+
+export const TASK_STATUSES = ["To Do", "In Progress", "Waiting", "Done"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_CATEGORIES = [
+  "Follow Up / Confirm",
+  "Measure / Verify",
+  "Material / Order",
+  "Schedule / Crew",
+  "Layout / Decision",
+  "Install / Finish",
+  "Punch / Repair",
+  "Change Order / Admin",
+] as const;
+
+/** Every stored status collapses to one of the four the user understands. */
+export function simpleStatus(status: string): TaskStatus {
+  if (status === "Complete" || status === "Done") return "Done";
+  if (status === "Waiting" || status === "Expected") return "Waiting";
+  if (status === "Open" || status === "To Do" || status === "Setup Needed") return "To Do";
+  return "In Progress";
+}
+
+/** What we write back when the user picks one of the four statuses. */
+export function storedStatus(status: TaskStatus): string {
+  if (status === "Done") return "Complete";
+  if (status === "To Do") return "Open";
+  return status;
+}
+
 export type WorkItemRow = {
+
   id: string;
   project_id: string | null;
   area_id: string | null;
