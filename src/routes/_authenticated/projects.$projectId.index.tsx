@@ -117,10 +117,8 @@ function ProjectOverview() {
             {openCount} open action{openCount === 1 ? "" : "s"}
           </span>
         </div>
+        <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-border pt-3.5 md:grid-cols-4 md:gap-3">
 
-
-
-        <div className="mt-4 grid grid-cols-4 gap-3 border-t border-border pt-4">
           <Fact
             icon={<HardHat className="size-4" />}
             label="Crew"
