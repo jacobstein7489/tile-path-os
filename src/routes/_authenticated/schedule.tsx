@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
+import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -78,7 +80,7 @@ function SchedulePage() {
   const todayIsoDate = iso(new Date());
   const todayAssignments = assignments.filter((a) => a.work_date === todayIsoDate);
   const reportedToday = new Set(
-    reportsToday.filter((r) => r.report_date === todayIsoDate).map((r) => r.project_id),
+    allReports.filter((r) => r.report_date === todayIsoDate).map((r) => r.project_id),
   );
   const crewsWorking = new Set(todayAssignments.map((a) => a.crew_id).filter(Boolean)).size;
 
