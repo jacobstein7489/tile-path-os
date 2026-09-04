@@ -13,12 +13,7 @@ import {
   showsInstallationProgress,
   type ProjectFilter,
 } from "@/lib/lifecycle";
-import {
-  compareWorkItems,
-  isComplete,
-  useWorkFeed,
-  type WorkItemRow,
-} from "@/lib/workitems";
+import { compareWorkItems, isComplete, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
 import { Dot, materialTone, stageTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -166,7 +161,9 @@ function ProjectsPage() {
       {/* Mobile: cards instead of a squeezed table. */}
       <div className="space-y-2.5 md:hidden">
         {isLoading ? (
-          <div className="surface px-4 py-8 text-[13px] text-muted-foreground">Loading projects…</div>
+          <div className="surface px-4 py-8 text-[13px] text-muted-foreground">
+            Loading projects…
+          </div>
         ) : rows.length === 0 ? (
           <div className="surface px-4 py-10 text-center text-[13px] text-muted-foreground">
             No projects in this view.
@@ -185,7 +182,9 @@ function ProjectsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[15px] leading-snug font-bold tracking-[-0.01em]">{p.name}</p>
+                    <p className="text-[15px] leading-snug font-bold tracking-[-0.01em]">
+                      {p.name}
+                    </p>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
                       {p.exception_state ?? p.lifecycle_stage} · {p.project_type}
                     </p>
@@ -204,9 +203,10 @@ function ProjectsPage() {
                   {lead ? lead.title : "No open work"}
                 </p>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">
-                  {[p.crew_lead ?? "Unassigned", fmt(p.start_date) + " → " + fmt(p.target_date)].join(
-                    " · ",
-                  )}
+                  {[
+                    p.crew_lead ?? "Unassigned",
+                    fmt(p.start_date) + " → " + fmt(p.target_date),
+                  ].join(" · ")}
                 </p>
               </Link>
             );
@@ -297,7 +297,9 @@ function ProjectRow({
               <Dot tone={materialTone(p.material_status)} />
             </span>
           ) : null}
-          <span className="min-w-0 leading-snug text-secondary-foreground">{p.material_status}</span>
+          <span className="min-w-0 leading-snug text-secondary-foreground">
+            {p.material_status}
+          </span>
         </span>
       </Td>
       {/* Single operational column, sourced from the same open Work Items as Company Work. */}

@@ -163,7 +163,6 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
   );
 }
 
-
 export function WorkList({
   items,
   onOpen,
@@ -240,7 +239,8 @@ export function WorkList({
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable)
+        return;
       e.preventDefault();
       searchRef.current?.focus();
     };
@@ -293,7 +293,8 @@ export function WorkList({
     }
     // Unassigned work sits first — it is the pile that needs an owner.
     return [...map.entries()].sort((a, b) => {
-      if (a[0] === "unassigned" !== (b[0] === "unassigned")) return a[0] === "unassigned" ? -1 : 1;
+      if ((a[0] === "unassigned") !== (b[0] === "unassigned"))
+        return a[0] === "unassigned" ? -1 : 1;
       return a[1].name.localeCompare(b[1].name);
     });
   }, [rows, byPerson, profiles]);
@@ -596,7 +597,9 @@ export function WorkList({
                       </span>
                     ) : null}
                     {i.due_date ? (
-                      <span className="text-muted-foreground">Needed by {dueLabel(i.due_date)}</span>
+                      <span className="text-muted-foreground">
+                        Needed by {dueLabel(i.due_date)}
+                      </span>
                     ) : null}
                   </p>
                 ) : null}
@@ -605,7 +608,6 @@ export function WorkList({
                 <DoneButton done={done} onChange={(next) => toggleComplete(i, next)} />
               </span>
             </div>
-
           </li>
         );
       })}
@@ -761,7 +763,12 @@ export function WorkList({
             </div>
           ) : null}
           <div className="flex items-center gap-2">
-            <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!title.trim()}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void submit()}
+              disabled={!title.trim()}
+            >
               Add item
             </Button>
             <Button size="sm" onClick={close}>
@@ -780,7 +787,6 @@ export function WorkList({
     );
   };
 
-
   const setAllCollapsed = (next: boolean) =>
     setCollapsed(Object.fromEntries(groups.map(([key]) => [key, next])));
 
@@ -796,7 +802,9 @@ export function WorkList({
           className={cn(
             "h-8 cursor-pointer rounded-md px-2.5 text-[12.5px] font-semibold outline-none",
             "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-            view === v ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted",
+            view === v
+              ? "bg-primary-soft text-primary"
+              : "text-secondary-foreground hover:bg-muted",
           )}
         >
           {v === "Grouped by Project" ? "By Project" : v}
@@ -963,8 +971,6 @@ export function WorkList({
         </div>
       ) : null}
 
-
-
       {isLoading ? (
         <div className="surface px-5 py-10 text-[13px] text-muted-foreground">Loading work…</div>
       ) : rows.length === 0 ? (
@@ -979,7 +985,6 @@ export function WorkList({
         <div className="flex flex-col gap-3">
           <GroupedHeader />
           {groups.map(([key, group]) => {
-
             const openCount = group.items.filter((i) => !isComplete(i) && !justDone[i.id]).length;
             const starCount = group.items.filter((i) => i.is_important && !isComplete(i)).length;
             const waitCount = group.items.filter(
@@ -1029,7 +1034,6 @@ export function WorkList({
                     </span>
                   </div>
                 </div>
-
 
                 <div
                   className={cn(

@@ -172,9 +172,7 @@ function CommissionRow({
           placeholder="0.00"
           className="h-8 text-right tabular-nums"
           onChange={(e) => setAmount(e.target.value)}
-          onBlur={() =>
-            onPatch({ commissionable_amount: amount === "" ? null : Number(amount) })
-          }
+          onBlur={() => onPatch({ commissionable_amount: amount === "" ? null : Number(amount) })}
         />
       </Td>
       <Td className="group-last:border-0">
@@ -184,9 +182,7 @@ function CommissionRow({
           placeholder={`${rateUsed}%`}
           className="h-8 text-right tabular-nums"
           onChange={(e) => setRate(e.target.value)}
-          onBlur={() =>
-            onPatch({ commission_rate_override: rate === "" ? null : Number(rate) })
-          }
+          onBlur={() => onPatch({ commission_rate_override: rate === "" ? null : Number(rate) })}
         />
         <div className="mt-0.5 text-[10.5px] text-muted-foreground">
           {p.commission_rate_override === null || p.commission_rate_override === undefined
@@ -216,5 +212,9 @@ function CommissionRow({
 }
 
 function money(value: number) {
-  return value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 }

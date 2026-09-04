@@ -97,7 +97,12 @@ function ProjectMaterials() {
   return (
     <>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard icon={<Package className="size-5" />} tone="amber" label="To Order" value={toOrder} />
+        <KpiCard
+          icon={<Package className="size-5" />}
+          tone="amber"
+          label="To Order"
+          value={toOrder}
+        />
         <KpiCard
           icon={<Package className="size-5" />}
           tone="blue"
@@ -135,7 +140,11 @@ function ProjectMaterials() {
         {renderTable(install, "Installation materials")}
       </div>
 
-      <RequestMaterialModal open={request} onClose={() => setRequest(false)} projectId={projectId} />
+      <RequestMaterialModal
+        open={request}
+        onClose={() => setRequest(false)}
+        projectId={projectId}
+      />
       <ReceiveMaterialModal
         open={receiveOpen}
         onClose={() => setReceiveOpen(false)}

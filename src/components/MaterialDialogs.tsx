@@ -102,7 +102,9 @@ export function CreatePoModal({
             variant="primary"
             onClick={save}
             disabled={!valid || insertPo.isPending}
-            {...(!valid ? { disabledReason: "Enter a supplier and select at least one material" } : {})}
+            {...(!valid
+              ? { disabledReason: "Enter a supplier and select at least one material" }
+              : {})}
           >
             Save PO
           </Button>
@@ -143,7 +145,10 @@ export function CreatePoModal({
         </Field>
       </div>
 
-      <Field label="Linked material requirements" hint="Quantity defaults to the required quantity.">
+      <Field
+        label="Linked material requirements"
+        hint="Quantity defaults to the required quantity."
+      >
         <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
           <Table>
             <tbody>
@@ -279,7 +284,9 @@ export function ReceiveMaterialModal({
             variant="primary"
             onClick={save}
             disabled={!valid || insertReceipt.isPending}
-            {...(!valid ? { disabledReason: "Select a material and enter a received quantity" } : {})}
+            {...(!valid
+              ? { disabledReason: "Select a material and enter a received quantity" }
+              : {})}
           >
             Save receipt
           </Button>
@@ -317,7 +324,10 @@ export function ReceiveMaterialModal({
             onChange={(e) => set("receipt_date", e.target.value)}
           />
         </Field>
-        <Field label="Received quantity" hint={item ? `${missing} ${item.unit ?? ""} still missing` : undefined}>
+        <Field
+          label="Received quantity"
+          hint={item ? `${missing} ${item.unit ?? ""} still missing` : undefined}
+        >
           <TextInput
             type="number"
             value={form.received_qty}

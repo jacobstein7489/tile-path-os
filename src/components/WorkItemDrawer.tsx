@@ -207,7 +207,6 @@ export function WorkItemDrawer({
           {item.is_important ? "Important" : "Mark important"}
         </button>
 
-
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
@@ -285,13 +284,13 @@ export function WorkItemDrawer({
         </div>
 
         {item.project_id ? (
-        <Link
-          to="/projects/$projectId/files"
-          params={{ projectId: item.project_id }}
-          className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
-        >
-          <Paperclip className="size-4" /> Open project files and photos
-        </Link>
+          <Link
+            to="/projects/$projectId/files"
+            params={{ projectId: item.project_id }}
+            className="flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-[12.5px] font-medium text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
+          >
+            <Paperclip className="size-4" /> Open project files and photos
+          </Link>
         ) : null}
 
         {/* Technical classification stays out of the way. */}

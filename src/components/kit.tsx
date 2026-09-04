@@ -395,11 +395,7 @@ export function Table({ children, className }: { children: ReactNode; className?
   );
 }
 
-export function Th({
-  children,
-  className,
-  ...rest
-}: React.ThHTMLAttributes<HTMLTableCellElement>) {
+export function Th({ children, className, ...rest }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       {...rest}
@@ -413,11 +409,7 @@ export function Th({
   );
 }
 
-export function Td({
-  children,
-  className,
-  ...rest
-}: React.TdHTMLAttributes<HTMLTableCellElement>) {
+export function Td({ children, className, ...rest }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td
       {...rest}
@@ -602,7 +594,13 @@ export function Checkbox({
         )}
       >
         {checked ? (
-          <svg viewBox="0 0 20 20" className="size-3" fill="none" stroke="currentColor" strokeWidth={3}>
+          <svg
+            viewBox="0 0 20 20"
+            className="size-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3}
+          >
             <path d="M4 10.5l4 4 8-8" strokeLinecap="round" />
           </svg>
         ) : null}
@@ -709,7 +707,11 @@ export function StepSequence({ steps, current }: { steps: string[]; current: str
             <span
               className={cn(
                 "size-2 shrink-0 rounded-full",
-                active ? "bg-primary ring-3 ring-primary/20" : done ? "bg-success" : "bg-border-strong",
+                active
+                  ? "bg-primary ring-3 ring-primary/20"
+                  : done
+                    ? "bg-success"
+                    : "bg-border-strong",
               )}
             />
             <span
@@ -730,7 +732,6 @@ export function StepSequence({ steps, current }: { steps: string[]; current: str
     </ol>
   );
 }
-
 
 /* ---------------- Searchable selector (canonical reference picker) ---------------- */
 

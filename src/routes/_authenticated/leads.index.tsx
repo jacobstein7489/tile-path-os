@@ -48,8 +48,7 @@ function LeadsTab() {
     (p) =>
       PRE_AWARD_STAGES.includes(p.lifecycle_stage) &&
       !p.exception_state &&
-      (q === "" ||
-        `${p.name} ${p.address ?? ""} ${p.customer ?? ""}`.toLowerCase().includes(q)),
+      (q === "" || `${p.name} ${p.address ?? ""} ${p.customer ?? ""}`.toLowerCase().includes(q)),
   );
 
   return (
@@ -118,9 +117,7 @@ function LeadsTab() {
                 gc={companyName(p.gc_company_id)}
                 salesperson={personName(p.salesperson_user_id)}
                 estimator={personName(p.estimator_user_id)}
-                onOpen={() =>
-                  navigate({ to: "/projects/$projectId", params: { projectId: p.id } })
-                }
+                onOpen={() => navigate({ to: "/projects/$projectId", params: { projectId: p.id } })}
               />
             ))}
           </tbody>

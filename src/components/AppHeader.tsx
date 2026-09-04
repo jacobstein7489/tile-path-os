@@ -50,7 +50,11 @@ export function AppHeader({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
-          <Avatar initials={profile?.initials || "?"} tone={profile?.avatar_tone ?? "blue"} size={32} />
+          <Avatar
+            initials={profile?.initials || "?"}
+            tone={profile?.avatar_tone ?? "blue"}
+            size={32}
+          />
         </div>
       </div>
     </header>

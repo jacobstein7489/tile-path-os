@@ -108,8 +108,6 @@ function TodayPage() {
               emptyTitle="You're clear"
               emptyNote="Nothing assigned to you is active right now. Completed work is under the Completed filter."
             />
-
-
           </div>
 
           <aside className="space-y-3">
@@ -119,8 +117,8 @@ function TodayPage() {
                   <Plus className="size-4" /> Quick Capture
                 </Button>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  Log anything from a site visit, call or message. It becomes a real work item on the
-                  company board and on the project.
+                  Log anything from a site visit, call or message. It becomes a real work item on
+                  the company board and on the project.
                 </p>
               </div>
             </SectionCard>

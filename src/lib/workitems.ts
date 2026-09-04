@@ -73,7 +73,6 @@ export function storedStatus(status: TaskStatus): string {
 }
 
 export type WorkItemRow = {
-
   id: string;
   project_id: string | null;
   area_id: string | null;
@@ -309,7 +308,6 @@ export function matchesTodayFilter(filter: string, item: WorkItemRow) {
   }
 }
 
-
 /** Company-level work has no project; label it plainly instead of "—". */
 export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">) {
   return item.project_id ? (item.projects?.name ?? "Project") : "Company / Unassigned";
@@ -346,7 +344,6 @@ export function workSummary(items: WorkItemRow[]) {
   };
 }
 
-
 /** Starred work first, then overdue, then earliest action date, then newest. */
 export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   if (Boolean(a.is_important) !== Boolean(b.is_important)) return a.is_important ? -1 : 1;
@@ -359,7 +356,6 @@ export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   }
   return a.created_at < b.created_at ? 1 : -1;
 }
-
 
 export function statusTone(status: string): ChipTone {
   if (status === "Complete") return "green";
@@ -500,14 +496,12 @@ export function useSaveWorkItem() {
         .eq("id", id);
       if (error) throw error;
       if (note) {
-        await supabase
-          .from("work_item_events")
-          .insert({
-            work_item_id: id,
-            kind: "update",
-            message: note,
-            actor: await currentActorName(),
-          });
+        await supabase.from("work_item_events").insert({
+          work_item_id: id,
+          kind: "update",
+          message: note,
+          actor: await currentActorName(),
+        });
       }
     },
     // The row already flipped optimistically, so only the feed and this item's
@@ -565,7 +559,6 @@ export type NewWorkItem = {
   area_id?: string | null;
   surface_id?: string | null;
 };
-
 
 /* ---------------- Duplicate protection (bulk import) ---------------- */
 

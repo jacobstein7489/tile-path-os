@@ -2,7 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Combobox, Field, InfoBanner, Modal, Select, TextArea, TextInput } from "@/components/kit";
+import {
+  Button,
+  Combobox,
+  Field,
+  InfoBanner,
+  Modal,
+  Select,
+  TextArea,
+  TextInput,
+} from "@/components/kit";
 import { useInsertRow } from "@/lib/data";
 import { useAuthUser } from "@/hooks/useAuth";
 import {

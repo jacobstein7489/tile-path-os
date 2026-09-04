@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { Button, Combobox, Field, Modal, Select, TextArea, TextInput } from "@/components/kit";
 import { profileOptions, useProfiles } from "@/lib/people";
-import {
-  useInsertRow,
-  useProjects,
-  type MaterialItem,
-  type Project,
-} from "@/lib/data";
+import { useInsertRow, useProjects, type MaterialItem, type Project } from "@/lib/data";
 
 export type WorkItemKind =
   | "Field Update"
@@ -17,7 +12,6 @@ export type WorkItemKind =
   | "Issue"
   | "Approval"
   | "Punch / Return Item";
-
 
 /** Creates a real structured work item. Comments are context — this changes the project. */
 export function CreateWorkItemModal({
@@ -161,7 +155,10 @@ export function CreateWorkItemModal({
           />
         </Field>
         <Field label="Next action">
-          <TextInput value={form.next_action} onChange={(e) => set("next_action", e.target.value)} />
+          <TextInput
+            value={form.next_action}
+            onChange={(e) => set("next_action", e.target.value)}
+          />
         </Field>
         <Field label="Impact">
           <TextInput value={form.impact} onChange={(e) => set("impact", e.target.value)} />
@@ -264,7 +261,11 @@ export function RequestMaterialModal({
       ) : null}
       <div className="grid grid-cols-2 gap-3.5">
         <Field label="Material">
-          <TextInput value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Thinset" />
+          <TextInput
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            placeholder="Thinset"
+          />
         </Field>
         <Field label="Spec">
           <TextInput
