@@ -90,6 +90,10 @@ export type WorkItemRow = {
   status: string;
   is_important: boolean;
   due_date: string | null;
+  follow_up_on?: string | null;
+  category?: string | null;
+  source_field_report_id?: string | null;
+
   priority: string;
   impact: string | null;
   next_action: string | null;
