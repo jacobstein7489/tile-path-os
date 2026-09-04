@@ -4,10 +4,13 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   Users,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
+import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -56,8 +59,13 @@ function SchedulePage() {
   const { data: assignments = [] } = useScheduleAssignments();
   const insertAssignment = useInsertRow("schedule_assignments");
   const updateProject = useUpdateRow("projects");
+  const { data: allReports = [] } = useFieldReports();
   const [weekOffset, setWeekOffset] = useState(0);
   const [assignFor, setAssignFor] = useState<{ project: Project; kind: string } | null>(null);
+  const [reportFor, setReportFor] = useState<{ project: Project; crewId: string | null } | null>(
+    null,
+  );
+
 
   const start = mondayOf(new Date());
   start.setDate(start.getDate() + weekOffset * 7);
@@ -70,7 +78,13 @@ function SchedulePage() {
   const weekAssignments = assignments.filter((a) => weekIsos.includes(a.work_date));
 
   const projectById = (id: string) => projects.find((p) => p.id === id);
-  const crewsWorking = new Set(weekAssignments.map((a) => a.crew_id)).size;
+  const todayIsoDate = iso(new Date());
+  const todayAssignments = assignments.filter((a) => a.work_date === todayIsoDate);
+  const reportedToday = new Set(
+    allReports.filter((r) => r.report_date === todayIsoDate).map((r) => r.project_id),
+  );
+  const crewsWorking = new Set(todayAssignments.map((a) => a.crew_id).filter(Boolean)).size;
+
   const unassigned = projects.filter(
     (p) =>
       !p.exception_state &&
@@ -118,6 +132,58 @@ function SchedulePage() {
             return visits this week
           </span>
         </div>
+
+        {/* Who is out today, and which jobs still owe a daily field report. */}
+        <div className="mt-5">
+          <SectionCard
+            title="Working today"
+            subtitle="Every job scheduled today needs a daily field report before the day closes."
+            icon={<ClipboardCheck className="size-[18px] text-primary" />}
+            bodyClassName="divide-y divide-border"
+          >
+            {todayAssignments.map((a) => {
+              const p = projectById(a.project_id);
+              if (!p) return null;
+              const missing = !reportedToday.has(p.id);
+              return (
+                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <Link
+                      to="/projects/$projectId"
+                      params={{ projectId: p.id }}
+                      className="block truncate text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      {p.name}
+                    </Link>
+                    <div className="truncate text-[12px] text-muted-foreground">
+                      {[crews.find((c) => c.id === a.crew_id)?.name ?? "No crew", a.kind]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  </div>
+                  {missing ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
+                    >
+                      Report missing
+                    </Button>
+                  ) : (
+                    <Chip tone="green">Reported</Chip>
+                  )}
+                </div>
+              );
+            })}
+            {todayAssignments.length === 0 ? (
+              <div className="px-5 py-4 text-[12.5px] text-muted-foreground">
+                No crews are scheduled today.
+              </div>
+            ) : null}
+          </SectionCard>
+        </div>
+
+
 
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
           <SectionCard
@@ -295,6 +361,14 @@ function SchedulePage() {
             });
             setAssignFor(null);
           }}
+        />
+      ) : null}
+      {reportFor ? (
+        <FieldReportSheet
+          projectId={reportFor.project.id}
+          projectName={reportFor.project.name}
+          defaultCrewId={reportFor.crewId}
+          onClose={() => setReportFor(null)}
         />
       ) : null}
     </>

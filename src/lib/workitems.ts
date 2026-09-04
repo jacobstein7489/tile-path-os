@@ -38,7 +38,42 @@ export const WORK_ITEM_STATUSES = [
   "Complete",
 ] as const;
 
+/* ---------------- Simple task model (Job Operations scope) ----------------
+ * Users only ever see four statuses and eight optional action categories.
+ * Legacy status values in the database still map cleanly onto these four.
+ */
+
+export const TASK_STATUSES = ["To Do", "In Progress", "Waiting", "Done"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_CATEGORIES = [
+  "Follow Up / Confirm",
+  "Measure / Verify",
+  "Material / Order",
+  "Schedule / Crew",
+  "Layout / Decision",
+  "Install / Finish",
+  "Punch / Repair",
+  "Change Order / Admin",
+] as const;
+
+/** Every stored status collapses to one of the four the user understands. */
+export function simpleStatus(status: string): TaskStatus {
+  if (status === "Complete" || status === "Done") return "Done";
+  if (status === "Waiting" || status === "Expected") return "Waiting";
+  if (status === "Open" || status === "To Do" || status === "Setup Needed") return "To Do";
+  return "In Progress";
+}
+
+/** What we write back when the user picks one of the four statuses. */
+export function storedStatus(status: TaskStatus): string {
+  if (status === "Done") return "Complete";
+  if (status === "To Do") return "Open";
+  return status;
+}
+
 export type WorkItemRow = {
+
   id: string;
   project_id: string | null;
   area_id: string | null;
@@ -55,6 +90,10 @@ export type WorkItemRow = {
   status: string;
   is_important: boolean;
   due_date: string | null;
+  follow_up_on?: string | null;
+  category?: string | null;
+  source_field_report_id?: string | null;
+
   priority: string;
   impact: string | null;
   next_action: string | null;
@@ -203,11 +242,58 @@ export function advanceWorkflow(item: WorkItemRow) {
 
 /* ---------------- Buckets & tones ---------------- */
 
-export const WORK_FILTERS = ["All", "Important", "My Work", "Waiting", "Completed"] as const;
+/** Company Work: one small filter set. Completed is history, kept last. */
+export const WORK_FILTERS = ["All", "My Work", "Important", "Due Soon", "Completed"] as const;
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
 /** Today / My Work uses the same records, already narrowed to the signed-in user. */
 export const TODAY_FILTERS = ["Active", "Important", "Waiting", "Completed"] as const;
+
+export function todayIso() {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The date that decides where an item lands: needed-by, or the follow-up date. */
+export function actionDate(item: WorkItemRow) {
+  const dates = [item.due_date, item.follow_up_on].filter(Boolean) as string[];
+  if (!dates.length) return null;
+  return dates.sort()[0] ?? null;
+}
+
+export function isOverdue(item: WorkItemRow) {
+  const d = actionDate(item);
+  return !isComplete(item) && Boolean(d && d < todayIso());
+}
+
+export function isDueToday(item: WorkItemRow) {
+  return !isComplete(item) && actionDate(item) === todayIso();
+}
+
+export function isDueSoon(item: WorkItemRow, days = 3) {
+  const d = actionDate(item);
+  if (!d || isComplete(item)) return false;
+  const limit = new Date();
+  limit.setDate(limit.getDate() + days);
+  return d <= limit.toISOString().slice(0, 10);
+}
+
+export function isWaiting(item: WorkItemRow) {
+  return !isComplete(item) && (simpleStatus(item.status) === "Waiting" || Boolean(item.waiting_on));
+}
+
+/** Personal buckets on Today, in the order a person actually works them. */
+export const TODAY_BUCKETS = ["Overdue", "Today", "Next Up", "Waiting Follow-Ups"] as const;
+export type TodayBucket = (typeof TODAY_BUCKETS)[number];
+
+export function todayBucket(item: WorkItemRow): TodayBucket | null {
+  if (isComplete(item)) return null;
+  if (isOverdue(item)) return "Overdue";
+  if (isWaiting(item)) return "Waiting Follow-Ups";
+  if (isDueToday(item)) return "Today";
+  return "Next Up";
+}
 
 export function matchesTodayFilter(filter: string, item: WorkItemRow) {
   const done = isComplete(item);
@@ -217,7 +303,7 @@ export function matchesTodayFilter(filter: string, item: WorkItemRow) {
     case "Important":
       return !done && Boolean(item.is_important);
     case "Waiting":
-      return !done && (Boolean(item.waiting_on) || item.status === "Waiting");
+      return isWaiting(item);
     default:
       return !done;
   }
@@ -230,7 +316,7 @@ export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">)
 }
 
 export function isComplete(item: WorkItemRow) {
-  return item.status === "Complete" || Boolean(item.completed_at);
+  return item.status === "Complete" || item.status === "Done" || Boolean(item.completed_at);
 }
 
 export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow, userId?: string | null) {
@@ -244,21 +330,36 @@ export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow, userId?
       return !done && Boolean(item.is_important);
     case "My Work":
       return !done && Boolean(userId) && item.owner_user_id === userId;
-    case "Waiting":
-      return !done && (Boolean(item.waiting_on) || item.status === "Waiting");
+    case "Due Soon":
+      return isDueSoon(item);
   }
 }
 
-/** Starred work first, then earliest needed-by, then newest. */
+/** The four numbers management asks for first thing in the morning. */
+export function workSummary(items: WorkItemRow[]) {
+  const open = items.filter((i) => !isComplete(i));
+  return {
+    Open: open.length,
+    Unassigned: open.filter((i) => !i.owner_user_id && !i.owner).length,
+    Waiting: open.filter(isWaiting).length,
+    Overdue: open.filter(isOverdue).length,
+  };
+}
+
+
+/** Starred work first, then overdue, then earliest action date, then newest. */
 export function compareWorkItems(a: WorkItemRow, b: WorkItemRow) {
   if (Boolean(a.is_important) !== Boolean(b.is_important)) return a.is_important ? -1 : 1;
-  if (a.due_date !== b.due_date) {
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return a.due_date < b.due_date ? -1 : 1;
+  const da = actionDate(a);
+  const db = actionDate(b);
+  if (da !== db) {
+    if (!da) return 1;
+    if (!db) return -1;
+    return da < db ? -1 : 1;
   }
   return a.created_at < b.created_at ? 1 : -1;
 }
+
 
 export function statusTone(status: string): ChipTone {
   if (status === "Complete") return "green";
@@ -455,12 +556,16 @@ export type NewWorkItem = {
   waiting_on_user_id?: string | null;
   status?: string;
   due_date?: string | null;
+  follow_up_on?: string | null;
+  category?: string | null;
+  source_field_report_id?: string | null;
   priority?: string;
   next_action?: string | null;
   is_important?: boolean;
   area_id?: string | null;
   surface_id?: string | null;
 };
+
 
 /* ---------------- Duplicate protection (bulk import) ---------------- */
 

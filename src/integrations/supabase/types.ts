@@ -190,6 +190,78 @@ export type Database = {
           },
         ]
       }
+      field_reports: {
+        Row: {
+          areas_worked: string | null
+          blockers: string | null
+          created_at: string
+          crew_id: string | null
+          crew_label: string | null
+          id: string
+          material_needed: string | null
+          next_work: string | null
+          notes: string | null
+          progress_note: string | null
+          project_id: string
+          report_date: string
+          submitted_by: string | null
+          submitted_by_name: string | null
+          updated_at: string
+          worker_count: number | null
+        }
+        Insert: {
+          areas_worked?: string | null
+          blockers?: string | null
+          created_at?: string
+          crew_id?: string | null
+          crew_label?: string | null
+          id?: string
+          material_needed?: string | null
+          next_work?: string | null
+          notes?: string | null
+          progress_note?: string | null
+          project_id: string
+          report_date?: string
+          submitted_by?: string | null
+          submitted_by_name?: string | null
+          updated_at?: string
+          worker_count?: number | null
+        }
+        Update: {
+          areas_worked?: string | null
+          blockers?: string | null
+          created_at?: string
+          crew_id?: string | null
+          crew_label?: string | null
+          id?: string
+          material_needed?: string | null
+          next_work?: string | null
+          notes?: string | null
+          progress_note?: string | null
+          project_id?: string
+          report_date?: string
+          submitted_by?: string | null
+          submitted_by_name?: string | null
+          updated_at?: string
+          worker_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_reports_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_items: {
         Row: {
           archived_at: string | null
@@ -530,6 +602,7 @@ export type Database = {
           area_id: string | null
           caption: string | null
           created_at: string
+          field_report_id: string | null
           filename: string
           id: string
           kind: string
@@ -545,6 +618,7 @@ export type Database = {
           area_id?: string | null
           caption?: string | null
           created_at?: string
+          field_report_id?: string | null
           filename: string
           id?: string
           kind?: string
@@ -560,6 +634,7 @@ export type Database = {
           area_id?: string | null
           caption?: string | null
           created_at?: string
+          field_report_id?: string | null
           filename?: string
           id?: string
           kind?: string
@@ -577,6 +652,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_files_field_report_id_fkey"
+            columns: ["field_report_id"]
+            isOneToOne: false
+            referencedRelation: "field_reports"
             referencedColumns: ["id"]
           },
           {
@@ -1116,11 +1198,13 @@ export type Database = {
         Row: {
           archived_at: string | null
           area_id: string | null
+          category: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
           description: string | null
           due_date: string | null
+          follow_up_on: string | null
           id: string
           impact: string | null
           is_important: boolean
@@ -1130,6 +1214,7 @@ export type Database = {
           owner_user_id: string | null
           priority: string
           project_id: string | null
+          source_field_report_id: string | null
           status: string
           surface_id: string | null
           title: string
@@ -1143,11 +1228,13 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           area_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          follow_up_on?: string | null
           id?: string
           impact?: string | null
           is_important?: boolean
@@ -1157,6 +1244,7 @@ export type Database = {
           owner_user_id?: string | null
           priority?: string
           project_id?: string | null
+          source_field_report_id?: string | null
           status?: string
           surface_id?: string | null
           title: string
@@ -1170,11 +1258,13 @@ export type Database = {
         Update: {
           archived_at?: string | null
           area_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          follow_up_on?: string | null
           id?: string
           impact?: string | null
           is_important?: boolean
@@ -1184,6 +1274,7 @@ export type Database = {
           owner_user_id?: string | null
           priority?: string
           project_id?: string | null
+          source_field_report_id?: string | null
           status?: string
           surface_id?: string | null
           title?: string
@@ -1207,6 +1298,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_items_source_field_report_id_fkey"
+            columns: ["source_field_report_id"]
+            isOneToOne: false
+            referencedRelation: "field_reports"
             referencedColumns: ["id"]
           },
           {
@@ -1291,12 +1389,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1320,11 +1418,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1345,11 +1443,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1370,11 +1468,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1387,11 +1485,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
