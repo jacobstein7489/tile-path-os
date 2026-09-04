@@ -246,7 +246,14 @@ export const WORK_FILTERS = ["All", "My Work", "Important", "Due Soon", "Complet
 export type WorkFilter = (typeof WORK_FILTERS)[number];
 
 /** Today / My Work uses the same records, already narrowed to the signed-in user. */
-export const TODAY_FILTERS = ["Active", "Important", "Waiting", "Completed"] as const;
+export const TODAY_FILTERS = [
+  "Active",
+  "Overdue",
+  "Today",
+  "Next Up",
+  "Waiting Follow-Ups",
+  "Completed",
+] as const;
 
 export function todayIso() {
   const d = new Date();
@@ -301,6 +308,11 @@ export function matchesTodayFilter(filter: string, item: WorkItemRow) {
       return done;
     case "Important":
       return !done && Boolean(item.is_important);
+    case "Overdue":
+    case "Today":
+    case "Next Up":
+    case "Waiting Follow-Ups":
+      return todayBucket(item) === filter;
     case "Waiting":
       return isWaiting(item);
     default:
