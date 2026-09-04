@@ -103,36 +103,26 @@ function ProjectsPage() {
       </div>
 
       <div className="surface hidden overflow-hidden md:block">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-[15px] font-semibold tracking-tight">
-            {filter === "All" ? "All Projects" : filter}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h2 className="text-[14px] font-semibold tracking-tight">
+            {filter === "All" ? "All projects" : filter}
           </h2>
-          <span className="text-xs font-medium text-muted-foreground tabular-nums">
-            {rows.length} of {projects.length} projects
+          <span className="text-[12px] font-medium text-muted-foreground tabular-nums">
+            {rows.length} of {projects.length}
           </span>
         </div>
         <Table className="table-fixed">
-          {/* Widths tuned so nothing truncates at 1280px. */}
+          {/* Five columns only: who, where it is, who is on it, when, what is next. */}
           <colgroup>
-            <col className="w-[15%]" />
-            <col className="w-[13%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[29%]" />
+            <col className="w-[26%]" />
+            <col className="w-[16%]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
+            <col />
           </colgroup>
           <thead>
-            <tr className="bg-muted/60">
-              {[
-                "Project",
-                "Stage",
-                "Progress",
-                "Crew",
-                "Dates",
-                "Materials",
-                "What needs to happen",
-              ].map((h) => (
+            <tr className="bg-muted/50">
+              {["Project", "Stage", "Crew", "Dates", "Open work"].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -140,13 +130,13 @@ function ProjectsPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <Td colSpan={7} className="text-muted-foreground">
+                <Td colSpan={5} className="text-muted-foreground">
                   Loading projects…
                 </Td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <Td colSpan={7} className="text-muted-foreground text-center py-12">
+                <Td colSpan={5} className="py-12 text-center text-muted-foreground">
                   No projects in this view.
                 </Td>
               </tr>
@@ -158,6 +148,7 @@ function ProjectsPage() {
           </tbody>
         </Table>
       </div>
+
       {/* Mobile: cards instead of a squeezed table. */}
       <div className="space-y-2.5 md:hidden">
         {isLoading ? (
