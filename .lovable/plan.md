@@ -15,6 +15,12 @@ Rebuild the daily Job Operations experience with the Project/Job as the main ope
 3. **Rooms, Deliveries, Schedule, Tasks, Files, and Daily Updates** — supporting job workflows.
 4. **Today** — a personal command center that brings assigned work, scheduled jobs, reminders, and missing updates together without becoming the product’s primary data model.
 
+## Navigation lock
+- Global navigation stays: Dashboard, Today, Projects, Schedule, Deliveries, Settings.
+- Project navigation stays: Overview, Rooms, Deliveries, Schedule, Tasks, Files.
+- Daily Updates and activity surface contextually, not as a permanent tab.
+- Work remains a secondary/contextual view; not promoted to global navigation.
+
 ## Implementation sequence
 1. Inventory and preserve existing project, room/area, delivery/material, schedule, task, file, readiness, people, and field-report contracts.
 2. Establish shared design tokens, Sora/Manrope typography, navigation, responsive shell, operational surfaces, and consistent loading/empty states.
