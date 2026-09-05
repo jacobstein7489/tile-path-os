@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarDays,
-  ChevronRight,
   ClipboardCheck,
   HardHat,
   Layers,
@@ -49,13 +48,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
   head: () => ({
     meta: [
-      { title: "Project Overview — Cobblestone Tile OS" },
+      { title: "Project Overview — Cobblestone Job Operations" },
       {
         name: "description",
         content:
           "Where the project is up to: lifecycle stage, readiness, blockers, crew, dates and the next move.",
       },
-      { property: "og:title", content: "Project Overview — Cobblestone Tile OS" },
+      { property: "og:title", content: "Project Overview — Cobblestone Job Operations" },
       {
         property: "og:description",
         content: "Lifecycle stage, readiness, blockers, crew, dates and the next move.",
@@ -99,25 +98,26 @@ function ProjectOverview() {
   const siteName = nameOf(project.site_manager_user_id);
   const crewLabel = project.crew_lead ?? siteName ?? "Not assigned";
   const nextOwner = nameOf(project.pm_user_id) ?? project.next_move_owner ?? "Unassigned";
-  // Next move is derived from the same open Work Items as Company Work.
   const leadWork = [...projectWork.filter((i) => !isComplete(i))].sort(compareWorkItems)[0] ?? null;
   const openCount = projectWork.filter((i) => !isComplete(i)).length;
 
   return (
     <>
-      {/* Compact status band: where it stands, then the facts people actually edit. */}
-      <section className="surface px-5 py-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-[13px] font-semibold whitespace-nowrap">
-            {installing ? "Installing" : "Getting ready"}
-          </span>
-          <span className="text-[13px] font-bold tabular-nums">{headline}%</span>
+      {/* Readiness band: where the job stands and the facts people edit. */}
+      <section className="surface px-4 py-4 md:px-5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] font-semibold whitespace-nowrap">
+              {installing ? "Installing" : "Getting ready"}
+            </span>
+            <span className="text-[15px] font-bold tabular-nums">{headline}%</span>
+          </div>
           <ProgressBar value={headline} className="min-w-[120px] flex-1" />
           <span className="text-[12.5px] whitespace-nowrap text-muted-foreground">
             {openCount} open action{openCount === 1 ? "" : "s"}
           </span>
         </div>
-        <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-border pt-3.5 md:grid-cols-4 md:gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4 md:grid-cols-4 md:gap-3">
           <Fact
             icon={<HardHat className="size-4" />}
             label="Crew"
@@ -129,19 +129,19 @@ function ProjectOverview() {
             label="Dates"
             value={
               project.start_date || project.target_date
-                ? `${project.start_date ?? "—"} → ${project.target_date ?? "—"}`
+                ? `${fmt(project.start_date)} → ${fmt(project.target_date)}`
                 : "Not scheduled"
             }
             onClick={() => setPanel("dates")}
           />
           <Fact
             icon={<Layers className="size-4" />}
-            label="Scope"
+            label="Rooms"
             value={`${areaList.length} areas · ${surfaceList.length} surfaces`}
             onClick={() => setPanel("scope")}
           />
           <Fact
-            icon={<Layers className="size-4" />}
+            icon={<MessageSquarePlus className="size-4" />}
             label="Next move owner"
             value={nextOwner}
             onClick={() => setPanel("next")}
@@ -149,109 +149,89 @@ function ProjectOverview() {
         </div>
       </section>
 
-      {/* Next move */}
-      <button
-        type="button"
-        onClick={() => setPanel("next")}
-        className="surface mt-4 block w-full cursor-pointer px-5 py-4 text-left transition-colors hover:border-border-strong hover:bg-muted/40"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Next move
-            </div>
-            <p className="mt-1 text-[14px] font-medium">
-              {leadWork ? leadWork.title : "No open work"}
-            </p>
-            {leadWork ? (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-secondary-foreground">
-                {leadWork.is_important ? (
-                  <TriangleAlert className="size-4 shrink-0 text-danger" />
-                ) : null}
-                {[leadWork.next_action, leadWork.owner].filter(Boolean).join(" · ") ||
-                  leadWork.status}
-                {openCount > 1 ? ` · +${openCount - 1} other open items` : ""}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Next move */}
+        <button
+          type="button"
+          onClick={() => setPanel("next")}
+          className="surface block w-full cursor-pointer px-4 py-4 text-left transition-colors hover:border-border-strong hover:bg-muted/30 md:px-5"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Next move
+              </div>
+              <p className="mt-1.5 text-[15px] font-medium leading-snug">
+                {leadWork ? leadWork.title : "No open work"}
               </p>
-            ) : null}
-          </div>
-          <ChevronRight className="mt-4 size-4 shrink-0 text-muted-foreground" />
-        </div>
-      </button>
-
-      {/* Latest field update — what actually happened on site. */}
-      <section className="surface mt-4 px-5 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Latest field update
+              {leadWork ? (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-secondary-foreground">
+                  {leadWork.is_important ? (
+                    <TriangleAlert className="size-4 shrink-0 text-danger" />
+                  ) : null}
+                  {[leadWork.next_action, leadWork.owner].filter(Boolean).join(" · ") ||
+                    leadWork.status}
+                  {openCount > 1 ? ` · +${openCount - 1} other open items` : ""}
+                </p>
+              ) : null}
             </div>
-            {latestReport ? (
-              <>
-                <p className="mt-1 text-[13.5px] font-medium">
-                  {latestReport.progress_note ?? "Report submitted with no progress note."}
-                </p>
-                <p className="mt-1.5 text-[12.5px] text-muted-foreground">
-                  {[
-                    new Date(latestReport.report_date + "T00:00:00").toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    }),
-                    latestReport.crew_label,
-                    latestReport.worker_count ? `${latestReport.worker_count} on site` : null,
-                    latestReport.areas_worked,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                {latestReport.blockers ? (
-                  <p className="mt-1.5 inline-flex items-start gap-1.5 text-[12.5px] text-danger">
-                    <TriangleAlert className="mt-px size-4 shrink-0" />
-                    {latestReport.blockers}
+          </div>
+        </button>
+
+        {/* Latest Daily Update */}
+        <section className="surface px-4 py-4 md:px-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Latest Daily Update
+              </div>
+              {latestReport ? (
+                <>
+                  <p className="mt-1.5 text-[13.5px] font-medium leading-snug">
+                    {latestReport.progress_note ?? "Report submitted with no progress note."}
                   </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                No field reports yet on this job.
-              </p>
-            )}
+                  <p className="mt-1.5 text-[12px] text-muted-foreground">
+                    {[
+                      fmt(latestReport.report_date),
+                      latestReport.crew_label,
+                      latestReport.worker_count ? `${latestReport.worker_count} on site` : null,
+                      latestReport.areas_worked,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  {latestReport.blockers ? (
+                    <p className="mt-1.5 inline-flex items-start gap-1.5 text-[12.5px] text-danger">
+                      <TriangleAlert className="mt-px size-4 shrink-0" />
+                      {latestReport.blockers}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  No Daily Updates yet on this job.
+                </p>
+              )}
+            </div>
+            <Button size="sm" variant="primary" onClick={() => setReport(true)}>
+              <ClipboardCheck className="size-4" /> Daily update
+            </Button>
           </div>
-          <Button size="sm" variant="primary" onClick={() => setReport(true)}>
-            <ClipboardCheck className="size-4" /> Daily report
-          </Button>
-        </div>
-        {reports.length > 1 ? (
-          <ul className="mt-3.5 space-y-1.5 border-t border-border pt-3">
-            {reports.slice(1, 5).map((r) => (
-              <li key={r.id} className="flex gap-2.5 text-[12.5px]">
-                <span className="w-14 shrink-0 font-semibold tabular-nums text-muted-foreground">
-                  {new Date(r.report_date + "T00:00:00").toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-secondary-foreground">
-                  {r.progress_note ?? r.areas_worked ?? "Report submitted"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+        </section>
+      </div>
 
-      {/* Open Work — the same work_items records as Company Work and Today. */}
+      {/* Open Work */}
       <section className="mt-4">
         <div className="mb-2.5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight">Open Work</h2>
             <p className="text-[12.5px] text-muted-foreground">
-              The same records the company board and Today use. Completed work stays under the
-              Completed filter.
+              The same records the company board and Today use.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => setCreate("Task")}>
-              <MessageSquarePlus className="size-4" /> Add work item
+              <MessageSquarePlus className="size-4" /> Add task
             </Button>
             <Button size="sm" onClick={() => setMaterial(true)}>
               <Package className="size-4" /> Request material
@@ -269,7 +249,7 @@ function ProjectOverview() {
           showViewToggle={false}
           showSearch={false}
           emptyTitle="Nothing open on this project"
-          emptyNote="Use Add work item or Quick Capture to log what came in from the field."
+          emptyNote="Use Add task or Quick Capture to log what came in from the field."
         />
       </section>
 
@@ -350,7 +330,7 @@ function ProjectOverview() {
       <Drawer
         open={panel === "scope"}
         onClose={() => setPanel(null)}
-        title="Scope"
+        title="Rooms"
         subtitle={`${areaList.length} areas · ${surfaceList.length} surfaces`}
       >
         <div className="space-y-4">
@@ -380,7 +360,7 @@ function ProjectOverview() {
             params={{ projectId }}
             className="inline-block text-[13px] font-semibold text-primary hover:underline"
           >
-            Open Tiles &amp; Finishes →
+            Open Rooms →
           </Link>
         </div>
       </Drawer>
@@ -471,16 +451,23 @@ function Fact({
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted/50"
+      className="group rounded-xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted/40"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
           <span className="text-primary">{icon}</span>
           {label}
         </span>
-        <ChevronRight className="size-3.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
       </div>
       <div className="mt-1 truncate text-[13.5px] font-semibold">{value}</div>
     </button>
   );
+}
+
+function fmt(date: string | null) {
+  if (!date) return "—";
+  return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
