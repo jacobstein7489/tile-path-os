@@ -16,19 +16,24 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
 const PROJECT_TABS = [
   { label: "Overview", to: "/projects/$projectId" as const, value: "/projects/$projectId" },
   {
-    label: "Tiles & Finishes",
+    label: "Rooms",
     to: "/projects/$projectId/scope" as const,
     value: "/projects/$projectId/scope",
   },
   {
-    label: "Field",
-    to: "/projects/$projectId/field" as const,
-    value: "/projects/$projectId/field",
-  },
-  {
-    label: "Install Materials",
+    label: "Deliveries",
     to: "/projects/$projectId/materials" as const,
     value: "/projects/$projectId/materials",
+  },
+  {
+    label: "Schedule",
+    to: "/projects/$projectId/schedule" as const,
+    value: "/projects/$projectId/schedule",
+  },
+  {
+    label: "Tasks",
+    to: "/projects/$projectId/tasks" as const,
+    value: "/projects/$projectId/tasks",
   },
   {
     label: "Files",
@@ -101,11 +106,11 @@ function ProjectShell() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
-      <div className="mx-auto max-w-7xl px-8 pt-8 pb-16">
+      <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8 md:pt-8">
         <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <h1 className="text-[28px] leading-none font-semibold tracking-[-0.02em]">
+              <h1 className="text-[26px] leading-none font-semibold tracking-[-0.02em] md:text-[28px]">
                 {project.name}
               </h1>
               <Chip tone={stageTone(project.lifecycle_stage, project.exception_state)}>
@@ -122,7 +127,7 @@ function ProjectShell() {
               <span className="inline-flex items-center gap-1.5">{project.project_type}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Chip tone={materialTone(project.material_status)}>
               Materials: {project.material_status}
             </Chip>
@@ -131,7 +136,7 @@ function ProjectShell() {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-5">
           <LifecycleTrack
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
@@ -153,12 +158,12 @@ function ProjectShell() {
         </div>
 
         <UnderlineTabs
-          className="mt-7"
+          className="mt-6"
           items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
           value={activeTab}
         />
 
-        <div className="mt-6">
+        <div className="mt-5">
           <Outlet />
         </div>
       </div>

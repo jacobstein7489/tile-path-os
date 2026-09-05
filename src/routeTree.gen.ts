@@ -28,7 +28,9 @@ import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './route
 import { Route as AuthenticatedProjectsProjectIdFieldRouteImport } from './routes/_authenticated/projects.$projectId.field'
 import { Route as AuthenticatedProjectsProjectIdFilesRouteImport } from './routes/_authenticated/projects.$projectId.files'
 import { Route as AuthenticatedProjectsProjectIdMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.materials'
+import { Route as AuthenticatedProjectsProjectIdScheduleRouteImport } from './routes/_authenticated/projects.$projectId.schedule'
 import { Route as AuthenticatedProjectsProjectIdScopeRouteImport } from './routes/_authenticated/projects.$projectId.scope'
+import { Route as AuthenticatedProjectsProjectIdTasksRouteImport } from './routes/_authenticated/projects.$projectId.tasks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -132,10 +134,22 @@ const AuthenticatedProjectsProjectIdMaterialsRoute =
     path: '/materials',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
+const AuthenticatedProjectsProjectIdScheduleRoute =
+  AuthenticatedProjectsProjectIdScheduleRouteImport.update({
+    id: '/schedule',
+    path: '/schedule',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
 const AuthenticatedProjectsProjectIdScopeRoute =
   AuthenticatedProjectsProjectIdScopeRouteImport.update({
     id: '/scope',
     path: '/scope',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdTasksRoute =
+  AuthenticatedProjectsProjectIdTasksRouteImport.update({
+    id: '/tasks',
+    path: '/tasks',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
 
@@ -157,7 +171,9 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
   '/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -176,7 +192,9 @@ export interface FileRoutesByTo {
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
@@ -199,7 +217,9 @@ export interface FileRoutesById {
   '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/_authenticated/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/_authenticated/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/_authenticated/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
+  '/_authenticated/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
   '/_authenticated/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -222,7 +242,9 @@ export interface FileRouteTypes {
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
     | '/projects/$projectId/materials'
+    | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
+    | '/projects/$projectId/tasks'
     | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -241,7 +263,9 @@ export interface FileRouteTypes {
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
     | '/projects/$projectId/materials'
+    | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
+    | '/projects/$projectId/tasks'
     | '/projects/$projectId'
   id:
     | '__root__'
@@ -263,7 +287,9 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/$projectId/field'
     | '/_authenticated/projects/$projectId/files'
     | '/_authenticated/projects/$projectId/materials'
+    | '/_authenticated/projects/$projectId/schedule'
     | '/_authenticated/projects/$projectId/scope'
+    | '/_authenticated/projects/$projectId/tasks'
     | '/_authenticated/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
@@ -409,11 +435,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdMaterialsRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
+    '/_authenticated/projects/$projectId/schedule': {
+      id: '/_authenticated/projects/$projectId/schedule'
+      path: '/schedule'
+      fullPath: '/projects/$projectId/schedule'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdScheduleRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
     '/_authenticated/projects/$projectId/scope': {
       id: '/_authenticated/projects/$projectId/scope'
       path: '/scope'
       fullPath: '/projects/$projectId/scope'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdScopeRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
+    '/_authenticated/projects/$projectId/tasks': {
+      id: '/_authenticated/projects/$projectId/tasks'
+      path: '/tasks'
+      fullPath: '/projects/$projectId/tasks'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdTasksRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
   }
@@ -438,7 +478,9 @@ interface AuthenticatedProjectsProjectIdRouteChildren {
   AuthenticatedProjectsProjectIdFieldRoute: typeof AuthenticatedProjectsProjectIdFieldRoute
   AuthenticatedProjectsProjectIdFilesRoute: typeof AuthenticatedProjectsProjectIdFilesRoute
   AuthenticatedProjectsProjectIdMaterialsRoute: typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  AuthenticatedProjectsProjectIdScheduleRoute: typeof AuthenticatedProjectsProjectIdScheduleRoute
   AuthenticatedProjectsProjectIdScopeRoute: typeof AuthenticatedProjectsProjectIdScopeRoute
+  AuthenticatedProjectsProjectIdTasksRoute: typeof AuthenticatedProjectsProjectIdTasksRoute
   AuthenticatedProjectsProjectIdIndexRoute: typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 
@@ -450,8 +492,12 @@ const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectI
       AuthenticatedProjectsProjectIdFilesRoute,
     AuthenticatedProjectsProjectIdMaterialsRoute:
       AuthenticatedProjectsProjectIdMaterialsRoute,
+    AuthenticatedProjectsProjectIdScheduleRoute:
+      AuthenticatedProjectsProjectIdScheduleRoute,
     AuthenticatedProjectsProjectIdScopeRoute:
       AuthenticatedProjectsProjectIdScopeRoute,
+    AuthenticatedProjectsProjectIdTasksRoute:
+      AuthenticatedProjectsProjectIdTasksRoute,
     AuthenticatedProjectsProjectIdIndexRoute:
       AuthenticatedProjectsProjectIdIndexRoute,
   }
