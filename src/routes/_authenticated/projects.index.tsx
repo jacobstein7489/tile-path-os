@@ -254,7 +254,7 @@ function ProjectRow({
           {p.exception_state ? (
             <Dot tone={stageTone(p.lifecycle_stage, p.exception_state)} />
           ) : (
-            <Dot tone={stageTone(p.lifecycle_stage)} />
+            <Dot tone={stageTone(p.lifecycle_stage, null)} />
           )}
           <span className="min-w-0 leading-snug text-secondary-foreground">
             {p.exception_state ?? p.lifecycle_stage}
