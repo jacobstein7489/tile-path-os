@@ -21,7 +21,7 @@ import {
   useCommissionPlans,
   useRecordPayment,
 } from "@/lib/commissions";
-import { firstName, humanDate, today } from "@/lib/dates";
+import { humanDate, today } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/commissions")({
@@ -50,7 +50,7 @@ function CommissionsPage() {
   const { data: profiles = [] } = useProfiles();
   const { data: plans = [] } = useCommissionPlans();
   const { data: payments = [] } = useCommissionPayments();
-  const { canAdminData } = usePermissions();
+  const { canSeeMoney } = usePermissions();
   const update = useUpdateAnyProject();
   const recordPayment = useRecordPayment();
 
@@ -107,7 +107,7 @@ function CommissionsPage() {
 
   const openRow = filtered.find((r) => r.project.id === openId) ?? null;
 
-  if (!canAdminData) {
+  if (!canSeeMoney) {
     return (
       <PageShell crumbs={[{ label: "Commissions" }]} title="Commissions">
         <div className="surface p-8 text-center text-[14px] text-muted-foreground">
@@ -305,7 +305,7 @@ function CommissionsPage() {
                 <Button
                   key={s}
                   size="sm"
-                  variant={openRow.status === s ? "primary" : "outline"}
+                  variant={openRow.status === s ? "primary" : "secondary"}
                   onClick={() =>
                     update.mutate({ id: openRow.project.id, patch: { commission_status: s } })
                   }
@@ -405,5 +405,3 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-export { firstName };

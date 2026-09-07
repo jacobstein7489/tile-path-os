@@ -41,6 +41,9 @@ export type Project = {
   /** Project-level override of the salesperson default rate (percent). */
   commission_rate_override?: number | null;
   commission_status?: string;
+  commission_plan_id?: string | null;
+  /** Frozen copy of the plan applied when the job was signed. */
+  commission_plan_snapshot?: import("@/lib/commissions").PlanSnapshot | null;
 };
 
 export type Area = {
