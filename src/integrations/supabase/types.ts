@@ -29,6 +29,86 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          method: string | null
+          notes: string | null
+          paid_on: string
+          project_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          paid_on?: string
+          project_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          paid_on?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_plans: {
+        Row: {
+          calc_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          rate: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          calc_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          rate?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          calc_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          rate?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null
@@ -848,6 +928,8 @@ export type Database = {
           archived_at: string | null
           awarded_at: string | null
           bid_due_date: string | null
+          commission_plan_id: string | null
+          commission_plan_snapshot: Json | null
           commission_rate_override: number | null
           commission_rule_ref: string | null
           commission_status: string
@@ -892,6 +974,8 @@ export type Database = {
           archived_at?: string | null
           awarded_at?: string | null
           bid_due_date?: string | null
+          commission_plan_id?: string | null
+          commission_plan_snapshot?: Json | null
           commission_rate_override?: number | null
           commission_rule_ref?: string | null
           commission_status?: string
@@ -936,6 +1020,8 @@ export type Database = {
           archived_at?: string | null
           awarded_at?: string | null
           bid_due_date?: string | null
+          commission_plan_id?: string | null
+          commission_plan_snapshot?: Json | null
           commission_rate_override?: number | null
           commission_rule_ref?: string | null
           commission_status?: string
@@ -976,6 +1062,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_commission_plan_id_fkey"
+            columns: ["commission_plan_id"]
+            isOneToOne: false
+            referencedRelation: "commission_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_customer_company_id_fkey"
             columns: ["customer_company_id"]
