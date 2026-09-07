@@ -1,11 +1,41 @@
-# UX Redesign Roadmap
+# Frontend Reset + Commissions
 
-- [ ] Map existing core surfaces and backend contracts
-- [x] Revise implementation plan: Project-first model, desktop Projects table, mobile cards
-- [ ] Rebuild shared design system and navigation; preserve Dashboard, Today, Projects, Schedule, Deliveries, Settings
-- [ ] Rebuild Capture and Task command flows
-- [ ] Rebuild Today and Work
-- [ ] Rebuild Projects and Project experience; preserve Overview, Rooms, Deliveries, Schedule, Tasks, Files
-- [ ] Rebuild Daily Update and Schedule presentation
-- [ ] Validate runtime, typing, and requested viewports
-- [ ] Capture requested acceptance screenshots
+## Foundation
+
+- [ ] Commission plans / payments schema (additive only)
+- [ ] Design tokens: warm canvas, layered depth, sizing scale
+- [ ] Shared Popover / bottom-sheet primitive
+- [ ] OwnerPicker (avatar + first name popover, optimistic)
+- [ ] QuickDatePicker (Today / Tomorrow / weekday / next week / pick, optimistic)
+- [ ] TaskRow (canonical, used everywhere)
+- [ ] TaskDrawer operating panel + Move Forward outcome flow
+- [ ] Capture: 2-step command modal (project -> what needs to happen)
+
+## Navigation
+
+- [ ] Sidebar: Today / Work / Projects / Schedule + secondary Deliveries / Commissions + Settings
+- [ ] Mobile bottom nav: Today / Work / Capture / Projects / Schedule + avatar sheet
+- [ ] Remove Dashboard destination (redirect to /work)
+
+## Screens
+
+- [ ] Today (4 cards + real sections only)
+- [ ] Work (4 cards, By Project | By Person)
+- [ ] Projects card grid
+- [ ] Project shell: stage in header, Overview/Tasks/Updates/Schedule/Files/More
+- [ ] Project Overview command center
+- [ ] Project Tasks
+- [ ] Project Updates timeline
+- [ ] Update flow: Quick Update + Daily Field Update wizard
+- [ ] Schedule (weekly desktop, day cards mobile)
+
+## Commissions
+
+- [ ] Settings > Commission Plans
+- [ ] Salesperson + plan selection on award (snapshot)
+- [ ] Commission Sheet + detail drawer
+- [ ] Project > More > Commission
+
+## Validation
+
+- [ ] 1440x900, 1280x800, 390x844, 430x932 interaction tests + screenshots
