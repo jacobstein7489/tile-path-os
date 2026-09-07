@@ -19,6 +19,7 @@ import { Route as AuthenticatedMaterialsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
+import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedLeadsCommissionsRouteImport } from './routes/_authenticated/leads.commissions'
 import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
@@ -81,6 +82,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   id: '/today',
   path: '/today',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/_authenticated/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/work'
     | '/leads/commissions'
     | '/leads/customers'
     | '/projects/$projectId'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/work'
     | '/leads/commissions'
     | '/leads/customers'
     | '/api/public/qa-provision'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/today'
+    | '/_authenticated/work'
     | '/_authenticated/leads/commissions'
     | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
@@ -383,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/today'
       fullPath: '/today'
       preLoaderRoute: typeof AuthenticatedTodayRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/work': {
+      id: '/_authenticated/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof AuthenticatedWorkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/leads/': {
@@ -535,6 +554,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
+  AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
 }
@@ -547,6 +567,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
+  AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedProjectsProjectIdRoute:
     AuthenticatedProjectsProjectIdRouteWithChildren,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,

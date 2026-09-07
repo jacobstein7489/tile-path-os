@@ -21,7 +21,6 @@ import {
   workSummary,
   type WorkItemRow,
 } from "@/lib/workitems";
-import { firstName } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/work")({
@@ -289,7 +288,6 @@ function WorkPage() {
           setActive(next ?? null);
         }}
       />
-      <span className="sr-only">{firstName("")}</span>
     </PageShell>
   );
 }
