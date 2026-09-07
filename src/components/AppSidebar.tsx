@@ -5,7 +5,6 @@ import {
   CheckSquare,
   FolderClosed,
   LogOut,
-  Package,
   Plus,
   Settings,
   Sun,
@@ -17,11 +16,10 @@ import { ROLE_LABELS, signOut, useMyProfile, useMyRoles } from "@/hooks/useAuth"
 
 /** Global navigation for the Job Operations product. */
 const NAV = [
-  { label: "Dashboard", short: "Dash", to: "/dashboard", icon: CheckSquare },
   { label: "Today", short: "Today", to: "/today", icon: Sun },
+  { label: "Work", short: "Work", to: "/work", icon: CheckSquare },
   { label: "Projects", short: "Jobs", to: "/projects", icon: FolderClosed },
   { label: "Schedule", short: "Sched", to: "/schedule", icon: CalendarDays },
-  { label: "Deliveries", short: "Deliv", to: "/materials", icon: Package },
   { label: "Settings", short: "More", to: "/settings", icon: Settings },
 ] as const;
 
