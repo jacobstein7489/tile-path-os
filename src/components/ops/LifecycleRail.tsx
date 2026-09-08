@@ -30,7 +30,7 @@ export function LifecycleRail({
         title="Show stage detail"
         className="group flex w-full cursor-pointer items-center gap-3 rounded-xl px-1 py-2 text-left outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/25"
       >
-        <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto md:gap-1.5">
+        <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {LIFECYCLE_STAGES.map((s, i) => {
             const done = i < current;
             const active = i === current;
@@ -48,7 +48,7 @@ export function LifecycleRail({
                 </span>
                 <span
                   className={cn(
-                    "text-[11px] leading-none tracking-tight whitespace-nowrap",
+                    "text-[10.5px] leading-none tracking-tight whitespace-nowrap",
                     active
                       ? "font-semibold text-primary"
                       : done
@@ -61,7 +61,7 @@ export function LifecycleRail({
                 {i < LIFECYCLE_STAGES.length - 1 ? (
                   <span
                     className={cn(
-                      "ml-1 h-[2px] w-4 rounded-full md:w-6",
+                      "ml-1 h-[2px] w-4 rounded-full md:w-3.5",
                       done ? "bg-success/35" : "bg-track",
                     )}
                   />
