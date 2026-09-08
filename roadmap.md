@@ -14,7 +14,7 @@
 ## Navigation
 
 - [ ] Sidebar: Today / Work / Projects / Schedule + secondary Deliveries / Commissions + Settings
-- [ ] Mobile bottom nav: Today / Work / Capture / Projects / Schedule + avatar sheet
+- [x] Mobile bottom nav: Today / Work / Capture / Projects / Schedule + avatar sheet
 - [ ] Remove Dashboard destination (redirect to /work)
 
 ## Screens
@@ -22,10 +22,10 @@
 - [ ] Today (4 cards + real sections only)
 - [ ] Work (4 cards, By Project | By Person)
 - [ ] Projects card grid
-- [ ] Project shell: stage in header, Overview/Tasks/Updates/Schedule/Files/More
-- [ ] Project Overview command center
+- [x] Project shell: compact lifecycle rail + Overview/Tasks/Updates/Rooms/Schedule/Files + More (Tiles & Finishes, Install Materials, Deliveries, Field)
+- [x] Project Overview command center
 - [ ] Project Tasks
-- [ ] Project Updates timeline
+- [x] Project Updates timeline (real field reports)
 - [ ] Update flow: Quick Update + Daily Field Update wizard
 - [ ] Schedule (weekly desktop, day cards mobile)
 
