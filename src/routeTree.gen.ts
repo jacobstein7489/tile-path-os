@@ -29,10 +29,13 @@ import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
 import { Route as AuthenticatedProjectsProjectIdFieldRouteImport } from './routes/_authenticated/projects.$projectId.field'
 import { Route as AuthenticatedProjectsProjectIdFilesRouteImport } from './routes/_authenticated/projects.$projectId.files'
+import { Route as AuthenticatedProjectsProjectIdInstallMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.install-materials'
 import { Route as AuthenticatedProjectsProjectIdMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.materials'
 import { Route as AuthenticatedProjectsProjectIdScheduleRouteImport } from './routes/_authenticated/projects.$projectId.schedule'
 import { Route as AuthenticatedProjectsProjectIdScopeRouteImport } from './routes/_authenticated/projects.$projectId.scope'
 import { Route as AuthenticatedProjectsProjectIdTasksRouteImport } from './routes/_authenticated/projects.$projectId.tasks'
+import { Route as AuthenticatedProjectsProjectIdTilesRouteImport } from './routes/_authenticated/projects.$projectId.tiles'
+import { Route as AuthenticatedProjectsProjectIdUpdatesRouteImport } from './routes/_authenticated/projects.$projectId.updates'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -141,6 +144,12 @@ const AuthenticatedProjectsProjectIdFilesRoute =
     path: '/files',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
+const AuthenticatedProjectsProjectIdInstallMaterialsRoute =
+  AuthenticatedProjectsProjectIdInstallMaterialsRouteImport.update({
+    id: '/install-materials',
+    path: '/install-materials',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
 const AuthenticatedProjectsProjectIdMaterialsRoute =
   AuthenticatedProjectsProjectIdMaterialsRouteImport.update({
     id: '/materials',
@@ -165,6 +174,18 @@ const AuthenticatedProjectsProjectIdTasksRoute =
     path: '/tasks',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
+const AuthenticatedProjectsProjectIdTilesRoute =
+  AuthenticatedProjectsProjectIdTilesRouteImport.update({
+    id: '/tiles',
+    path: '/tiles',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdUpdatesRoute =
+  AuthenticatedProjectsProjectIdUpdatesRouteImport.update({
+    id: '/updates',
+    path: '/updates',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -185,10 +206,13 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
   '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
+  '/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
+  '/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
   '/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -208,10 +232,13 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
   '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
+  '/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
+  '/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
@@ -235,10 +262,13 @@ export interface FileRoutesById {
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
+  '/_authenticated/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/_authenticated/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
   '/_authenticated/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/_authenticated/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/_authenticated/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
+  '/_authenticated/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
+  '/_authenticated/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
   '/_authenticated/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -262,10 +292,13 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
+    | '/projects/$projectId/install-materials'
     | '/projects/$projectId/materials'
     | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/tasks'
+    | '/projects/$projectId/tiles'
+    | '/projects/$projectId/updates'
     | '/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -285,10 +318,13 @@ export interface FileRouteTypes {
     | '/projects'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
+    | '/projects/$projectId/install-materials'
     | '/projects/$projectId/materials'
     | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/tasks'
+    | '/projects/$projectId/tiles'
+    | '/projects/$projectId/updates'
     | '/projects/$projectId'
   id:
     | '__root__'
@@ -311,10 +347,13 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/'
     | '/_authenticated/projects/$projectId/field'
     | '/_authenticated/projects/$projectId/files'
+    | '/_authenticated/projects/$projectId/install-materials'
     | '/_authenticated/projects/$projectId/materials'
     | '/_authenticated/projects/$projectId/schedule'
     | '/_authenticated/projects/$projectId/scope'
     | '/_authenticated/projects/$projectId/tasks'
+    | '/_authenticated/projects/$projectId/tiles'
+    | '/_authenticated/projects/$projectId/updates'
     | '/_authenticated/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
@@ -467,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdFilesRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
+    '/_authenticated/projects/$projectId/install-materials': {
+      id: '/_authenticated/projects/$projectId/install-materials'
+      path: '/install-materials'
+      fullPath: '/projects/$projectId/install-materials'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdInstallMaterialsRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
     '/_authenticated/projects/$projectId/materials': {
       id: '/_authenticated/projects/$projectId/materials'
       path: '/materials'
@@ -495,6 +541,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdTasksRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
+    '/_authenticated/projects/$projectId/tiles': {
+      id: '/_authenticated/projects/$projectId/tiles'
+      path: '/tiles'
+      fullPath: '/projects/$projectId/tiles'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdTilesRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
+    '/_authenticated/projects/$projectId/updates': {
+      id: '/_authenticated/projects/$projectId/updates'
+      path: '/updates'
+      fullPath: '/projects/$projectId/updates'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdUpdatesRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
   }
 }
 
@@ -516,10 +576,13 @@ const AuthenticatedLeadsRouteWithChildren =
 interface AuthenticatedProjectsProjectIdRouteChildren {
   AuthenticatedProjectsProjectIdFieldRoute: typeof AuthenticatedProjectsProjectIdFieldRoute
   AuthenticatedProjectsProjectIdFilesRoute: typeof AuthenticatedProjectsProjectIdFilesRoute
+  AuthenticatedProjectsProjectIdInstallMaterialsRoute: typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   AuthenticatedProjectsProjectIdMaterialsRoute: typeof AuthenticatedProjectsProjectIdMaterialsRoute
   AuthenticatedProjectsProjectIdScheduleRoute: typeof AuthenticatedProjectsProjectIdScheduleRoute
   AuthenticatedProjectsProjectIdScopeRoute: typeof AuthenticatedProjectsProjectIdScopeRoute
   AuthenticatedProjectsProjectIdTasksRoute: typeof AuthenticatedProjectsProjectIdTasksRoute
+  AuthenticatedProjectsProjectIdTilesRoute: typeof AuthenticatedProjectsProjectIdTilesRoute
+  AuthenticatedProjectsProjectIdUpdatesRoute: typeof AuthenticatedProjectsProjectIdUpdatesRoute
   AuthenticatedProjectsProjectIdIndexRoute: typeof AuthenticatedProjectsProjectIdIndexRoute
 }
 
@@ -529,6 +592,8 @@ const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectI
       AuthenticatedProjectsProjectIdFieldRoute,
     AuthenticatedProjectsProjectIdFilesRoute:
       AuthenticatedProjectsProjectIdFilesRoute,
+    AuthenticatedProjectsProjectIdInstallMaterialsRoute:
+      AuthenticatedProjectsProjectIdInstallMaterialsRoute,
     AuthenticatedProjectsProjectIdMaterialsRoute:
       AuthenticatedProjectsProjectIdMaterialsRoute,
     AuthenticatedProjectsProjectIdScheduleRoute:
@@ -537,6 +602,10 @@ const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectI
       AuthenticatedProjectsProjectIdScopeRoute,
     AuthenticatedProjectsProjectIdTasksRoute:
       AuthenticatedProjectsProjectIdTasksRoute,
+    AuthenticatedProjectsProjectIdTilesRoute:
+      AuthenticatedProjectsProjectIdTilesRoute,
+    AuthenticatedProjectsProjectIdUpdatesRoute:
+      AuthenticatedProjectsProjectIdUpdatesRoute,
     AuthenticatedProjectsProjectIdIndexRoute:
       AuthenticatedProjectsProjectIdIndexRoute,
   }

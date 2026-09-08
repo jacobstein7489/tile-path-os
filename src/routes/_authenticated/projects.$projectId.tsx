@@ -1,29 +1,39 @@
+import { useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { MapPin, User } from "lucide-react";
+import { ChevronDown, MapPin, User } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
+import { LifecycleRail } from "@/components/ops/LifecycleRail";
+import { Popover } from "@/components/ops/Popover";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { UnderlineTabs } from "@/components/kit";
 import { useProject, useUpdateProject, useWorkItems } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import { Chip, materialTone, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,
 });
 
+/** Everyday tabs stay on the bar; the specialist Tile OS tabs live under More. */
 const PROJECT_TABS = [
   { label: "Overview", to: "/projects/$projectId" as const, value: "/projects/$projectId" },
+  {
+    label: "Tasks",
+    to: "/projects/$projectId/tasks" as const,
+    value: "/projects/$projectId/tasks",
+  },
+  {
+    label: "Updates",
+    to: "/projects/$projectId/updates" as const,
+    value: "/projects/$projectId/updates",
+  },
   {
     label: "Rooms",
     to: "/projects/$projectId/scope" as const,
     value: "/projects/$projectId/scope",
-  },
-  {
-    label: "Deliveries",
-    to: "/projects/$projectId/materials" as const,
-    value: "/projects/$projectId/materials",
   },
   {
     label: "Schedule",
@@ -31,14 +41,36 @@ const PROJECT_TABS = [
     value: "/projects/$projectId/schedule",
   },
   {
-    label: "Tasks",
-    to: "/projects/$projectId/tasks" as const,
-    value: "/projects/$projectId/tasks",
-  },
-  {
     label: "Files",
     to: "/projects/$projectId/files" as const,
     value: "/projects/$projectId/files",
+  },
+];
+
+const MORE_TABS = [
+  {
+    label: "Tiles & Finishes",
+    hint: "Tile, grout, metals, saddles",
+    to: "/projects/$projectId/tiles" as const,
+    value: "/projects/$projectId/tiles",
+  },
+  {
+    label: "Install Materials",
+    hint: "Thinset, mortar, membrane, consumables",
+    to: "/projects/$projectId/install-materials" as const,
+    value: "/projects/$projectId/install-materials",
+  },
+  {
+    label: "Deliveries",
+    hint: "Ordering and receiving",
+    to: "/projects/$projectId/materials" as const,
+    value: "/projects/$projectId/materials",
+  },
+  {
+    label: "Field",
+    hint: "Progress by area and visit checklist",
+    to: "/projects/$projectId/field" as const,
+    value: "/projects/$projectId/field",
   },
 ];
 
@@ -50,6 +82,7 @@ function ProjectShell() {
   const { data: profiles = [] } = useProfiles();
   const { data: workItems = [] } = useWorkItems(projectId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [moreOpen, setMoreOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -97,11 +130,12 @@ function ProjectShell() {
     Verified: { done: punch.length > 0 && punchOpen.length === 0 && project.readiness_pct >= 100 },
   };
 
+  const resolve = (value: string) => value.replace("$projectId", projectId);
   const firstTab = PROJECT_TABS[0];
+  const moreActive = MORE_TABS.find((t) => pathname === resolve(t.value));
   const activeTab =
-    PROJECT_TABS.find((tab) => pathname === tab.value.replace("$projectId", projectId))?.value ??
-    firstTab?.value ??
-    "/projects/$projectId";
+    PROJECT_TABS.find((tab) => pathname === resolve(tab.value))?.value ??
+    (moreActive ? "more" : (firstTab?.value ?? "/projects/$projectId"));
 
   return (
     <>
@@ -136,32 +170,80 @@ function ProjectShell() {
           </div>
         </div>
 
-        <div className="mt-5">
-          <LifecycleTrack
+        <div className="mt-4">
+          <LifecycleRail
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
-            stepsDone={stepsDone}
-            systemStepState={systemStepState}
-            {...(canEdit
-              ? {
-                  onToggleStep: (step: string) =>
-                    update.mutate({
-                      stage_steps_done: stepsDone.includes(step)
-                        ? stepsDone.filter((s) => s !== step)
-                        : [...stepsDone, step],
-                    }),
-                  onAdvance: (to: string) =>
-                    update.mutate({ lifecycle_stage: to, stage_steps_done: [] }),
-                }
-              : {})}
+            detail={
+              <LifecycleTrack
+                stage={project.lifecycle_stage}
+                exceptionState={project.exception_state}
+                stepsDone={stepsDone}
+                systemStepState={systemStepState}
+                {...(canEdit
+                  ? {
+                      onToggleStep: (step: string) =>
+                        update.mutate({
+                          stage_steps_done: stepsDone.includes(step)
+                            ? stepsDone.filter((s) => s !== step)
+                            : [...stepsDone, step],
+                        }),
+                      onAdvance: (to: string) =>
+                        update.mutate({ lifecycle_stage: to, stage_steps_done: [] }),
+                    }
+                  : {})}
+              />
+            }
           />
         </div>
 
-        <UnderlineTabs
-          className="mt-6"
-          items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
-          value={activeTab}
-        />
+        <div className="mt-5 flex items-end gap-1 border-b border-border">
+          <UnderlineTabs
+            className="min-w-0 flex-1 overflow-x-auto border-b-0"
+            items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
+            value={activeTab}
+          />
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              className={cn(
+                "-mb-px inline-flex cursor-pointer items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] outline-none transition-colors duration-150",
+                activeTab === "more"
+                  ? "border-primary font-semibold text-primary"
+                  : "border-transparent font-medium text-secondary-foreground hover:text-foreground",
+              )}
+            >
+              {moreActive ? moreActive.label : "More"}
+              <ChevronDown className={cn("size-3.5 transition-transform", moreOpen && "rotate-180")} />
+            </button>
+            <Popover
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              align="right"
+              width="md:w-72"
+              title="Project detail"
+            >
+              {MORE_TABS.map((t) => (
+                <Link
+                  key={t.value}
+                  to={t.to}
+                  params={{ projectId }}
+                  onClick={() => setMoreOpen(false)}
+                  className={cn(
+                    "flex min-h-11 flex-col justify-center rounded-lg px-2.5 py-1.5 md:min-h-10",
+                    pathname === resolve(t.value)
+                      ? "bg-primary-soft text-primary"
+                      : "hover:bg-muted",
+                  )}
+                >
+                  <span className="text-[14px] font-semibold md:text-[13.5px]">{t.label}</span>
+                  <span className="text-[11.5px] text-muted-foreground">{t.hint}</span>
+                </Link>
+              ))}
+            </Popover>
+          </div>
+        </div>
 
         <div className="mt-5">
           <Outlet />

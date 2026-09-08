@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
+import { CaptureProvider } from "@/components/ops/CaptureProvider";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -39,11 +40,13 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <div className="min-h-screen bg-canvas">
-      <AppSidebar />
-      <div className="min-w-0 pb-20 md:ml-[216px] md:pb-0">
-        <Outlet />
+    <CaptureProvider>
+      <div className="min-h-screen bg-canvas">
+        <AppSidebar />
+        <div className="min-w-0 pb-20 md:ml-[216px] md:pb-0">
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </CaptureProvider>
   );
 }

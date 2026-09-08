@@ -4,23 +4,31 @@ import {
   CalendarDays,
   CheckSquare,
   FolderClosed,
-  LogOut,
+  ListPlus,
+  Package,
+  Percent,
   Plus,
   Settings,
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar } from "@/components/kit";
 import { QuickCapture } from "@/components/QuickCapture";
-import { ROLE_LABELS, signOut, useMyProfile, useMyRoles } from "@/hooks/useAuth";
+import { AccountMenu } from "@/components/ops/AccountMenu";
+import { useCapture } from "@/components/ops/CaptureProvider";
+import { usePermissions } from "@/hooks/useAuth";
 
-/** Global navigation for the Job Operations product. */
+/** Everyday destinations. */
 const NAV = [
   { label: "Today", short: "Today", to: "/today", icon: Sun },
   { label: "Work", short: "Work", to: "/work", icon: CheckSquare },
   { label: "Projects", short: "Jobs", to: "/projects", icon: FolderClosed },
   { label: "Schedule", short: "Sched", to: "/schedule", icon: CalendarDays },
-  { label: "Settings", short: "More", to: "/settings", icon: Settings },
+] as const;
+
+/** Secondary destinations — quieter, still one click away. */
+const SECONDARY = [
+  { label: "Deliveries", to: "/materials", icon: Package, money: false },
+  { label: "Commissions", to: "/commissions", icon: Percent, money: true },
 ] as const;
 
 function useIsActive() {
@@ -30,10 +38,11 @@ function useIsActive() {
 
 export function AppSidebar() {
   const isActive = useIsActive();
-  const { data: profile } = useMyProfile();
-  const { data: roles = [] } = useMyRoles();
-  const primaryRole = roles[0];
-  const [capture, setCapture] = useState(false);
+  const openCapture = useCapture();
+  const { canSeeMoney } = usePermissions();
+  const [bulk, setBulk] = useState(false);
+
+  const secondary = SECONDARY.filter((item) => !item.money || canSeeMoney);
 
   return (
     <>
@@ -48,7 +57,7 @@ export function AppSidebar() {
           <div className="text-[13px] leading-[1.15] font-bold tracking-[-0.02em]">
             COBBLESTONE
             <div className="mt-0.5 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground">
-              JOB OPERATIONS
+              TILE OPERATIONS
             </div>
           </div>
         </div>
@@ -56,7 +65,7 @@ export function AppSidebar() {
         <div className="px-3 pb-3">
           <button
             type="button"
-            onClick={() => setCapture(true)}
+            onClick={() => openCapture()}
             className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground outline-none transition-colors duration-150 hover:bg-primary/90 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <Plus className="size-4" /> Capture
@@ -64,86 +73,102 @@ export function AppSidebar() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map((item) => {
-            const active = isActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                preload="intent"
-                className={cn(
-                  "flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium outline-none",
-                  "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-                  active
-                    ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
-                {item.label}
-              </Link>
-            );
-          })}
+          {NAV.map((item) => (
+            <NavRow key={item.to} item={item} active={isActive(item.to)} />
+          ))}
+
+          <div className="mt-5 px-3 pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            More
+          </div>
+          {secondary.map((item) => (
+            <NavRow key={item.to} item={item} active={isActive(item.to)} />
+          ))}
+          <button
+            type="button"
+            onClick={() => setBulk(true)}
+            className="flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-sidebar-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            <ListPlus className="size-[17px]" strokeWidth={1.8} /> Bulk import
+          </button>
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3">
-          <div className="flex items-center gap-2.5">
-            <Avatar
-              initials={profile?.initials || profile?.full_name?.slice(0, 1) || "?"}
-              tone={profile?.avatar_tone ?? "blue"}
-              size={30}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[12.5px] font-semibold">
-                {profile?.full_name || "Signed in"}
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground">
-                {primaryRole ? ROLE_LABELS[primaryRole] : "No role assigned"}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              aria-label="Sign out"
-              title="Sign out"
-              className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
-            >
-              <LogOut className="size-4" />
-            </button>
+          <NavRow
+            item={{ label: "Settings", to: "/settings", icon: Settings }}
+            active={isActive("/settings")}
+          />
+          <div className="mt-2 flex items-center gap-2 px-1">
+            <AccountMenu />
+            <span className="text-[11.5px] text-muted-foreground">Account</span>
           </div>
         </div>
       </aside>
 
-      {/* Phone: bottom tab bar plus one capture button — no hidden drawer. */}
-      <button
-        type="button"
-        onClick={() => setCapture(true)}
-        aria-label="Quick capture"
-        className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 grid size-14 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-raised)] active:scale-95 md:hidden"
-      >
-        <Plus className="size-6" />
-      </button>
-
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-card/98 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        {NAV.map((item) => {
-          const active = isActive(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold",
-                active ? "text-primary" : "text-muted-foreground",
-              )}
-            >
-              <item.icon className="size-[20px]" strokeWidth={active ? 2.3 : 1.8} />
-              {item.short}
-            </Link>
-          );
-        })}
+      {/* Phone: five tabs with Capture in the middle. */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-card/98 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        <PhoneTab item={NAV[0]} active={isActive(NAV[0].to)} />
+        <PhoneTab item={NAV[1]} active={isActive(NAV[1].to)} />
+        <button
+          type="button"
+          onClick={() => openCapture()}
+          aria-label="Capture"
+          className="flex min-h-[56px] cursor-pointer flex-col items-center justify-center gap-1"
+        >
+          <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-raised)]">
+            <Plus className="size-5" />
+          </span>
+        </button>
+        <PhoneTab item={NAV[2]} active={isActive(NAV[2].to)} />
+        <PhoneTab item={NAV[3]} active={isActive(NAV[3].to)} />
       </nav>
 
-      <QuickCapture open={capture} onClose={() => setCapture(false)} />
+      <QuickCapture open={bulk} onClose={() => setBulk(false)} />
     </>
+  );
+}
+
+type NavItem = {
+  label: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+};
+
+function NavRow({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      to={item.to}
+      preload="intent"
+      className={cn(
+        "flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium outline-none",
+        "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
+        active
+          ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+          : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
+      {item.label}
+    </Link>
+  );
+}
+
+function PhoneTab({
+  item,
+  active,
+}: {
+  item: { label: string; short: string; to: string; icon: NavItem["icon"] };
+  active: boolean;
+}) {
+  return (
+    <Link
+      to={item.to}
+      className={cn(
+        "flex min-h-[56px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold",
+        active ? "text-primary" : "text-muted-foreground",
+      )}
+    >
+      <item.icon className="size-[20px]" strokeWidth={active ? 2.3 : 1.8} />
+      {item.short}
+    </Link>
   );
 }
