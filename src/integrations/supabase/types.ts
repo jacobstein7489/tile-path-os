@@ -270,6 +270,144 @@ export type Database = {
           },
         ]
       }
+      design_decision: {
+        Row: {
+          answer_value: string | null
+          area_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          project_id: string
+          prompt: string | null
+          question_key: string
+          session_id: string | null
+          status: string
+          surface_id: string | null
+          updated_at: string
+          work_item_id: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          answer_value?: string | null
+          area_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          project_id: string
+          prompt?: string | null
+          question_key: string
+          session_id?: string | null
+          status?: string
+          surface_id?: string | null
+          updated_at?: string
+          work_item_id?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          answer_value?: string | null
+          area_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          project_id?: string
+          prompt?: string | null
+          question_key?: string
+          session_id?: string | null
+          status?: string
+          surface_id?: string | null
+          updated_at?: string
+          work_item_id?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_decision_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_decision_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_decision_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "design_meeting_session"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_decision_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_decision_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "work_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_decision_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "finish_zone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_meeting_session: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_meeting_session_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_reports: {
         Row: {
           areas_worked: string | null
@@ -335,6 +473,358 @@ export type Database = {
           },
           {
             foreignKeyName: "field_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finish_assignment: {
+        Row: {
+          archived_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          coverage: string | null
+          created_at: string
+          edge_treatment: string | null
+          finish_selection_id: string | null
+          finish_transition: string | null
+          grout_color: string | null
+          grout_manufacturer: string | null
+          id: string
+          joint_size: string | null
+          layout_direction: string | null
+          layout_pattern: string | null
+          metal_profile: string | null
+          notes: string | null
+          project_id: string
+          sort_order: number
+          spec_status: string
+          start_point: string | null
+          tile_height: string | null
+          updated_at: string
+          zone_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          coverage?: string | null
+          created_at?: string
+          edge_treatment?: string | null
+          finish_selection_id?: string | null
+          finish_transition?: string | null
+          grout_color?: string | null
+          grout_manufacturer?: string | null
+          id?: string
+          joint_size?: string | null
+          layout_direction?: string | null
+          layout_pattern?: string | null
+          metal_profile?: string | null
+          notes?: string | null
+          project_id: string
+          sort_order?: number
+          spec_status?: string
+          start_point?: string | null
+          tile_height?: string | null
+          updated_at?: string
+          zone_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          coverage?: string | null
+          created_at?: string
+          edge_treatment?: string | null
+          finish_selection_id?: string | null
+          finish_transition?: string | null
+          grout_color?: string | null
+          grout_manufacturer?: string | null
+          id?: string
+          joint_size?: string | null
+          layout_direction?: string | null
+          layout_pattern?: string | null
+          metal_profile?: string | null
+          notes?: string | null
+          project_id?: string
+          sort_order?: number
+          spec_status?: string
+          start_point?: string | null
+          tile_height?: string | null
+          updated_at?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finish_assignment_finish_selection_id_fkey"
+            columns: ["finish_selection_id"]
+            isOneToOne: false
+            referencedRelation: "finish_selection"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finish_assignment_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finish_assignment_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "finish_zone"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finish_selection: {
+        Row: {
+          actual_size: string | null
+          archived_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          manufacturer: string | null
+          notes: string | null
+          product: string | null
+          product_meta: Json | null
+          project_id: string
+          revision_no: number
+          spec_status: string
+          supplied_by: string | null
+          supplier: string | null
+          tile_finish: string | null
+          tile_size: string | null
+          tile_sku: string | null
+          tile_tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_size?: string | null
+          archived_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          manufacturer?: string | null
+          notes?: string | null
+          product?: string | null
+          product_meta?: Json | null
+          project_id: string
+          revision_no?: number
+          spec_status?: string
+          supplied_by?: string | null
+          supplier?: string | null
+          tile_finish?: string | null
+          tile_size?: string | null
+          tile_sku?: string | null
+          tile_tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_size?: string | null
+          archived_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          manufacturer?: string | null
+          notes?: string | null
+          product?: string | null
+          product_meta?: Json | null
+          project_id?: string
+          revision_no?: number
+          spec_status?: string
+          supplied_by?: string | null
+          supplier?: string | null
+          tile_finish?: string | null
+          tile_size?: string | null
+          tile_sku?: string | null
+          tile_tag?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finish_selection_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finish_zone: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          geometry_ref: Json | null
+          id: string
+          is_default: boolean
+          measurement: Json | null
+          name: string
+          notes: string | null
+          project_id: string
+          sort_order: number
+          surface_id: string
+          updated_at: string
+          zone_offset: Json | null
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          geometry_ref?: Json | null
+          id?: string
+          is_default?: boolean
+          measurement?: Json | null
+          name?: string
+          notes?: string | null
+          project_id: string
+          sort_order?: number
+          surface_id: string
+          updated_at?: string
+          zone_offset?: Json | null
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          geometry_ref?: Json | null
+          id?: string
+          is_default?: boolean
+          measurement?: Json | null
+          name?: string
+          notes?: string | null
+          project_id?: string
+          sort_order?: number
+          surface_id?: string
+          updated_at?: string
+          zone_offset?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finish_zone_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finish_zone_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installer_package: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          current_revision_no: number
+          id: string
+          project_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          current_revision_no?: number
+          id?: string
+          project_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          current_revision_no?: number
+          id?: string
+          project_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installer_package_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installer_package_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installer_package_revision: {
+        Row: {
+          change_note: string | null
+          file_id: string | null
+          id: string
+          package_id: string
+          project_id: string
+          published_at: string
+          published_by: string | null
+          published_by_name: string | null
+          revision_no: number
+          snapshot: Json
+        }
+        Insert: {
+          change_note?: string | null
+          file_id?: string | null
+          id?: string
+          package_id: string
+          project_id: string
+          published_at?: string
+          published_by?: string | null
+          published_by_name?: string | null
+          revision_no: number
+          snapshot: Json
+        }
+        Update: {
+          change_note?: string | null
+          file_id?: string | null
+          id?: string
+          package_id?: string
+          project_id?: string
+          published_at?: string
+          published_by?: string | null
+          published_by_name?: string | null
+          revision_no?: number
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installer_package_revision_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "project_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installer_package_revision_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "installer_package"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installer_package_revision_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -602,6 +1092,9 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          plan_file_id: string | null
+          plan_location: Json | null
+          plan_page: number | null
           progress_pct: number
           project_id: string
           sort_order: number
@@ -614,6 +1107,9 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          plan_file_id?: string | null
+          plan_location?: Json | null
+          plan_page?: number | null
           progress_pct?: number
           project_id: string
           sort_order?: number
@@ -626,6 +1122,9 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          plan_file_id?: string | null
+          plan_location?: Json | null
+          plan_page?: number | null
           progress_pct?: number
           project_id?: string
           sort_order?: number
@@ -633,6 +1132,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_areas_plan_file_id_fkey"
+            columns: ["plan_file_id"]
+            isOneToOne: false
+            referencedRelation: "project_files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_areas_project_id_fkey"
             columns: ["project_id"]
@@ -818,8 +1324,10 @@ export type Database = {
           area_id: string
           created_at: string
           detail_confirmed: boolean
+          features: Json | null
           field_sf: number | null
           finish_transition: string | null
+          geometry_ref: Json | null
           grout_color: string | null
           grout_manufacturer: string | null
           id: string
@@ -827,6 +1335,9 @@ export type Database = {
           layout_direction: string | null
           layout_pattern: string | null
           manufacturer: string | null
+          measured_height_in: number | null
+          measured_length_in: number | null
+          measured_width_in: number | null
           metal_profile: string | null
           name: string
           notes: string | null
@@ -837,12 +1348,14 @@ export type Database = {
           start_point: string | null
           status: string
           supplier: string | null
+          surface_kind: string | null
           tile_finish: string | null
           tile_height: string | null
           tile_size: string | null
           tile_sku: string | null
           tile_tag: string | null
           underlayment: string | null
+          uom: string | null
           updated_at: string
           waterproofing: string | null
         }
@@ -851,8 +1364,10 @@ export type Database = {
           area_id: string
           created_at?: string
           detail_confirmed?: boolean
+          features?: Json | null
           field_sf?: number | null
           finish_transition?: string | null
+          geometry_ref?: Json | null
           grout_color?: string | null
           grout_manufacturer?: string | null
           id?: string
@@ -860,6 +1375,9 @@ export type Database = {
           layout_direction?: string | null
           layout_pattern?: string | null
           manufacturer?: string | null
+          measured_height_in?: number | null
+          measured_length_in?: number | null
+          measured_width_in?: number | null
           metal_profile?: string | null
           name: string
           notes?: string | null
@@ -870,12 +1388,14 @@ export type Database = {
           start_point?: string | null
           status?: string
           supplier?: string | null
+          surface_kind?: string | null
           tile_finish?: string | null
           tile_height?: string | null
           tile_size?: string | null
           tile_sku?: string | null
           tile_tag?: string | null
           underlayment?: string | null
+          uom?: string | null
           updated_at?: string
           waterproofing?: string | null
         }
@@ -884,8 +1404,10 @@ export type Database = {
           area_id?: string
           created_at?: string
           detail_confirmed?: boolean
+          features?: Json | null
           field_sf?: number | null
           finish_transition?: string | null
+          geometry_ref?: Json | null
           grout_color?: string | null
           grout_manufacturer?: string | null
           id?: string
@@ -893,6 +1415,9 @@ export type Database = {
           layout_direction?: string | null
           layout_pattern?: string | null
           manufacturer?: string | null
+          measured_height_in?: number | null
+          measured_length_in?: number | null
+          measured_width_in?: number | null
           metal_profile?: string | null
           name?: string
           notes?: string | null
@@ -903,12 +1428,14 @@ export type Database = {
           start_point?: string | null
           status?: string
           supplier?: string | null
+          surface_kind?: string | null
           tile_finish?: string | null
           tile_height?: string | null
           tile_size?: string | null
           tile_sku?: string | null
           tile_tag?: string | null
           underlayment?: string | null
+          uom?: string | null
           updated_at?: string
           waterproofing?: string | null
         }
@@ -959,6 +1486,7 @@ export type Database = {
           primary_contact_id: string | null
           project_manager: string | null
           project_type: string
+          readiness_computed_at: string | null
           readiness_note: string | null
           readiness_pct: number
           salesperson_user_id: string | null
@@ -1005,6 +1533,7 @@ export type Database = {
           primary_contact_id?: string | null
           project_manager?: string | null
           project_type?: string
+          readiness_computed_at?: string | null
           readiness_note?: string | null
           readiness_pct?: number
           salesperson_user_id?: string | null
@@ -1051,6 +1580,7 @@ export type Database = {
           primary_contact_id?: string | null
           project_manager?: string | null
           project_type?: string
+          readiness_computed_at?: string | null
           readiness_note?: string | null
           readiness_pct?: number
           salesperson_user_id?: string | null
@@ -1132,6 +1662,153 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_rule: {
+        Row: {
+          answer_type: string
+          applies_to_surface_types: string[]
+          applies_when: Json | null
+          created_at: string
+          help_text: string | null
+          id: string
+          is_active: boolean
+          key: string
+          options: Json | null
+          prompt: string
+          readiness_category: string
+          required_for_readiness: boolean
+          scope: string
+          sort_order: number
+          target_key: string
+          updated_at: string
+        }
+        Insert: {
+          answer_type?: string
+          applies_to_surface_types?: string[]
+          applies_when?: Json | null
+          created_at?: string
+          help_text?: string | null
+          id?: string
+          is_active?: boolean
+          key: string
+          options?: Json | null
+          prompt: string
+          readiness_category?: string
+          required_for_readiness?: boolean
+          scope?: string
+          sort_order?: number
+          target_key: string
+          updated_at?: string
+        }
+        Update: {
+          answer_type?: string
+          applies_to_surface_types?: string[]
+          applies_when?: Json | null
+          created_at?: string
+          help_text?: string | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          options?: Json | null
+          prompt?: string
+          readiness_category?: string
+          required_for_readiness?: boolean
+          scope?: string
+          sort_order?: number
+          target_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      readiness_requirement: {
+        Row: {
+          area_id: string | null
+          category: string
+          computed_at: string
+          created_at: string
+          detail: string | null
+          id: string
+          label: string
+          project_id: string
+          requirement_key: string
+          scope_key: string
+          sort_order: number
+          state: string
+          surface_id: string | null
+          work_item_id: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          area_id?: string | null
+          category: string
+          computed_at?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          label: string
+          project_id: string
+          requirement_key: string
+          scope_key: string
+          sort_order?: number
+          state?: string
+          surface_id?: string | null
+          work_item_id?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          area_id?: string | null
+          category?: string
+          computed_at?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          label?: string
+          project_id?: string
+          requirement_key?: string
+          scope_key?: string
+          sort_order?: number
+          state?: string
+          surface_id?: string | null
+          work_item_id?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "readiness_requirement_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "project_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readiness_requirement_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readiness_requirement_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "project_surfaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readiness_requirement_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "work_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "readiness_requirement_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "finish_zone"
             referencedColumns: ["id"]
           },
         ]

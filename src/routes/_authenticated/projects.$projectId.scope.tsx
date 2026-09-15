@@ -14,6 +14,7 @@ import {
 import { CreateWorkItemModal } from "@/components/WorkItemDialogs";
 import { RequestMaterialModal } from "@/components/WorkItemDialogs";
 import { ProgressBar } from "@/components/ProgressBar";
+import { FinishZonesPanel } from "@/components/ops/FinishZones";
 import { Chip, areaStatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -285,6 +286,8 @@ function ScopeAndDetails() {
                   ]}
                 />
               </div>
+              <FinishZonesPanel projectId={projectId} surface={surface} canEdit />
+
               <DetailCard label="Notes" lines={[surface.notes ?? "No notes yet."]} />
 
               <div>
