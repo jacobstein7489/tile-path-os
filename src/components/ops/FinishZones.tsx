@@ -269,7 +269,7 @@ function ZoneDrawer({
             <div className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
               Product specification — shared wherever this tile is used
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-3">
+            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {SELECTION_FIELDS.map((f) => (
                 <Field key={String(f.key)} label={f.label}>
                   <TextInput
@@ -294,7 +294,7 @@ function ZoneDrawer({
           <div className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
             This zone only
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-3">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {ASSIGNMENT_FIELDS.map((f) => (
               <Field key={String(f.key)} label={f.label}>
                 <TextInput
