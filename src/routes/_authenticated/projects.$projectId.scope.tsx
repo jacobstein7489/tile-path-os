@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Circle, Package, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Circle, Package, Pencil, Plus } from "lucide-react";
 import {
   Button,
   EmptyState,
@@ -85,9 +85,9 @@ function ScopeAndDetails() {
 
   return (
     <>
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[236px_236px_minmax(0,1fr)]">
+       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[220px_240px_minmax(0,1fr)]">
         {/* Rooms */}
-        <SectionCard
+         <SectionCard className={cn(areaId && "hidden lg:block")}
           title="Rooms"
           actions={
             <button
@@ -153,7 +153,7 @@ function ScopeAndDetails() {
         </SectionCard>
 
         {/* Surfaces */}
-        <SectionCard
+         <SectionCard className={cn(!areaId && "hidden", surfaceId && "hidden lg:block")}
           title={area?.name ?? "Surfaces"}
           actions={
             <button
@@ -163,6 +163,7 @@ function ScopeAndDetails() {
               className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline disabled:text-muted-foreground"
               title={areaId ? undefined : "Select a room first"}
             >
+           <button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="mx-4 mb-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> Rooms</button>
               <Plus className="size-3.5" /> Add surface
             </button>
           }
@@ -197,7 +198,8 @@ function ScopeAndDetails() {
                   </div>
                   <div className="text-[11.5px] text-muted-foreground">{s.status}</div>
                 </div>
-                {s.status === "Complete" ? (
+                 <ChevronRight className="size-4 text-muted-foreground lg:hidden" />
+                 {s.status === "Complete" ? (
                   <CheckCircle2 className="size-[18px] shrink-0 text-success" />
                 ) : s.status === "Working" ? (
                   <span className="size-[15px] shrink-0 rounded-full bg-warning" />
@@ -213,7 +215,7 @@ function ScopeAndDetails() {
         </SectionCard>
 
         {/* Surface workspace */}
-        <SectionCard
+         <SectionCard className={cn(!surfaceId && "hidden lg:block")}
           title={surface?.name ?? "Surface"}
           badge={
             surface ? <Chip tone={areaStatusTone(surface.status)}>{surface.status}</Chip> : null
@@ -250,14 +252,15 @@ function ScopeAndDetails() {
               note="Tile, grout, metal and layout live on the surface."
             />
           ) : (
-            <div className="space-y-4 px-5 pt-1 pb-5">
+             <div className="space-y-4 px-5 pt-1 pb-5">
+               <button type="button" onClick={() => setSurfaceId(null)} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> {area?.name ?? "Surfaces"}</button>
               <div className="flex items-center justify-between">
                 <h3 className="text-[14px] font-semibold">Surface details</h3>
                 <Button size="sm" onClick={() => setEditSurface(true)}>
                   <Pencil className="size-3.5" /> Edit
                 </Button>
               </div>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+               <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
                 <DetailCard
                   label="Tile"
                   lines={[
