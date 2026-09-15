@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  BarChart3,
   CalendarDays,
   CheckSquare,
   FolderClosed,
-  ListPlus,
+  Menu,
   Package,
   Percent,
   Plus,
@@ -23,12 +24,13 @@ const NAV = [
   { label: "Work", short: "Work", to: "/work", icon: CheckSquare },
   { label: "Projects", short: "Jobs", to: "/projects", icon: FolderClosed },
   { label: "Schedule", short: "Sched", to: "/schedule", icon: CalendarDays },
+  { label: "Materials", short: "Materials", to: "/materials", icon: Package },
 ] as const;
 
-/** Secondary destinations — quieter, still one click away. */
-const SECONDARY = [
-  { label: "Deliveries", to: "/materials", icon: Package, money: false },
+const MORE = [
   { label: "Commissions", to: "/commissions", icon: Percent, money: true },
+  { label: "Reports", to: "/dashboard", icon: BarChart3, money: false },
+  { label: "Settings", to: "/settings", icon: Settings, money: false },
 ] as const;
 
 function useIsActive() {
@@ -41,8 +43,9 @@ export function AppSidebar() {
   const openCapture = useCapture();
   const { canSeeMoney } = usePermissions();
   const [bulk, setBulk] = useState(false);
+  const [mobileMore, setMobileMore] = useState(false);
 
-  const secondary = SECONDARY.filter((item) => !item.money || canSeeMoney);
+  const more = MORE.filter((item) => !item.money || canSeeMoney);
 
   return (
     <>
@@ -77,26 +80,18 @@ export function AppSidebar() {
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
 
-          <div className="mt-5 px-3 pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            More
-          </div>
-          {secondary.map((item) => (
-            <NavRow key={item.to} item={item} active={isActive(item.to)} />
-          ))}
           <button
             type="button"
             onClick={() => setBulk(true)}
             className="flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-sidebar-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            <ListPlus className="size-[17px]" strokeWidth={1.8} /> Bulk import
+            <Plus className="size-[17px]" strokeWidth={1.8} /> Bulk import
           </button>
+          <div className="mt-5 px-3 pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">More</div>
+          {more.map((item) => <NavRow key={item.to} item={item} active={isActive(item.to)} />)}
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3">
-          <NavRow
-            item={{ label: "Settings", to: "/settings", icon: Settings }}
-            active={isActive("/settings")}
-          />
           <div className="mt-2 flex items-center gap-2 px-1">
             <AccountMenu />
             <span className="text-[11.5px] text-muted-foreground">Account</span>
@@ -104,7 +99,7 @@ export function AppSidebar() {
         </div>
       </aside>
 
-      {/* Phone: five tabs with Capture in the middle. */}
+      {/* Phone: the five destinations people use while moving. */}
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-card/98 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <PhoneTab item={NAV[0]} active={isActive(NAV[0].to)} />
         <PhoneTab item={NAV[1]} active={isActive(NAV[1].to)} />
@@ -119,8 +114,24 @@ export function AppSidebar() {
           </span>
         </button>
         <PhoneTab item={NAV[2]} active={isActive(NAV[2].to)} />
-        <PhoneTab item={NAV[3]} active={isActive(NAV[3].to)} />
+        <button
+          type="button"
+          onClick={() => setMobileMore((v) => !v)}
+          className={cn("flex min-h-[56px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold", mobileMore ? "text-primary" : "text-muted-foreground")}
+        >
+          <Menu className="size-5" /> More
+        </button>
       </nav>
+
+      {mobileMore ? (
+        <div className="fixed inset-x-3 bottom-[68px] z-50 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-raised)] md:hidden">
+          {[NAV[3], NAV[4], ...more].map((item) => (
+            <Link key={item.to} to={item.to} onClick={() => setMobileMore(false)} className="flex min-h-12 items-center gap-3 border-b border-border px-4 text-sm font-semibold last:border-0">
+              <item.icon className="size-4 text-muted-foreground" /> {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       <QuickCapture open={bulk} onClose={() => setBulk(false)} />
     </>
