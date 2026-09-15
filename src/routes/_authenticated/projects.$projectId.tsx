@@ -108,7 +108,7 @@ function ProjectShell() {
     <>
       <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
        <div className="mx-auto max-w-[1400px] px-4 pt-5 pb-16 md:px-7 md:pt-6">
-         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
           <div className="min-w-0">
              <div className="flex min-w-0 items-center gap-2.5">
               <h1 className="text-[26px] leading-none font-semibold tracking-[-0.02em] md:text-[28px]">
@@ -129,7 +129,7 @@ function ProjectShell() {
                {project.crew_lead ? <span className="inline-flex items-center gap-1.5">Crew · {project.crew_lead}</span> : null}
             </div>
           </div>
-           <div className="flex shrink-0 items-center gap-2">
+           <div className="flex shrink-0 items-center gap-2 sm:justify-end">
              <div className="relative">
                <Button variant="primary" onClick={() => setUpdateOpen((v) => !v)}><Plus className="size-4" /> Update</Button>
                <Popover open={updateOpen} onClose={() => setUpdateOpen(false)} align="right" width="md:w-64" title="Add update">

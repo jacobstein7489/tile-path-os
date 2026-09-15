@@ -156,18 +156,10 @@ function ScopeAndDetails() {
          <SectionCard className={cn(!areaId && "hidden", surfaceId && "hidden lg:block")}
           title={area?.name ?? "Surfaces"}
           actions={
-            <button
-              type="button"
-              onClick={() => setAddSurface(true)}
-              disabled={!areaId}
-              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline disabled:text-muted-foreground"
-              title={areaId ? undefined : "Select a room first"}
-            >
-           <button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="mx-4 mb-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> Rooms</button>
-              <Plus className="size-3.5" /> Add surface
-            </button>
+             <button type="button" onClick={() => setAddSurface(true)} disabled={!areaId} className="hidden items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline disabled:text-muted-foreground lg:inline-flex" title={areaId ? undefined : "Select a room first"}><Plus className="size-3.5" /> Add surface</button>
           }
         >
+           <div className="flex items-center justify-between gap-2 px-4 pb-3 lg:hidden"><button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary"><ArrowLeft className="size-4" /> Rooms</button><Button size="sm" onClick={() => setAddSurface(true)}><Plus className="size-3.5" /> Add surface</Button></div>
           <div className="border-b border-border px-5 pb-4">
             <div className="text-[12px] text-secondary-foreground">
               {areaSurfaces.filter((s) => s.status === "Complete").length} of {areaSurfaces.length}{" "}
@@ -220,8 +212,8 @@ function ScopeAndDetails() {
           badge={
             surface ? <Chip tone={areaStatusTone(surface.status)}>{surface.status}</Chip> : null
           }
-          actions={
-            <>
+           actions={
+             <div className="hidden items-center gap-2 lg:flex">
               <Button size="sm" onClick={() => setIssueOpen(true)} disabled={!surface}>
                 <AlertTriangle className="size-4" /> Add issue
               </Button>
@@ -243,7 +235,7 @@ function ScopeAndDetails() {
                 <CheckCircle2 className="size-4" />
                 {surface?.detail_confirmed ? "Detail confirmed" : "Confirm detail"}
               </Button>
-            </>
+             </div>
           }
         >
           {!surface ? (
@@ -254,6 +246,7 @@ function ScopeAndDetails() {
           ) : (
              <div className="space-y-4 px-5 pt-1 pb-5">
                <button type="button" onClick={() => setSurfaceId(null)} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> {area?.name ?? "Surfaces"}</button>
+               <div className="grid grid-cols-3 gap-2 lg:hidden"><Button size="sm" onClick={() => setIssueOpen(true)}><AlertTriangle className="size-4" /> Issue</Button><Button size="sm" onClick={() => setOrderOpen(true)}><Package className="size-4" /> Material</Button><Button size="sm" variant="primary" onClick={() => surface && updateSurface.mutate({ id: surface.id, patch: { detail_confirmed: !surface.detail_confirmed } })}><CheckCircle2 className="size-4" /> Confirm</Button></div>
               <div className="flex items-center justify-between">
                 <h3 className="text-[14px] font-semibold">Surface details</h3>
                 <Button size="sm" onClick={() => setEditSurface(true)}>
