@@ -16,6 +16,7 @@ import { RequestMaterialModal } from "@/components/WorkItemDialogs";
 import { ProgressBar } from "@/components/ProgressBar";
 import { FinishZonesPanel } from "@/components/ops/FinishZones";
 import { PlanReference } from "@/components/ops/PlanReference";
+import { useEnsureZones } from "@/lib/finishes";
 import { Chip, areaStatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -53,6 +54,14 @@ function ScopeAndDetails() {
   useEffect(() => {
     if (!areaId && areaList.length > 0) setAreaId(areaList[0]!.id);
   }, [areaId, areaList]);
+
+  // Every surface gets its invisible default finish zone, not just the one on screen.
+  const ensureAllZones = useEnsureZones(projectId);
+  const surfaceKey = surfaceList.map((s) => s.id).join(",");
+  useEffect(() => {
+    if (surfaceList.length > 0) ensureAllZones.mutate(surfaceList.map((s) => s.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surfaceKey]);
 
   const areaSurfaces = useMemo(
     () => surfaceList.filter((s) => s.area_id === areaId),
