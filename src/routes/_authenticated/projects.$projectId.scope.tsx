@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Circle, Package, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Circle, Package, Pencil, Plus } from "lucide-react";
 import {
   Button,
   EmptyState,
@@ -52,7 +52,7 @@ function ScopeAndDetails() {
   const [orderOpen, setOrderOpen] = useState(false);
 
   useEffect(() => {
-    if (!areaId && areaList.length > 0) setAreaId(areaList[0]!.id);
+    if (typeof window !== "undefined" && window.innerWidth >= 1024 && !areaId && areaList.length > 0) setAreaId(areaList[0]!.id);
   }, [areaId, areaList]);
 
   // Every surface gets its invisible default finish zone, not just the one on screen.
@@ -69,7 +69,7 @@ function ScopeAndDetails() {
   );
 
   useEffect(() => {
-    if (areaSurfaces.length > 0 && !areaSurfaces.some((s) => s.id === surfaceId)) {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024 && areaSurfaces.length > 0 && !areaSurfaces.some((s) => s.id === surfaceId)) {
       setSurfaceId(areaSurfaces[0]!.id);
     }
   }, [areaSurfaces, surfaceId]);
@@ -85,9 +85,9 @@ function ScopeAndDetails() {
 
   return (
     <>
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[236px_236px_minmax(0,1fr)]">
+       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[220px_240px_minmax(0,1fr)]">
         {/* Rooms */}
-        <SectionCard
+         <SectionCard className={cn(areaId && "hidden lg:block")}
           title="Rooms"
           actions={
             <button
@@ -153,20 +153,13 @@ function ScopeAndDetails() {
         </SectionCard>
 
         {/* Surfaces */}
-        <SectionCard
+         <SectionCard className={cn(!areaId && "hidden", surfaceId && "hidden lg:block")}
           title={area?.name ?? "Surfaces"}
           actions={
-            <button
-              type="button"
-              onClick={() => setAddSurface(true)}
-              disabled={!areaId}
-              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline disabled:text-muted-foreground"
-              title={areaId ? undefined : "Select a room first"}
-            >
-              <Plus className="size-3.5" /> Add surface
-            </button>
+             <button type="button" onClick={() => setAddSurface(true)} disabled={!areaId} className="hidden items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline disabled:text-muted-foreground lg:inline-flex" title={areaId ? undefined : "Select a room first"}><Plus className="size-3.5" /> Add surface</button>
           }
         >
+           <div className="flex items-center justify-between gap-2 px-4 pb-3 lg:hidden"><button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary"><ArrowLeft className="size-4" /> Rooms</button><Button size="sm" onClick={() => setAddSurface(true)}><Plus className="size-3.5" /> Add surface</Button></div>
           <div className="border-b border-border px-5 pb-4">
             <div className="text-[12px] text-secondary-foreground">
               {areaSurfaces.filter((s) => s.status === "Complete").length} of {areaSurfaces.length}{" "}
@@ -197,7 +190,8 @@ function ScopeAndDetails() {
                   </div>
                   <div className="text-[11.5px] text-muted-foreground">{s.status}</div>
                 </div>
-                {s.status === "Complete" ? (
+                 <ChevronRight className="size-4 text-muted-foreground lg:hidden" />
+                 {s.status === "Complete" ? (
                   <CheckCircle2 className="size-[18px] shrink-0 text-success" />
                 ) : s.status === "Working" ? (
                   <span className="size-[15px] shrink-0 rounded-full bg-warning" />
@@ -213,13 +207,13 @@ function ScopeAndDetails() {
         </SectionCard>
 
         {/* Surface workspace */}
-        <SectionCard
+         <SectionCard className={cn(!surfaceId && "hidden lg:block")}
           title={surface?.name ?? "Surface"}
           badge={
             surface ? <Chip tone={areaStatusTone(surface.status)}>{surface.status}</Chip> : null
           }
-          actions={
-            <>
+           actions={
+             <div className="hidden items-center gap-2 lg:flex">
               <Button size="sm" onClick={() => setIssueOpen(true)} disabled={!surface}>
                 <AlertTriangle className="size-4" /> Add issue
               </Button>
@@ -241,7 +235,7 @@ function ScopeAndDetails() {
                 <CheckCircle2 className="size-4" />
                 {surface?.detail_confirmed ? "Detail confirmed" : "Confirm detail"}
               </Button>
-            </>
+             </div>
           }
         >
           {!surface ? (
@@ -250,14 +244,16 @@ function ScopeAndDetails() {
               note="Tile, grout, metal and layout live on the surface."
             />
           ) : (
-            <div className="space-y-4 px-5 pt-1 pb-5">
+             <div className="space-y-4 px-5 pt-1 pb-5">
+               <button type="button" onClick={() => setSurfaceId(null)} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> {area?.name ?? "Surfaces"}</button>
+               <div className="grid grid-cols-3 gap-2 lg:hidden"><Button size="sm" onClick={() => setIssueOpen(true)}><AlertTriangle className="size-4" /> Issue</Button><Button size="sm" onClick={() => setOrderOpen(true)}><Package className="size-4" /> Material</Button><Button size="sm" variant="primary" onClick={() => surface && updateSurface.mutate({ id: surface.id, patch: { detail_confirmed: !surface.detail_confirmed } })}><CheckCircle2 className="size-4" /> Confirm</Button></div>
               <div className="flex items-center justify-between">
                 <h3 className="text-[14px] font-semibold">Surface details</h3>
                 <Button size="sm" onClick={() => setEditSurface(true)}>
                   <Pencil className="size-3.5" /> Edit
                 </Button>
               </div>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+               <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
                 <DetailCard
                   label="Tile"
                   lines={[

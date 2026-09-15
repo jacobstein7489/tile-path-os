@@ -106,60 +106,9 @@ function InstallerPackages() {
               </div>
             }
           >
-            <div className="overflow-x-auto px-5 pb-5">
-              <table className="w-full min-w-[860px] text-[12.5px]">
-                <thead>
-                  <tr className="border-b border-border text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                    <th className="py-2 pr-3">Surface</th>
-                    <th className="py-2 pr-3">Zone</th>
-                    <th className="py-2 pr-3">Tile</th>
-                    <th className="py-2 pr-3">Grout / joint</th>
-                    <th className="py-2 pr-3">Edge</th>
-                    <th className="py-2 pr-3">Layout</th>
-                    <th className="py-2 pr-3">Height</th>
-                    <th className="py-2">Prep</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snapshot.rows.map((r, i) => (
-                    <tr key={i} className="border-b border-border/60 last:border-0">
-                      <td className="py-2 pr-3 font-semibold">{r.surface}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{r.zone}</td>
-                      <td className="py-2 pr-3">
-                        {r.tile}
-                        <span className="block text-[11px] text-muted-foreground">
-                          {r.manufacturer} · {r.sku} · {r.size}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3">
-                        {r.grout}
-                        <span className="block text-[11px] text-muted-foreground">{r.joint}</span>
-                      </td>
-                      <td className="py-2 pr-3">{r.edge}</td>
-                      <td className="py-2 pr-3">
-                        {r.pattern}
-                        <span className="block text-[11px] text-muted-foreground">
-                          {r.direction} · from {r.start}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3">{r.height}</td>
-                      <td className="py-2">
-                        {r.prep}
-                        <span className="block text-[11px] text-muted-foreground">
-                          {r.waterproofing}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {snapshot.rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-4 text-muted-foreground">
-                        No surfaces in this room yet.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+            <div className="space-y-3 px-5 pb-5">
+              {snapshot.rows.map((r, i) => <article key={i} className="rounded-lg border border-border px-4 py-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-[14px] font-bold">{r.surface}</h3><span className="text-xs font-semibold text-muted-foreground">{r.zone}</span></div><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><PackageFact label="Tile" value={r.tile} detail={`${r.manufacturer} · ${r.sku} · ${r.size}`} /><PackageFact label="Grout / joint" value={r.grout} detail={r.joint} /><PackageFact label="Layout" value={r.pattern} detail={`${r.direction} · from ${r.start}`} /><PackageFact label="Prep / waterproofing" value={r.prep} detail={r.waterproofing} /></div><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-2 text-xs"><span><b>Edge</b> · {r.edge}</span><span><b>Height</b> · {r.height}</span><span><b>Transition</b> · {r.transition}</span></div></article>)}
+              {snapshot.rows.length === 0 ? <p className="py-4 text-[13px] text-muted-foreground">No surfaces in this room yet.</p> : null}
             </div>
 
             {openHistory === area.id ? (
@@ -187,3 +136,5 @@ function InstallerPackages() {
     </div>
   );
 }
+
+function PackageFact({ label, value, detail }: { label: string; value: string; detail?: string }) { return <div><div className="text-[10px] font-bold uppercase text-muted-foreground">{label}</div><div className="mt-0.5 text-[13px] font-semibold">{value}</div>{detail ? <div className="text-[11.5px] text-muted-foreground">{detail}</div> : null}</div>; }

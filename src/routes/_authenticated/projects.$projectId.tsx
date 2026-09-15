@@ -1,45 +1,36 @@
 import { useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ChevronDown, MapPin, User } from "lucide-react";
+import { ChevronDown, ClipboardCheck, FileText, MapPin, Plus, User } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { LifecycleTrack } from "@/components/LifecycleTrack";
 import { LifecycleRail } from "@/components/ops/LifecycleRail";
 import { Popover } from "@/components/ops/Popover";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
-import { UnderlineTabs } from "@/components/kit";
+import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
+import { Button, UnderlineTabs } from "@/components/kit";
 import { useProject, useUpdateProject } from "@/lib/data";
 import { useProjectSetup } from "@/lib/setup";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { Chip, materialTone, stageTone } from "@/lib/status";
+import { Chip, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,
 });
 
-/** Everyday tabs stay on the bar; the specialist Tile OS tabs live under More. */
 const PROJECT_TABS = [
   { label: "Overview", to: "/projects/$projectId" as const, value: "/projects/$projectId" },
   {
-    label: "Tasks",
+    label: "Work",
     to: "/projects/$projectId/tasks" as const,
     value: "/projects/$projectId/tasks",
-  },
-  {
-    label: "Updates",
-    to: "/projects/$projectId/updates" as const,
-    value: "/projects/$projectId/updates",
   },
   {
     label: "Rooms",
     to: "/projects/$projectId/scope" as const,
     value: "/projects/$projectId/scope",
-  },
-  {
-    label: "Schedule",
-    to: "/projects/$projectId/schedule" as const,
-    value: "/projects/$projectId/schedule",
   },
   {
     label: "Files",
@@ -49,42 +40,21 @@ const PROJECT_TABS = [
 ];
 
 const MORE_TABS = [
+  { label: "Updates", hint: "Daily and project status updates", to: "/projects/$projectId/updates" as const, value: "/projects/$projectId/updates" },
   {
-    label: "Design Meeting",
-    hint: "Only the unresolved, applicable questions",
-    to: "/projects/$projectId/design" as const,
-    value: "/projects/$projectId/design",
-  },
-  {
-    label: "Installer Package",
-    hint: "Publish by room, with revision history",
-    to: "/projects/$projectId/package" as const,
-    value: "/projects/$projectId/package",
-  },
-  {
-    label: "Tiles & Finishes",
-    hint: "Tile, grout, metals, saddles",
+    label: "Materials",
+    hint: "Tiles, finishes and install materials",
     to: "/projects/$projectId/tiles" as const,
     value: "/projects/$projectId/tiles",
   },
-  {
-    label: "Install Materials",
-    hint: "Thinset, mortar, membrane, consumables",
-    to: "/projects/$projectId/install-materials" as const,
-    value: "/projects/$projectId/install-materials",
-  },
-  {
-    label: "Deliveries",
-    hint: "Ordering and receiving",
-    to: "/projects/$projectId/materials" as const,
-    value: "/projects/$projectId/materials",
-  },
+  { label: "Schedule", hint: "Crew assignments and dates", to: "/projects/$projectId/schedule" as const, value: "/projects/$projectId/schedule" },
   {
     label: "Field",
     hint: "Progress by area and visit checklist",
     to: "/projects/$projectId/field" as const,
     value: "/projects/$projectId/field",
   },
+  { label: "Commercial", hint: "Project commercial details", to: "/projects/$projectId/materials" as const, value: "/projects/$projectId/materials" },
 ];
 
 function ProjectShell() {
@@ -96,6 +66,9 @@ function ProjectShell() {
   const setup = useProjectSetup(projectId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [moreOpen, setMoreOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -134,12 +107,12 @@ function ProjectShell() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
-      <div className="mx-auto max-w-7xl px-4 pt-6 pb-16 md:px-8 md:pt-8">
-        <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+       <div className="mx-auto max-w-[1400px] px-4 pt-5 pb-16 md:px-7 md:pt-6">
+         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
+             <div className="flex min-w-0 items-center gap-2.5">
               <h1 className="text-[26px] leading-none font-semibold tracking-[-0.02em] md:text-[28px]">
-                {project.name}
+                 <span className="truncate">{project.name}</span>
               </h1>
               <Chip tone={stageTone(project.lifecycle_stage, project.exception_state)}>
                 {project.exception_state ?? project.lifecycle_stage}
@@ -152,19 +125,23 @@ function ProjectShell() {
               <span className="inline-flex items-center gap-1.5">
                 <User className="size-3.5" /> {project.customer ?? "Customer not set"}
               </span>
-              <span className="inline-flex items-center gap-1.5">{project.project_type}</span>
+               {pmName ? <span className="inline-flex items-center gap-1.5">PM · {pmName}</span> : null}
+               {project.crew_lead ? <span className="inline-flex items-center gap-1.5">Crew · {project.crew_lead}</span> : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip tone={materialTone(project.material_status)}>
-              Materials: {project.material_status}
-            </Chip>
-            {pmName ? <Chip>PM: {pmName}</Chip> : null}
+           <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+             <div className="relative">
+               <Button variant="primary" onClick={() => setUpdateOpen((v) => !v)}><Plus className="size-4" /> Update</Button>
+               <Popover open={updateOpen} onClose={() => setUpdateOpen(false)} align="right" width="md:w-64" title="Add update">
+                 <button type="button" onClick={() => { setUpdateOpen(false); setDailyOpen(true); }} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-muted"><ClipboardCheck className="size-4 text-primary" /><span><b className="block text-sm">Daily Update</b><span className="text-xs text-muted-foreground">Fast field report</span></span></button>
+                 <button type="button" onClick={() => { setUpdateOpen(false); setStatusOpen(true); }} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-muted"><FileText className="size-4 text-primary" /><span><b className="block text-sm">Project Status Update</b><span className="text-xs text-muted-foreground">Concise shareable summary</span></span></button>
+               </Popover>
+             </div>
             <ProjectMoreMenu project={project} />
           </div>
         </div>
 
-        <div className="mt-4">
+         <div className="mt-3 border-y border-border/70 py-1">
           <LifecycleRail
             stage={project.lifecycle_stage}
             exceptionState={project.exception_state}
@@ -186,9 +163,9 @@ function ProjectShell() {
           />
         </div>
 
-        <div className="mt-5 flex items-end gap-1 border-b border-border">
-          <UnderlineTabs
-            className="min-w-0 flex-1 overflow-x-auto border-b-0"
+         <div className="mt-3 flex items-end gap-1 border-b border-border">
+           <UnderlineTabs
+             className="min-w-0 flex-1 border-b-0"
             items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
             value={activeTab}
           />
@@ -211,7 +188,7 @@ function ProjectShell() {
               onClose={() => setMoreOpen(false)}
               align="right"
               width="md:w-72"
-              title="Project detail"
+               title="Project tools"
             >
               {MORE_TABS.map((t) => (
                 <Link
@@ -234,10 +211,12 @@ function ProjectShell() {
           </div>
         </div>
 
-        <div className="mt-5">
+         <div className="mt-5">
           <Outlet />
         </div>
       </div>
+       {dailyOpen ? <FieldReportSheet projectId={projectId} projectName={project.name} onClose={() => setDailyOpen(false)} /> : null}
+       {statusOpen ? <ProjectStatusUpdateSheet project={project} onClose={() => setStatusOpen(false)} /> : null}
     </>
   );
 }

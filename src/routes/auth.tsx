@@ -6,6 +6,7 @@ import { lovable } from "@/integrations/lovable";
 import { Button, Field, TextInput } from "@/components/kit";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in — Cobblestone Tile OS" },
