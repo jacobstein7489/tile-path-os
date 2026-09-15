@@ -76,7 +76,7 @@ function ScopeAndDetails() {
 
   return (
     <>
-      <div className="grid grid-cols-[236px_236px_minmax(0,1fr)] items-start gap-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[236px_236px_minmax(0,1fr)]">
         {/* Rooms */}
         <SectionCard
           title="Rooms"
@@ -248,7 +248,7 @@ function ScopeAndDetails() {
                   <Pencil className="size-3.5" /> Edit
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <DetailCard
                   label="Tile"
                   lines={[
@@ -522,7 +522,7 @@ function EditSurfaceModal({
         </>
       }
     >
-      <div className="grid grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
         {SURFACE_FIELDS.map((f) => (
           <Field key={f.key as string} label={f.label}>
             {f.key === "status" ? (
