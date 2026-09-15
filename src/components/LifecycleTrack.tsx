@@ -1,48 +1,44 @@
-import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Lock } from "lucide-react";
-import { LIFECYCLE_STAGES, STAGE_SUB_WORKFLOWS, nextStage, stageIndex } from "@/lib/lifecycle";
+import { AlertCircle, Check, ChevronRight, Lock } from "lucide-react";
+import { LIFECYCLE_STAGES, canEnterStage, nextStage, normalizeStage, stageIndex } from "@/lib/lifecycle";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
- * Reusable full 10-stage master lifecycle. Status/context above the project —
- * never a navigation menu.
+ * Stage detail: the seven controlled operating stages plus the named readiness
+ * blockers behind the current one.
  *
- * The rail is always visible and deliberately quiet: completed stages read
- * green, the current stage reads blue, future stages stay grey. The stage
- * sub-workflow is detail, so it lives behind "Stage detail". Stages whose
- * sub-workflow is system-driven (Closeout / Return) render as read-only state,
- * never as manual checkboxes.
+ * Stage is a controlled state — it only moves forward, and only when the user
+ * (or a defined system event) advances it. A blocker never pushes a project
+ * backward; it is simply shown. Manual sub-workflow checkboxes are retired:
+ * everything here is derived from real records.
  */
 
-/** Sub-workflows that are derived from records, not ticked by hand. */
-const SYSTEM_DRIVEN_STAGES = new Set(["Closeout / Return"]);
+export type StageBlocker = {
+  label: string;
+  detail?: string | null;
+  category: string;
+};
 
 export function LifecycleTrack({
   stage,
   exceptionState,
-  stepsDone = [],
-  onToggleStep,
+  blockers = [],
+  hasScheduleAssignment = false,
   onAdvance,
-  systemStepState,
 }: {
   stage: string;
   exceptionState?: string | null;
-  stepsDone?: string[];
-  onToggleStep?: (step: string) => void;
+  blockers?: StageBlocker[];
+  hasScheduleAssignment?: boolean;
   onAdvance?: (to: string) => void;
-  /** For system-driven stages: the derived state of each step. */
-  systemStepState?: Record<string, { done: boolean; detail?: string }>;
 }) {
-  const [showDetail, setShowDetail] = useState(false);
+  const normalized = normalizeStage(stage);
   const current = stageIndex(stage);
-  const sub = STAGE_SUB_WORKFLOWS[stage as keyof typeof STAGE_SUB_WORKFLOWS];
   const next = nextStage(stage);
-  const systemDriven = SYSTEM_DRIVEN_STAGES.has(stage);
-  const isDone = (step: string) =>
-    systemDriven ? Boolean(systemStepState?.[step]?.done) : stepsDone.includes(step);
-  const remaining = (sub ?? []).filter((s) => !isDone(s));
-  const canAdvance = Boolean(next) && remaining.length === 0 && !exceptionState;
+  const gate = next
+    ? canEnterStage(next, { blockers: blockers.length, hasScheduleAssignment })
+    : { ok: false, reason: "Project is complete" };
+  const canAdvance = Boolean(next) && gate.ok && !exceptionState;
 
   return (
     <section className="surface overflow-hidden">
@@ -51,28 +47,14 @@ export function LifecycleTrack({
           <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             Stage {current + 1}/{LIFECYCLE_STAGES.length}
           </span>
-          <span className="text-[14px] font-semibold tracking-tight">{stage}</span>
+          <span className="text-[14px] font-semibold tracking-tight">{normalized}</span>
           {exceptionState ? <Chip tone="amber">{exceptionState}</Chip> : null}
-          {sub ? (
-            <span className="text-[11.5px] text-muted-foreground tabular-nums">
-              {sub.length - remaining.length}/{sub.length} steps
-            </span>
-          ) : null}
+          <span className="text-[11.5px] text-muted-foreground tabular-nums">
+            {blockers.length === 0 ? "No open blockers" : `${blockers.length} blocker(s)`}
+          </span>
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          {sub ? (
-            <button
-              type="button"
-              onClick={() => setShowDetail((s) => !s)}
-              className="inline-flex items-center gap-1 text-[12px] font-medium text-secondary-foreground transition-colors duration-100 hover:text-foreground"
-            >
-              Stage detail
-              <ChevronDown
-                className={cn("size-3.5 transition-transform", showDetail && "rotate-180")}
-              />
-            </button>
-          ) : null}
           {next && onAdvance ? (
             <button
               type="button"
@@ -83,7 +65,7 @@ export function LifecycleTrack({
                   ? `Advance to ${next}`
                   : exceptionState
                     ? `Project is ${exceptionState}`
-                    : `${remaining.length} ${stage} step${remaining.length === 1 ? "" : "s"} outstanding`
+                    : (gate.reason ?? "Not ready")
               }
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors duration-100",
@@ -93,14 +75,13 @@ export function LifecycleTrack({
               )}
             >
               {canAdvance ? null : <Lock className="size-3.5" />}
-              Advance to {next}
+              Move to {next}
               {canAdvance ? <ChevronRight className="size-3.5" /> : null}
             </button>
           ) : null}
         </div>
       </div>
 
-      {/* Compact always-visible rail */}
       <ol className="flex items-start px-4 pt-1 pb-3.5">
         {LIFECYCLE_STAGES.map((s, i) => {
           const done = i < current;
@@ -150,72 +131,36 @@ export function LifecycleTrack({
         })}
       </ol>
 
-      {/* Stage sub-workflow — detail, hidden until asked for */}
-      {sub && showDetail ? (
-        <div className="border-t border-border bg-muted/40 px-5 py-3">
-          <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {stage} Workflow ·{" "}
-            {systemDriven ? "tracked automatically from records" : "inside this stage"}
-          </div>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {sub.map((step) => {
-              const done = isDone(step);
-              const detail = systemDriven ? systemStepState?.[step]?.detail : undefined;
-              const inner = (
-                <>
-                  <span
-                    className={cn(
-                      "grid size-4 shrink-0 place-items-center rounded-full border",
-                      done ? "border-success bg-success text-background" : "border-border-strong",
-                    )}
-                  >
-                    {done ? <Check className="size-2.5" strokeWidth={3.5} /> : null}
-                  </span>
-                  <span>{step}</span>
-                  {detail ? (
-                    <span className="text-[11px] font-normal text-muted-foreground">{detail}</span>
-                  ) : null}
-                </>
-              );
-              const shell = cn(
-                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium",
-                done
-                  ? "border-success/30 bg-success-soft text-success"
-                  : "border-border bg-background text-secondary-foreground",
-              );
-
-              if (systemDriven) {
-                return (
-                  <span key={step} className={shell} title="Derived from project records">
-                    {inner}
-                  </span>
-                );
-              }
-              return (
-                <button
-                  key={step}
-                  type="button"
-                  disabled={!onToggleStep}
-                  onClick={() => onToggleStep?.(step)}
-                  className={cn(
-                    shell,
-                    "transition-colors duration-100",
-                    onToggleStep ? "hover:border-border-strong" : "cursor-default",
-                  )}
-                >
-                  {inner}
-                </button>
-              );
-            })}
-          </div>
-          {systemDriven ? (
-            <p className="mt-2.5 text-[11.5px] text-muted-foreground">
-              These states come from punch / return work items and the schedule — they are not
-              ticked by hand.
-            </p>
-          ) : null}
+      <div className="border-t border-border bg-muted/40 px-5 py-3">
+        <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          What is holding this back · derived from records
         </div>
-      ) : null}
+        {blockers.length === 0 ? (
+          <p className="mt-2 text-[12.5px] text-secondary-foreground">
+            Nothing outstanding was found. Stage still moves forward only when you say so.
+          </p>
+        ) : (
+          <ul className="mt-2.5 space-y-1.5">
+            {blockers.slice(0, 8).map((b, i) => (
+              <li key={i} className="flex items-start gap-2 text-[12.5px]">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                <span className="min-w-0">
+                  <span className="font-medium text-foreground">{b.label}</span>
+                  <span className="ml-1.5 text-muted-foreground">{b.category}</span>
+                  {b.detail ? (
+                    <span className="ml-1.5 text-muted-foreground">· {b.detail}</span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+            {blockers.length > 8 ? (
+              <li className="text-[12px] text-muted-foreground">
+                +{blockers.length - 8} more
+              </li>
+            ) : null}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

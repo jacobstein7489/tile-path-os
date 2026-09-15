@@ -7,7 +7,8 @@ import { LifecycleRail } from "@/components/ops/LifecycleRail";
 import { Popover } from "@/components/ops/Popover";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { UnderlineTabs } from "@/components/kit";
-import { useProject, useUpdateProject, useWorkItems } from "@/lib/data";
+import { useProject, useUpdateProject } from "@/lib/data";
+import { useProjectSetup } from "@/lib/setup";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,18 @@ const PROJECT_TABS = [
 
 const MORE_TABS = [
   {
+    label: "Design Meeting",
+    hint: "Only the unresolved, applicable questions",
+    to: "/projects/$projectId/design" as const,
+    value: "/projects/$projectId/design",
+  },
+  {
+    label: "Installer Package",
+    hint: "Publish by room, with revision history",
+    to: "/projects/$projectId/package" as const,
+    value: "/projects/$projectId/package",
+  },
+  {
     label: "Tiles & Finishes",
     hint: "Tile, grout, metals, saddles",
     to: "/projects/$projectId/tiles" as const,
@@ -80,7 +93,7 @@ function ProjectShell() {
   const update = useUpdateProject(projectId);
   const { canEdit } = useCanEditProject(projectId);
   const { data: profiles = [] } = useProfiles();
-  const { data: workItems = [] } = useWorkItems(projectId);
+  const setup = useProjectSetup(projectId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -107,28 +120,9 @@ function ProjectShell() {
     );
   }
 
-  const stepsDone = project.stage_steps_done ?? [];
   const nameOf = (userId?: string | null) =>
     profiles.find((p) => p.user_id === userId)?.full_name ?? null;
   const pmName = nameOf(project.pm_user_id) ?? project.project_manager;
-
-  // Closeout / Return is derived from punch & return records, never ticked by hand.
-  const punch = workItems.filter((w) => /punch|return/i.test(`${w.item_type} ${w.title}`));
-  const punchOpen = punch.filter((w) => w.status !== "Complete");
-  const waiting = punchOpen.filter((w) => /wait|block/i.test(w.status));
-  const systemStepState: Record<string, { done: boolean; detail?: string }> = {
-    "Punch Open": {
-      done: punch.length > 0,
-      detail: punch.length ? `${punchOpen.length} open` : "none logged",
-    },
-    "Waiting on Material / Trade": {
-      done: punchOpen.length > 0 && waiting.length === 0,
-      detail: waiting.length ? `${waiting.length} waiting` : "clear",
-    },
-    "Ready for Return": { done: punch.length > 0 && punchOpen.length === 0 },
-    "Return Scheduled": { done: Boolean(project.start_date) && punchOpen.length === 0 },
-    Verified: { done: punch.length > 0 && punchOpen.length === 0 && project.readiness_pct >= 100 },
-  };
 
   const resolve = (value: string) => value.replace("$projectId", projectId);
   const firstTab = PROJECT_TABS[0];
@@ -178,19 +172,14 @@ function ProjectShell() {
               <LifecycleTrack
                 stage={project.lifecycle_stage}
                 exceptionState={project.exception_state}
-                stepsDone={stepsDone}
-                systemStepState={systemStepState}
+                blockers={setup.blockers.map((b) => ({
+                  label: b.label,
+                  detail: b.detail,
+                  category: b.category,
+                }))}
+                hasScheduleAssignment={setup.hasScheduleAssignment}
                 {...(canEdit
-                  ? {
-                      onToggleStep: (step: string) =>
-                        update.mutate({
-                          stage_steps_done: stepsDone.includes(step)
-                            ? stepsDone.filter((s) => s !== step)
-                            : [...stepsDone, step],
-                        }),
-                      onAdvance: (to: string) =>
-                        update.mutate({ lifecycle_stage: to, stage_steps_done: [] }),
-                    }
+                  ? { onAdvance: (to: string) => update.mutate({ lifecycle_stage: to }) }
                   : {})}
               />
             }

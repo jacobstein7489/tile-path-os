@@ -39,6 +39,7 @@ import {
 } from "@/components/WorkItemDialogs";
 import { showsInstallationProgress } from "@/lib/lifecycle";
 import { useAreasWithSurfaces, useProject, useUpdateProject } from "@/lib/data";
+import { useProjectSetup } from "@/lib/setup";
 import { useCrews } from "@/lib/data";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
@@ -83,6 +84,7 @@ function ProjectOverview() {
   const [panel, setPanel] = useState<FactPanel | null>(null);
   const [report, setReport] = useState(false);
   const { data: reports = [] } = useFieldReports(projectId);
+  const setup = useProjectSetup(projectId);
   const latestReport = reports[0] ?? null;
 
   if (!project) return null;
@@ -147,6 +149,79 @@ function ProjectOverview() {
             onClick={() => setPanel("next")}
           />
         </div>
+      </section>
+
+      {/* Office Setup — entirely derived, nothing to tick by hand. */}
+      <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard
+          title="Office setup"
+          badge={
+            <Chip tone={setup.officeSetup.every((r) => r.done) ? "green" : "amber"}>
+              {setup.officeSetup.filter((r) => r.done).length} of {setup.officeSetup.length} done
+            </Chip>
+          }
+        >
+          <div className="divide-y divide-border">
+            {setup.officeSetup.map((row) => (
+              <Link
+                key={row.key}
+                to={
+                  row.to === "files"
+                    ? "/projects/$projectId/files"
+                    : row.to === "scope"
+                      ? "/projects/$projectId/scope"
+                      : row.to === "design"
+                        ? "/projects/$projectId/design"
+                        : "/projects/$projectId/package"
+                }
+                params={{ projectId }}
+                className="flex min-h-11 items-center gap-3 px-5 py-2.5 transition-colors hover:bg-muted/60"
+              >
+                <span
+                  className={cn(
+                    "grid size-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold",
+                    row.done
+                      ? "border-success bg-success text-primary-foreground"
+                      : "border-border-strong bg-card text-muted-foreground",
+                  )}
+                >
+                  {row.done ? "✓" : "!"}
+                </span>
+                <span className="min-w-0 flex-1 text-[13px] font-medium">{row.label}</span>
+                <span className="shrink-0 text-[12.5px] text-muted-foreground">{row.value}</span>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="What is holding this back"
+          badge={
+            setup.blockers.length === 0 ? (
+              <Chip tone="green">Nothing outstanding</Chip>
+            ) : (
+              <Chip tone="amber">{setup.blockers.length} blocker(s)</Chip>
+            )
+          }
+        >
+          {setup.blockers.length === 0 ? (
+            <p className="px-5 pb-5 text-[13px] text-secondary-foreground">
+              No named blockers were found from the current records.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {setup.blockers.slice(0, 10).map((b) => (
+                <li key={b.id} className="px-5 py-2.5">
+                  <div className="text-[13px] font-medium">{b.label}</div>
+                  <div className="text-[12px] text-muted-foreground">
+                    {b.category}
+                    {b.detail ? ` · ${b.detail}` : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
       </section>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">

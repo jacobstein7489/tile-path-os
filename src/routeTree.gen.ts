@@ -27,10 +27,12 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
+import { Route as AuthenticatedProjectsProjectIdDesignRouteImport } from './routes/_authenticated/projects.$projectId.design'
 import { Route as AuthenticatedProjectsProjectIdFieldRouteImport } from './routes/_authenticated/projects.$projectId.field'
 import { Route as AuthenticatedProjectsProjectIdFilesRouteImport } from './routes/_authenticated/projects.$projectId.files'
 import { Route as AuthenticatedProjectsProjectIdInstallMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.install-materials'
 import { Route as AuthenticatedProjectsProjectIdMaterialsRouteImport } from './routes/_authenticated/projects.$projectId.materials'
+import { Route as AuthenticatedProjectsProjectIdPackageRouteImport } from './routes/_authenticated/projects.$projectId.package'
 import { Route as AuthenticatedProjectsProjectIdScheduleRouteImport } from './routes/_authenticated/projects.$projectId.schedule'
 import { Route as AuthenticatedProjectsProjectIdScopeRouteImport } from './routes/_authenticated/projects.$projectId.scope'
 import { Route as AuthenticatedProjectsProjectIdTasksRouteImport } from './routes/_authenticated/projects.$projectId.tasks'
@@ -132,6 +134,12 @@ const AuthenticatedProjectsProjectIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
+const AuthenticatedProjectsProjectIdDesignRoute =
+  AuthenticatedProjectsProjectIdDesignRouteImport.update({
+    id: '/design',
+    path: '/design',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
 const AuthenticatedProjectsProjectIdFieldRoute =
   AuthenticatedProjectsProjectIdFieldRouteImport.update({
     id: '/field',
@@ -154,6 +162,12 @@ const AuthenticatedProjectsProjectIdMaterialsRoute =
   AuthenticatedProjectsProjectIdMaterialsRouteImport.update({
     id: '/materials',
     path: '/materials',
+    getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdPackageRoute =
+  AuthenticatedProjectsProjectIdPackageRouteImport.update({
+    id: '/package',
+    path: '/package',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
 const AuthenticatedProjectsProjectIdScheduleRoute =
@@ -204,10 +218,12 @@ export interface FileRoutesByFullPath {
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/package': typeof AuthenticatedProjectsProjectIdPackageRoute
   '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
@@ -230,10 +246,12 @@ export interface FileRoutesByTo {
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/projects/$projectId/package': typeof AuthenticatedProjectsProjectIdPackageRoute
   '/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
@@ -260,10 +278,12 @@ export interface FileRoutesById {
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
   '/_authenticated/projects/$projectId/install-materials': typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   '/_authenticated/projects/$projectId/materials': typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  '/_authenticated/projects/$projectId/package': typeof AuthenticatedProjectsProjectIdPackageRoute
   '/_authenticated/projects/$projectId/schedule': typeof AuthenticatedProjectsProjectIdScheduleRoute
   '/_authenticated/projects/$projectId/scope': typeof AuthenticatedProjectsProjectIdScopeRoute
   '/_authenticated/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
@@ -290,10 +310,12 @@ export interface FileRouteTypes {
     | '/api/public/qa-provision'
     | '/leads/'
     | '/projects/'
+    | '/projects/$projectId/design'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
     | '/projects/$projectId/install-materials'
     | '/projects/$projectId/materials'
+    | '/projects/$projectId/package'
     | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/tasks'
@@ -316,10 +338,12 @@ export interface FileRouteTypes {
     | '/api/public/qa-provision'
     | '/leads'
     | '/projects'
+    | '/projects/$projectId/design'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
     | '/projects/$projectId/install-materials'
     | '/projects/$projectId/materials'
+    | '/projects/$projectId/package'
     | '/projects/$projectId/schedule'
     | '/projects/$projectId/scope'
     | '/projects/$projectId/tasks'
@@ -345,10 +369,12 @@ export interface FileRouteTypes {
     | '/api/public/qa-provision'
     | '/_authenticated/leads/'
     | '/_authenticated/projects/'
+    | '/_authenticated/projects/$projectId/design'
     | '/_authenticated/projects/$projectId/field'
     | '/_authenticated/projects/$projectId/files'
     | '/_authenticated/projects/$projectId/install-materials'
     | '/_authenticated/projects/$projectId/materials'
+    | '/_authenticated/projects/$projectId/package'
     | '/_authenticated/projects/$projectId/schedule'
     | '/_authenticated/projects/$projectId/scope'
     | '/_authenticated/projects/$projectId/tasks'
@@ -492,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdIndexRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
+    '/_authenticated/projects/$projectId/design': {
+      id: '/_authenticated/projects/$projectId/design'
+      path: '/design'
+      fullPath: '/projects/$projectId/design'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdDesignRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
     '/_authenticated/projects/$projectId/field': {
       id: '/_authenticated/projects/$projectId/field'
       path: '/field'
@@ -518,6 +551,13 @@ declare module '@tanstack/react-router' {
       path: '/materials'
       fullPath: '/projects/$projectId/materials'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdMaterialsRouteImport
+      parentRoute: typeof AuthenticatedProjectsProjectIdRoute
+    }
+    '/_authenticated/projects/$projectId/package': {
+      id: '/_authenticated/projects/$projectId/package'
+      path: '/package'
+      fullPath: '/projects/$projectId/package'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdPackageRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
     '/_authenticated/projects/$projectId/schedule': {
@@ -574,10 +614,12 @@ const AuthenticatedLeadsRouteWithChildren =
   AuthenticatedLeadsRoute._addFileChildren(AuthenticatedLeadsRouteChildren)
 
 interface AuthenticatedProjectsProjectIdRouteChildren {
+  AuthenticatedProjectsProjectIdDesignRoute: typeof AuthenticatedProjectsProjectIdDesignRoute
   AuthenticatedProjectsProjectIdFieldRoute: typeof AuthenticatedProjectsProjectIdFieldRoute
   AuthenticatedProjectsProjectIdFilesRoute: typeof AuthenticatedProjectsProjectIdFilesRoute
   AuthenticatedProjectsProjectIdInstallMaterialsRoute: typeof AuthenticatedProjectsProjectIdInstallMaterialsRoute
   AuthenticatedProjectsProjectIdMaterialsRoute: typeof AuthenticatedProjectsProjectIdMaterialsRoute
+  AuthenticatedProjectsProjectIdPackageRoute: typeof AuthenticatedProjectsProjectIdPackageRoute
   AuthenticatedProjectsProjectIdScheduleRoute: typeof AuthenticatedProjectsProjectIdScheduleRoute
   AuthenticatedProjectsProjectIdScopeRoute: typeof AuthenticatedProjectsProjectIdScopeRoute
   AuthenticatedProjectsProjectIdTasksRoute: typeof AuthenticatedProjectsProjectIdTasksRoute
@@ -588,6 +630,8 @@ interface AuthenticatedProjectsProjectIdRouteChildren {
 
 const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectIdRouteChildren =
   {
+    AuthenticatedProjectsProjectIdDesignRoute:
+      AuthenticatedProjectsProjectIdDesignRoute,
     AuthenticatedProjectsProjectIdFieldRoute:
       AuthenticatedProjectsProjectIdFieldRoute,
     AuthenticatedProjectsProjectIdFilesRoute:
@@ -596,6 +640,8 @@ const AuthenticatedProjectsProjectIdRouteChildren: AuthenticatedProjectsProjectI
       AuthenticatedProjectsProjectIdInstallMaterialsRoute,
     AuthenticatedProjectsProjectIdMaterialsRoute:
       AuthenticatedProjectsProjectIdMaterialsRoute,
+    AuthenticatedProjectsProjectIdPackageRoute:
+      AuthenticatedProjectsProjectIdPackageRoute,
     AuthenticatedProjectsProjectIdScheduleRoute:
       AuthenticatedProjectsProjectIdScheduleRoute,
     AuthenticatedProjectsProjectIdScopeRoute:
