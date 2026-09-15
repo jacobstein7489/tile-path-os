@@ -15,6 +15,7 @@ import { CreateWorkItemModal } from "@/components/WorkItemDialogs";
 import { RequestMaterialModal } from "@/components/WorkItemDialogs";
 import { ProgressBar } from "@/components/ProgressBar";
 import { FinishZonesPanel } from "@/components/ops/FinishZones";
+import { PlanReference } from "@/components/ops/PlanReference";
 import { Chip, areaStatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
@@ -164,6 +165,7 @@ function ScopeAndDetails() {
             </div>
             <ProgressBar value={area?.progress_pct ?? 0} className="mt-2" />
           </div>
+          {area ? <PlanReference projectId={projectId} area={area} canEdit /> : null}
           <div className="divide-y divide-border">
             {areaSurfaces.map((s) => (
               <button
