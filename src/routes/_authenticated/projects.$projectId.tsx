@@ -8,13 +8,13 @@ import { Popover } from "@/components/ops/Popover";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
 import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
-import { UnderlineTabs } from "@/components/kit";
+import { Button, UnderlineTabs } from "@/components/kit";
 import { useProject, useUpdateProject } from "@/lib/data";
 import { useProjectSetup } from "@/lib/setup";
 import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { Chip, materialTone, stageTone } from "@/lib/status";
+import { Chip, stageTone } from "@/lib/status";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,

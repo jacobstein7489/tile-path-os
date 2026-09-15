@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button, SummaryCard } from "@/components/kit";
+import { Button } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
@@ -53,7 +53,7 @@ function TodayPage() {
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
   const [active, setActive] = useState<WorkItemRow | null>(null);
-  const [focus, setFocus] = useState<Focus | null>(null);
+  const [focus] = useState<Focus | null>(null);
   const [report, setReport] = useState<{ id: string; name: string; crewId: string | null } | null>(
     null,
   );
@@ -117,38 +117,7 @@ function TodayPage() {
             : "Nothing late and nothing due today."}
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <SummaryCard
-            label="Overdue"
-            value={counts.Overdue}
-            tone="red"
-            active={focus === "Overdue"}
-            onClick={() => setFocus(focus === "Overdue" ? null : "Overdue")}
-          />
-          <SummaryCard
-            label="Due today"
-            value={counts.Today}
-            tone="blue"
-            active={focus === "Today"}
-            onClick={() => setFocus(focus === "Today" ? null : "Today")}
-          />
-          <SummaryCard
-            label="Follow-ups"
-            value={counts["Waiting Follow-Ups"]}
-            tone="amber"
-            active={focus === "Waiting Follow-Ups"}
-            onClick={() =>
-              setFocus(focus === "Waiting Follow-Ups" ? null : "Waiting Follow-Ups")
-            }
-          />
-          <SummaryCard
-            label="Completed"
-            value={counts.Completed}
-            tone="green"
-            active={focus === "Completed"}
-            onClick={() => setFocus(focus === "Completed" ? null : "Completed")}
-          />
-        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 border-y border-border py-3 text-[12.5px] text-muted-foreground"><span><b className="text-danger">{counts.Overdue}</b> overdue</span><span><b className="text-foreground">{counts.Today}</b> due today</span><span><b className="text-warning">{counts["Waiting Follow-Ups"]}</b> follow-ups</span><span><b className="text-success">{counts.Completed}</b> completed</span></div>
 
         {/* Site manager reminder: today's jobs still missing a daily update. */}
         {needsUpdate.length ? (

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MessageSquarePlus, Users } from "lucide-react";
 import { Button, EmptyState, SectionCard, friendlyDate } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
 import { useProject } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
 
@@ -16,6 +17,7 @@ function ProjectUpdates() {
   const { data: project } = useProject(projectId);
   const { data: reports = [], isLoading } = useFieldReports(projectId);
   const [sheet, setSheet] = useState(false);
+  const [statusSheet, setStatusSheet] = useState(false);
 
   return (
     <>
@@ -24,9 +26,7 @@ function ProjectUpdates() {
         icon={<MessageSquarePlus className="size-[18px] text-primary" />}
         subtitle="What happened on site, day by day."
         actions={
-          <Button variant="primary" size="sm" onClick={() => setSheet(true)}>
-            Add update
-          </Button>
+          <><Button size="sm" onClick={() => setStatusSheet(true)}>Project Status Update</Button><Button variant="primary" size="sm" onClick={() => setSheet(true)}>Daily Update</Button></>
         }
         bodyClassName="divide-y divide-border"
       >
@@ -90,6 +90,7 @@ function ProjectUpdates() {
           onClose={() => setSheet(false)}
         />
       ) : null}
+      {statusSheet && project ? <ProjectStatusUpdateSheet project={project} onClose={() => setStatusSheet(false)} /> : null}
     </>
   );
 }
