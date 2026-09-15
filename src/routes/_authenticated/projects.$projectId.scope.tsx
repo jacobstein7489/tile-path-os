@@ -52,7 +52,7 @@ function ScopeAndDetails() {
   const [orderOpen, setOrderOpen] = useState(false);
 
   useEffect(() => {
-    if (!areaId && areaList.length > 0) setAreaId(areaList[0]!.id);
+    if (typeof window !== "undefined" && window.innerWidth >= 1024 && !areaId && areaList.length > 0) setAreaId(areaList[0]!.id);
   }, [areaId, areaList]);
 
   // Every surface gets its invisible default finish zone, not just the one on screen.
@@ -69,7 +69,7 @@ function ScopeAndDetails() {
   );
 
   useEffect(() => {
-    if (areaSurfaces.length > 0 && !areaSurfaces.some((s) => s.id === surfaceId)) {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024 && areaSurfaces.length > 0 && !areaSurfaces.some((s) => s.id === surfaceId)) {
       setSurfaceId(areaSurfaces[0]!.id);
     }
   }, [areaSurfaces, surfaceId]);
