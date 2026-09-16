@@ -47,6 +47,7 @@ function ScopeAndDetails() {
   const [addFinish, setAddFinish] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
+  const [desktop, setDesktop] = useState(false);
   const areaList = areas.data ?? [];
   const surfaceList = surfaces.data ?? [];
   const areaSurfaces = useMemo(() => surfaceList.filter((s) => s.area_id === areaId), [surfaceList, areaId]);
@@ -57,8 +58,15 @@ function ScopeAndDetails() {
   const assignment = setup.assignmentList.find((a) => a.zone_id === selectedZone?.id) ?? null;
   const selection = assignment?.finish_selection_id ? setup.selectionList.find((s) => s.id === assignment.finish_selection_id) ?? null : null;
 
-  useEffect(() => { if (!areaId && areaList[0]) setAreaId(areaList[0].id); }, [areaId, areaList]);
-  useEffect(() => { if (areaId && !areaSurfaces.some((s) => s.id === surfaceId)) setSurfaceId(areaSurfaces[0]?.id ?? null); }, [areaId, areaSurfaces, surfaceId]);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setDesktop(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  useEffect(() => { if (desktop && !areaId && areaList[0]) setAreaId(areaList[0].id); }, [desktop, areaId, areaList]);
+  useEffect(() => { if (desktop && areaId && !areaSurfaces.some((s) => s.id === surfaceId)) setSurfaceId(areaSurfaces[0]?.id ?? null); }, [desktop, areaId, areaSurfaces, surfaceId]);
   useEffect(() => { if (surfaceList.length) ensureZones.mutate(surfaceList.map((s) => s.id)); }, [surfaceList.map((s) => s.id).join(",")]);
   useEffect(() => { setZoneId(zones.find((z) => z.is_default)?.id ?? zones[0]?.id ?? null); }, [surfaceId, zones.map((z) => z.id).join(",")]);
   useEffect(() => { setTab("Specification"); }, [surfaceId]);
