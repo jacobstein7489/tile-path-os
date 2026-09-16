@@ -10,6 +10,14 @@ Replace the frontend composition of exactly these project screens:
 
 No database, permissions, readiness engine, work engine, question-rule schema, procurement, schedule, field-report, or production-record changes. Today, Work, Updates, Materials, Schedule, Field, Punch, Commissions, and Reports remain untouched.
 
+## Non-negotiable visual acceptance
+- This is a structural recomposition, not a component substitution or token restyle.
+- The finished screens must look materially different from the rejected implementation.
+- Do not preserve the existing card/grid JSX hierarchy and merely change spacing, borders, radii, shadows, or colors.
+- Overview must read as one calm operational document: one prominent Next Move followed by naturally separated Waiting, Latest Update, Setup Status, and Upcoming sections. No equal-box dashboard composition.
+- Rooms must read as one continuous three-pane workspace on desktop, not three cards placed in a grid.
+- Design Meeting must read as a focused decision workspace, not a form inside a card.
+
 ## Build
 
 ### Project shell
