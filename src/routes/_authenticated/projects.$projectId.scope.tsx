@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ChevronDown, ChevronRight, FileText, MoreHorizontal, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileText, MoreHorizontal, Pencil, Plus, SwatchBook } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Drawer, EmptyState, Field, Select, TextArea, TextInput } from "@/components/kit";
 import { CreateWorkItemModal, RequestMaterialModal } from "@/components/WorkItemDialogs";
@@ -9,7 +9,7 @@ import { useCanEditProject } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAreasWithSurfaces, useInsertRow, useUpdateRow, type Area, type SurfaceFull } from "@/lib/data";
-import { useAddZone, useCreateSelection, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection, type FinishZone } from "@/lib/finishes";
+import { useAddZone, useApplyFinishToSurfaces, useCreateSelection, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection } from "@/lib/finishes";
 import { useProjectSetup } from "@/lib/setup";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/scope")({
@@ -40,6 +40,8 @@ function ScopeAndDetails() {
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [tab, setTab] = useState<WorkspaceTab>("Specification");
   const [editOpen, setEditOpen] = useState(false);
+  const [editTab, setEditTab] = useState<WorkspaceTab>("Specification");
+  const [focusKey, setFocusKey] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [addArea, setAddArea] = useState(false);
@@ -47,6 +49,7 @@ function ScopeAndDetails() {
   const [addFinish, setAddFinish] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
+  const [multiFinishOpen, setMultiFinishOpen] = useState(false);
   const [desktop, setDesktop] = useState(false);
   const areaList = areas.data ?? [];
   const surfaceList = surfaces.data ?? [];
@@ -71,26 +74,27 @@ function ScopeAndDetails() {
   useEffect(() => { setZoneId(zones.find((z) => z.is_default)?.id ?? zones[0]?.id ?? null); }, [surfaceId, zones.map((z) => z.id).join(",")]);
   useEffect(() => { setTab("Specification"); }, [surfaceId]);
 
-  const readinessFor = (kind: "area" | "surface", id: string) => {
-    const rows = setup.requirements.filter((r) => kind === "area" ? r.area_id === id : r.surface_id === id);
-    const blocked = rows.filter((r) => r.state === "blocked").length;
-    return blocked ? `${blocked} missing` : rows.some((r) => r.state === "met") ? "Ready" : null;
+  const readinessForArea = (id: string) => {
+    const ids = new Set(surfaceList.filter((s) => s.area_id === id).map((s) => s.id));
+    const affected = new Set(setup.requirements.filter((r) => r.state === "blocked" && r.surface_id && ids.has(r.surface_id)).map((r) => r.surface_id));
+    return affected.size ? `${affected.size} surface${affected.size === 1 ? "" : "s"} need setup` : ids.size ? "Ready" : null;
   };
+  const openEditor = (nextTab: WorkspaceTab, key?: string) => { setEditTab(nextTab); setFocusKey(key ?? null); setEditOpen(true); };
 
   return <>
     <div className="min-h-[620px] border-x border-b border-border bg-card lg:grid lg:grid-cols-[230px_270px_minmax(0,1fr)]">
       <aside className={cn("min-w-0 border-r border-border", areaId && "hidden lg:block")}>
-        <PaneHeader title="Rooms" actions={<><Button size="sm" onClick={() => setPlanOpen(true)} disabled={!area}><FileText className="size-3.5" /> Plan</Button><IconButton label="Add room" onClick={() => setAddArea(true)}><Plus className="size-4" /></IconButton></>} />
+         <PaneHeader title="Rooms" actions={<><Button size="sm" onClick={() => setPlanOpen(true)}><FileText className="size-3.5" /> Plan</Button><IconButton label="Add room" onClick={() => setAddArea(true)}><Plus className="size-4" /></IconButton></>} />
         <div className="divide-y divide-border">
-          {areaList.map((item) => { const count = surfaceList.filter((s) => s.area_id === item.id).length; const status = readinessFor("area", item.id); return <button key={item.id} type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("flex min-h-16 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === areaId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === areaId && "text-primary")}>{item.name}</b><span className="text-xs text-muted-foreground">{count} surface{count === 1 ? "" : "s"}</span></span>{status ? <span className={cn("text-[11px] font-semibold", status === "Ready" ? "text-success" : "text-warning")}>{status}</span> : null}<ChevronRight className="size-4 text-muted-foreground lg:hidden" /></button>; })}
+           {areaList.map((item) => { const count = surfaceList.filter((s) => s.area_id === item.id).length; const status = readinessForArea(item.id); return <button key={item.id} type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("flex min-h-16 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === areaId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === areaId && "text-primary")}>{item.name}</b><span className={cn("text-xs", status === "Ready" ? "text-muted-foreground" : "text-warning")}>{status ?? `${count} surface${count === 1 ? "" : "s"}`}</span></span><ChevronRight className="size-4 text-muted-foreground lg:hidden" /></button>; })}
           {!areaList.length ? <EmptyState title="No rooms yet" note="Add the first room to begin setup." /> : null}
         </div>
       </aside>
 
       <aside className={cn("min-w-0 border-r border-border", !areaId && "hidden", surfaceId && "hidden lg:block")}>
-        <PaneHeader title={area?.name ?? "Surfaces"} back={<button type="button" onClick={() => setAreaId(null)} className="grid size-10 place-items-center text-primary lg:hidden" aria-label="Back to rooms"><ArrowLeft className="size-4" /></button>} actions={<IconButton label="Add surface" onClick={() => setAddSurface(true)}><Plus className="size-4" /></IconButton>} />
+         <PaneHeader title={area?.name ?? "Surfaces"} back={<button type="button" onClick={() => setAreaId(null)} className="grid size-10 place-items-center text-primary lg:hidden" aria-label="Back to rooms"><ArrowLeft className="size-4" /></button>} actions={<><IconButton label="Apply finish to surfaces" onClick={() => setMultiFinishOpen(true)}><SwatchBook className="size-4" /></IconButton><IconButton label="Add surface" onClick={() => setAddSurface(true)}><Plus className="size-4" /></IconButton></>} />
         <div className="divide-y divide-border">
-          {areaSurfaces.map((item) => { const ctx = setup.contexts.find((c) => c.surface.id === item.id && c.zone.is_default); const summary = ctx?.selection ? [ctx.selection.tile_tag || ctx.selection.label, ctx.selection.tile_size].filter(Boolean).join(" · ") : "Finish missing"; const missing = !ctx?.selection; return <button key={item.id} type="button" onClick={() => setSurfaceId(item.id)} className={cn("flex min-h-15 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === surfaceId && "text-primary")}>{item.name}</b><span className={cn("text-xs", missing ? "text-warning" : "text-muted-foreground")}>{summary}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button>; })}
+           {areaSurfaces.map((item) => { const ctx = setup.contexts.find((c) => c.surface.id === item.id && c.zone.is_default); const summary = ctx?.selection ? formatFinish(ctx.selection) : "Finish not mapped"; const missing = !ctx?.selection; return <button key={item.id} type="button" onClick={() => setSurfaceId(item.id)} className={cn("flex min-h-15 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === surfaceId && "text-primary")}>{item.name}</b><span className={cn("text-xs", missing ? "text-warning" : "text-muted-foreground")}>{summary}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button>; })}
           {area && !areaSurfaces.length ? <EmptyState title="No surfaces" note="Add the first surface in this room." /> : null}
         </div>
       </aside>
@@ -100,22 +104,23 @@ function ScopeAndDetails() {
           <header className="border-b border-border px-4 py-4 md:px-6">
             <button type="button" onClick={() => setSurfaceId(null)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> {area?.name}</button>
             <div className="flex items-start gap-4">
-              <div className="min-w-0 flex-1"><h2 className="text-[20px] font-semibold md:text-[22px]">{surface.name}</h2><p className="mt-1 text-[13px] text-secondary-foreground">{selection ? [selection.tile_tag || selection.label, selection.product, selection.tile_size].filter(Boolean).join(" · ") : "Finish specification not mapped"}</p><p className="mt-0.5 text-xs text-muted-foreground">{[assignment?.grout_color, assignment?.layout_direction, assignment?.layout_pattern].filter(Boolean).join(" · ") || "Installation choices not recorded"}</p></div>
-              <Button size="sm" variant="primary" onClick={() => setEditOpen(true)}><Pencil className="size-3.5" /> Edit</Button>
+               <div className="min-w-0 flex-1"><h2 className="text-[20px] font-semibold md:text-[22px]">{surface.name}</h2><p className="mt-1 text-[13px] text-secondary-foreground">{selection ? formatFinish(selection) : "Finish specification not mapped"}</p>{selection?.manufacturer ? <p className="mt-0.5 text-xs text-muted-foreground">{selection.manufacturer}</p> : null}</div>
+               <Button size="sm" variant="primary" onClick={() => openEditor(tab)}><Pencil className="size-3.5" /> Edit</Button>
               <div className="relative"><IconButton label="Surface actions" onClick={() => setMoreOpen((v) => !v)}><MoreHorizontal className="size-4" /></IconButton><Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="right" width="md:w-56" title="Surface actions"><PopoverItem onClick={() => { setMoreOpen(false); setIssueOpen(true); }}>Add issue</PopoverItem><PopoverItem onClick={() => { setMoreOpen(false); setMaterialOpen(true); }}>Request material</PopoverItem><PopoverItem onClick={() => { setMoreOpen(false); setAddFinish(true); }}>Add finish area</PopoverItem><PopoverItem tone="muted" onClick={() => { setMoreOpen(false); updateSurface.mutate({ id: surface.id, patch: { archived_at: new Date().toISOString() } }); }}>Archive surface</PopoverItem></Popover></div>
             </div>
             {zones.length > 1 ? <div className="mt-4 flex gap-1 overflow-x-auto">{zones.map((zone) => <button key={zone.id} type="button" onClick={() => setZoneId(zone.id)} className={cn("shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold", zone.id === selectedZone?.id ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted")}>{zone.is_default ? "Main field" : zone.name}</button>)}</div> : null}
           </header>
           <nav className="flex overflow-x-auto border-b border-border px-4 md:px-6">{TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 border-b-2 px-3 py-3 text-[12.5px] font-semibold", tab === item ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>{item}</button>)}</nav>
-          <div className="px-5 py-6 md:px-8 md:py-8"><SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} /></div>
+           <div className="px-5 py-6 md:px-8 md:py-8"><SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} onAdd={openEditor} /></div>
         </>}
       </section>
     </div>
 
     <NameDrawer open={addArea} title="Add room" placeholder="Master Bathroom" onClose={() => setAddArea(false)} onSave={async (name) => { const row = await insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as { id: string }; setAreaId(row.id); setSurfaceId(null); setAddArea(false); }} />
     <NameDrawer open={addSurface} title="Add surface" placeholder="Shower Wall A" onClose={() => setAddSurface(false)} onSave={async (name) => { if (!areaId) return; const row = await insertSurface.mutateAsync({ area_id: areaId, name, sort_order: areaSurfaces.length + 1 }) as { id: string }; setSurfaceId(row.id); setAddSurface(false); }} />
-    {area && planOpen ? <PlanDrawer projectId={projectId} area={area} files={setup.fileList} onClose={() => setPlanOpen(false)} /> : null}
-    {surface && assignment && editOpen ? <SurfaceEditDrawer projectId={projectId} surface={surface} assignment={assignment} selection={selection} selections={setup.selectionList} initialTab={tab} onClose={() => setEditOpen(false)} /> : null}
+     {planOpen ? <ProjectPlanDrawer projectId={projectId} areas={areaList} files={setup.fileList} initialAreaId={areaId} onCreateRoom={async (name) => insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as Promise<Area>} onClose={() => setPlanOpen(false)} /> : null}
+     {surface && assignment && editOpen ? <SurfaceEditDrawer projectId={projectId} surface={surface} assignment={assignment} selection={selection} selections={setup.selectionList} initialTab={editTab} focusKey={focusKey} onClose={() => setEditOpen(false)} /> : null}
+     {area && multiFinishOpen ? <MultiFinishDrawer projectId={projectId} roomName={area.name} surfaces={areaSurfaces} zones={setup.zoneList} selections={setup.selectionList} onClose={() => setMultiFinishOpen(false)} /> : null}
     {surface && addFinish ? <NameDrawer open title="Add finish area" placeholder="Accent band" onClose={() => setAddFinish(false)} onSave={async (name) => { const id = await addZone.mutateAsync({ surfaceId: surface.id, name, sortOrder: zones.length }); setZoneId(id); setAddFinish(false); }} /> : null}
     <CreateWorkItemModal open={issueOpen} onClose={() => setIssueOpen(false)} kind="Issue" projectId={projectId} areaId={areaId} surfaceId={surfaceId} />
     <RequestMaterialModal open={materialOpen} onClose={() => setMaterialOpen(false)} projectId={projectId} />
