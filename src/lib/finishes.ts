@@ -238,6 +238,31 @@ export function useSaveAssignment(projectId: string) {
   });
 }
 
+/** Apply one reusable project finish to several default surface zones at once. */
+export function useApplyFinishToSurfaces(projectId: string) {
+  const invalidate = useInvalidateFinishes(projectId);
+  return useMutation({
+    mutationFn: async ({ surfaceIds, finishSelectionId }: { surfaceIds: string[]; finishSelectionId: string }) => {
+      if (!surfaceIds.length) return;
+      const { data: zones, error: zoneError } = await supabase
+        .from("finish_zone")
+        .select("id,surface_id")
+        .eq("project_id", projectId)
+        .eq("is_default", true)
+        .in("surface_id", surfaceIds);
+      if (zoneError) throw zoneError;
+      const zoneIds = (zones ?? []).map((zone) => zone.id);
+      if (!zoneIds.length) throw new Error("These surfaces do not have finish areas yet");
+      const { error } = await supabase
+        .from("finish_assignment")
+        .update({ finish_selection_id: finishSelectionId })
+        .in("zone_id", zoneIds);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+}
+
 export function useSaveSelection(projectId: string) {
   const invalidate = useInvalidateFinishes(projectId);
   return useMutation({
