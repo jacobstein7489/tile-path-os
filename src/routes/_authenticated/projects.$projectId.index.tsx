@@ -55,7 +55,7 @@ function ProjectOverview() {
       <div className="grid lg:grid-cols-[minmax(0,3fr)_minmax(310px,2fr)]">
         <div className="divide-y divide-border lg:border-r lg:border-border">
           <section className="px-5 py-7 md:px-8">
-            <div className="flex items-center justify-between"><Eyebrow>Waiting on</Eyebrow><Link to="/projects/$projectId/tasks" params={{ projectId }} className="text-xs font-semibold text-primary">View all waiting</Link></div>
+             <div className="flex items-center justify-between"><Eyebrow>Waiting on</Eyebrow>{waiting.length ? <Link to="/projects/$projectId/tasks" params={{ projectId }} className="text-xs font-semibold text-primary">View all waiting</Link> : null}</div>
             <div className="mt-3 divide-y divide-border">
               {waiting.length ? waiting.map((item) => <button key={item.id} type="button" onClick={() => setActive(item)} className="group flex min-h-16 w-full items-center gap-4 text-left"><span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{item.title}</b><span className="mt-0.5 block text-xs text-muted-foreground">{item.waiting_on ?? "External confirmation"}{item.follow_up_on ? ` · Follow up ${formatDate(item.follow_up_on)}` : ""}</span></span><ChevronRight className="size-4 text-muted-foreground group-hover:text-primary" /></button>) : <p className="py-5 text-sm text-muted-foreground">Nothing is waiting on someone else.</p>}
             </div>
@@ -88,16 +88,25 @@ function ProjectOverview() {
 function deriveSetupMove(setup: ReturnType<typeof useProjectSetup>): NextMove | null {
   const blocked = setup.requirements.filter((r) => r.state === "blocked");
   const by = (category: string) => blocked.filter((r) => r.category === category);
-  if (by("Room / Surface setup").length) return { title: "Complete rooms and surfaces", detail: `${by("Room / Surface setup").length} setup item${by("Room / Surface setup").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/scope" };
-  if (by("Finish specification").length) return { title: "Finish project specifications", detail: `${by("Finish specification").length} finish item${by("Finish specification").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/scope" };
-  if (by("Design decisions").length) return { title: "Finish design decisions", detail: `${by("Design decisions").length} decision${by("Design decisions").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/design" };
+  if (by("Room / Surface setup").length) return { title: "Complete rooms and surfaces", detail: affectedSurfaceSummary(by("Room / Surface setup"), setup), to: "/projects/$projectId/scope" };
+  if (by("Finish specification").length) return { title: "Finish project specifications", detail: affectedSurfaceSummary(by("Finish specification"), setup), to: "/projects/$projectId/scope" };
+  if (by("Design decisions").length) return { title: "Finish design decisions", detail: affectedSurfaceSummary(by("Design decisions"), setup, "need decisions"), to: "/projects/$projectId/design" };
   if (by("Installer package").length) return { title: "Prepare installer package", detail: `${by("Installer package").length} room package${by("Installer package").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/package" };
   return null;
 }
 
 function setupRows(setup: ReturnType<typeof useProjectSetup>) {
   const labels: Record<string, string> = { "Room / Surface setup": "Rooms & surfaces", "Finish specification": "Finish mapping", "Design decisions": "Design decisions", "Installer package": "Installer package", "Material readiness": "Materials" };
-  return READINESS_CATEGORIES.slice(0, 5).map((category) => { const rows = setup.requirements.filter((r) => r.category === category); const blocked = rows.filter((r) => r.state === "blocked").length; const evaluated = rows.some((r) => r.state !== "not_evaluated"); return { category, label: labels[category] ?? category, value: !evaluated ? "Not evaluated" : blocked ? `${blocked} remaining` : "Ready", tone: !evaluated ? "neutral" : blocked ? "amber" : "green" }; });
+  return READINESS_CATEGORIES.slice(0, 5).map((category) => { const rows = setup.requirements.filter((r) => r.category === category); const blockedRows = rows.filter((r) => r.state === "blocked"); const evaluated = rows.some((r) => r.state !== "not_evaluated"); return { category, label: labels[category] ?? category, value: !evaluated ? "Not evaluated" : blockedRows.length ? affectedSurfaceSummary(blockedRows, setup) : "Ready", tone: !evaluated ? "neutral" : blockedRows.length ? "amber" : "green" }; });
+}
+
+function affectedSurfaceSummary(rows: ReadinessRequirement[], setup: ReturnType<typeof useProjectSetup>, suffix = "need setup") {
+  const surfaceIds = new Set(rows.map((row) => row.surface_id).filter(Boolean));
+  const areaIds = new Set(rows.map((row) => row.area_id).filter(Boolean));
+  if (surfaceIds.size) return `${surfaceIds.size} surface${surfaceIds.size === 1 ? "" : "s"} ${suffix}`;
+  if (areaIds.size) return `${areaIds.size} room${areaIds.size === 1 ? "" : "s"} ${suffix}`;
+  if (!setup.areaList.length) return "Add the first room";
+  return "Project setup needs attention";
 }
 
 function ReadinessDrawer({ open, onClose, requirements, areas, surfaces, selected, onSelect }: { open: boolean; onClose: () => void; requirements: ReadinessRequirement[]; areas: { id: string; name: string }[]; surfaces: { id: string; area_id: string; name: string }[]; selected: string | null; onSelect: (value: string | null) => void }) {

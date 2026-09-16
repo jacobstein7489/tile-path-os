@@ -18,7 +18,7 @@ import {
 import { Combobox } from "@/components/kit";
 import { cn } from "@/lib/utils";
 
-export function ProjectMoreMenu({ project }: { project: Project }) {
+export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onStatusUpdate }: { project: Project; compact?: boolean; onDailyUpdate?: () => void; onStatusUpdate?: () => void }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,6 +58,8 @@ export function ProjectMoreMenu({ project }: { project: Project }) {
   };
 
   const items: { label: string; run: () => void; danger?: boolean }[] = [
+    ...(onDailyUpdate ? [{ label: "Daily Update", run: () => { setOpen(false); onDailyUpdate(); } }] : []),
+    ...(onStatusUpdate ? [{ label: "Project Status Update", run: () => { setOpen(false); onStatusUpdate(); } }] : []),
     { label: "Edit project", run: () => (setOpen(false), setEdit(true)) },
     project.exception_state === "On Hold"
       ? { label: "Take off hold", run: () => setException(null, "Project resumed") }
@@ -126,8 +128,8 @@ export function ProjectMoreMenu({ project }: { project: Project }) {
 
   return (
     <div className="relative" ref={ref}>
-      <Button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
-        <MoreHorizontal className="size-4" /> More
+      <Button className={compact ? "size-9 px-0" : undefined} onClick={() => setOpen((o) => !o)} aria-label={compact ? "Project actions" : undefined} aria-haspopup="menu" aria-expanded={open}>
+        <MoreHorizontal className="size-4" /> {compact ? null : "More"}
       </Button>
       {open ? (
         <div
