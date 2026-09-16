@@ -4,6 +4,8 @@
 - Keep the accepted project shell, Overview, three-pane Rooms workspace, visual system, and all existing backend architecture.
 - Change only the project shell, Overview details, Rooms workflow, Design Meeting presentation/flow, and existing question-rule catalogue values.
 - No schema changes, procurement work, unrelated screen redesigns, or Sprint 2 work.
+- No new configuration surface. The seeded question-rule values are corrected in this pass, and every screen must work immediately on existing project data using sensible defaults where values are absent.
+- If a required experience genuinely cannot work within the existing architecture, report that exact limitation instead of adding a configuration system.
 
 ## Implementation
 1. Compact the mobile project header into identity/stage/actions, one metadata line, and fixed Overview/Rooms/Work/Files/More navigation. Keep Update in mobile overflow and keep the visible tab label “More.”
