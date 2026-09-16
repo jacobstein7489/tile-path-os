@@ -127,7 +127,7 @@ function ScopeAndDetails() {
   </>;
 }
 
-function SurfaceSection({ tab, surface, assignment, selection }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null }) {
+function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null; onAdd: (tab: WorkspaceTab, key?: string) => void }) {
   const groups: Record<WorkspaceTab, { label: string; value: ReactNode; missing?: boolean }[]> = {
     Specification: [
       { label: "Tile", value: selection ? <><b>{selection.label}</b><small>{[selection.manufacturer, selection.tile_size].filter(Boolean).join(" · ")}</small>{selection.tile_sku ? <small>SKU {selection.tile_sku}</small> : null}</> : "Missing", missing: !selection },
@@ -160,7 +160,8 @@ function SurfaceSection({ tab, surface, assignment, selection }: { tab: Workspac
       { label: "Installer notes", value: assignment?.notes || "No published installer notes" },
     ],
   };
-  return <div className="max-w-3xl divide-y divide-border">{groups[tab].map((row) => <div key={row.label} className="grid gap-1 py-4 sm:grid-cols-[150px_minmax(0,1fr)]"><dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt><dd className={cn("text-[13.5px] leading-6", row.missing && "font-semibold text-warning")}>{row.value}{row.missing ? <button type="button" className="ml-2 text-xs font-semibold text-primary">Add <ChevronRight className="inline size-3" /></button> : null}</dd></div>)}</div>;
+  const focusFor: Record<string, string> = { Tile: "finish_selection_id", Grout: "grout_color", Edge: "edge_treatment", "Finish height": "tile_height", Pattern: "layout_pattern", Direction: "layout_direction", Start: "start_point", Alignment: "coverage", Termination: "finish_transition", "Plan dimensions": "plan_sf", "Field dimensions": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
+  return <div className="max-w-3xl divide-y divide-border">{groups[tab].map((row) => <div key={row.label} className="grid gap-1 py-4 sm:grid-cols-[150px_minmax(0,1fr)]"><dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt><dd className={cn("text-[13.5px] leading-6", row.missing && "font-semibold text-warning")}>{row.value}{row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-xs font-semibold text-primary">Add <ChevronRight className="inline size-3" /></button> : null}</dd></div>)}</div>;
 }
 
 const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "surface" | "assignment" | "selection"; type?: "number" | "textarea" }[]> = {
@@ -181,35 +182,85 @@ const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "s
   ],
 };
 
-function SurfaceEditDrawer({ projectId, surface, assignment, selection, selections, initialTab, onClose }: { projectId: string; surface: SurfaceFull; assignment: FinishAssignment; selection: FinishSelection | null; selections: FinishSelection[]; initialTab: WorkspaceTab; onClose: () => void }) {
+function SurfaceEditDrawer({ projectId, surface, assignment, selection, selections, initialTab, focusKey, onClose }: { projectId: string; surface: SurfaceFull; assignment: FinishAssignment; selection: FinishSelection | null; selections: FinishSelection[]; initialTab: WorkspaceTab; focusKey: string | null; onClose: () => void }) {
   const [tab, setTab] = useState(initialTab);
   const updateSurface = useUpdateRow("project_surfaces");
   const saveAssignment = useSaveAssignment(projectId);
   const saveSelection = useSaveSelection(projectId);
-  const createSelection = useCreateSelection(projectId);
-  const [newTile, setNewTile] = useState("");
-  const save = (entity: string, key: string, raw: string) => { const value = raw.trim() || null; if (entity === "surface") updateSurface.mutate({ id: surface.id, patch: { [key]: key === "plan_sf" || key === "field_sf" ? (raw ? Number(raw) : null) : value } }); else if (entity === "assignment") saveAssignment.mutate({ id: assignment.id, patch: { [key]: value } }); else if (selection) saveSelection.mutate({ id: selection.id, patch: { [key]: value } }); };
-  return <Drawer open onClose={onClose} title={`Edit ${surface.name}`} subtitle="Edit one category at a time" width="max-w-[620px]">
+  const initialValues = () => {
+    const next: Record<string, string> = {};
+    Object.values(EDIT_FIELDS).flat().forEach((field) => {
+      const record = field.entity === "surface" ? surface : field.entity === "assignment" ? assignment : selection;
+      next[`${field.entity}.${field.key}`] = String(record ? (record as unknown as Record<string, unknown>)[field.key] ?? "" : "");
+    });
+    next["assignment.finish_selection_id"] = assignment.finish_selection_id ?? "";
+    return next;
+  };
+  const [values, setValues] = useState<Record<string, string>>(initialValues);
+  const pending = updateSurface.isPending || saveAssignment.isPending || saveSelection.isPending;
+  const commit = async () => {
+    const surfacePatch: Record<string, string | number | null> = {};
+    const assignmentPatch: Record<string, string | null> = {};
+    const selectionPatch: Record<string, string | null> = {};
+    Object.entries(values).forEach(([compound, raw]) => {
+      const [entity, key] = compound.split(".");
+      if (!entity || !key) return;
+      const value = raw.trim() || null;
+      if (entity === "surface") surfacePatch[key] = key === "plan_sf" || key === "field_sf" ? (raw ? Number(raw) : null) : value;
+      if (entity === "assignment") assignmentPatch[key] = value;
+      if (entity === "selection" && selection) selectionPatch[key] = value;
+    });
+    await Promise.all([
+      updateSurface.mutateAsync({ id: surface.id, patch: surfacePatch }),
+      saveAssignment.mutateAsync({ id: assignment.id, patch: assignmentPatch }),
+      selection && Object.keys(selectionPatch).length ? saveSelection.mutateAsync({ id: selection.id, patch: selectionPatch }) : Promise.resolve(),
+    ]);
+    toast.success("Surface changes saved");
+    onClose();
+  };
+  return <Drawer open onClose={onClose} title={`Edit ${surface.name}`} subtitle="Changes save together when you are ready" width="max-w-[620px]" footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={pending} onClick={commit}>Save Changes</Button></>}>
     <div className="mb-5 flex overflow-x-auto border-b border-border">{TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 border-b-2 px-3 py-2.5 text-xs font-semibold", tab === item ? "border-primary text-primary" : "border-transparent text-muted-foreground")}>{item}</button>)}</div>
     <div className="space-y-4">
       {EDIT_FIELDS[tab].map((field, index) => {
-        if (field.key === "finish_selection_id") return <div key={field.key} className="space-y-2"><Field label="Tile selection"><Select value={assignment.finish_selection_id ?? ""} onChange={(e) => saveAssignment.mutate({ id: assignment.id, patch: { finish_selection_id: e.target.value || null } })}><option value="">Not selected</option>{selections.map((s) => <option key={s.id} value={s.id}>{[s.label, s.tile_size, s.manufacturer].filter(Boolean).join(" · ")}</option>)}</Select></Field><div className="flex gap-2"><TextInput value={newTile} onChange={(e) => setNewTile(e.target.value)} placeholder="Add a tile to this job" /><Button disabled={!newTile.trim()} onClick={async () => { const id = await createSelection.mutateAsync({ label: newTile.trim() }); saveAssignment.mutate({ id: assignment.id, patch: { finish_selection_id: id } }); setNewTile(""); }}>Add</Button></div></div>;
-        const record = field.entity === "surface" ? surface : field.entity === "assignment" ? assignment : selection;
-        const current = record ? (record as unknown as Record<string, unknown>)[field.key] : null;
+        const compound = `${field.entity}.${field.key}`;
+        if (field.key === "finish_selection_id") return <Field key={field.key} label="Tile selection"><Select autoFocus={focusKey === field.key} value={values[compound] ?? ""} onChange={(e) => setValues((old) => ({ ...old, [compound]: e.target.value }))}><option value="">Not selected</option>{selections.map((s) => <option key={s.id} value={s.id}>{formatFinish(s)}</option>)}</Select></Field>;
         const key = `${field.entity}-${field.key}-${index}`;
-        return <Field key={key} label={field.label}>{field.type === "textarea" ? <TextArea defaultValue={String(current ?? "")} onBlur={(e) => save(field.entity, field.key, e.target.value)} /> : <TextInput type={field.type === "number" ? "number" : "text"} defaultValue={String(current ?? "")} disabled={field.entity === "selection" && !selection} onBlur={(e) => save(field.entity, field.key, e.target.value)} />}</Field>;
+        return <Field key={key} label={field.label}>{field.type === "textarea" ? <TextArea autoFocus={focusKey === field.key} value={values[compound] ?? ""} onChange={(e) => setValues((old) => ({ ...old, [compound]: e.target.value }))} /> : <TextInput autoFocus={focusKey === field.key} type={field.type === "number" ? "number" : "text"} value={values[compound] ?? ""} disabled={field.entity === "selection" && !selection} onChange={(e) => setValues((old) => ({ ...old, [compound]: e.target.value }))} />}</Field>;
       })}
     </div>
   </Drawer>;
 }
 
-function PlanDrawer({ projectId, area, files, onClose }: { projectId: string; area: Area & { plan_file_id?: string | null; plan_page?: number | null; plan_location?: unknown }; files: { id: string; filename: string; storage_path: string }[]; onClose: () => void }) {
+function ProjectPlanDrawer({ projectId, areas, files, initialAreaId, onCreateRoom, onClose }: { projectId: string; areas: (Area & { plan_file_id?: string | null; plan_page?: number | null; plan_location?: unknown })[]; files: { id: string; filename: string; storage_path: string }[]; initialAreaId: string | null; onCreateRoom: (name: string) => Promise<Area>; onClose: () => void }) {
   const updateArea = useUpdateRow("project_areas");
-  const file = files.find((f) => f.id === area.plan_file_id);
-  const location = area.plan_location as { note?: string } | null;
-  return <Drawer open onClose={onClose} title={`${area.name} plan reference`} subtitle="Link this room to its place in the project plans">
-    <div className="space-y-4"><Field label="Plan or scope file"><Select defaultValue={area.plan_file_id ?? ""} onChange={(e) => updateArea.mutate({ id: area.id, patch: { plan_file_id: e.target.value || null } })}><option value="">Not linked</option>{files.map((f) => <option key={f.id} value={f.id}>{f.filename}</option>)}</Select></Field><Field label="Page"><TextInput type="number" defaultValue={area.plan_page ?? ""} onBlur={(e) => updateArea.mutate({ id: area.id, patch: { plan_page: e.target.value ? Number(e.target.value) : null } })} /></Field><Field label="Location note"><TextInput defaultValue={location?.note ?? ""} placeholder="Second floor, rear left" onBlur={(e) => updateArea.mutate({ id: area.id, patch: { plan_location: e.target.value ? { note: e.target.value } : null } })} /></Field>{file ? <Button onClick={async () => { const { data, error } = await supabase.storage.from("project-files").createSignedUrl(file.storage_path, 300); if (error || !data) toast.error("Could not open that plan"); else window.open(data.signedUrl, "_blank", "noopener"); }}><FileText className="size-4" /> Open {file.filename}</Button> : null}</div>
+  const [fileId, setFileId] = useState("");
+  const [page, setPage] = useState("");
+  const [location, setLocation] = useState("");
+  const [roomId, setRoomId] = useState(initialAreaId ?? "");
+  const [newRoom, setNewRoom] = useState("");
+  const file = files.find((f) => f.id === fileId);
+  const save = async () => { let targetId = roomId; if (!targetId && newRoom.trim()) targetId = (await onCreateRoom(newRoom.trim())).id; if (!targetId) { toast.error("Choose or create a room"); return; } await updateArea.mutateAsync({ id: targetId, patch: { plan_file_id: fileId || null, plan_page: page ? Number(page) : null, plan_location: location.trim() ? { note: location.trim() } : null } }); toast.success("Plan linked to room"); onClose(); };
+  return <Drawer open onClose={onClose} title="Open Plan" subtitle="Start from a project file, then link its location to a room" footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!fileId || (!roomId && !newRoom.trim())} loading={updateArea.isPending} onClick={save}>Link plan</Button></>}>
+    <div className="space-y-4"><Field label="Attached project plan or file"><Select value={fileId} onChange={(e) => setFileId(e.target.value)}><option value="">Choose a file…</option>{files.map((f) => <option key={f.id} value={f.id}>{f.filename}</option>)}</Select></Field>{file ? <Button onClick={async () => { const { data, error } = await supabase.storage.from("project-files").createSignedUrl(file.storage_path, 300); if (error || !data) toast.error("Could not open that plan"); else window.open(data.signedUrl, "_blank", "noopener"); }}><FileText className="size-4" /> Open {file.filename}</Button> : null}<div className="grid grid-cols-[100px_minmax(0,1fr)] gap-3"><Field label="Page"><TextInput type="number" value={page} onChange={(e) => setPage(e.target.value)} /></Field><Field label="Pin or rough location"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Second floor, rear left" /></Field></div><div className="border-t border-border pt-4"><Field label="Link an existing room"><Select value={roomId} onChange={(e) => { setRoomId(e.target.value); if (e.target.value) setNewRoom(""); }}><option value="">Choose a room…</option>{areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field><div className="my-3 text-center text-[11px] font-semibold text-muted-foreground">OR CREATE A ROOM</div><Field label="New room name"><TextInput value={newRoom} disabled={Boolean(roomId)} onChange={(e) => setNewRoom(e.target.value)} placeholder="Master Bathroom" /></Field></div>{!files.length ? <p className="text-xs text-muted-foreground">Upload the plan on the Files tab first.</p> : null}</div>
   </Drawer>;
+}
+
+function MultiFinishDrawer({ projectId, roomName, surfaces, zones, selections, onClose }: { projectId: string; roomName: string; surfaces: SurfaceFull[]; zones: { id: string; surface_id: string; is_default: boolean }[]; selections: FinishSelection[]; onClose: () => void }) {
+  const apply = useApplyFinishToSurfaces(projectId);
+  const [selectionId, setSelectionId] = useState("");
+  const [surfaceIds, setSurfaceIds] = useState<string[]>([]);
+  const toggle = (id: string) => setSurfaceIds((old) => old.includes(id) ? old.filter((value) => value !== id) : [...old, id]);
+  return <Drawer open onClose={onClose} title="Apply finish to surfaces" subtitle={roomName} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!selectionId || !surfaceIds.length} loading={apply.isPending} onClick={async () => { await apply.mutateAsync({ surfaceIds, finishSelectionId: selectionId }); toast.success(`Finish applied to ${surfaceIds.length} surfaces`); onClose(); }}>Apply</Button></>}>
+    <div className="space-y-5"><Field label="Existing project finish"><Select value={selectionId} onChange={(e) => setSelectionId(e.target.value)}><option value="">Choose a finish…</option>{selections.map((item) => <option key={item.id} value={item.id}>{formatFinish(item)}</option>)}</Select></Field><fieldset><legend className="mb-2 text-xs font-semibold text-muted-foreground">Surfaces</legend><div className="divide-y divide-border border-y border-border">{surfaces.map((item) => { const available = zones.some((zone) => zone.surface_id === item.id && zone.is_default); return <label key={item.id} className={cn("flex min-h-12 cursor-pointer items-center gap-3 py-2 text-sm font-medium", !available && "opacity-50")}><input type="checkbox" checked={surfaceIds.includes(item.id)} disabled={!available} onChange={() => toggle(item.id)} className="size-4 accent-primary" />{item.name}</label>; })}</div></fieldset></div>
+  </Drawer>;
+}
+
+function formatFinish(selection: FinishSelection) {
+  const tag = selection.tile_tag?.trim() || selection.label.trim();
+  const product = selection.product?.trim();
+  const size = selection.tile_size?.trim();
+  const detail = [product && product.toLowerCase() !== "tbd" ? product : null, size].filter(Boolean).join(" · ");
+  return detail ? `${tag} · ${detail}` : tag;
 }
 
 function NameDrawer({ open, title, placeholder, onClose, onSave }: { open: boolean; title: string; placeholder: string; onClose: () => void; onSave: (name: string) => void | Promise<void> }) { const [name, setName] = useState(""); return <Drawer open={open} onClose={onClose} title={title} footer={<Button variant="primary" disabled={!name.trim()} onClick={() => onSave(name.trim())}>Save</Button>}><Field label="Name"><TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder} /></Field></Drawer>; }
