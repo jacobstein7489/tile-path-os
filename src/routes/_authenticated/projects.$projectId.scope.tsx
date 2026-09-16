@@ -9,7 +9,7 @@ import { useCanEditProject } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAreasWithSurfaces, useInsertRow, useUpdateRow, type Area, type SurfaceFull } from "@/lib/data";
-import { useAddZone, useApplyFinishToSurfaces, useCreateSelection, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection } from "@/lib/finishes";
+import { useAddZone, useApplyFinishToSurfaces, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection } from "@/lib/finishes";
 import { useProjectSetup } from "@/lib/setup";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/scope")({
@@ -166,7 +166,7 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
 
 const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "surface" | "assignment" | "selection"; type?: "number" | "textarea" }[]> = {
   Specification: [
-    { key: "finish_selection_id", label: "Tile selection", entity: "assignment" }, { key: "grout_manufacturer", label: "Grout manufacturer", entity: "assignment" }, { key: "grout_color", label: "Grout color", entity: "assignment" }, { key: "joint_size", label: "Joint size", entity: "assignment" }, { key: "edge_treatment", label: "Edge treatment", entity: "assignment" }, { key: "metal_profile", label: "Metal / profile", entity: "assignment" }, { key: "tile_height", label: "Finish height", entity: "assignment" },
+    { key: "finish_selection_id", label: "Tile selection", entity: "assignment" }, { key: "product", label: "Product identification", entity: "selection" }, { key: "tile_sku", label: "SKU / item number", entity: "selection" }, { key: "manufacturer", label: "Manufacturer", entity: "selection" }, { key: "supplier", label: "Supplier", entity: "selection" }, { key: "tile_size", label: "Nominal size", entity: "selection" }, { key: "tile_finish", label: "Finish", entity: "selection" }, { key: "supplied_by", label: "Supplied by", entity: "selection" }, { key: "grout_manufacturer", label: "Grout manufacturer", entity: "assignment" }, { key: "grout_color", label: "Grout color", entity: "assignment" }, { key: "joint_size", label: "Joint size", entity: "assignment" }, { key: "edge_treatment", label: "Edge treatment", entity: "assignment" }, { key: "metal_profile", label: "Metal / profile", entity: "assignment" }, { key: "tile_height", label: "Finish height", entity: "assignment" }, { key: "notes", label: "Paperwork / specification notes", entity: "selection", type: "textarea" },
   ],
   Layout: [
     { key: "layout_pattern", label: "Pattern", entity: "assignment" }, { key: "layout_direction", label: "Direction", entity: "assignment" }, { key: "start_point", label: "Start / alignment", entity: "assignment" }, { key: "coverage", label: "Feature alignment", entity: "assignment" }, { key: "finish_transition", label: "Termination / transition", entity: "assignment" },
@@ -231,7 +231,7 @@ function SurfaceEditDrawer({ projectId, surface, assignment, selection, selectio
   </Drawer>;
 }
 
-function ProjectPlanDrawer({ projectId, areas, files, initialAreaId, onCreateRoom, onClose }: { projectId: string; areas: (Area & { plan_file_id?: string | null; plan_page?: number | null; plan_location?: unknown })[]; files: { id: string; filename: string; storage_path: string }[]; initialAreaId: string | null; onCreateRoom: (name: string) => Promise<Area>; onClose: () => void }) {
+function ProjectPlanDrawer({ areas, files, initialAreaId, onCreateRoom, onClose }: { projectId: string; areas: (Area & { plan_file_id?: string | null; plan_page?: number | null; plan_location?: unknown })[]; files: { id: string; filename: string; storage_path: string }[]; initialAreaId: string | null; onCreateRoom: (name: string) => Promise<Area>; onClose: () => void }) {
   const updateArea = useUpdateRow("project_areas");
   const [fileId, setFileId] = useState("");
   const [page, setPage] = useState("");
