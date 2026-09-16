@@ -1,15 +1,13 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Check, ChevronDown, ClipboardCheck, Layers3, PackageCheck, TriangleAlert } from "lucide-react";
-import { Button, EmptyState, SectionCard } from "@/components/kit";
-import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, ClipboardCheck } from "lucide-react";
+import { Drawer } from "@/components/kit";
 import { WorkItemDrawer } from "@/components/WorkItemDrawer";
-import { useProject } from "@/lib/data";
+import { useProject, useScheduleAssignments } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
 import { useProjectSetup } from "@/lib/setup";
+import { READINESS_CATEGORIES, type ReadinessRequirement } from "@/lib/readiness";
 import { compareWorkItems, isComplete, isWaiting, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
-import { useScheduleAssignments } from "@/lib/data";
-import { READINESS_CATEGORIES } from "@/lib/readiness";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
@@ -19,9 +17,10 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
     { property: "og:title", content: "Project Overview — Cobblestone Tile OS" },
     { property: "og:description", content: "The next move, blockers, upcoming work and readiness." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
-  ]}),
-  component: ProjectOverview,
+  ]}), component: ProjectOverview,
 });
+
+type NextMove = { title: string; detail: string; to?: "/projects/$projectId/scope" | "/projects/$projectId/design" | "/projects/$projectId/package"; work?: WorkItemRow };
 
 function ProjectOverview() {
   const { projectId } = Route.useParams();
@@ -31,55 +30,81 @@ function ProjectOverview() {
   const { data: schedule = [] } = useScheduleAssignments();
   const setup = useProjectSetup(projectId);
   const [active, setActive] = useState<WorkItemRow | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
   const [readinessOpen, setReadinessOpen] = useState(false);
+  const [readinessCategory, setReadinessCategory] = useState<string | null>(null);
   const work = useMemo(() => feed.filter((i) => i.project_id === projectId && !isComplete(i)).sort(compareWorkItems), [feed, projectId]);
   if (!project) return null;
-  const next = work[0] ?? null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = schedule.filter((s) => s.project_id === projectId && s.work_date >= today).sort((a,b) => a.work_date.localeCompare(b.work_date));
   const waiting = work.filter(isWaiting).slice(0, 3);
-  const upcoming = schedule.filter((s) => s.project_id === projectId && s.work_date >= new Date().toISOString().slice(0,10)).sort((a,b) => a.work_date.localeCompare(b.work_date)).slice(0,3);
   const latest = reports[0] ?? null;
+  const setupMove = deriveSetupMove(setup);
+  const urgent = work.find((i) => (i.due_date && i.due_date < today) || i.priority === "High");
+  const followup = work.find((i) => i.follow_up_on && i.follow_up_on <= today);
+  const next: NextMove = setupMove ?? (urgent ? { title: urgent.title, detail: urgent.due_date && urgent.due_date < today ? `Overdue · ${formatDate(urgent.due_date)}` : "High priority", work: urgent } : followup ? { title: followup.title, detail: `Follow up ${formatDate(followup.follow_up_on)}`, work: followup } : upcoming[0] ? { title: upcoming[0].kind, detail: formatDate(upcoming[0].work_date) } : { title: "Review open project work", detail: `${work.length} open item${work.length === 1 ? "" : "s"}` });
   const live = active ? feed.find((i) => i.id === active.id) ?? active : null;
+
   return <>
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,.85fr)]">
-      <div className="space-y-4">
-        <section className="surface overflow-hidden">
-          <div className="border-b border-border px-5 py-3 text-[11px] font-bold uppercase text-muted-foreground">Next move</div>
-          {next ? <button type="button" onClick={() => setActive(next)} className="group flex w-full items-start gap-4 px-5 py-5 text-left hover:bg-muted/40">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary"><ArrowRight className="size-4" /></span>
-            <span className="min-w-0 flex-1"><b className="block text-[18px] leading-snug">{next.title}</b><span className="mt-1 block text-[13px] text-muted-foreground">{[next.owner ?? "Unassigned", next.due_date ? formatDate(next.due_date) : null, work.length > 1 ? `${work.length - 1} more open` : null].filter(Boolean).join(" · ")}</span></span>
-            <ArrowRight className="mt-2 size-4 text-muted-foreground group-hover:text-primary" />
-          </button> : <EmptyState title="No open work" note="This project has no recorded next action." />}
-        </section>
+    <div className="border-x border-b border-border bg-card">
+      <section className="border-b border-border px-5 py-7 md:px-8 md:py-9">
+        <Eyebrow>Next move</Eyebrow>
+        {next.work ? <button type="button" onClick={() => setActive(next.work ?? null)} className="group mt-3 flex w-full items-center gap-5 text-left"><span className="min-w-0 flex-1"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></span><span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></span></button> : next.to ? <Link to={next.to} params={{ projectId }} className="group mt-3 flex items-center gap-5"><span className="min-w-0 flex-1"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></span><span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Continue setup <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></span></Link> : <div className="mt-3"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></div>}
+      </section>
 
-        <SectionCard title="Waiting" badge={<span className="text-xs font-semibold text-muted-foreground">{waiting.length ? `${waiting.length} shown` : "Clear"}</span>}>
-          {waiting.length ? <div className="divide-y divide-border">{waiting.map((item) => <button key={item.id} onClick={() => setActive(item)} className="flex min-h-14 w-full items-center gap-3 px-5 text-left hover:bg-muted/40"><TriangleAlert className="size-4 shrink-0 text-warning" /><span className="min-w-0 flex-1"><b className="block truncate text-[13.5px]">{item.title}</b><span className="text-xs text-muted-foreground">Waiting on {item.waiting_on ?? "an external response"}</span></span><ArrowRight className="size-4 text-muted-foreground" /></button>)}</div> : <p className="px-5 pb-4 text-[13px] text-muted-foreground">Nothing is waiting on someone else.</p>}
-        </SectionCard>
-
-        <SectionCard title="Readiness" subtitle="Requirements are derived from project records, not a manual score." actions={<Button size="sm" onClick={() => setReadinessOpen((v) => !v)}>{readinessOpen ? "Hide detail" : "View detail"}<ChevronDown className={cn("size-4", readinessOpen && "rotate-180")} /></Button>}>
-          <div className="grid gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-3">{READINESS_CATEGORIES.map((category) => { const rows = setup.requirements.filter((r) => r.category === category); const blocked = rows.filter((r) => r.state === "blocked").length; const evaluated = rows.some((r) => r.state !== "not_evaluated"); return <div key={category} className="bg-card px-4 py-3"><div className="flex items-center gap-2"><span className={cn("grid size-5 place-items-center rounded-full", blocked ? "bg-warning-soft text-warning" : evaluated ? "bg-success-soft text-success" : "bg-muted text-muted-foreground")}>{blocked ? "!" : evaluated ? <Check className="size-3" /> : "—"}</span><b className="text-[12.5px]">{category}</b></div><p className="mt-1 pl-7 text-xs text-muted-foreground">{!evaluated ? "Not evaluated" : blocked ? `${blocked} blocker${blocked === 1 ? "" : "s"}` : "Ready"}</p></div>; })}</div>
-          {readinessOpen ? <div className="divide-y divide-border border-t border-border">{setup.requirements.map((r) => <div key={r.id} className="flex gap-3 px-5 py-3"><span className={cn("mt-0.5 size-2 shrink-0 rounded-full", r.state === "blocked" ? "bg-warning" : r.state === "met" ? "bg-success" : "bg-border-strong")} /><span><b className="block text-[13px]">{r.label}</b>{r.detail ? <span className="text-xs text-muted-foreground">{r.detail}</span> : null}</span></div>)}</div> : null}
-        </SectionCard>
-      </div>
-
-      <div className="space-y-4">
-        <SectionCard title="Upcoming" icon={<CalendarDays className="size-4 text-primary" />}>
-          {upcoming.length ? <div className="divide-y divide-border">{upcoming.map((s) => <div key={s.id} className="px-5 py-3"><b className="block text-[13px]">{formatDate(s.work_date)}</b><span className="text-xs text-muted-foreground">{s.kind}{s.notes ? ` · ${s.notes}` : ""}</span></div>)}</div> : <p className="px-5 pb-4 text-[13px] text-muted-foreground">Nothing scheduled next.</p>}
-        </SectionCard>
-        <SectionCard title="Latest Daily Update" icon={<ClipboardCheck className="size-4 text-primary" />} actions={<Button size="sm" onClick={() => setReportOpen(true)}>Add</Button>}>
-          {latest ? <div className="px-5 pb-4"><p className="text-[13.5px] leading-relaxed">{latest.progress_note ?? "Update submitted without a progress note."}</p><p className="mt-2 text-xs text-muted-foreground">{[formatDate(latest.report_date), latest.crew_label, latest.areas_worked].filter(Boolean).join(" · ")}</p>{latest.blockers ? <p className="mt-2 text-xs text-warning">Blocker · {latest.blockers}</p> : null}</div> : <p className="px-5 pb-4 text-[13px] text-muted-foreground">No Daily Update has been submitted.</p>}
-        </SectionCard>
-        <nav className="surface divide-y divide-border overflow-hidden">
-          <QuickLink to="/projects/$projectId/scope" projectId={projectId} icon={<Layers3 className="size-4" />} label="Rooms & surfaces" meta={`${setup.areaList.length} rooms · ${setup.surfaceList.length} surfaces`} />
-          <QuickLink to="/projects/$projectId/design" projectId={projectId} icon={<TriangleAlert className="size-4" />} label="Design Meeting" meta={`${setup.openQuestions.length} decisions open`} />
-          <QuickLink to="/projects/$projectId/package" projectId={projectId} icon={<PackageCheck className="size-4" />} label="Installer Package" meta={`${setup.publishedPackageAreaIds.length} of ${setup.areaList.length} rooms published`} />
-        </nav>
+      <div className="grid lg:grid-cols-[minmax(0,3fr)_minmax(310px,2fr)]">
+        <div className="divide-y divide-border lg:border-r lg:border-border">
+          <section className="px-5 py-7 md:px-8">
+            <div className="flex items-center justify-between"><Eyebrow>Waiting on</Eyebrow><Link to="/projects/$projectId/tasks" params={{ projectId }} className="text-xs font-semibold text-primary">View all waiting</Link></div>
+            <div className="mt-3 divide-y divide-border">
+              {waiting.length ? waiting.map((item) => <button key={item.id} type="button" onClick={() => setActive(item)} className="group flex min-h-16 w-full items-center gap-4 text-left"><span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{item.title}</b><span className="mt-0.5 block text-xs text-muted-foreground">{item.waiting_on ?? "External confirmation"}{item.follow_up_on ? ` · Follow up ${formatDate(item.follow_up_on)}` : ""}</span></span><ChevronRight className="size-4 text-muted-foreground group-hover:text-primary" /></button>) : <p className="py-5 text-sm text-muted-foreground">Nothing is waiting on someone else.</p>}
+            </div>
+          </section>
+          <section className="px-5 py-7 md:px-8">
+            <div className="flex items-center justify-between"><Eyebrow>Latest update</Eyebrow><Link to="/projects/$projectId/updates" params={{ projectId }} className="text-xs font-semibold text-primary">View updates</Link></div>
+            {latest ? <div className="mt-4"><div className="flex items-center gap-2 text-xs font-semibold text-secondary-foreground"><ClipboardCheck className="size-4 text-primary" />{formatDate(latest.report_date)}{latest.crew_label ? ` · ${latest.crew_label}` : ""}</div><p className="mt-3 max-w-2xl whitespace-pre-line text-[14px] leading-7">{latest.progress_note ?? "Update submitted without a progress note."}</p>{latest.blockers ? <p className="mt-3 text-sm text-warning">Waiting · {latest.blockers}</p> : null}</div> : <p className="mt-4 text-sm text-muted-foreground">No Daily Update has been submitted.</p>}
+          </section>
+        </div>
+        <div className="divide-y divide-border">
+          <section className="px-5 py-7 md:px-7">
+            <div className="flex items-center justify-between"><Eyebrow>Setup status</Eyebrow><button type="button" onClick={() => { setReadinessCategory(null); setReadinessOpen(true); }} className="text-xs font-semibold text-primary">View detail</button></div>
+            <div className="mt-3 divide-y divide-border">
+              {setupRows(setup).map((row) => <button key={row.label} type="button" onClick={() => { setReadinessCategory(row.category); setReadinessOpen(true); }} className="flex min-h-12 w-full items-center justify-between gap-3 text-left"><span className="text-[13.5px] font-medium">{row.label}</span><span className={cn("text-xs font-semibold", row.tone === "green" ? "text-success" : row.tone === "amber" ? "text-warning" : "text-muted-foreground")}>{row.value}</span></button>)}
+            </div>
+            <Link to="/projects/$projectId/scope" params={{ projectId }} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">Continue setup <ArrowRight className="size-4" /></Link>
+          </section>
+          <section className="px-5 py-7 md:px-7">
+            <Eyebrow>Upcoming</Eyebrow>
+            {upcoming[0] ? <div className="mt-4 flex gap-3"><CalendarDays className="mt-0.5 size-4 text-primary" /><div><b className="block text-[13.5px]">{formatDate(upcoming[0].work_date)}</b><span className="text-xs text-muted-foreground">{upcoming[0].kind}{upcoming[0].notes ? ` · ${upcoming[0].notes}` : ""}</span></div></div> : <p className="mt-4 text-sm text-muted-foreground">Nothing scheduled.</p>}
+          </section>
+        </div>
       </div>
     </div>
     <WorkItemDrawer item={live} onClose={() => setActive(null)} />
-    {reportOpen ? <FieldReportSheet projectId={projectId} projectName={project.name} onClose={() => setReportOpen(false)} /> : null}
+    <ReadinessDrawer open={readinessOpen} onClose={() => setReadinessOpen(false)} requirements={setup.requirements} areas={setup.areaList} surfaces={setup.surfaceList} selected={readinessCategory} onSelect={setReadinessCategory} />
   </>;
 }
 
-function QuickLink({ to, projectId, icon, label, meta }: { to: "/projects/$projectId/scope" | "/projects/$projectId/design" | "/projects/$projectId/package"; projectId: string; icon: React.ReactNode; label: string; meta: string }) { return <Link to={to} params={{ projectId }} className="flex min-h-14 items-center gap-3 px-4 hover:bg-muted/40"><span className="text-primary">{icon}</span><span className="min-w-0 flex-1"><b className="block text-[13px]">{label}</b><span className="block truncate text-xs text-muted-foreground">{meta}</span></span><ArrowRight className="size-4 text-muted-foreground" /></Link>; }
-function formatDate(value: string) { return new Date(value + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+function deriveSetupMove(setup: ReturnType<typeof useProjectSetup>): NextMove | null {
+  const blocked = setup.requirements.filter((r) => r.state === "blocked");
+  const by = (category: string) => blocked.filter((r) => r.category === category);
+  if (by("Room / Surface setup").length) return { title: "Complete rooms and surfaces", detail: `${by("Room / Surface setup").length} setup item${by("Room / Surface setup").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/scope" };
+  if (by("Finish specification").length) return { title: "Finish project specifications", detail: `${by("Finish specification").length} finish item${by("Finish specification").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/scope" };
+  if (by("Design decisions").length) return { title: "Finish design decisions", detail: `${by("Design decisions").length} decision${by("Design decisions").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/design" };
+  if (by("Installer package").length) return { title: "Prepare installer package", detail: `${by("Installer package").length} room package${by("Installer package").length === 1 ? "" : "s"} remaining`, to: "/projects/$projectId/package" };
+  return null;
+}
+
+function setupRows(setup: ReturnType<typeof useProjectSetup>) {
+  const labels: Record<string, string> = { "Room / Surface setup": "Rooms & surfaces", "Finish specification": "Finish mapping", "Design decisions": "Design decisions", "Installer package": "Installer package", "Material readiness": "Materials" };
+  return READINESS_CATEGORIES.slice(0, 5).map((category) => { const rows = setup.requirements.filter((r) => r.category === category); const blocked = rows.filter((r) => r.state === "blocked").length; const evaluated = rows.some((r) => r.state !== "not_evaluated"); return { category, label: labels[category] ?? category, value: !evaluated ? "Not evaluated" : blocked ? `${blocked} remaining` : "Ready", tone: !evaluated ? "neutral" : blocked ? "amber" : "green" }; });
+}
+
+function ReadinessDrawer({ open, onClose, requirements, areas, surfaces, selected, onSelect }: { open: boolean; onClose: () => void; requirements: ReadinessRequirement[]; areas: { id: string; name: string }[]; surfaces: { id: string; area_id: string; name: string }[]; selected: string | null; onSelect: (value: string | null) => void }) {
+  const rows = selected ? requirements.filter((r) => r.category === selected) : [];
+  return <Drawer open={open} onClose={onClose} title={selected ?? "Setup status"} subtitle={selected ? "Room and surface detail" : "Readiness grouped by responsibility"}>
+    {selected ? <div><button type="button" onClick={() => onSelect(null)} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-primary"><ArrowLeft className="size-4" /> All categories</button><div className="divide-y divide-border">{rows.map((row) => { const surface = surfaces.find((s) => s.id === row.surface_id); const area = areas.find((a) => a.id === (row.area_id ?? surface?.area_id)); return <div key={row.id} className="flex gap-3 py-3"><span className={cn("mt-1.5 size-2 shrink-0 rounded-full", row.state === "met" ? "bg-success" : row.state === "blocked" ? "bg-warning" : "bg-border-strong")} /><div><b className="block text-[13px]">{[area?.name, surface?.name].filter(Boolean).join(" · ") || "Project"}</b><span className="text-xs leading-relaxed text-muted-foreground">{row.label}{row.detail ? ` · ${row.detail}` : ""}</span></div></div>; })}</div></div> : <div className="divide-y divide-border">{READINESS_CATEGORIES.map((category) => { const cat = requirements.filter((r) => r.category === category); const blocked = cat.filter((r) => r.state === "blocked").length; const met = cat.filter((r) => r.state === "met").length; const evaluated = cat.some((r) => r.state !== "not_evaluated"); return <button key={category} type="button" onClick={() => onSelect(category)} className="flex min-h-16 w-full items-center gap-3 text-left"><span className={cn("grid size-6 place-items-center rounded-full", !evaluated ? "bg-muted text-muted-foreground" : blocked ? "bg-warning-soft text-warning" : "bg-success-soft text-success")}>{!evaluated ? "—" : blocked ? blocked : <Check className="size-3.5" />}</span><span className="min-w-0 flex-1"><b className="block text-sm">{category}</b><span className="text-xs text-muted-foreground">{!evaluated ? "Not evaluated" : blocked ? `${blocked} remaining · ${met} ready` : `${met} ready`}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button>; })}</div>}
+  </Drawer>;
+}
+function Eyebrow({ children }: { children: React.ReactNode }) { return <h2 className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase">{children}</h2>; }
+function formatDate(value: string | null | undefined) { if (!value) return ""; return new Date(value + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
