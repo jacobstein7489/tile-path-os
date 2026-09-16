@@ -25,4 +25,5 @@
 - Validate types and live interactions without mutating production project data.
 - Use the archived QA clone for write-path checks when artificial answers or assignments are needed.
 - Confirm no raw blocker counts, duplicate surface rows, instant choice writes, dead Add actions, blur saves, or hidden mobile actions.
-- Capture the requested 1440×900 and 390px screenshots, verify no horizontal overflow, and report exact changed files, acceptance results, failures, and data-integrity counts.
+- Capture ten named screenshots: 1440×900 Overview, Rooms Specification, Rooms Layout, multi-surface finish assignment, genuine Design Meeting question, Design Meeting surface rail; 390px Overview, Rooms list, Surface detail, and Design Meeting with actions above global navigation.
+- Verify every hard acceptance condition from those rendered states. If any condition fails, report the pass as incomplete rather than marking it complete.
