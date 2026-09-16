@@ -69,6 +69,7 @@ export const TARGET_MAP: Record<string, Target> = {
   "selection.tile_finish": { entity: "selection", field: "tile_finish" },
   "selection.supplier": { entity: "selection", field: "supplier" },
   "selection.supplied_by": { entity: "selection", field: "supplied_by" },
+  "selection.notes": { entity: "selection", field: "notes" },
   "surface.waterproofing": { entity: "surface", field: "waterproofing" },
   "surface.prep": { entity: "surface", field: "prep" },
   "surface.underlayment": { entity: "surface", field: "underlayment" },
