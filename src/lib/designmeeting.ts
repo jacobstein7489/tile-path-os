@@ -69,6 +69,7 @@ export const TARGET_MAP: Record<string, Target> = {
   "selection.tile_finish": { entity: "selection", field: "tile_finish" },
   "selection.supplier": { entity: "selection", field: "supplier" },
   "selection.supplied_by": { entity: "selection", field: "supplied_by" },
+  "selection.notes": { entity: "selection", field: "notes" },
   "surface.waterproofing": { entity: "surface", field: "waterproofing" },
   "surface.prep": { entity: "surface", field: "prep" },
   "surface.underlayment": { entity: "surface", field: "underlayment" },
@@ -218,6 +219,14 @@ export function useConfirmDecision(projectId: string) {
       const target = targetFor(rule);
       if (!target) throw new Error(`No approved write target for ${rule.key}`);
 
+      const { data: priorDecision } = await supabase
+        .from("design_decision")
+        .select("work_item_id")
+        .eq("project_id", projectId)
+        .eq("question_key", rule.key)
+        .eq("zone_id", ctx.zone.id)
+        .maybeSingle();
+
       // 1. Write the real source-of-truth record through the allowlisted field.
       if (target.entity === "assignment") {
         if (!ctx.assignment) throw new Error("This zone has no finish assignment yet");
@@ -258,20 +267,13 @@ export function useConfirmDecision(projectId: string) {
       if (dErr) throw dErr;
 
       // 3. Close any work item that existed only to chase this answer.
-      const { data: existing } = await supabase
-        .from("design_decision")
-        .select("work_item_id")
-        .eq("project_id", projectId)
-        .eq("question_key", rule.key)
-        .eq("zone_id", ctx.zone.id)
-        .maybeSingle();
-      if (existing?.work_item_id) {
+      if (priorDecision?.work_item_id) {
         await supabase
           .from("work_items")
           .update({ status: "Complete", completed_at: new Date().toISOString() })
-          .eq("id", existing.work_item_id);
+          .eq("id", priorDecision.work_item_id);
         await supabase.from("work_item_events").insert({
-          work_item_id: existing.work_item_id,
+          work_item_id: priorDecision.work_item_id,
           kind: "resolved",
           message: `Design decision confirmed: ${rule.prompt} → ${value}`,
         });

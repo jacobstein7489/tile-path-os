@@ -5,6 +5,6 @@
 - [x] Restyle installer package and materials-adjacent navigation
 - [x] Verify 114 Park Place at desktop and mobile sizes; capture requested screenshots
 - [x] UI Surgery Pass 1: materially recompose Project Shell, Overview, Rooms, and Design Meeting; verify against the locked screenshot acceptance
-- [ ] UI Surgery Pass 1B: compact mobile project shell, correct Overview details, Rooms workflows, Design Meeting classification/flow, and capture required acceptance screenshots
-  - [ ] Prove all hard acceptance conditions in ten named desktop/mobile screenshots; report incomplete if any condition fails
-  - [ ] Zero configuration: correct the seeded question-rule values in place so all four screens work immediately on existing project data
+- [x] UI Surgery Pass 1B: compact mobile project shell, correct Overview details, Rooms workflows, Design Meeting classification/flow, and capture required acceptance screenshots
+  - [x] Prove all hard acceptance conditions in ten named desktop/mobile screenshots; report incomplete if any condition fails
+  - [x] Zero configuration: correct the seeded question-rule values in place so all four screens work immediately on existing project data

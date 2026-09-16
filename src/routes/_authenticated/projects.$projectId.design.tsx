@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, ChevronRight, CircleHelp, Clock3, UserRound } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Drawer, EmptyState, Field, Select, TextArea, TextInput } from "@/components/kit";
 import { useCanEditProject } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/design
 
 type Ctx = ZoneContext & { areaId: string };
 type Entry = { rule: QuestionRule; ctx: Ctx; key: string };
+const OFFICE_TARGETS = new Set(["surface.waterproofing", "surface.prep", "surface.underlayment"]);
 
 function DesignMeeting() {
   const { projectId } = Route.useParams();
@@ -39,19 +40,22 @@ function DesignMeeting() {
   const [unresolvedOpen, setUnresolvedOpen] = useState(false);
   const [note, setNote] = useState("");
   const [ownerUserId, setOwnerUserId] = useState("");
+  const [waitingOn, setWaitingOn] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [mobileRail, setMobileRail] = useState(false);
 
   const entries = useMemo<Entry[]>(() => (setup.contexts as Ctx[]).flatMap((ctx) => setup.ruleList
     .filter((rule) => rule.readiness_category === "Design decisions")
+    .filter((rule) => !OFFICE_TARGETS.has(rule.target_key))
     .filter((rule) => ruleApplies(rule, ctx))
     .filter((rule) => !setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && ["confirmed", "unresolved"].includes(decision.status)))
     .map((rule) => ({ rule, ctx, key: `${ctx.zone.id}:${rule.key}` }))), [setup.contexts, setup.ruleList, setup.decisionList]);
   const current = entries.find((entry) => entry.key === selectedKey) ?? entries[0] ?? null;
-  const currentIndex = current ? entries.findIndex((entry) => entry.key === current.key) : -1;
-  const rooms = useMemo(() => setup.areaList.map((area) => ({ area, entries: entries.filter((entry) => entry.ctx.areaId === area.id) })).filter((group) => group.entries.length), [setup.areaList, entries]);
+  const currentSurfaceEntries = current ? entries.filter((entry) => entry.ctx.surface.id === current.ctx.surface.id) : [];
+  const currentIndex = current ? currentSurfaceEntries.findIndex((entry) => entry.key === current.key) : -1;
+  const rooms = useMemo(() => setup.areaList.map((area) => ({ area, surfaces: setup.surfaceList.filter((surface) => surface.area_id === area.id).map((surface) => ({ surface, entries: entries.filter((entry) => entry.ctx.surface.id === surface.id) })) })).filter((group) => group.surfaces.length), [setup.areaList, setup.surfaceList, entries]);
 
-  useEffect(() => { setValue(""); setNote(""); setOwnerUserId(""); setFollowUp(""); setUnresolvedOpen(false); }, [current?.key]);
+  useEffect(() => { setValue(""); setNote(""); setOwnerUserId(""); setWaitingOn(""); setFollowUp(""); setUnresolvedOpen(false); }, [current?.key]);
   const getSession = async () => { if (sessionId) return sessionId; const id = await openSession.mutateAsync(); setSessionId(id); return id; };
 
   if (setup.loading) return <div className="border-x border-b border-border bg-card px-6 py-10 text-sm text-muted-foreground">Loading design information…</div>;
@@ -60,8 +64,9 @@ function DesignMeeting() {
   const { rule, ctx } = current;
   const known = [ctx.selection ? selectionSummary(ctx.selection) : null, ctx.assignment?.grout_color ? `Grout · ${ctx.assignment.grout_color}` : null, ctx.assignment?.layout_pattern ? `Pattern · ${ctx.assignment.layout_pattern}` : null, ctx.surface.waterproofing ? `Waterproofing · ${ctx.surface.waterproofing}` : null].filter(Boolean);
   const ownerChoices = profileOptions(profiles);
-  const submitConfirmed = async (answer: string) => { const id = await getSession(); await confirm.mutateAsync({ rule, ctx, areaId: ctx.areaId, value: answer.trim(), sessionId: id }); toast.success("Decision recorded"); setSelectedKey(null); };
-  const submitUnresolved = async () => { const id = await getSession(); const workItemId = await unresolved.mutateAsync({ rule, ctx, areaId: ctx.areaId, note, sessionId: id }); const owner = profiles.find((p) => p.user_id === ownerUserId); if (ownerUserId || followUp) await saveWork.mutateAsync({ id: workItemId, patch: { owner_user_id: ownerUserId || null, owner: owner?.full_name ?? null, follow_up_on: followUp || null } }); toast.success("Tracked in Work"); setUnresolvedOpen(false); setSelectedKey(null); };
+  const advance = () => { const next = currentSurfaceEntries[currentIndex + 1] ?? entries.find((entry) => entry.ctx.surface.id !== current.ctx.surface.id); setSelectedKey(next?.key ?? null); };
+  const submitConfirmed = async () => { const id = await getSession(); await confirm.mutateAsync({ rule, ctx, areaId: ctx.areaId, value: value.trim(), sessionId: id }); toast.success("Decision recorded"); advance(); };
+  const submitUnresolved = async () => { const id = await getSession(); const workItemId = await unresolved.mutateAsync({ rule, ctx, areaId: ctx.areaId, note, sessionId: id }); const owner = profiles.find((p) => p.user_id === ownerUserId); await saveWork.mutateAsync({ id: workItemId, patch: { owner_user_id: ownerUserId || null, owner: owner?.full_name ?? null, waiting_on: waitingOn.trim() || null, follow_up_on: followUp || null } }); toast.success("Tracked in Work"); setUnresolvedOpen(false); advance(); };
 
   return <>
     <div className="min-h-[630px] border-x border-b border-border bg-card lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
@@ -70,7 +75,7 @@ function DesignMeeting() {
         <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 md:px-7">
           <button type="button" onClick={() => setMobileRail(true)} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> All decisions</button>
           <div className="hidden min-w-0 lg:block"><span className="text-xs font-semibold text-muted-foreground">{ctx.areaName} · {ctx.surface.name}{ctx.zone.is_default ? "" : ` · ${ctx.zone.name}`}</span></div>
-          <span className="text-xs font-semibold text-muted-foreground">{currentIndex + 1} of {entries.length} open</span>
+           <span className="text-xs font-semibold text-muted-foreground">Decision {currentIndex + 1} of {currentSurfaceEntries.length} · {ctx.surface.name}</span>
         </header>
 
         <div className="flex-1 px-5 py-8 pb-28 md:px-10 md:py-12 lg:px-14">
@@ -84,19 +89,19 @@ function DesignMeeting() {
             {known.length ? <div className="mt-8 border-y border-border py-4"><div className="text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Already known</div><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">{known.map((item) => <span key={item}>{item}</span>)}</div></div> : null}
 
             <div className="mt-8">
-              <AnswerControl rule={rule} value={value} onChange={setValue} selections={setup.selectionList} onChoose={submitConfirmed} disabled={!canEdit || confirm.isPending} />
+               <AnswerControl rule={rule} value={value} onChange={setValue} selections={setup.selectionList} disabled={!canEdit || confirm.isPending} />
             </div>
           </div>
         </div>
 
-        <footer className="sticky bottom-0 z-10 flex min-h-16 items-center justify-between gap-3 border-t border-border bg-card/95 px-4 backdrop-blur md:px-7">
+         <footer className="fixed inset-x-0 bottom-16 z-30 flex min-h-16 items-center justify-between gap-3 border-t border-border bg-card/95 px-4 backdrop-blur md:sticky md:bottom-0 md:z-10 md:px-7 lg:inset-auto">
           <Button variant="ghost" disabled={!canEdit} onClick={() => setUnresolvedOpen(true)}><Clock3 className="size-4" /> Can’t decide yet</Button>
-          {!isInstantChoice(rule) ? <Button variant="primary" disabled={!canEdit || !value.trim()} loading={confirm.isPending} onClick={() => submitConfirmed(value)}><Check className="size-4" /> Record decision</Button> : null}
+           <Button variant="primary" disabled={!canEdit || !value.trim()} loading={confirm.isPending} onClick={submitConfirmed}><Check className="size-4" /> Confirm & Next</Button>
         </footer>
       </section>
     </div>
 
-    <Drawer open={mobileRail} onClose={() => setMobileRail(false)} title="Open design decisions" subtitle={`${entries.length} remaining`}>
+    <Drawer open={mobileRail} onClose={() => setMobileRail(false)} title="Design surfaces" subtitle="One row per surface">
       <DecisionRail rooms={rooms} currentKey={current.key} onSelect={(key) => { setSelectedKey(key); setMobileRail(false); }} />
     </Drawer>
     <Drawer open={unresolvedOpen} onClose={() => setUnresolvedOpen(false)} title="Track this decision" subtitle={`${ctx.areaName} · ${ctx.surface.name}`} footer={<Button variant="primary" loading={unresolved.isPending || saveWork.isPending} disabled={!canEdit} onClick={submitUnresolved}>Add to Work</Button>}>
@@ -104,6 +109,7 @@ function DesignMeeting() {
       <div className="space-y-4">
         <Field label="What is this waiting on?"><TextArea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Customer choice, designer input, field verification…" /></Field>
         <Field label="Owner"><Select value={ownerUserId} onChange={(e) => setOwnerUserId(e.target.value)}><option value="">Unassigned</option>{ownerChoices.map((owner) => <option key={owner.value} value={owner.value}>{owner.label}</option>)}</Select></Field>
+        <Field label="Waiting on"><TextInput value={waitingOn} onChange={(e) => setWaitingOn(e.target.value)} placeholder="Customer, architect, site condition…" /></Field>
         <Field label="Follow up"><TextInput type="date" value={followUp} onChange={(e) => setFollowUp(e.target.value)} /></Field>
         <p className="flex gap-2 text-xs leading-5 text-muted-foreground"><UserRound className="mt-0.5 size-3.5 shrink-0" />Reopening this decision later updates the same Work item instead of creating a duplicate.</p>
       </div>
@@ -111,12 +117,11 @@ function DesignMeeting() {
   </>;
 }
 
-function AnswerControl({ rule, value, onChange, selections, onChoose, disabled }: { rule: QuestionRule; value: string; onChange: (value: string) => void; selections: { id: string; label: string; tile_size?: string | null; manufacturer?: string | null }[]; onChoose: (value: string) => Promise<void>; disabled: boolean }) {
+function AnswerControl({ rule, value, onChange, selections, disabled }: { rule: QuestionRule; value: string; onChange: (value: string) => void; selections: { id: string; label: string; tile_size?: string | null; manufacturer?: string | null }[]; disabled: boolean }) {
   const options = rule.answer_type === "boolean" ? ["Yes", "No"] : rule.options ?? [];
-  if (rule.answer_type === "boolean" || (rule.answer_type === "choice" && options.length > 0 && options.length <= 6)) return <div className="grid gap-3 sm:grid-cols-2">{options.map((option) => <button key={option} type="button" disabled={disabled} onClick={() => onChoose(option)} className="min-h-16 rounded-lg border border-border bg-background px-5 text-left text-[15px] font-semibold transition-colors duration-150 hover:border-primary/45 hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50">{option}</button>)}</div>;
-  if (rule.answer_type === "selection_ref") return <div className="space-y-3">{selections.map((selection) => <button key={selection.id} type="button" disabled={disabled} onClick={() => onChoose(selection.id)} className="flex min-h-16 w-full items-center gap-4 rounded-lg border border-border bg-background px-5 text-left transition-colors duration-150 hover:border-primary/45 hover:bg-primary-soft disabled:opacity-50"><span className="min-w-0 flex-1"><b className="block text-[14px]">{selection.label}</b><span className="text-xs text-muted-foreground">{[selection.manufacturer, selection.tile_size].filter(Boolean).join(" · ")}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button>)}</div>;
+  if (rule.answer_type === "boolean" || (rule.answer_type === "choice" && options.length > 0 && options.length <= 6)) return <div className="grid gap-3 sm:grid-cols-2">{options.map((option) => <button key={option} type="button" disabled={disabled} onClick={() => onChange(option)} className={cn("min-h-16 rounded-lg border bg-background px-5 text-left text-[15px] font-semibold transition-colors duration-150 hover:border-primary/45 hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50", value === option ? "border-primary bg-primary-soft text-primary" : "border-border")}>{option}{value === option ? <Check className="ml-2 inline size-4" /> : null}</button>)}</div>;
+  if (rule.answer_type === "selection_ref") return <div className="space-y-3">{selections.map((selection) => <button key={selection.id} type="button" disabled={disabled} onClick={() => onChange(selection.id)} className={cn("flex min-h-16 w-full items-center gap-4 rounded-lg border bg-background px-5 text-left transition-colors duration-150 hover:border-primary/45 hover:bg-primary-soft disabled:opacity-50", value === selection.id ? "border-primary bg-primary-soft" : "border-border")}><span className="min-w-0 flex-1"><b className="block text-[14px]">{selection.label}</b><span className="text-xs text-muted-foreground">{[selection.manufacturer, selection.tile_size].filter(Boolean).join(" · ")}</span></span>{value === selection.id ? <Check className="size-4 text-primary" /> : <ChevronRight className="size-4 text-muted-foreground" />}</button>)}</div>;
   return <Field label="Confirmed answer">{rule.answer_type === "choice" ? <Select value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choose…</option>{options.map((option) => <option key={option}>{option}</option>)}</Select> : <TextInput type={rule.answer_type === "number" ? "number" : "text"} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Type the confirmed answer" />}</Field>;
 }
 
-function isInstantChoice(rule: QuestionRule) { return rule.answer_type === "boolean" || rule.answer_type === "selection_ref" || (rule.answer_type === "choice" && (rule.options?.length ?? 0) > 0 && (rule.options?.length ?? 0) <= 6); }
-function DecisionRail({ rooms, currentKey, onSelect, className }: { rooms: { area: { id: string; name: string }; entries: Entry[] }[]; currentKey: string; onSelect: (key: string) => void; className?: string }) { return <aside className={cn("min-w-0", className)}><div className="border-b border-border px-4 py-4"><h2 className="text-[13px] font-semibold">Open decisions</h2><p className="mt-0.5 text-xs text-muted-foreground">One at a time, by room</p></div><div className="divide-y divide-border">{rooms.map(({ area, entries }) => <section key={area.id} className="py-2"><h3 className="px-4 py-2 text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">{area.name}</h3>{entries.map((entry) => <button key={entry.key} type="button" onClick={() => onSelect(entry.key)} className={cn("flex min-h-12 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted", currentKey === entry.key && "bg-primary-soft text-primary")}><span className="min-w-0 flex-1"><b className="block truncate text-[12.5px]">{entry.ctx.surface.name}{entry.ctx.zone.is_default ? "" : ` · ${entry.ctx.zone.name}`}</b><span className="block truncate text-[11.5px] text-muted-foreground">{entry.rule.prompt}</span></span><ChevronRight className="size-3.5 shrink-0" /></button>)}</section>)}</div></aside>; }
+function DecisionRail({ rooms, currentKey, onSelect, className }: { rooms: { area: { id: string; name: string }; surfaces: { surface: { id: string; name: string }; entries: Entry[] }[] }[]; currentKey: string; onSelect: (key: string) => void; className?: string }) { return <aside className={cn("min-w-0", className)}><div className="border-b border-border px-4 py-4"><h2 className="text-[13px] font-semibold">Surfaces</h2><p className="mt-0.5 text-xs text-muted-foreground">Next decision by room</p></div><div className="divide-y divide-border">{rooms.map(({ area, surfaces }) => <section key={area.id} className="py-2"><h3 className="px-4 py-2 text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">{area.name}</h3>{surfaces.map(({ surface, entries }) => { const next = entries[0]; const selected = entries.some((entry) => entry.key === currentKey); return <button key={surface.id} type="button" disabled={!next} onClick={() => next && onSelect(next.key)} className={cn("flex min-h-12 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted disabled:cursor-default disabled:hover:bg-transparent", selected && "bg-primary-soft text-primary")}><span className="min-w-0 flex-1"><b className="block truncate text-[12.5px]">{surface.name}</b><span className={cn("block truncate text-[11.5px]", next ? "text-muted-foreground" : "text-success")}>{next ? next.rule.prompt : "Ready"}</span></span>{next ? <ChevronRight className="size-3.5 shrink-0" /> : <CheckCircle2 className="size-4 shrink-0 text-success" />}</button>; })}</section>)}</div></aside>; }

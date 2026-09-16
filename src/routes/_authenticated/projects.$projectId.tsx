@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ChevronDown, ClipboardCheck, FileText, MapPin, Plus, User } from "lucide-react";
+import { ChevronDown, ClipboardCheck, FileText, Plus } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Popover } from "@/components/ops/Popover";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
@@ -58,13 +58,13 @@ function ProjectShell() {
   const gate = following ? canEnterStage(following, { blockers: setup.blockers.length, hasScheduleAssignment: setup.hasScheduleAssignment }) : null;
 
   return <>
-    <AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} />
-    <div className="mx-auto max-w-[1480px] px-4 pt-4 pb-16 md:px-7">
+    <div className="hidden md:block"><AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} /></div>
+    <div className="mx-auto max-w-[1480px] px-0 pb-16 md:px-7 md:pt-4">
       <header className="border-b border-border bg-card">
-        <div className="flex flex-col gap-3 py-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex items-center gap-2 px-4 py-2.5 md:px-0 md:py-3">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2.5">
-              <h1 className="truncate text-[24px] leading-none font-semibold md:text-[26px]">{project.name}</h1>
+              <h1 className="truncate text-[17px] leading-none font-semibold md:text-[26px]">{project.name}</h1>
               <div className="relative shrink-0">
                 <button type="button" onClick={() => setStageOpen((v) => !v)} className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold text-secondary-foreground transition-colors duration-150 hover:border-border-strong hover:text-foreground">
                   {project.exception_state ?? stage}<ChevronDown className={cn("size-3.5 transition-transform", stageOpen && "rotate-180")} />
@@ -78,27 +78,27 @@ function ProjectShell() {
                 </Popover>
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" />{project.address ?? "Address not set"}</span>
-              <span className="inline-flex items-center gap-1.5"><User className="size-3.5" />{project.customer ?? "Customer not set"}</span>
-              {pmName ? <span>PM {pmName}</span> : null}
+             <div className="mt-1.5 truncate text-[12px] text-muted-foreground md:mt-2 md:text-[12.5px]">
+               <span className="md:hidden">{project.address ?? project.customer ?? "Address not set"}{pmName ? ` · PM ${pmName}` : ""}</span>
+               <span className="hidden md:inline">{project.address ?? "Address not set"} · {project.customer ?? "Customer not set"}{pmName ? ` · PM ${pmName}` : ""}</span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="relative">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="relative hidden md:block">
               <Button variant="primary" onClick={() => setUpdateOpen((v) => !v)}><Plus className="size-4" /> Update</Button>
               <Popover open={updateOpen} onClose={() => setUpdateOpen(false)} align="right" width="md:w-64" title="Add update">
                 <button type="button" onClick={() => { setUpdateOpen(false); setDailyOpen(true); }} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-muted"><ClipboardCheck className="size-4 text-primary" /><span><b className="block text-sm">Daily Update</b><span className="text-xs text-muted-foreground">Fast field report</span></span></button>
                 <button type="button" onClick={() => { setUpdateOpen(false); setStatusOpen(true); }} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-muted"><FileText className="size-4 text-primary" /><span><b className="block text-sm">Project Status Update</b><span className="text-xs text-muted-foreground">Concise shareable summary</span></span></button>
               </Popover>
             </div>
-            <ProjectMoreMenu project={project} />
+            <div className="hidden md:block"><ProjectMoreMenu project={project} /></div>
+            <div className="md:hidden"><ProjectMoreMenu compact project={project} onDailyUpdate={() => setDailyOpen(true)} onStatusUpdate={() => setStatusOpen(true)} /></div>
           </div>
         </div>
-        <div className="flex items-end gap-1">
-          <UnderlineTabs className="min-w-0 flex-1 border-b-0" items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))} value={activeTab} />
+        <div className="flex items-end gap-0 px-1 md:gap-1 md:px-0">
+          <UnderlineTabs className="min-w-0 flex-1 justify-between border-b-0 [&_a]:px-2 md:justify-start md:[&_a]:px-3.5" items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))} value={activeTab} />
           <div className="relative shrink-0">
-            <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn("-mb-px inline-flex cursor-pointer items-center gap-1.5 border-b-2 px-3.5 pb-3 text-[13.5px] transition-colors duration-150", activeTab === "more" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-secondary-foreground hover:text-foreground")}>More<ChevronDown className={cn("size-3.5 transition-transform", moreOpen && "rotate-180")} /></button>
+            <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn("-mb-px inline-flex cursor-pointer items-center gap-1 border-b-2 px-2 pb-3 text-[13px] transition-colors duration-150 md:px-3.5 md:text-[13.5px]", activeTab === "more" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-secondary-foreground hover:text-foreground")}>More<ChevronDown className={cn("hidden size-3.5 transition-transform sm:block", moreOpen && "rotate-180")} /></button>
             <Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="right" width="md:w-72" title="Project tools">
               {MORE_TABS.map((t) => <Link key={t.value} to={t.to} params={{ projectId }} onClick={() => setMoreOpen(false)} className={cn("flex min-h-11 flex-col justify-center rounded-lg px-2.5 py-1.5", pathname === resolve(t.value) ? "bg-primary-soft text-primary" : "hover:bg-muted")}><span className="text-[13.5px] font-semibold">{t.label}</span><span className="text-[11.5px] text-muted-foreground">{t.hint}</span></Link>)}
             </Popover>
