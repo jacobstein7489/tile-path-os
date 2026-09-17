@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ChevronRight, FileText, MoreHorizontal, Pencil, Plus, SwatchBook } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, FileText, Grid2X2, Layers3, MoreHorizontal, Pencil, Plus, Ruler, ShieldCheck, SwatchBook } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Drawer, EmptyState, Field, Select, TextArea, TextInput } from "@/components/kit";
 import { CreateWorkItemModal, RequestMaterialModal } from "@/components/WorkItemDialogs";
@@ -105,14 +105,16 @@ function ScopeAndDetails() {
   const showWorkspace = layout === "wide" || (layout === "medium" ? true : Boolean(surfaceId));
 
   return <>
-    <div className="flex min-h-[calc(100vh-8.5rem)] w-full bg-card">
+    <div className="min-h-[calc(100vh-8.5rem)] w-full bg-canvas p-3 md:p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-10.5rem)] w-full max-w-[1480px] gap-3">
       {showRooms ? (
-        <aside className={cn("min-w-0 shrink-0 border-border", layout === "wide" ? "w-[200px] border-r" : layout === "medium" ? "w-[248px] border-r" : "w-full")}>
+        <aside className={cn("min-w-0 shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-card", layout === "wide" ? "w-[210px]" : layout === "medium" ? "w-[248px]" : "w-full")}>
           <RailHead label="Rooms" actions={<><RailAction label="Plan" onClick={() => setPlanOpen(true)}><FileText className="size-3.5" /></RailAction><RailAction label="Add room" onClick={() => setAddArea(true)}><Plus className="size-4" /></RailAction></>} />
           <ul>
             {areaList.map((item) => { const note = roomNote(item.id); return (
               <li key={item.id}>
-                <button type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted/60", item.id === areaId && "bg-primary-soft hover:bg-primary-soft")}>
+                <button type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("group grid w-full grid-cols-[3px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-3 py-3.5 text-left transition-colors hover:bg-muted/60", item.id === areaId && "bg-primary-soft hover:bg-primary-soft")}>
+                  <span className={cn("h-8 w-[3px] rounded-full bg-transparent", item.id === areaId && "bg-primary")} />
                   <span className="min-w-0">
                     <span className="block truncate text-[13.5px] font-semibold">{item.name}</span>
                     <span className={cn("mt-0.5 block text-[11px]", note.ok ? "text-muted-foreground" : "text-warning")}>{note.text}</span>
@@ -127,7 +129,7 @@ function ScopeAndDetails() {
       ) : null}
 
       {showSurfaces ? (
-        <aside className={cn("min-w-0 shrink-0 border-border", layout === "wide" ? "w-[235px] border-r" : layout === "medium" ? "w-[248px] border-r" : "w-full")}>
+        <aside className={cn("min-w-0 shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-card", layout === "wide" ? "w-[240px]" : layout === "medium" ? "w-[248px]" : "w-full")}>
           <RailHead
             label={layout === "wide" ? "Surfaces" : (area?.name ?? "Surfaces")}
             back={layout !== "wide" ? <button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="grid size-8 place-items-center text-primary" aria-label="Back to rooms"><ArrowLeft className="size-4" /></button> : undefined}
@@ -136,7 +138,8 @@ function ScopeAndDetails() {
           <ul>
             {areaSurfaces.map((item) => { const note = surfaceNote(item.id); return (
               <li key={item.id}>
-                <button type="button" onClick={() => setSurfaceId(item.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft hover:bg-primary-soft")}>
+                <button type="button" onClick={() => setSurfaceId(item.id)} className={cn("grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft hover:bg-primary-soft")}>
+                  <span className={cn("grid size-9 place-items-center rounded-lg border border-border bg-background text-muted-foreground", item.id === surfaceId && "border-primary/25 bg-card text-primary shadow-card")}><Grid2X2 className="size-4" /></span>
                   <span className="min-w-0">
                     <span className="block truncate text-[13.5px] font-semibold">{item.name}</span>
                     <span className={cn("mt-0.5 block truncate text-[11px]", note.ok ? "text-success" : note.quiet ? "text-muted-foreground" : "text-warning")}>{note.text}</span>
@@ -151,24 +154,28 @@ function ScopeAndDetails() {
       ) : null}
 
       {showWorkspace ? (
-        <section className="min-w-0 flex-1">
+        <section className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-raised">
           {!surface ? (
             <p className="px-6 py-10 text-[13px] text-muted-foreground">Select a surface to see its specification and installation decisions.</p>
           ) : <>
-            <header className="border-b border-border px-5 pt-6 pb-5 md:px-9 md:pt-8">
+            <header className="bg-primary-soft/45 px-5 pt-6 pb-6 md:px-8 md:pt-8">
               {layout === "mobile" ? <button type="button" onClick={() => setSurfaceId(null)} className="mb-3 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary"><ArrowLeft className="size-4" /> {area?.name}</button> : null}
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-                <div className="min-w-0">
+                <div className="flex min-w-0 gap-4">
+                  <div className="hidden size-16 shrink-0 place-items-center rounded-xl border border-primary/20 bg-card text-primary shadow-card sm:grid"><SwatchBook className="size-7" /></div>
+                  <div className="min-w-0">
                   <p className="text-[10px] font-bold tracking-[0.09em] text-secondary-foreground uppercase">{area?.name ?? "Surface"}</p>
                   <h2 className="mt-1 truncate text-[25px] leading-tight font-bold tracking-[-0.02em] md:text-[31px]">{surface.name}</h2>
                   <p className="mt-1.5 text-[12.5px] text-secondary-foreground">
                     {[(surface as unknown as { surface_kind?: string | null }).surface_kind, selection ? formatFinish(selection) : "Finish specification not mapped"].filter(Boolean).join("  ·  ")}
                   </p>
-                  <p className={cn("mt-2.5 text-[12.5px] font-semibold", surfaceBlockers.length ? "text-warning" : "text-success")}>
+                  <p className={cn("mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold", surfaceBlockers.length ? "bg-warning-soft text-warning" : "bg-success-soft text-success")}> 
+                    {surfaceBlockers.length ? <AlertTriangle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
                     {surfaceBlockers.length
                       ? `Not ready — ${surfaceBlockers.length} open setup item${surfaceBlockers.length === 1 ? "" : "s"}`
                       : "Ready for installation planning"}
                   </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <Button size="sm" variant="primary" onClick={() => openEditor(tab)}><Pencil className="size-3.5" /> Edit</Button>
@@ -184,33 +191,34 @@ function ScopeAndDetails() {
                 </div>
               </div>
               {zones.length > 1 ? (
-                <div className="mt-4 flex gap-4 overflow-x-auto">
-                  {zones.map((zone) => <button key={zone.id} type="button" onClick={() => setZoneId(zone.id)} className={cn("shrink-0 text-[12px] font-semibold", zone.id === selectedZone?.id ? "text-primary underline underline-offset-4" : "text-muted-foreground hover:text-foreground")}>{zone.is_default ? "Main field" : zone.name}</button>)}
+                <div className="mt-5 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card/80 p-1 sm:w-fit">
+                  {zones.map((zone) => <button key={zone.id} type="button" onClick={() => setZoneId(zone.id)} className={cn("shrink-0 rounded-md px-3 py-1.5 text-[11.5px] font-semibold", zone.id === selectedZone?.id ? "bg-primary text-primary-foreground shadow-card" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{zone.is_default ? "Main field" : zone.name}</button>)}
                 </div>
               ) : null}
             </header>
 
-            <nav className="flex gap-5 overflow-x-auto border-b border-border px-5 md:px-9">
-              {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 border-b-2 py-3 text-[12.5px] font-semibold transition-colors", tab === item ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{item}</button>)}
+            <nav className="flex gap-1 overflow-x-auto border-y border-border bg-background/60 px-3 py-2 md:px-6">
+              {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors", tab === item ? "bg-card text-foreground shadow-card ring-1 ring-border" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>{item}</button>)}
             </nav>
 
-            <div className="px-5 py-7 md:px-9 md:py-8">
-              <SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} onAdd={openEditor} />
+            <div className="px-4 py-5 md:px-7 md:py-7">
+              <SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} planFile={area && "plan_file_id" in area ? setup.fileList.find((file) => file.id === area.plan_file_id) ?? null : null} onAdd={openEditor} onOpenPlan={() => setPlanOpen(true)} />
             </div>
 
-            <div className="border-t border-border px-5 py-4 md:px-9">
-              <p className={cn("text-[10px] font-bold tracking-[0.09em] uppercase", surfaceBlockers.length ? "text-warning" : "text-success")}>
-                {surfaceBlockers.length ? "Not ready" : "Ready"}
-              </p>
-              <p className="mt-1 text-[12.5px] text-secondary-foreground">
+            <div className={cn("mx-4 mb-5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-4 py-3.5 md:mx-7 md:mb-7", surfaceBlockers.length ? "border-warning/25 bg-warning-soft" : "border-success/25 bg-success-soft")}>
+              <span className={cn("grid size-9 place-items-center rounded-full bg-card", surfaceBlockers.length ? "text-warning" : "text-success")}>{surfaceBlockers.length ? <AlertTriangle className="size-4" /> : <ShieldCheck className="size-4" />}</span>
+              <div className="min-w-0"><p className={cn("text-[11px] font-bold uppercase", surfaceBlockers.length ? "text-warning" : "text-success")}>{surfaceBlockers.length ? "Needs decisions" : "Ready"}</p>
+              <p className="mt-0.5 truncate text-[12px] text-secondary-foreground">
                 {surfaceBlockers.length
                   ? surfaceBlockers.map((r) => r.label).slice(0, 3).join("  ·  ")
                   : "Specification, layout and prep information is complete for this surface."}
-              </p>
+              </p></div>
+              {surfaceBlockers.length ? <Button size="sm" onClick={() => openEditor(tab)}>Resolve</Button> : null}
             </div>
           </>}
         </section>
       ) : null}
+      </div>
     </div>
 
     <NameDrawer open={addArea} title="Add room" placeholder="Master Bathroom" onClose={() => setAddArea(false)} onSave={async (name) => { const row = await insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as { id: string }; setAreaId(row.id); setSurfaceId(null); setAddArea(false); }} />
@@ -228,10 +236,9 @@ function surfaceListOf(rows: SurfaceFull[] | undefined) {
   return rows ?? [];
 }
 
-/** Quiet uppercase rail heading — a line of type, not a toolbar. */
 function RailHead({ label, actions, back }: { label: string; actions?: ReactNode; back?: ReactNode }) {
   return (
-    <header className="flex min-h-12 items-center gap-1.5 border-b border-border px-2.5">
+    <header className="flex min-h-13 items-center gap-1.5 border-b border-border bg-background/60 px-2.5">
       {back}
       <h2 className="min-w-0 flex-1 truncate px-1.5 text-[10px] font-bold tracking-[0.09em] text-secondary-foreground uppercase">{label}</h2>
       <div className="flex items-center gap-0.5">{actions}</div>
@@ -243,7 +250,7 @@ function RailAction({ label, onClick, children }: { label: string; onClick: () =
   return <button type="button" aria-label={label} title={label} onClick={onClick} className="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
-function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null; onAdd: (tab: WorkspaceTab, key?: string) => void }) {
+function SurfaceSection({ tab, surface, assignment, selection, planFile, onAdd, onOpenPlan }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null; planFile: { filename: string } | null; onAdd: (tab: WorkspaceTab, key?: string) => void; onOpenPlan: () => void }) {
   /** Everything shown here reads through the authoritative finish model. */
   const spec = resolveSpec({ surface, assignment, selection });
   const measured = measurementSummary(surface);
@@ -286,15 +293,19 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
   const focusFor: Record<string, string> = { "Tile / product": "finish_selection_id", Supplier: "supplier", "Actual / nominal size": "tile_size", "Grout / joint": "grout_color", "Metal / edge": "edge_treatment", "Finish height / termination": "tile_height", "Special instructions": "notes", Pattern: "layout_pattern", Direction: "layout_direction", "Start point": "start_point", "Feature alignment": "coverage", Termination: "finish_transition", "Measured size": "measured_length_in", "Plan area": "plan_sf", "Field area": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
   const layoutEmpty = tab === "Layout" && !spec.layoutPattern && !spec.layoutDirection && !spec.startPoint;
 
+  const tabIcons: Record<WorkspaceTab, ReactNode> = { Specification: <SwatchBook className="size-4" />, Layout: <Layers3 className="size-4" />, Measurements: <Ruler className="size-4" />, Prep: <ShieldCheck className="size-4" />, "Photos & Notes": <FileText className="size-4" /> };
+  const missingRows = groups[tab].filter((row) => row.missing);
   return <>
-    {layoutEmpty ? <p className="mb-5 max-w-[70ch] text-[13px] text-muted-foreground">No layout image published yet. The decisions recorded below are what the installer will follow.</p> : null}
-    <dl className="max-w-[820px]">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-[14px] font-bold">{tabIcons[tab]} {tab}</p><p className="mt-1 text-[11.5px] text-muted-foreground">Authoritative details for this surface and finish area.</p></div>{planFile ? <button type="button" onClick={onOpenPlan} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-[11.5px] font-semibold shadow-card"><FileText className="size-3.5 text-primary" />{planFile.filename}</button> : null}</div>
+    {layoutEmpty ? <div className="mb-5 flex gap-3 rounded-xl border border-warning/25 bg-warning-soft p-4"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" /><p className="text-[12.5px] leading-5 text-secondary-foreground">No layout image is published yet. The recorded decisions below remain the installer’s source of truth.</p></div> : null}
+    {missingRows.length && tab !== "Layout" ? <div className="mb-5 flex items-start gap-3 rounded-xl border border-warning/25 bg-warning-soft p-4"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" /><div><p className="text-[12.5px] font-bold text-warning">{missingRows.length} decision{missingRows.length === 1 ? "" : "s"} needed</p><p className="mt-1 text-[11.5px] text-secondary-foreground">Complete the highlighted details to move this surface toward readiness.</p></div></div> : null}
+    <dl className="grid max-w-[940px] gap-3 sm:grid-cols-2">
       {groups[tab].map((row) => (
-        <div key={row.label} className="grid gap-1 border-b border-border py-3.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6">
-          <dt className="text-[11px] font-bold tracking-[0.05em] text-muted-foreground uppercase">{row.label}</dt>
-          <dd className={cn("min-w-0 text-[13.5px] leading-6", row.missing && "text-warning")}>
+        <div key={row.label} className={cn("min-h-[92px] rounded-xl border p-4", row.missing ? "border-warning/25 bg-warning-soft/55" : "border-border bg-background/55")}>
+          <dt className="text-[10px] font-bold tracking-[0.05em] text-muted-foreground uppercase">{row.label}</dt>
+          <dd className={cn("mt-2 min-w-0 text-[13px] leading-5", row.missing && "text-warning")}>
             {row.value}
-            {row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-[12px] font-semibold text-primary hover:underline">Add</button> : null}
+            {row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer font-bold text-primary hover:underline">Resolve</button> : null}
           </dd>
         </div>
       ))}
