@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CalendarDays, CircleAlert, Clock3, Layers3 } from "lucide-react";
 import { WorkItemPanel } from "@/components/work/WorkItemPanel";
 import { useProject, useScheduleAssignments, useAreasWithSurfaces } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
@@ -36,11 +36,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
 type SetupLink = "/projects/$projectId/scope" | "/projects/$projectId/design" | "/projects/$projectId/package";
 type NextMove = { title: string; detail: string; to?: SetupLink; work?: WorkItemRow };
 
-/**
- * The operating brief for one job: a single document column of plain-language
- * sections. No cards, no metrics — every line is derived from the live
- * readiness, work, schedule and field-report data already in the app.
- */
+/** A visual command center backed by the existing project operating data. */
 function ProjectOverview() {
   const { projectId } = Route.useParams();
   const { data: project } = useProject(projectId);
@@ -130,251 +126,90 @@ function ProjectOverview() {
   const live = active ? (feed.find((i) => i.id === active.id) ?? active) : null;
   const whereWeAre = stateSentence(stage, blocked.length, waitingAll.length, upcoming.length);
 
+  const nextContent = (
+    <>
+      <span className="block text-[10px] font-bold tracking-[0.08em] text-primary uppercase">Next move</span>
+      <span className="mt-4 block max-w-[22ch] font-display text-[24px] leading-[1.18] font-bold md:text-[30px]">{next.title}</span>
+      <span className="mt-2 block text-[12.5px] text-muted-foreground">{next.detail}</span>
+      <span className="mt-7 inline-flex items-center gap-2 text-[12.5px] font-bold text-primary">{next.work ? "Open work item" : next.to ? "Continue setup" : "Review work"}<ArrowRight className="size-4" /></span>
+    </>
+  );
+
   return (
     <>
-      <div className="mx-auto w-full max-w-[960px] px-4 pt-7 pb-24 md:px-8 md:pt-9">
-        <Brief label="Where we are">
-          <p className="text-[17px] leading-relaxed font-semibold tracking-[-0.01em] md:text-[19px]">
-            {stage}
-          </p>
-          <p className="mt-1.5 text-[13.5px] leading-6 text-secondary-foreground">{whereWeAre}</p>
-        </Brief>
+      <div className="mx-auto w-full max-w-[1280px] px-4 pt-5 pb-24 md:px-7 md:pt-7">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Project command center</p>
+            <h2 className="mt-1 font-display text-[22px] font-bold md:text-[26px]">{stage}</h2>
+            <p className="mt-1 max-w-[68ch] text-[12.5px] leading-5 text-muted-foreground">{whereWeAre}</p>
+          </div>
+          <span className="rounded-full border border-border bg-card px-3 py-1.5 text-[11.5px] font-semibold shadow-card">{work.length} open item{work.length === 1 ? "" : "s"}</span>
+        </div>
 
-        <Brief label="Next move">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
           {next.work ? (
-            <button
-              type="button"
-              onClick={() => setActive(next.work ?? null)}
-              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-4 text-left"
-            >
-              <span className="min-w-0">
-                <span className="block text-[21px] leading-tight font-bold tracking-[-0.02em] md:text-[26px]">
-                  {next.title}
-                </span>
-                <span className="mt-1.5 block text-[12.5px] text-muted-foreground">{next.detail}</span>
-              </span>
-              <span className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[12.5px] font-semibold text-primary">
-                Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </button>
+            <button type="button" onClick={() => setActive(next.work ?? null)} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</button>
           ) : next.to ? (
-            <Link
-              to={next.to}
-              params={{ projectId }}
-              className="group grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4"
-            >
-              <span className="min-w-0">
-                <span className="block text-[21px] leading-tight font-bold tracking-[-0.02em] md:text-[26px]">
-                  {next.title}
-                </span>
-                <span className="mt-1.5 block text-[12.5px] text-muted-foreground">{next.detail}</span>
-              </span>
-              <span className="inline-flex shrink-0 items-center gap-1.5 pb-1 text-[12.5px] font-semibold text-primary">
-                Continue <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </Link>
+            <Link to={next.to} params={{ projectId }} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</Link>
           ) : (
-            <div>
-              <p className="text-[21px] leading-tight font-bold md:text-[26px]">{next.title}</p>
-              <p className="mt-1.5 text-[12.5px] text-muted-foreground">{next.detail}</p>
+            <div className="min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised md:p-8">{nextContent}</div>
+          )}
+
+          <Panel title="Readiness" icon={<Layers3 className="size-4" />} className="min-h-[218px]">
+            <p className={cn("mt-1 text-[22px] font-bold", conclusion.tone === "green" ? "text-success" : conclusion.tone === "amber" ? "text-warning" : "text-muted-foreground")}>{conclusion.label}</p>
+            <div className="mt-4 space-y-3">
+              {reasons.length ? reasons.slice(0, 3).map((r) => <div key={r.category} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"><span className="truncate font-semibold">{r.category}</span><span className="text-right text-warning">{r.reason}</span></div>) : <p className="text-[12.5px] leading-5 text-muted-foreground">{evaluated ? "Every setup requirement on this job is satisfied." : "Readiness starts once rooms and surfaces exist."}</p>}
             </div>
-          )}
-        </Brief>
+            <Link to="/projects/$projectId/scope" params={{ projectId }} className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary">Review readiness <ArrowRight className="size-3.5" /></Link>
+          </Panel>
+        </div>
 
-        <Brief
-          label="Waiting / blocked"
-          right={
-            waitingAll.length > 3 ? (
-              <Link
-                to="/projects/$projectId/tasks"
-                params={{ projectId }}
-                className="text-[11.5px] font-semibold text-primary hover:underline"
-              >
-                View all {waitingAll.length}
-              </Link>
-            ) : null
-          }
-        >
-          {waiting.length ? (
-            <ul>
-              {waiting.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => setActive(item)}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-b border-border py-2.5 text-left transition-colors hover:bg-muted/60"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[14px] font-semibold">{item.title}</span>
-                      <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
-                        {item.waiting_on ?? "External confirmation"}
-                      </span>
-                    </span>
-                    {item.follow_up_on ? (
-                      <span className="shrink-0 text-[11.5px] text-warning">
-                        Follow up {formatDate(item.follow_up_on)}
-                      </span>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13.5px] text-muted-foreground">Nothing currently blocking work.</p>
-          )}
-        </Brief>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="grid content-start gap-4">
+            <Panel title="Waiting / blocked" icon={<CircleAlert className="size-4" />} action={waitingAll.length > 3 ? <Link to="/projects/$projectId/tasks" params={{ projectId }}>View all {waitingAll.length}</Link> : undefined}>
+              {waiting.length ? <div className="mt-1 space-y-2">{waiting.map((item) => <button key={item.id} type="button" onClick={() => setActive(item)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left"><span className="min-w-0"><span className="block truncate text-[13px] font-bold">{item.title}</span><span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{item.waiting_on ?? "External confirmation"}</span></span>{item.follow_up_on ? <span className="text-[11px] font-semibold text-warning">{formatDate(item.follow_up_on)}</span> : null}</button>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing currently blocking work.</p>}
+            </Panel>
+            {roomRows.length ? <Panel title="Room readiness" icon={<Layers3 className="size-4" />}>
+              <div className="mt-1 grid gap-2 sm:grid-cols-2">{roomRows.map((room) => <Link key={room.id} to="/projects/$projectId/scope" params={{ projectId }} className="rounded-lg border border-border bg-background/50 p-3 transition-colors hover:bg-primary-soft"><span className="block truncate text-[13px] font-bold">{room.name}</span><span className={cn("mt-1 block text-[11.5px]", room.ok ? "text-success" : "text-warning")}>{room.note}</span></Link>)}</div>
+            </Panel> : null}
+          </div>
 
-        <Brief label="Upcoming">
-          {upcoming.length ? (
-            <ul>
-              {upcoming.slice(0, 3).map((s) => (
-                <li
-                  key={s.id}
-                  className="grid grid-cols-[110px_minmax(0,1fr)] gap-4 border-b border-border py-2.5"
-                >
-                  <span className="text-[12.5px] font-semibold tabular-nums">
-                    {formatDate(s.work_date)}
-                  </span>
-                  <span className="min-w-0 text-[13px]">
-                    {s.kind}
-                    {s.notes ? (
-                      <span className="text-muted-foreground"> · {s.notes}</span>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13.5px] text-muted-foreground">Nothing scheduled yet.</p>
-          )}
-        </Brief>
-
-        <Brief label="Readiness">
-          <p
-            className={cn(
-              "text-[15px] font-bold",
-              conclusion.tone === "green"
-                ? "text-success"
-                : conclusion.tone === "amber"
-                  ? "text-warning"
-                  : "text-muted-foreground",
-            )}
-          >
-            {conclusion.label}
-          </p>
-          {reasons.length ? (
-            <ul className="mt-2">
-              {reasons.map((r) => (
-                <li
-                  key={r.category}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-border py-2 text-[13px]"
-                >
-                  <span className="min-w-0 truncate">{r.category}</span>
-                  <span className="shrink-0 text-[12px] text-warning">{r.reason}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-1.5 text-[13.5px] text-muted-foreground">
-              {evaluated
-                ? "Every setup requirement on this job is satisfied."
-                : "Readiness starts once rooms and surfaces exist."}
-            </p>
-          )}
-          <Link
-            to="/projects/$projectId/scope"
-            params={{ projectId }}
-            className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-primary"
-          >
-            Open rooms &amp; surfaces <ArrowRight className="size-3.5" />
-          </Link>
-        </Brief>
-
-        <Brief
-          label="Latest update"
-          right={
-            <Link
-              to="/projects/$projectId/updates"
-              params={{ projectId }}
-              className="text-[11.5px] font-semibold text-primary hover:underline"
-            >
-              All updates
-            </Link>
-          }
-        >
-          {latest ? (
-            <>
-              <p className="text-[11.5px] font-semibold text-secondary-foreground">
-                {formatDate(latest.report_date)}
-                {latest.crew_label ? ` · ${latest.crew_label}` : ""}
-              </p>
-              <p className="mt-1.5 max-w-[68ch] text-[13.5px] leading-6 whitespace-pre-line">
-                {latest.progress_note ?? "Update submitted without a progress note."}
-              </p>
-              {latest.blockers ? (
-                <p className="mt-2 text-[12.5px] text-warning">Waiting · {latest.blockers}</p>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-[13.5px] text-muted-foreground">No daily update has been submitted.</p>
-          )}
-        </Brief>
-
-        {roomRows.length ? (
-          <Brief label="Room readiness" last>
-            <ul>
-              {roomRows.map((room) => (
-                <li key={room.id}>
-                  <Link
-                    to="/projects/$projectId/scope"
-                    params={{ projectId }}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-b border-border py-2.5 transition-colors hover:bg-muted/60"
-                  >
-                    <span className="min-w-0 truncate text-[13.5px] font-semibold">{room.name}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 text-[12px]",
-                        room.ok ? "text-success" : "text-warning",
-                      )}
-                    >
-                      {room.note}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Brief>
-        ) : null}
+          <div className="grid content-start gap-4">
+            <Panel title="Upcoming" icon={<CalendarDays className="size-4" />}>
+              {upcoming.length ? <div className="mt-1 space-y-3">{upcoming.slice(0, 3).map((s) => <div key={s.id} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><span className="text-[11.5px] font-bold text-primary">{formatDate(s.work_date)}</span><p className="min-w-0 text-[12.5px] font-semibold">{s.kind}{s.notes ? <span className="font-normal text-muted-foreground"> · {s.notes}</span> : null}</p></div>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing scheduled yet.</p>}
+            </Panel>
+            <Panel title="Latest update" icon={<Clock3 className="size-4" />} action={<Link to="/projects/$projectId/updates" params={{ projectId }}>All updates</Link>}>
+              {latest ? <><p className="mt-1 text-[11.5px] font-semibold text-muted-foreground">{formatDate(latest.report_date)}{latest.crew_label ? ` · ${latest.crew_label}` : ""}</p><p className="mt-2 text-[13px] leading-6 whitespace-pre-line">{latest.progress_note ?? "Update submitted without a progress note."}</p>{latest.blockers ? <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-[12px] text-warning">Waiting · {latest.blockers}</p> : null}</> : <p className="mt-2 text-[13px] text-muted-foreground">No daily update has been submitted.</p>}
+            </Panel>
+          </div>
+        </div>
       </div>
-
       <WorkItemPanel item={live} onClose={() => setActive(null)} />
     </>
   );
 }
 
-/** One labelled band of the brief. Rules and whitespace only — never a card. */
-function Brief({
-  label,
-  right,
+function Panel({
+  title,
+  icon,
+  action,
   children,
-  last,
+  className,
 }: {
-  label: string;
-  right?: React.ReactNode;
+  title: string;
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
   children: React.ReactNode;
-  last?: boolean;
+  className?: string;
 }) {
   return (
-    <section className={cn("py-6 md:py-7", !last && "border-b border-border")}>
-      <div className="grid gap-3 md:grid-cols-[150px_minmax(0,1fr)] md:gap-8">
-        <div className="flex items-baseline justify-between gap-3 md:block">
-          <h2 className="text-[10px] font-bold tracking-[0.09em] text-secondary-foreground uppercase">
-            {label}
-          </h2>
-          {right ? <span className="md:mt-2 md:block">{right}</span> : null}
-        </div>
-        <div className="min-w-0">{children}</div>
+    <section className={cn("rounded-xl border border-border bg-card p-5 shadow-card md:p-6", className)}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[13px] font-bold">{icon ? <span className="text-muted-foreground">{icon}</span> : null}{title}</h2>
+        {action ? <span className="text-[11.5px] font-bold text-primary">{action}</span> : null}
       </div>
+      {children}
     </section>
   );
 }
