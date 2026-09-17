@@ -26,9 +26,13 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/scope"
 type WorkspaceTab = "Specification" | "Layout" | "Measurements" | "Prep" | "Photos & Notes";
 const TABS: WorkspaceTab[] = ["Specification", "Layout", "Measurements", "Prep", "Photos & Notes"];
 
+/**
+ * The heart of the product: one continuous working plane. Room and surface
+ * navigation are quiet context rails; the selected surface owns the width.
+ * All data still reads through the authoritative finish model.
+ */
 function ScopeAndDetails() {
   const { projectId } = Route.useParams();
-  const { canEdit } = useCanEditProject(projectId);
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
   const setup = useProjectSetup(projectId);
   const insertArea = useInsertRow("project_areas");
@@ -51,9 +55,10 @@ function ScopeAndDetails() {
   const [issueOpen, setIssueOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
   const [multiFinishOpen, setMultiFinishOpen] = useState(false);
-  const [desktop, setDesktop] = useState(false);
+  /** "mobile" drills down, "medium" uses one navigator rail, "wide" shows both rails. */
+  const [layout, setLayout] = useState<"mobile" | "medium" | "wide">("mobile");
   const areaList = areas.data ?? [];
-  const surfaceList = surfaces.data ?? [];
+  const surfaceList = surfaceListOf(surfaces.data);
   const areaSurfaces = useMemo(() => surfaceList.filter((s) => s.area_id === areaId), [surfaceList, areaId]);
   const area = areaList.find((a) => a.id === areaId) ?? null;
   const surface = surfaceList.find((s) => s.id === surfaceId) ?? null;
@@ -63,69 +68,179 @@ function ScopeAndDetails() {
   const selection = assignment?.finish_selection_id ? setup.selectionList.find((s) => s.id === assignment.finish_selection_id) ?? null : null;
 
   useEffect(() => {
-    const media = window.matchMedia("(min-width: 1024px)");
-    const sync = () => setDesktop(media.matches);
+    const wide = window.matchMedia("(min-width: 1400px)");
+    const medium = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setLayout(wide.matches ? "wide" : medium.matches ? "medium" : "mobile");
     sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
+    wide.addEventListener("change", sync);
+    medium.addEventListener("change", sync);
+    return () => { wide.removeEventListener("change", sync); medium.removeEventListener("change", sync); };
   }, []);
-  useEffect(() => { if (desktop && !areaId && areaList[0]) setAreaId(areaList[0].id); }, [desktop, areaId, areaList]);
-  useEffect(() => { if (desktop && areaId && !areaSurfaces.some((s) => s.id === surfaceId)) setSurfaceId(areaSurfaces[0]?.id ?? null); }, [desktop, areaId, areaSurfaces, surfaceId]);
+  useEffect(() => { if (layout !== "mobile" && !areaId && areaList[0]) setAreaId(areaList[0].id); }, [layout, areaId, areaList]);
+  useEffect(() => { if (layout !== "mobile" && areaId && !areaSurfaces.some((s) => s.id === surfaceId)) setSurfaceId(areaSurfaces[0]?.id ?? null); }, [layout, areaId, areaSurfaces, surfaceId]);
   useEffect(() => { if (surfaceList.length) ensureZones.mutate(surfaceList.map((s) => s.id)); }, [surfaceList.map((s) => s.id).join(",")]);
   useEffect(() => { setZoneId(zones.find((z) => z.is_default)?.id ?? zones[0]?.id ?? null); }, [surfaceId, zones.map((z) => z.id).join(",")]);
   useEffect(() => { setTab("Specification"); }, [surfaceId]);
 
-  const readinessForArea = (id: string) => {
+  const roomNote = (id: string) => {
     const ids = new Set(surfaceList.filter((s) => s.area_id === id).map((s) => s.id));
     const affected = new Set(setup.requirements.filter((r) => r.state === "blocked" && r.surface_id && ids.has(r.surface_id)).map((r) => r.surface_id));
-    return affected.size ? `${affected.size} surface${affected.size === 1 ? "" : "s"} need setup` : ids.size ? "Ready" : null;
+    if (affected.size) return { text: `${affected.size} need setup`, ok: false };
+    if (!ids.size) return { text: "No surfaces", ok: true };
+    return { text: "Ready", ok: true };
   };
+  const surfaceNote = (id: string) => {
+    const ctx = setup.contexts.find((c) => c.surface.id === id && c.zone.is_default);
+    const blockers = setup.requirements.filter((r) => r.surface_id === id && r.state === "blocked");
+    if (!ctx?.selection) return { text: "Not started", ok: false, quiet: true };
+    if (blockers.length) return { text: `${blockers.length} ${blockers.length === 1 ? "decision" : "items"} pending`, ok: false };
+    return { text: "Ready", ok: true };
+  };
+  const surfaceBlockers = surface ? setup.requirements.filter((r) => r.surface_id === surface.id && r.state === "blocked") : [];
   const openEditor = (nextTab: WorkspaceTab, key?: string) => { setEditTab(nextTab); setFocusKey(key ?? null); setEditOpen(true); };
 
+  /** Which zone of the plane is visible right now. */
+  const showRooms = layout === "wide" || (layout === "medium" && !areaId) || (layout === "mobile" && !areaId);
+  const showSurfaces = layout === "wide" || (layout === "medium" && Boolean(areaId)) || (layout === "mobile" && Boolean(areaId) && !surfaceId);
+  const showWorkspace = layout === "wide" || (layout === "medium" ? true : Boolean(surfaceId));
+
   return <>
-    <div className="min-h-[680px] bg-card lg:grid lg:grid-cols-[250px_minmax(0,1fr)] min-[1360px]:grid-cols-[210px_250px_minmax(0,1fr)]">
-      <aside className={cn("min-w-0 border-r border-border bg-muted/25", areaId && "hidden lg:block")}>
-         <PaneHeader title="Rooms" actions={<><Button size="sm" onClick={() => setPlanOpen(true)}><FileText className="size-3.5" /> Plan</Button><IconButton label="Add room" onClick={() => setAddArea(true)}><Plus className="size-4" /></IconButton></>} />
-        <div className="divide-y divide-border">
-           {areaList.map((item) => { const count = surfaceList.filter((s) => s.area_id === item.id).length; const status = readinessForArea(item.id); return <button key={item.id} type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("flex min-h-16 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === areaId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === areaId && "text-primary")}>{item.name}</b><span className={cn("text-xs", status === "Ready" ? "text-muted-foreground" : "text-warning")}>{status ?? `${count} surface${count === 1 ? "" : "s"}`}</span></span><ChevronRight className="size-4 text-muted-foreground lg:hidden" /></button>; })}
-          {!areaList.length ? <EmptyState title="No rooms yet" note="Add the first room to begin setup." /> : null}
-        </div>
-      </aside>
+    <div className="flex min-h-[calc(100vh-8.5rem)] w-full bg-card">
+      {showRooms ? (
+        <aside className={cn("min-w-0 shrink-0 border-border", layout === "wide" ? "w-[200px] border-r" : layout === "medium" ? "w-[248px] border-r" : "w-full")}>
+          <RailHead label="Rooms" actions={<><RailAction label="Plan" onClick={() => setPlanOpen(true)}><FileText className="size-3.5" /></RailAction><RailAction label="Add room" onClick={() => setAddArea(true)}><Plus className="size-4" /></RailAction></>} />
+          <ul>
+            {areaList.map((item) => { const note = roomNote(item.id); return (
+              <li key={item.id}>
+                <button type="button" onClick={() => { setAreaId(item.id); setSurfaceId(null); }} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted/60", item.id === areaId && "bg-primary-soft hover:bg-primary-soft")}>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13.5px] font-semibold">{item.name}</span>
+                    <span className={cn("mt-0.5 block text-[11px]", note.ok ? "text-muted-foreground" : "text-warning")}>{note.text}</span>
+                  </span>
+                  {layout === "mobile" ? <ChevronRight className="size-4 shrink-0 text-muted-foreground" /> : null}
+                </button>
+              </li>
+            ); })}
+          </ul>
+          {!areaList.length ? <p className="px-4 py-5 text-[12.5px] text-muted-foreground">No rooms yet. Add the first room to begin setup.</p> : null}
+        </aside>
+      ) : null}
 
-       <aside className={cn("min-w-0 border-r border-border", !areaId && "hidden", surfaceId && "hidden min-[1360px]:block")}> 
-          <PaneHeader title={area?.name ?? "Surfaces"} back={<button type="button" onClick={() => setAreaId(null)} className="grid size-10 place-items-center text-primary min-[1360px]:hidden" aria-label="Back to rooms"><ArrowLeft className="size-4" /></button>} actions={<><IconButton label="Apply finish to surfaces" onClick={() => setMultiFinishOpen(true)}><SwatchBook className="size-4" /></IconButton><IconButton label="Add surface" onClick={() => setAddSurface(true)}><Plus className="size-4" /></IconButton></>} />
-        <div className="divide-y divide-border">
-           {areaSurfaces.map((item) => { const ctx = setup.contexts.find((c) => c.surface.id === item.id && c.zone.is_default); const blockers = setup.requirements.filter((r) => r.surface_id === item.id && r.state === "blocked"); const summary = !ctx?.selection ? "Not started" : blockers.length ? `${blockers.length} ${blockers.length === 1 ? "decision" : "items"} pending` : "Ready"; return <button key={item.id} type="button" onClick={() => setSurfaceId(item.id)} className={cn("flex min-h-15 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft/70")}><span className="min-w-0 flex-1"><b className={cn("block truncate text-[13.5px]", item.id === surfaceId && "text-primary")}>{item.name}</b><span className={cn("text-xs", summary === "Ready" ? "text-success" : summary === "Not started" ? "text-muted-foreground" : "text-warning")}>{summary}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button>; })}
-          {area && !areaSurfaces.length ? <EmptyState title="No surfaces" note="Add the first surface in this room." /> : null}
-        </div>
-      </aside>
+      {showSurfaces ? (
+        <aside className={cn("min-w-0 shrink-0 border-border", layout === "wide" ? "w-[235px] border-r" : layout === "medium" ? "w-[248px] border-r" : "w-full")}>
+          <RailHead
+            label={layout === "wide" ? "Surfaces" : (area?.name ?? "Surfaces")}
+            back={layout !== "wide" ? <button type="button" onClick={() => { setAreaId(null); setSurfaceId(null); }} className="grid size-8 place-items-center text-primary" aria-label="Back to rooms"><ArrowLeft className="size-4" /></button> : undefined}
+            actions={<><RailAction label="Apply finish to surfaces" onClick={() => setMultiFinishOpen(true)}><SwatchBook className="size-4" /></RailAction><RailAction label="Add surface" onClick={() => setAddSurface(true)}><Plus className="size-4" /></RailAction></>}
+          />
+          <ul>
+            {areaSurfaces.map((item) => { const note = surfaceNote(item.id); return (
+              <li key={item.id}>
+                <button type="button" onClick={() => setSurfaceId(item.id)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted/60", item.id === surfaceId && "bg-primary-soft hover:bg-primary-soft")}>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13.5px] font-semibold">{item.name}</span>
+                    <span className={cn("mt-0.5 block truncate text-[11px]", note.ok ? "text-success" : note.quiet ? "text-muted-foreground" : "text-warning")}>{note.text}</span>
+                  </span>
+                  {layout === "mobile" ? <ChevronRight className="size-4 shrink-0 text-muted-foreground" /> : null}
+                </button>
+              </li>
+            ); })}
+          </ul>
+          {area && !areaSurfaces.length ? <p className="px-4 py-5 text-[12.5px] text-muted-foreground">No surfaces in this room yet.</p> : null}
+        </aside>
+      ) : null}
 
-      <section className={cn("min-w-0", !surfaceId && "hidden min-[1360px]:block", "lg:col-start-2 min-[1360px]:col-start-3")}> 
-        {!surface ? <div className="grid min-h-[520px] place-items-center"><EmptyState title="Select a surface" note="Its specification and installation decisions will appear here." /></div> : <>
-           <header className="border-b border-border px-4 py-6 md:px-8">
-             <button type="button" onClick={() => setSurfaceId(null)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary min-[1360px]:hidden"><ArrowLeft className="size-4" /> {area?.name}</button>
-            <div className="flex items-start gap-4">
-               <div className="min-w-0 flex-1"><p className="v2-kicker">Selected surface</p><h2 className="mt-1 text-[24px] font-bold md:text-[30px]">{surface.name}</h2><p className="mt-2 text-[13px] text-secondary-foreground">{[(surface as unknown as { surface_kind?: string | null }).surface_kind, selection ? formatFinish(selection) : "Finish specification not mapped"].filter(Boolean).join(" · ")}</p><p className={cn("mt-3 text-xs font-semibold", setup.requirements.some((r) => r.surface_id === surface.id && r.state === "blocked") ? "text-warning" : "text-success")}>{setup.requirements.some((r) => r.surface_id === surface.id && r.state === "blocked") ? `Not ready · ${setup.requirements.filter((r) => r.surface_id === surface.id && r.state === "blocked").length} open setup item(s)` : "Ready for installation planning"}</p></div>
-               <Button size="sm" variant="primary" onClick={() => openEditor(tab)}><Pencil className="size-3.5" /> Edit</Button>
-              <div className="relative"><IconButton label="Surface actions" onClick={() => setMoreOpen((v) => !v)}><MoreHorizontal className="size-4" /></IconButton><Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="right" width="md:w-56" title="Surface actions"><PopoverItem onClick={() => { setMoreOpen(false); setIssueOpen(true); }}>Add issue</PopoverItem><PopoverItem onClick={() => { setMoreOpen(false); setMaterialOpen(true); }}>Request material</PopoverItem><PopoverItem onClick={() => { setMoreOpen(false); setAddFinish(true); }}>Add finish area</PopoverItem><PopoverItem tone="muted" onClick={() => { setMoreOpen(false); updateSurface.mutate({ id: surface.id, patch: { archived_at: new Date().toISOString() } }); }}>Archive surface</PopoverItem></Popover></div>
+      {showWorkspace ? (
+        <section className="min-w-0 flex-1">
+          {!surface ? (
+            <p className="px-6 py-10 text-[13px] text-muted-foreground">Select a surface to see its specification and installation decisions.</p>
+          ) : <>
+            <header className="border-b border-border px-5 pt-6 pb-5 md:px-9 md:pt-8">
+              {layout === "mobile" ? <button type="button" onClick={() => setSurfaceId(null)} className="mb-3 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary"><ArrowLeft className="size-4" /> {area?.name}</button> : null}
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold tracking-[0.09em] text-secondary-foreground uppercase">{area?.name ?? "Surface"}</p>
+                  <h2 className="mt-1 truncate text-[25px] leading-tight font-bold tracking-[-0.02em] md:text-[31px]">{surface.name}</h2>
+                  <p className="mt-1.5 text-[12.5px] text-secondary-foreground">
+                    {[(surface as unknown as { surface_kind?: string | null }).surface_kind, selection ? formatFinish(selection) : "Finish specification not mapped"].filter(Boolean).join("  ·  ")}
+                  </p>
+                  <p className={cn("mt-2.5 text-[12.5px] font-semibold", surfaceBlockers.length ? "text-warning" : "text-success")}>
+                    {surfaceBlockers.length
+                      ? `Not ready — ${surfaceBlockers.length} open setup item${surfaceBlockers.length === 1 ? "" : "s"}`
+                      : "Ready for installation planning"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button size="sm" variant="primary" onClick={() => openEditor(tab)}><Pencil className="size-3.5" /> Edit</Button>
+                  <div className="relative">
+                    <RailAction label="Surface actions" onClick={() => setMoreOpen((v) => !v)}><MoreHorizontal className="size-4" /></RailAction>
+                    <Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="right" width="md:w-56" title="Surface actions">
+                      <PopoverItem onClick={() => { setMoreOpen(false); setIssueOpen(true); }}>Add issue</PopoverItem>
+                      <PopoverItem onClick={() => { setMoreOpen(false); setMaterialOpen(true); }}>Request material</PopoverItem>
+                      <PopoverItem onClick={() => { setMoreOpen(false); setAddFinish(true); }}>Add finish area</PopoverItem>
+                      <PopoverItem tone="muted" onClick={() => { setMoreOpen(false); updateSurface.mutate({ id: surface.id, patch: { archived_at: new Date().toISOString() } }); }}>Archive surface</PopoverItem>
+                    </Popover>
+                  </div>
+                </div>
+              </div>
+              {zones.length > 1 ? (
+                <div className="mt-4 flex gap-4 overflow-x-auto">
+                  {zones.map((zone) => <button key={zone.id} type="button" onClick={() => setZoneId(zone.id)} className={cn("shrink-0 text-[12px] font-semibold", zone.id === selectedZone?.id ? "text-primary underline underline-offset-4" : "text-muted-foreground hover:text-foreground")}>{zone.is_default ? "Main field" : zone.name}</button>)}
+                </div>
+              ) : null}
+            </header>
+
+            <nav className="flex gap-5 overflow-x-auto border-b border-border px-5 md:px-9">
+              {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 border-b-2 py-3 text-[12.5px] font-semibold transition-colors", tab === item ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{item}</button>)}
+            </nav>
+
+            <div className="px-5 py-7 md:px-9 md:py-8">
+              <SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} onAdd={openEditor} />
             </div>
-            {zones.length > 1 ? <div className="mt-4 flex gap-1 overflow-x-auto">{zones.map((zone) => <button key={zone.id} type="button" onClick={() => setZoneId(zone.id)} className={cn("shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold", zone.id === selectedZone?.id ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted")}>{zone.is_default ? "Main field" : zone.name}</button>)}</div> : null}
-          </header>
-           <nav className="flex overflow-x-auto border-b border-border px-4 md:px-8">{TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={cn("shrink-0 border-b-2 px-3 py-3.5 text-[12.5px] font-semibold", tab === item ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>{item}</button>)}</nav>
-            <div className="px-5 py-7 md:px-10 md:py-10"><SurfaceSection tab={tab} surface={surface} assignment={assignment} selection={selection} onAdd={openEditor} /></div>
-        </>}
-      </section>
+
+            <div className="border-t border-border px-5 py-4 md:px-9">
+              <p className={cn("text-[10px] font-bold tracking-[0.09em] uppercase", surfaceBlockers.length ? "text-warning" : "text-success")}>
+                {surfaceBlockers.length ? "Not ready" : "Ready"}
+              </p>
+              <p className="mt-1 text-[12.5px] text-secondary-foreground">
+                {surfaceBlockers.length
+                  ? surfaceBlockers.map((r) => r.label).slice(0, 3).join("  ·  ")
+                  : "Specification, layout and prep information is complete for this surface."}
+              </p>
+            </div>
+          </>}
+        </section>
+      ) : null}
     </div>
 
     <NameDrawer open={addArea} title="Add room" placeholder="Master Bathroom" onClose={() => setAddArea(false)} onSave={async (name) => { const row = await insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as { id: string }; setAreaId(row.id); setSurfaceId(null); setAddArea(false); }} />
     <NameDrawer open={addSurface} title="Add surface" placeholder="Shower Wall A" onClose={() => setAddSurface(false)} onSave={async (name) => { if (!areaId) return; const row = await insertSurface.mutateAsync({ area_id: areaId, name, sort_order: areaSurfaces.length + 1 }) as { id: string }; setSurfaceId(row.id); setAddSurface(false); }} />
-     {planOpen ? <ProjectPlanDrawer projectId={projectId} areas={areaList} files={setup.fileList} initialAreaId={areaId} onCreateRoom={async (name) => insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as Promise<Area>} onClose={() => setPlanOpen(false)} /> : null}
-     {surface && assignment && editOpen ? <SurfaceEditDrawer projectId={projectId} surface={surface} assignment={assignment} selection={selection} selections={setup.selectionList} initialTab={editTab} focusKey={focusKey} onClose={() => setEditOpen(false)} /> : null}
-     {area && multiFinishOpen ? <MultiFinishDrawer projectId={projectId} roomName={area.name} surfaces={areaSurfaces} zones={setup.zoneList} selections={setup.selectionList} onClose={() => setMultiFinishOpen(false)} /> : null}
+    {planOpen ? <ProjectPlanDrawer projectId={projectId} areas={areaList} files={setup.fileList} initialAreaId={areaId} onCreateRoom={async (name) => insertArea.mutateAsync({ project_id: projectId, name, sort_order: areaList.length + 1 }) as Promise<Area>} onClose={() => setPlanOpen(false)} /> : null}
+    {surface && assignment && editOpen ? <SurfaceEditDrawer projectId={projectId} surface={surface} assignment={assignment} selection={selection} selections={setup.selectionList} initialTab={editTab} focusKey={focusKey} onClose={() => setEditOpen(false)} /> : null}
+    {area && multiFinishOpen ? <MultiFinishDrawer projectId={projectId} roomName={area.name} surfaces={areaSurfaces} zones={setup.zoneList} selections={setup.selectionList} onClose={() => setMultiFinishOpen(false)} /> : null}
     {surface && addFinish ? <NameDrawer open title="Add finish area" placeholder="Accent band" onClose={() => setAddFinish(false)} onSave={async (name) => { const id = await addZone.mutateAsync({ surfaceId: surface.id, name, sortOrder: zones.length }); setZoneId(id); setAddFinish(false); }} /> : null}
     <CreateWorkItemModal open={issueOpen} onClose={() => setIssueOpen(false)} kind="Issue" projectId={projectId} areaId={areaId} surfaceId={surfaceId} />
     <RequestMaterialModal open={materialOpen} onClose={() => setMaterialOpen(false)} projectId={projectId} />
   </>;
+}
+
+function surfaceListOf(rows: SurfaceFull[] | undefined) {
+  return rows ?? [];
+}
+
+/** Quiet uppercase rail heading — a line of type, not a toolbar. */
+function RailHead({ label, actions, back }: { label: string; actions?: ReactNode; back?: ReactNode }) {
+  return (
+    <header className="flex min-h-12 items-center gap-1.5 border-b border-border px-2.5">
+      {back}
+      <h2 className="min-w-0 flex-1 truncate px-1.5 text-[10px] font-bold tracking-[0.09em] text-secondary-foreground uppercase">{label}</h2>
+      <div className="flex items-center gap-0.5">{actions}</div>
+    </header>
+  );
+}
+
+function RailAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return <button type="button" aria-label={label} title={label} onClick={onClick} className="grid size-8 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
 function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null; onAdd: (tab: WorkspaceTab, key?: string) => void }) {
@@ -134,17 +249,20 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
   const measured = measurementSummary(surface);
   const groups: Record<WorkspaceTab, { label: string; value: ReactNode; missing?: boolean }[]> = {
     Specification: [
-      { label: "Tile", value: selection ? <><b className="block">{selection.label}</b><small className="block text-muted-foreground">{[spec.manufacturer, spec.nominalSize].filter(Boolean).join(" · ")}</small>{spec.sku ? <small className="block text-muted-foreground">SKU {spec.sku}</small> : null}</> : "Missing", missing: !selection },
-      { label: "Grout", value: spec.groutColor ? <><b className="block">{spec.groutColor}</b><small className="block text-muted-foreground">{[spec.groutManufacturer, spec.jointSize].filter(Boolean).join(" · ")}</small></> : "Missing", missing: !spec.groutColor },
-      { label: "Edge", value: [spec.edgeTreatment, spec.metalProfile].filter(Boolean).join(" · ") || "Missing", missing: !spec.edgeTreatment && !spec.metalProfile },
-      { label: "Finish height", value: spec.tileHeight || "Missing", missing: !spec.tileHeight },
+      { label: "Tile / product", value: selection ? <><b className="block">{selection.label}</b>{[spec.manufacturer, spec.nominalSize].filter(Boolean).length ? <span className="block text-[12px] text-muted-foreground">{[spec.manufacturer, spec.nominalSize].filter(Boolean).join(" · ")}</span> : null}{spec.sku ? <span className="block text-[12px] text-muted-foreground">SKU {spec.sku}</span> : null}</> : "Missing", missing: !selection },
+      { label: "Supplier", value: spec.supplier || "Missing", missing: !spec.supplier },
+      { label: "Actual / nominal size", value: [spec.actualSize, spec.nominalSize].filter(Boolean).join(" · ") || "Missing", missing: !spec.actualSize && !spec.nominalSize },
+      { label: "Grout / joint", value: spec.groutColor ? <><b className="block">{spec.groutColor}</b>{[spec.groutManufacturer, spec.jointSize].filter(Boolean).length ? <span className="block text-[12px] text-muted-foreground">{[spec.groutManufacturer, spec.jointSize].filter(Boolean).join(" · ")}</span> : null}</> : "Missing", missing: !spec.groutColor },
+      { label: "Metal / edge", value: [spec.edgeTreatment, spec.metalProfile].filter(Boolean).join(" · ") || "Decision needed", missing: !spec.edgeTreatment && !spec.metalProfile },
+      { label: "Finish height / termination", value: [spec.tileHeight, spec.finishTransition].filter(Boolean).join(" · ") || "Decision needed", missing: !spec.tileHeight && !spec.finishTransition },
+      { label: "Special instructions", value: assignment?.notes || selection?.notes || "None recorded" },
     ],
     Layout: [
-      { label: "Pattern", value: spec.layoutPattern || "Missing", missing: !spec.layoutPattern },
-      { label: "Direction", value: spec.layoutDirection || "Missing", missing: !spec.layoutDirection },
-      { label: "Start", value: spec.startPoint || "Missing", missing: !spec.startPoint },
-      { label: "Alignment", value: spec.coverage || "Missing", missing: !spec.coverage },
-      { label: "Termination", value: spec.finishTransition || spec.tileHeight || "Missing", missing: !spec.finishTransition && !spec.tileHeight },
+      { label: "Pattern", value: spec.layoutPattern || "Decision needed", missing: !spec.layoutPattern },
+      { label: "Direction", value: spec.layoutDirection || "Decision needed", missing: !spec.layoutDirection },
+      { label: "Start point", value: spec.startPoint || "Decision needed", missing: !spec.startPoint },
+      { label: "Feature alignment", value: spec.coverage || "Decision needed", missing: !spec.coverage },
+      { label: "Termination", value: spec.finishTransition || spec.tileHeight || "Decision needed", missing: !spec.finishTransition && !spec.tileHeight },
     ],
     Measurements: [
       { label: "Measured size", value: measured ?? "Not recorded", missing: !measured },
@@ -165,10 +283,23 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
       { label: "Installer notes", value: assignment?.notes || "No published installer notes" },
     ],
   };
-  const focusFor: Record<string, string> = { Tile: "finish_selection_id", Grout: "grout_color", Edge: "edge_treatment", "Finish height": "tile_height", Pattern: "layout_pattern", Direction: "layout_direction", Start: "start_point", Alignment: "coverage", Termination: "finish_transition", "Measured size": "measured_length_in", "Plan area": "plan_sf", "Field area": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
+  const focusFor: Record<string, string> = { "Tile / product": "finish_selection_id", Supplier: "supplier", "Actual / nominal size": "tile_size", "Grout / joint": "grout_color", "Metal / edge": "edge_treatment", "Finish height / termination": "tile_height", "Special instructions": "notes", Pattern: "layout_pattern", Direction: "layout_direction", "Start point": "start_point", "Feature alignment": "coverage", Termination: "finish_transition", "Measured size": "measured_length_in", "Plan area": "plan_sf", "Field area": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
+  const layoutEmpty = tab === "Layout" && !spec.layoutPattern && !spec.layoutDirection && !spec.startPoint;
+
   return <>
-    <div className="max-w-3xl"><h3 className="v2-kicker mb-3">{tab}</h3><dl className="border-t border-border">{groups[tab].map((row) => <div key={row.label} className="grid gap-1 border-b border-border py-4 sm:grid-cols-[180px_minmax(0,1fr)]"><dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt><dd className={cn("text-[13.5px] leading-6", row.missing && "font-semibold text-warning")}>{row.value}{row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-xs font-semibold text-primary">Add <ChevronRight className="inline size-3" /></button> : null}</dd></div>)}</dl></div>
-    {tab === "Specification" && spec.legacyFallbacks.length ? <p className="mt-5 max-w-3xl rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Shown from older records until re-confirmed: {spec.legacyFallbacks.join(", ")}. Saving here writes the current finish specification.</p> : null}
+    {layoutEmpty ? <p className="mb-5 max-w-[70ch] text-[13px] text-muted-foreground">No layout image published yet. The decisions recorded below are what the installer will follow.</p> : null}
+    <dl className="max-w-[820px]">
+      {groups[tab].map((row) => (
+        <div key={row.label} className="grid gap-1 border-b border-border py-3.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6">
+          <dt className="text-[11px] font-bold tracking-[0.05em] text-muted-foreground uppercase">{row.label}</dt>
+          <dd className={cn("min-w-0 text-[13.5px] leading-6", row.missing && "text-warning")}>
+            {row.value}
+            {row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-[12px] font-semibold text-primary hover:underline">Add</button> : null}
+          </dd>
+        </div>
+      ))}
+    </dl>
+    {tab === "Specification" && spec.legacyFallbacks.length ? <p className="mt-5 max-w-[70ch] text-[11.5px] text-muted-foreground">Shown from older records until re-confirmed: {spec.legacyFallbacks.join(", ")}. Saving here writes the current finish specification.</p> : null}
   </>;
 }
 
