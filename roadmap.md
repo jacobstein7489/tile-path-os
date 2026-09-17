@@ -17,10 +17,10 @@
 - Retired unused LifecycleTrack.tsx and ops/TaskDrawer.tsx.
 
 ## Production Experience Pass
-- [ ] Unify global shell and mobile navigation
-- [ ] Finalize Today and Work shared experience
-- [ ] Finalize Projects operational list
-- [ ] Finalize project shell, Overview, Rooms, and Design Meeting
-- [ ] Improve installer package review and printed room sheet
-- [ ] Retire verified inactive duplicate UI paths
-- [ ] Verify desktop, mobile, workflows, data integrity, and screenshots
+- [x] Unify global shell and mobile navigation
+- [x] Finalize Today and Work shared experience
+- [x] Finalize Projects operational list using only existing Work, readiness, schedule, and project dates
+- [x] Finalize project shell, Overview, responsive Rooms, and Design Meeting without alternate screens
+- [x] Improve installer package review and printed room sheet
+- [x] Retire verified inactive duplicate UI paths
+- [x] Verify desktop, mobile, workflows, unchanged production counts, and screenshots without production mutations

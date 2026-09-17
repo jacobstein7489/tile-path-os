@@ -23,13 +23,15 @@ const PROJECT_TABS = [
   { label: "Files", to: "/projects/$projectId/files" as const, value: "/projects/$projectId/files" },
 ];
 const MORE_TABS = [
-  { label: "Design Meeting", hint: "Resolve layout and treatment choices", to: "/projects/$projectId/design" as const, value: "/projects/$projectId/design" },
-  { label: "Installer Package", hint: "Review installer-ready room details", to: "/projects/$projectId/package" as const, value: "/projects/$projectId/package" },
   { label: "Updates", hint: "Daily and project status updates", to: "/projects/$projectId/updates" as const, value: "/projects/$projectId/updates" },
   { label: "Materials", hint: "Tiles, finishes and install materials", to: "/projects/$projectId/tiles" as const, value: "/projects/$projectId/tiles" },
   { label: "Schedule", hint: "Crew assignments and dates", to: "/projects/$projectId/schedule" as const, value: "/projects/$projectId/schedule" },
   { label: "Field", hint: "Progress by area and visit checklist", to: "/projects/$projectId/field" as const, value: "/projects/$projectId/field" },
   { label: "Commercial", hint: "Project commercial details", to: "/projects/$projectId/materials" as const, value: "/projects/$projectId/materials" },
+];
+const SETUP_TOOLS = [
+  { label: "Design Meeting", hint: "Resolve layout and treatment choices", to: "/projects/$projectId/design" as const, value: "/projects/$projectId/design" },
+  { label: "Installer Package", hint: "Review installer-ready room details", to: "/projects/$projectId/package" as const, value: "/projects/$projectId/package" },
 ];
 
 function ProjectShell() {
@@ -51,7 +53,7 @@ function ProjectShell() {
 
   const pmName = profiles.find((p) => p.user_id === project.pm_user_id)?.full_name ?? project.project_manager;
   const resolve = (value: string) => value.replace("$projectId", projectId);
-  const moreActive = MORE_TABS.find((t) => pathname === resolve(t.value));
+  const moreActive = [...SETUP_TOOLS, ...MORE_TABS].find((t) => pathname === resolve(t.value));
   const activeTab = PROJECT_TABS.find((tab) => pathname === resolve(tab.value))?.value ?? (moreActive ? "more" : "/projects/$projectId");
   const stage = normalizeStage(project.lifecycle_stage);
   const following = nextStage(stage);
@@ -59,7 +61,7 @@ function ProjectShell() {
 
   return <>
     <div className="hidden md:block"><AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} /></div>
-    <div className="mx-auto max-w-[1480px] px-0 pb-16 md:px-7 md:pt-4">
+    <div className="mx-auto max-w-[1440px] px-0 pb-16 md:px-8 md:pt-4">
       <header className="border-b border-border bg-card">
         <div className="flex items-center gap-2 px-4 py-2.5 md:px-0 md:py-3">
           <div className="min-w-0">
@@ -100,6 +102,9 @@ function ProjectShell() {
           <div className="relative shrink-0">
             <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn("-mb-px inline-flex cursor-pointer items-center gap-1 border-b-2 px-2 pb-3 text-[13px] transition-colors duration-150 md:px-3.5 md:text-[13.5px]", activeTab === "more" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-secondary-foreground hover:text-foreground")}>More<ChevronDown className={cn("hidden size-3.5 transition-transform sm:block", moreOpen && "rotate-180")} /></button>
             <Popover open={moreOpen} onClose={() => setMoreOpen(false)} align="right" width="md:w-72" title="Project tools">
+              <div className="px-2.5 pt-1 pb-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Setup tools</div>
+              {SETUP_TOOLS.map((t) => <Link key={t.value} to={t.to} params={{ projectId }} onClick={() => setMoreOpen(false)} className={cn("flex min-h-11 flex-col justify-center rounded-lg px-2.5 py-1.5", pathname === resolve(t.value) ? "bg-primary-soft text-primary" : "hover:bg-muted")}><span className="text-[13.5px] font-semibold">{t.label}</span><span className="text-[11.5px] text-muted-foreground">{t.hint}</span></Link>)}
+              <div className="mt-1 border-t border-border px-2.5 pt-2 pb-1 text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Project</div>
               {MORE_TABS.map((t) => <Link key={t.value} to={t.to} params={{ projectId }} onClick={() => setMoreOpen(false)} className={cn("flex min-h-11 flex-col justify-center rounded-lg px-2.5 py-1.5", pathname === resolve(t.value) ? "bg-primary-soft text-primary" : "hover:bg-muted")}><span className="text-[13.5px] font-semibold">{t.label}</span><span className="text-[11.5px] text-muted-foreground">{t.hint}</span></Link>)}
             </Popover>
           </div>

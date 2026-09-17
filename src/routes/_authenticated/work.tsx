@@ -37,8 +37,8 @@ function WorkPage() {
     return true;
   };
   return <>
-    <PageShell crumbs={[{ label: "Work" }]} title="Work" subtitle="Everything the company needs to move, in one place." actions={<Button variant="primary" onClick={() => capture()}><Plus className="size-4" /> Capture</Button>}>
-      <WorkList items={items} isLoading={isLoading} onOpen={setActive} selectedId={active?.id ?? null} filters={FILTERS} matchFilter={matches} defaultFilter="All" defaultView="Grouped by Project" viewStorageKey="cobble-work-view" showSummary startCollapsed={false} toolbarRight={<Button size="sm" variant="primary" onClick={() => capture()}><Plus className="size-4" /> Capture</Button>} emptyTitle="No work here" emptyNote="Change the filter or capture the next action." />
+    <PageShell crumbs={[{ label: "Work" }]} title="Work" subtitle="Everything the company needs to move, in one place.">
+      <WorkList items={items} isLoading={isLoading} onOpen={setActive} selectedId={active?.id ?? null} filters={FILTERS} matchFilter={matches} defaultFilter="All" defaultView="Grouped by Project" viewStorageKey="cobble-work-view" startCollapsed={false} maxVisiblePerGroup={5} toolbarRight={<Button size="sm" variant="primary" onClick={() => capture()}><Plus className="size-4" /> Capture</Button>} emptyTitle="No work here" emptyNote="Change the filter or capture the next action." />
     </PageShell>
     <WorkItemDrawer item={live} onClose={() => setActive(null)} />
   </>;

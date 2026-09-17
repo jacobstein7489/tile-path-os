@@ -9,7 +9,7 @@ export type Crumb = { label: string; to?: string; params?: Record<string, string
  */
 export function AppHeader({ crumbs }: { crumbs: Crumb[]; viewLabel?: string }) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-background/95 px-4 backdrop-blur md:px-7">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border bg-background/95 px-4 backdrop-blur md:px-8">
       <nav className="flex min-w-0 items-center gap-2 text-[13px]">
         {crumbs.map((c, i) => (
           <span key={i} className="flex min-w-0 items-center gap-2">

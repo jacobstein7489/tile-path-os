@@ -362,6 +362,7 @@ export function WorkList({
   startCollapsed = true,
   sectionsByBucket = false,
   toolbarRight,
+  maxVisiblePerGroup,
 }: {
   items: WorkItemRow[];
   onOpen: (item: WorkItemRow) => void;
@@ -390,6 +391,8 @@ export function WorkList({
   sectionsByBucket?: boolean;
   /** Right-side toolbar slot, e.g. Capture. */
   toolbarRight?: ReactNode;
+  /** Keep busy company groups concise; users can reveal the remainder in place. */
+  maxVisiblePerGroup?: number;
 }) {
   const { data: profiles = [] } = useProfiles();
   const save = useSaveWorkItem();
@@ -403,6 +406,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   /** Summary focus — Open / Unassigned / Waiting / Overdue. */
   const [focus, setFocus] = useState<SummaryKey | null>(null);
@@ -920,7 +924,7 @@ export function WorkList({
       ) : null}
 
       {showViewToggle || showSearch || toolbarRight ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="sticky top-16 z-10 flex min-w-0 flex-wrap items-center gap-2 border-y border-border bg-canvas/95 py-2 backdrop-blur">
           {showViewToggle ? <ViewToggle /> : null}
           {showViewToggle && !sectionsByBucket ? <CollapseButton /> : null}
           <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
@@ -1013,32 +1017,28 @@ export function WorkList({
                     </span>
                   </div>
                 ) : (
-                  /* The whole header toggles — the chevron is only a cue. */
-                  <button
-                    type="button"
-                    aria-expanded={!isCollapsed}
-                    onClick={() => setCollapsed((s) => ({ ...s, [key]: !isCollapsed }))}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-2.5 px-2.5 py-3.5 text-left outline-none",
-                      "transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30",
-                      !isCollapsed && "border-b border-border",
-                    )}
-                  >
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground">
+                  <div className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2.5 py-2.5 transition-colors duration-150 hover:bg-muted/40", !isCollapsed && "border-b border-border")}>
+                    <button
+                      type="button"
+                      aria-label={isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                      aria-expanded={!isCollapsed}
+                      onClick={() => setCollapsed((s) => ({ ...s, [key]: !isCollapsed }))}
+                      className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30"
+                    >
                       {isCollapsed ? (
                         <ChevronRight className="size-4" />
                       ) : (
                         <ChevronDown className="size-4" />
                       )}
-                    </span>
-                    <span className="min-w-0 flex-1">
+                    </button>
+                    {!byPerson && key !== "unassigned" ? <Link to="/projects/$projectId" params={{ projectId: key }} className="min-w-0 rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/30"> 
                       <span className="block truncate text-[15.5px] font-bold tracking-[-0.015em]">
                         <Highlight text={group.name} query={q} />
                       </span>
                       <span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">
                         {meta}
                       </span>
-                    </span>
+                    </Link> : <span className="min-w-0 px-1 py-1"><span className="block truncate text-[15.5px] font-bold tracking-[-0.015em]"><Highlight text={group.name} query={q} /></span><span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">{meta}</span></span>}
                     {!byPerson && key !== "unassigned" ? (
                       <Link
                         to="/projects/$projectId"
@@ -1049,7 +1049,7 @@ export function WorkList({
                         Open job
                       </Link>
                     ) : null}
-                  </button>
+                  </div>
                 )}
 
                 <div
@@ -1059,7 +1059,19 @@ export function WorkList({
                   )}
                 >
                   <div className="overflow-hidden">
-                    <Body list={group.items} withProject={byPerson || sectionsByBucket} />
+                    <Body
+                      list={maxVisiblePerGroup && !expandedGroups[key] ? group.items.slice(0, maxVisiblePerGroup) : group.items}
+                      withProject={byPerson || sectionsByBucket}
+                    />
+                    {maxVisiblePerGroup && group.items.length > maxVisiblePerGroup ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGroups((state) => ({ ...state, [key]: !state[key] }))}
+                        className="flex min-h-11 w-full cursor-pointer items-center border-t border-border/70 px-4 text-left text-[12.5px] font-semibold text-primary transition-colors duration-150 hover:bg-primary-soft/50"
+                      >
+                        {expandedGroups[key] ? "Show less" : `View all ${group.items.length}`}
+                      </button>
+                    ) : null}
                     {allowAdd && !sectionsByBucket ? <AddRow projectKey={key} /> : null}
                   </div>
                 </div>

@@ -13,7 +13,6 @@ import {
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QuickCapture } from "@/components/QuickCapture";
 import { AccountMenu } from "@/components/ops/AccountMenu";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { usePermissions } from "@/hooks/useAuth";
@@ -42,7 +41,6 @@ export function AppSidebar() {
   const isActive = useIsActive();
   const openCapture = useCapture();
   const { canSeeMoney } = usePermissions();
-  const [bulk, setBulk] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
 
   const more = MORE.filter((item) => !item.money || canSeeMoney);
@@ -50,7 +48,7 @@ export function AppSidebar() {
   return (
     <>
       {/* Desktop: one permanent, quiet rail. */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-5 pt-6 pb-6">
           <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
             <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
@@ -80,13 +78,6 @@ export function AppSidebar() {
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
 
-          <button
-            type="button"
-            onClick={() => setBulk(true)}
-            className="flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-sidebar-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            <Plus className="size-[17px]" strokeWidth={1.8} /> Bulk import
-          </button>
           <div className="mt-5 px-3 pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">More</div>
           {more.map((item) => <NavRow key={item.to} item={item} active={isActive(item.to)} />)}
         </nav>
@@ -132,8 +123,6 @@ export function AppSidebar() {
           ))}
         </div>
       ) : null}
-
-      <QuickCapture open={bulk} onClose={() => setBulk(false)} />
     </>
   );
 }

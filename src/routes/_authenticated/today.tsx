@@ -105,7 +105,7 @@ function TodayPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
-      <main className="mx-auto w-full max-w-[1240px] px-4 pt-6 pb-20 md:px-8 md:pt-8">
+      <main className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-20 md:px-8 md:pt-8">
         <h1 className="text-[27px] leading-tight font-bold tracking-[-0.03em] md:text-[34px]">
           {profile?.full_name?.split(" ")[0]
             ? `${greeting()}, ${profile.full_name.split(" ")[0]}`
@@ -155,6 +155,7 @@ function TodayPage() {
             showViewToggle={false}
             showSearch={false}
             allowAdd={false}
+             maxVisiblePerGroup={5}
             showProjectColumn
             emptyTitle={focus ? `Nothing ${focus.toLowerCase()}` : "You're clear"}
             emptyNote={

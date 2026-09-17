@@ -102,20 +102,23 @@ function SurfaceBlock({ row }: { row: PackageSnapshotRow }) {
     ["Underlayment", dashed(row.underlayment)],
     ["Waterproofing", dashed(row.waterproofing)],
   ];
+  const present = facts.filter(([, value]) => value);
+  const missing = facts.filter(([, value]) => !value).map(([label]) => label);
   return (
     <section className="print-surface">
       <h2>
         {row.surface}
         <span>{row.zone}</span>
       </h2>
-      <dl>
-        {facts.map(([label, value]) => (
-          <div key={label} className={value ? undefined : "print-missing"}>
+       <dl>
+         {present.map(([label, value]) => (
+           <div key={label}>
             <dt>{label}</dt>
-            <dd>{value ?? "NOT SPECIFIED — confirm with office"}</dd>
+             <dd>{value}</dd>
           </div>
         ))}
       </dl>
+       {missing.length ? <div className="print-open"><b>OPEN / CONFIRM WITH OFFICE</b><p>{missing.join(" · ")}</p></div> : null}
       {row.instructions && row.instructions !== "—" ? (
         <p className="print-note">
           <b>Important instructions:</b> {row.instructions}
