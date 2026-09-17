@@ -118,7 +118,7 @@ function SurfaceBlock({ row }: { row: PackageSnapshotRow }) {
           </div>
         ))}
       </dl>
-       {missing.length ? <div className="print-open"><b>OPEN / CONFIRM WITH OFFICE</b><p>{missing.join(" · ")}</p></div> : null}
+        {missing.length ? <div className="print-open"><b>OPEN — CONFIRM WITH OFFICE</b><p>{missing.map((item) => `• ${item}`).join("   ")}</p></div> : null}
       {row.instructions && row.instructions !== "—" ? (
         <p className="print-note">
           <b>Important instructions:</b> {row.instructions}
