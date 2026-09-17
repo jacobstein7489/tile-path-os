@@ -61,12 +61,12 @@ function ProjectShell() {
 
   return <>
     <div className="hidden md:block"><AppHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: project.name }]} /></div>
-    <div className="mx-auto max-w-[1440px] px-0 pb-16 md:px-8 md:pt-4">
-      <header className="border-b border-border bg-card">
-        <div className="flex items-center gap-2 px-4 py-2.5 md:px-0 md:py-3">
+    <div className="mx-auto max-w-[1520px] px-0 pb-16 md:px-7 md:pt-5">
+      <header className="bg-card md:border md:border-border">
+        <div className="flex items-center gap-2 px-4 py-4 md:px-6 md:py-5">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2.5">
-              <h1 className="truncate text-[17px] leading-none font-semibold md:text-[26px]">{project.name}</h1>
+               <h1 className="truncate text-[19px] leading-none font-bold md:text-[28px]">{project.name}</h1>
               <div className="relative shrink-0">
                 <button type="button" onClick={() => setStageOpen((v) => !v)} className="inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold text-secondary-foreground transition-colors duration-150 hover:border-border-strong hover:text-foreground">
                   {project.exception_state ?? stage}<ChevronDown className={cn("size-3.5 transition-transform", stageOpen && "rotate-180")} />
@@ -97,7 +97,7 @@ function ProjectShell() {
             <div className="md:hidden"><ProjectMoreMenu compact project={project} onDailyUpdate={() => setDailyOpen(true)} onStatusUpdate={() => setStatusOpen(true)} /></div>
           </div>
         </div>
-        <div className="flex items-end gap-0 px-1 md:gap-1 md:px-0">
+        <div className="flex items-end gap-0 border-t border-border px-1 md:gap-1 md:px-4">
           <UnderlineTabs className="min-w-0 flex-1 justify-between border-b-0 [&_a]:px-2 md:justify-start md:[&_a]:px-3.5" items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))} value={activeTab} />
           <div className="relative shrink-0">
             <button type="button" onClick={() => setMoreOpen((v) => !v)} className={cn("-mb-px inline-flex cursor-pointer items-center gap-1 border-b-2 px-2 pb-3 text-[13px] transition-colors duration-150 md:px-3.5 md:text-[13.5px]", activeTab === "more" ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-secondary-foreground hover:text-foreground")}>More<ChevronDown className={cn("hidden size-3.5 transition-transform sm:block", moreOpen && "rotate-180")} /></button>
@@ -110,7 +110,7 @@ function ProjectShell() {
           </div>
         </div>
       </header>
-      <main className="bg-card"><Outlet /></main>
+       <main className="bg-card md:border-x md:border-b md:border-border"><Outlet /></main>
     </div>
     {dailyOpen ? <FieldReportSheet projectId={projectId} projectName={project.name} onClose={() => setDailyOpen(false)} /> : null}
     {statusOpen ? <ProjectStatusUpdateSheet project={project} onClose={() => setStatusOpen(false)} /> : null}
