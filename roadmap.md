@@ -55,3 +55,10 @@
 - [x] Replace the split Projects queue/inspector with a compact full-width operations list
 - [x] Simplify the project shell while preserving its five permanent destinations and wired actions
 - [x] Verify 1280×800, 1366×768, 1440×900, and mobile overflow without production mutations
+
+## Controlled visual rebuild
+- [x] Establish shared bright card-based visual foundation
+- [x] Rebuild Today with summaries, operational list, quick actions
+- [x] Rebuild Work with summaries and grouped workspace
+- [x] Rebuild Projects portfolio presentation
+- [x] Verify desktop/mobile viewports and shared work panel
