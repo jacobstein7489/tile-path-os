@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Area, SurfaceFull } from "@/lib/data";
 import type { FinishAssignment, FinishSelection, FinishZone } from "@/lib/finishes";
+import { measurementSummary, resolveSpec } from "@/lib/spec";
 
 /**
  * Installer packages are built from the SAME surface / zone / assignment / selection
