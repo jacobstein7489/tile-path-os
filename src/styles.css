@@ -178,7 +178,22 @@
     display: none !important;
   }
 
+  /* Sidebar, header and tabs live in the app shell, so hide everything and
+     reveal only the room sheet — the printed page is jobsite paperwork. */
+  body {
+    visibility: hidden;
+  }
+
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+
   .print-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     display: block !important;
     color: #000;
     font-family: var(--font-sans);
