@@ -43,3 +43,10 @@
 - [x] Verify 1440px desktop and 390px mobile without overflow
 - [x] Confirm production data counts remain unchanged
 - [x] Deliver old/new/mobile evidence and stop before other routes
+
+## Projects V2 exact frontend contract
+- [x] Replace Projects with the exact continuous queue + inspector composition
+- [x] Restore the specified light global shell and semantic palette
+- [x] Verify 1440×900, 1280×800, and 390px without horizontal overflow
+- [x] Confirm the 1280px inspector collapse and purpose-built mobile rows
+- [x] Confirm production counts unchanged and deliver old/new evidence
