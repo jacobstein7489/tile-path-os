@@ -46,27 +46,27 @@ function ProjectOverview() {
   const live = active ? feed.find((i) => i.id === active.id) ?? active : null;
 
   return <>
-    <div className="border-x border-b border-border bg-card">
-      <section className="border-b border-border px-5 py-7 md:px-8 md:py-9">
-        <Eyebrow>Next move</Eyebrow>
-        {next.work ? <button type="button" onClick={() => setActive(next.work ?? null)} className="group mt-3 flex w-full items-center gap-5 text-left"><span className="min-w-0 flex-1"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></span><span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></span></button> : next.to ? <Link to={next.to} params={{ projectId }} className="group mt-3 flex items-center gap-5"><span className="min-w-0 flex-1"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></span><span className="inline-flex items-center gap-2 text-sm font-semibold text-primary">Continue setup <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></span></Link> : <div className="mt-3"><strong className="block text-[22px] leading-snug font-semibold md:text-[26px]">{next.title}</strong><span className="mt-1 block text-sm text-muted-foreground">{next.detail}</span></div>}
+    <div className="bg-card">
+      <section className="grid min-h-[240px] border-b border-border md:grid-cols-[190px_minmax(0,1fr)]">
+        <div className="border-b border-border bg-foreground px-5 py-6 text-background md:border-r md:border-b-0 md:px-6 md:py-8"><span className="v2-kicker !text-background/55">Operational brief</span><div className="mt-8 text-[12px] text-background/65">Current stage</div><div className="mt-1 text-xl font-bold">{project.exception_state ?? project.lifecycle_stage}</div><button type="button" onClick={() => { setReadinessCategory(null); setReadinessOpen(true); }} className="mt-8 text-xs font-semibold text-background underline underline-offset-4">View readiness</button></div>
+        <div className="px-5 py-7 md:px-10 md:py-9"><Eyebrow>Next move</Eyebrow>{next.work ? <button type="button" onClick={() => setActive(next.work ?? null)} className="group mt-4 flex w-full items-end gap-5 text-left"><span className="min-w-0 flex-1"><strong className="block text-[26px] leading-tight font-bold md:text-[36px]">{next.title}</strong><span className="mt-2 block text-sm text-muted-foreground">{next.detail}</span></span><span className="mb-1 inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-primary">Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" /></span></button> : next.to ? <Link to={next.to} params={{ projectId }} className="group mt-4 flex items-end gap-5"><span className="min-w-0 flex-1"><strong className="block text-[26px] leading-tight font-bold md:text-[36px]">{next.title}</strong><span className="mt-2 block text-sm text-muted-foreground">{next.detail}</span></span><span className="mb-1 inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-primary">Continue <ArrowRight className="size-4" /></span></Link> : <div className="mt-4"><strong className="block text-[26px] leading-tight font-bold md:text-[36px]">{next.title}</strong><span className="mt-2 block text-sm text-muted-foreground">{next.detail}</span></div>}</div>
       </section>
 
-      <div className="grid lg:grid-cols-[minmax(0,3fr)_minmax(310px,2fr)]">
+      <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
         <div className="divide-y divide-border lg:border-r lg:border-border">
-          <section className="px-5 py-7 md:px-8">
+           <section className="px-5 py-8 md:px-10">
              <div className="flex items-center justify-between"><Eyebrow>Waiting on</Eyebrow>{waiting.length ? <Link to="/projects/$projectId/tasks" params={{ projectId }} className="text-xs font-semibold text-primary">View all waiting</Link> : null}</div>
             <div className="mt-3 divide-y divide-border">
               {waiting.length ? waiting.map((item) => <button key={item.id} type="button" onClick={() => setActive(item)} className="group flex min-h-16 w-full items-center gap-4 text-left"><span className="min-w-0 flex-1"><b className="block truncate text-[14px]">{item.title}</b><span className="mt-0.5 block text-xs text-muted-foreground">{item.waiting_on ?? "External confirmation"}{item.follow_up_on ? ` · Follow up ${formatDate(item.follow_up_on)}` : ""}</span></span><ChevronRight className="size-4 text-muted-foreground group-hover:text-primary" /></button>) : <p className="py-5 text-sm text-muted-foreground">Nothing is waiting on someone else.</p>}
             </div>
           </section>
-          <section className="px-5 py-7 md:px-8">
+           <section className="px-5 py-8 md:px-10">
             <div className="flex items-center justify-between"><Eyebrow>Latest update</Eyebrow><Link to="/projects/$projectId/updates" params={{ projectId }} className="text-xs font-semibold text-primary">View updates</Link></div>
             {latest ? <div className="mt-4"><div className="flex items-center gap-2 text-xs font-semibold text-secondary-foreground"><ClipboardCheck className="size-4 text-primary" />{formatDate(latest.report_date)}{latest.crew_label ? ` · ${latest.crew_label}` : ""}</div><p className="mt-3 max-w-2xl whitespace-pre-line text-[14px] leading-7">{latest.progress_note ?? "Update submitted without a progress note."}</p>{latest.blockers ? <p className="mt-3 text-sm text-warning">Waiting · {latest.blockers}</p> : null}</div> : <p className="mt-4 text-sm text-muted-foreground">No Daily Update has been submitted.</p>}
           </section>
         </div>
         <div className="divide-y divide-border">
-          <section className="px-5 py-7 md:px-7">
+           <section className="px-5 py-8 md:px-8">
             <div className="flex items-center justify-between"><Eyebrow>Setup status</Eyebrow><button type="button" onClick={() => { setReadinessCategory(null); setReadinessOpen(true); }} className="text-xs font-semibold text-primary">View detail</button></div>
             <div className="mt-3 divide-y divide-border">
               {setupRows(setup).map((row) => <button key={row.label} type="button" onClick={() => { setReadinessCategory(row.category); setReadinessOpen(true); }} className="flex min-h-12 w-full items-center justify-between gap-3 text-left"><span className="text-[13.5px] font-medium">{row.label}</span><span className={cn("text-xs font-semibold", row.tone === "green" ? "text-success" : row.tone === "amber" ? "text-warning" : "text-muted-foreground")}>{row.value}</span></button>)}

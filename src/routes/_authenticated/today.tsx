@@ -105,8 +105,9 @@ function TodayPage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
-      <main className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-20 md:px-8 md:pt-8">
-        <h1 className="text-[27px] leading-tight font-bold tracking-[-0.03em] md:text-[34px]">
+      <main className="mx-auto w-full max-w-[1120px] px-4 pt-7 pb-20 md:px-7 md:pt-10">
+        <p className="v2-kicker">Your operating day</p>
+        <h1 className="mt-2 text-[30px] leading-tight font-bold md:text-[40px]">
           {profile?.full_name?.split(" ")[0]
             ? `${greeting()}, ${profile.full_name.split(" ")[0]}`
             : "Today"}
@@ -117,11 +118,11 @@ function TodayPage() {
             : "Nothing late and nothing due today."}
         </p>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 border-y border-border py-3 text-[12.5px] text-muted-foreground"><span><b className="text-danger">{counts.Overdue}</b> overdue</span><span><b className="text-foreground">{counts.Today}</b> due today</span><span><b className="text-warning">{counts["Waiting Follow-Ups"]}</b> follow-ups</span><span><b className="text-success">{counts.Completed}</b> completed</span></div>
+        <div className="mt-7 grid grid-cols-4 border-y border-border py-4 text-[12px] text-muted-foreground"><span><b className="block text-xl text-danger">{counts.Overdue}</b>overdue</span><span><b className="block text-xl text-foreground">{counts.Today}</b>due today</span><span><b className="block text-xl text-warning">{counts["Waiting Follow-Ups"]}</b>follow-ups</span><span><b className="block text-xl text-success">{counts.Completed}</b>completed</span></div>
 
         {/* Site manager reminder: today's jobs still missing a daily update. */}
         {needsUpdate.length ? (
-          <section className="surface mt-4 px-4 py-4 md:px-5">
+          <section className="mt-6 border-l-2 border-primary bg-card px-4 py-4 md:px-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-[15px] font-bold tracking-[-0.01em]">

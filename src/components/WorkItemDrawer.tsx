@@ -201,10 +201,10 @@ export function WorkItemDrawer({
     <Drawer
       open
       onClose={onClose}
-      width="max-w-[520px]"
+       width="max-w-[560px]"
        title={
          <span className="block pr-2">
-           <span className="block text-[12px] font-semibold text-primary">
+            <span className="v2-kicker block">
             {item.project_id ? (
               <Link
                 to="/projects/$projectId"
@@ -217,7 +217,7 @@ export function WorkItemDrawer({
               "Company / no job"
             )}
           </span>
-           <span className="mt-1 block text-[19px] leading-snug font-bold md:text-[21px]">
+            <span className="mt-2 block text-[22px] leading-snug font-bold md:text-[26px]">
             {item.title}
           </span>
         </span>
@@ -245,7 +245,7 @@ export function WorkItemDrawer({
         </>
       }
     >
-       <div className="space-y-5">
+       <div className="space-y-7">
         <Field label="Action">
           <TextInput
             value={form.title}
@@ -255,7 +255,7 @@ export function WorkItemDrawer({
           />
         </Field>
 
-         <div className="grid grid-cols-1 gap-3 border-y border-border bg-muted/30 py-4 sm:grid-cols-3">
+         <div className="grid grid-cols-1 gap-3 border-y border-border py-4 sm:grid-cols-3">
           <Field label="Owner">
             <Combobox
               options={profileOptions(profiles)}
@@ -328,8 +328,8 @@ export function WorkItemDrawer({
           </div>
         ) : null}
 
-        {/* Log update — the everyday follow-up path, no duplicate actions. */}
-         <section className="overflow-hidden rounded-xl border border-primary/20 bg-primary-soft/25 shadow-[var(--shadow-card)]">
+         {/* Move Forward is the single dominant operational action. */}
+          <section className="overflow-hidden border-y border-primary/25 bg-primary-soft/35">
           {logOpen ? (
              <div className="space-y-4 px-4 py-4">
               <VoiceField
@@ -404,17 +404,17 @@ export function WorkItemDrawer({
               </div>
             </div>
           ) : (
-             <Button
+               <Button
                variant="ghost"
               onClick={() => setLogOpen(true)}
-               className="h-auto w-full justify-between rounded-none px-4 py-4 text-left hover:bg-primary-soft/60"
+                className="h-auto w-full justify-between rounded-none px-4 py-5 text-left hover:bg-primary-soft/60"
             >
                <span className="flex min-w-0 items-center gap-3">
                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
                    <MessageSquareText className="size-4" />
                  </span>
                  <span>
-                   <span className="block text-[14px] font-bold text-foreground">Log an update</span>
+                    <span className="v2-kicker block !text-primary">Primary action</span><span className="mt-1 block text-[16px] font-bold text-foreground">Move forward</span>
                    <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
                      Record what happened and decide what comes next
                    </span>

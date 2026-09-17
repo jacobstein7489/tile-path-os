@@ -13,7 +13,7 @@
 
 @theme inline {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -66,29 +66,29 @@
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --background: oklch(1 0 0);
   /* Warm neutral application canvas — content surfaces stay near-white. */
-  --canvas: oklch(0.965 0.005 85);
-  --foreground: oklch(0.22 0.01 260);
-  --card: oklch(0.992 0.002 85);
+  --canvas: oklch(0.975 0.003 250);
+  --foreground: oklch(0.19 0.015 257);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.01 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.01 260);
   /* Steel blue action color. */
-  --primary: oklch(0.55 0.12 250);
+  --primary: oklch(0.5 0.135 248);
   --primary-foreground: oklch(0.99 0.003 250);
-  --primary-soft: oklch(0.93 0.02 250);
+  --primary-soft: oklch(0.955 0.022 248);
   --secondary: oklch(0.972 0.004 85);
   --secondary-foreground: oklch(0.34 0.025 262);
-  --muted: oklch(0.965 0.005 85);
+  --muted: oklch(0.965 0.004 250);
   --muted-foreground: oklch(0.52 0.012 258);
   --accent: oklch(0.96 0.012 262);
   --accent-foreground: oklch(0.42 0.15 262);
   --destructive: oklch(0.58 0.21 22);
   --destructive-foreground: oklch(0.99 0.003 250);
-  --border: oklch(0.905 0.006 85);
-  --border-strong: oklch(0.85 0.008 85);
+  --border: oklch(0.915 0.005 250);
+  --border-strong: oklch(0.83 0.01 250);
   --input: oklch(0.905 0.006 85);
   --ring: oklch(0.7 0.09 250);
   --success: oklch(0.53 0.13 155);
@@ -101,13 +101,13 @@
   --info-soft: oklch(0.962 0.022 250);
   --neutral-chip: oklch(0.962 0.005 85);
   --track: oklch(0.915 0.006 85);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.3 0.02 262);
+  --sidebar: oklch(0.19 0.018 255);
+  --sidebar-foreground: oklch(0.82 0.01 250);
   --sidebar-primary: oklch(0.55 0.12 250);
   --sidebar-primary-foreground: oklch(0.99 0.003 250);
-  --sidebar-accent: oklch(0.96 0.018 262);
-  --sidebar-accent-foreground: oklch(0.45 0.17 262);
-  --sidebar-border: oklch(0.93 0.006 255);
+  --sidebar-accent: oklch(0.27 0.025 252);
+  --sidebar-accent-foreground: oklch(0.98 0.004 250);
+  --sidebar-border: oklch(0.29 0.018 255);
   --sidebar-ring: oklch(0.7 0.09 250);
 }
 
@@ -128,7 +128,7 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 }
 
@@ -136,8 +136,22 @@
 @utility surface {
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-md);
+}
+
+@utility v2-kicker {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility v2-rule-row {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 120ms ease;
+  &:hover { background-color: color-mix(in oklab, var(--color-muted) 52%, transparent); }
 }
 
 @utility table-head-cell {
@@ -213,12 +227,13 @@
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    border-bottom: 2px solid #000;
-    padding-bottom: 8px;
+    border-top: 8px solid #000;
+    border-bottom: 1px solid #000;
+    padding: 12px 0 10px;
   }
 
   .print-head h1 {
-    font-size: 24pt;
+    font-size: 28pt;
     font-weight: 700;
     line-height: 1.1;
   }
@@ -237,19 +252,19 @@
   }
 
   .print-surface {
-    margin-top: 14px;
-    border: 1px solid #000;
-    padding: 8px 10px;
+    margin-top: 18px;
+    border: 0;
+    border-top: 3px solid #000;
+    padding: 9px 0 0;
     break-inside: avoid;
   }
 
   .print-surface h2 {
     display: flex;
     justify-content: space-between;
-    font-size: 14pt;
+    font-size: 17pt;
     font-weight: 700;
-    border-bottom: 1px solid #000;
-    padding-bottom: 4px;
+    padding-bottom: 7px;
   }
 
   .print-surface h2 span {
@@ -262,16 +277,16 @@
   .print-surface dl {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 18px;
-    margin-top: 6px;
+    gap: 0 24px;
+    margin-top: 8px;
   }
 
   .print-surface dl > div {
     display: grid;
-    grid-template-columns: 130px 1fr;
+    grid-template-columns: 112px 1fr;
     gap: 8px;
     padding: 3px 0;
-    border-bottom: 1px dotted #999;
+    border-bottom: 1px solid #ccc;
     font-size: 10pt;
   }
 
@@ -288,9 +303,9 @@
   }
 
   .print-open {
-    margin-top: 8px;
+    margin-top: 12px;
     border: 2px solid #000;
-    padding: 6px 8px;
+    padding: 8px 10px;
     font-size: 9pt;
   }
 

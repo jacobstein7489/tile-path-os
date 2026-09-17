@@ -17,10 +17,10 @@ export function PageShell({
   return (
     <>
       <AppHeader crumbs={crumbs} />
-      <main className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-14 md:px-8 md:pt-8">
+      <main className="mx-auto w-full max-w-[1520px] px-4 pt-6 pb-14 md:px-7 md:pt-7">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 md:gap-6">
           <div className="min-w-0">
-            <h1 className="truncate text-[24px] leading-tight font-bold tracking-[-0.01em] md:text-[28px]">
+            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[32px]">
               {title}
             </h1>
             {subtitle ? (
@@ -29,7 +29,7 @@ export function PageShell({
           </div>
           {actions}
         </div>
-        <div className="mt-6 space-y-5">{children}</div>
+        <div className="mt-7 space-y-5">{children}</div>
       </main>
     </>
   );

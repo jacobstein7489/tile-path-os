@@ -48,26 +48,26 @@ export function AppSidebar() {
   return (
     <>
       {/* Desktop: one permanent, quiet rail. */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex items-center gap-2.5 px-5 pt-6 pb-6">
-          <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <div className="flex items-center gap-2.5 px-4 pt-5 pb-7">
+          <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
             <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
               <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
             </svg>
           </div>
-          <div className="text-[13px] leading-[1.15] font-bold tracking-[-0.02em]">
+          <div className="text-[12px] leading-[1.15] font-bold text-sidebar-accent-foreground">
             COBBLESTONE
-            <div className="mt-0.5 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground">
+            <div className="mt-0.5 text-[9px] font-semibold tracking-[0.16em] text-sidebar-foreground/60">
               TILE OPERATIONS
             </div>
           </div>
         </div>
 
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-5">
           <button
             type="button"
             onClick={() => openCapture()}
-            className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-[13px] font-semibold text-primary-foreground outline-none transition-colors duration-150 hover:bg-primary/90 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary text-[12.5px] font-semibold text-primary-foreground outline-none transition-colors duration-150 hover:bg-primary/90 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <Plus className="size-4" /> Capture
           </button>
@@ -78,14 +78,14 @@ export function AppSidebar() {
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
 
-          <div className="mt-5 px-3 pb-1 text-[9.5px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">More</div>
+          <div className="mt-6 px-3 pb-1 text-[9px] font-semibold tracking-[0.16em] text-sidebar-foreground/45 uppercase">More</div>
           {more.map((item) => <NavRow key={item.to} item={item} active={isActive(item.to)} />)}
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3">
           <div className="mt-2 flex items-center gap-2 px-1">
             <AccountMenu />
-            <span className="text-[11.5px] text-muted-foreground">Account</span>
+            <span className="text-[11.5px] text-sidebar-foreground/65">Account</span>
           </div>
         </div>
       </aside>
@@ -139,11 +139,11 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       to={item.to}
       preload="intent"
       className={cn(
-        "flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium outline-none",
+        "flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-[12.5px] font-medium outline-none",
         "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
         active
           ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-          : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
+          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       )}
     >
       <item.icon className="size-[17px]" strokeWidth={active ? 2.2 : 1.8} />
