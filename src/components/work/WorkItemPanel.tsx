@@ -67,6 +67,7 @@ export function WorkItemPanel({
   const [followUpOn, setFollowUpOn] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -79,6 +80,7 @@ export function WorkItemPanel({
     setFollowUpOn(item.follow_up_on ?? "");
     setScheduledFor(item.due_date ?? "");
     setDescription(item.description ?? "");
+    setDueDate(item.due_date ?? null);
     setTitle(item.title);
     setHistoryOpen(false);
   }, [item]);
