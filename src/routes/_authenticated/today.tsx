@@ -1,19 +1,13 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Star } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { WorkItemPanel } from "@/components/work/WorkItemPanel";
-import { todaySections, todaySummaryLine, followUpDate } from "@/lib/today";
-import {
-  actionDate,
-  isOverdue,
-  projectLabel,
-  todayIso,
-  useWorkFeed,
-  type WorkItemRow,
-} from "@/lib/workitems";
+import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
+import { useCapture } from "@/components/ops/CaptureProvider";
+import { todaySections, todaySummaryLine } from "@/lib/today";
+import { projectLabel, todayIso, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -43,17 +37,11 @@ function greeting() {
   return "Good evening";
 }
 
-function shortDate(iso: string | null) {
-  if (!iso) return null;
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
+  const capture = useCapture();
   const [active, setActive] = useState<WorkItemRow | null>(null);
   const today = todayIso();
 
@@ -72,42 +60,63 @@ function TodayPage() {
   const sections = useMemo(() => todaySections(mine, today), [mine, today]);
   const first = profile?.full_name?.split(" ")[0];
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
+  const dateLine = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
-      <main className="mx-auto w-full max-w-[840px] px-4 pt-7 pb-24 md:px-7 md:pt-10">
-        <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em] md:text-[30px]">
-          {first ? `${greeting()}, ${first}` : "Today"}
-        </h1>
-        <p className="mt-1.5 text-[13px] text-muted-foreground">
+
+      <main className="mx-auto w-full max-w-[820px] px-4 pt-6 pb-28 md:px-8 md:pt-9">
+        {/* Compact header line — no hero, no cards. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-border pb-4">
+          <div className="min-w-0">
+            <h1 className="truncate text-[22px] leading-tight font-bold tracking-[-0.02em] md:text-[25px]">
+              {first ? `${greeting()}, ${first}` : "Today"}
+            </h1>
+            <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+              {dateLine}
+              {profile?.full_name ? ` · ${profile.full_name}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => capture()}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Plus className="size-4" /> Capture
+          </button>
+        </div>
+
+        <p className="pt-3 text-[12.5px] font-medium text-secondary-foreground">
           {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
         </p>
 
-        <div className="mt-8 space-y-9">
-          <Section
+        {/* One continuous document plane: three lists, hairlines only. */}
+        <div className="mt-7 space-y-8">
+          <TodaySection
             label="Needs you now"
             items={sections.needsNow}
             empty="Nothing is late or due today."
             selectedId={active?.id ?? null}
             onOpen={setActive}
-            today={today}
           />
-          <Section
+          <TodaySection
             label="Follow-ups due"
             items={sections.followUps}
             empty="No follow-ups are due yet."
             selectedId={active?.id ?? null}
             onOpen={setActive}
-            today={today}
           />
-          <Section
+          <TodaySection
             label="Scheduled today"
             items={sections.scheduledToday}
             empty="Nothing is scheduled for today."
             selectedId={active?.id ?? null}
             onOpen={setActive}
-            today={today}
           />
         </div>
       </main>
@@ -117,112 +126,38 @@ function TodayPage() {
   );
 }
 
-function Section({
+function TodaySection({
   label,
   items,
   empty,
   selectedId,
   onOpen,
-  today,
 }: {
   label: string;
   items: WorkItemRow[];
   empty: string;
   selectedId: string | null;
   onOpen: (item: WorkItemRow) => void;
-  today: string;
 }) {
   return (
     <section>
-      <div className="flex items-baseline justify-between border-b border-border pb-2">
-        <h2 className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
-          {label}
-        </h2>
-        {items.length ? (
-          <span className="text-[11px] text-muted-foreground">{items.length}</span>
-        ) : null}
-      </div>
+      <OpsSectionHeading label={label} count={items.length} />
       {items.length ? (
         <ul>
           {items.map((item) => (
-            <TodayRow
+            <OpsRow
               key={item.id}
               item={item}
               selected={item.id === selectedId}
               onOpen={onOpen}
-              today={today}
+              context={[projectLabel(item), item.category ?? null]}
+              person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
             />
           ))}
         </ul>
       ) : (
-        <p className="py-4 text-[13px] text-muted-foreground">{empty}</p>
+        <p className="py-3.5 text-[12.5px] text-muted-foreground">{empty}</p>
       )}
     </section>
-  );
-}
-
-function TodayRow({
-  item,
-  selected,
-  onOpen,
-  today,
-}: {
-  item: WorkItemRow;
-  selected: boolean;
-  onOpen: (item: WorkItemRow) => void;
-  today: string;
-}) {
-  const late = isOverdue(item);
-  const waiting = item.waiting_on?.trim();
-  const follow = followUpDate(item);
-  const date = actionDate(item);
-
-  // One quiet context line only: who we are waiting on, or the date that matters.
-  let context: string | null = null;
-  if (waiting) {
-    context = follow
-      ? `Waiting on ${waiting} · follow up ${follow === today ? "today" : shortDate(follow)}`
-      : `Waiting on ${waiting}`;
-  } else if (date) {
-    context = late ? `Late — was due ${shortDate(date)}` : `Due ${date === today ? "today" : shortDate(date)}`;
-  } else if (item.next_action) {
-    context = item.next_action;
-  }
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onOpen(item)}
-        className={cn(
-          "flex w-full items-start gap-3 border-b border-border px-1 py-3 text-left transition-colors hover:bg-muted/50",
-          selected && "bg-primary-soft",
-        )}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[11px] text-muted-foreground">
-              {projectLabel(item)}
-            </span>
-            {item.is_important ? (
-              <Star className="size-3 shrink-0 fill-warning text-warning" />
-            ) : null}
-          </span>
-          <span className="mt-0.5 block text-[14px] font-semibold tracking-[-0.01em]">
-            {item.title}
-          </span>
-          {context ? (
-            <span
-              className={cn(
-                "mt-0.5 block truncate text-[12px]",
-                late ? "text-danger" : waiting ? "text-warning" : "text-muted-foreground",
-              )}
-            >
-              {context}
-            </span>
-          ) : null}
-        </span>
-      </button>
-    </li>
   );
 }
