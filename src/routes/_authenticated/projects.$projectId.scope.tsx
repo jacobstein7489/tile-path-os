@@ -134,8 +134,8 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
   const measured = measurementSummary(surface);
   const groups: Record<WorkspaceTab, { label: string; value: ReactNode; missing?: boolean }[]> = {
     Specification: [
-      { label: "Tile", value: selection ? <><b>{selection.label}</b><small>{[spec.manufacturer, spec.nominalSize].filter(Boolean).join(" · ")}</small>{spec.sku ? <small>SKU {spec.sku}</small> : null}</> : "Missing", missing: !selection },
-      { label: "Grout", value: spec.groutColor ? <><b>{spec.groutColor}</b><small>{[spec.groutManufacturer, spec.jointSize].filter(Boolean).join(" · ")}</small></> : "Missing", missing: !spec.groutColor },
+      { label: "Tile", value: selection ? <><b className="block">{selection.label}</b><small className="block text-muted-foreground">{[spec.manufacturer, spec.nominalSize].filter(Boolean).join(" · ")}</small>{spec.sku ? <small className="block text-muted-foreground">SKU {spec.sku}</small> : null}</> : "Missing", missing: !selection },
+      { label: "Grout", value: spec.groutColor ? <><b className="block">{spec.groutColor}</b><small className="block text-muted-foreground">{[spec.groutManufacturer, spec.jointSize].filter(Boolean).join(" · ")}</small></> : "Missing", missing: !spec.groutColor },
       { label: "Edge", value: [spec.edgeTreatment, spec.metalProfile].filter(Boolean).join(" · ") || "Missing", missing: !spec.edgeTreatment && !spec.metalProfile },
       { label: "Finish height", value: spec.tileHeight || "Missing", missing: !spec.tileHeight },
     ],
