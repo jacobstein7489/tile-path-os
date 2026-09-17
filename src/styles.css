@@ -287,10 +287,15 @@
     font-weight: 600;
   }
 
-  .print-missing dd {
-    font-style: italic;
-    font-weight: 400;
+  .print-open {
+    margin-top: 8px;
+    border: 2px solid #000;
+    padding: 6px 8px;
+    font-size: 9pt;
   }
+
+  .print-open b { font-size: 8pt; letter-spacing: 0.06em; }
+  .print-open p { margin-top: 3px; line-height: 1.35; }
 
   .print-note {
     margin-top: 6px;
@@ -328,6 +333,8 @@
   .print-photo-grid figcaption {
     font-size: 8pt;
   }
+
+  .print-photo-grid figure { break-inside: avoid; }
 
   .print-empty {
     margin-top: 16px;
