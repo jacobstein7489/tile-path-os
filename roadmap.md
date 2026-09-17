@@ -24,3 +24,15 @@
 - [x] Improve installer package review and printed room sheet
 - [x] Retire verified inactive duplicate UI paths
 - [x] Verify desktop, mobile, workflows, unchanged production counts, and screenshots without production mutations
+
+## V2 Frontend Rebuild
+- [ ] Build the new V2 shell, tokens, navigation, and interaction primitives
+- [ ] Rebuild Today, Work, and the universal Work drawer
+- [ ] Rebuild Projects and the dedicated project workspace shell
+- [ ] Rebuild Project Overview and Rooms / Surface workspace
+- [ ] Rebuild Design Meeting without changing its workflow logic
+- [ ] Rebuild Installer Package office review and printed field package
+- [ ] Remove normal-navigation exposure to superseded core presentation paths after dependency checks
+- [ ] Verify every core route at 1440px; Projects, Work, Rooms, and Design Meeting at 390px; Rooms at 1280px
+- [ ] Confirm zero overflow, workflow continuity, reload persistence, and unchanged production counts
+- [ ] Stop before Materials Sprint 2
