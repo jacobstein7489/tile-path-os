@@ -19,8 +19,8 @@
 ## Production Experience Pass
 - [ ] Unify global shell and mobile navigation
 - [ ] Finalize Today and Work shared experience
-- [ ] Finalize Projects operational list
-- [ ] Finalize project shell, Overview, Rooms, and Design Meeting
+- [ ] Finalize Projects operational list using only existing Work, readiness, schedule, and project dates
+- [ ] Finalize project shell, Overview, responsive Rooms, and Design Meeting without alternate screens
 - [ ] Improve installer package review and printed room sheet
 - [ ] Retire verified inactive duplicate UI paths
-- [ ] Verify desktop, mobile, workflows, data integrity, and screenshots
+- [ ] Verify desktop, mobile, workflows, unchanged production counts, and screenshots using non-production QA for mutations
