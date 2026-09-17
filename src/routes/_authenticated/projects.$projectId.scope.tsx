@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAreasWithSurfaces, useInsertRow, useUpdateRow, type Area, type SurfaceFull } from "@/lib/data";
 import { useAddZone, useApplyFinishToSurfaces, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection } from "@/lib/finishes";
 import { useProjectSetup } from "@/lib/setup";
+import { measurementSummary, resolveSpec } from "@/lib/spec";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/scope")({
   head: () => ({ meta: [
@@ -128,31 +129,35 @@ function ScopeAndDetails() {
 }
 
 function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: WorkspaceTab; surface: SurfaceFull; assignment: FinishAssignment | null; selection: FinishSelection | null; onAdd: (tab: WorkspaceTab, key?: string) => void }) {
+  /** Everything shown here reads through the authoritative finish model. */
+  const spec = resolveSpec({ surface, assignment, selection });
+  const measured = measurementSummary(surface);
   const groups: Record<WorkspaceTab, { label: string; value: ReactNode; missing?: boolean }[]> = {
     Specification: [
-      { label: "Tile", value: selection ? <><b>{selection.label}</b><small>{[selection.manufacturer, selection.tile_size].filter(Boolean).join(" · ")}</small>{selection.tile_sku ? <small>SKU {selection.tile_sku}</small> : null}</> : "Missing", missing: !selection },
-      { label: "Grout", value: assignment?.grout_color ? <><b>{assignment.grout_color}</b><small>{[assignment.grout_manufacturer, assignment.joint_size].filter(Boolean).join(" · ")}</small></> : "Missing", missing: !assignment?.grout_color },
-      { label: "Edge", value: [assignment?.edge_treatment, assignment?.metal_profile].filter(Boolean).join(" · ") || "Missing", missing: !assignment?.edge_treatment && !assignment?.metal_profile },
-      { label: "Finish height", value: assignment?.tile_height || "Missing", missing: !assignment?.tile_height },
+      { label: "Tile", value: selection ? <><b className="block">{selection.label}</b><small className="block text-muted-foreground">{[spec.manufacturer, spec.nominalSize].filter(Boolean).join(" · ")}</small>{spec.sku ? <small className="block text-muted-foreground">SKU {spec.sku}</small> : null}</> : "Missing", missing: !selection },
+      { label: "Grout", value: spec.groutColor ? <><b className="block">{spec.groutColor}</b><small className="block text-muted-foreground">{[spec.groutManufacturer, spec.jointSize].filter(Boolean).join(" · ")}</small></> : "Missing", missing: !spec.groutColor },
+      { label: "Edge", value: [spec.edgeTreatment, spec.metalProfile].filter(Boolean).join(" · ") || "Missing", missing: !spec.edgeTreatment && !spec.metalProfile },
+      { label: "Finish height", value: spec.tileHeight || "Missing", missing: !spec.tileHeight },
     ],
     Layout: [
-      { label: "Pattern", value: assignment?.layout_pattern || "Missing", missing: !assignment?.layout_pattern },
-      { label: "Direction", value: assignment?.layout_direction || "Missing", missing: !assignment?.layout_direction },
-      { label: "Start", value: assignment?.start_point || "Missing", missing: !assignment?.start_point },
-      { label: "Alignment", value: assignment?.coverage || "Missing", missing: !assignment?.coverage },
-      { label: "Termination", value: assignment?.finish_transition || assignment?.tile_height || "Missing", missing: !assignment?.finish_transition && !assignment?.tile_height },
+      { label: "Pattern", value: spec.layoutPattern || "Missing", missing: !spec.layoutPattern },
+      { label: "Direction", value: spec.layoutDirection || "Missing", missing: !spec.layoutDirection },
+      { label: "Start", value: spec.startPoint || "Missing", missing: !spec.startPoint },
+      { label: "Alignment", value: spec.coverage || "Missing", missing: !spec.coverage },
+      { label: "Termination", value: spec.finishTransition || spec.tileHeight || "Missing", missing: !spec.finishTransition && !spec.tileHeight },
     ],
     Measurements: [
-      { label: "Plan dimensions", value: surface.plan_sf ? `${surface.plan_sf} sq ft` : "Not recorded", missing: !surface.plan_sf },
-      { label: "Field dimensions", value: surface.field_sf ? `${surface.field_sf} sq ft` : "Not recorded", missing: !surface.field_sf },
-      { label: "Area", value: surface.field_sf ?? surface.plan_sf ? `${surface.field_sf ?? surface.plan_sf} sq ft` : "Not calculated", missing: !surface.field_sf && !surface.plan_sf },
-      { label: "Actual tile dimension", value: selection?.actual_size || "Not recorded", missing: !selection?.actual_size },
-      { label: "Grout joint", value: assignment?.joint_size || "Missing", missing: !assignment?.joint_size },
+      { label: "Measured size", value: measured ?? "Not recorded", missing: !measured },
+      { label: "Plan area", value: surface.plan_sf ? `${surface.plan_sf} sq ft` : "Not recorded", missing: !surface.plan_sf },
+      { label: "Field area", value: surface.field_sf ? `${surface.field_sf} sq ft` : "Not recorded", missing: !surface.field_sf },
+      { label: "Surface kind", value: (surface as unknown as { surface_kind?: string | null }).surface_kind || "Not recorded" },
+      { label: "Actual tile dimension", value: spec.actualSize || "Not recorded", missing: !spec.actualSize },
+      { label: "Grout joint", value: spec.jointSize || "Missing", missing: !spec.jointSize },
     ],
     Prep: [
-      { label: "Substrate", value: surface.prep || "Not recorded", missing: !surface.prep },
-      { label: "Underlayment", value: surface.underlayment || "Not recorded", missing: !surface.underlayment },
-      { label: "Waterproofing", value: surface.waterproofing || "Not recorded", missing: !surface.waterproofing },
+      { label: "Substrate", value: spec.prep || "Not recorded", missing: !spec.prep },
+      { label: "Underlayment", value: spec.underlayment || "Not recorded", missing: !spec.underlayment },
+      { label: "Waterproofing", value: spec.waterproofing || "Not recorded", missing: !spec.waterproofing },
       { label: "Prep requirements", value: assignment?.notes || "None recorded" },
     ],
     "Photos & Notes": [
@@ -160,8 +165,11 @@ function SurfaceSection({ tab, surface, assignment, selection, onAdd }: { tab: W
       { label: "Installer notes", value: assignment?.notes || "No published installer notes" },
     ],
   };
-  const focusFor: Record<string, string> = { Tile: "finish_selection_id", Grout: "grout_color", Edge: "edge_treatment", "Finish height": "tile_height", Pattern: "layout_pattern", Direction: "layout_direction", Start: "start_point", Alignment: "coverage", Termination: "finish_transition", "Plan dimensions": "plan_sf", "Field dimensions": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
-  return <div className="max-w-3xl divide-y divide-border">{groups[tab].map((row) => <div key={row.label} className="grid gap-1 py-4 sm:grid-cols-[150px_minmax(0,1fr)]"><dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt><dd className={cn("text-[13.5px] leading-6", row.missing && "font-semibold text-warning")}>{row.value}{row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-xs font-semibold text-primary">Add <ChevronRight className="inline size-3" /></button> : null}</dd></div>)}</div>;
+  const focusFor: Record<string, string> = { Tile: "finish_selection_id", Grout: "grout_color", Edge: "edge_treatment", "Finish height": "tile_height", Pattern: "layout_pattern", Direction: "layout_direction", Start: "start_point", Alignment: "coverage", Termination: "finish_transition", "Measured size": "measured_length_in", "Plan area": "plan_sf", "Field area": "field_sf", "Actual tile dimension": "actual_size", "Grout joint": "joint_size", Substrate: "prep", Underlayment: "underlayment", Waterproofing: "waterproofing", "Prep requirements": "notes", "Surface notes": "notes", "Installer notes": "notes" };
+  return <>
+    <div className="max-w-3xl divide-y divide-border">{groups[tab].map((row) => <div key={row.label} className="grid gap-1 py-4 sm:grid-cols-[150px_minmax(0,1fr)]"><dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt><dd className={cn("text-[13.5px] leading-6", row.missing && "font-semibold text-warning")}>{row.value}{row.missing ? <button type="button" onClick={() => onAdd(tab, focusFor[row.label])} className="ml-2 cursor-pointer text-xs font-semibold text-primary">Add <ChevronRight className="inline size-3" /></button> : null}</dd></div>)}</div>
+    {tab === "Specification" && spec.legacyFallbacks.length ? <p className="mt-5 max-w-3xl rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Shown from older records until re-confirmed: {spec.legacyFallbacks.join(", ")}. Saving here writes the current finish specification.</p> : null}
+  </>;
 }
 
 const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "surface" | "assignment" | "selection"; type?: "number" | "textarea" }[]> = {
@@ -172,7 +180,7 @@ const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "s
     { key: "layout_pattern", label: "Pattern", entity: "assignment" }, { key: "layout_direction", label: "Direction", entity: "assignment" }, { key: "start_point", label: "Start / alignment", entity: "assignment" }, { key: "coverage", label: "Feature alignment", entity: "assignment" }, { key: "finish_transition", label: "Termination / transition", entity: "assignment" },
   ],
   Measurements: [
-    { key: "plan_sf", label: "Plan area (sq ft)", entity: "surface", type: "number" }, { key: "field_sf", label: "Field area (sq ft)", entity: "surface", type: "number" }, { key: "actual_size", label: "Actual tile dimension", entity: "selection" }, { key: "joint_size", label: "Grout joint", entity: "assignment" },
+    { key: "surface_kind", label: "Surface kind (floor, wall, curb…)", entity: "surface" }, { key: "uom", label: "Unit of measure", entity: "surface" }, { key: "measured_length_in", label: "Measured length", entity: "surface", type: "number" }, { key: "measured_width_in", label: "Measured width", entity: "surface", type: "number" }, { key: "measured_height_in", label: "Measured height", entity: "surface", type: "number" }, { key: "plan_sf", label: "Plan area (sq ft)", entity: "surface", type: "number" }, { key: "field_sf", label: "Field area (sq ft)", entity: "surface", type: "number" }, { key: "actual_size", label: "Actual tile dimension", entity: "selection" }, { key: "joint_size", label: "Grout joint", entity: "assignment" },
   ],
   Prep: [
     { key: "prep", label: "Substrate / prep", entity: "surface" }, { key: "underlayment", label: "Underlayment", entity: "surface" }, { key: "waterproofing", label: "Waterproofing", entity: "surface" }, { key: "notes", label: "Prep requirements", entity: "assignment", type: "textarea" },
@@ -206,7 +214,8 @@ function SurfaceEditDrawer({ projectId, surface, assignment, selection, selectio
       const [entity, key] = compound.split(".");
       if (!entity || !key) return;
       const value = raw.trim() || null;
-      if (entity === "surface") surfacePatch[key] = key === "plan_sf" || key === "field_sf" ? (raw ? Number(raw) : null) : value;
+      const numericSurfaceKeys = ["plan_sf", "field_sf", "measured_length_in", "measured_width_in", "measured_height_in"];
+      if (entity === "surface") surfacePatch[key] = numericSurfaceKeys.includes(key) ? (raw.trim() ? Number(raw) : null) : value;
       if (entity === "assignment") assignmentPatch[key] = value;
       if (entity === "selection" && selection) selectionPatch[key] = value;
     });

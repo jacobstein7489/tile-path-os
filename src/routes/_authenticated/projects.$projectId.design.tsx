@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/design
 });
 
 type Ctx = ZoneContext & { areaId: string };
-type Entry = { rule: QuestionRule; ctx: Ctx; key: string };
+type Entry = { rule: QuestionRule; ctx: Ctx; key: string; tracked?: boolean };
 const OFFICE_TARGETS = new Set(["surface.waterproofing", "surface.prep", "surface.underlayment"]);
 
 function DesignMeeting() {
@@ -44,12 +44,15 @@ function DesignMeeting() {
   const [followUp, setFollowUp] = useState("");
   const [mobileRail, setMobileRail] = useState(false);
 
+  // Confirmed decisions leave the queue for good. Decisions tracked in Work stay
+  // available so the same question can be answered once the answer comes back.
   const entries = useMemo<Entry[]>(() => (setup.contexts as Ctx[]).flatMap((ctx) => setup.ruleList
     .filter((rule) => rule.readiness_category === "Design decisions")
     .filter((rule) => !OFFICE_TARGETS.has(rule.target_key))
     .filter((rule) => ruleApplies(rule, ctx))
-    .filter((rule) => !setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && ["confirmed", "unresolved"].includes(decision.status)))
-    .map((rule) => ({ rule, ctx, key: `${ctx.zone.id}:${rule.key}` }))), [setup.contexts, setup.ruleList, setup.decisionList]);
+    .filter((rule) => !setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && decision.status === "confirmed"))
+    .map((rule) => ({ rule, ctx, key: `${ctx.zone.id}:${rule.key}`, tracked: setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && decision.status === "unresolved") })))
+    .sort((a, b) => Number(a.tracked ?? false) - Number(b.tracked ?? false)), [setup.contexts, setup.ruleList, setup.decisionList]);
   const current = entries.find((entry) => entry.key === selectedKey) ?? entries[0] ?? null;
   const currentSurfaceEntries = current ? entries.filter((entry) => entry.ctx.surface.id === current.ctx.surface.id) : [];
   const currentIndex = current ? currentSurfaceEntries.findIndex((entry) => entry.key === current.key) : -1;
@@ -83,7 +86,7 @@ function DesignMeeting() {
             <div className="mb-7 flex items-center gap-2 text-xs font-semibold text-primary lg:hidden"><span>{ctx.areaName}</span><ChevronRight className="size-3.5" /><span>{ctx.surface.name}</span></div>
             <div className="flex items-start gap-4">
               <span className="mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><CircleHelp className="size-4" /></span>
-              <div><h1 className="text-[25px] leading-[1.25] font-semibold md:text-[31px]">{rule.prompt}</h1>{rule.help_text ? <p className="mt-3 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
+              <div><h1 className="text-[25px] leading-[1.25] font-semibold md:text-[31px]">{rule.prompt}</h1>{current.tracked ? <p className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs font-semibold text-warning"><Clock3 className="size-3.5" /> Waiting in Work — confirming closes that item</p> : null}{rule.help_text ? <p className="mt-3 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
             </div>
 
             {known.length ? <div className="mt-8 border-y border-border py-4"><div className="text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Already known</div><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">{known.map((item) => <span key={item}>{item}</span>)}</div></div> : null}

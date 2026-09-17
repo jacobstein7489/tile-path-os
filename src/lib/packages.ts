@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Area, SurfaceFull } from "@/lib/data";
 import type { FinishAssignment, FinishSelection, FinishZone } from "@/lib/finishes";
+import { measurementSummary, resolveSpec } from "@/lib/spec";
 
 /**
  * Installer packages are built from the SAME surface / zone / assignment / selection
@@ -46,6 +47,15 @@ export type PackageSnapshotRow = {
   transition: string;
   prep: string;
   waterproofing: string;
+  /** Added in Sprint 1 — older revisions simply do not carry these. */
+  actual_size?: string;
+  tile_finish?: string;
+  supplier?: string;
+  alignment?: string;
+  underlayment?: string;
+  measurements?: string;
+  features?: string;
+  instructions?: string;
 };
 
 export type PackageSnapshot = {
@@ -85,6 +95,10 @@ export function usePackageRevisions(projectId: string) {
 
 const dash = (v: unknown) => (v === null || v === undefined || v === "" ? "—" : String(v));
 
+/**
+ * The package is built from the authoritative selection/assignment records via
+ * `resolveSpec`, never from the legacy flat surface columns directly.
+ */
 export function buildSnapshot(args: {
   area: Area;
   surfaces: SurfaceFull[];
@@ -97,25 +111,34 @@ export function buildSnapshot(args: {
     for (const zone of args.zones.filter((z) => z.surface_id === surface.id)) {
       const a = args.assignments.find((x) => x.zone_id === zone.id) ?? null;
       const sel = a?.finish_selection_id
-        ? args.selections.find((s) => s.id === a.finish_selection_id)
-        : undefined;
+        ? (args.selections.find((s) => s.id === a.finish_selection_id) ?? null)
+        : null;
+      const spec = resolveSpec({ surface, zone, assignment: a, selection: sel });
       rows.push({
         surface: surface.name,
         zone: zone.is_default ? "Main" : zone.name,
-        tile: dash(sel?.label ?? sel?.tile_tag),
-        manufacturer: dash(sel?.manufacturer),
-        sku: dash(sel?.tile_sku),
-        size: dash(sel?.tile_size),
-        grout: dash([a?.grout_manufacturer, a?.grout_color].filter(Boolean).join(" ")),
-        joint: dash(a?.joint_size),
-        edge: dash([a?.edge_treatment, a?.metal_profile].filter(Boolean).join(" · ")),
-        pattern: dash(a?.layout_pattern),
-        direction: dash(a?.layout_direction),
-        start: dash(a?.start_point),
-        height: dash(a?.tile_height),
-        transition: dash(a?.finish_transition),
-        prep: dash(surface.prep),
-        waterproofing: dash(surface.waterproofing),
+        tile: dash(sel?.label ?? spec.product),
+        manufacturer: dash(spec.manufacturer),
+        sku: dash(spec.sku),
+        size: dash(spec.nominalSize),
+        actual_size: dash(spec.actualSize),
+        tile_finish: dash(spec.tileFinish),
+        supplier: dash([spec.supplier, spec.suppliedBy].filter(Boolean).join(" · ")),
+        grout: dash([spec.groutManufacturer, spec.groutColor].filter(Boolean).join(" ")),
+        joint: dash(spec.jointSize),
+        edge: dash([spec.edgeTreatment, spec.metalProfile].filter(Boolean).join(" · ")),
+        pattern: dash(spec.layoutPattern),
+        direction: dash(spec.layoutDirection),
+        start: dash(spec.startPoint),
+        alignment: dash(spec.coverage),
+        height: dash(spec.tileHeight),
+        transition: dash(spec.finishTransition),
+        prep: dash(spec.prep),
+        waterproofing: dash(spec.waterproofing),
+        underlayment: dash(spec.underlayment),
+        measurements: dash(measurementSummary(surface)),
+        features: dash(spec.features.join(" · ")),
+        instructions: dash(spec.instructions),
       });
     }
   }
