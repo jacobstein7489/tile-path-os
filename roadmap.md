@@ -57,8 +57,8 @@
 - [x] Verify 1280×800, 1366×768, 1440×900, and mobile overflow without production mutations
 
 ## Controlled visual rebuild
-- [ ] Establish shared bright card-based visual foundation
-- [ ] Rebuild Today with summaries, operational list, quick actions
-- [ ] Rebuild Work with summaries and grouped workspace
-- [ ] Rebuild Projects portfolio presentation
-- [ ] Verify desktop/mobile viewports and shared work panel
+- [x] Establish shared bright card-based visual foundation
+- [x] Rebuild Today with summaries, operational list, quick actions
+- [x] Rebuild Work with summaries and grouped workspace
+- [x] Rebuild Projects portfolio presentation
+- [x] Verify desktop/mobile viewports and shared work panel
