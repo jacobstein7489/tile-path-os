@@ -39,7 +39,7 @@
 - [x] Stop before Materials Sprint 2
 
 ## Projects V2 hard acceptance gate
-- [ ] Replace the live Projects route with a new master-detail operations workspace
-- [ ] Verify 1440px desktop and 390px mobile without overflow
-- [ ] Confirm production data counts remain unchanged
-- [ ] Deliver old/new/mobile evidence and stop before other routes
+- [x] Replace the live Projects route with a new master-detail operations workspace
+- [x] Verify 1440px desktop and 390px mobile without overflow
+- [x] Confirm production data counts remain unchanged
+- [x] Deliver old/new/mobile evidence and stop before other routes
