@@ -144,7 +144,7 @@ function InstallerPackages() {
               {snapshot.rows.length === 0 ? <p className="px-6 py-6 text-[13px] text-muted-foreground">No surfaces in this room yet.</p> : null}
             </div>
 
-            <footer className="grid gap-3 bg-muted/20 px-4 py-4 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
+            <footer className="sticky bottom-[57px] z-10 grid gap-3 border-t border-border bg-card px-4 py-3 shadow-[0_-6px_18px_-18px_var(--foreground)] md:static md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:bg-muted/20 md:px-6 md:py-4 md:shadow-none">
               <TextInput
                 value={note[area.id] ?? ""}
                 onChange={(e) => setNote((state) => ({ ...state, [area.id]: e.target.value }))}

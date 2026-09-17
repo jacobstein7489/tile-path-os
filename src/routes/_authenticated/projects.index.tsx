@@ -74,11 +74,11 @@ function ProjectsPage() {
       subtitle="Current jobs, their next action, and what needs attention."
       actions={<Button variant="primary" onClick={() => setCreating(true)}><Plus className="size-4" /> New Project</Button>}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-        <div className="min-w-0 overflow-x-auto">
-          <FilterGroup options={PROJECT_VIEWS.map((value) => ({ value, label: value }))} value={filter} onChange={(value) => setFilter(value as ProjectView)} />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="min-w-0 overflow-x-auto pb-1 sm:pb-0">
+          <FilterGroup className="w-max flex-nowrap" options={PROJECT_VIEWS.map((value) => ({ value, label: value }))} value={filter} onChange={(value) => setFilter(value as ProjectView)} />
         </div>
-        <SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects" className="w-[220px] max-w-full md:w-[280px]" />
+        <SearchInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects" className="w-full sm:w-[220px] md:w-[280px]" />
       </div>
 
       <div className="surface hidden overflow-hidden md:block">
