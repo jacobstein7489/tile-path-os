@@ -340,10 +340,6 @@ export function WorkItemPanel({
             <dd className="mt-1 font-medium">{item.follow_up_on ?? "—"}</dd>
           </div>
           <div>
-            <dt className="v2-kicker">Date</dt>
-            <dd className="mt-1 font-medium">{item.due_date ?? "—"}</dd>
-          </div>
-          <div>
             <dt className="v2-kicker">Type</dt>
             <dd className="mt-1 font-medium">{item.item_type}</dd>
           </div>
@@ -354,6 +350,44 @@ export function WorkItemPanel({
             </div>
           ) : null}
         </dl>
+
+        {/* Due date — always editable, on every item type and every state. */}
+        <Field label="Due date" hint="Set, change or clear the date this action is due. Available on any work item.">
+          <div className="flex items-center gap-2">
+            <DateField
+              value={dueDate}
+              label="Due date"
+              placeholder="No due date"
+              onChange={(v) => {
+                const next = v || null;
+                setDueDate(next);
+                setScheduledFor(next ?? "");
+                save.mutate({
+                  id: item.id,
+                  patch: { due_date: next },
+                  note: next ? `Due date set to ${next}` : "Due date cleared",
+                });
+              }}
+            />
+            {dueDate ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDueDate(null);
+                  setScheduledFor("");
+                  save.mutate({
+                    id: item.id,
+                    patch: { due_date: null },
+                    note: "Due date cleared",
+                  });
+                }}
+              >
+                Clear
+              </Button>
+            ) : null}
+          </div>
+        </Field>
+
 
         <Field label="Action">
           <TextInput
