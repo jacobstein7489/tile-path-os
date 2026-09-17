@@ -1,25 +1,19 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ClipboardCheck } from "lucide-react";
+import { Star } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button } from "@/components/kit";
-import { FieldReportSheet } from "@/components/FieldReportSheet";
-import { WorkItemDrawer } from "@/components/WorkItemDrawer";
-import { WorkList } from "@/components/WorkList";
-import { useFieldReports } from "@/lib/fieldreports";
-import { useProjects, useScheduleAssignments } from "@/lib/data";
+import { WorkItemPanel } from "@/components/work/WorkItemPanel";
+import { todaySections, todaySummaryLine, followUpDate } from "@/lib/today";
 import {
-  isComplete,
-  isDueToday,
+  actionDate,
   isOverdue,
-  isWaiting,
-  todayBucket,
+  projectLabel,
   todayIso,
   useWorkFeed,
   type WorkItemRow,
 } from "@/lib/workitems";
-
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -28,18 +22,19 @@ export const Route = createFileRoute("/_authenticated/today")({
       {
         name: "description",
         content:
-          "Your day on one screen: what is late, what is due today, what you are following up on and what comes next.",
+          "Your day on one screen: what needs you now, which follow-ups are due and what is scheduled today.",
       },
       { property: "og:title", content: "Today — Cobblestone Job Operations" },
-      { property: "og:description", content: "What is late, due today, following up and next up." },
+      {
+        property: "og:description",
+        content: "What needs you now, follow-ups due and work scheduled today.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: TodayPage,
 });
-
-type Focus = "Overdue" | "Today" | "Waiting Follow-Ups" | "Completed";
 
 function greeting() {
   const h = new Date().getHours();
@@ -48,139 +43,186 @@ function greeting() {
   return "Good evening";
 }
 
+function shortDate(iso: string | null) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
   const [active, setActive] = useState<WorkItemRow | null>(null);
-  const [focus] = useState<Focus | null>(null);
-  const [report, setReport] = useState<{ id: string; name: string; crewId: string | null } | null>(
-    null,
-  );
-
   const today = todayIso();
-  const { data: schedule = [] } = useScheduleAssignments();
-  const { data: projects = [] } = useProjects();
-  const { data: reports = [] } = useFieldReports();
 
-  // Same work_items records as Work, narrowed to what this user owns.
+  // Same work_items records as Work, narrowed to this person. Legacy rows that
+  // never got an owner_user_id still match on the stored owner name.
   const mine = useMemo(
     () =>
       items.filter((i) =>
-        i.owner_user_id ? i.owner_user_id === user?.id : i.owner === profile?.full_name,
+        i.owner_user_id
+          ? i.owner_user_id === user?.id
+          : Boolean(profile?.full_name) && i.owner === profile?.full_name,
       ),
     [items, profile?.full_name, user?.id],
   );
 
-  const counts = {
-    Overdue: mine.filter(isOverdue).length,
-    Today: mine.filter((i) => todayBucket(i) === "Today").length,
-    "Waiting Follow-Ups": mine.filter((i) => todayBucket(i) === "Waiting Follow-Ups").length,
-    Completed: mine.filter((i) => isComplete(i) && (i.completed_at ?? "").slice(0, 10) === today)
-      .length,
-  };
-
-  // Jobs scheduled today that still have no daily update.
-  const needsUpdate = useMemo(() => {
-    const reported = new Set(
-      reports.filter((r) => r.report_date === today).map((r) => r.project_id),
-    );
-    const seen = new Set<string>();
-    const out: { id: string; name: string; crewId: string | null }[] = [];
-    for (const a of schedule) {
-      if (a.work_date !== today || !a.project_id) continue;
-      if (reported.has(a.project_id) || seen.has(a.project_id)) continue;
-      seen.add(a.project_id);
-      out.push({
-        id: a.project_id,
-        name: projects.find((p) => p.id === a.project_id)?.name ?? "Job",
-        crewId: a.crew_id ?? null,
-      });
-    }
-    return out;
-  }, [schedule, reports, today, projects]);
-
+  const sections = useMemo(() => todaySections(mine, today), [mine, today]);
+  const first = profile?.full_name?.split(" ")[0];
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
-      <main className="mx-auto w-full max-w-[1120px] px-4 pt-7 pb-20 md:px-7 md:pt-10">
-        <p className="v2-kicker">Your operating day</p>
-        <h1 className="mt-2 text-[30px] leading-tight font-bold md:text-[40px]">
-          {profile?.full_name?.split(" ")[0]
-            ? `${greeting()}, ${profile.full_name.split(" ")[0]}`
-            : "Today"}
+      <main className="mx-auto w-full max-w-[840px] px-4 pt-7 pb-24 md:px-7 md:pt-10">
+        <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em] md:text-[30px]">
+          {first ? `${greeting()}, ${first}` : "Today"}
         </h1>
-        <p className="mt-1.5 text-[14px] text-muted-foreground">
-          {counts.Overdue || counts.Today
-            ? "Here is what needs you first."
-            : "Nothing late and nothing due today."}
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
+          {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
         </p>
 
-        <div className="mt-7 grid grid-cols-4 border-y border-border py-4 text-[12px] text-muted-foreground"><span><b className="block text-xl text-danger">{counts.Overdue}</b>overdue</span><span><b className="block text-xl text-foreground">{counts.Today}</b>due today</span><span><b className="block text-xl text-warning">{counts["Waiting Follow-Ups"]}</b>follow-ups</span><span><b className="block text-xl text-success">{counts.Completed}</b>completed</span></div>
-
-        {/* Site manager reminder: today's jobs still missing a daily update. */}
-        {needsUpdate.length ? (
-          <section className="mt-6 border-l-2 border-primary bg-card px-4 py-4 md:px-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-[15px] font-bold tracking-[-0.01em]">
-                  Daily update still needed
-                </h2>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">
-                  {needsUpdate.map((p) => p.name).join(" · ")}
-                </p>
-              </div>
-              <Button variant="primary" onClick={() => setReport(needsUpdate[0]!)}>
-                <ClipboardCheck className="size-4" /> Daily update
-              </Button>
-            </div>
-          </section>
-        ) : null}
-
-        <div className="mt-4">
-          <WorkList
-            items={mine}
-            isLoading={isLoading}
-            onOpen={setActive}
+        <div className="mt-8 space-y-9">
+          <Section
+            label="Needs you now"
+            items={sections.needsNow}
+            empty="Nothing is late or due today."
             selectedId={active?.id ?? null}
-            filters={["Active"]}
-            matchFilter={(_f, i) =>
-              focus === "Completed"
-                ? isComplete(i)
-                : !isComplete(i) && (!focus || todayBucket(i) === focus)
-            }
-            defaultFilter="Active"
-            sectionsByBucket
-            showViewToggle={false}
-            showSearch={false}
-            allowAdd={false}
-             maxVisiblePerGroup={5}
-            showProjectColumn
-            emptyTitle={focus ? `Nothing ${focus.toLowerCase()}` : "You're clear"}
-            emptyNote={
-              focus
-                ? "Tap the card again to see your whole day."
-                : "Nothing assigned to you is open right now."
-            }
+            onOpen={setActive}
+            today={today}
+          />
+          <Section
+            label="Follow-ups due"
+            items={sections.followUps}
+            empty="No follow-ups are due yet."
+            selectedId={active?.id ?? null}
+            onOpen={setActive}
+            today={today}
+          />
+          <Section
+            label="Scheduled today"
+            items={sections.scheduledToday}
+            empty="Nothing is scheduled for today."
+            selectedId={active?.id ?? null}
+            onOpen={setActive}
+            today={today}
           />
         </div>
       </main>
 
-      <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
-      {report ? (
-        <FieldReportSheet
-          projectId={report.id}
-          projectName={report.name}
-          defaultCrewId={report.crewId}
-          onClose={() => setReport(null)}
-        />
-      ) : null}
+      <WorkItemPanel item={activeItem} onClose={() => setActive(null)} />
     </>
   );
 }
 
-/* Kept for reference in one place: Today's date helpers come from the work engine. */
-void isDueToday;
-void isWaiting;
+function Section({
+  label,
+  items,
+  empty,
+  selectedId,
+  onOpen,
+  today,
+}: {
+  label: string;
+  items: WorkItemRow[];
+  empty: string;
+  selectedId: string | null;
+  onOpen: (item: WorkItemRow) => void;
+  today: string;
+}) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between border-b border-border pb-2">
+        <h2 className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
+          {label}
+        </h2>
+        {items.length ? (
+          <span className="text-[11px] text-muted-foreground">{items.length}</span>
+        ) : null}
+      </div>
+      {items.length ? (
+        <ul>
+          {items.map((item) => (
+            <TodayRow
+              key={item.id}
+              item={item}
+              selected={item.id === selectedId}
+              onOpen={onOpen}
+              today={today}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="py-4 text-[13px] text-muted-foreground">{empty}</p>
+      )}
+    </section>
+  );
+}
+
+function TodayRow({
+  item,
+  selected,
+  onOpen,
+  today,
+}: {
+  item: WorkItemRow;
+  selected: boolean;
+  onOpen: (item: WorkItemRow) => void;
+  today: string;
+}) {
+  const late = isOverdue(item);
+  const waiting = item.waiting_on?.trim();
+  const follow = followUpDate(item);
+  const date = actionDate(item);
+
+  // One quiet context line only: who we are waiting on, or the date that matters.
+  let context: string | null = null;
+  if (waiting) {
+    context = follow
+      ? `Waiting on ${waiting} · follow up ${follow === today ? "today" : shortDate(follow)}`
+      : `Waiting on ${waiting}`;
+  } else if (date) {
+    context = late ? `Late — was due ${shortDate(date)}` : `Due ${date === today ? "today" : shortDate(date)}`;
+  } else if (item.next_action) {
+    context = item.next_action;
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        className={cn(
+          "flex w-full items-start gap-3 border-b border-border px-1 py-3 text-left transition-colors hover:bg-muted/50",
+          selected && "bg-primary-soft",
+        )}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[11px] text-muted-foreground">
+              {projectLabel(item)}
+            </span>
+            {item.is_important ? (
+              <Star className="size-3 shrink-0 fill-warning text-warning" />
+            ) : null}
+          </span>
+          <span className="mt-0.5 block text-[14px] font-semibold tracking-[-0.01em]">
+            {item.title}
+          </span>
+          {context ? (
+            <span
+              className={cn(
+                "mt-0.5 block truncate text-[12px]",
+                late ? "text-danger" : waiting ? "text-warning" : "text-muted-foreground",
+              )}
+            >
+              {context}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </li>
+  );
+}

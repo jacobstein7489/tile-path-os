@@ -117,6 +117,8 @@ export function useProject(projectId: string) {
 export function useAreas(projectId: string) {
   return useQuery({
     queryKey: ["areas", projectId],
+    // Company-level work has no project: never fire an empty-id request.
+    enabled: Boolean(projectId),
     queryFn: async (): Promise<Area[]> => {
       const { data, error } = await supabase
         .from("project_areas")
