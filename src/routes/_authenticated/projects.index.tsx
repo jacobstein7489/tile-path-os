@@ -122,7 +122,7 @@ function ProjectsPage() {
           )}
         </section>
 
-        <aside aria-label="Selected project preview" className="sticky top-12 hidden h-[calc(100dvh-48px)] overflow-y-auto bg-canvas lg:block">
+        <aside aria-label="Selected project preview" className="sticky top-[157px] hidden h-[calc(100dvh-157px)] overflow-y-auto bg-canvas lg:block">
           {selected ? <ProjectPreview job={selected} onUpdate={() => setStatusProject(selected.project)} /> : <div className="grid h-full place-items-center p-8 text-[13px] text-muted-foreground">Select a project to preview it.</div>}
         </aside>
       </div>
@@ -241,7 +241,7 @@ function attentionFor(project: Project, work: WorkItemRow[]) {
   if (overdue) return `Overdue · ${overdue.title}`;
   const waiting = work.find(isWaiting);
   if (waiting) return waiting.waiting_on ? `Waiting on ${waiting.waiting_on}` : `Waiting · ${waiting.title}`;
-  return project.needs_attention ?? project.readiness_note ?? null;
+  return project.needs_attention ?? (project.readiness_pct < 100 ? project.readiness_note : null);
 }
 
 function relevantDateFor(project: Project, work: WorkItemRow[], schedule: ScheduleAssignment[]) {
