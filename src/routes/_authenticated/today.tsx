@@ -161,7 +161,7 @@ function TodaySection({
 
 function SummaryCard({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: "primary" | "warning" | "danger" }) {
   const styles = tone === "danger" ? "bg-danger-soft text-danger" : tone === "warning" ? "bg-warning-soft text-warning" : "bg-info-soft text-info";
-  return <div className="workspace-panel flex min-w-0 items-center gap-3 p-3 md:p-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg ${styles}`}>{icon}</span><div className="min-w-0"><strong className="block text-[22px] leading-none tabular-nums">{value}</strong><span className="mt-1 block truncate text-[10px] font-bold tracking-[0.06em] text-muted-foreground uppercase sm:text-[11px]">{label}</span></div></div>;
+  return <div className="workspace-panel flex min-w-0 items-center gap-2 p-2.5 sm:gap-3 md:p-4"><span className={`grid size-8 shrink-0 place-items-center rounded-lg sm:size-9 ${styles}`}>{icon}</span><div className="min-w-0"><strong className="block text-[20px] leading-none tabular-nums md:text-[22px]">{value}</strong><span className="mt-1 block text-[9px] leading-tight font-bold tracking-[0.04em] text-muted-foreground uppercase sm:text-[11px]">{label}</span></div></div>;
 }
 
 function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {

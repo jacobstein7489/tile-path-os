@@ -106,7 +106,7 @@ function ProjectQueueItem({ job, onStatusUpdate }: { job: ProjectQueueRecord; on
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3"><p className="flex min-w-0 items-center gap-2 truncate text-[11.5px] font-semibold"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p><span className="text-[11px] font-semibold text-muted-foreground">{project.readiness_pct}% ready</span></div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-track"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.max(0, Math.min(100, project.readiness_pct))}%` }} /></div>
+        <progress className="mt-2 block h-1.5 w-full overflow-hidden rounded-full accent-primary" max={100} value={Math.max(0, Math.min(100, project.readiness_pct))} aria-label={`${project.readiness_pct}% ready`} />
 
         <div className="mt-4 rounded-lg bg-muted/75 px-3 py-2.5"><p className="text-[9.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Next move</p><p className={cn("mt-1 line-clamp-2 text-[13.5px] leading-snug font-semibold", !next && "font-medium text-muted-foreground")}>{next?.title ?? "No current action"}</p></div>
 
