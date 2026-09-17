@@ -135,8 +135,9 @@ function attentionFor(project: Project, work: WorkItemRow[]) {
 
 function relevantDateFor(project: Project, work: WorkItemRow[], schedule: ScheduleAssignment[]) {
   const today = new Date().toISOString().slice(0, 10);
-  const dates = [...work.flatMap((item) => [item.follow_up_on, item.due_date]), ...schedule.map((item) => item.work_date), project.start_date, project.target_date]
-    .filter((value): value is string => Boolean(value) && value >= today)
+  const candidateDates = [...work.flatMap((item) => [item.follow_up_on, item.due_date]), ...schedule.map((item) => item.work_date), project.start_date, project.target_date];
+  const dates = candidateDates
+    .filter((value): value is string => typeof value === "string" && value >= today)
     .sort();
   return dates[0] ?? null;
 }

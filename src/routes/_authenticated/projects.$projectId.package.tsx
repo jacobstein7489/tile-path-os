@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { History, Printer, Upload } from "lucide-react";
-import { Button, EmptyState, SectionCard, TextInput } from "@/components/kit";
+import { ChevronDown, ChevronRight, History, Printer, Upload } from "lucide-react";
+import { Button, EmptyState, TextInput } from "@/components/kit";
 import { PrintRoomSheet, type RoomSheetInput } from "@/components/PrintRoomSheet";
 import { Chip } from "@/lib/status";
 import { useProjectSetup } from "@/lib/setup";
@@ -122,37 +122,41 @@ function InstallerPackages() {
 
   return (
     <>
-      <div className="print-hide space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <p className="text-[13px] text-muted-foreground">
-            Every sheet is built from the room, surface, finish and design records — publishing freezes an
-            immutable revision.
-          </p>
+      <div className="print-hide border-x border-b border-border bg-card">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border px-4 py-4 md:px-6">
+          <div className="min-w-0"><h2 className="text-[16px] font-bold">Installer package</h2><p className="mt-0.5 text-[12.5px] text-muted-foreground">Review room instructions, publish a revision, then print the field sheet.</p></div>
           <Button onClick={() => printRoom(null)}>
             <Printer className="size-4" /> Print all rooms
           </Button>
         </div>
 
         {rooms.map(({ area, pkg, revs, snapshot, outdated }) => (
-          <SectionCard
-            key={area.id}
-            title={`${area.name} — installer package`}
-            badge={
-              !pkg || pkg.current_revision_no === 0 ? (
-                <Chip tone="amber">Draft</Chip>
-              ) : outdated ? (
-                <Chip tone="amber">Rev {pkg.current_revision_no} · spec changed since</Chip>
-              ) : (
-                <Chip tone="green">Rev {pkg.current_revision_no} published</Chip>
-              )
-            }
-            actions={
+          <section key={area.id} className="border-b border-border last:border-b-0">
+            <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 px-4 py-4 md:px-6">
+              <div className="min-w-0"><div className="flex min-w-0 flex-wrap items-center gap-2"><h3 className="truncate text-[15px] font-bold">{area.name}</h3>{!pkg || pkg.current_revision_no === 0 ? <Chip tone="amber">Draft</Chip> : outdated ? <Chip tone="amber">Rev {pkg.current_revision_no} · update available</Chip> : <Chip tone="green">Rev {pkg.current_revision_no} published</Chip>}</div><p className="mt-1 text-[12px] text-muted-foreground">{snapshot.rows.length} {snapshot.rows.length === 1 ? "surface" : "surfaces"} · {revs.length ? `${revs.length} published ${revs.length === 1 ? "revision" : "revisions"}` : "Not published"}</p></div>
+              <Button onClick={() => printRoom(area.id)}><Printer className="size-4" /> Print</Button>
+            </header>
+
+            <div className="divide-y divide-border border-y border-border">
+              {snapshot.rows.map((row, index) => (
+                <PackageSurface key={`${row.surface}-${row.zone}-${index}`} row={row} />
+              ))}
+              {snapshot.rows.length === 0 ? <p className="px-6 py-6 text-[13px] text-muted-foreground">No surfaces in this room yet.</p> : null}
+            </div>
+
+            <footer className="grid gap-3 bg-muted/20 px-4 py-4 md:grid-cols-[minmax(180px,1fr)_auto] md:items-center md:px-6">
+              <TextInput
+                value={note[area.id] ?? ""}
+                onChange={(e) => setNote((state) => ({ ...state, [area.id]: e.target.value }))}
+                placeholder="Revision note (optional)"
+                className="h-9"
+              />
               <div className="flex flex-wrap items-center gap-2">
                 <TextInput
-                  value={note[area.id] ?? ""}
-                  onChange={(e) => setNote((n) => ({ ...n, [area.id]: e.target.value }))}
-                  placeholder="What changed?"
-                  className="h-9 w-[180px]"
+                  value=""
+                  readOnly
+                  className="hidden"
+                  aria-hidden="true"
                 />
                 <Button
                   variant="primary"
@@ -166,70 +170,25 @@ function InstallerPackages() {
                         changeNote: note[area.id] ?? "",
                       })
                       .then((rev) => {
-                        setNote((n) => ({ ...n, [area.id]: "" }));
+                        setNote((state) => ({ ...state, [area.id]: "" }));
                         toast.success(`Published revision ${rev}`);
                       })
                       .catch((e) => toast.error(e instanceof Error ? e.message : "Could not publish"))
                   }
                 >
                   <Upload className="size-4" />
-                  {pkg && pkg.current_revision_no > 0
-                    ? `Publish rev ${pkg.current_revision_no + 1}`
-                    : "Publish rev 1"}
-                </Button>
-                <Button onClick={() => printRoom(area.id)}>
-                  <Printer className="size-4" /> Print room sheet
+                  {pkg && pkg.current_revision_no > 0 ? `Publish rev ${pkg.current_revision_no + 1}` : "Publish rev 1"}
                 </Button>
                 {revs.length > 0 ? (
                   <Button onClick={() => setOpenHistory((v) => (v === area.id ? null : area.id))}>
-                    <History className="size-4" /> {revs.length} revision(s)
+                    <History className="size-4" /> History {openHistory === area.id ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   </Button>
                 ) : null}
               </div>
-            }
-          >
-            <div className="space-y-3 px-5 pb-5">
-              {snapshot.rows.map((r, i) => (
-                <article key={i} className="rounded-lg border border-border px-4 py-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-[14px] font-bold">{r.surface}</h3>
-                    <span className="text-xs font-semibold text-muted-foreground">{r.zone}</span>
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <PackageFact label="Tile" value={r.tile} detail={`${r.manufacturer} · ${r.sku} · ${r.size}`} />
-                    <PackageFact label="Actual dimension" value={r.actual_size ?? "—"} detail={r.tile_finish ?? "—"} />
-                    <PackageFact label="Grout / joint" value={r.grout} detail={r.joint} />
-                    <PackageFact label="Layout" value={r.pattern} detail={`${r.direction} · from ${r.start}`} />
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-2 text-xs">
-                    <span>
-                      <b>Edge</b> · {r.edge}
-                    </span>
-                    <span>
-                      <b>Height</b> · {r.height}
-                    </span>
-                    <span>
-                      <b>Transition</b> · {r.transition}
-                    </span>
-                    <span>
-                      <b>Features</b> · {r.features ?? "—"}
-                    </span>
-                    <span>
-                      <b>Prep</b> · {r.prep}
-                    </span>
-                    <span>
-                      <b>Waterproofing</b> · {r.waterproofing}
-                    </span>
-                  </div>
-                </article>
-              ))}
-              {snapshot.rows.length === 0 ? (
-                <p className="py-4 text-[13px] text-muted-foreground">No surfaces in this room yet.</p>
-              ) : null}
-            </div>
+            </footer>
 
             {openHistory === area.id ? (
-              <div className="border-t border-border bg-muted/30 px-5 py-3">
+              <div className="border-t border-border bg-muted/30 px-4 py-3 md:px-6">
                 <div className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   Revision history
                 </div>
@@ -247,13 +206,27 @@ function InstallerPackages() {
                 </ul>
               </div>
             ) : null}
-          </SectionCard>
+          </section>
         ))}
       </div>
 
       <PrintRoomSheet sheets={sheets} />
     </>
   );
+}
+
+function PackageSurface({ row }: { row: PackageSnapshot["rows"][number] }) {
+  const supporting = [row.supplier ? `Supplier: ${row.supplier}` : null, row.supplied_by ? `Supplied by: ${row.supplied_by}` : null, row.alignment ? `Alignment: ${row.alignment}` : null, row.underlayment ? `Underlayment: ${row.underlayment}` : null, row.measurements ? `Measurements: ${row.measurements}` : null, row.instructions ? `Instructions: ${row.instructions}` : null].filter(Boolean);
+  return <article className="px-4 py-4 md:px-6">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3"><h4 className="truncate text-[14px] font-bold">{row.surface}</h4><span className="text-[11.5px] font-semibold text-muted-foreground">{row.zone}</span></div>
+    <div className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+      <PackageFact label="Finish" value={row.tile} detail={[row.manufacturer, row.sku, row.size].filter(Boolean).join(" · ") || "—"} />
+      <PackageFact label="Grout" value={row.grout} detail={row.joint} />
+      <PackageFact label="Layout" value={row.pattern} detail={[row.direction, row.start ? `Start: ${row.start}` : null].filter(Boolean).join(" · ")} />
+      <PackageFact label="Edge / transition" value={row.edge} detail={[row.transition, row.height].filter(Boolean).join(" · ")} />
+    </div>
+    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-2 text-[11.5px] text-secondary-foreground"><span><b>Prep</b> · {row.prep}</span><span><b>Waterproofing</b> · {row.waterproofing}</span>{row.features ? <span><b>Features</b> · {row.features}</span> : null}{supporting.map((fact) => <span key={fact}>{fact}</span>)}</div>
+  </article>;
 }
 
 function PackageFact({ label, value, detail }: { label: string; value: string; detail?: string }) {
