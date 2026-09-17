@@ -214,7 +214,8 @@ function SurfaceEditDrawer({ projectId, surface, assignment, selection, selectio
       const [entity, key] = compound.split(".");
       if (!entity || !key) return;
       const value = raw.trim() || null;
-      if (entity === "surface") surfacePatch[key] = key === "plan_sf" || key === "field_sf" ? (raw ? Number(raw) : null) : value;
+      const numericSurfaceKeys = ["plan_sf", "field_sf", "measured_length_in", "measured_width_in", "measured_height_in"];
+      if (entity === "surface") surfacePatch[key] = numericSurfaceKeys.includes(key) ? (raw.trim() ? Number(raw) : null) : value;
       if (entity === "assignment") assignmentPatch[key] = value;
       if (entity === "selection" && selection) selectionPatch[key] = value;
     });
