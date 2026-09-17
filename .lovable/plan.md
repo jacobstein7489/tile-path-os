@@ -39,13 +39,14 @@ Shared shell: 216px light sidebar (Today, Work, Projects, Schedule, Materials, M
 - Design / Site Meeting capture — launched from Update / meeting actions, history lives in Updates; not a permanent destination. One question at a time with known-facts strip, Confirm writes to the surface via the allowlisted target map, Unresolved reuses exactly one Work Item with owner, waiting-on, follow-up date.
 - Work Item drawer — same right drawer on desktop, bottom sheet on mobile, opened identically from Today, Work, Project. Header identity, Move Forward block first, then details, then history. Scroll and selected row preserved.
 - Move Forward flow — single control: what happened (note) plus what happens next (To Do / Waiting with waiting-on and follow-up date / Scheduled with date / Done). Writes status, fields, and one history event in one call.
-- Materials / procurement — global workspace summarizing two distinct tracks: Tiles & Finishes and Install Materials. Rows are requirements in seven states; actions Confirm spec, Order, Set ETA, Receive.
+- Materials / procurement — one global workspace with two distinct subsections inside it: Tiles & Finishes and Install Materials. Rows are requirements in the seven frozen states; actions Confirm spec/count, Order, Set ETA, Receive, Mark on site.
 - Receiving — from a PO or requirement: quantity good/damaged, packing slip, note; appends a receipt and recomputes requirement state. Shade/lot/photo deferred.
 - Schedule & Crews — week grid by crew, Ready to Schedule queue rail on the left, return-work lane. Crews, not per-installer task lists.
-- Installation / Field — daily update capture per project, progress by room/surface, suggested Work Items from the update.
+- Installation / Field — daily update capture per project, progress by room/surface, suggested Work Items from the update, and installer-package handoff (published documents also appear in Files).
 - Punch / Return — filtered list of punch/return work items across projects, grouped by project, same drawer.
-- Settings / Workflow Rules — existing Users, Companies, Contacts, Crews tabs plus a read-first Workflow Rules tab (question rules and readiness requirement keys) — editing is a later gate.
+- Settings / Workflow Rules — existing Users, Companies, Contacts, Crews tabs plus a read-only, inspectable Workflow Rules tab (question rules and readiness requirement keys). Editing is a later controlled gate.
 - Commissions — flat list per salesperson with plan snapshot and status; no dashboard cards.
+- Pre-award leads — routes and data stay intact but are hidden from daily approved-to-complete navigation. Nothing deleted.
 - Mobile purpose-built: bottom nav Today, Work, +, Projects, More; compact rows; Capture sheet; Move Forward sheet; Site Meeting one-question flow; Material Need quick form.
 
 ## 3. Object-flow map (one record, many views)
