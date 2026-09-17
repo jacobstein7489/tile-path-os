@@ -84,12 +84,54 @@ Rules: Work Items are never re-created per view; readiness blockers link to the 
 
 Every gate: typecheck, 1440×900 / 1280×800 / 390px with no overflow, no production records created for QA, real 114 Park Place data.
 
-## 5. Contradictions and unresolved decisions (not improvised)
+## 5. Resolved decisions — final stored vs user-facing mappings
 
-1. Stage count: your scope lists nine stages (adds Design / Decisions, Readiness, Ready to Schedule); code has seven controlled stages, and readiness is deliberately derived, not a stage. Recommend keeping seven stored stages and presenting Design/Decisions and Readiness as views inside Setup. Needs your call.
-2. Material lifecycle: seven requested states vs quantity-derived status today. Adding "Confirm spec/count", "Waiting/ETA", "On Site" needs a stored state column — that is a schema change, so it must wait for an approved migration gate.
-3. Work Item statuses: users see four; twelve legacy stored statuses remain mapped. Confirm we keep the mapping rather than normalizing stored data.
-4. Ten work-item types remain vs the earlier "five types" simplification. Confirm the final type list.
-5. Project More holds Updates, Materials, Schedule, Field, Commercial; today there are also Tiles, Install Materials, Package, Tasks routes. Confirm Tiles & Finishes and Installer Package placement inside More.
-6. Pre-award `leads.*` routes: retire or keep hidden?
-7. Workflow Rules editing: read-only display now, or an editor in the same pass?
+**Lifecycle (no new stored stages).** Stored: Approved, Setup, Ready, Scheduled, Installation, Punch / Return, Complete (+ On Hold, Cancelled, Lost). User-facing copy: `Ready` displays as **Ready to Schedule**; all others unchanged. Setup contains two views only — Design & Decisions and Readiness. Readiness stays derived from `readiness_requirement` and never changes stage.
+
+**Work status.** Final user-visible states: To Do → Waiting → Scheduled → Done. `In Progress` is removed from the user-facing model. Stored values are preserved as-is; mapping:
+
+| Stored | User-facing |
+| --- | --- |
+| Scheduled | Scheduled |
+| Waiting, Expected | Waiting |
+| Complete, Done | Done |
+| Open, Price Needed, Crew Needed, Measurement Needed, Test Needed, To Order, Setup Needed, Needs Pricing, In Progress, any other active value | To Do |
+
+Move Forward writes only these four target states (plus waiting-on / follow-up date / scheduled date) and appends one history event. No production status normalization.
+
+**Work types.** Stored types stay unchanged. Creation UX exposes five intents:
+
+| Intent | Stored type written | Also displayed as this intent |
+| --- | --- | --- |
+| Action / Task | Task | Approval, Potential Change |
+| Question / Decision | Question / Decision | — |
+| Material Need | Install Material Need | Tile Follow-up |
+| Field Verification / Dependency | Field Verification | Dependency |
+| Punch / Return | Punch / Return Work | Return Work |
+
+**Navigation.** Global: Today · Work · Projects · Schedule · Materials · More (Commissions · Reports · Settings). Project: Overview · Rooms · Work · Files · More (Updates · Materials · Schedule · Field · Commercial). Tiles & Finishes and Install Materials are subsections of project Materials. Installer Package lives under Field handoff, published documents also listed in Files. Design/Site Meeting is an action, history in Updates. Pre-award leads: routes and data kept, hidden from daily navigation.
+
+**Workflow Rules.** Read-only inspection in Settings first; editing is a later controlled gate.
+
+## 6. Material lifecycle — derivable now vs smallest schema gap
+
+Existing fields on `material_items`: `required_qty`, `ordered_qty`, `received_qty`, `damaged_qty`, `expected_date`, `status`, `next_step`, `notes`, plus append-only `material_receipts`.
+
+| Frozen state | Derivable today? | Basis / gap |
+| --- | --- | --- |
+| Need | Yes | `required_qty` null/0 or no order activity |
+| Confirm Spec/Count | **No** | needs a confirmation marker (smallest addition: `spec_confirmed_at timestamptz`) |
+| Order | Yes | `ordered_qty > 0` |
+| Waiting / ETA | Yes | ordered and `received_qty < required_qty`, ETA from `expected_date` |
+| Receive | Yes | receipts exist and `received_qty < required_qty` (partial) |
+| On Site | **No** | receiving to shop vs delivered to jobsite is indistinguishable (smallest addition: `on_site_qty numeric` or `on_site_at timestamptz`) |
+| Ready | Yes | `received_qty >= required_qty` with no unresolved damage |
+
+Recommended smallest later migration (not in this turn, requires its own approved gate): two columns on `material_items` — `spec_confirmed_at` and `on_site_at` (or `on_site_qty`). Until approved, the Materials UI shows five honest states and labels the two unsupported ones as unavailable rather than faking them.
+
+## 7. Remaining true technical unknowns (require inspection, not product decisions)
+
+1. Whether every legacy stored work-item status in production maps cleanly under the table above — needs a distinct-value read before the Move Forward build.
+2. Whether readiness requirement keys currently cover both Design & Decisions and Readiness views for all live projects, or only 114 Park Place.
+3. Whether existing surfaces have plan/photo attachment paths available for the Surface workspace photo section.
+4. Whether `expected_date` is populated consistently enough on live material rows to drive the Waiting/ETA state.
