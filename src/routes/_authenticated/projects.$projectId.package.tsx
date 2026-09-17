@@ -152,12 +152,6 @@ function InstallerPackages() {
                 className="h-9"
               />
               <div className="flex flex-wrap items-center gap-2">
-                <TextInput
-                  value=""
-                  readOnly
-                  className="hidden"
-                  aria-hidden="true"
-                />
                 <Button
                   variant="primary"
                   disabled={!canEdit || publish.isPending}
@@ -216,7 +210,7 @@ function InstallerPackages() {
 }
 
 function PackageSurface({ row }: { row: PackageSnapshot["rows"][number] }) {
-  const supporting = [row.supplier ? `Supplier: ${row.supplier}` : null, row.supplied_by ? `Supplied by: ${row.supplied_by}` : null, row.alignment ? `Alignment: ${row.alignment}` : null, row.underlayment ? `Underlayment: ${row.underlayment}` : null, row.measurements ? `Measurements: ${row.measurements}` : null, row.instructions ? `Instructions: ${row.instructions}` : null].filter(Boolean);
+  const supporting = [row.supplier ? `Supplier: ${row.supplier}` : null, row.alignment ? `Alignment: ${row.alignment}` : null, row.underlayment ? `Underlayment: ${row.underlayment}` : null, row.measurements ? `Measurements: ${row.measurements}` : null, row.instructions ? `Instructions: ${row.instructions}` : null].filter(Boolean);
   return <article className="px-4 py-4 md:px-6">
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3"><h4 className="truncate text-[14px] font-bold">{row.surface}</h4><span className="text-[11.5px] font-semibold text-muted-foreground">{row.zone}</span></div>
     <div className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
