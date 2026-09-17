@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAreasWithSurfaces, useInsertRow, useUpdateRow, type Area, type SurfaceFull } from "@/lib/data";
 import { useAddZone, useApplyFinishToSurfaces, useEnsureZones, useSaveAssignment, useSaveSelection, type FinishAssignment, type FinishSelection } from "@/lib/finishes";
 import { useProjectSetup } from "@/lib/setup";
+import { measurementSummary, resolveSpec } from "@/lib/spec";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/scope")({
   head: () => ({ meta: [
@@ -179,7 +180,7 @@ const EDIT_FIELDS: Record<WorkspaceTab, { key: string; label: string; entity: "s
     { key: "layout_pattern", label: "Pattern", entity: "assignment" }, { key: "layout_direction", label: "Direction", entity: "assignment" }, { key: "start_point", label: "Start / alignment", entity: "assignment" }, { key: "coverage", label: "Feature alignment", entity: "assignment" }, { key: "finish_transition", label: "Termination / transition", entity: "assignment" },
   ],
   Measurements: [
-    { key: "plan_sf", label: "Plan area (sq ft)", entity: "surface", type: "number" }, { key: "field_sf", label: "Field area (sq ft)", entity: "surface", type: "number" }, { key: "actual_size", label: "Actual tile dimension", entity: "selection" }, { key: "joint_size", label: "Grout joint", entity: "assignment" },
+    { key: "surface_kind", label: "Surface kind (floor, wall, curb…)", entity: "surface" }, { key: "uom", label: "Unit of measure", entity: "surface" }, { key: "measured_length_in", label: "Measured length", entity: "surface", type: "number" }, { key: "measured_width_in", label: "Measured width", entity: "surface", type: "number" }, { key: "measured_height_in", label: "Measured height", entity: "surface", type: "number" }, { key: "plan_sf", label: "Plan area (sq ft)", entity: "surface", type: "number" }, { key: "field_sf", label: "Field area (sq ft)", entity: "surface", type: "number" }, { key: "actual_size", label: "Actual tile dimension", entity: "selection" }, { key: "joint_size", label: "Grout joint", entity: "assignment" },
   ],
   Prep: [
     { key: "prep", label: "Substrate / prep", entity: "surface" }, { key: "underlayment", label: "Underlayment", entity: "surface" }, { key: "waterproofing", label: "Waterproofing", entity: "surface" }, { key: "notes", label: "Prep requirements", entity: "assignment", type: "textarea" },
