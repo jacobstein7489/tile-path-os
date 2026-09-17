@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/design
 });
 
 type Ctx = ZoneContext & { areaId: string };
-type Entry = { rule: QuestionRule; ctx: Ctx; key: string };
+type Entry = { rule: QuestionRule; ctx: Ctx; key: string; tracked?: boolean };
 const OFFICE_TARGETS = new Set(["surface.waterproofing", "surface.prep", "surface.underlayment"]);
 
 function DesignMeeting() {
