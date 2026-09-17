@@ -50,3 +50,8 @@
 - [x] Verify 1440×900, 1280×800, and 390px without horizontal overflow
 - [x] Confirm the 1280px inspector collapse and purpose-built mobile rows
 - [x] Confirm production counts unchanged and deliver old/new evidence
+
+## Controlled UI surgery — Projects + project shell
+- [x] Replace the split Projects queue/inspector with a compact full-width operations list
+- [x] Simplify the project shell while preserving its five permanent destinations and wired actions
+- [ ] Verify 1280×800, 1366×768, 1440×900, and mobile overflow without production mutations
