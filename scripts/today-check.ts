@@ -1,0 +1,14 @@
+import { todaySections } from "@/lib/today";
+import type { WorkItemRow } from "@/lib/workitems";
+const base = { id:"1",project_id:null,area_id:null,surface_id:null,item_type:"Task",title:"t",description:null,owner:null,owner_user_id:null,waiting_on:null,waiting_on_user_id:null,waiting_on_contact_id:null,waiting_on_company_id:null,status:"Open",is_important:false,due_date:null,follow_up_on:null,priority:"Normal",impact:null,next_action:null,workflow_step:null,created_by:null,created_at:"2026-01-01T00:00:00Z",completed_at:null } as WorkItemRow;
+const row = (o: Partial<WorkItemRow>) => ({ ...base, ...o }) as WorkItemRow;
+const T = "2026-09-17";
+const ok = (n: string, c: boolean) => console.log(c ? "PASS" : "FAIL", n);
+let s = todaySections([row({id:"a",status:"Waiting",waiting_on:"GC",follow_up_on:"2026-09-30"})], T);
+ok("future waiting hidden", s.needsNow.length===0 && s.followUps.length===0);
+s = todaySections([row({id:"a",status:"Waiting",waiting_on:"GC",follow_up_on:T}),row({id:"b",status:"Waiting",waiting_on:"GC",follow_up_on:"2026-09-01"})], T);
+ok("due waiting resurfaces oldest first", JSON.stringify(s.followUps.map(i=>i.id))==='["b","a"]');
+s = todaySections([row({id:"a",status:"Scheduled",due_date:T}),row({id:"b",status:"Scheduled",due_date:"2026-09-20"}),row({id:"c",status:"Scheduled"})], T);
+ok("scheduled only on its date", JSON.stringify(s.scheduledToday.map(i=>i.id))==='["a"]' && s.needsNow.length===0);
+s = todaySections([row({id:"due",due_date:T}),row({id:"late",due_date:"2026-08-01"}),row({id:"star",is_important:true}),row({id:"done",status:"Complete",due_date:"2026-08-01"}),row({id:"later",due_date:"2026-12-01"})], T);
+ok("needs-now order + done excluded", JSON.stringify(s.needsNow.map(i=>i.id))==='["late","star","due"]');
