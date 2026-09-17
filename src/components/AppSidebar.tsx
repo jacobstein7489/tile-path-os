@@ -48,9 +48,9 @@ export function AppSidebar() {
   return (
     <>
       {/* Desktop: one permanent, quiet rail. */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-7">
-          <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r border-sidebar-border bg-sidebar shadow-[6px_0_24px_-24px_var(--foreground)] md:flex">
+        <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-6">
+          <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-raised)]">
             <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
               <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
             </svg>
@@ -63,11 +63,11 @@ export function AppSidebar() {
           </div>
         </div>
 
-        <div className="px-3 pb-5">
+        <div className="px-3 pb-6">
           <button
             type="button"
             onClick={() => openCapture()}
-            className="flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary text-[12.5px] font-semibold text-primary-foreground outline-none transition-colors duration-150 hover:bg-primary/90 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/35"
+            className="flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-[12.5px] font-semibold text-primary-foreground shadow-[var(--shadow-card)] outline-none transition-colors duration-150 hover:bg-primary/90 active:translate-y-[0.5px] focus-visible:ring-2 focus-visible:ring-primary/35"
           >
             <Plus className="size-4" /> Capture
           </button>
@@ -139,7 +139,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       to={item.to}
       preload="intent"
       className={cn(
-        "flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-[12.5px] font-medium outline-none",
+        "flex h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-[12.5px] font-medium outline-none",
         "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
         active
           ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"

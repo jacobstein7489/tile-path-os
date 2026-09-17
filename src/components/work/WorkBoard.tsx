@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, ListChecks, Plus, Search } from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { WorkItemPanel } from "@/components/work/WorkItemPanel";
 import { useCapture } from "@/components/ops/CaptureProvider";
@@ -13,6 +13,9 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/kit";
+import { currentMoveState } from "@/lib/moveforward";
+import { isOverdue } from "@/lib/workitems";
 
 /**
  * Company action center. The same work_items records the rest of the app reads,
@@ -81,31 +84,33 @@ export function WorkBoard() {
 
   const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
   const openCount = items.filter((i) => !isComplete(i)).length;
+  const waitingCount = items.filter((i) => !isComplete(i) && currentMoveState(i) === "Waiting").length;
+  const overdueCount = items.filter(isOverdue).length;
+  const scheduledCount = items.filter((i) => !isComplete(i) && currentMoveState(i) === "Scheduled").length;
 
   return (
     <>
-      <main className="w-full px-4 pb-28 md:px-8">
-        {/* Compact header. */}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 pt-6 pb-4 md:pt-9">
+      <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-7">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 pt-5 md:pt-7">
           <div className="min-w-0">
-            <h1 className="truncate text-[22px] leading-tight font-bold tracking-[-0.02em] md:text-[25px]">
+            <h1 className="truncate text-[24px] leading-tight font-bold md:text-[30px]">
               Work
             </h1>
             <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
               {isLoading ? "Loading company work…" : `${openCount} open across every job`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => capture()}
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <Plus className="size-4" /> Capture
-          </button>
+          <Button variant="primary" onClick={() => capture()}><Plus className="size-4" /> Capture</Button>
         </div>
 
-        {/* Sticky one-line control strip. */}
-        <div className="sticky top-12 z-10 -mx-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border bg-background/95 px-4 py-2 backdrop-blur md:-mx-8 md:px-8">
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <WorkMetric label="Open" value={openCount} icon={<ListChecks className="size-4" />} tone="primary" />
+          <WorkMetric label="Waiting" value={waitingCount} icon={<Clock3 className="size-4" />} tone="warning" />
+          <WorkMetric label="Overdue" value={overdueCount} icon={<AlertTriangle className="size-4" />} tone="danger" />
+          <WorkMetric label="Scheduled" value={scheduledCount} icon={<CalendarClock className="size-4" />} tone="success" />
+        </div>
+
+        <div className="workspace-panel sticky top-16 z-10 mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 px-3 py-2.5 backdrop-blur md:px-4">
           <Segmented
             options={["By Project", "By Person"]}
             value={grouping}
@@ -137,15 +142,14 @@ export function WorkBoard() {
           </button>
         </div>
 
-        {/* Grouped operational lists. */}
-        <div className="mx-auto w-full max-w-[980px] pt-7">
+        <div className="pt-5">
           {groups.length ? (
-            <div className="space-y-8">
+            <div className="grid items-start gap-4 xl:grid-cols-2">
               {groups.map((group) => {
                 const open = expanded[group.key];
                 const shown = open ? group.items : group.items.slice(0, PER_GROUP);
                 return (
-                  <section key={group.key}>
+                  <section key={group.key} className="workspace-panel overflow-hidden">
                     <OpsSectionHeading label={group.key} count={group.items.length} />
                     <ul>
                       {shown.map((item) => (
@@ -167,7 +171,7 @@ export function WorkBoard() {
                       <button
                         type="button"
                         onClick={() => setExpanded((s) => ({ ...s, [group.key]: !open }))}
-                        className="px-1 py-2 text-[11.5px] font-semibold text-primary transition-colors hover:underline md:px-2"
+                        className="w-full border-t border-border px-4 py-3 text-left text-[11.5px] font-semibold text-primary transition-colors hover:bg-primary-soft"
                       >
                         {open ? "Show less" : `View all ${group.items.length}`}
                       </button>
@@ -203,7 +207,7 @@ function Segmented({
   onChange: (next: string) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-3">
+    <div className="flex shrink-0 items-center rounded-lg bg-muted p-1">
       {options.map((o) => (
         <button
           key={o}
@@ -211,9 +215,9 @@ function Segmented({
           onClick={() => onChange(o)}
           aria-pressed={value === o}
           className={cn(
-            "text-[12.5px] font-semibold transition-colors",
+            "rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors",
             value === o
-              ? "text-foreground underline decoration-primary decoration-2 underline-offset-[6px]"
+              ? "bg-card text-foreground shadow-[var(--shadow-card)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -222,4 +226,9 @@ function Segmented({
       ))}
     </div>
   );
+}
+
+function WorkMetric({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: "primary" | "warning" | "danger" | "success" }) {
+  const styles = tone === "warning" ? "bg-warning-soft text-warning" : tone === "danger" ? "bg-danger-soft text-danger" : tone === "success" ? "bg-success-soft text-success" : "bg-info-soft text-info";
+  return <div className="workspace-panel flex items-center gap-3 p-3.5"><span className={`grid size-9 shrink-0 place-items-center rounded-lg ${styles}`}>{icon}</span><div><strong className="block text-[22px] leading-none tabular-nums">{value}</strong><span className="mt-1 block text-[10.5px] font-bold tracking-[0.06em] text-muted-foreground uppercase">{label}</span></div></div>;
 }
