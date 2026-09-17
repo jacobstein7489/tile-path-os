@@ -1,31 +1,22 @@
-# UI Surgery Pass 1B
+# Production Experience Pass
 
 ## Scope
-- Keep the accepted project shell, Overview, three-pane Rooms workspace, visual system, and all existing backend architecture.
-- Change only the project shell, Overview details, Rooms workflow, Design Meeting presentation/flow, and existing question-rule catalogue values.
-- No schema changes, procurement work, unrelated screen redesigns, or Sprint 2 work.
-- No new configuration surface. The seeded question-rule values are corrected in this pass, and every screen must work immediately on existing project data using sensible defaults where values are absent.
-- If a required experience genuinely cannot work within the existing architecture, report that exact limitation instead of adding a configuration system.
+Apply the frozen Cobblestone visual and interaction system to the existing production-connected routes without changing schema, business logic, permissions, records, or module boundaries.
 
-## Implementation
-1. Compact the mobile project header into identity/stage/actions, one metadata line, and fixed Overview/Rooms/Work/Files/More navigation. Keep Update in mobile overflow and keep the visible tab label “More.”
-2. Preserve the Overview composition while hiding empty waiting links and replacing raw requirement counts with meaningful room/surface/design setup summaries. Keep detailed blockers in the drawer.
-3. Correct Rooms:
-   - summarize readiness by affected surfaces, not blocker rows;
-   - make Plan project-level and usable before room selection, with file/page/location plus existing-room or new-room linking;
-   - format product summaries deliberately;
-   - wire every visible Add action to the correct editor category/control;
-   - stage all editor changes locally and persist only through Save Changes;
-   - add room-level multi-surface assignment of one existing finish selection to default zones.
-4. Correct the existing question catalogue without changing its schema: move product/grout/known-profile metadata to Finish specification and keep genuine layout/treatment choices in Design decisions. Add a defensive target-field filter in Design Meeting.
-5. Group the Design Meeting rail by room and surface, keeping every surface visible once with Ready or remaining-decision state. Selecting a surface opens its next unresolved question.
-6. Make every simple choice selectable before confirmation. Confirm & Next performs the existing allowlisted write and decision log. Show progress within the current surface.
-7. Preserve the exact-one unresolved Work Item behavior and add the existing waiting-on text to that flow. Move naturally to the next question after tracking.
-8. Keep mobile decision actions fixed above the global navigation.
+## Build
+1. **Global shell** — standardize the desktop sidebar to Today, Work, Projects, Schedule, Materials, More; remove Bulk Import from permanent navigation; preserve the mobile Today, Work, +, Projects, More bar and the existing capture flow.
+2. **Core lists** — align Today and Work around the canonical WorkList and WorkItemDrawer; retain project/person grouping, project headings, limited visible actions, and existing Move Forward behavior.
+3. **Projects** — replace progress-oriented presentation with a calm operational table and purpose-built mobile rows showing project, stage, live next move, owner/crew, relevant date, and attention reason.
+4. **Project workspace** — keep Overview, Rooms, Work, Files plus More; place Updates, Materials, Schedule, Field, and Commercial in More while keeping Design Meeting and Installer Package accessible as setup tools rather than permanent tabs.
+5. **Overview and Rooms** — tighten the existing document-style overview; strengthen Rooms as a three-pane operational workspace with meaningful readiness reasons, compact surface facts, and drawer-based editing.
+6. **Design Meeting** — preserve the working one-question flow and data behavior while refining desktop focus, mobile actions, known information, and decision navigation.
+7. **Installer package** — keep immutable publishing and improve both on-screen review and printed room sheets, moving missing critical facts into one concise “Open / Confirm with office” section.
+8. **Legacy cleanup** — verify imports before removing only inactive duplicate presentation paths; keep the single live capture path and all underlying routes/data.
 
 ## Verification
-- Validate types and live interactions without mutating production project data.
-- Use the archived QA clone for write-path checks when artificial answers or assignments are needed.
-- Confirm no raw blocker counts, duplicate surface rows, instant choice writes, dead Add actions, blur saves, or hidden mobile actions.
-- Capture ten named screenshots: 1440×900 Overview, Rooms Specification, Rooms Layout, multi-surface finish assignment, genuine Design Meeting question, Design Meeting surface rail; 390px Overview, Rooms list, Surface detail, and Design Meeting with actions above global navigation.
-- Verify every hard acceptance condition from those rendered states. If any condition fails, report the pass as incomplete rather than marking it complete.
+- Run focused type checks and inspect runtime logs.
+- Exercise Today, Work, Projects, 114 Park Overview, Rooms, Design Meeting, Work drawer, readiness, installer publishing history, and print output without destructive production writes.
+- Verify 1440×900, 1280×800, and 390px layouts with no horizontal overflow or dead controls.
+- Capture canonical desktop and mobile screenshots plus the printed room sheet.
+- Confirm production record counts and RLS/permissions remain unchanged.
+- Stop after this pass; do not begin Materials or any later business-module sprint.

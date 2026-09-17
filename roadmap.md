@@ -15,3 +15,12 @@
 - Tracked (unresolved) decisions stay answerable; confirming closes the same Work item.
 - Installer package: publish immutable revision + jobsite print sheet (app chrome hidden in print).
 - Retired unused LifecycleTrack.tsx and ops/TaskDrawer.tsx.
+
+## Production Experience Pass
+- [ ] Unify global shell and mobile navigation
+- [ ] Finalize Today and Work shared experience
+- [ ] Finalize Projects operational list
+- [ ] Finalize project shell, Overview, Rooms, and Design Meeting
+- [ ] Improve installer package review and printed room sheet
+- [ ] Retire verified inactive duplicate UI paths
+- [ ] Verify desktop, mobile, workflows, data integrity, and screenshots
