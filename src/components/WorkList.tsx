@@ -362,6 +362,7 @@ export function WorkList({
   startCollapsed = true,
   sectionsByBucket = false,
   toolbarRight,
+  maxVisiblePerGroup,
 }: {
   items: WorkItemRow[];
   onOpen: (item: WorkItemRow) => void;
@@ -390,6 +391,8 @@ export function WorkList({
   sectionsByBucket?: boolean;
   /** Right-side toolbar slot, e.g. Capture. */
   toolbarRight?: ReactNode;
+  /** Keep busy company groups concise; users can reveal the remainder in place. */
+  maxVisiblePerGroup?: number;
 }) {
   const { data: profiles = [] } = useProfiles();
   const save = useSaveWorkItem();
@@ -403,6 +406,7 @@ export function WorkList({
     () => (viewStorageKey ? collapseMemory.get(viewStorageKey) : undefined) ?? {},
   );
   const [adding, setAdding] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   /** Summary focus — Open / Unassigned / Waiting / Overdue. */
   const [focus, setFocus] = useState<SummaryKey | null>(null);
@@ -1059,7 +1063,19 @@ export function WorkList({
                   )}
                 >
                   <div className="overflow-hidden">
-                    <Body list={group.items} withProject={byPerson || sectionsByBucket} />
+                    <Body
+                      list={maxVisiblePerGroup && !expandedGroups[key] ? group.items.slice(0, maxVisiblePerGroup) : group.items}
+                      withProject={byPerson || sectionsByBucket}
+                    />
+                    {maxVisiblePerGroup && group.items.length > maxVisiblePerGroup ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGroups((state) => ({ ...state, [key]: !state[key] }))}
+                        className="flex min-h-11 w-full cursor-pointer items-center border-t border-border/70 px-4 text-left text-[12.5px] font-semibold text-primary transition-colors duration-150 hover:bg-primary-soft/50"
+                      >
+                        {expandedGroups[key] ? "Show less" : `View all ${group.items.length}`}
+                      </button>
+                    ) : null}
                     {allowAdd && !sectionsByBucket ? <AddRow projectKey={key} /> : null}
                   </div>
                 </div>
