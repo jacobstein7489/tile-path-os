@@ -196,7 +196,7 @@ function TodayRow({
         onClick={() => onOpen(item)}
         className={cn(
           "flex w-full items-start gap-3 border-b border-border px-1 py-3 text-left transition-colors hover:bg-muted/50",
-          selected && "bg-selected",
+          selected && "bg-primary-soft",
         )}
       >
         <span className="min-w-0 flex-1">
