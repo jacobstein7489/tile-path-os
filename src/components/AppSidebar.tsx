@@ -49,15 +49,15 @@ export function AppSidebar() {
     <>
       {/* Desktop: one permanent, quiet rail. */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex items-center gap-2.5 px-4 pt-5 pb-7">
+        <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-7">
           <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
             <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
               <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
             </svg>
           </div>
-          <div className="text-[12px] leading-[1.15] font-bold text-sidebar-accent-foreground">
+          <div className="text-[12px] leading-[1.15] font-bold text-foreground">
             COBBLESTONE
-            <div className="mt-0.5 text-[9px] font-semibold tracking-[0.16em] text-sidebar-foreground/60">
+            <div className="mt-0.5 text-[9px] font-semibold tracking-[0.16em] text-muted-foreground">
               TILE OPERATIONS
             </div>
           </div>
@@ -78,14 +78,14 @@ export function AppSidebar() {
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
 
-          <div className="mt-6 px-3 pb-1 text-[9px] font-semibold tracking-[0.16em] text-sidebar-foreground/45 uppercase">More</div>
+          <div className="mt-6 px-3 pb-1 text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">More</div>
           {more.map((item) => <NavRow key={item.to} item={item} active={isActive(item.to)} />)}
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3">
           <div className="mt-2 flex items-center gap-2 px-1">
             <AccountMenu />
-            <span className="text-[11.5px] text-sidebar-foreground/65">Account</span>
+            <span className="text-[11.5px] text-muted-foreground">Account</span>
           </div>
         </div>
       </aside>
