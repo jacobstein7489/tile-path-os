@@ -86,7 +86,7 @@ function DesignMeeting() {
             <div className="mb-7 flex items-center gap-2 text-xs font-semibold text-primary lg:hidden"><span>{ctx.areaName}</span><ChevronRight className="size-3.5" /><span>{ctx.surface.name}</span></div>
             <div className="flex items-start gap-4">
               <span className="mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><CircleHelp className="size-4" /></span>
-              <div><h1 className="text-[25px] leading-[1.25] font-semibold md:text-[31px]">{rule.prompt}</h1>{rule.help_text ? <p className="mt-3 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
+              <div><h1 className="text-[25px] leading-[1.25] font-semibold md:text-[31px]">{rule.prompt}</h1>{current.tracked ? <p className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs font-semibold text-warning"><Clock3 className="size-3.5" /> Waiting in Work — confirming closes that item</p> : null}{rule.help_text ? <p className="mt-3 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
             </div>
 
             {known.length ? <div className="mt-8 border-y border-border py-4"><div className="text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Already known</div><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">{known.map((item) => <span key={item}>{item}</span>)}</div></div> : null}
