@@ -44,12 +44,15 @@ function DesignMeeting() {
   const [followUp, setFollowUp] = useState("");
   const [mobileRail, setMobileRail] = useState(false);
 
+  // Confirmed decisions leave the queue for good. Decisions tracked in Work stay
+  // available so the same question can be answered once the answer comes back.
   const entries = useMemo<Entry[]>(() => (setup.contexts as Ctx[]).flatMap((ctx) => setup.ruleList
     .filter((rule) => rule.readiness_category === "Design decisions")
     .filter((rule) => !OFFICE_TARGETS.has(rule.target_key))
     .filter((rule) => ruleApplies(rule, ctx))
-    .filter((rule) => !setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && ["confirmed", "unresolved"].includes(decision.status)))
-    .map((rule) => ({ rule, ctx, key: `${ctx.zone.id}:${rule.key}` }))), [setup.contexts, setup.ruleList, setup.decisionList]);
+    .filter((rule) => !setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && decision.status === "confirmed"))
+    .map((rule) => ({ rule, ctx, key: `${ctx.zone.id}:${rule.key}`, tracked: setup.decisionList.some((decision) => decision.question_key === rule.key && decision.zone_id === ctx.zone.id && decision.status === "unresolved") })))
+    .sort((a, b) => Number(a.tracked ?? false) - Number(b.tracked ?? false)), [setup.contexts, setup.ruleList, setup.decisionList]);
   const current = entries.find((entry) => entry.key === selectedKey) ?? entries[0] ?? null;
   const currentSurfaceEntries = current ? entries.filter((entry) => entry.ctx.surface.id === current.ctx.surface.id) : [];
   const currentIndex = current ? currentSurfaceEntries.findIndex((entry) => entry.key === current.key) : -1;
