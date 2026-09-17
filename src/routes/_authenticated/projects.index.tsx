@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -170,6 +170,7 @@ function ProjectQueueRow({ job, selected, onSelect }: { job: ProjectOps; selecte
 }
 
 function ProjectPreview({ job, onUpdate }: { job: ProjectOps; onUpdate: () => void }) {
+  const navigate = useNavigate();
   const { project, next, attention, upcoming, latestReport } = job;
   const readiness = project.readiness_note || (project.readiness_pct > 0 ? "No recorded readiness reason." : "Not evaluated.");
   return <div className="flex min-h-full flex-col px-7 py-7 xl:px-9">
@@ -196,18 +197,18 @@ function ProjectPreview({ job, onUpdate }: { job: ProjectOps; onUpdate: () => vo
     <PreviewFact label="Latest update" value={latestReport ? `${fmt(latestReport.report_date)} · ${latestReport.progress_note ?? latestReport.next_work ?? "Update recorded"}` : "No field update recorded."} />
 
     <div className="mt-auto flex items-center gap-2 border-t border-border pt-6">
-      <Button variant="primary" className="flex-1" onClick={() => { window.location.href = `/projects/${project.id}`; }}>Open Project <ArrowRight className="size-4" /></Button>
+      <Button variant="primary" className="flex-1" onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: project.id } })}>Open Project <ArrowRight className="size-4" /></Button>
       <Button onClick={onUpdate}>Update</Button>
       <ProjectMoreMenu project={project} compact onStatusUpdate={onUpdate} />
     </div>
   </div>;
 }
 
-function PreviewFact({ label, value, tone = "default", icon }: { label: string; value: string; tone?: "default" | "warning" | "quiet"; icon?: React.ReactNode }) {
+function PreviewFact({ label, value, tone = "default", icon }: { label: string; value: string; tone?: "default" | "warning" | "quiet"; icon?: ReactNode }) {
   return <section className="border-b border-border py-5"><p className="flex items-center gap-1.5 text-[10px] font-bold tracking-[0.09em] text-muted-foreground uppercase">{icon}{label}</p><p className={cn("mt-2 text-[12.5px] leading-relaxed", tone === "warning" ? "font-semibold text-warning" : tone === "quiet" ? "text-muted-foreground" : "text-secondary-foreground")}>{value}</p></section>;
 }
 
-function QueueMessage({ children }: { children: React.ReactNode }) { return <div className="px-6 py-16 text-center text-[13px] text-muted-foreground">{children}</div>; }
+function QueueMessage({ children }: { children: ReactNode }) { return <div className="px-6 py-16 text-center text-[13px] text-muted-foreground">{children}</div>; }
 
 function groupWork(feed: WorkItemRow[]) {
   const map = new Map<string, WorkItemRow[]>();
