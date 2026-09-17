@@ -72,28 +72,29 @@ function DesignMeeting() {
   const submitUnresolved = async () => { const id = await getSession(); const workItemId = await unresolved.mutateAsync({ rule, ctx, areaId: ctx.areaId, note, sessionId: id }); const owner = profiles.find((p) => p.user_id === ownerUserId); await saveWork.mutateAsync({ id: workItemId, patch: { owner_user_id: ownerUserId || null, owner: owner?.full_name ?? null, waiting_on: waitingOn.trim() || null, follow_up_on: followUp || null } }); toast.success("Tracked in Work"); setUnresolvedOpen(false); advance(); };
 
   return <>
-    <div className="min-h-[630px] border-x border-b border-border bg-card lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
-      <DecisionRail rooms={rooms} currentKey={current.key} onSelect={(key) => { setSelectedKey(key); setMobileRail(false); }} className="hidden border-r border-border lg:block" />
+    <div className="min-h-[680px] bg-card lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+      <DecisionRail rooms={rooms} currentKey={current.key} onSelect={(key) => { setSelectedKey(key); setMobileRail(false); }} className="hidden border-r border-border bg-foreground text-background lg:block" />
       <section className="flex min-w-0 flex-col">
-        <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 md:px-7">
+        <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 md:px-8">
           <button type="button" onClick={() => setMobileRail(true)} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-primary lg:hidden"><ArrowLeft className="size-4" /> All decisions</button>
           <div className="hidden min-w-0 lg:block"><span className="text-xs font-semibold text-muted-foreground">{ctx.areaName} · {ctx.surface.name}{ctx.zone.is_default ? "" : ` · ${ctx.zone.name}`}</span></div>
            <span className="text-xs font-semibold text-muted-foreground">Decision {currentIndex + 1} of {currentSurfaceEntries.length} · {ctx.surface.name}</span>
         </header>
 
-        <div className="flex-1 px-5 py-8 pb-28 md:px-10 md:py-12 lg:px-14">
-          <div className="mx-auto max-w-[760px]">
+        <div className="flex-1 px-5 py-8 pb-28 md:px-8 md:py-10">
+          <div className="mx-auto grid max-w-[1020px] gap-10 xl:grid-cols-[minmax(0,1fr)_240px]">
+           <div>
             <div className="mb-7 flex items-center gap-2 text-xs font-semibold text-primary lg:hidden"><span>{ctx.areaName}</span><ChevronRight className="size-3.5" /><span>{ctx.surface.name}</span></div>
             <div className="flex items-start gap-4">
-              <span className="mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><CircleHelp className="size-4" /></span>
-              <div><h1 className="text-[25px] leading-[1.25] font-semibold md:text-[31px]">{rule.prompt}</h1>{current.tracked ? <p className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs font-semibold text-warning"><Clock3 className="size-3.5" /> Waiting in Work — confirming closes that item</p> : null}{rule.help_text ? <p className="mt-3 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
+               <span className="mt-1 grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><CircleHelp className="size-4" /></span>
+               <div><p className="v2-kicker mb-2">Decision required</p><h1 className="text-[27px] leading-[1.2] font-bold md:text-[36px]">{rule.prompt}</h1>{current.tracked ? <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-warning"><Clock3 className="size-3.5" /> Waiting in Work — confirming closes that item</p> : null}{rule.help_text ? <p className="mt-4 max-w-2xl text-[14px] leading-6 text-muted-foreground">{rule.help_text}</p> : null}</div>
             </div>
-
-            {known.length ? <div className="mt-8 border-y border-border py-4"><div className="text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">Already known</div><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">{known.map((item) => <span key={item}>{item}</span>)}</div></div> : null}
 
             <div className="mt-8">
                <AnswerControl rule={rule} value={value} onChange={setValue} selections={setup.selectionList} disabled={!canEdit || confirm.isPending} />
             </div>
+           </div>
+           <aside className="border-t border-border pt-6 xl:border-t-0 xl:border-l xl:pl-7"><p className="v2-kicker">Already known</p>{known.length ? <dl className="mt-4 space-y-4">{known.map((item) => { const [label, detail] = String(item).split(" · "); return <div key={String(item)}><dt className="text-[11px] text-muted-foreground">{label}</dt><dd className="mt-0.5 text-[13px] font-semibold">{detail ?? label}</dd></div>; })}</dl> : <p className="mt-3 text-xs text-muted-foreground">No related facts recorded.</p>}</aside>
           </div>
         </div>
 
@@ -127,4 +128,4 @@ function AnswerControl({ rule, value, onChange, selections, disabled }: { rule: 
   return <Field label="Confirmed answer">{rule.answer_type === "choice" ? <Select value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choose…</option>{options.map((option) => <option key={option}>{option}</option>)}</Select> : <TextInput type={rule.answer_type === "number" ? "number" : "text"} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Type the confirmed answer" />}</Field>;
 }
 
-function DecisionRail({ rooms, currentKey, onSelect, className }: { rooms: { area: { id: string; name: string }; surfaces: { surface: { id: string; name: string }; entries: Entry[] }[] }[]; currentKey: string; onSelect: (key: string) => void; className?: string }) { return <aside className={cn("min-w-0", className)}><div className="border-b border-border px-4 py-4"><h2 className="text-[13px] font-semibold">Surfaces</h2><p className="mt-0.5 text-xs text-muted-foreground">Next decision by room</p></div><div className="divide-y divide-border">{rooms.map(({ area, surfaces }) => <section key={area.id} className="py-2"><h3 className="px-4 py-2 text-[10.5px] font-bold tracking-[0.1em] text-muted-foreground uppercase">{area.name}</h3>{surfaces.map(({ surface, entries }) => { const next = entries[0]; const selected = entries.some((entry) => entry.key === currentKey); return <button key={surface.id} type="button" disabled={!next} onClick={() => next && onSelect(next.key)} className={cn("flex min-h-12 w-full items-center gap-3 px-4 text-left transition-colors duration-150 hover:bg-muted disabled:cursor-default disabled:hover:bg-transparent", selected && "bg-primary-soft text-primary")}><span className="min-w-0 flex-1"><b className="block truncate text-[12.5px]">{surface.name}</b><span className={cn("block truncate text-[11.5px]", next ? "text-muted-foreground" : "text-success")}>{next ? next.rule.prompt : "Ready"}</span></span>{next ? <ChevronRight className="size-3.5 shrink-0" /> : <CheckCircle2 className="size-4 shrink-0 text-success" />}</button>; })}</section>)}</div></aside>; }
+function DecisionRail({ rooms, currentKey, onSelect, className }: { rooms: { area: { id: string; name: string }; surfaces: { surface: { id: string; name: string }; entries: Entry[] }[] }[]; currentKey: string; onSelect: (key: string) => void; className?: string }) { return <aside className={cn("min-w-0", className)}><div className="border-b border-current/15 px-4 py-5"><p className="v2-kicker !text-current/45">Design meeting</p><h2 className="mt-1 text-[15px] font-bold">Decision queue</h2></div><div>{rooms.map(({ area, surfaces }) => <section key={area.id} className="py-3"><h3 className="px-4 py-2 text-[10px] font-bold tracking-[0.1em] text-current/45 uppercase">{area.name}</h3>{surfaces.map(({ surface, entries }) => { const next = entries[0]; const selected = entries.some((entry) => entry.key === currentKey); return <button key={surface.id} type="button" disabled={!next} onClick={() => next && onSelect(next.key)} className={cn("flex min-h-12 w-full items-center gap-3 border-l-2 border-transparent px-4 text-left transition-colors duration-150 hover:bg-current/5 disabled:cursor-default", selected && "border-primary bg-current/10")}><span className="min-w-0 flex-1"><b className="block truncate text-[12.5px]">{surface.name}</b><span className={cn("block truncate text-[11px]", next ? "text-current/55" : "text-success")}>{next ? `${entries.length} remaining` : "Ready"}</span></span>{next ? <ChevronRight className="size-3.5 shrink-0" /> : <CheckCircle2 className="size-4 shrink-0 text-success" />}</button>; })}</section>)}</div></aside>; }
