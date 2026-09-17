@@ -70,8 +70,9 @@ export function WorkBoard() {
       .map(([key, list]) => ({ key, items: [...list].sort(compareWorkItems) }))
       .sort((a, b) => {
         // Unassigned / no-job buckets always sit last.
-        const la = a.key === "Unassigned" || a.key === "No job" ? 1 : 0;
-        const lb = b.key === "Unassigned" || b.key === "No job" ? 1 : 0;
+        const last = (k: string) => (k === "Unassigned" || k === "Company / Unassigned" ? 1 : 0);
+        const la = last(a.key);
+        const lb = last(b.key);
         if (la !== lb) return la - lb;
         if (b.items.length !== a.items.length) return b.items.length - a.items.length;
         return a.key.localeCompare(b.key);
