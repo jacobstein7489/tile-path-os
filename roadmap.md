@@ -45,8 +45,8 @@
 - [x] Deliver old/new/mobile evidence and stop before other routes
 
 ## Projects V2 exact frontend contract
-- [ ] Replace Projects with the exact continuous queue + inspector composition
-- [ ] Restore the specified light global shell and semantic palette
-- [ ] Verify 1440×900, 1280×800, and 390px without horizontal overflow
-- [ ] Confirm the 1280px inspector collapse and purpose-built mobile rows
-- [ ] Confirm production counts unchanged and deliver old/new evidence
+- [x] Replace Projects with the exact continuous queue + inspector composition
+- [x] Restore the specified light global shell and semantic palette
+- [x] Verify 1440×900, 1280×800, and 390px without horizontal overflow
+- [x] Confirm the 1280px inspector collapse and purpose-built mobile rows
+- [x] Confirm production counts unchanged and deliver old/new evidence
