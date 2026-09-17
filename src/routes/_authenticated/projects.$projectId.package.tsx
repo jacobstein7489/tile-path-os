@@ -197,7 +197,7 @@ function InstallerPackages() {
                   </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <PackageFact label="Tile" value={r.tile} detail={`${r.manufacturer} · ${r.sku} · ${r.size}`} />
-                    <PackageFact label="Actual dimension" value={r.actual_size ?? "—"} detail={r.tile_finish} />
+                    <PackageFact label="Actual dimension" value={r.actual_size ?? "—"} detail={r.tile_finish ?? "—"} />
                     <PackageFact label="Grout / joint" value={r.grout} detail={r.joint} />
                     <PackageFact label="Layout" value={r.pattern} detail={`${r.direction} · from ${r.start}`} />
                   </div>
