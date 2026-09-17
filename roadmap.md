@@ -34,5 +34,6 @@
 - [ ] Rebuild Installer Package office review and printed field package
 - [ ] Remove normal-navigation exposure to superseded core presentation paths after dependency checks
 - [ ] Verify every core route at 1440px; Projects, Work, Rooms, and Design Meeting at 390px; Rooms at 1280px
+- [ ] Capture side-by-side old versus V2 evidence for Projects, Overview, Rooms, Work, Design Meeting, and Installer Package
 - [ ] Confirm zero overflow, workflow continuity, reload persistence, and unchanged production counts
 - [ ] Stop before Materials Sprint 2
