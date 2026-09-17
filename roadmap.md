@@ -37,3 +37,9 @@
 - [x] Capture side-by-side old versus V2 evidence for Projects, Overview, Rooms, Work, Design Meeting, and Installer Package
 - [x] Confirm zero overflow, workflow continuity, reload persistence, and unchanged production counts
 - [x] Stop before Materials Sprint 2
+
+## Projects V2 hard acceptance gate
+- [x] Replace the live Projects route with a new master-detail operations workspace
+- [x] Verify 1440px desktop and 390px mobile without overflow
+- [x] Confirm production data counts remain unchanged
+- [x] Deliver old/new/mobile evidence and stop before other routes
