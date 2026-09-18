@@ -160,8 +160,21 @@ function TodayPage() {
               onOpen={setSelectedItem}
             />
           ) : null}
-          {!sections.needsNow.length && !sections.followUps.length && !sections.scheduledToday.length && !sections.nextMoves.length ? (
-            <div className="flex min-h-28 items-center justify-between gap-4 px-4 py-5 sm:px-5"><div><p className="text-[14px] font-bold">Your day is clear</p><p className="mt-1 text-[12px] text-muted-foreground">No assigned actions need attention right now.</p></div><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success"><ListChecks className="size-4" /></span></div>
+          {!sections.needsNow.length &&
+          !sections.followUps.length &&
+          !sections.scheduledToday.length &&
+          !sections.nextMoves.length ? (
+            <div className="flex min-h-28 items-center justify-between gap-4 px-4 py-5 sm:px-5">
+              <div>
+                <p className="text-[14px] font-bold">Your day is clear</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  No assigned actions need attention right now.
+                </p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
+                <ListChecks className="size-4" />
+              </span>
+            </div>
           ) : null}
         </section>
         {focus ? (
@@ -233,16 +246,16 @@ function TodaySection({
     <section className="border-b border-border last:border-b-0">
       <OpsSectionHeading label={label} count={items.length} />
       <ul>
-          {items.map((item) => (
-            <OpsRow
-              key={item.id}
-              item={item}
-              selected={false}
-              context={[projectLabel(item), item.category ?? null]}
-              person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
-              onOpen={onOpen}
-            />
-          ))}
+        {items.map((item) => (
+          <OpsRow
+            key={item.id}
+            item={item}
+            selected={false}
+            context={[projectLabel(item), item.category ?? null]}
+            person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
+            onOpen={onOpen}
+          />
+        ))}
       </ul>
     </section>
   );

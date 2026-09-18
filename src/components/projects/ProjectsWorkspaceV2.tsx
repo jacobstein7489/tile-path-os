@@ -151,10 +151,7 @@ export function ProjectsWorkspaceV2({
       {statusProject ? (
         <ProjectStatusUpdateSheet project={statusProject} onClose={() => onStatusProject(null)} />
       ) : null}
-      <ProjectQuickViewDialog
-        job={selectedJob}
-        onClose={() => onSelect("")}
-      />
+      <ProjectQuickViewDialog job={selectedJob} onClose={() => onSelect("")} />
     </main>
   );
 }

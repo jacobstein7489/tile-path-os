@@ -136,9 +136,24 @@ function SchedulePage() {
         : { text: "Schedule crew", kind: "Tile / Grout" };
   const selectedJob = useMemo((): ProjectQueueRecord | null => {
     if (!selectedProject) return null;
-    const work = workFeed.filter((item) => item.project_id === selectedProject.id && !isComplete(item)).sort(compareWorkItems);
-    const projectSchedule = assignments.filter((item) => item.project_id === selectedProject.id && item.work_date >= todayIsoDate).sort((a, b) => a.work_date.localeCompare(b.work_date));
-    return { project: selectedProject, work, next: work[0], attention: work.find(isOverdue)?.title ?? work.find(isWaiting)?.waiting_on ?? selectedProject.needs_attention, relevantDate: projectSchedule[0]?.work_date ?? selectedProject.target_date, upcoming: projectSchedule[0], latestReport: allReports.find((item) => item.project_id === selectedProject.id) };
+    const work = workFeed
+      .filter((item) => item.project_id === selectedProject.id && !isComplete(item))
+      .sort(compareWorkItems);
+    const projectSchedule = assignments
+      .filter((item) => item.project_id === selectedProject.id && item.work_date >= todayIsoDate)
+      .sort((a, b) => a.work_date.localeCompare(b.work_date));
+    return {
+      project: selectedProject,
+      work,
+      next: work[0],
+      attention:
+        work.find(isOverdue)?.title ??
+        work.find(isWaiting)?.waiting_on ??
+        selectedProject.needs_attention,
+      relevantDate: projectSchedule[0]?.work_date ?? selectedProject.target_date,
+      upcoming: projectSchedule[0],
+      latestReport: allReports.find((item) => item.project_id === selectedProject.id),
+    };
   }, [allReports, assignments, selectedProject, todayIsoDate, workFeed]);
 
   const rangeLabel =
@@ -226,228 +241,284 @@ function SchedulePage() {
                 </Button>
               ) : null}
             </div>
-            <div className="flex rounded-lg bg-muted p-1 md:hidden"><button type="button" onClick={() => setMobileZone("Schedule")} className={cn("rounded-md px-3 py-1.5 text-[12px] font-bold", mobileZone === "Schedule" && "bg-card shadow-[var(--shadow-card)]")}>Schedule</button><button type="button" onClick={() => setMobileZone("Ready")} className={cn("rounded-md px-3 py-1.5 text-[12px] font-bold", mobileZone === "Ready" && "bg-card shadow-[var(--shadow-card)]")}>Ready · {unassigned.length}</button></div>
+            <div className="flex rounded-lg bg-muted p-1 md:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileZone("Schedule")}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-[12px] font-bold",
+                  mobileZone === "Schedule" && "bg-card shadow-[var(--shadow-card)]",
+                )}
+              >
+                Schedule
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileZone("Ready")}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-[12px] font-bold",
+                  mobileZone === "Ready" && "bg-card shadow-[var(--shadow-card)]",
+                )}
+              >
+                Ready · {unassigned.length}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className={cn("mt-4 gap-4 md:grid md:grid-cols-[280px_minmax(0,1fr)]", view !== "Week" && "md:grid-cols-1")}>
-        {view === "Week" || mobileZone === "Ready" ? <ReadyQueue projects={unassigned} readyLabel={readyLabel} onAssign={(project, kind) => setAssignFor({ project, kind })} onOpen={setSelectedProject} className={cn("mb-4 md:mb-0", view !== "Week" && "md:hidden", mobileZone !== "Ready" && "hidden md:block")} /> : null}
-        <div className={cn(mobileZone === "Ready" && "hidden md:block")}>
-        {view === "Week" ? (
-          <section className="workspace-panel overflow-hidden">
-            <div className="md:hidden"><DayAgenda days={weekDays} assignments={assignments} projects={projects} crews={crews} onOpen={setSelectedProject} /></div>
-            <div className="overflow-x-auto">
-              <div className="hidden min-w-[760px] md:block">
-                <div className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
-                  <div className="px-3 py-2.5 text-[10.5px] font-bold text-muted-foreground uppercase">
-                    Crew
+        <div
+          className={cn(
+            "mt-4 gap-4 md:grid md:grid-cols-[280px_minmax(0,1fr)]",
+            view !== "Week" && "md:grid-cols-1",
+          )}
+        >
+          {view === "Week" || mobileZone === "Ready" ? (
+            <ReadyQueue
+              projects={unassigned}
+              readyLabel={readyLabel}
+              onAssign={(project, kind) => setAssignFor({ project, kind })}
+              onOpen={setSelectedProject}
+              className={cn(
+                "mb-4 md:mb-0",
+                view !== "Week" && "md:hidden",
+                mobileZone !== "Ready" && "hidden md:block",
+              )}
+            />
+          ) : null}
+          <div className={cn(mobileZone === "Ready" && "hidden md:block")}>
+            {view === "Week" ? (
+              <section className="workspace-panel overflow-hidden">
+                <div className="md:hidden">
+                  <DayAgenda
+                    days={weekDays}
+                    assignments={assignments}
+                    projects={projects}
+                    crews={crews}
+                    onOpen={setSelectedProject}
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <div className="hidden min-w-[760px] md:block">
+                    <div className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
+                      <div className="px-3 py-2.5 text-[10.5px] font-bold text-muted-foreground uppercase">
+                        Crew
+                      </div>
+                      {weekDays.map((d, i) => {
+                        const isToday = iso(d) === todayIsoDate;
+                        return (
+                          <div
+                            key={iso(d)}
+                            className={cn(
+                              "px-2 py-2.5 text-center",
+                              isToday && "bg-primary-soft/60",
+                            )}
+                          >
+                            <p className="text-[12px] font-bold">{DAY_LABELS[i]}</p>
+                            <p className="text-[11px] text-muted-foreground tabular-nums">
+                              {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {crews.map((crew) => (
+                      <div
+                        key={crew.id}
+                        className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
+                      >
+                        <div className="flex items-center gap-2 px-3 py-3">
+                          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-chip text-[10.5px] font-bold text-secondary-foreground">
+                            {crew.initials}
+                          </span>
+                          <span className="min-w-0 truncate text-[12.5px] font-bold">
+                            {crew.name}
+                          </span>
+                        </div>
+                        {weekDays.map((d) => {
+                          const day = iso(d);
+                          const cell = assignments.filter(
+                            (a) => a.crew_id === crew.id && a.work_date === day,
+                          );
+                          return (
+                            <div
+                              key={day}
+                              className={cn(
+                                "min-h-[74px] border-l border-border/60 p-1.5 align-top",
+                                day === todayIsoDate && "bg-primary-soft/25",
+                              )}
+                            >
+                              {cell.map((a) => {
+                                const p = projectById(a.project_id);
+                                if (!p) return null;
+                                const tone =
+                                  a.kind === "Return Visit"
+                                    ? "border-info/40 bg-info-soft"
+                                    : crew.tone === "green"
+                                      ? "border-success/40 bg-success-soft"
+                                      : crew.tone === "amber"
+                                        ? "border-warning/40 bg-warning-soft"
+                                        : "border-primary/30 bg-primary-soft";
+                                return (
+                                  <button
+                                    type="button"
+                                    key={a.id}
+                                    onClick={() => setSelectedProject(p)}
+                                    className={cn(
+                                      "mb-1.5 block rounded-lg border px-2 py-1.5 transition-shadow hover:shadow-[var(--shadow-card)]",
+                                      tone,
+                                    )}
+                                  >
+                                    <span className="block truncate text-[11.5px] font-bold">
+                                      {p.name}
+                                    </span>
+                                    <span className="block truncate text-[10.5px] text-muted-foreground">
+                                      {a.kind}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                              {cell.length === 0 ? (
+                                <span className="block h-full rounded-lg border border-dashed border-border/70" />
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {crews.length === 0 ? (
+                      <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+                        No crews have been set up yet.
+                      </p>
+                    ) : null}
                   </div>
-                  {weekDays.map((d, i) => {
-                    const isToday = iso(d) === todayIsoDate;
+                </div>
+              </section>
+            ) : null}
+
+            {view === "Today" ? (
+              <section className="workspace-panel overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="v2-kicker">Working today</p>
+                    <p className="mt-0.5 text-[13px] font-semibold">
+                      {todayAssignments.length} crew assignment
+                      {todayAssignments.length === 1 ? "" : "s"} · daily field report required
+                    </p>
+                  </div>
+                  <span className="grid size-9 place-items-center rounded-lg bg-primary-soft text-primary">
+                    <ClipboardCheck className="size-4" />
+                  </span>
+                </div>
+                {todayAssignments.length === 0 ? (
+                  <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+                    No crews are scheduled today. Assign a job from the ready-to-assign queue above.
+                  </p>
+                ) : (
+                  todayAssignments.map((a) => {
+                    const p = projectById(a.project_id);
+                    if (!p) return null;
+                    const missing = !reportedToday.has(p.id);
                     return (
                       <div
-                        key={iso(d)}
-                        className={cn("px-2 py-2.5 text-center", isToday && "bg-primary-soft/60")}
+                        key={a.id}
+                        className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
                       >
-                        <p className="text-[12px] font-bold">{DAY_LABELS[i]}</p>
-                        <p className="text-[11px] text-muted-foreground tabular-nums">
-                          {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProject(p)}
+                            className="block truncate text-[13.5px] font-bold hover:text-primary"
+                          >
+                            {p.name}
+                          </button>
+                          <p className="truncate text-[11.5px] text-muted-foreground">
+                            {[crewById(a.crew_id)?.name ?? "No crew", a.kind, p.address]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+                        {missing ? (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
+                          >
+                            Report missing
+                          </Button>
+                        ) : (
+                          <Chip tone="green">Reported</Chip>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </section>
+            ) : null}
+
+            {view === "Month" ? (
+              <section className="workspace-panel overflow-hidden">
+                <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+                  {DAY_LABELS.map((label) => (
+                    <div
+                      key={label}
+                      className="px-2 py-2.5 text-center text-[10.5px] font-bold text-muted-foreground uppercase"
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7">
+                  {monthCells.map((d) => {
+                    const day = iso(d);
+                    const inMonth = d.getMonth() === monthAnchor.getMonth();
+                    const dayAssignments = forDay(day);
+                    return (
+                      <div
+                        key={day}
+                        className={cn(
+                          "min-h-[104px] border-r border-b border-border/60 p-1.5",
+                          !inMonth && "bg-muted/25",
+                          day === todayIsoDate && "bg-primary-soft/30",
+                        )}
+                      >
+                        <p
+                          className={cn(
+                            "mb-1 px-1 text-[11px] font-bold tabular-nums",
+                            inMonth ? "text-foreground" : "text-muted-foreground",
+                          )}
+                        >
+                          {d.getDate()}
                         </p>
+                        {dayAssignments.slice(0, 3).map((a) => {
+                          const p = projectById(a.project_id);
+                          if (!p) return null;
+                          return (
+                            <button
+                              type="button"
+                              key={a.id}
+                              onClick={() => setSelectedProject(p)}
+                              className="mb-1 block truncate rounded-md border border-primary/25 bg-primary-soft px-1.5 py-1 text-[10.5px] font-semibold hover:shadow-[var(--shadow-card)]"
+                            >
+                              {crewById(a.crew_id)?.initials
+                                ? `${crewById(a.crew_id)?.initials} · `
+                                : ""}
+                              {p.name}
+                            </button>
+                          );
+                        })}
+                        {dayAssignments.length > 3 ? (
+                          <p className="px-1 text-[10.5px] font-semibold text-muted-foreground">
+                            +{dayAssignments.length - 3} more
+                          </p>
+                        ) : null}
                       </div>
                     );
                   })}
                 </div>
-                {crews.map((crew) => (
-                  <div
-                    key={crew.id}
-                    className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
-                  >
-                    <div className="flex items-center gap-2 px-3 py-3">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-chip text-[10.5px] font-bold text-secondary-foreground">
-                        {crew.initials}
-                      </span>
-                      <span className="min-w-0 truncate text-[12.5px] font-bold">{crew.name}</span>
-                    </div>
-                    {weekDays.map((d) => {
-                      const day = iso(d);
-                      const cell = assignments.filter(
-                        (a) => a.crew_id === crew.id && a.work_date === day,
-                      );
-                      return (
-                        <div
-                          key={day}
-                          className={cn(
-                            "min-h-[74px] border-l border-border/60 p-1.5 align-top",
-                            day === todayIsoDate && "bg-primary-soft/25",
-                          )}
-                        >
-                          {cell.map((a) => {
-                            const p = projectById(a.project_id);
-                            if (!p) return null;
-                            const tone =
-                              a.kind === "Return Visit"
-                                ? "border-info/40 bg-info-soft"
-                                : crew.tone === "green"
-                                  ? "border-success/40 bg-success-soft"
-                                  : crew.tone === "amber"
-                                    ? "border-warning/40 bg-warning-soft"
-                                    : "border-primary/30 bg-primary-soft";
-                            return (
-                              <button
-                                type="button"
-                                key={a.id}
-                                onClick={() => setSelectedProject(p)}
-                                className={cn(
-                                  "mb-1.5 block rounded-lg border px-2 py-1.5 transition-shadow hover:shadow-[var(--shadow-card)]",
-                                  tone,
-                                )}
-                              >
-                                <span className="block truncate text-[11.5px] font-bold">
-                                  {p.name}
-                                </span>
-                                <span className="block truncate text-[10.5px] text-muted-foreground">
-                                  {a.kind}
-                                </span>
-                              </button>
-                            );
-                          })}
-                          {cell.length === 0 ? (
-                            <span className="block h-full rounded-lg border border-dashed border-border/70" />
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-                {crews.length === 0 ? (
-                  <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-                    No crews have been set up yet.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {view === "Today" ? (
-          <section className="workspace-panel overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
-              <div className="min-w-0">
-                <p className="v2-kicker">Working today</p>
-                <p className="mt-0.5 text-[13px] font-semibold">
-                  {todayAssignments.length} crew assignment
-                  {todayAssignments.length === 1 ? "" : "s"} · daily field report required
-                </p>
-              </div>
-              <span className="grid size-9 place-items-center rounded-lg bg-primary-soft text-primary">
-                <ClipboardCheck className="size-4" />
-              </span>
-            </div>
-            {todayAssignments.length === 0 ? (
-              <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-                No crews are scheduled today. Assign a job from the ready-to-assign queue above.
-              </p>
-            ) : (
-              todayAssignments.map((a) => {
-                const p = projectById(a.project_id);
-                if (!p) return null;
-                const missing = !reportedToday.has(p.id);
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
-                  >
-                    <div className="min-w-0">
-                      <button type="button" onClick={() => setSelectedProject(p)} className="block truncate text-[13.5px] font-bold hover:text-primary">
-                        {p.name}
-                      </button>
-                      <p className="truncate text-[11.5px] text-muted-foreground">
-                        {[crewById(a.crew_id)?.name ?? "No crew", a.kind, p.address]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    {missing ? (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
-                      >
-                        Report missing
-                      </Button>
-                    ) : (
-                      <Chip tone="green">Reported</Chip>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </section>
-        ) : null}
-
-        {view === "Month" ? (
-          <section className="workspace-panel overflow-hidden">
-            <div className="grid grid-cols-7 border-b border-border bg-muted/30">
-              {DAY_LABELS.map((label) => (
-                <div
-                  key={label}
-                  className="px-2 py-2.5 text-center text-[10.5px] font-bold text-muted-foreground uppercase"
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7">
-              {monthCells.map((d) => {
-                const day = iso(d);
-                const inMonth = d.getMonth() === monthAnchor.getMonth();
-                const dayAssignments = forDay(day);
-                return (
-                  <div
-                    key={day}
-                    className={cn(
-                      "min-h-[104px] border-r border-b border-border/60 p-1.5",
-                      !inMonth && "bg-muted/25",
-                      day === todayIsoDate && "bg-primary-soft/30",
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        "mb-1 px-1 text-[11px] font-bold tabular-nums",
-                        inMonth ? "text-foreground" : "text-muted-foreground",
-                      )}
-                    >
-                      {d.getDate()}
-                    </p>
-                    {dayAssignments.slice(0, 3).map((a) => {
-                      const p = projectById(a.project_id);
-                      if (!p) return null;
-                      return (
-                        <button
-                          type="button"
-                          key={a.id}
-                          onClick={() => setSelectedProject(p)}
-                          className="mb-1 block truncate rounded-md border border-primary/25 bg-primary-soft px-1.5 py-1 text-[10.5px] font-semibold hover:shadow-[var(--shadow-card)]"
-                        >
-                          {crewById(a.crew_id)?.initials
-                            ? `${crewById(a.crew_id)?.initials} · `
-                            : ""}
-                          {p.name}
-                        </button>
-                      );
-                    })}
-                    {dayAssignments.length > 3 ? (
-                      <p className="px-1 text-[10.5px] font-semibold text-muted-foreground">
-                        +{dayAssignments.length - 3} more
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-        </div></div>
+              </section>
+            ) : null}
+          </div>
+        </div>
       </main>
 
       {assignFor ? (
@@ -490,14 +561,137 @@ function SchedulePage() {
   );
 }
 
-function ReadyQueue({ projects, readyLabel, onAssign, onOpen, className }: { projects: Project[]; readyLabel: (project: Project) => { text: string; kind: string }; onAssign: (project: Project, kind: string) => void; onOpen: (project: Project) => void; className?: string }) {
-  return <aside className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-270px)]", className)}><div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-4 py-3"><Users className="size-4 text-warning" /><div><h2 className="text-[13px] font-bold">Ready to schedule</h2><p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p></div></div><div className="max-h-[60dvh] overflow-y-auto p-2">{projects.length ? projects.map((project) => { const label = readyLabel(project); return <article key={project.id} className="mb-2 rounded-xl border border-border bg-card p-3 last:mb-0"><button type="button" onClick={() => onOpen(project)} className="w-full text-left"><strong className="block truncate text-[13px]">{project.name}</strong><span className="mt-1 block text-[10.5px] font-semibold text-warning">{project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}</span><span className="mt-1 block truncate text-[11px] text-muted-foreground">{project.next_move ?? label.text}</span></button><Button size="sm" variant="primary" className="mt-3 w-full" onClick={() => onAssign(project, label.kind)}><Plus className="size-3.5" /> Assign crew</Button></article>; }) : <p className="p-3 text-[12px] text-muted-foreground">Every active job has a crew assignment.</p>}</div></aside>;
+function ReadyQueue({
+  projects,
+  readyLabel,
+  onAssign,
+  onOpen,
+  className,
+}: {
+  projects: Project[];
+  readyLabel: (project: Project) => { text: string; kind: string };
+  onAssign: (project: Project, kind: string) => void;
+  onOpen: (project: Project) => void;
+  className?: string;
+}) {
+  return (
+    <aside
+      className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-270px)]", className)}
+    >
+      <div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-4 py-3">
+        <Users className="size-4 text-warning" />
+        <div>
+          <h2 className="text-[13px] font-bold">Ready to schedule</h2>
+          <p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p>
+        </div>
+      </div>
+      <div className="max-h-[60dvh] overflow-y-auto p-2">
+        {projects.length ? (
+          projects.map((project) => {
+            const label = readyLabel(project);
+            return (
+              <article
+                key={project.id}
+                className="mb-2 rounded-xl border border-border bg-card p-3 last:mb-0"
+              >
+                <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
+                  <strong className="block truncate text-[13px]">{project.name}</strong>
+                  <span className="mt-1 block text-[10.5px] font-semibold text-warning">
+                    {project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}
+                  </span>
+                  <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                    {project.next_move ?? label.text}
+                  </span>
+                </button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="mt-3 w-full"
+                  onClick={() => onAssign(project, label.kind)}
+                >
+                  <Plus className="size-3.5" /> Assign crew
+                </Button>
+              </article>
+            );
+          })
+        ) : (
+          <p className="p-3 text-[12px] text-muted-foreground">
+            Every active job has a crew assignment.
+          </p>
+        )}
+      </div>
+    </aside>
+  );
 }
 
-function DayAgenda({ days, assignments, projects, crews, onOpen }: { days: Date[]; assignments: ReturnType<typeof useScheduleAssignments>["data"] extends infer T ? NonNullable<T> : never; projects: Project[]; crews: ReturnType<typeof useCrews>["data"] extends infer T ? NonNullable<T> : never; onOpen: (project: Project) => void }) {
+function DayAgenda({
+  days,
+  assignments,
+  projects,
+  crews,
+  onOpen,
+}: {
+  days: Date[];
+  assignments: ReturnType<typeof useScheduleAssignments>["data"] extends infer T
+    ? NonNullable<T>
+    : never;
+  projects: Project[];
+  crews: ReturnType<typeof useCrews>["data"] extends infer T ? NonNullable<T> : never;
+  onOpen: (project: Project) => void;
+}) {
   const [selected, setSelected] = useState(iso(new Date()));
   const rows = assignments.filter((item) => item.work_date === selected);
-  return <div><div className="flex gap-1 overflow-x-auto border-b border-border p-2">{days.map((day) => <button key={iso(day)} type="button" onClick={() => setSelected(iso(day))} className={cn("min-w-12 rounded-lg px-2 py-2 text-center text-[11px] font-bold", selected === iso(day) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{day.toLocaleDateString(undefined, { weekday: "short" })}<span className="block text-[10px]">{day.getDate()}</span></button>)}</div><div className="p-2">{rows.length ? rows.map((item) => { const project = projects.find((p) => p.id === item.project_id); if (!project) return null; return <button key={item.id} type="button" onClick={() => onOpen(project)} className="mb-2 flex w-full items-center justify-between rounded-xl border border-border bg-card p-3 text-left"><span className="min-w-0"><strong className="block truncate text-[13px]">{project.name}</strong><span className="text-[11px] text-muted-foreground">{crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} · {item.kind}</span></span><ChevronRight className="size-4" /></button>; }) : <p className="p-4 text-center text-[12px] text-muted-foreground">No crews scheduled this day.</p>}</div></div>;
+  return (
+    <div>
+      <div className="flex gap-1 overflow-x-auto border-b border-border p-2">
+        {days.map((day) => (
+          <button
+            key={iso(day)}
+            type="button"
+            onClick={() => setSelected(iso(day))}
+            className={cn(
+              "min-w-12 rounded-lg px-2 py-2 text-center text-[11px] font-bold",
+              selected === iso(day)
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {day.toLocaleDateString(undefined, { weekday: "short" })}
+            <span className="block text-[10px]">{day.getDate()}</span>
+          </button>
+        ))}
+      </div>
+      <div className="p-2">
+        {rows.length ? (
+          rows.map((item) => {
+            const project = projects.find((p) => p.id === item.project_id);
+            if (!project) return null;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpen(project)}
+                className="mb-2 flex w-full items-center justify-between rounded-xl border border-border bg-card p-3 text-left"
+              >
+                <span className="min-w-0">
+                  <strong className="block truncate text-[13px]">{project.name}</strong>
+                  <span className="text-[11px] text-muted-foreground">
+                    {crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} ·{" "}
+                    {item.kind}
+                  </span>
+                </span>
+                <ChevronRight className="size-4" />
+              </button>
+            );
+          })
+        ) : (
+          <p className="p-4 text-center text-[12px] text-muted-foreground">
+            No crews scheduled this day.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function AssignModal({
