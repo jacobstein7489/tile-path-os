@@ -25,7 +25,7 @@ import { Route as AuthenticatedLeadsCommissionsRouteImport } from './routes/_aut
 import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
-import { Route as AuthenticatedWorkItemIdRouteImport } from './routes/_authenticated/work.$itemId'
+import { Route as AuthenticatedWorkItemItemIdRouteImport } from './routes/_authenticated/work-item.$itemId'
 import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
 import { Route as AuthenticatedProjectsProjectIdDesignRouteImport } from './routes/_authenticated/projects.$projectId.design'
@@ -124,11 +124,12 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedWorkItemIdRoute = AuthenticatedWorkItemIdRouteImport.update({
-  id: '/$itemId',
-  path: '/$itemId',
-  getParentRoute: () => AuthenticatedWorkRoute,
-} as any)
+const AuthenticatedWorkItemItemIdRoute =
+  AuthenticatedWorkItemItemIdRouteImport.update({
+    id: '/work-item/$itemId',
+    path: '/work-item/$itemId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicQaProvisionRoute = ApiPublicQaProvisionRouteImport.update({
   id: '/api/public/qa-provision',
   path: '/api/public/qa-provision',
@@ -217,11 +218,11 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
-  '/work': typeof AuthenticatedWorkRouteWithChildren
+  '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
-  '/work/$itemId': typeof AuthenticatedWorkItemIdRoute
+  '/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -247,10 +248,10 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
-  '/work': typeof AuthenticatedWorkRouteWithChildren
+  '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
-  '/work/$itemId': typeof AuthenticatedWorkItemIdRoute
+  '/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -279,11 +280,11 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
-  '/_authenticated/work': typeof AuthenticatedWorkRouteWithChildren
+  '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/_authenticated/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
-  '/_authenticated/work/$itemId': typeof AuthenticatedWorkItemIdRoute
+  '/_authenticated/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -316,7 +317,7 @@ export interface FileRouteTypes {
     | '/leads/commissions'
     | '/leads/customers'
     | '/projects/$projectId'
-    | '/work/$itemId'
+    | '/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/leads/'
     | '/projects/'
@@ -345,7 +346,7 @@ export interface FileRouteTypes {
     | '/work'
     | '/leads/commissions'
     | '/leads/customers'
-    | '/work/$itemId'
+    | '/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/leads'
     | '/projects'
@@ -377,7 +378,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/commissions'
     | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
-    | '/_authenticated/work/$itemId'
+    | '/_authenticated/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/_authenticated/leads/'
     | '/_authenticated/projects/'
@@ -516,12 +517,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/work/$itemId': {
-      id: '/_authenticated/work/$itemId'
-      path: '/$itemId'
-      fullPath: '/work/$itemId'
-      preLoaderRoute: typeof AuthenticatedWorkItemIdRouteImport
-      parentRoute: typeof AuthenticatedWorkRoute
+    '/_authenticated/work-item/$itemId': {
+      id: '/_authenticated/work-item/$itemId'
+      path: '/work-item/$itemId'
+      fullPath: '/work-item/$itemId'
+      preLoaderRoute: typeof AuthenticatedWorkItemItemIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/qa-provision': {
       id: '/api/public/qa-provision'
@@ -632,17 +633,6 @@ const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
 const AuthenticatedLeadsRouteWithChildren =
   AuthenticatedLeadsRoute._addFileChildren(AuthenticatedLeadsRouteChildren)
 
-interface AuthenticatedWorkRouteChildren {
-  AuthenticatedWorkItemIdRoute: typeof AuthenticatedWorkItemIdRoute
-}
-
-const AuthenticatedWorkRouteChildren: AuthenticatedWorkRouteChildren = {
-  AuthenticatedWorkItemIdRoute: AuthenticatedWorkItemIdRoute,
-}
-
-const AuthenticatedWorkRouteWithChildren =
-  AuthenticatedWorkRoute._addFileChildren(AuthenticatedWorkRouteChildren)
-
 interface AuthenticatedProjectsProjectIdRouteChildren {
   AuthenticatedProjectsProjectIdDesignRoute: typeof AuthenticatedProjectsProjectIdDesignRoute
   AuthenticatedProjectsProjectIdFieldRoute: typeof AuthenticatedProjectsProjectIdFieldRoute
@@ -699,8 +689,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
-  AuthenticatedWorkRoute: typeof AuthenticatedWorkRouteWithChildren
+  AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  AuthenticatedWorkItemItemIdRoute: typeof AuthenticatedWorkItemItemIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
 }
 
@@ -712,9 +703,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
-  AuthenticatedWorkRoute: AuthenticatedWorkRouteWithChildren,
+  AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedProjectsProjectIdRoute:
     AuthenticatedProjectsProjectIdRouteWithChildren,
+  AuthenticatedWorkItemItemIdRoute: AuthenticatedWorkItemItemIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
 }
 

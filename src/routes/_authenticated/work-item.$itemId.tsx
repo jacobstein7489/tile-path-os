@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { WorkItemPanel } from "@/components/work/WorkItemPanel";
 import { useWorkFeed } from "@/lib/workitems";
 
-export const Route = createFileRoute("/_authenticated/work/$itemId")({
+export const Route = createFileRoute("/_authenticated/work-item/$itemId")({
   head: () => ({
     meta: [
       { title: "Work Item — Cobblestone Tile OS" },
