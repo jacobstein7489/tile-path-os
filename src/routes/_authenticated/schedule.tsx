@@ -716,9 +716,7 @@ function MonthAgenda({
   crews: NonNullable<ReturnType<typeof useCrews>["data"]>;
   onOpen: (project: Project) => void;
 }) {
-  const activeDays = cells.filter((day) =>
-    assignments.some((item) => item.work_date === iso(day)),
-  );
+  const activeDays = cells.filter((day) => assignments.some((item) => item.work_date === iso(day)));
   return (
     <div className="divide-y divide-border">
       {activeDays.length ? (
@@ -747,7 +745,8 @@ function MonthAgenda({
                       <span className="min-w-0">
                         <strong className="block truncate text-[13px]">{project.name}</strong>
                         <span className="text-[11px] text-muted-foreground">
-                          {crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} · {item.kind}
+                          {crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} ·{" "}
+                          {item.kind}
                         </span>
                       </span>
                       <ChevronRight className="size-4" />
