@@ -31,7 +31,7 @@ import { isOverdue } from "@/lib/workitems";
  * Every row opens the shared WorkItemPanel.
  */
 
-type Grouping = "By Project" | "By Person";
+type Grouping = "Action Queue" | "By Project" | "By Person";
 type Scope = "Mine" | "All";
 
 export function WorkBoard() {
@@ -40,7 +40,7 @@ export function WorkBoard() {
   const { user } = useAuthUser();
   const capture = useCapture();
 
-  const [grouping, setGrouping] = useState<Grouping>("By Project");
+  const [grouping, setGrouping] = useState<Grouping>("Action Queue");
   const [scope, setScope] = useState<Scope>("All");
   const [q, setQ] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
@@ -76,7 +76,9 @@ export function WorkBoard() {
     const map = new Map<string, WorkItemRow[]>();
     for (const item of visible) {
       const key =
-        grouping === "By Project"
+        grouping === "Action Queue"
+          ? actionBucket(item)
+          : grouping === "By Project"
           ? projectLabel(item)
           : (profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ??
             item.owner ??
@@ -93,6 +95,8 @@ export function WorkBoard() {
         const la = last(a.key);
         const lb = last(b.key);
         if (la !== lb) return la - lb;
+        if (grouping === "Action Queue")
+          return ACTION_BUCKETS.indexOf(a.key) - ACTION_BUCKETS.indexOf(b.key);
         if (b.items.length !== a.items.length) return b.items.length - a.items.length;
         return a.key.localeCompare(b.key);
       });
@@ -133,7 +137,7 @@ export function WorkBoard() {
 
       <div className="workspace-panel sticky top-16 z-10 mt-5 grid gap-3 p-3 backdrop-blur sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:p-4">
         <Segmented
-          options={["By Project", "By Person"]}
+          options={["Action Queue", "By Project", "By Person"]}
           value={grouping}
           onChange={(v) => setGrouping(v as Grouping)}
         />
@@ -218,7 +222,11 @@ export function WorkBoard() {
                                 ]
                               : [projectLabel(item), item.category ?? null]
                           }
-                          person={grouping === "By Project" ? ownerName(item) : null}
+                          person={
+                            grouping === "By Project" || grouping === "Action Queue"
+                              ? ownerName(item)
+                              : null
+                          }
                           onOpen={setSelectedItem}
                         />
                       ))}
@@ -241,6 +249,22 @@ export function WorkBoard() {
       <WorkItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
     </main>
   );
+}
+
+const ACTION_BUCKETS = [
+  "Needs attention",
+  "Due or overdue",
+  "Waiting or follow-up",
+  "Upcoming or scheduled",
+];
+
+function actionBucket(item: WorkItemRow) {
+  if (item.is_important || (item.priority === "High" && !item.due_date))
+    return "Needs attention";
+  if (isOverdue(item) || item.due_date === new Date().toISOString().slice(0, 10))
+    return "Due or overdue";
+  if (currentMoveState(item) === "Waiting" || item.follow_up_on) return "Waiting or follow-up";
+  return "Upcoming or scheduled";
 }
 
 function WorkMetric({

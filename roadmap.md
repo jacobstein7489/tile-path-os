@@ -73,3 +73,10 @@
 - [x] Restore premium shell, summary cards, state anchors, and composed single-column lists
 - [x] Restore a focused full-page Work Item workspace without changing mutations
 - [ ] Verify 1440×900 and 390px screenshots, calendar opening, typecheck, and overflow
+
+## Centered operations workflow
+- [x] Add reusable centered Project and Work Item quick-view dialogs
+- [x] Reframe Work as a curated action queue with collapsed project groups
+- [x] Keep Today in context with the shared Work Item dialog
+- [x] Rebuild Projects as a substantial directory with project quick view
+- [ ] Verify authenticated desktop/mobile dialogs, close-context behavior, and overflow

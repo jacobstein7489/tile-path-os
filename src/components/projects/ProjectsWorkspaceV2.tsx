@@ -123,7 +123,10 @@ export function ProjectsWorkspaceV2({
       <ProjectQuickViewDialog
         job={selectedJob}
         onClose={() => onSelect("")}
-        onOpenWork={(item) => setSelectedWork(item)}
+        onOpenWork={(item) => {
+          onSelect("");
+          setSelectedWork(item);
+        }}
       />
       <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
     </main>
