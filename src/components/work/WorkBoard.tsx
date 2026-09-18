@@ -136,7 +136,9 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
               {railGroups.map((group) => {
                 const project = mode === "By Project" && group.key !== "company" ? projectMap.get(group.key) : null;
                 const title = mode === "By Project" ? (project?.name ?? "Company / Unassigned") : ownerName(group.rows[0]);
-                const customer = mode === "By Project" ? customerFor(group.rows[0]) : `${new Set(group.rows.map(projectLabel)).size} projects`;
+                const firstRow = group.rows[0];
+                if (!firstRow) return null;
+                const customer = mode === "By Project" ? customerFor(firstRow) : `${new Set(group.rows.map(projectLabel)).size} projects`;
                 const waiting = group.rows.filter((row) => actionState(row) === "Waiting").length;
                 return <button key={group.key} type="button" onClick={() => setSelectedKey(group.key)} aria-pressed={selectedKey === group.key} className={cn("min-w-[240px] rounded-xl border px-3 py-3 text-left transition-all md:min-w-0 md:w-full", selectedKey === group.key ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]" : "border-transparent hover:border-border hover:bg-card")}>
                   <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"><span className="min-w-0"><strong className="block truncate text-[13.5px]">{title}</strong><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{customer}</span></span><span className="grid size-7 place-items-center rounded-lg bg-card text-[11px] font-bold shadow-[var(--shadow-card)]">{group.rows.length}</span></span>
@@ -150,8 +152,8 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
           {selectedRows.length ? <>
             <div className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-4 backdrop-blur sm:px-5">
               <p className="v2-kicker">{mode === "All Actions" ? "All company actions" : mode === "By Project" ? "Selected project" : "Selected person"}</p>
-              <h2 className="mt-1 truncate text-[19px] font-bold">{mode === "All Actions" ? `${visible.length} actions` : mode === "By Project" ? (selectedProject?.name ?? "Company / Unassigned") : ownerName(selectedRows[0])}</h2>
-              {selectedProject ? <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{customerFor(selectedRows[0])} · {selectedProject.lifecycle_stage} · {selectedProject.readiness_pct}% ready</p> : null}
+              <h2 className="mt-1 truncate text-[19px] font-bold">{mode === "All Actions" ? `${visible.length} actions` : mode === "By Project" ? (selectedProject?.name ?? "Company / Unassigned") : (selectedRows[0] ? ownerName(selectedRows[0]) : "Unassigned")}</h2>
+              {selectedProject && selectedRows[0] ? <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{customerFor(selectedRows[0])} · {selectedProject.lifecycle_stage} · {selectedProject.readiness_pct}% ready</p> : null}
             </div>
             {groupedStates.map((group) => <section key={group.state} className="border-b border-border last:border-0"><OpsSectionHeading label={group.state} count={group.rows.length} /><ul>{group.rows.map((item) => <OpsRow key={item.id} item={item} selected={false} context={mode === "All Actions" ? [projectLabel(item), customerFor(item), item.category ?? item.item_type] : [item.category ?? item.item_type, item.waiting_on ? `Waiting on ${item.waiting_on}` : null]} person={mode === "By Person" ? null : ownerName(item)} onOpen={setSelectedItem} />)}</ul></section>)}
           </> : <div className="grid min-h-[320px] place-items-center px-5 text-center text-[13px] text-muted-foreground">{isLoading ? "Loading actions…" : "No actions match this view."}</div>}
