@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Camera, Check, Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Drawer, Field, Select, TextInput } from "@/components/kit";
+import { Button, Field, Select, TextInput } from "@/components/kit";
+import { CenterDialog } from "@/components/ops/CenterDialog";
 import { VoiceField } from "@/components/VoiceField";
 import { useAreas, useCrews } from "@/lib/data";
 import {
@@ -111,32 +112,23 @@ export function FieldReportSheet({
   const pending = submit.isPending || createItems.isPending;
 
   return (
-    <Drawer
+    <CenterDialog
       open
-      onClose={onClose}
+      onOpenChange={(open) => !open && onClose()}
       title={step === "report" ? "Daily field report" : "Anything to follow up?"}
-      subtitle={`${projectName} · ${new Date(form.report_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`}
-      footer={
-        step === "report" ? (
-          <>
-            <Button onClick={onClose}>Cancel</Button>
-            <Button variant="primary" onClick={goReview} loading={pending}>
-              <Check className="size-4" /> Submit report
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button onClick={() => setStep("report")}>Back</Button>
-            <Button variant="primary" onClick={() => void save(suggestions)} loading={pending}>
-              <Check className="size-4" /> Submit report
-            </Button>
-          </>
-        )
-      }
+      description={`${projectName} daily field update`}
+      className="max-w-[760px]"
     >
+      <div className="min-h-full bg-canvas p-2 sm:p-5">
+        <div className="workspace-panel overflow-hidden">
+          <header className="border-b border-border px-4 py-4 sm:px-5">
+            <h2 className="text-[20px] font-bold">{step === "report" ? "Daily field report" : "Anything to follow up?"}</h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">{projectName} · {new Date(form.report_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</p>
+          </header>
+          <div className="space-y-4 p-4 sm:p-5">
       {step === "report" ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Date">
               <TextInput
                 type="date"
@@ -298,7 +290,7 @@ export function FieldReportSheet({
               </ul>
             ) : null}
           </div>
-        </div>
+        </>
       ) : (
         <div className="space-y-3">
           <p className="text-[13px] text-muted-foreground">
@@ -358,6 +350,16 @@ export function FieldReportSheet({
           ))}
         </div>
       )}
-    </Drawer>
+          </div>
+          <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-5">
+            {step === "report" ? (
+              <><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={goReview} loading={pending}><Check className="size-4" /> Submit report</Button></>
+            ) : (
+              <><Button onClick={() => setStep("report")}>Back</Button><Button variant="primary" onClick={() => void save(suggestions)} loading={pending}><Check className="size-4" /> Submit report</Button></>
+            )}
+          </footer>
+        </div>
+      </div>
+    </CenterDialog>
   );
 }

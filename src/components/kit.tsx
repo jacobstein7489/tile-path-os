@@ -484,10 +484,10 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/25 p-6 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-foreground/25 backdrop-blur-[2px] sm:items-center sm:p-4">
       <div
         className={cn(
-          "mt-12 w-full rounded-2xl border border-border bg-card shadow-[var(--shadow-raised)]",
+          "flex h-[calc(100dvh-0.5rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-[var(--shadow-dialog)] sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl",
           width,
         )}
       >
@@ -507,7 +507,7 @@ export function Modal({
             <X className="size-4" />
           </button>
         </header>
-        <div className="space-y-3.5 px-5 py-4">{children}</div>
+        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
         {footer ? (
           <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
             {footer}

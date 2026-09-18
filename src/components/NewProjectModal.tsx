@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Building2, FolderCheck, MapPin, UserRound } from "lucide-react";
 import {
   Button,
   Combobox,
@@ -17,28 +16,23 @@ import { useAuthUser } from "@/hooks/useAuth";
 import {
   companyOptions,
   contactOptions,
-  profileOptions,
   useCompanies,
   useContacts,
-  useProfiles,
   useSaveCompany,
   useSaveContact,
 } from "@/lib/people";
 
 const TYPES = ["New Job", "Existing Client", "Commercial", "Warranty / Return"];
-const SOURCES = ["Referral", "Repeat client", "GC invite", "Walk-in", "Website", "Other"];
-
 const EMPTY = {
   name: "",
   address: "",
   project_type: "New Job",
-  source: "Referral",
+  source: null as string | null,
   customer_company_id: null as string | null,
   gc_company_id: null as string | null,
   primary_contact_id: null as string | null,
-  salesperson_user_id: null as string | null,
-  estimator_user_id: null as string | null,
-  bid_due_date: "",
+  pm_user_id: null as string | null,
+  target_date: "",
   intake_notes: "",
 };
 
@@ -48,11 +42,9 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
   const { user } = useAuthUser();
   const { data: companies = [] } = useCompanies();
   const { data: contacts = [] } = useContacts();
-  const { data: profiles = [] } = useProfiles();
   const saveCompany = useSaveCompany();
   const saveContact = useSaveContact();
   const [form, setForm] = useState(EMPTY);
-  const [more, setMore] = useState(false);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -68,16 +60,14 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
       customer_company_id: form.customer_company_id,
       gc_company_id: form.gc_company_id,
       primary_contact_id: form.primary_contact_id,
-      salesperson_user_id: form.salesperson_user_id,
-      estimator_user_id: form.estimator_user_id,
-      bid_due_date: form.bid_due_date || null,
+      pm_user_id: form.pm_user_id,
+      target_date: form.target_date || null,
       intake_notes: form.intake_notes || null,
       created_by: user?.id ?? null,
-      lifecycle_stage: "New Submission",
+      lifecycle_stage: "Setup",
     })) as { id: string } | null;
     onClose();
     setForm(EMPTY);
-    setMore(false);
     if (row?.id) navigate({ to: "/projects/$projectId", params: { projectId: row.id } });
   };
 
@@ -85,8 +75,9 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
     <Modal
       open={open}
       onClose={onClose}
-      title="New lead"
-      subtitle="Capture only what is known today. Everything else is filled in as the job moves through its lifecycle."
+      title="Approved Job Setup"
+      subtitle="Create the operating record and start office setup."
+      width="max-w-[760px]"
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
@@ -94,35 +85,40 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
             variant="primary"
             loading={insert.isPending}
             disabled={!valid}
-            {...(!valid ? { disabledReason: "Enter a job name or address" } : {})}
+            {...(!valid ? { disabledReason: "Enter a project name" } : {})}
             onClick={save}
           >
-            Create lead
+            Create project
           </Button>
         </>
       }
     >
-      <InfoBanner>
-        New leads start at <strong>New Submission</strong>. Only the job name is required.
-      </InfoBanner>
+      <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-3 rounded-xl border border-primary/20 bg-primary-soft/55 p-3.5">
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
+          <FolderCheck className="size-5" />
+        </span>
+        <InfoBanner>
+          This creates an approved project directly in <strong>Setup</strong>. Add only confirmed job facts.
+        </InfoBanner>
+      </div>
 
-      <Field label="Job name / address">
+      <Field label="Project name">
         <TextInput
           value={form.name}
           onChange={(e) => set("name", e.target.value)}
-          placeholder="118 Park Place"
+          placeholder="118 Park Place Renovation"
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3.5">
-        <Field label="Job type">
+      <div className="grid gap-3.5 sm:grid-cols-2">
+        <Field label="Project type">
           <Select value={form.project_type} onChange={(e) => set("project_type", e.target.value)}>
             {TYPES.map((t) => (
               <option key={t}>{t}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Customer" hint="Type a new name to add it">
+        <Field label="Customer" hint="Search or add a company">
           <Combobox
             options={companyOptions(companies)}
             value={form.customer_company_id}
@@ -139,31 +135,10 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
         </Field>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setMore((m) => !m)}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/40 px-3.5 py-2.5 text-[12.5px] font-semibold text-secondary-foreground transition-colors hover:border-border-strong"
-      >
-        Optional detail — address, GC, contact, owners, notes
-        <ChevronDown className={cn("size-4 transition-transform", more && "rotate-180")} />
-      </button>
-
-      {more ? (
-        <div className="space-y-3.5">
-          <div className="grid grid-cols-2 gap-3.5">
-            <Field label="Full address" hint="Optional">
+      <div className="grid gap-3.5 rounded-xl border border-border bg-muted/25 p-4 sm:grid-cols-2">
+            <Field label="Jobsite address" hint="Optional">
               <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
             </Field>
-            <Field label="How did it come in?">
-              <Select value={form.source} onChange={(e) => set("source", e.target.value)}>
-                {SOURCES.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3.5">
             <Field label="General contractor" hint="Optional">
               <Combobox
                 options={companyOptions(companies)}
@@ -179,7 +154,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
                 createLabel="Add company"
               />
             </Field>
-            <Field label="Main contact" hint="Optional">
+            <Field label="Primary contact" hint="Optional">
               <Combobox
                 options={contactOptions(contacts, companies)}
                 value={form.primary_contact_id}
@@ -194,44 +169,23 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
                 createLabel="Add contact"
               />
             </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3.5">
-            <Field label="Salesperson">
-              <Combobox
-                options={profileOptions(profiles)}
-                value={form.salesperson_user_id}
-                onChange={(next) => set("salesperson_user_id", next)}
-                placeholder="Search employees…"
-              />
-            </Field>
-            <Field label="Estimator">
-              <Combobox
-                options={profileOptions(profiles)}
-                value={form.estimator_user_id}
-                onChange={(next) => set("estimator_user_id", next)}
-                placeholder="Search employees…"
-              />
-            </Field>
-            <Field label="Bid due date" hint="Optional">
+            <Field label="Target date" hint="Optional">
               <TextInput
                 type="date"
-                value={form.bid_due_date}
-                onChange={(e) => set("bid_due_date", e.target.value)}
+                value={form.target_date}
+                onChange={(e) => set("target_date", e.target.value)}
               />
             </Field>
-          </div>
+      </div>
 
-          <Field label="Intake notes" hint="Anything said on the call">
+          <Field label="Setup notes" hint="Scope, access, or handoff facts already confirmed">
             <TextArea
               rows={3}
               value={form.intake_notes}
               onChange={(e) => set("intake_notes", e.target.value)}
-              placeholder="Two bathrooms plus kitchen backsplash. Wants large format porcelain."
+              placeholder="Two bathrooms and kitchen backsplash. Plans received from GC."
             />
           </Field>
-        </div>
-      ) : null}
     </Modal>
   );
 }
