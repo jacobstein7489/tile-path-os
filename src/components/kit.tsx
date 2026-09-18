@@ -5,12 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 /** Friendly short date for a yyyy-mm-dd value, e.g. "Sep 4". */
 export function friendlyDate(value: string | null | undefined) {
