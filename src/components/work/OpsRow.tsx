@@ -49,7 +49,7 @@ export function OpsRow({
   return (
     <li>
       <Link
-        to="/work/$itemId"
+        to="/work-item/$itemId"
         params={{ itemId: item.id }}
         className={cn(
           "group grid min-h-[66px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/80 px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0",
