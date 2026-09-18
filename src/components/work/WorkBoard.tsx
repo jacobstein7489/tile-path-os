@@ -1,404 +1,172 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  BriefcaseBusiness,
   CalendarCheck2,
   CheckSquare2,
-  ChevronDown,
-  Clock3,
-  Plus,
   Search,
+  UserRound,
 } from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { useCapture } from "@/components/ops/CaptureProvider";
-import { useProfiles } from "@/lib/people";
+import { useCompanies, useProfiles } from "@/lib/people";
+import { useProjects } from "@/lib/data";
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 import {
   compareWorkItems,
   isComplete,
   isItemOwnedBy,
+  isOverdue,
   projectLabel,
   useWorkFeed,
+  type WorkItemRow,
 } from "@/lib/workitems";
-import type { WorkItemRow } from "@/lib/workitems";
-import {
-  bucketOrder,
-  matchesKpi,
-  matchesQuery,
-  queueBucket,
-  workKpiCounts,
-  type WorkKpi,
-} from "@/lib/queue";
+import { actionState, matchesKpi, matchesQuery, workKpiCounts, type WorkKpi } from "@/lib/queue";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/kit";
-import { isOverdue } from "@/lib/workitems";
 
-/**
- * Company action center.
- *
- * Default behaviour is a hard rule: every OPEN work_items record is rendered,
- * organised by the shared queue buckets. The KPI cards are real filters, so a
- * displayed number always reveals its underlying records when clicked.
- */
-
-type Grouping = "Action Queue" | "By Project" | "By Person";
+type Mode = "By Project" | "By Person" | "All Actions";
 type Scope = "Mine" | "All";
 
 export function WorkBoard({ projectId }: { projectId?: string }) {
   const { data: items = [], isLoading } = useWorkFeed();
+  const { data: projects = [] } = useProjects();
+  const { data: companies = [] } = useCompanies("customer");
   const { data: profiles = [] } = useProfiles();
   const { user } = useAuthUser();
   const { data: myProfile } = useMyProfile();
   const capture = useCapture();
-
-  const [grouping, setGrouping] = useState<Grouping>("Action Queue");
+  const [mode, setMode] = useState<Mode>(projectId ? "All Actions" : "By Project");
   const [scope, setScope] = useState<Scope>("All");
   const [q, setQ] = useState("");
   const [kpi, setKpi] = useState<WorkKpi | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<WorkItemRow | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
+  const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const companyMap = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const ownerName = (item: WorkItemRow) =>
-    profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ?? item.owner ?? null;
-
-  const projectItems = useMemo(
-    () => (projectId ? items.filter((item) => item.project_id === projectId) : items),
-    [items, projectId],
-  );
-
-  const scoped = useMemo(
-    () =>
-      scope === "Mine"
-        ? projectItems.filter((item) => isItemOwnedBy(item, user?.id, myProfile?.full_name))
-        : projectItems,
-    [projectItems, myProfile?.full_name, scope, user?.id],
-  );
-
-  const counts = useMemo(() => workKpiCounts(scoped), [scoped]);
-
-  const visible = useMemo(
-    () =>
-      scoped.filter((i) => {
-        if (showCompleted) return isComplete(i) && matchesQuery(i, q);
-        if (isComplete(i)) return false;
-        if (kpi && !matchesKpi(kpi, i)) return false;
-        return matchesQuery(i, q);
-      }),
-    [scoped, showCompleted, kpi, q],
-  );
-
-  const groups = useMemo(() => {
-    const map = new Map<string, WorkItemRow[]>();
-    for (const item of visible) {
-      const key =
-        grouping === "Action Queue"
-          ? (queueBucket(item) ?? "Completed")
-          : grouping === "By Project"
-            ? projectLabel(item)
-            : (profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ??
-              item.owner ??
-              "Unassigned");
-      const list = map.get(key);
-      if (list) list.push(item);
-      else map.set(key, [item]);
-    }
-    return [...map.entries()]
-      .map(([key, list]) => ({ key, items: [...list].sort(compareWorkItems) }))
-      .sort((a, b) => {
-        const last = (k: string) => (k === "Unassigned" || k === "Company / Unassigned" ? 1 : 0);
-        if (last(a.key) !== last(b.key)) return last(a.key) - last(b.key);
-        if (grouping === "Action Queue") return bucketOrder(a.key) - bucketOrder(b.key);
-        if (b.items.length !== a.items.length) return b.items.length - a.items.length;
-        return a.key.localeCompare(b.key);
-      });
-  }, [visible, grouping, profiles]);
-
-  const filtered = Boolean(kpi) || Boolean(q.trim()) || scope === "Mine";
-  const resetFilters = () => {
-    setKpi(null);
-    setQ("");
-    setScope("All");
-    setShowCompleted(false);
+    profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ?? item.owner ?? "Unassigned";
+  const customerFor = (item: WorkItemRow) => {
+    if (!item.project_id) return "Company action";
+    const project = projectMap.get(item.project_id);
+    return (project?.customer_company_id && companyMap.get(project.customer_company_id)?.name) || project?.customer || "Customer not set";
   };
 
+  const scoped = useMemo(() => {
+    const base = projectId ? items.filter((item) => item.project_id === projectId) : items;
+    return scope === "Mine"
+      ? base.filter((item) => isItemOwnedBy(item, user?.id, myProfile?.full_name))
+      : base;
+  }, [items, myProfile?.full_name, projectId, scope, user?.id]);
+  const counts = useMemo(() => workKpiCounts(scoped), [scoped]);
+  const visible = useMemo(
+    () =>
+      scoped
+        .filter((item) =>
+          showCompleted
+            ? isComplete(item) && matchesQuery(item, q)
+            : !isComplete(item) && (!kpi || matchesKpi(kpi, item)) && matchesQuery(item, q),
+        )
+        .sort(compareWorkItems),
+    [kpi, q, scoped, showCompleted],
+  );
+
+  const railGroups = useMemo(() => {
+    if (mode === "All Actions") return [];
+    const map = new Map<string, WorkItemRow[]>();
+    visible.forEach((item) => {
+      const key = mode === "By Project" ? (item.project_id ?? "company") : (item.owner_user_id ?? `name:${ownerName(item)}`);
+      const list = map.get(key) ?? [];
+      list.push(item);
+      map.set(key, list);
+    });
+    return [...map.entries()]
+      .map(([key, rows]) => ({ key, rows, urgent: rows.filter((row) => isOverdue(row) || row.is_important).length }))
+      .sort((a, b) => b.urgent - a.urgent || b.rows.length - a.rows.length);
+  }, [mode, visible, profiles]);
+
+  useEffect(() => {
+    if (mode === "All Actions") return;
+    if (!railGroups.some((group) => group.key === selectedKey)) setSelectedKey(railGroups[0]?.key ?? null);
+  }, [mode, railGroups, selectedKey]);
+
+  const selectedRows = mode === "All Actions" ? visible : (railGroups.find((group) => group.key === selectedKey)?.rows ?? []);
+  const selectedProject = mode === "By Project" && selectedKey && selectedKey !== "company" ? projectMap.get(selectedKey) : null;
+  const groupedStates = (["To Do", "Waiting", "Scheduled", "Done"] as const)
+    .map((state) => ({ state, rows: selectedRows.filter((item) => actionState(item) === state) }))
+    .filter((group) => group.rows.length);
+
   return (
-    <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-7">
-      <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+    <main className="mx-auto w-full max-w-[1480px] px-3 pb-28 sm:px-5 md:px-7">
+      <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-raised)]">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-gradient-to-br from-primary-soft/65 to-card px-4 py-4 sm:px-6 sm:py-5">
           <div className="min-w-0">
-            <p className="v2-kicker mb-1">
-              {projectId ? "Project action queue" : "Company action queue"}
-            </p>
-            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
-              {projectId ? "Project Work" : "Work"}
-            </h1>
-            <p className="mt-1 truncate text-[12px] text-muted-foreground">
-              {isLoading
-                ? `Loading ${projectId ? "project" : "company"} work…`
-                : showCompleted
-                  ? `${visible.length} completed record${visible.length === 1 ? "" : "s"}`
-                  : `${visible.length} of ${counts.Open} open shown${kpi ? ` · ${kpi} filter` : ""}`}
-            </p>
+            <p className="v2-kicker mb-1">Company operations</p>
+            <h1 className="truncate text-[27px] leading-tight font-bold md:text-[34px]">{projectId ? "Project Actions" : "Action Center"}</h1>
+            <p className="mt-1 text-[12px] text-muted-foreground">{isLoading ? "Loading actions…" : `${counts.Open} open actions across active operations`}</p>
           </div>
-          <Button variant="primary" onClick={() => capture()}>
-            <Plus className="size-4" /> Capture
-          </Button>
+          <Button onClick={() => capture()}>Capture</Button>
+        </header>
+        <div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,.8fr)]">
+          <Metric label="All open" value={counts.Open} icon={BriefcaseBusiness} tone="info" active={kpi === "Open"} onClick={() => { setShowCompleted(false); setKpi(kpi === "Open" ? null : "Open"); }} />
+          <Metric label="To do" value={counts["To Do"]} icon={CheckSquare2} tone="neutral" active={kpi === "To Do"} onClick={() => { setShowCompleted(false); setKpi(kpi === "To Do" ? null : "To Do"); }} />
+          <Metric label="Waiting" value={counts.Waiting} icon={UserRound} tone="warning" active={kpi === "Waiting"} onClick={() => { setShowCompleted(false); setKpi(kpi === "Waiting" ? null : "Waiting"); }} />
+          <Metric label="Scheduled" value={counts.Scheduled} icon={CalendarCheck2} tone="success" active={kpi === "Scheduled"} onClick={() => { setShowCompleted(false); setKpi(kpi === "Scheduled" ? null : "Scheduled"); }} />
+          {counts["Needs Attention"] ? <Metric label="Needs attention" value={counts["Needs Attention"]} icon={AlertTriangle} tone="danger" active={kpi === "Needs Attention"} onClick={() => { setShowCompleted(false); setKpi(kpi === "Needs Attention" ? null : "Needs Attention"); }} /> : <div className="hidden bg-card lg:block" />}
         </div>
-
-        <div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
-          <WorkMetric
-            icon={CheckSquare2}
-            label="Open"
-            value={counts.Open}
-            tone="info"
-            active={kpi === "Open"}
-            onClick={() => {
-              setShowCompleted(false);
-              setKpi(kpi === "Open" ? null : "Open");
-            }}
-          />
-          <WorkMetric
-            icon={Clock3}
-            label="Waiting"
-            value={counts.Waiting}
-            tone="warning"
-            active={kpi === "Waiting"}
-            onClick={() => {
-              setShowCompleted(false);
-              setKpi(kpi === "Waiting" ? null : "Waiting");
-            }}
-          />
-          <WorkMetric
-            icon={AlertTriangle}
-            label="Overdue"
-            value={counts.Overdue}
-            tone="danger"
-            active={kpi === "Overdue"}
-            onClick={() => {
-              setShowCompleted(false);
-              setKpi(kpi === "Overdue" ? null : "Overdue");
-            }}
-          />
-          <WorkMetric
-            icon={CalendarCheck2}
-            label="Scheduled"
-            value={counts.Scheduled}
-            tone="success"
-            active={kpi === "Scheduled"}
-            onClick={() => {
-              setShowCompleted(false);
-              setKpi(kpi === "Scheduled" ? null : "Scheduled");
-            }}
-          />
-        </div>
-
-        <div className="grid gap-2.5 border-t border-border bg-muted/30 p-3 sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:px-4">
-          <Segmented
-            options={["Action Queue", "By Project", "By Person"]}
-            value={grouping}
-            onChange={(v) => setGrouping(v as Grouping)}
-          />
-          <Segmented
-            options={["All", "Mine"]}
-            value={scope}
-            onChange={(v) => setScope(v as Scope)}
-          />
-          <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 text-[12.5px] focus-within:ring-2 focus-within:ring-primary/20">
+        <div className="grid gap-2 border-t border-border bg-muted/35 p-3 sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:px-4">
+          <Segmented options={projectId ? ["All Actions"] : ["By Project", "By Person", "All Actions"]} value={mode} onChange={(value) => { setMode(value as Mode); setSelectedKey(null); }} />
+          <Segmented options={["All", "Mine"]} value={scope} onChange={(value) => setScope(value as Scope)} />
+          <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 focus-within:ring-2 focus-within:ring-primary/20">
             <Search className="size-3.5 shrink-0 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search actions, people, jobs"
-              className="min-w-0 flex-1 bg-transparent py-1 text-[12.5px] outline-none placeholder:text-muted-foreground"
-            />
+            <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search actions, projects, people" className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none" />
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              setShowCompleted((v) => !v);
-              setKpi(null);
-            }}
-            className={cn(
-              "shrink-0 text-[11.5px] font-semibold transition-colors",
-              showCompleted
-                ? "text-foreground underline"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {showCompleted ? "Back to open work" : "Completed history"}
-          </button>
+          <button type="button" onClick={() => { setShowCompleted((value) => !value); setKpi(null); }} className="text-[11.5px] font-semibold text-muted-foreground hover:text-foreground">{showCompleted ? "Back to open" : "Completed history"}</button>
         </div>
-      </div>
+      </section>
 
-      <div className="pt-4">
-        {groups.length ? (
-          <div className="workspace-panel overflow-hidden">
-            {groups.map((group) => {
-              const urgent = group.items.filter(
-                (item) => isOverdue(item) || item.is_important,
-              ).length;
-              const isCollapsed = grouping === "By Project" && !q.trim() && collapsed[group.key];
-              return (
-                <section key={group.key} className="border-b border-border last:border-b-0">
-                  {grouping === "By Project" ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCollapsed((value) => ({ ...value, [group.key]: !isCollapsed }))
-                      }
-                      aria-expanded={!isCollapsed}
-                      className="grid min-h-[70px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-muted/25 px-4 text-left transition-colors hover:bg-primary-soft/45 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none md:px-5"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-bold">{group.key}</span>
-                        <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
-                          {group.items[0]?.title}
-                          {urgent ? ` · ${urgent} need attention` : ""}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-3">
-                        <span className="rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-secondary-foreground shadow-[var(--shadow-card)]">
-                          {group.items.length}
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "size-4 text-muted-foreground transition-transform",
-                            !isCollapsed && "rotate-180",
-                          )}
-                        />
-                      </span>
-                    </button>
-                  ) : (
-                    <OpsSectionHeading label={group.key} count={group.items.length} />
-                  )}
-                  {isCollapsed ? null : (
-                    <ul>
-                      {group.items.map((item) => (
-                        <OpsRow
-                          key={item.id}
-                          item={item}
-                          selected={false}
-                          context={
-                            grouping === "By Project"
-                              ? [
-                                  item.category ?? item.item_type,
-                                  item.waiting_on ? `Waiting on ${item.waiting_on}` : null,
-                                ]
-                              : [projectLabel(item), item.category ?? null]
-                          }
-                          person={grouping === "By Person" ? null : ownerName(item)}
-                          onOpen={setSelectedItem}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="workspace-panel px-5 py-10 text-center">
-            <p className="text-[13px] font-semibold">
-              {isLoading
-                ? "Loading…"
-                : showCompleted
-                  ? "No completed work matches this view."
-                  : filtered
-                    ? `No work matches ${[
-                        kpi,
-                        q.trim() && `“${q.trim()}”`,
-                        scope === "Mine" && "Mine",
-                      ]
-                        .filter(Boolean)
-                        .join(" + ")}.`
-                    : "No open work. Capture the next action."}
-            </p>
-            {filtered ? (
-              <Button className="mt-4" onClick={resetFilters}>
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
+      <section className={cn("mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]", mode !== "All Actions" && "md:grid md:h-[calc(100dvh-310px)] md:min-h-[470px] md:grid-cols-[300px_minmax(0,1fr)]")}>
+        {mode !== "All Actions" ? (
+          <aside className="border-b border-border bg-muted/20 md:overflow-y-auto md:border-r md:border-b-0">
+            <div className="border-b border-border px-4 py-3"><p className="v2-kicker">{mode === "By Project" ? "Projects" : "People"}</p></div>
+            <div className="flex gap-2 overflow-x-auto p-2 md:block md:space-y-1 md:overflow-x-visible">
+              {railGroups.map((group) => {
+                const project = mode === "By Project" && group.key !== "company" ? projectMap.get(group.key) : null;
+                const title = mode === "By Project" ? (project?.name ?? "Company / Unassigned") : ownerName(group.rows[0]);
+                const customer = mode === "By Project" ? customerFor(group.rows[0]) : `${new Set(group.rows.map(projectLabel)).size} projects`;
+                const waiting = group.rows.filter((row) => actionState(row) === "Waiting").length;
+                return <button key={group.key} type="button" onClick={() => setSelectedKey(group.key)} aria-pressed={selectedKey === group.key} className={cn("min-w-[240px] rounded-xl border px-3 py-3 text-left transition-all md:min-w-0 md:w-full", selectedKey === group.key ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]" : "border-transparent hover:border-border hover:bg-card")}>
+                  <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"><span className="min-w-0"><strong className="block truncate text-[13.5px]">{title}</strong><span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{customer}</span></span><span className="grid size-7 place-items-center rounded-lg bg-card text-[11px] font-bold shadow-[var(--shadow-card)]">{group.rows.length}</span></span>
+                  <span className="mt-2 flex gap-2 text-[10.5px] font-semibold"><span className="text-warning">{waiting} waiting</span>{group.urgent ? <span className="text-danger">{group.urgent} urgent</span> : null}</span>
+                </button>;
+              })}
+            </div>
+          </aside>
+        ) : null}
+        <div className="min-w-0 md:overflow-y-auto">
+          {selectedRows.length ? <>
+            <div className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-4 backdrop-blur sm:px-5">
+              <p className="v2-kicker">{mode === "All Actions" ? "All company actions" : mode === "By Project" ? "Selected project" : "Selected person"}</p>
+              <h2 className="mt-1 truncate text-[19px] font-bold">{mode === "All Actions" ? `${visible.length} actions` : mode === "By Project" ? (selectedProject?.name ?? "Company / Unassigned") : ownerName(selectedRows[0])}</h2>
+              {selectedProject ? <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{customerFor(selectedRows[0])} · {selectedProject.lifecycle_stage} · {selectedProject.readiness_pct}% ready</p> : null}
+            </div>
+            {groupedStates.map((group) => <section key={group.state} className="border-b border-border last:border-0"><OpsSectionHeading label={group.state} count={group.rows.length} /><ul>{group.rows.map((item) => <OpsRow key={item.id} item={item} selected={false} context={mode === "All Actions" ? [projectLabel(item), customerFor(item), item.category ?? item.item_type] : [item.category ?? item.item_type, item.waiting_on ? `Waiting on ${item.waiting_on}` : null]} person={mode === "By Person" ? null : ownerName(item)} onOpen={setSelectedItem} />)}</ul></section>)}
+          </> : <div className="grid min-h-[320px] place-items-center px-5 text-center text-[13px] text-muted-foreground">{isLoading ? "Loading actions…" : "No actions match this view."}</div>}
+        </div>
+      </section>
       <WorkItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
     </main>
   );
 }
 
-function WorkMetric({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  active,
-  onClick,
-}: {
-  icon: typeof CheckSquare2;
-  label: string;
-  value: number;
-  tone: "info" | "warning" | "danger" | "success";
-  active: boolean;
-  onClick: () => void;
-}) {
-  const tones = {
-    info: "bg-info-soft text-info",
-    warning: "bg-warning-soft text-warning",
-    danger: "bg-danger-soft text-danger",
-    success: "bg-success-soft text-success",
-  } as const;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "grid min-h-[84px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 bg-card px-4 py-3 text-left transition-colors hover:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none",
-        active && "bg-primary-soft/70 hover:bg-primary-soft/70",
-      )}
-    >
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0">
-        <strong className="block text-[24px] leading-none font-bold tabular-nums">{value}</strong>
-        <span className="mt-1 block truncate text-[11px] font-bold text-muted-foreground uppercase">
-          {label}
-          {active ? " · filtering" : ""}
-        </span>
-      </span>
-    </button>
-  );
+function Metric({ icon: Icon, label, value, tone, active, onClick }: { icon: typeof AlertTriangle; label: string; value: number; tone: "info" | "neutral" | "warning" | "success" | "danger"; active: boolean; onClick: () => void }) {
+  const tones = { info: "bg-info-soft text-info", neutral: "bg-muted text-foreground", warning: "bg-warning-soft text-warning", success: "bg-success-soft text-success", danger: "bg-danger-soft text-danger" } as const;
+  return <button type="button" onClick={onClick} aria-pressed={active} className={cn("grid min-h-[76px] grid-cols-[36px_minmax(0,1fr)] items-center gap-2.5 bg-card px-3 text-left transition-colors hover:bg-primary-soft/35 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30", active && "bg-primary-soft/70")}><span className={cn("grid size-9 place-items-center rounded-lg", tones[tone])}><Icon className="size-4" /></span><span className="min-w-0"><strong className="block text-[22px] leading-none tabular-nums">{value}</strong><span className="mt-1 block truncate text-[10.5px] font-bold text-muted-foreground uppercase">{label}</span></span></button>;
 }
 
-function Segmented({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  return (
-    <div className="flex shrink-0 items-center rounded-lg bg-muted p-1">
-      {options.map((o) => (
-        <button
-          key={o}
-          type="button"
-          onClick={() => onChange(o)}
-          aria-pressed={value === o}
-          className={cn(
-            "rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors",
-            value === o
-              ? "bg-card text-foreground shadow-[var(--shadow-card)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {o}
-        </button>
-      ))}
-    </div>
-  );
+function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
+  return <div className="flex min-w-0 items-center overflow-x-auto rounded-lg bg-muted p-1">{options.map((option) => <button key={option} type="button" onClick={() => onChange(option)} aria-pressed={value === option} className={cn("shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold", value === option ? "bg-card text-foreground shadow-[var(--shadow-card)]" : "text-muted-foreground")}>{option}</button>)}</div>;
 }
