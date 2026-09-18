@@ -10,7 +10,10 @@ export type Crumb = { label: string; to?: string; params?: Record<string, string
 export function AppHeader({ crumbs }: { crumbs: Crumb[]; viewLabel?: string }) {
   return (
     <header className="sticky top-0 z-20 grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border bg-card/92 px-4 backdrop-blur-xl md:flex md:px-6">
-      <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)] md:hidden" aria-label="Cobblestone Tile Operations">
+      <div
+        className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)] md:hidden"
+        aria-label="Cobblestone Tile Operations"
+      >
         <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden="true">
           <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
         </svg>

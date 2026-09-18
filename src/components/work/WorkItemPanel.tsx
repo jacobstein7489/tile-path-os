@@ -164,7 +164,9 @@ export function WorkItemPanel({
   };
 
   return (
-    <article className={cn("mx-auto w-full space-y-3.5", compact ? "max-w-none" : "max-w-[1080px]")}>
+    <article
+      className={cn("mx-auto w-full space-y-3.5", compact ? "max-w-none" : "max-w-[1080px]")}
+    >
       <header className="workspace-panel relative overflow-hidden px-4 py-3.5 sm:px-5 sm:py-4">
         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <span className="block">
@@ -209,7 +211,7 @@ export function WorkItemPanel({
           className={cn(
             "space-y-3.5",
             compact &&
-               "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,.85fr)] lg:items-start lg:gap-3.5 lg:space-y-0",
+              "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,.85fr)] lg:items-start lg:gap-3.5 lg:space-y-0",
           )}
         >
           <div className="space-y-3.5">

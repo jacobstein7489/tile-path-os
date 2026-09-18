@@ -144,7 +144,7 @@ function ProjectView({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-bold text-primary">
+              <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-bold text-primary">
                 {stage}
               </span>
               {attention ? (
@@ -270,7 +270,7 @@ function ProjectView({
                       key={item.id}
                       type="button"
                       onClick={() => onWork(item)}
-                       className="grid min-h-[54px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-2 text-left hover:bg-primary-soft/35"
+                      className="grid min-h-[54px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-2 text-left hover:bg-primary-soft/35"
                     >
                       <span className="min-w-0">
                         <strong className="block truncate text-[13.5px]">{item.title}</strong>
@@ -309,7 +309,10 @@ function ProjectView({
             <Panel title="Readiness blockers">
               {setup.blockers.length ? (
                 setup.blockers.map((item) => (
-                  <div key={item.id} className="border-t border-border px-4 py-2.5 first:border-t-0">
+                  <div
+                    key={item.id}
+                    className="border-t border-border px-4 py-2.5 first:border-t-0"
+                  >
                     <strong className="block text-[12.5px]">{item.label}</strong>
                     <span className="text-[11px] text-muted-foreground">{item.detail}</span>
                   </div>
@@ -333,7 +336,7 @@ function ProjectView({
               )}
             </Panel>
             <Panel title="Latest activity">
-                <p className="p-3.5 text-[12px] leading-5">
+              <p className="p-3.5 text-[12px] leading-5">
                 {latestReport?.progress_note ?? "No field update has been submitted."}
               </p>
             </Panel>
@@ -359,10 +362,8 @@ function HeaderFact({
         <Icon className="size-3.5" />
       </span>
       <span className="min-w-0">
-      <p className="text-[9.5px] font-bold text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="truncate text-[11.5px] font-bold">{value}</p>
+        <p className="text-[9.5px] font-bold text-muted-foreground uppercase">{label}</p>
+        <p className="truncate text-[11.5px] font-bold">{value}</p>
       </span>
     </div>
   );
