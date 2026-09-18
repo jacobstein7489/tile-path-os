@@ -16,6 +16,7 @@ import { Button } from "@/components/kit";
 import { normalizeStage } from "@/lib/lifecycle";
 import { isOverdue, isWaiting, type WorkItemRow } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
+import { useProjectSetup } from "@/lib/setup";
 
 type Tab = "Overview" | "Work" | "Readiness";
 
@@ -32,8 +33,21 @@ export function ProjectQuickViewDialog({
   onClose: () => void;
   onOpenWork: (item: WorkItemRow) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("Overview");
   if (!job) return null;
+  return <ProjectQuickViewContent job={job} onClose={onClose} onOpenWork={onOpenWork} />;
+}
+
+function ProjectQuickViewContent({
+  job,
+  onClose,
+  onOpenWork,
+}: {
+  job: ProjectQueueRecord;
+  onClose: () => void;
+  onOpenWork: (item: WorkItemRow) => void;
+}) {
+  const [tab, setTab] = useState<Tab>("Overview");
+  const setup = useProjectSetup(job.project.id);
   const { project, work, next, attention, upcoming, latestReport } = job;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   const readiness = Math.max(0, Math.min(100, project.readiness_pct ?? 0));
@@ -228,11 +242,33 @@ export function ProjectQuickViewDialog({
                   ) : null}
                 </div>
               </Panel>
+              <Panel
+                title="Rooms & decisions"
+                detail={`${setup.areaList.length} rooms · ${setup.openQuestions.length} open decisions`}
+              >
+                <div className="grid grid-cols-2 gap-px border-t border-border bg-border">
+                  <QuickFact label="Rooms" value={setup.areaList.length} />
+                  <QuickFact label="Surfaces" value={setup.surfaceList.length} />
+                  <QuickFact label="Open decisions" value={setup.openQuestions.length} />
+                  <QuickFact label="Published rooms" value={setup.publishedPackageAreaIds.length} />
+                </div>
+              </Panel>
             </div>
           ) : null}
         </div>
       </div>
     </CenterDialog>
+  );
+}
+
+function QuickFact({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-card p-4">
+      <strong className="block text-[20px] font-bold tabular-nums">{value}</strong>
+      <span className="mt-1 block text-[10.5px] font-semibold text-muted-foreground uppercase">
+        {label}
+      </span>
+    </div>
   );
 }
 
