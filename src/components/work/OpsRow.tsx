@@ -1,5 +1,4 @@
 import { CalendarDays, ChevronRight, CircleAlert, Clock3, Star } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { isOverdue, isWaiting, todayIso, type WorkItemRow } from "@/lib/workitems";
 import { currentMoveState } from "@/lib/moveforward";
 import { cn } from "@/lib/utils";
@@ -34,11 +33,13 @@ export function OpsRow({
   context,
   /** Right-hand metadata, e.g. the owner or who we are waiting on. */
   person,
+  onOpen,
 }: {
   item: WorkItemRow;
   selected: boolean;
   context?: Array<string | null | undefined>;
   person?: string | null;
+  onOpen: (item: WorkItemRow) => void;
 }) {
   const late = isOverdue(item);
   const waiting = isWaiting(item);
@@ -48,9 +49,9 @@ export function OpsRow({
 
   return (
     <li>
-      <Link
-        to="/work-item/$itemId"
-        params={{ itemId: item.id }}
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
         className={cn(
           "group grid min-h-[78px] w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-3 text-left transition-all duration-150 last:border-b-0",
           "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-5",
@@ -105,7 +106,7 @@ export function OpsRow({
           </span>
           <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
         </span>
-      </Link>
+      </button>
     </li>
   );
 }

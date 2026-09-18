@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProjectsWorkspaceV2, type ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
 import { useProjects, useScheduleAssignments, type Project, type ScheduleAssignment } from "@/lib/data";
 import { useFieldReports, type FieldReport } from "@/lib/fieldreports";
@@ -55,11 +55,6 @@ function ProjectsPage() {
         latestReport: reportByProject.get(project.id),
       };
     }), [filter, projects, reportByProject, scheduleByProject, search, workByProject]);
-
-  useEffect(() => {
-    if (!jobs.length) { setSelectedId(null); return; }
-    if (!selectedId || !jobs.some((job) => job.project.id === selectedId)) setSelectedId(jobs[0]?.project.id ?? null);
-  }, [jobs, selectedId]);
 
   return <ProjectsWorkspaceV2
     jobs={jobs}

@@ -1,9 +1,10 @@
-import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CalendarDays, ChevronRight, FolderKanban, Plus, Search, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, ChevronRight, FolderKanban, Plus, Search, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
+import { ProjectQuickViewDialog } from "@/components/projects/ProjectQuickViewDialog";
+import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { Button, Select } from "@/components/kit";
 import type { Project, ScheduleAssignment } from "@/lib/data";
 import type { FieldReport } from "@/lib/fieldreports";
@@ -30,12 +31,12 @@ export function ProjectsWorkspaceV2({
   loading,
   search,
   filter,
-  selectedId: _selectedId,
+  selectedId,
   creating,
   statusProject,
   onSearch,
   onFilter,
-  onSelect: _onSelect,
+  onSelect,
   onCreating,
   onStatusProject,
 }: {
@@ -53,11 +54,13 @@ export function ProjectsWorkspaceV2({
   onCreating: (open: boolean) => void;
   onStatusProject: (project: Project | null) => void;
 }) {
+  const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
+  const [selectedWork, setSelectedWork] = React.useState<WorkItemRow | null>(null);
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-7 md:pb-10">
       <header className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-4 md:grid-cols-[minmax(180px,1fr)_minmax(240px,420px)_150px_auto] md:py-5">
         <div className="flex min-w-0 items-baseline gap-3">
-          <h1 className="truncate font-display text-[24px] font-bold md:text-[28px]">Projects</h1>
+          <h1 className="truncate font-display text-[28px] font-bold md:text-[36px]">Projects</h1>
           <span className="shrink-0 text-[12px] text-muted-foreground">{activeCount} active</span>
         </div>
         <label className="relative col-span-2 min-w-0 md:col-span-1">
@@ -97,6 +100,7 @@ export function ProjectsWorkspaceV2({
             <ProjectQueueItem
               key={job.project.id}
               job={job}
+              onOpen={() => onSelect(job.project.id)}
               onStatusUpdate={() => onStatusProject(job.project)}
             />
           ))
@@ -107,6 +111,8 @@ export function ProjectsWorkspaceV2({
       {statusProject ? (
         <ProjectStatusUpdateSheet project={statusProject} onClose={() => onStatusProject(null)} />
       ) : null}
+      <ProjectQuickViewDialog job={selectedJob} onClose={() => onSelect("")} onOpenWork={(item) => setSelectedWork(item)} />
+      <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
     </main>
   );
 }
@@ -114,24 +120,26 @@ export function ProjectsWorkspaceV2({
 function ProjectQueueItem({
   job,
   onStatusUpdate,
+  onOpen,
 }: {
   job: ProjectQueueRecord;
   onStatusUpdate: () => void;
+  onOpen: () => void;
 }) {
   const { project, next, attention, relevantDate } = job;
   const identity =
     [project.address, project.customer].filter(Boolean).join(" · ") || project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   return (
-    <article className="group relative min-w-0 border-b border-border/70 last:border-b-0 transition-all hover:bg-primary-soft/30 focus-within:bg-primary-soft/40">
-      <Link
-        to="/projects/$projectId"
-        params={{ projectId: project.id }}
-        className="grid min-h-[96px] min-w-0 grid-cols-[44px_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-4 pr-12 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[44px_minmax(190px,1.15fr)_minmax(240px,1.25fr)_minmax(150px,.7fr)_110px] md:items-center md:gap-4 md:px-5 md:pr-14"
+    <article className="group relative min-w-0 border-b border-border/70 last:border-b-0 transition-all hover:z-[1] hover:bg-primary-soft/30 hover:shadow-[var(--shadow-card)] focus-within:bg-primary-soft/40">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="grid min-h-[118px] w-full min-w-0 grid-cols-[52px_minmax(0,1fr)] gap-x-4 gap-y-3 px-4 py-5 pr-14 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[52px_minmax(210px,1.15fr)_minmax(240px,1.25fr)_minmax(150px,.7fr)_110px] md:items-center md:gap-5 md:px-6 md:pr-16"
       >
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]"><FolderKanban className="size-5" /></span>
+        <span className="grid size-13 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]"><FolderKanban className="size-5" /></span>
         <div className="min-w-0">
-          <h2 className="truncate font-display text-[16px] font-bold">{project.name}</h2>
+          <h2 className="truncate font-display text-[18px] font-bold md:text-[20px]">{project.name}</h2>
           <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
           <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground md:mt-1.5"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p>
         </div>
@@ -161,8 +169,8 @@ function ProjectQueueItem({
             <span className="truncate">{attention}</span>
           </p>
         ) : null}
-        <ChevronRight className="absolute top-1/2 right-4 size-4 -translate-y-1/2 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-      </Link>
+        <span className="absolute top-1/2 right-4 grid size-8 -translate-y-1/2 place-items-center rounded-lg bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary"><ChevronRight className="size-4" /></span>
+      </button>
       <div className="absolute right-2 bottom-2 md:top-1/2 md:bottom-auto md:-translate-y-1/2">
         <ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} />
       </div>

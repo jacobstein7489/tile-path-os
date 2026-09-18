@@ -31,7 +31,7 @@ const STATE_TONE: Record<MoveState, string> = {
   Done: "bg-success",
 };
 
-export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
+export function WorkItemPanel({ item, compact = false }: { item: WorkItemRow | null; compact?: boolean }) {
   const save = useSaveWorkItem();
   const { move, undo, isPending: moving } = useMoveForward();
   const { data: events = [] } = useWorkItemEvents(item?.id ?? null);
@@ -149,7 +149,7 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-[1080px] space-y-5">
+    <article className={cn("mx-auto w-full space-y-5", compact ? "max-w-none" : "max-w-[1080px]")}>
       <header className="workspace-panel relative overflow-hidden px-4 py-5 sm:px-7 sm:py-7">
         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <span className="block">
@@ -182,7 +182,8 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
         </span>
       </header>
       <div>
-        <div className="space-y-6">
+        <div className={cn("space-y-6", compact && "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,.85fr)] lg:items-start lg:gap-5 lg:space-y-0")}>
+          <div className="space-y-5">
           <section className="workspace-panel grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
           <Field label="Owner">
             <Combobox
@@ -205,6 +206,31 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             <DateField value={dueDate} label="Due date" placeholder="No due date" onChange={(v) => void saveDueDate(v || null)} />
           </Field>
           </section>
+
+          {/* Secondary context — read-first, never a wall of controls. */}
+          <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
+            <div>
+              <dt className="v2-kicker">Waiting on</dt>
+              <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="v2-kicker">Follow up</dt>
+              <dd className="mt-1 font-medium">{item.follow_up_on ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="v2-kicker">Type</dt>
+              <dd className="mt-1 font-medium">{item.item_type}</dd>
+            </div>
+            {item.next_action ? (
+              <div className="col-span-2">
+                <dt className="v2-kicker">Next action</dt>
+                <dd className="mt-1 font-medium">{item.next_action}</dd>
+              </div>
+            ) : null}
+          </dl>
+          </div>
+
+          <div className="space-y-5">
 
           {/* ONE dominant action. */}
           <section className="overflow-hidden rounded-xl border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-raised)]">
@@ -309,28 +335,6 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             )}
           </section>
 
-          {/* Secondary context — read-first, never a wall of controls. */}
-          <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
-            <div>
-              <dt className="v2-kicker">Waiting on</dt>
-              <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="v2-kicker">Follow up</dt>
-              <dd className="mt-1 font-medium">{item.follow_up_on ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="v2-kicker">Type</dt>
-              <dd className="mt-1 font-medium">{item.item_type}</dd>
-            </div>
-            {item.next_action ? (
-              <div className="col-span-2">
-                <dt className="v2-kicker">Next action</dt>
-                <dd className="mt-1 font-medium">{item.next_action}</dd>
-              </div>
-            ) : null}
-          </dl>
-
           <section className="workspace-panel space-y-5 p-4 sm:p-5"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground"><FileText className="size-4" /></span><div><p className="v2-kicker">Details</p><h2 className="text-[15px] font-bold">Notes and action</h2></div></div><Field label="Action">
             <TextInput
               value={title}
@@ -407,6 +411,7 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             <Button variant="primary" onClick={() => void saveDetails()} loading={save.isPending}>
               Save details
             </Button>
+          </div>
           </div>
         </div>
       </div>
