@@ -6,7 +6,6 @@ import {
   Button,
   Combobox,
   DateField,
-  Drawer,
   Field,
   TextArea,
   TextInput,
@@ -47,10 +46,8 @@ const STATE_TONE: Record<MoveState, string> = {
 
 export function WorkItemPanel({
   item,
-  onClose,
 }: {
   item: WorkItemRow | null;
-  onClose: () => void;
 }) {
   const save = useSaveWorkItem();
   const { move, undo, isPending: moving } = useMoveForward();
@@ -151,12 +148,9 @@ export function WorkItemPanel({
   };
 
   return (
-    <Drawer
-      open
-      onClose={onClose}
-      width="max-w-[540px]"
-      title={
-        <span className="block pr-2">
+    <article className="mx-auto w-full max-w-[980px] rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+      <header className="border-b border-border px-4 py-5 sm:px-7 sm:py-6">
+        <span className="block">
           <span className="v2-kicker block">
             {item.project_id ? (
               <Link
@@ -176,18 +170,16 @@ export function WorkItemPanel({
             {item.title}
           </span>
         </span>
-      }
-      subtitle={
-        <span className="inline-flex items-center gap-3">
+        <span className="mt-3 inline-flex flex-wrap items-center gap-3 text-[12.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 font-semibold text-secondary-foreground">
             <span className={cn("size-1.5 rounded-full", STATE_TONE[state])} />
             {state}
           </span>
           <span>{ownerName ? `Owner ${ownerName}` : "Unassigned"}</span>
         </span>
-      }
-      footer={
-        <>
+      </header>
+      <div className="px-4 py-6 sm:px-7">
+      <div className="space-y-6">
           <Button
             variant="ghost"
             className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}
@@ -203,13 +195,6 @@ export function WorkItemPanel({
             <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
             {item.is_important ? "Important" : "Mark important"}
           </Button>
-          <Button variant="primary" onClick={() => void saveDetails()} loading={save.isPending}>
-            Save details
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-6">
         {/* Owner — the only always-visible assignment control. */}
         <Field label="Owner">
           <Combobox
@@ -444,7 +429,28 @@ export function WorkItemPanel({
             </ul>
           ) : null}
         </section>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+          <Button
+            variant="ghost"
+            className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}
+            onClick={() =>
+              save.mutate({
+                id: item.id,
+                patch: { is_important: !item.is_important },
+                note: item.is_important ? "Unmarked important" : "Marked important",
+              })
+            }
+            aria-pressed={Boolean(item.is_important)}
+          >
+            <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
+            {item.is_important ? "Important" : "Mark important"}
+          </Button>
+          <Button variant="primary" onClick={() => void saveDetails()} loading={save.isPending}>
+            Save details
+          </Button>
+        </div>
       </div>
-    </Drawer>
+      </div>
+    </article>
   );
 }

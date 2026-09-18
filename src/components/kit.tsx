@@ -1,7 +1,10 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, Check, ChevronDown, Loader2, Search, X } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /** Friendly short date for a yyyy-mm-dd value, e.g. "Sep 4". */
 export function friendlyDate(value: string | null | undefined) {
@@ -29,48 +32,51 @@ export function DateField({
   label?: string;
   className?: string;
 }) {
-  const ref = useRef<HTMLInputElement | null>(null);
-  const openPicker = () => {
-    const el = ref.current;
-    if (!el) return;
-    if (typeof el.showPicker === "function") el.showPicker();
-    else el.focus();
-  };
+  const [open, setOpen] = useState(false);
+  const selected = value ? parseISO(value) : undefined;
   return (
-    <div
-      onClick={openPicker}
-      className={cn(
-        "relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-[13px]",
-        "transition-colors duration-150 hover:border-border-strong focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25",
-        className,
-      )}
-    >
-      <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
-      <span className={cn("min-w-0 flex-1 truncate", !value && "text-muted-foreground")}>
-        {value ? friendlyDate(value) : placeholder}
-      </span>
-      {value ? (
-        <button
-          type="button"
-          aria-label="Clear date"
-          onClick={(e) => {
-            e.stopPropagation();
-            onChange(null);
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className={cn("flex min-w-0 items-center gap-1", className)}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={label}
+            className={cn(
+              "flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-left text-[13px]",
+              "transition-colors duration-150 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+            )}
+          >
+            <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+            <span className={cn("min-w-0 flex-1 truncate", !value && "text-muted-foreground")}>
+              {value ? format(selected ?? new Date(), "MMM d, yyyy") : placeholder}
+            </span>
+          </button>
+        </PopoverTrigger>
+        {value ? (
+          <button
+            type="button"
+            aria-label="Clear date"
+            onClick={() => onChange(null)}
+            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <PopoverContent className="pointer-events-auto w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          defaultMonth={selected}
+          onSelect={(date) => {
+            onChange(date ? format(date, "yyyy-MM-dd") : null);
+            setOpen(false);
           }}
-          className="relative z-10 grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      ) : null}
-      <input
-        ref={ref}
-        type="date"
-        aria-label={label}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value || null)}
-        className="absolute inset-0 z-0 size-full cursor-pointer opacity-0"
-      />
-    </div>
+          initialFocus
+          className="pointer-events-auto p-3"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
