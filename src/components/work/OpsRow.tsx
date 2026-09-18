@@ -53,14 +53,14 @@ export function OpsRow({
         type="button"
         onClick={() => onOpen(item)}
         className={cn(
-          "group grid min-h-[88px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-3 text-left transition-all duration-150 last:border-b-0",
-          "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-5",
+          "group grid min-h-[62px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-2 text-left transition-all duration-150 last:border-b-0",
+          "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-4",
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
         <span
           className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-xl border shadow-[var(--shadow-card)]",
+            "grid size-9 shrink-0 place-items-center rounded-lg border",
             late
               ? "border-danger/15 bg-danger-soft text-danger"
               : waiting
@@ -83,7 +83,7 @@ export function OpsRow({
             <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{sub}</span>
           ) : null}
           {item.next_action ? (
-            <span className="mt-1 hidden truncate text-[11.5px] font-medium text-secondary-foreground sm:block">
+            <span className="mt-0.5 hidden truncate text-[11px] font-medium text-secondary-foreground sm:block">
               Next · {item.next_action}
             </span>
           ) : null}
@@ -129,7 +129,7 @@ export function OpsSectionHeading({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
+    <div className="flex items-center justify-between gap-3 bg-muted/25 px-4 py-2">
       <h2 className="text-[11px] font-bold tracking-[0.08em] text-secondary-foreground uppercase">
         {label}
         {typeof count === "number" && count > 0 ? (
