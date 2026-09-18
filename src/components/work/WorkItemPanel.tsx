@@ -164,8 +164,10 @@ export function WorkItemPanel({
   };
 
   return (
-    <article className={cn("mx-auto w-full space-y-5", compact ? "max-w-none" : "max-w-[1080px]")}>
-      <header className="workspace-panel relative overflow-hidden px-4 py-5 sm:px-7 sm:py-7">
+    <article
+      className={cn("mx-auto w-full space-y-3.5", compact ? "max-w-none" : "max-w-[1080px]")}
+    >
+      <header className="workspace-panel relative overflow-hidden px-4 py-3.5 sm:px-5 sm:py-4">
         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <span className="block">
           <span className="v2-kicker block">
@@ -183,11 +185,11 @@ export function WorkItemPanel({
             {areaName ? ` · ${areaName}` : ""}
             {surfaceName ? ` · ${surfaceName}` : ""}
           </span>
-          <span className="mt-2 block text-[21px] leading-snug font-bold md:text-[24px]">
+          <span className="mt-1.5 block text-[20px] leading-snug font-bold md:text-[22px]">
             {item.title}
           </span>
         </span>
-        <span className="mt-4 inline-flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+        <span className="mt-2.5 inline-flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-chip px-2.5 py-1 font-semibold text-secondary-foreground">
             <span className={cn("size-1.5 rounded-full", STATE_TONE[state])} />
             {state}
@@ -207,13 +209,13 @@ export function WorkItemPanel({
       <div>
         <div
           className={cn(
-            "space-y-6",
+            "space-y-3.5",
             compact &&
-              "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,.85fr)] lg:items-start lg:gap-5 lg:space-y-0",
+              "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,.85fr)] lg:items-start lg:gap-3.5 lg:space-y-0",
           )}
         >
-          <div className="space-y-5">
-            <section className="workspace-panel grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+          <div className="space-y-3.5">
+            <section className="workspace-panel grid gap-3 p-3.5 sm:grid-cols-2">
               <Field label="Owner">
                 <Combobox
                   options={profileOptions(profiles)}
@@ -244,7 +246,7 @@ export function WorkItemPanel({
             </section>
 
             {/* Secondary context — read-first, never a wall of controls. */}
-            <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
+            <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-3 p-3.5 text-[12px]">
               <div>
                 <dt className="v2-kicker">Waiting on</dt>
                 <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
@@ -266,9 +268,9 @@ export function WorkItemPanel({
             </dl>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-3.5">
             {/* ONE dominant action. */}
-            <section className="overflow-hidden rounded-xl border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-raised)]">
+            <section className="overflow-hidden rounded-lg border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-card)]">
               {moveOpen ? (
                 <div className="space-y-4 px-4 py-4">
                   <VoiceField
@@ -349,7 +351,7 @@ export function WorkItemPanel({
                 <Button
                   variant="ghost"
                   onClick={() => setMoveOpen(true)}
-                  className="h-auto w-full justify-between rounded-none px-4 py-5 text-left hover:bg-primary-soft/60"
+                  className="h-auto w-full justify-between rounded-none px-4 py-3.5 text-left hover:bg-primary-soft/60"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -357,7 +359,7 @@ export function WorkItemPanel({
                     </span>
                     <span>
                       <span className="v2-kicker block !text-primary">Primary action</span>
-                      <span className="mt-1 block text-[16px] font-bold text-foreground">
+                      <span className="mt-0.5 block text-[15px] font-bold text-foreground">
                         Move forward
                       </span>
                       <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
@@ -370,7 +372,7 @@ export function WorkItemPanel({
               )}
             </section>
 
-            <section className="workspace-panel space-y-5 p-4 sm:p-5">
+            <section className="workspace-panel space-y-3.5 p-3.5">
               <div className="flex items-center gap-2">
                 <span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground">
                   <FileText className="size-4" />
@@ -438,7 +440,7 @@ export function WorkItemPanel({
                 </ul>
               ) : null}
             </section>
-            <div className="workspace-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+            <div className="workspace-panel flex flex-wrap items-center justify-between gap-3 p-3.5">
               <Button
                 variant="ghost"
                 className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}

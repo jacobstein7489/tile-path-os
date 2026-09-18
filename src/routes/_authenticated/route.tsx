@@ -43,7 +43,7 @@ function AuthenticatedLayout() {
     <CaptureProvider>
       <div className="min-h-screen bg-canvas">
         <AppSidebar />
-        <div className="min-w-0 pb-20 md:ml-[216px] md:pb-0">
+        <div className="min-w-0 pb-20 md:ml-[196px] md:pb-0">
           <Outlet />
         </div>
       </div>

@@ -118,12 +118,12 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
     .filter((group) => group.rows.length);
 
   return (
-    <main className="mx-auto w-full max-w-[1480px] px-3 pb-28 sm:px-5 md:px-7">
-      <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-raised)]">
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-gradient-to-br from-primary-soft/65 to-card px-4 py-4 sm:px-6 sm:py-5">
+    <main className="mx-auto w-full max-w-[1480px] px-3 pb-28 sm:px-5 md:px-6">
+      <section className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-raised)]">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-gradient-to-br from-primary-soft/65 to-card px-4 py-3 sm:px-5 sm:py-3.5">
           <div className="min-w-0">
             <p className="v2-kicker mb-1">Company operations</p>
-            <h1 className="truncate text-[27px] leading-tight font-bold md:text-[34px]">
+            <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
               {projectId ? "Project Actions" : "Action Center"}
             </h1>
             <p className="mt-1 text-[12px] text-muted-foreground">
@@ -195,7 +195,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
             <div className="hidden bg-card lg:block" />
           )}
         </div>
-        <div className="grid gap-2 border-t border-border bg-muted/35 p-3 sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:px-4">
+        <div className="grid gap-2 border-t border-border bg-muted/35 p-2.5 sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:px-4">
           <Segmented
             options={projectId ? ["All Actions"] : ["By Project", "By Person", "All Actions"]}
             value={mode}
@@ -209,7 +209,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
             value={scope}
             onChange={(value) => setScope(value as Scope)}
           />
-          <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 focus-within:ring-2 focus-within:ring-primary/20">
+          <label className="flex h-8 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 focus-within:ring-2 focus-within:ring-primary/20">
             <Search className="size-3.5 shrink-0 text-muted-foreground" />
             <input
               value={q}
@@ -233,14 +233,14 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
 
       <section
         className={cn(
-          "mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]",
+          "mt-3 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]",
           mode !== "All Actions" &&
-            "md:grid md:h-[calc(100dvh-310px)] md:min-h-[470px] md:grid-cols-[300px_minmax(0,1fr)]",
+            "md:grid md:h-[calc(100dvh-252px)] md:min-h-[480px] md:grid-cols-[260px_minmax(0,1fr)]",
         )}
       >
         {mode !== "All Actions" ? (
           <aside className="border-b border-border bg-muted/20 md:overflow-y-auto md:border-r md:border-b-0">
-            <div className="border-b border-border px-4 py-3">
+            <div className="border-b border-border px-3 py-2">
               <p className="v2-kicker">{mode === "By Project" ? "Projects" : "People"}</p>
             </div>
             <div className="flex gap-2 overflow-x-auto p-2 md:block md:space-y-1 md:overflow-x-visible">
@@ -267,7 +267,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
                     onClick={() => setSelectedKey(group.key)}
                     aria-pressed={selectedKey === group.key}
                     className={cn(
-                      "min-w-[240px] rounded-xl border px-3 py-3 text-left transition-all md:min-w-0 md:w-full",
+                      "min-w-[220px] rounded-lg border px-3 py-2 text-left transition-all md:min-w-0 md:w-full",
                       selectedKey === group.key
                         ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]"
                         : "border-transparent hover:border-border hover:bg-card",
@@ -280,11 +280,11 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
                           {customer}
                         </span>
                       </span>
-                      <span className="grid size-7 place-items-center rounded-lg bg-card text-[11px] font-bold shadow-[var(--shadow-card)]">
+                      <span className="grid size-6 place-items-center rounded-md bg-card text-[11px] font-bold shadow-[var(--shadow-card)]">
                         {group.rows.length}
                       </span>
                     </span>
-                    <span className="mt-2 flex gap-2 text-[10.5px] font-semibold">
+                    <span className="mt-1 flex gap-2 text-[10.5px] font-semibold">
                       <span className="text-warning">{waiting} waiting</span>
                       {group.urgent ? (
                         <span className="text-danger">{group.urgent} urgent</span>
@@ -299,7 +299,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
         <div className="min-w-0 md:overflow-y-auto">
           {selectedRows.length ? (
             <>
-              <div className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-4 backdrop-blur sm:px-5">
+              <div className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur">
                 <p className="v2-kicker">
                   {mode === "All Actions"
                     ? "All company actions"
@@ -307,7 +307,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
                       ? "Selected project"
                       : "Selected person"}
                 </p>
-                <h2 className="mt-1 truncate text-[19px] font-bold">
+                <h2 className="mt-1 truncate text-[16px] font-bold">
                   {mode === "All Actions"
                     ? `${visible.length} actions`
                     : mode === "By Project"
@@ -353,7 +353,7 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
               ))}
             </>
           ) : (
-            <div className="grid min-h-[320px] place-items-center px-5 text-center text-[13px] text-muted-foreground">
+            <div className="grid min-h-[240px] place-items-center px-5 text-center text-[13px] text-muted-foreground">
               {isLoading ? "Loading actions…" : "No actions match this view."}
             </div>
           )}
@@ -392,15 +392,15 @@ function Metric({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "grid min-h-[76px] grid-cols-[36px_minmax(0,1fr)] items-center gap-2.5 bg-card px-3 text-left transition-colors hover:bg-primary-soft/35 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30",
+        "grid min-h-[56px] grid-cols-[32px_minmax(0,1fr)] items-center gap-2 bg-card px-3 text-left transition-colors hover:bg-primary-soft/35 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30",
         active && "bg-primary-soft/70",
       )}
     >
-      <span className={cn("grid size-9 place-items-center rounded-lg", tones[tone])}>
+      <span className={cn("grid size-8 place-items-center rounded-lg", tones[tone])}>
         <Icon className="size-4" />
       </span>
       <span className="min-w-0">
-        <strong className="block text-[22px] leading-none tabular-nums">{value}</strong>
+        <strong className="block text-[20px] leading-none tabular-nums">{value}</strong>
         <span className="mt-1 block truncate text-[10.5px] font-bold text-muted-foreground uppercase">
           {label}
         </span>
@@ -419,7 +419,7 @@ function Segmented({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center overflow-x-auto rounded-lg bg-muted p-1">
+    <div className="flex min-w-0 items-center overflow-x-auto rounded-lg bg-muted p-0.5">
       {options.map((option) => (
         <button
           key={option}
@@ -427,7 +427,7 @@ function Segmented({
           onClick={() => onChange(option)}
           aria-pressed={value === option}
           className={cn(
-            "shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold",
+            "shrink-0 rounded-md px-2.5 py-1 text-[11.5px] font-semibold",
             value === option
               ? "bg-card text-foreground shadow-[var(--shadow-card)]"
               : "text-muted-foreground",

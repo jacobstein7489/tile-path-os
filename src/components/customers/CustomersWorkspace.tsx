@@ -86,22 +86,22 @@ export function CustomersWorkspace() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 md:px-7">
-      <section className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-raised)]">
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/60 to-card px-4 py-5 sm:px-6">
+    <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 md:px-6">
+      <section className="mt-4 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-raised)]">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/60 to-card px-4 py-3.5 sm:px-5">
           <div className="min-w-0">
             <p className="v2-kicker">Customer operations</p>
-            <h1 className="mt-1 truncate text-[27px] font-bold md:text-[34px]">Customers</h1>
+            <h1 className="mt-1 truncate text-[22px] font-bold md:text-[27px]">Customers</h1>
             <p className="mt-1 text-[12px] text-muted-foreground">
               {records.length} customer relationships · projects, people and actions together
             </p>
           </div>
-          <span className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
+          <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
             <ContactRound className="size-5" />
           </span>
         </header>
         <div className="bg-muted/30 p-3 sm:px-4">
-          <label className="flex h-10 max-w-xl items-center gap-2 rounded-lg border border-border bg-card px-3">
+          <label className="flex h-8 max-w-xl items-center gap-2 rounded-lg border border-border bg-card px-3">
             <Search className="size-4 text-muted-foreground" />
             <input
               value={query}
@@ -112,7 +112,7 @@ export function CustomersWorkspace() {
           </label>
         </div>
       </section>
-      <section className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+      <section className="mt-3 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]">
         {isLoading ? (
           <Quiet>Loading customers…</Quiet>
         ) : visible.length ? (
@@ -121,29 +121,29 @@ export function CustomersWorkspace() {
               key={record.company.id}
               type="button"
               onClick={() => setCustomer(record.company)}
-              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border/70 px-4 py-4 text-left last:border-0 hover:bg-primary-soft/30 sm:px-6"
+              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border/70 px-4 py-2.5 text-left last:border-0 hover:bg-primary-soft/30 sm:px-5"
             >
-              <span className="flex min-w-0 items-center gap-3.5">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary-soft text-primary">
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-primary/15 bg-primary-soft text-primary">
                   <Building2 className="size-5" />
                 </span>
                 <span className="min-w-0">
-                  <strong className="block truncate text-[17px] sm:text-[19px]">
+                  <strong className="block truncate text-[15px] sm:text-[16px]">
                     {record.company.name}
                   </strong>
                   <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
                     {record.contacts[0]?.full_name ?? "No primary contact"}
                     {record.current ? ` · Current: ${record.current.name}` : ""}
                   </span>
-                  <span className="mt-2 flex flex-wrap gap-2 text-[10.5px] font-bold">
-                    <span className="rounded-full bg-info-soft px-2 py-1 text-info">
+                  <span className="mt-1.5 flex flex-wrap gap-2 text-[10.5px] font-bold">
+                    <span className="rounded-full bg-info-soft px-2 py-0.5 text-info">
                       {record.active.length} active
                     </span>
-                    <span className="rounded-full bg-neutral-chip px-2 py-1 text-secondary-foreground">
+                    <span className="rounded-full bg-neutral-chip px-2 py-0.5 text-secondary-foreground">
                       {record.complete.length} complete
                     </span>
                     {record.open.length ? (
-                      <span className="rounded-full bg-warning-soft px-2 py-1 text-warning">
+                      <span className="rounded-full bg-warning-soft px-2 py-0.5 text-warning">
                         {record.open.length} open actions
                       </span>
                     ) : null}
@@ -210,28 +210,28 @@ export function CustomerQuickViewDialog({
       description="Customer operating workspace"
       bodyClassName="overflow-hidden"
     >
-      <div className="flex max-h-[85dvh] min-h-[560px] flex-col bg-canvas">
-        <header className="shrink-0 border-b border-border bg-card px-4 pt-5 sm:px-6">
+      <div className="flex max-h-[80dvh] min-h-[480px] flex-col bg-canvas">
+        <header className="shrink-0 border-b border-border bg-card px-4 pt-3.5 sm:px-5">
           <div className="flex items-start gap-3">
-            <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
               <Building2 className="size-5" />
             </span>
             <div className="min-w-0">
               <p className="v2-kicker">Customer</p>
-              <h2 className="truncate text-[24px] font-bold">{company.name}</h2>
+              <h2 className="truncate text-[22px] font-bold">{company.name}</h2>
               <p className="mt-1 truncate text-[12px] text-muted-foreground">
                 {company.address ?? "Address not set"}
               </p>
             </div>
           </div>
-          <nav className="mt-4 flex gap-1 overflow-x-auto">
+          <nav className="mt-3 flex gap-1 overflow-x-auto">
             {(["Overview", "Projects", "Contacts", "Open Actions"] as Tab[]).map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setTab(value)}
                 className={cn(
-                  "shrink-0 border-b-2 px-3 py-2.5 text-[12px] font-bold",
+                  "shrink-0 border-b-2 px-3 py-2 text-[11.5px] font-bold",
                   tab === value
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground",
@@ -242,7 +242,7 @@ export function CustomerQuickViewDialog({
             ))}
           </nav>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
           {tab === "Overview" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <CustomerPanel title="Relationship">
@@ -264,7 +264,7 @@ export function CustomerQuickViewDialog({
                 <Fact icon={MapPin} label="Address" value={company.address ?? "Not set"} />
               </CustomerPanel>
               <CustomerPanel title="Current operations">
-                <strong className="block text-[34px] text-primary">{record.active.length}</strong>
+                <strong className="block text-[24px] text-primary">{record.active.length}</strong>
                 <p className="text-[12px] text-muted-foreground">
                   active projects · {record.open.length} open actions
                 </p>
@@ -272,7 +272,7 @@ export function CustomerQuickViewDialog({
                   <button
                     type="button"
                     onClick={() => onProject(record.current as Project)}
-                    className="mt-4 flex w-full items-center justify-between rounded-xl bg-primary-soft p-3 text-left"
+                    className="mt-4 flex w-full items-center justify-between rounded-lg bg-primary-soft p-2.5 text-left"
                   >
                     <span>
                       <strong className="block text-[13px]">{record.current.name}</strong>
@@ -365,9 +365,9 @@ function customerRows(
 }
 function CustomerPanel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-      <h3 className="px-4 py-3 text-[13px] font-bold">{title}</h3>
-      <div className="border-t border-border p-3">{children}</div>
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]">
+      <h3 className="px-3.5 py-2.5 text-[13px] font-bold">{title}</h3>
+      <div className="border-t border-border p-2.5">{children}</div>
     </section>
   );
 }
@@ -383,5 +383,5 @@ function Fact({ icon: Icon, label, value }: { icon: typeof Phone; label: string;
   );
 }
 function Quiet({ children }: { children: React.ReactNode }) {
-  return <div className="px-5 py-14 text-center text-[13px] text-muted-foreground">{children}</div>;
+  return <div className="px-5 py-10 text-center text-[13px] text-muted-foreground">{children}</div>;
 }

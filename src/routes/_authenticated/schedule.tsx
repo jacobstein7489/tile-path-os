@@ -171,12 +171,12 @@ function SchedulePage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
-      <main className="mx-auto w-full max-w-[1480px] px-4 pb-28 md:px-7 md:pb-12">
-        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-          <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+      <main className="mx-auto w-full max-w-[1480px] px-4 pb-28 md:px-6 md:pb-10">
+        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
             <div className="min-w-0">
               <p className="v2-kicker mb-1">Crew-first scheduling</p>
-              <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+              <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
                 Schedule &amp; Crews
               </h1>
               <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
@@ -194,7 +194,7 @@ function SchedulePage() {
                 </span>
               </p>
             </div>
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5 shadow-[var(--shadow-card)]">
               {(["Today", "Week", "Month"] as View[]).map((value) => (
                 <button
                   key={value}
@@ -205,7 +205,7 @@ function SchedulePage() {
                   }}
                   aria-pressed={view === value}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition-colors",
+                    "h-8 rounded-md px-3 text-[11.5px] font-bold transition-colors",
                     view === value
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-primary-soft/50 hover:text-foreground",
@@ -217,7 +217,7 @@ function SchedulePage() {
             </div>
           </header>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 px-3 py-2.5 md:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 px-3 py-2 md:px-4">
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -269,7 +269,7 @@ function SchedulePage() {
 
         <div
           className={cn(
-            "mt-4 gap-4 md:grid md:grid-cols-[280px_minmax(0,1fr)]",
+            "mt-3 gap-3 md:grid md:grid-cols-[240px_minmax(0,1fr)]",
             view !== "Week" && "md:grid-cols-1",
           )}
         >
@@ -300,8 +300,8 @@ function SchedulePage() {
                 </div>
                 <div className="overflow-x-auto">
                   <div className="hidden min-w-[760px] md:block">
-                    <div className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
-                      <div className="px-3 py-2.5 text-[10.5px] font-bold text-muted-foreground uppercase">
+                    <div className="grid h-11 grid-cols-[112px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
+                      <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase">
                         Crew
                       </div>
                       {weekDays.map((d, i) => {
@@ -310,7 +310,7 @@ function SchedulePage() {
                           <div
                             key={iso(d)}
                             className={cn(
-                              "px-2 py-2.5 text-center",
+                              "px-2 py-1.5 text-center",
                               isToday && "bg-primary-soft/60",
                             )}
                           >
@@ -325,10 +325,10 @@ function SchedulePage() {
                     {crews.map((crew) => (
                       <div
                         key={crew.id}
-                        className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
+                        className="grid min-h-[54px] grid-cols-[112px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
                       >
-                        <div className="flex items-center gap-2 px-3 py-3">
-                          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-chip text-[10.5px] font-bold text-secondary-foreground">
+                        <div className="flex items-center gap-2 px-2 py-2">
+                          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-neutral-chip text-[10px] font-bold text-secondary-foreground">
                             {crew.initials}
                           </span>
                           <span className="min-w-0 truncate text-[12.5px] font-bold">
@@ -344,7 +344,7 @@ function SchedulePage() {
                             <div
                               key={day}
                               className={cn(
-                                "min-h-[74px] border-l border-border/60 p-1.5 align-top",
+                                "min-h-[54px] border-l border-border/60 p-1 align-top",
                                 day === todayIsoDate && "bg-primary-soft/25",
                               )}
                             >
@@ -365,7 +365,7 @@ function SchedulePage() {
                                     key={a.id}
                                     onClick={() => setSelectedProject(p)}
                                     className={cn(
-                                      "mb-1.5 block rounded-lg border px-2 py-1.5 transition-shadow hover:shadow-[var(--shadow-card)]",
+                                      "mb-1 block rounded-md border px-1.5 py-1 transition-shadow hover:shadow-[var(--shadow-card)]",
                                       tone,
                                     )}
                                   >
@@ -586,9 +586,9 @@ function ReadyQueue({
 }) {
   return (
     <aside
-      className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-270px)]", className)}
+      className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-220px)]", className)}
     >
-      <div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-3 py-2.5">
         <Users className="size-4 text-warning" />
         <div>
           <h2 className="text-[13px] font-bold">Ready to schedule</h2>
@@ -602,7 +602,7 @@ function ReadyQueue({
             return (
               <article
                 key={project.id}
-                className="mb-2 rounded-xl border border-border bg-card p-3 last:mb-0"
+                className="mb-1.5 rounded-lg border border-border bg-card p-2.5 last:mb-0"
               >
                 <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
                   <strong className="block truncate text-[13px]">{project.name}</strong>
@@ -616,7 +616,7 @@ function ReadyQueue({
                 <Button
                   size="sm"
                   variant="primary"
-                  className="mt-3 w-full"
+                  className="mt-2 h-7 w-full text-[11.5px]"
                   onClick={() => onAssign(project, label.kind)}
                 >
                   <Plus className="size-3.5" /> Assign crew
@@ -791,15 +791,15 @@ function AssignModal({
       title={`Schedule ${project.name}`}
       description="Choose the crew, day, and visit type for this ready project."
     >
-      <div className="bg-canvas p-4 sm:p-6">
-        <div className="rounded-xl border border-primary/15 bg-primary-soft/45 p-4">
+      <div className="bg-canvas p-3.5 sm:p-4">
+        <div className="rounded-lg border border-primary/15 bg-primary-soft/45 p-3">
           <p className="text-[10px] font-bold text-primary uppercase">Assignment context</p>
           <p className="mt-1 text-[15px] font-bold">{project.name}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">
             {project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}
           </p>
         </div>
-        <div className="mt-4 space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="mt-3 space-y-3 rounded-lg border border-border bg-card p-3.5">
           <Field label="Crew">
             <Select
               value={values.crew_id}

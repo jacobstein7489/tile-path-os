@@ -77,7 +77,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
       onClose={onClose}
       title="Approved Job Setup"
       subtitle="Create the operating record and start office setup."
-      width="max-w-[760px]"
+      width="max-w-[700px]"
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
@@ -93,8 +93,8 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
         </>
       }
     >
-      <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-3 rounded-xl border border-primary/20 bg-primary-soft/55 p-3.5">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
+      <div className="grid grid-cols-[36px_minmax(0,1fr)] gap-3 rounded-lg border border-primary/20 bg-primary-soft/55 p-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
           <FolderCheck className="size-5" />
         </span>
         <InfoBanner>
@@ -136,7 +136,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
         </Field>
       </div>
 
-      <div className="grid gap-3.5 rounded-xl border border-border bg-muted/25 p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-lg border border-border bg-muted/25 p-3.5 sm:grid-cols-2">
         <Field label="Jobsite address" hint="Optional">
           <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
         </Field>

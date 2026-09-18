@@ -61,10 +61,10 @@ export function ProjectQuickViewDialog({
       description="Project operating workspace"
       bodyClassName="overflow-hidden"
     >
-      <div className="flex h-[calc(100dvh-0.5rem)] max-h-[85dvh] flex-col bg-canvas sm:h-[min(720px,85dvh)]">
+      <div className="flex h-[calc(100dvh-0.5rem)] max-h-[80dvh] flex-col bg-canvas sm:h-[min(650px,80dvh)]">
         {workItem ? (
           <>
-            <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
+            <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
               <Button size="sm" onClick={backToProject}>
                 <ArrowLeft className="size-4" /> Back to project
               </Button>
@@ -72,7 +72,7 @@ export function ProjectQuickViewDialog({
                 {job.project.name}
               </span>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3.5">
               <WorkItemPanel item={workItem} compact />
             </div>
           </>
@@ -131,12 +131,12 @@ function ProjectView({
   );
   return (
     <>
-      <header className="shrink-0 border-b border-border bg-card px-4 pt-4 sm:px-6">
+      <header className="shrink-0 border-b border-border bg-card px-4 pt-3 sm:px-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="mb-3 inline-flex items-center gap-1 text-[11.5px] font-bold text-primary"
+            className="mb-2 inline-flex items-center gap-1 text-[11px] font-bold text-primary"
           >
             <ArrowLeft className="size-3.5" /> {backLabel ?? "Back"}
           </button>
@@ -144,16 +144,16 @@ function ProjectView({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10.5px] font-bold text-primary">
+              <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-bold text-primary">
                 {stage}
               </span>
               {attention ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2.5 py-1 text-[10.5px] font-bold text-warning">
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-bold text-warning">
                   <AlertTriangle className="size-3" /> Attention
                 </span>
               ) : null}
             </div>
-            <h2 className="mt-2 truncate text-[23px] font-bold sm:text-[28px]">{project.name}</h2>
+            <h2 className="mt-1.5 truncate text-[21px] font-bold sm:text-[23px]">{project.name}</h2>
             <button
               type="button"
               disabled={!project.customer_company_id || !onOpenCustomer}
@@ -174,7 +174,7 @@ function ProjectView({
             </Button>
           </Link>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-border pt-2.5">
           <HeaderFact icon={Layers3} label="Readiness" value={`${project.readiness_pct ?? 0}%`} />
           <HeaderFact
             icon={Hammer}
@@ -192,7 +192,7 @@ function ProjectView({
             value={upcoming ? formatDate(upcoming.work_date) : "Not scheduled"}
           />
         </div>
-        <nav className="mt-4 flex gap-1 overflow-x-auto">
+        <nav className="mt-2.5 flex gap-1 overflow-x-auto">
           {(["Overview", "Actions", "Rooms / Readiness", "Schedule / Activity"] as Tab[]).map(
             (value) => (
               <button
@@ -200,7 +200,7 @@ function ProjectView({
                 type="button"
                 onClick={() => setTab(value)}
                 className={cn(
-                  "shrink-0 border-b-2 px-3 py-2.5 text-[12px] font-bold",
+                  "h-8 shrink-0 border-b-2 px-3 text-[11.5px] font-bold",
                   tab === value
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground",
@@ -213,27 +213,27 @@ function ProjectView({
           )}
         </nav>
       </header>
-      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
         {tab === "Overview" ? (
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
-            <section className="rounded-xl border border-primary/20 bg-primary-soft p-5 shadow-[var(--shadow-card)]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(250px,.8fr)]">
+            <section className="rounded-lg border border-primary/20 bg-primary-soft p-4 shadow-[var(--shadow-card)]">
               <p className="v2-kicker !text-primary">Next move</p>
-              <h3 className="mt-2 text-[21px] font-bold">
+              <h3 className="mt-1.5 text-[17px] font-bold">
                 {next?.title ?? project.next_move ?? "Review current project work"}
               </h3>
-              <p className="mt-2 text-[12.5px] leading-5 text-muted-foreground">
+              <p className="mt-1.5 text-[12px] leading-5 text-muted-foreground">
                 {next?.next_action ??
                   attention ??
                   project.readiness_note ??
                   `${work.length} open actions`}
               </p>
               {next ? (
-                <Button variant="primary" className="mt-5" onClick={() => onWork(next)}>
+                <Button variant="primary" size="sm" className="mt-3" onClick={() => onWork(next)}>
                   Open action <ArrowRight className="size-4" />
                 </Button>
               ) : null}
             </section>
-            <section className="workspace-panel p-4">
+            <section className="workspace-panel px-4 py-3">
               <p className="v2-kicker">Operating context</p>
               <Fact
                 label="Readiness reason"
@@ -270,7 +270,7 @@ function ProjectView({
                       key={item.id}
                       type="button"
                       onClick={() => onWork(item)}
-                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-3 text-left hover:bg-primary-soft/35"
+                      className="grid min-h-[54px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-2 text-left hover:bg-primary-soft/35"
                     >
                       <span className="min-w-0">
                         <strong className="block truncate text-[13.5px]">{item.title}</strong>
@@ -309,7 +309,10 @@ function ProjectView({
             <Panel title="Readiness blockers">
               {setup.blockers.length ? (
                 setup.blockers.map((item) => (
-                  <div key={item.id} className="border-t border-border px-4 py-3 first:border-t-0">
+                  <div
+                    key={item.id}
+                    className="border-t border-border px-4 py-2.5 first:border-t-0"
+                  >
                     <strong className="block text-[12.5px]">{item.label}</strong>
                     <span className="text-[11px] text-muted-foreground">{item.detail}</span>
                   </div>
@@ -333,7 +336,7 @@ function ProjectView({
               )}
             </Panel>
             <Panel title="Latest activity">
-              <p className="p-4 text-[12.5px] leading-5">
+              <p className="p-3.5 text-[12px] leading-5">
                 {latestReport?.progress_note ?? "No field update has been submitted."}
               </p>
             </Panel>
@@ -354,26 +357,29 @@ function HeaderFact({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-border bg-background/70 p-3">
-      <p className="flex items-center gap-1 text-[9.5px] font-bold text-muted-foreground uppercase">
-        <Icon className="size-3" /> {label}
-      </p>
-      <p className="mt-1 truncate text-[12.5px] font-bold">{value}</p>
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+        <Icon className="size-3.5" />
+      </span>
+      <span className="min-w-0">
+        <p className="text-[9.5px] font-bold text-muted-foreground uppercase">{label}</p>
+        <p className="truncate text-[11.5px] font-bold">{value}</p>
+      </span>
     </div>
   );
 }
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-border py-3 last:border-0">
+    <div className="border-b border-border py-2 last:border-0">
       <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
-      <p className="mt-1 text-[12.5px] leading-5">{value}</p>
+      <p className="mt-0.5 text-[12px] leading-5">{value}</p>
     </div>
   );
 }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="workspace-panel overflow-hidden">
-      <h3 className="px-4 py-3 text-[13px] font-bold">{title}</h3>
+      <h3 className="px-4 py-2.5 text-[13px] font-bold">{title}</h3>
       <div className="border-t border-border">{children}</div>
     </section>
   );
@@ -382,8 +388,8 @@ function QuickFacts({ values }: { values: [string, number][] }) {
   return (
     <div className="grid grid-cols-2 gap-px bg-border">
       {values.map(([label, value]) => (
-        <div key={label} className="bg-card p-4">
-          <strong className="block text-[21px]">{value}</strong>
+        <div key={label} className="bg-card p-3">
+          <strong className="block text-[18px]">{value}</strong>
           <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
         </div>
       ))}

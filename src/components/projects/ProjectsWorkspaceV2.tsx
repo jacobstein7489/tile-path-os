@@ -79,12 +79,12 @@ export function ProjectsWorkspaceV2({
   });
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-7 md:pb-10">
-      <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+    <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-6 md:pb-10">
+      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
           <div className="min-w-0">
             <p className="v2-kicker mb-1">Project directory</p>
-            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+            <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
               Projects
             </h1>
             <p className="mt-1 truncate text-[12px] text-muted-foreground">
@@ -97,7 +97,7 @@ export function ProjectsWorkspaceV2({
             <span className="sm:hidden">New</span>
           </Button>
         </header>
-        <div className="grid gap-2.5 bg-muted/30 p-3 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center md:px-4">
+        <div className="grid gap-2 bg-muted/30 p-2.5 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center md:px-4">
           <label className="relative min-w-0">
             <span className="sr-only">Search projects</span>
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -105,7 +105,7 @@ export function ProjectsWorkspaceV2({
               value={search}
               onChange={(event) => onSearch(event.target.value)}
               placeholder="Search name, customer or address"
-              className="h-9 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-[12.5px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="h-8 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-[12.5px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
           </label>
           <Select
@@ -133,7 +133,7 @@ export function ProjectsWorkspaceV2({
 
       <section
         aria-label="Project portfolio"
-        className="workspace-panel mt-4 min-w-0 overflow-hidden"
+        className="workspace-panel mt-3 min-w-0 overflow-hidden"
       >
         {loading ? (
           <QueueMessage>Loading projects…</QueueMessage>
@@ -208,14 +208,14 @@ function ProjectQueueItem({
       <button
         type="button"
         onClick={onOpen}
-        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 px-4 py-4 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[minmax(240px,1.25fr)_minmax(200px,1fr)_minmax(150px,.75fr)] md:items-center md:px-6 md:pr-16"
+        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-2 px-4 py-2.5 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:min-h-[82px] md:grid-cols-[minmax(250px,1.2fr)_minmax(170px,.8fr)_minmax(230px,1fr)] md:items-center md:px-5 md:pr-14"
       >
-        <div className="flex min-w-0 items-start gap-3.5">
-          <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
-            <FolderKanban className="size-5" />
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
+            <FolderKanban className="size-4.5" />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate font-display text-[18px] font-bold md:text-[21px]">
+            <h2 className="truncate font-display text-[15px] font-bold md:text-[16px]">
               {project.name}
             </h2>
             <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
@@ -239,19 +239,19 @@ function ProjectQueueItem({
                 {project.customer}
               </span>
             ) : null}
-            <span className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground">
+            <span className="mt-1 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2 py-0.5 text-[10px] font-bold text-secondary-foreground">
               <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
               <span className="truncate">{stage}</span>
             </span>
           </div>
         </div>
 
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5">
           <MiniBar icon={Layers3} label="Readiness" value={readiness} tone="bg-warning" />
           <MiniBar icon={Hammer} label="Install" value={progress} tone="bg-info" />
         </div>
 
-        <div className="min-w-0 rounded-xl border border-border bg-background/70 px-3 py-2.5">
+        <div className="min-w-0 px-1 py-1">
           <p className="text-[9.5px] font-bold text-muted-foreground uppercase">Next move</p>
           <p
             className={cn(
@@ -261,7 +261,7 @@ function ProjectQueueItem({
           >
             {next?.title ?? project.next_move ?? "No current action"}
           </p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1 truncate">
               <UserRound className="size-3.5 shrink-0" />
               {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
@@ -273,13 +273,13 @@ function ProjectQueueItem({
             <span className="tabular-nums">{work.length} open</span>
           </p>
           {attention ? (
-            <p className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate rounded-lg bg-warning-soft px-2 py-1 text-[11px] font-semibold text-warning">
+            <p className="mt-1 inline-flex max-w-full items-center gap-1.5 truncate rounded-md bg-warning-soft px-1.5 py-0.5 text-[11px] font-semibold text-warning">
               <AlertTriangle className="size-3.5 shrink-0" />
               <span className="truncate">{attention}</span>
             </p>
           ) : null}
         </div>
-        <span className="absolute top-1/2 right-4 grid size-8 -translate-y-1/2 place-items-center rounded-lg bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary">
+        <span className="absolute top-1/2 right-4 grid size-7 -translate-y-1/2 place-items-center rounded-md bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary">
           <ChevronRight className="size-4" />
         </span>
       </button>
@@ -310,7 +310,7 @@ function MiniBar({
         </span>
         <span className="tabular-nums text-secondary-foreground">{value}%</span>
       </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-track">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-track">
         <div className={cn("h-full rounded-full", tone)} style={{ width: `${value}%` }} />
       </div>
     </div>
@@ -318,7 +318,7 @@ function MiniBar({
 }
 
 function QueueMessage({ children }: { children: ReactNode }) {
-  return <div className="px-6 py-16 text-center text-[13px] text-muted-foreground">{children}</div>;
+  return <div className="px-6 py-12 text-center text-[13px] text-muted-foreground">{children}</div>;
 }
 function formatDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {

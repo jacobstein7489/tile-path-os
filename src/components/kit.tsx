@@ -478,23 +478,23 @@ export function Modal({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         className={cn(
-          "inset-x-0 top-auto bottom-0 flex h-[calc(100dvh-0.5rem)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-card p-0 shadow-[var(--shadow-dialog)] sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[92dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
+          "inset-x-0 top-auto bottom-0 flex h-[calc(100dvh-0.5rem)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-xl border-border bg-card p-0 shadow-[var(--shadow-dialog)] sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[80dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
           width,
         )}
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         {subtitle ? <DialogDescription className="sr-only">{subtitle}</DialogDescription> : null}
-        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-[20px] font-semibold">{title}</h2>
             {subtitle ? (
               <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
         </header>
-        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3.5">{children}</div>
         {footer ? (
-          <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+          <footer className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
             {footer}
           </footer>
         ) : null}
@@ -506,7 +506,7 @@ export function Modal({
 /* ---------------- Form fields ---------------- */
 
 const fieldClass =
-  "h-9 w-full rounded-lg border border-border bg-background px-3 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25 transition-all";
+  "h-8 w-full rounded-lg border border-border bg-background px-3 text-[12.5px] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25 transition-all";
 
 export function Field({
   label,

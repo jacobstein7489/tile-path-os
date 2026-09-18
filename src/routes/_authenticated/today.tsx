@@ -77,12 +77,12 @@ function TodayPage() {
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
 
-      <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-8">
-        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+      <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-6">
+        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
             <div className="min-w-0">
               <p className="v2-kicker mb-1">Daily command center</p>
-              <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+              <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
                 {first ? `${greeting()}, ${first}` : "Today"}
               </h1>
               <p className="mt-1 truncate text-[12px] text-muted-foreground">
@@ -131,7 +131,7 @@ function TodayPage() {
           </div>
         </div>
 
-        <section className="workspace-panel mt-4 overflow-hidden">
+        <section className="workspace-panel mt-3 overflow-hidden">
           {shows("needsNow") && sections.needsNow.length ? (
             <TodaySection
               label="Needs you now"
@@ -171,7 +171,7 @@ function TodayPage() {
                   No assigned actions need attention right now.
                 </p>
               </div>
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-success-soft text-success">
                 <ListChecks className="size-4" />
               </span>
             </div>
@@ -215,15 +215,15 @@ function TodayMetric({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "grid min-h-[84px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 bg-card px-4 py-3 text-left transition-colors hover:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none",
+        "grid min-h-[56px] grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 bg-card px-3 py-2 text-left transition-colors hover:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none",
         active && "bg-primary-soft/70 hover:bg-primary-soft/70",
       )}
     >
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
+      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${tones[tone]}`}>
         <Icon className="size-4" />
       </span>
       <span className="min-w-0">
-        <strong className="block text-[24px] leading-none font-bold tabular-nums">{value}</strong>
+        <strong className="block text-[20px] leading-none font-bold tabular-nums">{value}</strong>
         <span className="mt-1 block truncate text-[11px] font-bold text-muted-foreground uppercase">
           {label}
           {active ? " · filtering" : ""}
