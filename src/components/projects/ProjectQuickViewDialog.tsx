@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type Tab = "Overview" | "Actions" | "Rooms / Readiness" | "Schedule / Activity";
 
-export function ProjectQuickViewDialog({ job, onClose, onOpenWork, backLabel, onBack, onOpenCustomer }: { job: ProjectQueueRecord | null; onClose: () => void; onOpenWork?: (item: WorkItemRow) => void; backLabel?: string; onBack?: () => void; onOpenCustomer?: (companyId: string) => void }) {
+export function ProjectQuickViewDialog({ job, onClose, onOpenWork, backLabel, onBack, onOpenCustomer }: { job: ProjectQueueRecord | null; onClose: () => void; onOpenWork?: ((item: WorkItemRow) => void) | undefined; backLabel?: string | undefined; onBack?: (() => void) | undefined; onOpenCustomer?: ((companyId: string) => void) | undefined }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [workItem, setWorkItem] = useState<WorkItemRow | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -36,7 +36,7 @@ export function ProjectQuickViewDialog({ job, onClose, onOpenWork, backLabel, on
   </CenterDialog>;
 }
 
-function ProjectView({ job, tab, setTab, onWork, onClose, backLabel, onBack, onOpenCustomer, bodyRef }: { job: ProjectQueueRecord; tab: Tab; setTab: (tab: Tab) => void; onWork: (item: WorkItemRow) => void; onClose: () => void; backLabel?: string; onBack?: () => void; onOpenCustomer?: (companyId: string) => void; bodyRef: React.RefObject<HTMLDivElement | null> }) {
+function ProjectView({ job, tab, setTab, onWork, onClose, backLabel, onBack, onOpenCustomer, bodyRef }: { job: ProjectQueueRecord; tab: Tab; setTab: (tab: Tab) => void; onWork: (item: WorkItemRow) => void; onClose: () => void; backLabel?: string | undefined; onBack?: (() => void) | undefined; onOpenCustomer?: ((companyId: string) => void) | undefined; bodyRef: React.RefObject<HTMLDivElement | null> }) {
   const setup = useProjectSetup(job.project.id);
   const { data: companies = [] } = useCompanies();
   const { data: contacts = [] } = useContacts();

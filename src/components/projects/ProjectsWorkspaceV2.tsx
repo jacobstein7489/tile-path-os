@@ -14,7 +14,6 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
 import { ProjectQuickViewDialog } from "@/components/projects/ProjectQuickViewDialog";
-import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { Button, Select } from "@/components/kit";
 import type { Project, ScheduleAssignment } from "@/lib/data";
 import type { FieldReport } from "@/lib/fieldreports";
@@ -65,7 +64,6 @@ export function ProjectsWorkspaceV2({
   onStatusProject: (project: Project | null) => void;
 }) {
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
-  const [selectedWork, setSelectedWork] = useState<WorkItemRow | null>(null);
   const [readiness, setReadiness] = useState<"All" | "Ready" | "Partial" | "Not ready">("All");
 
   const visible = jobs.filter((job) => {
@@ -156,12 +154,7 @@ export function ProjectsWorkspaceV2({
       <ProjectQuickViewDialog
         job={selectedJob}
         onClose={() => onSelect("")}
-        onOpenWork={(item) => {
-          onSelect("");
-          setSelectedWork(item);
-        }}
       />
-      <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
     </main>
   );
 }
