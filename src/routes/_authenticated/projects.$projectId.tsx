@@ -26,7 +26,6 @@ const MORE_TABS = [
   { label: "Materials", hint: "Tiles, finishes and install materials", to: "/projects/$projectId/tiles" as const, value: "/projects/$projectId/tiles" },
   { label: "Schedule", hint: "Crew assignments and dates", to: "/projects/$projectId/schedule" as const, value: "/projects/$projectId/schedule" },
   { label: "Field", hint: "Progress by area and visit checklist", to: "/projects/$projectId/field" as const, value: "/projects/$projectId/field" },
-  { label: "Commercial", hint: "Project commercial details", to: "/projects/$projectId/materials" as const, value: "/projects/$projectId/materials" },
 ];
 const SETUP_TOOLS = [
   { label: "Design Meeting", hint: "Resolve layout and treatment choices", to: "/projects/$projectId/design" as const, value: "/projects/$projectId/design" },

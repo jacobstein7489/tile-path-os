@@ -38,7 +38,7 @@ import { isOverdue } from "@/lib/workitems";
 type Grouping = "Action Queue" | "By Project" | "By Person";
 type Scope = "Mine" | "All";
 
-export function WorkBoard() {
+export function WorkBoard({ projectId }: { projectId?: string }) {
   const { data: items = [], isLoading } = useWorkFeed();
   const { data: profiles = [] } = useProfiles();
   const { user } = useAuthUser();
@@ -56,12 +56,17 @@ export function WorkBoard() {
   const ownerName = (item: WorkItemRow) =>
     profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ?? item.owner ?? null;
 
+  const projectItems = useMemo(
+    () => (projectId ? items.filter((item) => item.project_id === projectId) : items),
+    [items, projectId],
+  );
+
   const scoped = useMemo(
     () =>
       scope === "Mine"
-        ? items.filter((item) => isItemOwnedBy(item, user?.id, myProfile?.full_name))
-        : items,
-    [items, myProfile?.full_name, scope, user?.id],
+        ? projectItems.filter((item) => isItemOwnedBy(item, user?.id, myProfile?.full_name))
+        : projectItems,
+    [projectItems, myProfile?.full_name, scope, user?.id],
   );
 
   const counts = useMemo(() => workKpiCounts(scoped), [scoped]);
@@ -116,11 +121,13 @@ export function WorkBoard() {
       <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
           <div className="min-w-0">
-            <p className="v2-kicker mb-1">Company action queue</p>
-            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">Work</h1>
+            <p className="v2-kicker mb-1">{projectId ? "Project action queue" : "Company action queue"}</p>
+            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+              {projectId ? "Project Work" : "Work"}
+            </h1>
             <p className="mt-1 truncate text-[12px] text-muted-foreground">
               {isLoading
-                ? "Loading company work…"
+                 ? `Loading ${projectId ? "project" : "company"} work…`
                 : showCompleted
                   ? `${visible.length} completed record${visible.length === 1 ? "" : "s"}`
                   : `${visible.length} of ${counts.Open} open shown${kpi ? ` · ${kpi} filter` : ""}`}

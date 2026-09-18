@@ -162,21 +162,12 @@ export function ProjectQuickViewDialog({
             <div className="grid gap-3 lg:grid-cols-2">
               <Panel title="Current work" detail={`${work.length} open`}>
                 {work.length ? (
-                  work
-                    .slice(0, 4)
-                    .map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
+                  work.map((item) => (
+                    <WorkLine key={item.id} item={item} onOpen={onOpenWork} />
+                  ))
                 ) : (
                   <EmptyLine text="No open work on this project." />
                 )}
-                {work.length > 4 ? (
-                  <button
-                    type="button"
-                    onClick={() => setTab("Work")}
-                    className="w-full border-t border-border px-4 py-2.5 text-left text-[12px] font-semibold text-primary hover:bg-primary-soft/40"
-                  >
-                    View all {work.length} items
-                  </button>
-                ) : null}
               </Panel>
               <Panel
                 title="Recent activity"

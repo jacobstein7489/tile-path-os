@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Building2, FolderCheck, MapPin, UserRound } from "lucide-react";
+import { FolderCheck } from "lucide-react";
 import {
   Button,
   Combobox,
