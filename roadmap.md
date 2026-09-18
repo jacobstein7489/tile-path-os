@@ -5,4 +5,4 @@
 - [x] Fix Mine matching for legacy owner-name records and preserve queue invariants
 - [x] Rebuild Projects directory, Project Quick View, and Approved Job Setup
 - [x] Strengthen project shell and Overview; remove misleading navigation
-- [ ] Verify typecheck, queue tests, diff hygiene, interactions, and mobile overflow statically
+- [x] Verify typecheck, queue tests, diff hygiene, interactions, and mobile overflow statically
