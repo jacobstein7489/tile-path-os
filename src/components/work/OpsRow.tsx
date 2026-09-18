@@ -57,10 +57,16 @@ export function OpsRow({
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
-        <span className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-lg",
-          late ? "bg-danger-soft text-danger" : waiting ? "bg-warning-soft text-warning" : "bg-info-soft text-info",
-        )}>
+        <span
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-lg",
+            late
+              ? "bg-danger-soft text-danger"
+              : waiting
+                ? "bg-warning-soft text-warning"
+                : "bg-info-soft text-info",
+          )}
+        >
           <StateIcon className="size-4" />
         </span>
         <span className="min-w-0">
@@ -79,17 +85,23 @@ export function OpsRow({
 
         <span className="flex shrink-0 items-center gap-3 text-[11.5px]">
           <span className="flex flex-col items-end gap-0.5">
-          {date ? (
-            <span
-              className={cn(
-                "tabular-nums",
-                late ? "font-semibold text-danger" : waiting ? "text-warning" : "text-secondary-foreground",
-              )}
-            >
-              {date}
-            </span>
-          ) : null}
-          {person ? <span className="max-w-[150px] truncate text-muted-foreground">{person}</span> : null}
+            {date ? (
+              <span
+                className={cn(
+                  "tabular-nums",
+                  late
+                    ? "font-semibold text-danger"
+                    : waiting
+                      ? "text-warning"
+                      : "text-secondary-foreground",
+                )}
+              >
+                {date}
+              </span>
+            ) : null}
+            {person ? (
+              <span className="max-w-[150px] truncate text-muted-foreground">{person}</span>
+            ) : null}
           </span>
           <ArrowUpRight className="hidden size-4 text-muted-foreground transition-colors group-hover:text-primary sm:block" />
         </span>

@@ -980,7 +980,9 @@ export function SummaryCard({
         active && "border-foreground/25 bg-muted/40 ring-1 ring-inset ring-foreground/10",
       )}
     >
-      <span className={cn("absolute inset-y-0 left-0 w-[3px]", active ? bar[tone] : "bg-transparent")} />
+      <span
+        className={cn("absolute inset-y-0 left-0 w-[3px]", active ? bar[tone] : "bg-transparent")}
+      />
       <span
         className={cn(
           "block text-[30px] leading-none font-bold tracking-[-0.03em] tabular-nums md:text-[34px]",

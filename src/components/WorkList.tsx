@@ -90,7 +90,8 @@ function dateChip(value: string | null, done: boolean) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tIso = tomorrow.toISOString().slice(0, 10);
-  if (!done && value < today) return { label: `Overdue · ${shortDate(value)}`, tone: "red" as const };
+  if (!done && value < today)
+    return { label: `Overdue · ${shortDate(value)}`, tone: "red" as const };
   if (value === today) return { label: "Today", tone: "blue" as const };
   if (value === tIso) return { label: "Tomorrow", tone: "blue" as const };
   return { label: shortDate(value), tone: "plain" as const };
@@ -166,7 +167,13 @@ function DoneButton({ done, onChange }: { done: boolean; onChange: (next: boolea
             : "border-border-strong bg-background text-transparent group-hover/done:border-success group-hover/done:bg-success/10 group-hover/done:text-success",
         )}
       >
-        <Check className={cn("size-3.5 transition-transform duration-150", done ? "scale-100" : "scale-90")} strokeWidth={3.2} />
+        <Check
+          className={cn(
+            "size-3.5 transition-transform duration-150",
+            done ? "scale-100" : "scale-90",
+          )}
+          strokeWidth={3.2}
+        />
       </span>
     </button>
   );
@@ -424,7 +431,8 @@ export function WorkList({
   useEffect(() => {
     if (!filterOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (filterWrap.current && !filterWrap.current.contains(e.target as Node)) setFilterOpen(false);
+      if (filterWrap.current && !filterWrap.current.contains(e.target as Node))
+        setFilterOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFilterOpen(false);
@@ -839,7 +847,9 @@ export function WorkList({
         className={cn(
           "flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-[13px] font-semibold outline-none",
           "transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/30",
-          activeFilterLabel ? "border-primary/40 bg-primary-soft text-primary" : "text-secondary-foreground",
+          activeFilterLabel
+            ? "border-primary/40 bg-primary-soft text-primary"
+            : "text-secondary-foreground",
         )}
       >
         <SlidersHorizontal className="size-4" />
@@ -881,7 +891,9 @@ export function WorkList({
           className={cn(
             "h-9 cursor-pointer rounded-md px-3 text-[13px] font-semibold outline-none",
             "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/30",
-            view === v ? "bg-primary-soft text-primary" : "text-secondary-foreground hover:bg-muted",
+            view === v
+              ? "bg-primary-soft text-primary"
+              : "text-secondary-foreground hover:bg-muted",
           )}
         >
           {v === "Grouped by Project" ? "By Project" : "By Person"}
@@ -896,17 +908,13 @@ export function WorkList({
       onClick={() => setAllCollapsed(anyExpanded)}
       className="flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-[13px] font-semibold text-secondary-foreground outline-none transition-[background-color,transform] duration-150 hover:bg-muted active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
     >
-      {anyExpanded ? (
-        <ChevronsDownUp className="size-4" />
-      ) : (
-        <ChevronsUpDown className="size-4" />
-      )}
+      {anyExpanded ? <ChevronsDownUp className="size-4" /> : <ChevronsUpDown className="size-4" />}
       {anyExpanded ? "Collapse all" : "Expand all"}
     </button>
   );
 
   return (
-      <div className="space-y-0">
+    <div className="space-y-0">
       {showSummary ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {summaryCards.map((card) => (
@@ -1016,7 +1024,12 @@ export function WorkList({
                     </span>
                   </div>
                 ) : (
-                  <div className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 bg-muted/35 px-2.5 py-2 transition-colors duration-150 hover:bg-muted/60", !isCollapsed && "border-b border-border")}>
+                  <div
+                    className={cn(
+                      "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 bg-muted/35 px-2.5 py-2 transition-colors duration-150 hover:bg-muted/60",
+                      !isCollapsed && "border-b border-border",
+                    )}
+                  >
                     <button
                       type="button"
                       aria-label={isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
@@ -1030,14 +1043,29 @@ export function WorkList({
                         <ChevronDown className="size-4" />
                       )}
                     </button>
-                    {!byPerson && key !== "unassigned" ? <Link to="/projects/$projectId" params={{ projectId: key }} className="min-w-0 rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/30"> 
+                    {!byPerson && key !== "unassigned" ? (
+                      <Link
+                        to="/projects/$projectId"
+                        params={{ projectId: key }}
+                        className="min-w-0 rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      >
                         <span className="block truncate text-[14px] font-bold">
-                        <Highlight text={group.name} query={q} />
+                          <Highlight text={group.name} query={q} />
+                        </span>
+                        <span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">
+                          {meta}
+                        </span>
+                      </Link>
+                    ) : (
+                      <span className="min-w-0 px-1 py-1">
+                        <span className="block truncate text-[15.5px] font-bold tracking-[-0.015em]">
+                          <Highlight text={group.name} query={q} />
+                        </span>
+                        <span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">
+                          {meta}
+                        </span>
                       </span>
-                      <span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">
-                        {meta}
-                      </span>
-                    </Link> : <span className="min-w-0 px-1 py-1"><span className="block truncate text-[15.5px] font-bold tracking-[-0.015em]"><Highlight text={group.name} query={q} /></span><span className="mt-0.5 block text-[12.5px] font-medium text-muted-foreground tabular-nums">{meta}</span></span>}
+                    )}
                     {!byPerson && key !== "unassigned" ? (
                       <Link
                         to="/projects/$projectId"
@@ -1059,13 +1087,19 @@ export function WorkList({
                 >
                   <div className="overflow-hidden">
                     <Body
-                      list={maxVisiblePerGroup && !expandedGroups[key] ? group.items.slice(0, maxVisiblePerGroup) : group.items}
+                      list={
+                        maxVisiblePerGroup && !expandedGroups[key]
+                          ? group.items.slice(0, maxVisiblePerGroup)
+                          : group.items
+                      }
                       withProject={byPerson || sectionsByBucket}
                     />
                     {maxVisiblePerGroup && group.items.length > maxVisiblePerGroup ? (
                       <button
                         type="button"
-                        onClick={() => setExpandedGroups((state) => ({ ...state, [key]: !state[key] }))}
+                        onClick={() =>
+                          setExpandedGroups((state) => ({ ...state, [key]: !state[key] }))
+                        }
                         className="flex min-h-11 w-full cursor-pointer items-center border-t border-border/70 px-4 text-left text-[12.5px] font-semibold text-primary transition-colors duration-150 hover:bg-primary-soft/50"
                       >
                         {expandedGroups[key] ? "Show less" : `View all ${group.items.length}`}

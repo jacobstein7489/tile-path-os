@@ -79,7 +79,9 @@ function TodayPage() {
               {profile?.full_name ? ` · ${profile.full_name}` : ""}
             </p>
           </div>
-          <Button variant="primary" onClick={() => capture()}><Plus className="size-4" /> Capture</Button>
+          <Button variant="primary" onClick={() => capture()}>
+            <Plus className="size-4" /> Capture
+          </Button>
         </div>
 
         <p className="mt-4 text-[12.5px] font-medium text-secondary-foreground">
@@ -87,9 +89,21 @@ function TodayPage() {
         </p>
 
         <section className="workspace-panel mt-5 overflow-hidden">
-          <TodaySection label="Needs you now" items={sections.needsNow} empty="Nothing is late or due today." />
-          <TodaySection label="Follow-ups due" items={sections.followUps} empty="No follow-ups are due yet." />
-          <TodaySection label="Scheduled today" items={sections.scheduledToday} empty="Nothing is scheduled for today." />
+          <TodaySection
+            label="Needs you now"
+            items={sections.needsNow}
+            empty="Nothing is late or due today."
+          />
+          <TodaySection
+            label="Follow-ups due"
+            items={sections.followUps}
+            empty="No follow-ups are due yet."
+          />
+          <TodaySection
+            label="Scheduled today"
+            items={sections.scheduledToday}
+            empty="Nothing is scheduled for today."
+          />
         </section>
       </main>
     </>
@@ -126,4 +140,3 @@ function TodaySection({
     </section>
   );
 }
-

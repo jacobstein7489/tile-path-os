@@ -24,7 +24,10 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
           "The next move, current blockers, upcoming work and readiness for this tile project.",
       },
       { property: "og:title", content: "Project Overview — Cobblestone Tile OS" },
-      { property: "og:description", content: "The next move, blockers, upcoming work and readiness." },
+      {
+        property: "og:description",
+        content: "The next move, blockers, upcoming work and readiness.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -32,7 +35,8 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
   component: ProjectOverview,
 });
 
-type SetupLink = "/projects/$projectId/scope" | "/projects/$projectId/design" | "/projects/$projectId/package";
+type SetupLink =
+  "/projects/$projectId/scope" | "/projects/$projectId/design" | "/projects/$projectId/package";
 type NextMove = { title: string; detail: string; to?: SetupLink; work?: WorkItemRow };
 
 /** A visual command center backed by the existing project operating data. */
@@ -75,7 +79,11 @@ function ProjectOverview() {
           work: urgent,
         }
       : followup
-        ? { title: followup.title, detail: `Follow up ${formatDate(followup.follow_up_on)}`, work: followup }
+        ? {
+            title: followup.title,
+            detail: `Follow up ${formatDate(followup.follow_up_on)}`,
+            work: followup,
+          }
         : upcoming[0]
           ? { title: upcoming[0].kind, detail: formatDate(upcoming[0].work_date) }
           : {
@@ -125,10 +133,17 @@ function ProjectOverview() {
 
   const nextContent = (
     <>
-      <span className="block text-[10px] font-bold tracking-[0.08em] text-primary uppercase">Next move</span>
-      <span className="mt-4 block max-w-[22ch] font-display text-[24px] leading-[1.18] font-bold md:text-[30px]">{next.title}</span>
+      <span className="block text-[10px] font-bold tracking-[0.08em] text-primary uppercase">
+        Next move
+      </span>
+      <span className="mt-4 block max-w-[22ch] font-display text-[24px] leading-[1.18] font-bold md:text-[30px]">
+        {next.title}
+      </span>
       <span className="mt-2 block text-[12.5px] text-muted-foreground">{next.detail}</span>
-      <span className="mt-7 inline-flex items-center gap-2 text-[12.5px] font-bold text-primary">{next.work ? "Open work item" : next.to ? "Continue setup" : "Review work"}<ArrowRight className="size-4" /></span>
+      <span className="mt-7 inline-flex items-center gap-2 text-[12.5px] font-bold text-primary">
+        {next.work ? "Open work item" : next.to ? "Continue setup" : "Review work"}
+        <ArrowRight className="size-4" />
+      </span>
     </>
   );
 
@@ -137,47 +152,203 @@ function ProjectOverview() {
       <div className="mx-auto w-full max-w-[1280px] px-4 pt-5 pb-24 md:px-7 md:pt-7">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Project command center</p>
+            <p className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
+              Project command center
+            </p>
             <h2 className="mt-1 font-display text-[22px] font-bold md:text-[26px]">{stage}</h2>
-            <p className="mt-1 max-w-[68ch] text-[12.5px] leading-5 text-muted-foreground">{whereWeAre}</p>
+            <p className="mt-1 max-w-[68ch] text-[12.5px] leading-5 text-muted-foreground">
+              {whereWeAre}
+            </p>
           </div>
-          <span className="rounded-full border border-border bg-card px-3 py-1.5 text-[11.5px] font-semibold shadow-card">{work.length} open item{work.length === 1 ? "" : "s"}</span>
+          <span className="rounded-full border border-border bg-card px-3 py-1.5 text-[11.5px] font-semibold shadow-card">
+            {work.length} open item{work.length === 1 ? "" : "s"}
+          </span>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
           {next.work ? (
-            <Link to="/work-item/$itemId" params={{ itemId: next.work.id }} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</Link>
+            <Link
+              to="/work-item/$itemId"
+              params={{ itemId: next.work.id }}
+              className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8"
+            >
+              {nextContent}
+            </Link>
           ) : next.to ? (
-            <Link to={next.to} params={{ projectId }} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</Link>
+            <Link
+              to={next.to}
+              params={{ projectId }}
+              className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised transition-transform hover:-translate-y-0.5 md:p-8"
+            >
+              {nextContent}
+            </Link>
           ) : (
-            <div className="min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised md:p-8">{nextContent}</div>
+            <div className="min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised md:p-8">
+              {nextContent}
+            </div>
           )}
 
           <Panel title="Readiness" icon={<Layers3 className="size-4" />} className="min-h-[218px]">
-            <p className={cn("mt-1 text-[22px] font-bold", conclusion.tone === "green" ? "text-success" : conclusion.tone === "amber" ? "text-warning" : "text-muted-foreground")}>{conclusion.label}</p>
+            <p
+              className={cn(
+                "mt-1 text-[22px] font-bold",
+                conclusion.tone === "green"
+                  ? "text-success"
+                  : conclusion.tone === "amber"
+                    ? "text-warning"
+                    : "text-muted-foreground",
+              )}
+            >
+              {conclusion.label}
+            </p>
             <div className="mt-4 space-y-3">
-              {reasons.length ? reasons.slice(0, 3).map((r) => <div key={r.category} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"><span className="truncate font-semibold">{r.category}</span><span className="text-right text-warning">{r.reason}</span></div>) : <p className="text-[12.5px] leading-5 text-muted-foreground">{evaluated ? "Every setup requirement on this job is satisfied." : "Readiness starts once rooms and surfaces exist."}</p>}
+              {reasons.length ? (
+                reasons.slice(0, 3).map((r) => (
+                  <div
+                    key={r.category}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"
+                  >
+                    <span className="truncate font-semibold">{r.category}</span>
+                    <span className="text-right text-warning">{r.reason}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[12.5px] leading-5 text-muted-foreground">
+                  {evaluated
+                    ? "Every setup requirement on this job is satisfied."
+                    : "Readiness starts once rooms and surfaces exist."}
+                </p>
+              )}
             </div>
-            <Link to="/projects/$projectId/scope" params={{ projectId }} className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary">Review readiness <ArrowRight className="size-3.5" /></Link>
+            <Link
+              to="/projects/$projectId/scope"
+              params={{ projectId }}
+              className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary"
+            >
+              Review readiness <ArrowRight className="size-3.5" />
+            </Link>
           </Panel>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="grid content-start gap-4">
-            <Panel title="Waiting / blocked" icon={<CircleAlert className="size-4" />} action={waitingAll.length > 3 ? <Link to="/projects/$projectId/tasks" params={{ projectId }}>View all {waitingAll.length}</Link> : undefined}>
-              {waiting.length ? <div className="mt-1 space-y-2">{waiting.map((item) => <Link key={item.id} to="/work-item/$itemId" params={{ itemId: item.id }} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left transition-colors hover:bg-warning-soft/70"><span className="min-w-0"><span className="block truncate text-[13px] font-bold">{item.title}</span><span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{item.waiting_on ?? "External confirmation"}</span></span>{item.follow_up_on ? <span className="text-[11px] font-semibold text-warning">{formatDate(item.follow_up_on)}</span> : null}</Link>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing currently blocking work.</p>}
+            <Panel
+              title="Waiting / blocked"
+              icon={<CircleAlert className="size-4" />}
+              action={
+                waitingAll.length > 3 ? (
+                  <Link to="/projects/$projectId/tasks" params={{ projectId }}>
+                    View all {waitingAll.length}
+                  </Link>
+                ) : undefined
+              }
+            >
+              {waiting.length ? (
+                <div className="mt-1 space-y-2">
+                  {waiting.map((item) => (
+                    <Link
+                      key={item.id}
+                      to="/work-item/$itemId"
+                      params={{ itemId: item.id }}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left transition-colors hover:bg-warning-soft/70"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-bold">{item.title}</span>
+                        <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+                          {item.waiting_on ?? "External confirmation"}
+                        </span>
+                      </span>
+                      {item.follow_up_on ? (
+                        <span className="text-[11px] font-semibold text-warning">
+                          {formatDate(item.follow_up_on)}
+                        </span>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  Nothing currently blocking work.
+                </p>
+              )}
             </Panel>
-            {roomRows.length ? <Panel title="Room readiness" icon={<Layers3 className="size-4" />}>
-              <div className="mt-1 grid gap-2 sm:grid-cols-2">{roomRows.map((room) => <Link key={room.id} to="/projects/$projectId/scope" params={{ projectId }} className="rounded-lg border border-border bg-background/50 p-3 transition-colors hover:bg-primary-soft"><span className="block truncate text-[13px] font-bold">{room.name}</span><span className={cn("mt-1 block text-[11.5px]", room.ok ? "text-success" : "text-warning")}>{room.note}</span></Link>)}</div>
-            </Panel> : null}
+            {roomRows.length ? (
+              <Panel title="Room readiness" icon={<Layers3 className="size-4" />}>
+                <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                  {roomRows.map((room) => (
+                    <Link
+                      key={room.id}
+                      to="/projects/$projectId/scope"
+                      params={{ projectId }}
+                      className="rounded-lg border border-border bg-background/50 p-3 transition-colors hover:bg-primary-soft"
+                    >
+                      <span className="block truncate text-[13px] font-bold">{room.name}</span>
+                      <span
+                        className={cn(
+                          "mt-1 block text-[11.5px]",
+                          room.ok ? "text-success" : "text-warning",
+                        )}
+                      >
+                        {room.note}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </Panel>
+            ) : null}
           </div>
 
           <div className="grid content-start gap-4">
             <Panel title="Upcoming" icon={<CalendarDays className="size-4" />}>
-              {upcoming.length ? <div className="mt-1 space-y-3">{upcoming.slice(0, 3).map((s) => <div key={s.id} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><span className="text-[11.5px] font-bold text-primary">{formatDate(s.work_date)}</span><p className="min-w-0 text-[12.5px] font-semibold">{s.kind}{s.notes ? <span className="font-normal text-muted-foreground"> · {s.notes}</span> : null}</p></div>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing scheduled yet.</p>}
+              {upcoming.length ? (
+                <div className="mt-1 space-y-3">
+                  {upcoming.slice(0, 3).map((s) => (
+                    <div key={s.id} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3">
+                      <span className="text-[11.5px] font-bold text-primary">
+                        {formatDate(s.work_date)}
+                      </span>
+                      <p className="min-w-0 text-[12.5px] font-semibold">
+                        {s.kind}
+                        {s.notes ? (
+                          <span className="font-normal text-muted-foreground"> · {s.notes}</span>
+                        ) : null}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-[13px] text-muted-foreground">Nothing scheduled yet.</p>
+              )}
             </Panel>
-            <Panel title="Latest update" icon={<Clock3 className="size-4" />} action={<Link to="/projects/$projectId/updates" params={{ projectId }}>All updates</Link>}>
-              {latest ? <><p className="mt-1 text-[11.5px] font-semibold text-muted-foreground">{formatDate(latest.report_date)}{latest.crew_label ? ` · ${latest.crew_label}` : ""}</p><p className="mt-2 text-[13px] leading-6 whitespace-pre-line">{latest.progress_note ?? "Update submitted without a progress note."}</p>{latest.blockers ? <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-[12px] text-warning">Waiting · {latest.blockers}</p> : null}</> : <p className="mt-2 text-[13px] text-muted-foreground">No daily update has been submitted.</p>}
+            <Panel
+              title="Latest update"
+              icon={<Clock3 className="size-4" />}
+              action={
+                <Link to="/projects/$projectId/updates" params={{ projectId }}>
+                  All updates
+                </Link>
+              }
+            >
+              {latest ? (
+                <>
+                  <p className="mt-1 text-[11.5px] font-semibold text-muted-foreground">
+                    {formatDate(latest.report_date)}
+                    {latest.crew_label ? ` · ${latest.crew_label}` : ""}
+                  </p>
+                  <p className="mt-2 text-[13px] leading-6 whitespace-pre-line">
+                    {latest.progress_note ?? "Update submitted without a progress note."}
+                  </p>
+                  {latest.blockers ? (
+                    <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-[12px] text-warning">
+                      Waiting · {latest.blockers}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  No daily update has been submitted.
+                </p>
+              )}
             </Panel>
           </div>
         </div>
@@ -200,9 +371,14 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-5 shadow-card md:p-6", className)}>
+    <section
+      className={cn("rounded-xl border border-border bg-card p-5 shadow-card md:p-6", className)}
+    >
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[13px] font-bold">{icon ? <span className="text-muted-foreground">{icon}</span> : null}{title}</h2>
+        <h2 className="flex items-center gap-2 text-[13px] font-bold">
+          {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+          {title}
+        </h2>
         {action ? <span className="text-[11.5px] font-bold text-primary">{action}</span> : null}
       </div>
       {children}
@@ -218,7 +394,11 @@ function stateSentence(stage: string, blocked: number, waiting: number, upcoming
       : "Setup requirements are satisfied",
   );
   if (waiting) parts.push(`${waiting} item${waiting === 1 ? "" : "s"} waiting on someone else`);
-  parts.push(upcoming ? `${upcoming} date${upcoming === 1 ? "" : "s"} on the schedule` : "nothing on the schedule yet");
+  parts.push(
+    upcoming
+      ? `${upcoming} date${upcoming === 1 ? "" : "s"} on the schedule`
+      : "nothing on the schedule yet",
+  );
   return `${parts.join(" · ")}.`;
 }
 
@@ -259,7 +439,8 @@ function affectedSurfaceSummary(
 ) {
   const surfaceIds = new Set(rows.map((row) => row.surface_id).filter(Boolean));
   const areaIds = new Set(rows.map((row) => row.area_id).filter(Boolean));
-  if (surfaceIds.size) return `${surfaceIds.size} surface${surfaceIds.size === 1 ? "" : "s"} ${suffix}`;
+  if (surfaceIds.size)
+    return `${surfaceIds.size} surface${surfaceIds.size === 1 ? "" : "s"} ${suffix}`;
   if (areaIds.size) return `${areaIds.size} room${areaIds.size === 1 ? "" : "s"} ${suffix}`;
   if (!setup.areaList.length) return "Add the first room";
   return "Project setup needs attention";
@@ -267,5 +448,8 @@ function affectedSurfaceSummary(
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "";
-  return new Date(value + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(value + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }

@@ -44,7 +44,12 @@ function WorkItemPage() {
         ) : (
           <div className="mx-auto max-w-[980px] rounded-xl border border-border bg-card p-8 text-center">
             <p className="font-semibold">This work item is no longer available.</p>
-            <Link to="/work" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Back to Work</Link>
+            <Link
+              to="/work"
+              className="mt-3 inline-block text-sm font-semibold text-primary hover:underline"
+            >
+              Back to Work
+            </Link>
           </div>
         )}
       </main>

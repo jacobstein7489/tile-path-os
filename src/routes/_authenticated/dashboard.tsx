@@ -55,7 +55,6 @@ function CompanyWorkPage() {
         emptyTitle="Nothing here"
         emptyNote="No actions match this view. Use Capture to log what came in from the field."
       />
-
     </PageShell>
   );
 }
