@@ -24,7 +24,7 @@ export function CenterDialog({
       <DialogContent
         className={cn(
           "inset-x-0 top-auto bottom-0 h-[calc(100dvh-0.5rem)] max-h-none w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-t-2xl border-border bg-card p-0 shadow-[var(--shadow-dialog)]",
-          "sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[92dvh] sm:w-[calc(100%-2rem)] sm:max-w-[1040px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
+          "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:h-auto sm:max-h-[85dvh] sm:w-[calc(100%-3rem)] sm:max-w-[980px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
           className,
         )}
       >
@@ -34,7 +34,7 @@ export function CenterDialog({
         ) : null}
         <div
           className={cn(
-            "h-full max-h-[calc(100dvh-0.5rem)] overflow-y-auto overscroll-contain sm:h-auto sm:max-h-[92dvh]",
+            "h-full max-h-[calc(100dvh-0.5rem)] overflow-y-auto overscroll-contain sm:h-auto sm:max-h-[85dvh]",
             bodyClassName,
           )}
         >

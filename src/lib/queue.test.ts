@@ -85,12 +85,14 @@ describe("action queue", () => {
 
   it("KPI filters select the records their counts promise", () => {
     const counts = workKpiCounts(all);
-    for (const kpi of ["Open", "Waiting", "Overdue", "Scheduled"] as const) {
+    for (const kpi of ["Open", "To Do", "Waiting", "Scheduled", "Needs Attention"] as const) {
       expect(all.filter((i) => matchesKpi(kpi, i)).length).toBe(counts[kpi]);
     }
-    expect(counts.Overdue).toBe(1);
+    expect(counts["Needs Attention"]).toBeGreaterThanOrEqual(1);
+    expect(counts["To Do"]).toBe(4);
     expect(counts.Waiting).toBe(1);
     expect(counts.Scheduled).toBe(1);
     expect(matchesKpi("Open", done)).toBe(false);
+    expect(matchesKpi("Needs Attention", late)).toBe(true);
   });
 });
