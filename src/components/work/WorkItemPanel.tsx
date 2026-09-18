@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check, ChevronDown, Paperclip, Star } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, ChevronDown, FileText, Paperclip, Star, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Combobox, DateField, Field, TextArea, TextInput } from "@/components/kit";
 import { VoiceField } from "@/components/VoiceField";
@@ -149,8 +149,9 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-[980px] rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-      <header className="border-b border-border px-4 py-5 sm:px-7 sm:py-6">
+    <article className="mx-auto w-full max-w-[1080px] space-y-5">
+      <header className="workspace-panel relative overflow-hidden px-4 py-5 sm:px-7 sm:py-7">
+        <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <span className="block">
           <span className="v2-kicker block">
             {item.project_id ? (
@@ -171,17 +172,18 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             {item.title}
           </span>
         </span>
-        <span className="mt-3 inline-flex flex-wrap items-center gap-3 text-[12.5px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5 font-semibold text-secondary-foreground">
+        <span className="mt-4 inline-flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-chip px-2.5 py-1 font-semibold text-secondary-foreground">
             <span className={cn("size-1.5 rounded-full", STATE_TONE[state])} />
             {state}
           </span>
-          <span>{ownerName ? `Owner ${ownerName}` : "Unassigned"}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-chip px-2.5 py-1"><UserRound className="size-3" />{ownerName ?? "Unassigned"}</span>
+          {dueDate ? <span className="inline-flex items-center gap-1.5 rounded-full bg-info-soft px-2.5 py-1 font-semibold text-info"><CalendarDays className="size-3" />{dueDate}</span> : null}
         </span>
       </header>
-      <div className="px-4 py-6 sm:px-7">
+      <div>
         <div className="space-y-6">
-          {/* Owner — the only always-visible assignment control. */}
+          <section className="workspace-panel grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
           <Field label="Owner">
             <Combobox
               options={profileOptions(profiles)}
@@ -199,9 +201,13 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
               placeholder="Unassigned"
             />
           </Field>
+          <Field label="Due date" hint="Available on any work item.">
+            <DateField value={dueDate} label="Due date" placeholder="No due date" onChange={(v) => void saveDueDate(v || null)} />
+          </Field>
+          </section>
 
           {/* ONE dominant action. */}
-          <section className="border-y border-primary/25 bg-primary-soft/35">
+          <section className="overflow-hidden rounded-xl border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-raised)]">
             {moveOpen ? (
               <div className="space-y-4 px-4 py-4">
                 <VoiceField
@@ -304,7 +310,7 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
           </section>
 
           {/* Secondary context — read-first, never a wall of controls. */}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-border pb-5 text-[13px]">
+          <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
             <div>
               <dt className="v2-kicker">Waiting on</dt>
               <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
@@ -325,22 +331,7 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             ) : null}
           </dl>
 
-          {/* Due date — always editable, on every item type and every state. */}
-          <Field
-            label="Due date"
-            hint="Set, change or clear the date this action is due. Available on any work item."
-          >
-            <div className="flex items-center gap-2">
-              <DateField
-                value={dueDate}
-                label="Due date"
-                placeholder="No due date"
-                onChange={(v) => void saveDueDate(v || null)}
-              />
-            </div>
-          </Field>
-
-          <Field label="Action">
+          <section className="workspace-panel space-y-5 p-4 sm:p-5"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground"><FileText className="size-4" /></span><div><p className="v2-kicker">Details</p><h2 className="text-[15px] font-bold">Notes and action</h2></div></div><Field label="Action">
             <TextInput
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -365,9 +356,9 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
             >
               <Paperclip className="size-4" /> Files and photos for this job
             </Link>
-          ) : null}
+          ) : null}</section>
 
-          <section className="border-t border-border">
+          <section className="workspace-panel overflow-hidden px-4 sm:px-5">
             <button
               type="button"
               onClick={() => setHistoryOpen((v) => !v)}
@@ -397,7 +388,7 @@ export function WorkItemPanel({ item }: { item: WorkItemRow | null }) {
               </ul>
             ) : null}
           </section>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+          <div className="workspace-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
             <Button
               variant="ghost"
               className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}

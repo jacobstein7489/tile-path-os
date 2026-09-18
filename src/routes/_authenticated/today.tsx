@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { AlertTriangle, CalendarCheck2, Clock3, Plus, Sparkles } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { useCapture } from "@/components/ops/CaptureProvider";
@@ -84,11 +84,21 @@ function TodayPage() {
           </Button>
         </div>
 
-        <p className="mt-4 text-[12.5px] font-medium text-secondary-foreground">
-          {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
-        </p>
+        <div className="mt-5 grid grid-cols-3 gap-2.5 md:gap-4">
+          <TodayMetric icon={AlertTriangle} label="Needs attention" value={sections.needsNow.length} tone="danger" />
+          <TodayMetric icon={Clock3} label="Follow-ups" value={sections.followUps.length} tone="warning" />
+          <TodayMetric icon={CalendarCheck2} label="Scheduled today" value={sections.scheduledToday.length} tone="info" />
+        </div>
 
-        <section className="workspace-panel mt-5 overflow-hidden">
+        <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_240px]">
+        <section className="workspace-panel overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-border bg-muted/30 px-4 py-3.5 md:px-5">
+            <div className="min-w-0">
+              <p className="v2-kicker">Your operational queue</p>
+              <p className="mt-0.5 truncate text-[13px] font-semibold text-secondary-foreground">{isLoading ? "Loading your day…" : todaySummaryLine(sections)}</p>
+            </div>
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary"><Sparkles className="size-4" /></span>
+          </div>
           <TodaySection
             label="Needs you now"
             items={sections.needsNow}
@@ -105,9 +115,19 @@ function TodayPage() {
             empty="Nothing is scheduled for today."
           />
         </section>
+        <aside className="workspace-panel hidden overflow-hidden xl:block">
+          <div className="border-b border-border px-4 py-3.5"><p className="v2-kicker">Quick action</p><h2 className="mt-1 text-[15px] font-bold">Log field activity</h2></div>
+          <div className="p-4"><p className="text-[12px] leading-relaxed text-muted-foreground">Capture a call, site update, question, or next move without leaving Today.</p><Button variant="primary" className="mt-4 w-full" onClick={() => capture()}><Plus className="size-4" /> Capture update</Button></div>
+        </aside>
+        </div>
       </main>
     </>
   );
+}
+
+function TodayMetric({ icon: Icon, label, value, tone }: { icon: typeof AlertTriangle; label: string; value: number; tone: "danger" | "warning" | "info" }) {
+  const tones = { danger: "bg-danger-soft text-danger", warning: "bg-warning-soft text-warning", info: "bg-info-soft text-info" } as const;
+  return <div className="workspace-panel grid min-h-[92px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-3 py-3 md:px-4"><span className={`grid size-9 shrink-0 place-items-center rounded-xl ${tones[tone]}`}><Icon className="size-4" /></span><span className="min-w-0"><strong className="block text-[22px] leading-none font-bold tabular-nums md:text-[26px]">{value}</strong><span className="mt-1 block truncate text-[10px] font-bold text-muted-foreground uppercase md:text-[11px]">{label}</span></span></div>;
 }
 
 function TodaySection({
