@@ -25,6 +25,7 @@ import { Route as AuthenticatedLeadsCommissionsRouteImport } from './routes/_aut
 import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as AuthenticatedWorkItemItemIdRouteImport } from './routes/_authenticated/work-item.$itemId'
 import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
 import { Route as AuthenticatedProjectsProjectIdDesignRouteImport } from './routes/_authenticated/projects.$projectId.design'
@@ -123,6 +124,12 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWorkItemItemIdRoute =
+  AuthenticatedWorkItemItemIdRouteImport.update({
+    id: '/work-item/$itemId',
+    path: '/work-item/$itemId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicQaProvisionRoute = ApiPublicQaProvisionRouteImport.update({
   id: '/api/public/qa-provision',
   path: '/api/public/qa-provision',
@@ -215,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -243,6 +251,7 @@ export interface FileRoutesByTo {
   '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
+  '/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -275,6 +284,7 @@ export interface FileRoutesById {
   '/_authenticated/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/_authenticated/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/leads/commissions'
     | '/leads/customers'
     | '/projects/$projectId'
+    | '/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/leads/'
     | '/projects/'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/work'
     | '/leads/commissions'
     | '/leads/customers'
+    | '/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/leads'
     | '/projects'
@@ -366,6 +378,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/commissions'
     | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/_authenticated/leads/'
     | '/_authenticated/projects/'
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       path: '/projects/$projectId'
       fullPath: '/projects/$projectId'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/work-item/$itemId': {
+      id: '/_authenticated/work-item/$itemId'
+      path: '/work-item/$itemId'
+      fullPath: '/work-item/$itemId'
+      preLoaderRoute: typeof AuthenticatedWorkItemItemIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/qa-provision': {
@@ -671,6 +691,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
   AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  AuthenticatedWorkItemItemIdRoute: typeof AuthenticatedWorkItemItemIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
 }
 
@@ -685,6 +706,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedProjectsProjectIdRoute:
     AuthenticatedProjectsProjectIdRouteWithChildren,
+  AuthenticatedWorkItemItemIdRoute: AuthenticatedWorkItemItemIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
 }
 

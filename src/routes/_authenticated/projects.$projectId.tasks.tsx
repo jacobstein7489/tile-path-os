@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/kit";
-import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
 import { CreateWorkItemModal } from "@/components/WorkItemDialogs";
 import {
@@ -34,12 +33,11 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/tasks"
 function ProjectTasksPage() {
   const { projectId } = Route.useParams();
   const { data: feed = [] } = useWorkFeed();
-  const [active, setActive] = useState<WorkItemRow | null>(null);
+  const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
   const projectWork = feed.filter((i) => i.project_id === projectId);
   const sorted = [...projectWork].sort(compareWorkItems);
-  const activeItem = active ? (sorted.find((i) => i.id === active.id) ?? active) : null;
 
   return (
     <section>
@@ -57,8 +55,8 @@ function ProjectTasksPage() {
       </div>
       <WorkList
         items={projectWork}
-        onOpen={setActive}
-        selectedId={active?.id ?? null}
+        onOpen={(item) => void navigate({ to: "/work-item/$itemId", params: { itemId: item.id } })}
+        selectedId={null}
         filters={TODAY_FILTERS}
         matchFilter={matchesTodayFilter}
         defaultFilter="Active"
@@ -68,7 +66,6 @@ function ProjectTasksPage() {
         emptyTitle="Nothing open on this project"
         emptyNote="Use Add task or Quick Capture to log what came in from the field."
       />
-      <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
       <CreateWorkItemModal
         open={creating}
         onClose={() => setCreating(false)}

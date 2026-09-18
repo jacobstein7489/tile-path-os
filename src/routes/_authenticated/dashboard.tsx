@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageShell } from "@/components/PageShell";
-import { WorkItemDrawer } from "@/components/WorkItemDrawer";
 import { WorkList } from "@/components/WorkList";
 import { useAuthUser } from "@/hooks/useAuth";
 import {
@@ -39,18 +38,15 @@ function CompanyWorkPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
 
-  const [active, setActive] = useState<WorkItemRow | null>(null);
-
-  // The drawer always reflects the live row, so optimistic edits show instantly.
-  const activeItem = active ? (items.find((i) => i.id === active.id) ?? active) : null;
+  const navigate = useNavigate();
 
   return (
     <PageShell crumbs={[{ label: "Work" }]} title="Work">
       <WorkList
         items={items}
         isLoading={isLoading}
-        onOpen={setActive}
-        selectedId={active?.id ?? null}
+        onOpen={(item) => void navigate({ to: "/work-item/$itemId", params: { itemId: item.id } })}
+        selectedId={null}
         filters={WORK_FILTERS}
         matchFilter={(f, item) => matchesWorkFilter(f as WorkFilter, item, user?.id)}
         defaultFilter="All"
@@ -59,8 +55,6 @@ function CompanyWorkPage() {
         emptyTitle="Nothing here"
         emptyNote="No actions match this view. Use Capture to log what came in from the field."
       />
-
-      <WorkItemDrawer item={activeItem} onClose={() => setActive(null)} />
     </PageShell>
   );
 }

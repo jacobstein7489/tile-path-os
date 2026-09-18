@@ -1,4 +1,5 @@
 import { ArrowUpRight, CalendarDays, CircleAlert, Clock3, Star } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { isOverdue, isWaiting, todayIso, type WorkItemRow } from "@/lib/workitems";
 import { currentMoveState } from "@/lib/moveforward";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,6 @@ export function dateLabel(item: WorkItemRow) {
 export function OpsRow({
   item,
   selected,
-  onOpen,
   /** Quiet line beneath the action. Falsey parts are dropped. */
   context,
   /** Right-hand metadata, e.g. the owner or who we are waiting on. */
@@ -37,7 +37,6 @@ export function OpsRow({
 }: {
   item: WorkItemRow;
   selected: boolean;
-  onOpen: (item: WorkItemRow) => void;
   context?: Array<string | null | undefined>;
   person?: string | null;
 }) {
@@ -49,19 +48,25 @@ export function OpsRow({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => onOpen(item)}
+      <Link
+        to="/work-item/$itemId"
+        params={{ itemId: item.id }}
         className={cn(
           "group grid min-h-[66px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/80 px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0",
           "hover:bg-muted/55 focus-visible:bg-muted/55 focus-visible:outline-none md:px-4",
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
-        <span className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-lg",
-          late ? "bg-danger-soft text-danger" : waiting ? "bg-warning-soft text-warning" : "bg-info-soft text-info",
-        )}>
+        <span
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-lg",
+            late
+              ? "bg-danger-soft text-danger"
+              : waiting
+                ? "bg-warning-soft text-warning"
+                : "bg-info-soft text-info",
+          )}
+        >
           <StateIcon className="size-4" />
         </span>
         <span className="min-w-0">
@@ -80,21 +85,27 @@ export function OpsRow({
 
         <span className="flex shrink-0 items-center gap-3 text-[11.5px]">
           <span className="flex flex-col items-end gap-0.5">
-          {date ? (
-            <span
-              className={cn(
-                "tabular-nums",
-                late ? "font-semibold text-danger" : waiting ? "text-warning" : "text-secondary-foreground",
-              )}
-            >
-              {date}
-            </span>
-          ) : null}
-          {person ? <span className="max-w-[150px] truncate text-muted-foreground">{person}</span> : null}
+            {date ? (
+              <span
+                className={cn(
+                  "tabular-nums",
+                  late
+                    ? "font-semibold text-danger"
+                    : waiting
+                      ? "text-warning"
+                      : "text-secondary-foreground",
+                )}
+              >
+                {date}
+              </span>
+            ) : null}
+            {person ? (
+              <span className="max-w-[150px] truncate text-muted-foreground">{person}</span>
+            ) : null}
           </span>
           <ArrowUpRight className="hidden size-4 text-muted-foreground transition-colors group-hover:text-primary sm:block" />
         </span>
-      </button>
+      </Link>
     </li>
   );
 }
