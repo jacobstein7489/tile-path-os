@@ -62,7 +62,11 @@ export function todaySections(items: WorkItemRow[], today = todayIso()): TodaySe
     return isOverdue(i) || isDueToday(i) || (i.is_important && !hasFutureDate(i, today));
   });
 
+  const placed = new Set([...scheduledToday, ...followUps, ...needsNow].map((i) => i.id));
+  const nextMoves = active.filter((i) => !placed.has(i.id));
+
   return {
+    nextMoves: [...nextMoves].sort(compareWorkItems),
     // Overdue first, then due today, then the normal work sort.
     needsNow: [...needsNow].sort((a, b) => {
       const oa = isOverdue(a) ? 0 : 1;
