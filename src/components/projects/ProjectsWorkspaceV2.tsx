@@ -1,4 +1,13 @@
-import { AlertTriangle, ArrowUpRight, CalendarDays, ChevronRight, FolderKanban, Plus, Search, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CalendarDays,
+  ChevronRight,
+  FolderKanban,
+  Plus,
+  Search,
+  UserRound,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
@@ -111,7 +120,11 @@ export function ProjectsWorkspaceV2({
       {statusProject ? (
         <ProjectStatusUpdateSheet project={statusProject} onClose={() => onStatusProject(null)} />
       ) : null}
-      <ProjectQuickViewDialog job={selectedJob} onClose={() => onSelect("")} onOpenWork={(item) => setSelectedWork(item)} />
+      <ProjectQuickViewDialog
+        job={selectedJob}
+        onClose={() => onSelect("")}
+        onOpenWork={(item) => setSelectedWork(item)}
+      />
       <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
     </main>
   );
@@ -137,16 +150,21 @@ function ProjectQueueItem({
         onClick={onOpen}
         className="grid min-h-[118px] w-full min-w-0 grid-cols-[52px_minmax(0,1fr)] gap-x-4 gap-y-3 px-4 py-5 pr-14 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[52px_minmax(210px,1.15fr)_minmax(240px,1.25fr)_minmax(150px,.7fr)_110px] md:items-center md:gap-5 md:px-6 md:pr-16"
       >
-        <span className="grid size-13 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]"><FolderKanban className="size-5" /></span>
+        <span className="grid size-13 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
+          <FolderKanban className="size-5" />
+        </span>
         <div className="min-w-0">
-          <h2 className="truncate font-display text-[18px] font-bold md:text-[20px]">{project.name}</h2>
+          <h2 className="truncate font-display text-[18px] font-bold md:text-[20px]">
+            {project.name}
+          </h2>
           <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
-          <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground md:mt-1.5"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p>
+          <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground md:mt-1.5">
+            <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
+            <span className="truncate">{stage}</span>
+          </p>
         </div>
         <div className="col-span-2 min-w-0 rounded-lg border border-border bg-background/70 px-3 py-2 md:col-span-1 md:border-l-2 md:border-y-0 md:border-r-0 md:bg-transparent md:px-4 md:py-1">
-          <p className="text-[9.5px] font-bold text-muted-foreground uppercase">
-            Next move
-          </p>
+          <p className="text-[9.5px] font-bold text-muted-foreground uppercase">Next move</p>
           <p
             className={cn(
               "truncate text-[13px] font-semibold",
@@ -157,7 +175,8 @@ function ProjectQueueItem({
           </p>
         </div>
         <p className="col-span-2 flex min-w-0 items-center gap-2 truncate text-[11.5px] text-muted-foreground md:col-span-1">
-          <UserRound className="size-3.5 shrink-0" /> {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
+          <UserRound className="size-3.5 shrink-0" />{" "}
+          {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
         </p>
         <p className="col-span-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground md:col-span-1 md:justify-end">
           <CalendarDays className="size-3.5 shrink-0" />
@@ -169,7 +188,9 @@ function ProjectQueueItem({
             <span className="truncate">{attention}</span>
           </p>
         ) : null}
-        <span className="absolute top-1/2 right-4 grid size-8 -translate-y-1/2 place-items-center rounded-lg bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary"><ChevronRight className="size-4" /></span>
+        <span className="absolute top-1/2 right-4 grid size-8 -translate-y-1/2 place-items-center rounded-lg bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary">
+          <ChevronRight className="size-4" />
+        </span>
       </button>
       <div className="absolute right-2 bottom-2 md:top-1/2 md:bottom-auto md:-translate-y-1/2">
         <ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} />

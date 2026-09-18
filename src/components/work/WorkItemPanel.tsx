@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Check, ChevronDown, FileText, Paperclip, Star, UserRound } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  FileText,
+  Paperclip,
+  Star,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button, Combobox, DateField, Field, TextArea, TextInput } from "@/components/kit";
 import { VoiceField } from "@/components/VoiceField";
@@ -31,7 +40,13 @@ const STATE_TONE: Record<MoveState, string> = {
   Done: "bg-success",
 };
 
-export function WorkItemPanel({ item, compact = false }: { item: WorkItemRow | null; compact?: boolean }) {
+export function WorkItemPanel({
+  item,
+  compact = false,
+}: {
+  item: WorkItemRow | null;
+  compact?: boolean;
+}) {
   const save = useSaveWorkItem();
   const { move, undo, isPending: moving } = useMoveForward();
   const { data: events = [] } = useWorkItemEvents(item?.id ?? null);
@@ -177,241 +192,272 @@ export function WorkItemPanel({ item, compact = false }: { item: WorkItemRow | n
             <span className={cn("size-1.5 rounded-full", STATE_TONE[state])} />
             {state}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-chip px-2.5 py-1"><UserRound className="size-3" />{ownerName ?? "Unassigned"}</span>
-          {dueDate ? <span className="inline-flex items-center gap-1.5 rounded-full bg-info-soft px-2.5 py-1 font-semibold text-info"><CalendarDays className="size-3" />{dueDate}</span> : null}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-chip px-2.5 py-1">
+            <UserRound className="size-3" />
+            {ownerName ?? "Unassigned"}
+          </span>
+          {dueDate ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-info-soft px-2.5 py-1 font-semibold text-info">
+              <CalendarDays className="size-3" />
+              {dueDate}
+            </span>
+          ) : null}
         </span>
       </header>
       <div>
-        <div className={cn("space-y-6", compact && "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,.85fr)] lg:items-start lg:gap-5 lg:space-y-0")}>
+        <div
+          className={cn(
+            "space-y-6",
+            compact &&
+              "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,.85fr)] lg:items-start lg:gap-5 lg:space-y-0",
+          )}
+        >
           <div className="space-y-5">
-          <section className="workspace-panel grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
-          <Field label="Owner">
-            <Combobox
-              options={profileOptions(profiles)}
-              value={item.owner_user_id ?? null}
-              onChange={(v) =>
-                save.mutate({
-                  id: item.id,
-                  patch: {
-                    owner_user_id: v || null,
-                    owner: v ? (profiles.find((p) => p.user_id === v)?.full_name ?? null) : null,
-                  },
-                  note: "Owner changed",
-                })
-              }
-              placeholder="Unassigned"
-            />
-          </Field>
-          <Field label="Due date" hint="Available on any work item.">
-            <DateField value={dueDate} label="Due date" placeholder="No due date" onChange={(v) => void saveDueDate(v || null)} />
-          </Field>
-          </section>
+            <section className="workspace-panel grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+              <Field label="Owner">
+                <Combobox
+                  options={profileOptions(profiles)}
+                  value={item.owner_user_id ?? null}
+                  onChange={(v) =>
+                    save.mutate({
+                      id: item.id,
+                      patch: {
+                        owner_user_id: v || null,
+                        owner: v
+                          ? (profiles.find((p) => p.user_id === v)?.full_name ?? null)
+                          : null,
+                      },
+                      note: "Owner changed",
+                    })
+                  }
+                  placeholder="Unassigned"
+                />
+              </Field>
+              <Field label="Due date" hint="Available on any work item.">
+                <DateField
+                  value={dueDate}
+                  label="Due date"
+                  placeholder="No due date"
+                  onChange={(v) => void saveDueDate(v || null)}
+                />
+              </Field>
+            </section>
 
-          {/* Secondary context — read-first, never a wall of controls. */}
-          <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
-            <div>
-              <dt className="v2-kicker">Waiting on</dt>
-              <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="v2-kicker">Follow up</dt>
-              <dd className="mt-1 font-medium">{item.follow_up_on ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="v2-kicker">Type</dt>
-              <dd className="mt-1 font-medium">{item.item_type}</dd>
-            </div>
-            {item.next_action ? (
-              <div className="col-span-2">
-                <dt className="v2-kicker">Next action</dt>
-                <dd className="mt-1 font-medium">{item.next_action}</dd>
+            {/* Secondary context — read-first, never a wall of controls. */}
+            <dl className="workspace-panel grid grid-cols-2 gap-x-4 gap-y-4 p-4 text-[13px] sm:p-5">
+              <div>
+                <dt className="v2-kicker">Waiting on</dt>
+                <dd className="mt-1 font-medium">{item.waiting_on ?? "—"}</dd>
               </div>
-            ) : null}
-          </dl>
+              <div>
+                <dt className="v2-kicker">Follow up</dt>
+                <dd className="mt-1 font-medium">{item.follow_up_on ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="v2-kicker">Type</dt>
+                <dd className="mt-1 font-medium">{item.item_type}</dd>
+              </div>
+              {item.next_action ? (
+                <div className="col-span-2">
+                  <dt className="v2-kicker">Next action</dt>
+                  <dd className="mt-1 font-medium">{item.next_action}</dd>
+                </div>
+              ) : null}
+            </dl>
           </div>
 
           <div className="space-y-5">
+            {/* ONE dominant action. */}
+            <section className="overflow-hidden rounded-xl border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-raised)]">
+              {moveOpen ? (
+                <div className="space-y-4 px-4 py-4">
+                  <VoiceField
+                    label="What happened?"
+                    value={note}
+                    onChange={setNote}
+                    placeholder="Spoke with Millie. Material expected Monday."
+                    rows={3}
+                  />
+                  <div>
+                    <p className="mb-2 text-[12px] font-semibold text-secondary-foreground">
+                      What happens next?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {MOVE_STATES.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setNext(s)}
+                          aria-pressed={next === s}
+                          className={
+                            next === s
+                              ? "min-h-11 cursor-pointer rounded-lg bg-foreground px-3 text-[13px] font-semibold text-background"
+                              : "min-h-11 cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:bg-muted"
+                          }
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* ONE dominant action. */}
-          <section className="overflow-hidden rounded-xl border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-raised)]">
-            {moveOpen ? (
-              <div className="space-y-4 px-4 py-4">
-                <VoiceField
-                  label="What happened?"
-                  value={note}
-                  onChange={setNote}
-                  placeholder="Spoke with Millie. Material expected Monday."
-                  rows={3}
-                />
-                <div>
-                  <p className="mb-2 text-[12px] font-semibold text-secondary-foreground">
-                    What happens next?
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MOVE_STATES.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setNext(s)}
-                        aria-pressed={next === s}
-                        className={
-                          next === s
-                            ? "min-h-11 cursor-pointer rounded-lg bg-foreground px-3 text-[13px] font-semibold text-background"
-                            : "min-h-11 cursor-pointer rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-secondary-foreground transition-colors hover:bg-muted"
-                        }
-                      >
-                        {s}
-                      </button>
-                    ))}
+                  {next === "Waiting" ? (
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                      <Field label="Waiting on">
+                        <Combobox
+                          options={waitingOptions}
+                          value={waitingOn || null}
+                          onChange={(v) => setWaitingOn(v ?? "")}
+                          onCreate={(label) => setWaitingOn(label)}
+                          createLabel="Use"
+                          placeholder="Person, vendor or trade"
+                        />
+                      </Field>
+                      <Field label="Follow up on">
+                        <DateField
+                          value={followUpOn || null}
+                          label="Follow up on"
+                          placeholder="Pick a date"
+                          onChange={(v) => setFollowUpOn(v ?? "")}
+                        />
+                      </Field>
+                    </div>
+                  ) : null}
+
+                  {next === "Scheduled" ? (
+                    <Field
+                      label="Scheduled for"
+                      hint="Stored on this item's date — crew scheduling stays on the Schedule screen."
+                    >
+                      <DateField
+                        value={scheduledFor || null}
+                        label="Scheduled for"
+                        placeholder="Pick a date"
+                        onChange={(v) => setScheduledFor(v ?? "")}
+                      />
+                    </Field>
+                  ) : null}
+
+                  <div className="flex items-center gap-2">
+                    <Button variant="primary" onClick={() => void runMove()} loading={moving}>
+                      {next === "Done" ? "Complete" : `Move to ${next}`}
+                    </Button>
+                    <Button onClick={() => setMoveOpen(false)}>Cancel</Button>
                   </div>
                 </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={() => setMoveOpen(true)}
+                  className="h-auto w-full justify-between rounded-none px-4 py-5 text-left hover:bg-primary-soft/60"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+                      {done ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
+                    </span>
+                    <span>
+                      <span className="v2-kicker block !text-primary">Primary action</span>
+                      <span className="mt-1 block text-[16px] font-bold text-foreground">
+                        Move forward
+                      </span>
+                      <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
+                        Record what happened and decide what comes next
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-primary">→</span>
+                </Button>
+              )}
+            </section>
 
-                {next === "Waiting" ? (
-                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                    <Field label="Waiting on">
-                      <Combobox
-                        options={waitingOptions}
-                        value={waitingOn || null}
-                        onChange={(v) => setWaitingOn(v ?? "")}
-                        onCreate={(label) => setWaitingOn(label)}
-                        createLabel="Use"
-                        placeholder="Person, vendor or trade"
-                      />
-                    </Field>
-                    <Field label="Follow up on">
-                      <DateField
-                        value={followUpOn || null}
-                        label="Follow up on"
-                        placeholder="Pick a date"
-                        onChange={(v) => setFollowUpOn(v ?? "")}
-                      />
-                    </Field>
-                  </div>
-                ) : null}
-
-                {next === "Scheduled" ? (
-                  <Field
-                    label="Scheduled for"
-                    hint="Stored on this item's date — crew scheduling stays on the Schedule screen."
-                  >
-                    <DateField
-                      value={scheduledFor || null}
-                      label="Scheduled for"
-                      placeholder="Pick a date"
-                      onChange={(v) => setScheduledFor(v ?? "")}
-                    />
-                  </Field>
-                ) : null}
-
-                <div className="flex items-center gap-2">
-                  <Button variant="primary" onClick={() => void runMove()} loading={moving}>
-                    {next === "Done" ? "Complete" : `Move to ${next}`}
-                  </Button>
-                  <Button onClick={() => setMoveOpen(false)}>Cancel</Button>
+            <section className="workspace-panel space-y-5 p-4 sm:p-5">
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <FileText className="size-4" />
+                </span>
+                <div>
+                  <p className="v2-kicker">Details</p>
+                  <h2 className="text-[15px] font-bold">Notes and action</h2>
                 </div>
               </div>
-            ) : (
+              <Field label="Action">
+                <TextInput
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="h-11 text-[16px] md:text-[14px]"
+                />
+              </Field>
+
+              <Field label="Notes">
+                <TextArea
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Context, decisions, anything useful."
+                />
+              </Field>
+
+              {item.project_id ? (
+                <Link
+                  to="/projects/$projectId/files"
+                  params={{ projectId: item.project_id }}
+                  className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-[13px] font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
+                >
+                  <Paperclip className="size-4" /> Files and photos for this job
+                </Link>
+              ) : null}
+            </section>
+
+            <section className="workspace-panel overflow-hidden px-4 sm:px-5">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((v) => !v)}
+                className="flex min-h-11 w-full cursor-pointer items-center justify-between text-[12.5px] font-semibold text-secondary-foreground"
+              >
+                History {events.length ? `· ${events.length}` : ""}
+                <ChevronDown
+                  className={cn("size-4 transition-transform", historyOpen && "rotate-180")}
+                />
+              </button>
+              {historyOpen ? (
+                <ul className="space-y-3 border-t border-border py-3">
+                  {events.map((e) => (
+                    <li key={e.id} className="text-[12.5px] leading-relaxed">
+                      <span className="font-medium">{e.message}</span>
+                      <span className="text-muted-foreground">
+                        {" · "}
+                        {new Date(e.created_at).toLocaleString()}
+                        {e.actor ? ` · ${e.actor}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                  <li className="text-[12.5px] text-muted-foreground">
+                    Created {new Date(item.created_at).toLocaleDateString()}
+                    {item.created_by ? ` by ${item.created_by}` : ""}
+                  </li>
+                </ul>
+              ) : null}
+            </section>
+            <div className="workspace-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
               <Button
                 variant="ghost"
-                onClick={() => setMoveOpen(true)}
-                className="h-auto w-full justify-between rounded-none px-4 py-5 text-left hover:bg-primary-soft/60"
+                className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}
+                onClick={() =>
+                  save.mutate({
+                    id: item.id,
+                    patch: { is_important: !item.is_important },
+                    note: item.is_important ? "Unmarked important" : "Marked important",
+                  })
+                }
+                aria-pressed={Boolean(item.is_important)}
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                    {done ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
-                  </span>
-                  <span>
-                    <span className="v2-kicker block !text-primary">Primary action</span>
-                    <span className="mt-1 block text-[16px] font-bold text-foreground">
-                      Move forward
-                    </span>
-                    <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
-                      Record what happened and decide what comes next
-                    </span>
-                  </span>
-                </span>
-                <span className="text-primary">→</span>
+                <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
+                {item.is_important ? "Important" : "Mark important"}
               </Button>
-            )}
-          </section>
-
-          <section className="workspace-panel space-y-5 p-4 sm:p-5"><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground"><FileText className="size-4" /></span><div><p className="v2-kicker">Details</p><h2 className="text-[15px] font-bold">Notes and action</h2></div></div><Field label="Action">
-            <TextInput
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="h-11 text-[16px] md:text-[14px]"
-            />
-          </Field>
-
-          <Field label="Notes">
-            <TextArea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Context, decisions, anything useful."
-            />
-          </Field>
-
-          {item.project_id ? (
-            <Link
-              to="/projects/$projectId/files"
-              params={{ projectId: item.project_id }}
-              className="flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-[13px] font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted/40"
-            >
-              <Paperclip className="size-4" /> Files and photos for this job
-            </Link>
-          ) : null}</section>
-
-          <section className="workspace-panel overflow-hidden px-4 sm:px-5">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((v) => !v)}
-              className="flex min-h-11 w-full cursor-pointer items-center justify-between text-[12.5px] font-semibold text-secondary-foreground"
-            >
-              History {events.length ? `· ${events.length}` : ""}
-              <ChevronDown
-                className={cn("size-4 transition-transform", historyOpen && "rotate-180")}
-              />
-            </button>
-            {historyOpen ? (
-              <ul className="space-y-3 border-t border-border py-3">
-                {events.map((e) => (
-                  <li key={e.id} className="text-[12.5px] leading-relaxed">
-                    <span className="font-medium">{e.message}</span>
-                    <span className="text-muted-foreground">
-                      {" · "}
-                      {new Date(e.created_at).toLocaleString()}
-                      {e.actor ? ` · ${e.actor}` : ""}
-                    </span>
-                  </li>
-                ))}
-                <li className="text-[12.5px] text-muted-foreground">
-                  Created {new Date(item.created_at).toLocaleDateString()}
-                  {item.created_by ? ` by ${item.created_by}` : ""}
-                </li>
-              </ul>
-            ) : null}
-          </section>
-          <div className="workspace-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-            <Button
-              variant="ghost"
-              className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}
-              onClick={() =>
-                save.mutate({
-                  id: item.id,
-                  patch: { is_important: !item.is_important },
-                  note: item.is_important ? "Unmarked important" : "Marked important",
-                })
-              }
-              aria-pressed={Boolean(item.is_important)}
-            >
-              <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
-              {item.is_important ? "Important" : "Mark important"}
-            </Button>
-            <Button variant="primary" onClick={() => void saveDetails()} loading={save.isPending}>
-              Save details
-            </Button>
-          </div>
+              <Button variant="primary" onClick={() => void saveDetails()} loading={save.isPending}>
+                Save details
+              </Button>
+            </div>
           </div>
         </div>
       </div>

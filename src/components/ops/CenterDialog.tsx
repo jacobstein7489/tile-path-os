@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export function CenterDialog({
@@ -31,7 +26,9 @@ export function CenterDialog({
         )}
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
-        {description ? <DialogDescription className="sr-only">{description}</DialogDescription> : null}
+        {description ? (
+          <DialogDescription className="sr-only">{description}</DialogDescription>
+        ) : null}
         <div className="max-h-[92dvh] overflow-y-auto overscroll-contain">{children}</div>
       </DialogContent>
     </Dialog>

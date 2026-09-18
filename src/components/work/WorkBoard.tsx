@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck2, CheckSquare2, ChevronDown, Clock3, Plus, Search } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarCheck2,
+  CheckSquare2,
+  ChevronDown,
+  Clock3,
+  Plus,
+  Search,
+} from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { useCapture } from "@/components/ops/CaptureProvider";
@@ -50,7 +58,13 @@ export function WorkBoard() {
       if (!needle) {
         if (showCompleted) return true;
         const state = currentMoveState(i);
-        return isOverdue(i) || i.is_important || state === "Waiting" || state === "Scheduled" || Boolean(i.due_date || i.follow_up_on);
+        return (
+          isOverdue(i) ||
+          i.is_important ||
+          state === "Waiting" ||
+          state === "Scheduled" ||
+          Boolean(i.due_date || i.follow_up_on)
+        );
       }
       return [i.title, i.description, i.waiting_on, i.owner, i.category, projectLabel(i)]
         .filter(Boolean)
@@ -100,7 +114,9 @@ export function WorkBoard() {
           <p className="v2-kicker mb-1.5">Company action queue</p>
           <h1 className="truncate text-[28px] leading-tight font-bold md:text-[38px]">Work</h1>
           <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-            {isLoading ? "Loading company work…" : `${visible.length} actionable now · ${openCount} total open`}
+            {isLoading
+              ? "Loading company work…"
+              : `${visible.length} actionable now · ${openCount} total open`}
           </p>
         </div>
         <Button variant="primary" onClick={() => capture()}>
@@ -149,35 +165,65 @@ export function WorkBoard() {
         {groups.length ? (
           <div className="workspace-panel overflow-hidden">
             {groups.map((group) => {
-              const urgent = group.items.filter((item) => isOverdue(item) || item.is_important).length;
-              const isExpanded = grouping !== "By Project" || Boolean(expanded[group.key]) || Boolean(q);
+              const urgent = group.items.filter(
+                (item) => isOverdue(item) || item.is_important,
+              ).length;
+              const isExpanded =
+                grouping !== "By Project" || Boolean(expanded[group.key]) || Boolean(q);
               return (
                 <section key={group.key} className="border-b border-border last:border-b-0">
                   {grouping === "By Project" ? (
-                    <button type="button" onClick={() => setExpanded((value) => ({ ...value, [group.key]: !isExpanded }))} aria-expanded={isExpanded} className="grid min-h-[74px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-muted/25 px-4 text-left transition-colors hover:bg-primary-soft/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 md:px-5">
-                      <span className="min-w-0"><span className="block truncate text-[15px] font-bold">{group.key}</span><span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{group.items[0]?.title}{urgent ? ` · ${urgent} need attention` : ""}</span></span>
-                      <span className="flex items-center gap-3"><span className="rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-secondary-foreground shadow-[var(--shadow-card)]">{group.items.length}</span><ChevronDown className={cn("size-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} /></span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpanded((value) => ({ ...value, [group.key]: !isExpanded }))
+                      }
+                      aria-expanded={isExpanded}
+                      className="grid min-h-[74px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-muted/25 px-4 text-left transition-colors hover:bg-primary-soft/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 md:px-5"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[15px] font-bold">{group.key}</span>
+                        <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
+                          {group.items[0]?.title}
+                          {urgent ? ` · ${urgent} need attention` : ""}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className="rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-secondary-foreground shadow-[var(--shadow-card)]">
+                          {group.items.length}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "size-4 text-muted-foreground transition-transform",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      </span>
                     </button>
-                  ) : <OpsSectionHeading label={group.key} count={group.items.length} />}
-                  {isExpanded ? <ul>
-                    {group.items.map((item) => (
-                      <OpsRow
-                        key={item.id}
-                        item={item}
-                        selected={false}
-                        context={
-                          grouping === "By Project"
-                            ? [
-                                item.category ?? item.item_type,
-                                item.waiting_on ? `Waiting on ${item.waiting_on}` : null,
-                              ]
-                            : [projectLabel(item), item.category ?? null]
-                        }
-                        person={grouping === "By Project" ? ownerName(item) : null}
-                        onOpen={setSelectedItem}
-                      />
-                    ))}
-                  </ul> : null}
+                  ) : (
+                    <OpsSectionHeading label={group.key} count={group.items.length} />
+                  )}
+                  {isExpanded ? (
+                    <ul>
+                      {group.items.map((item) => (
+                        <OpsRow
+                          key={item.id}
+                          item={item}
+                          selected={false}
+                          context={
+                            grouping === "By Project"
+                              ? [
+                                  item.category ?? item.item_type,
+                                  item.waiting_on ? `Waiting on ${item.waiting_on}` : null,
+                                ]
+                              : [projectLabel(item), item.category ?? null]
+                          }
+                          person={grouping === "By Project" ? ownerName(item) : null}
+                          onOpen={setSelectedItem}
+                        />
+                      ))}
+                    </ul>
+                  ) : null}
                 </section>
               );
             })}
@@ -197,9 +243,36 @@ export function WorkBoard() {
   );
 }
 
-function WorkMetric({ icon: Icon, label, value, tone }: { icon: typeof CheckSquare2; label: string; value: number; tone: "info" | "warning" | "danger" | "success" }) {
-  const tones = { info: "bg-info-soft text-info", warning: "bg-warning-soft text-warning", danger: "bg-danger-soft text-danger", success: "bg-success-soft text-success" } as const;
-  return <div className="workspace-panel grid min-h-[88px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}><Icon className="size-4" /></span><span><strong className="block text-[24px] leading-none font-bold tabular-nums">{value}</strong><span className="mt-1 block text-[11px] font-bold text-muted-foreground uppercase">{label}</span></span></div>;
+function WorkMetric({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof CheckSquare2;
+  label: string;
+  value: number;
+  tone: "info" | "warning" | "danger" | "success";
+}) {
+  const tones = {
+    info: "bg-info-soft text-info",
+    warning: "bg-warning-soft text-warning",
+    danger: "bg-danger-soft text-danger",
+    success: "bg-success-soft text-success",
+  } as const;
+  return (
+    <div className="workspace-panel grid min-h-[88px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3">
+      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
+        <Icon className="size-4" />
+      </span>
+      <span>
+        <strong className="block text-[24px] leading-none font-bold tabular-nums">{value}</strong>
+        <span className="mt-1 block text-[11px] font-bold text-muted-foreground uppercase">
+          {label}
+        </span>
+      </span>
+    </div>
+  );
 }
 
 function Segmented({
