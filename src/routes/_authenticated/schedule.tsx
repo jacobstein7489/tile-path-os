@@ -141,7 +141,7 @@ function SchedulePage() {
     view === "Month"
       ? monthAnchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })
       : view === "Week"
-        ? `${weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+        ? `${weekDays[0]?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) ?? ""} – ${weekDays[6]?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) ?? ""}`
         : today.toLocaleDateString(undefined, {
             weekday: "long",
             month: "long",
