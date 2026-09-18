@@ -205,7 +205,7 @@ function ProjectOverview() {
             </p>
             <div className="mt-4 space-y-3">
               {reasons.length ? (
-                reasons.slice(0, 3).map((r) => (
+                reasons.map((r) => (
                   <div
                     key={r.category}
                     className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"
@@ -294,7 +294,7 @@ function ProjectOverview() {
             <Panel title="Upcoming" icon={<CalendarDays className="size-4" />}>
               {upcoming.length ? (
                 <div className="mt-1 space-y-3">
-                  {upcoming.slice(0, 3).map((s) => (
+                  {upcoming.map((s) => (
                     <div key={s.id} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3">
                       <span className="text-[11.5px] font-bold text-primary">
                         {formatDate(s.work_date)}
