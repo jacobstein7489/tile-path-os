@@ -175,7 +175,6 @@ export function ProjectsWorkspaceV2({
       {selectedCustomer ? (
         <CustomerQuickViewDialog
           company={selectedCustomer}
-          records={[]}
           onClose={() => setSelectedCustomer(null)}
           onProject={(project) => {
             setSelectedCustomer(null);

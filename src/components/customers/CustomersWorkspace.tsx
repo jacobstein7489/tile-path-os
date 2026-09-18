@@ -187,12 +187,20 @@ export function CustomerQuickViewDialog({
   onProject,
 }: {
   company: Company;
-  records: ReturnType<typeof customerRows>;
+  records?: ReturnType<typeof customerRows>;
   onClose: () => void;
   onProject: (project: Project) => void;
 }) {
+  const { data: companies = [] } = useCompanies("customer");
+  const { data: contacts = [] } = useContacts();
+  const { data: projects = [] } = useProjects();
+  const { data: work = [] } = useWorkFeed();
   const [tab, setTab] = useState<Tab>("Overview");
-  const record = records.find((item) => item.company.id === company.id);
+  const fallbackRecords = useMemo(
+    () => customerRows(companies, contacts, projects, work),
+    [companies, contacts, projects, work],
+  );
+  const record = (records ?? fallbackRecords).find((item) => item.company.id === company.id);
   if (!record) return null;
   return (
     <CenterDialog
