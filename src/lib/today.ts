@@ -20,6 +20,11 @@ export type TodaySections = {
   needsNow: WorkItemRow[];
   followUps: WorkItemRow[];
   scheduledToday: WorkItemRow[];
+  /**
+   * Fallback so the command center is never blank: every other open item this
+   * person owns, so undated work is still workable from Today.
+   */
+  nextMoves: WorkItemRow[];
 };
 
 /** The date a scheduled item is scheduled for: the item's existing date field. */
