@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck2, CheckSquare2, Clock3, Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarCheck2, CheckSquare2, ChevronDown, Clock3, Plus, Search } from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
+import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { useProfiles } from "@/lib/people";
 import { useAuthUser } from "@/hooks/useAuth";
@@ -35,6 +36,8 @@ export function WorkBoard() {
   const [scope, setScope] = useState<Scope>("All");
   const [q, setQ] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<WorkItemRow | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const ownerName = (item: WorkItemRow) =>
     profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ?? item.owner ?? null;
@@ -44,7 +47,11 @@ export function WorkBoard() {
     return items.filter((i) => {
       if (showCompleted !== isComplete(i)) return false;
       if (scope === "Mine" && i.owner_user_id !== user?.id) return false;
-      if (!needle) return true;
+      if (!needle) {
+        if (showCompleted) return true;
+        const state = currentMoveState(i);
+        return isOverdue(i) || i.is_important || state === "Waiting" || state === "Scheduled" || Boolean(i.due_date || i.follow_up_on);
+      }
       return [i.title, i.description, i.waiting_on, i.owner, i.category, projectLabel(i)]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle));
@@ -88,11 +95,12 @@ export function WorkBoard() {
 
   return (
     <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-7">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 pt-5 md:pt-7">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 pt-6 md:pt-9">
         <div className="min-w-0">
-          <h1 className="truncate text-[24px] leading-tight font-bold md:text-[30px]">Work</h1>
+          <p className="v2-kicker mb-1.5">Company action queue</p>
+          <h1 className="truncate text-[28px] leading-tight font-bold md:text-[38px]">Work</h1>
           <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-            {isLoading ? "Loading company work…" : `${openCount} open across every job`}
+            {isLoading ? "Loading company work…" : `${visible.length} actionable now · ${openCount} total open`}
           </p>
         </div>
         <Button variant="primary" onClick={() => capture()}>
@@ -141,10 +149,17 @@ export function WorkBoard() {
         {groups.length ? (
           <div className="workspace-panel overflow-hidden">
             {groups.map((group) => {
+              const urgent = group.items.filter((item) => isOverdue(item) || item.is_important).length;
+              const isExpanded = grouping !== "By Project" || Boolean(expanded[group.key]) || Boolean(q);
               return (
                 <section key={group.key} className="border-b border-border last:border-b-0">
-                  <OpsSectionHeading label={group.key} count={group.items.length} />
-                  <ul>
+                  {grouping === "By Project" ? (
+                    <button type="button" onClick={() => setExpanded((value) => ({ ...value, [group.key]: !isExpanded }))} aria-expanded={isExpanded} className="grid min-h-[74px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-muted/25 px-4 text-left transition-colors hover:bg-primary-soft/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 md:px-5">
+                      <span className="min-w-0"><span className="block truncate text-[15px] font-bold">{group.key}</span><span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{group.items[0]?.title}{urgent ? ` · ${urgent} need attention` : ""}</span></span>
+                      <span className="flex items-center gap-3"><span className="rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-secondary-foreground shadow-[var(--shadow-card)]">{group.items.length}</span><ChevronDown className={cn("size-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} /></span>
+                    </button>
+                  ) : <OpsSectionHeading label={group.key} count={group.items.length} />}
+                  {isExpanded ? <ul>
                     {group.items.map((item) => (
                       <OpsRow
                         key={item.id}
@@ -159,9 +174,10 @@ export function WorkBoard() {
                             : [projectLabel(item), item.category ?? null]
                         }
                         person={grouping === "By Project" ? ownerName(item) : null}
+                        onOpen={setSelectedItem}
                       />
                     ))}
-                  </ul>
+                  </ul> : null}
                 </section>
               );
             })}
@@ -176,6 +192,7 @@ export function WorkBoard() {
           </p>
         )}
       </div>
+      <WorkItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
     </main>
   );
 }

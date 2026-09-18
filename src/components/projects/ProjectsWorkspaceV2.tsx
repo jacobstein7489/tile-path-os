@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowUpRight, CalendarDays, ChevronRight, FolderKanban, Plus, Search, UserRound } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
@@ -55,7 +55,7 @@ export function ProjectsWorkspaceV2({
   onStatusProject: (project: Project | null) => void;
 }) {
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
-  const [selectedWork, setSelectedWork] = React.useState<WorkItemRow | null>(null);
+  const [selectedWork, setSelectedWork] = useState<WorkItemRow | null>(null);
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-7 md:pb-10">
       <header className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-4 md:grid-cols-[minmax(180px,1fr)_minmax(240px,420px)_150px_auto] md:py-5">

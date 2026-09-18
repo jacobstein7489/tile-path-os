@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CalendarCheck2, Clock3, Plus, Sparkles } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
+import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { Button } from "@/components/kit";
@@ -43,6 +44,7 @@ function TodayPage() {
   const { data: profile } = useMyProfile();
   const capture = useCapture();
   const today = todayIso();
+  const [selectedItem, setSelectedItem] = useState<WorkItemRow | null>(null);
 
   // Same work_items records as Work, narrowed to this person. Legacy rows that
   // never got an owner_user_id still match on the stored owner name.
@@ -68,10 +70,11 @@ function TodayPage() {
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
 
-      <main className="mx-auto w-full max-w-[1380px] px-4 pt-5 pb-28 md:px-7 md:pt-7">
+      <main className="mx-auto w-full max-w-[1380px] px-4 pt-6 pb-28 md:px-8 md:pt-9">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
           <div className="min-w-0">
-            <h1 className="truncate text-[24px] leading-tight font-bold md:text-[30px]">
+            <p className="v2-kicker mb-1.5">Daily command center</p>
+            <h1 className="truncate text-[28px] leading-tight font-bold md:text-[38px]">
               {first ? `${greeting()}, ${first}` : "Today"}
             </h1>
             <p className="mt-1 truncate text-[12.5px] text-muted-foreground">
@@ -84,7 +87,7 @@ function TodayPage() {
           </Button>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2.5 md:gap-4">
+        <div className="mt-7 grid grid-cols-3 gap-2.5 md:gap-4">
           <TodayMetric icon={AlertTriangle} label="Needs attention" value={sections.needsNow.length} tone="danger" />
           <TodayMetric icon={Clock3} label="Follow-ups" value={sections.followUps.length} tone="warning" />
           <TodayMetric icon={CalendarCheck2} label="Scheduled today" value={sections.scheduledToday.length} tone="info" />
@@ -102,17 +105,20 @@ function TodayPage() {
           <TodaySection
             label="Needs you now"
             items={sections.needsNow}
-            empty="Nothing is late or due today."
+             empty="Nothing is late or due today."
+             onOpen={setSelectedItem}
           />
           <TodaySection
             label="Follow-ups due"
             items={sections.followUps}
-            empty="No follow-ups are due yet."
+             empty="No follow-ups are due yet."
+             onOpen={setSelectedItem}
           />
           <TodaySection
             label="Scheduled today"
             items={sections.scheduledToday}
-            empty="Nothing is scheduled for today."
+             empty="Nothing is scheduled for today."
+             onOpen={setSelectedItem}
           />
         </section>
         <aside className="workspace-panel hidden overflow-hidden xl:block">
@@ -121,6 +127,7 @@ function TodayPage() {
         </aside>
         </div>
       </main>
+      <WorkItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
     </>
   );
 }
@@ -134,10 +141,12 @@ function TodaySection({
   label,
   items,
   empty,
+  onOpen,
 }: {
   label: string;
   items: WorkItemRow[];
   empty: string;
+  onOpen: (item: WorkItemRow) => void;
 }) {
   return (
     <section className="border-b border-border last:border-b-0">
@@ -151,6 +160,7 @@ function TodaySection({
               selected={false}
               context={[projectLabel(item), item.category ?? null]}
               person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
+              onOpen={onOpen}
             />
           ))}
         </ul>
