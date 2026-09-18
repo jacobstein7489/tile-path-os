@@ -64,7 +64,12 @@
 - [x] Verify desktop/mobile viewports and shared work panel
 
 ## Owner UX refinement pass
-- [ ] Replace Today, Work, and Projects card collections with compact single-column lists
-- [ ] Route work-item inspection and editing to a full detail page with back navigation
-- [ ] Replace fragile native Add Date interaction with a reliable calendar and verify persistence
+- [x] Replace Today, Work, and Projects card collections with compact single-column lists
+- [x] Route work-item inspection and editing to a full detail page with back navigation
+- [x] Replace fragile native Add Date interaction with a reliable calendar and verify persistence path
 - [ ] Validate Today, Work, Projects, detail navigation, and date editing at desktop and mobile sizes
+
+## Owner visual restoration
+- [x] Restore premium shell, summary cards, state anchors, and composed single-column lists
+- [x] Restore a focused full-page Work Item workspace without changing mutations
+- [ ] Verify 1440×900 and 390px screenshots, calendar opening, typecheck, and overflow

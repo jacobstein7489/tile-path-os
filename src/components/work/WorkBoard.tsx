@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarCheck2, CheckSquare2, Clock3, Plus, Search } from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { useProfiles } from "@/lib/people";
@@ -100,29 +100,21 @@ export function WorkBoard() {
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px] text-muted-foreground">
-        <span>
-          <b className="text-foreground">{openCount}</b> open
-        </span>
-        <span>
-          <b className="text-warning">{waitingCount}</b> waiting
-        </span>
-        <span>
-          <b className="text-danger">{overdueCount}</b> overdue
-        </span>
-        <span>
-          <b className="text-primary">{scheduledCount}</b> scheduled
-        </span>
+      <div className="mt-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
+        <WorkMetric icon={CheckSquare2} label="Open" value={openCount} tone="info" />
+        <WorkMetric icon={Clock3} label="Waiting" value={waitingCount} tone="warning" />
+        <WorkMetric icon={AlertTriangle} label="Overdue" value={overdueCount} tone="danger" />
+        <WorkMetric icon={CalendarCheck2} label="Scheduled" value={scheduledCount} tone="success" />
       </div>
 
-      <div className="workspace-panel sticky top-16 z-10 mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 px-3 py-2.5 backdrop-blur md:px-4">
+      <div className="workspace-panel sticky top-16 z-10 mt-5 grid gap-3 p-3 backdrop-blur sm:grid-cols-[auto_auto_minmax(180px,1fr)_auto] sm:items-center md:p-4">
         <Segmented
           options={["By Project", "By Person"]}
           value={grouping}
           onChange={(v) => setGrouping(v as Grouping)}
         />
         <Segmented options={["All", "Mine"]} value={scope} onChange={(v) => setScope(v as Scope)} />
-        <label className="flex min-w-[140px] flex-1 items-center gap-2 text-[12.5px]">
+        <label className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3 text-[12.5px] focus-within:ring-2 focus-within:ring-primary/20">
           <Search className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             value={q}
@@ -186,6 +178,11 @@ export function WorkBoard() {
       </div>
     </main>
   );
+}
+
+function WorkMetric({ icon: Icon, label, value, tone }: { icon: typeof CheckSquare2; label: string; value: number; tone: "info" | "warning" | "danger" | "success" }) {
+  const tones = { info: "bg-info-soft text-info", warning: "bg-warning-soft text-warning", danger: "bg-danger-soft text-danger", success: "bg-success-soft text-success" } as const;
+  return <div className="workspace-panel grid min-h-[88px] grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-3"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}><Icon className="size-4" /></span><span><strong className="block text-[24px] leading-none font-bold tabular-nums">{value}</strong><span className="mt-1 block text-[11px] font-bold text-muted-foreground uppercase">{label}</span></span></div>;
 }
 
 function Segmented({

@@ -1,4 +1,4 @@
-import { ArrowUpRight, CalendarDays, CircleAlert, Clock3, Star } from "lucide-react";
+import { CalendarDays, ChevronRight, CircleAlert, Clock3, Star } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { isOverdue, isWaiting, todayIso, type WorkItemRow } from "@/lib/workitems";
 import { currentMoveState } from "@/lib/moveforward";
@@ -52,26 +52,26 @@ export function OpsRow({
         to="/work-item/$itemId"
         params={{ itemId: item.id }}
         className={cn(
-          "group grid min-h-[66px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/80 px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0",
-          "hover:bg-muted/55 focus-visible:bg-muted/55 focus-visible:outline-none md:px-4",
+          "group grid min-h-[78px] w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-3 text-left transition-all duration-150 last:border-b-0",
+          "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-5",
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
         <span
           className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-lg",
+            "grid size-10 shrink-0 place-items-center rounded-xl border shadow-[var(--shadow-card)]",
             late
-              ? "bg-danger-soft text-danger"
+              ? "border-danger/15 bg-danger-soft text-danger"
               : waiting
-                ? "bg-warning-soft text-warning"
-                : "bg-info-soft text-info",
+                ? "border-warning/15 bg-warning-soft text-warning"
+                : "border-info/15 bg-info-soft text-info",
           )}
         >
           <StateIcon className="size-4" />
         </span>
         <span className="min-w-0">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="min-w-0 truncate text-[14px] leading-snug font-semibold">
+            <span className="min-w-0 truncate text-[14px] leading-snug font-bold">
               {item.title}
             </span>
             {item.is_important ? (
@@ -83,7 +83,7 @@ export function OpsRow({
           ) : null}
         </span>
 
-        <span className="flex shrink-0 items-center gap-3 text-[11.5px]">
+        <span className="flex shrink-0 items-center gap-2 text-[11.5px] sm:gap-3">
           <span className="flex flex-col items-end gap-0.5">
             {date ? (
               <span
@@ -103,7 +103,7 @@ export function OpsRow({
               <span className="max-w-[150px] truncate text-muted-foreground">{person}</span>
             ) : null}
           </span>
-          <ArrowUpRight className="hidden size-4 text-muted-foreground transition-colors group-hover:text-primary sm:block" />
+          <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
         </span>
       </Link>
     </li>

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowUpRight, CalendarDays, Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronRight, FolderKanban, Plus, Search, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
@@ -88,15 +88,6 @@ export function ProjectsWorkspaceV2({
       </header>
 
       <section aria-label="Project portfolio" className="workspace-panel min-w-0 overflow-hidden">
-        {!loading && jobs.length ? (
-          <div className="hidden grid-cols-[minmax(190px,1.2fr)_120px_minmax(220px,1.5fr)_140px_110px] gap-4 border-b border-border bg-muted/45 px-5 py-2.5 pr-12 text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase md:grid">
-            <span>Project</span>
-            <span>Stage</span>
-            <span>Next move</span>
-            <span>Crew / owner</span>
-            <span className="text-right">Relevant date</span>
-          </div>
-        ) : null}
         {loading ? (
           <QueueMessage>Loading projects…</QueueMessage>
         ) : jobs.length === 0 ? (
@@ -132,22 +123,20 @@ function ProjectQueueItem({
     [project.address, project.customer].filter(Boolean).join(" · ") || project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   return (
-    <article className="group relative min-w-0 border-b border-border last:border-b-0 transition-colors hover:bg-muted/45 focus-within:bg-primary-soft/50">
+    <article className="group relative min-w-0 border-b border-border/70 last:border-b-0 transition-all hover:bg-primary-soft/30 focus-within:bg-primary-soft/40">
       <Link
         to="/projects/$projectId"
         params={{ projectId: project.id }}
-        className="grid min-h-[76px] min-w-0 gap-2 px-4 py-3 pr-12 outline-none md:grid-cols-[minmax(190px,1.2fr)_120px_minmax(220px,1.5fr)_140px_110px] md:items-center md:gap-4 md:px-5 md:pr-12"
+        className="grid min-h-[96px] min-w-0 grid-cols-[44px_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-4 pr-12 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[44px_minmax(190px,1.15fr)_minmax(240px,1.25fr)_minmax(150px,.7fr)_110px] md:items-center md:gap-4 md:px-5 md:pr-14"
       >
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]"><FolderKanban className="size-5" /></span>
         <div className="min-w-0">
-          <h2 className="truncate font-display text-[15px] font-bold">{project.name}</h2>
+          <h2 className="truncate font-display text-[16px] font-bold">{project.name}</h2>
           <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
+          <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground md:mt-1.5"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p>
         </div>
-        <p className="flex min-w-0 items-center gap-2 truncate text-[11.5px] font-semibold">
-          <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
-          <span className="truncate">{stage}</span>
-        </p>
-        <div className="min-w-0">
-          <p className="text-[9.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase md:hidden">
+        <div className="col-span-2 min-w-0 rounded-lg border border-border bg-background/70 px-3 py-2 md:col-span-1 md:border-l-2 md:border-y-0 md:border-r-0 md:bg-transparent md:px-4 md:py-1">
+          <p className="text-[9.5px] font-bold text-muted-foreground uppercase">
             Next move
           </p>
           <p
@@ -159,20 +148,20 @@ function ProjectQueueItem({
             {next?.title ?? "No current action"}
           </p>
         </div>
-        <p className="truncate text-[11.5px] text-muted-foreground">
-          {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
+        <p className="col-span-2 flex min-w-0 items-center gap-2 truncate text-[11.5px] text-muted-foreground md:col-span-1">
+          <UserRound className="size-3.5 shrink-0" /> {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
         </p>
-        <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground md:justify-end">
+        <p className="col-span-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground md:col-span-1 md:justify-end">
           <CalendarDays className="size-3.5 shrink-0" />
           {relevantDate ? formatDate(relevantDate) : "No date"}
         </p>
         {attention ? (
-          <p className="flex min-w-0 items-center gap-1.5 truncate text-[11.5px] font-semibold text-warning md:col-span-5">
+          <p className="col-span-2 flex min-w-0 items-center gap-1.5 truncate rounded-lg bg-warning-soft px-2.5 py-1.5 text-[11.5px] font-semibold text-warning md:col-start-3 md:col-end-6">
             <AlertTriangle className="size-3.5 shrink-0" />
             <span className="truncate">{attention}</span>
           </p>
         ) : null}
-        <ArrowUpRight className="absolute top-5 right-4 size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+        <ChevronRight className="absolute top-1/2 right-4 size-4 -translate-y-1/2 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
       </Link>
       <div className="absolute right-2 bottom-2 md:top-1/2 md:bottom-auto md:-translate-y-1/2">
         <ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} />
