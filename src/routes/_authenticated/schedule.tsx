@@ -457,7 +457,16 @@ function SchedulePage() {
 
             {view === "Month" ? (
               <section className="workspace-panel overflow-hidden">
-                <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+                <div className="md:hidden">
+                  <MonthAgenda
+                    cells={monthCells}
+                    assignments={assignments}
+                    projects={projects}
+                    crews={crews}
+                    onOpen={setSelectedProject}
+                  />
+                </div>
+                <div className="hidden grid-cols-7 border-b border-border bg-muted/30 md:grid">
                   {DAY_LABELS.map((label) => (
                     <div
                       key={label}
@@ -467,7 +476,7 @@ function SchedulePage() {
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7">
+                <div className="hidden grid-cols-7 md:grid">
                   {monthCells.map((d) => {
                     const day = iso(d);
                     const inMonth = d.getMonth() === monthAnchor.getMonth();
@@ -690,6 +699,70 @@ function DayAgenda({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function MonthAgenda({
+  cells,
+  assignments,
+  projects,
+  crews,
+  onOpen,
+}: {
+  cells: Date[];
+  assignments: NonNullable<ReturnType<typeof useScheduleAssignments>["data"]>;
+  projects: Project[];
+  crews: NonNullable<ReturnType<typeof useCrews>["data"]>;
+  onOpen: (project: Project) => void;
+}) {
+  const activeDays = cells.filter((day) =>
+    assignments.some((item) => item.work_date === iso(day)),
+  );
+  return (
+    <div className="divide-y divide-border">
+      {activeDays.length ? (
+        activeDays.map((day) => {
+          const rows = assignments.filter((item) => item.work_date === iso(day));
+          return (
+            <section key={iso(day)}>
+              <div className="bg-muted/35 px-4 py-2 text-[11px] font-bold uppercase">
+                {day.toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+              <div className="p-2">
+                {rows.map((item) => {
+                  const project = projects.find((entry) => entry.id === item.project_id);
+                  if (!project) return null;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onOpen(project)}
+                      className="mb-2 flex w-full items-center justify-between rounded-xl border border-border bg-card p-3 text-left last:mb-0"
+                    >
+                      <span className="min-w-0">
+                        <strong className="block truncate text-[13px]">{project.name}</strong>
+                        <span className="text-[11px] text-muted-foreground">
+                          {crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} · {item.kind}
+                        </span>
+                      </span>
+                      <ChevronRight className="size-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })
+      ) : (
+        <p className="p-6 text-center text-[12px] text-muted-foreground">
+          Nothing scheduled this month.
+        </p>
+      )}
     </div>
   );
 }

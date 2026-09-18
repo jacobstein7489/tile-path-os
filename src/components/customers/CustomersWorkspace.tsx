@@ -158,7 +158,7 @@ export function CustomersWorkspace() {
         )}
       </section>
       {customer && !project ? (
-        <CustomerDialog
+        <CustomerQuickViewDialog
           company={customer}
           records={records}
           onClose={() => setCustomer(null)}
@@ -180,7 +180,7 @@ export function CustomersWorkspace() {
   );
 }
 
-function CustomerDialog({
+export function CustomerQuickViewDialog({
   company,
   records,
   onClose,
