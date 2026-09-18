@@ -29,9 +29,8 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * THE canonical work item panel. Desktop: right-side drawer. Phone: full-height
- * bottom sheet. Every screen (Today, Work, project work, and later Materials,
- * Field, Punch) opens this same component, so one interaction model exists.
+ * Canonical full-page work item editor. Every screen links to the same route
+ * and renders this component against the same work_items record.
  *
  * Hierarchy: title + context → owner → current state → ONE dominant Move
  * Forward action → secondary waiting/follow-up, notes, files, history.
@@ -147,6 +146,24 @@ export function WorkItemPanel({
     toast.success("Saved");
   };
 
+  const saveDueDate = async (next: string | null) => {
+    const previous = dueDate;
+    setDueDate(next);
+    setScheduledFor(next ?? "");
+    try {
+      await save.mutateAsync({
+        id: item.id,
+        patch: { due_date: next },
+        note: next ? `Due date set to ${next}` : "Due date cleared",
+      });
+      toast.success(next ? "Due date saved" : "Due date cleared");
+    } catch {
+      setDueDate(previous);
+      setScheduledFor(previous ?? "");
+      toast.error("Due date was not saved. Please try again.");
+    }
+  };
+
   return (
     <article className="mx-auto w-full max-w-[980px] rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
       <header className="border-b border-border px-4 py-5 sm:px-7 sm:py-6">
@@ -180,21 +197,6 @@ export function WorkItemPanel({
       </header>
       <div className="px-4 py-6 sm:px-7">
       <div className="space-y-6">
-          <Button
-            variant="ghost"
-            className={cn(item.is_important ? "text-warning" : "text-muted-foreground")}
-            onClick={() =>
-              save.mutate({
-                id: item.id,
-                patch: { is_important: !item.is_important },
-                note: item.is_important ? "Unmarked important" : "Marked important",
-              })
-            }
-            aria-pressed={Boolean(item.is_important)}
-          >
-            <Star className={cn("size-4", item.is_important && "fill-warning text-warning")} />
-            {item.is_important ? "Important" : "Mark important"}
-          </Button>
         {/* Owner — the only always-visible assignment control. */}
         <Field label="Owner">
           <Combobox
@@ -343,33 +345,8 @@ export function WorkItemPanel({
               value={dueDate}
               label="Due date"
               placeholder="No due date"
-              onChange={(v) => {
-                const next = v || null;
-                setDueDate(next);
-                setScheduledFor(next ?? "");
-                save.mutate({
-                  id: item.id,
-                  patch: { due_date: next },
-                  note: next ? `Due date set to ${next}` : "Due date cleared",
-                });
-              }}
+              onChange={(v) => void saveDueDate(v || null)}
             />
-            {dueDate ? (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setDueDate(null);
-                  setScheduledFor("");
-                  save.mutate({
-                    id: item.id,
-                    patch: { due_date: null },
-                    note: "Due date cleared",
-                  });
-                }}
-              >
-                Clear
-              </Button>
-            ) : null}
           </div>
         </Field>
 

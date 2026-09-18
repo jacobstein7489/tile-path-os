@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, CircleAlert, Clock3, Layers3 } from "lucide-react";
-import { WorkItemPanel } from "@/components/work/WorkItemPanel";
 import { useProject, useScheduleAssignments, useAreasWithSurfaces } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
 import { useProjectSetup } from "@/lib/setup";
@@ -45,7 +44,6 @@ function ProjectOverview() {
   const { data: schedule = [] } = useScheduleAssignments();
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
   const setup = useProjectSetup(projectId);
-  const [active, setActive] = useState<WorkItemRow | null>(null);
 
   const work = useMemo(
     () => feed.filter((i) => i.project_id === projectId && !isComplete(i)).sort(compareWorkItems),
@@ -123,7 +121,6 @@ function ProjectOverview() {
     };
   });
 
-  const live = active ? (feed.find((i) => i.id === active.id) ?? active) : null;
   const whereWeAre = stateSentence(stage, blocked.length, waitingAll.length, upcoming.length);
 
   const nextContent = (
@@ -149,7 +146,7 @@ function ProjectOverview() {
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
           {next.work ? (
-            <button type="button" onClick={() => setActive(next.work ?? null)} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</button>
+            <Link to="/work-item/$itemId" params={{ itemId: next.work.id }} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</Link>
           ) : next.to ? (
             <Link to={next.to} params={{ projectId }} className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised transition-transform hover:-translate-y-0.5 md:p-8">{nextContent}</Link>
           ) : (
@@ -168,7 +165,7 @@ function ProjectOverview() {
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="grid content-start gap-4">
             <Panel title="Waiting / blocked" icon={<CircleAlert className="size-4" />} action={waitingAll.length > 3 ? <Link to="/projects/$projectId/tasks" params={{ projectId }}>View all {waitingAll.length}</Link> : undefined}>
-              {waiting.length ? <div className="mt-1 space-y-2">{waiting.map((item) => <button key={item.id} type="button" onClick={() => setActive(item)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left"><span className="min-w-0"><span className="block truncate text-[13px] font-bold">{item.title}</span><span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{item.waiting_on ?? "External confirmation"}</span></span>{item.follow_up_on ? <span className="text-[11px] font-semibold text-warning">{formatDate(item.follow_up_on)}</span> : null}</button>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing currently blocking work.</p>}
+              {waiting.length ? <div className="mt-1 space-y-2">{waiting.map((item) => <Link key={item.id} to="/work-item/$itemId" params={{ itemId: item.id }} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left transition-colors hover:bg-warning-soft/70"><span className="min-w-0"><span className="block truncate text-[13px] font-bold">{item.title}</span><span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{item.waiting_on ?? "External confirmation"}</span></span>{item.follow_up_on ? <span className="text-[11px] font-semibold text-warning">{formatDate(item.follow_up_on)}</span> : null}</Link>)}</div> : <p className="mt-2 text-[13px] text-muted-foreground">Nothing currently blocking work.</p>}
             </Panel>
             {roomRows.length ? <Panel title="Room readiness" icon={<Layers3 className="size-4" />}>
               <div className="mt-1 grid gap-2 sm:grid-cols-2">{roomRows.map((room) => <Link key={room.id} to="/projects/$projectId/scope" params={{ projectId }} className="rounded-lg border border-border bg-background/50 p-3 transition-colors hover:bg-primary-soft"><span className="block truncate text-[13px] font-bold">{room.name}</span><span className={cn("mt-1 block text-[11.5px]", room.ok ? "text-success" : "text-warning")}>{room.note}</span></Link>)}</div>
@@ -185,7 +182,6 @@ function ProjectOverview() {
           </div>
         </div>
       </div>
-      <WorkItemPanel item={live} onClose={() => setActive(null)} />
     </>
   );
 }

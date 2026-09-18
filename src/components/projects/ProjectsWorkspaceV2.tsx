@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowUpRight, CalendarDays, FolderKanban, Plus, Search, Users } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, Plus, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
@@ -80,7 +80,7 @@ export function ProjectsWorkspaceV2({
         </Button>
       </header>
 
-      <section aria-label="Project portfolio" className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+      <section aria-label="Project portfolio" className="workspace-panel min-w-0 overflow-hidden">
           {loading ? <QueueMessage>Loading projects…</QueueMessage> : jobs.length === 0 ? <QueueMessage>No projects in this view.</QueueMessage> : jobs.map((job) => (
             <ProjectQueueItem key={job.project.id} job={job} onStatusUpdate={() => onStatusProject(job.project)} />
           ))}
@@ -97,26 +97,20 @@ function ProjectQueueItem({ job, onStatusUpdate }: { job: ProjectQueueRecord; on
   const identity = [project.address, project.customer].filter(Boolean).join(" · ") || project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   return (
-    <article className="workspace-panel group relative min-w-0 overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[var(--shadow-raised)]">
-      <Link to="/projects/$projectId" params={{ projectId: project.id }} className="block min-h-[236px] p-4 pr-12 outline-none focus-visible:bg-primary-soft/40 md:p-5 md:pr-12">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-info-soft text-info"><FolderKanban className="size-5" /></span>
-          <div className="min-w-0 flex-1"><h2 className="truncate font-display text-[16px] font-bold">{project.name}</h2><p className="mt-1 truncate text-[11.5px] text-muted-foreground">{identity}</p></div>
-          <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3"><p className="flex min-w-0 items-center gap-2 truncate text-[11.5px] font-semibold"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p><span className="text-[11px] font-semibold text-muted-foreground">{project.readiness_pct}% ready</span></div>
-        <progress className="mt-2 block h-1.5 w-full overflow-hidden rounded-full accent-primary" max={100} value={Math.max(0, Math.min(100, project.readiness_pct))} aria-label={`${project.readiness_pct}% ready`} />
-
-        <div className="mt-4 rounded-lg bg-muted/75 px-3 py-2.5"><p className="text-[9.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Next move</p><p className={cn("mt-1 line-clamp-2 text-[13.5px] leading-snug font-semibold", !next && "font-medium text-muted-foreground")}>{next?.title ?? "No current action"}</p></div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3 text-[11.5px]"><p className="flex min-w-0 items-center gap-2 text-muted-foreground"><Users className="size-3.5 shrink-0" /><span className="truncate">{project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}</span></p><p className="flex items-center justify-end gap-2 text-muted-foreground"><CalendarDays className="size-3.5" />{relevantDate ? formatDate(relevantDate) : "No date"}</p></div>
-        {attention ? <p className="mt-3 flex min-w-0 items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-[11.5px] font-semibold text-warning"><AlertTriangle className="size-3.5 shrink-0" /><span className="truncate">{attention}</span></p> : null}
+    <article className="group relative min-w-0 border-b border-border last:border-b-0 transition-colors hover:bg-muted/45 focus-within:bg-primary-soft/50">
+      <Link to="/projects/$projectId" params={{ projectId: project.id }} className="grid min-h-[76px] min-w-0 gap-2 px-4 py-3 pr-12 outline-none md:grid-cols-[minmax(190px,1.2fr)_120px_minmax(220px,1.5fr)_140px_110px] md:items-center md:gap-4 md:px-5 md:pr-12">
+        <div className="min-w-0"><h2 className="truncate font-display text-[15px] font-bold">{project.name}</h2><p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p></div>
+        <p className="flex min-w-0 items-center gap-2 truncate text-[11.5px] font-semibold"><Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} /><span className="truncate">{stage}</span></p>
+        <div className="min-w-0"><p className="text-[9.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase md:hidden">Next move</p><p className={cn("truncate text-[13px] font-semibold", !next && "font-medium text-muted-foreground")}>{next?.title ?? "No current action"}</p></div>
+        <p className="truncate text-[11.5px] text-muted-foreground">{project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}</p>
+        <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground md:justify-end"><CalendarDays className="size-3.5 shrink-0" />{relevantDate ? formatDate(relevantDate) : "No date"}</p>
+        {attention ? <p className="flex min-w-0 items-center gap-1.5 truncate text-[11.5px] font-semibold text-warning md:col-span-5"><AlertTriangle className="size-3.5 shrink-0" /><span className="truncate">{attention}</span></p> : null}
+        <ArrowUpRight className="absolute top-5 right-4 size-4 text-muted-foreground transition-colors group-hover:text-primary" />
       </Link>
-      <div className="absolute top-4 right-3"><ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} /></div>
+      <div className="absolute right-2 bottom-2 md:top-1/2 md:bottom-auto md:-translate-y-1/2"><ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} /></div>
     </article>
   );
 }
 
-function QueueMessage({ children }: { children: ReactNode }) { return <div className="workspace-panel col-span-full px-6 py-16 text-center text-[13px] text-muted-foreground">{children}</div>; }
+function QueueMessage({ children }: { children: ReactNode }) { return <div className="px-6 py-16 text-center text-[13px] text-muted-foreground">{children}</div>; }
 function formatDate(date: string) { return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
