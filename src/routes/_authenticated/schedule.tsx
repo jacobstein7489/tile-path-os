@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Users } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
+import { Button, Field, Select, TextInput } from "@/components/kit";
+import { CenterDialog } from "@/components/ops/CenterDialog";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
 import { ProjectQuickViewDialog } from "@/components/projects/ProjectQuickViewDialog";
 import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
@@ -784,13 +785,58 @@ function AssignModal({
     kind,
   });
   return (
-    <Modal
+    <CenterDialog
       open
-      onClose={onClose}
+      onOpenChange={(open) => !open && onClose()}
       title={`Schedule ${project.name}`}
-      subtitle="Creates a persistent crew assignment and updates the project's next move."
-      footer={
-        <>
+      description="Choose the crew, day, and visit type for this ready project."
+    >
+      <div className="bg-canvas p-4 sm:p-6">
+        <div className="rounded-xl border border-primary/15 bg-primary-soft/45 p-4">
+          <p className="text-[10px] font-bold text-primary uppercase">Assignment context</p>
+          <p className="mt-1 text-[15px] font-bold">{project.name}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}
+          </p>
+        </div>
+        <div className="mt-4 space-y-3 rounded-xl border border-border bg-card p-4">
+          <Field label="Crew">
+            <Select
+              value={values.crew_id}
+              onChange={(e) => setValues((v) => ({ ...v, crew_id: e.target.value }))}
+            >
+              <option value="">Select crew…</option>
+              {crews
+                .filter((c) => !c.is_open_lane)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Date">
+              <TextInput
+                type="date"
+                value={values.work_date}
+                onChange={(e) => setValues((v) => ({ ...v, work_date: e.target.value }))}
+              />
+            </Field>
+            <Field label="Visit type">
+              <Select
+                value={values.kind}
+                onChange={(e) => setValues((v) => ({ ...v, kind: e.target.value }))}
+              >
+                <option>Tile / Grout</option>
+                <option>Return Visit</option>
+                <option>Site Walkthrough</option>
+                <option>Punch</option>
+              </Select>
+            </Field>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
           <Button onClick={onClose}>Cancel</Button>
           <Button
             variant="primary"
@@ -800,44 +846,8 @@ function AssignModal({
           >
             Save assignment
           </Button>
-        </>
-      }
-    >
-      <Field label="Crew">
-        <Select
-          value={values.crew_id}
-          onChange={(e) => setValues((v) => ({ ...v, crew_id: e.target.value }))}
-        >
-          <option value="">Select crew…</option>
-          {crews
-            .filter((c) => !c.is_open_lane)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-        </Select>
-      </Field>
-      <div className="grid grid-cols-2 gap-3.5">
-        <Field label="Date">
-          <TextInput
-            type="date"
-            value={values.work_date}
-            onChange={(e) => setValues((v) => ({ ...v, work_date: e.target.value }))}
-          />
-        </Field>
-        <Field label="Visit type">
-          <Select
-            value={values.kind}
-            onChange={(e) => setValues((v) => ({ ...v, kind: e.target.value }))}
-          >
-            <option>Tile / Grout</option>
-            <option>Return Visit</option>
-            <option>Site Walkthrough</option>
-            <option>Punch</option>
-          </Select>
-        </Field>
+        </div>
       </div>
-    </Modal>
+    </CenterDialog>
   );
 }
