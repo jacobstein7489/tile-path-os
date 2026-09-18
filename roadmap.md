@@ -11,4 +11,4 @@
 
 - [x] Tighten shell, Today, Actions, Projects, Customers, quick views, and Schedule scale
 - [x] Preserve all locked navigation, modal drill-downs, filters, data, and mutations
-- [ ] Verify typecheck, queue tests, diff hygiene, and responsive overflow statically
+- [x] Verify typecheck, queue tests, diff hygiene, and responsive overflow statically
