@@ -211,9 +211,9 @@ export function CustomerQuickViewDialog({
       bodyClassName="overflow-hidden"
     >
       <div className="flex max-h-[80dvh] min-h-[480px] flex-col bg-canvas">
-        <header className="shrink-0 border-b border-border bg-card px-4 pt-5 sm:px-5">
+        <header className="shrink-0 border-b border-border bg-card px-4 pt-3.5 sm:px-5">
           <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
               <Building2 className="size-5" />
             </span>
             <div className="min-w-0">

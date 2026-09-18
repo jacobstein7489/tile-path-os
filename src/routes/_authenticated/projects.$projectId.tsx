@@ -117,7 +117,7 @@ function ProjectShell() {
   return (
     <>
       <div className="mx-auto max-w-[1520px] pb-16">
-        <div className="hidden h-10 items-center px-7 text-[11.5px] text-muted-foreground md:flex">
+        <div className="hidden h-8 items-center px-6 text-[11px] text-muted-foreground md:flex">
           <Link
             to="/projects"
             className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
@@ -129,10 +129,10 @@ function ProjectShell() {
           <span className="truncate">{project.name}</span>
         </div>
         <header>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 md:px-7 md:py-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:px-6 md:py-3">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2.5">
-                <h1 className="truncate font-display text-[19px] leading-tight font-bold md:text-[25px]">
+                <h1 className="truncate font-display text-[19px] leading-tight font-bold md:text-[23px]">
                   {project.name}
                 </h1>
                 <div className="relative shrink-0">
@@ -181,7 +181,7 @@ function ProjectShell() {
                   </Popover>
                 </div>
               </div>
-              <div className="mt-1.5 truncate text-[12px] text-muted-foreground md:mt-2 md:text-[12.5px]">
+              <div className="mt-1 truncate text-[11.5px] text-muted-foreground">
                 <span className="md:hidden">
                   {project.address ?? project.customer ?? "Address not set"}
                   {pmName ? ` · PM ${pmName}` : ""}
@@ -244,7 +244,7 @@ function ProjectShell() {
               </div>
             </div>
           </div>
-          <div className="flex items-end gap-0 border-y border-border bg-card px-1 md:gap-1 md:px-6">
+          <div className="flex h-10 items-end gap-0 border-y border-border bg-card px-1 md:gap-1 md:px-5">
             <UnderlineTabs
               className="min-w-0 flex-1 justify-between border-b-0 [&_a]:px-2 md:justify-start md:[&_a]:px-3.5"
               items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}
