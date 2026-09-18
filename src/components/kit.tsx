@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 /** Friendly short date for a yyyy-mm-dd value, e.g. "Sep 4". */
 export function friendlyDate(value: string | null | undefined) {
@@ -473,24 +474,16 @@ export function Modal({
   children: ReactNode;
   width?: string;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/25 p-6 backdrop-blur-[2px]">
-      <div
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent
         className={cn(
-          "mt-12 w-full rounded-2xl border border-border bg-card shadow-[var(--shadow-raised)]",
+          "inset-x-0 top-auto bottom-0 flex h-[calc(100dvh-0.5rem)] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl border-border bg-card p-0 shadow-[var(--shadow-dialog)] sm:top-1/2 sm:bottom-auto sm:h-auto sm:max-h-[92dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
           width,
         )}
       >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        {subtitle ? <DialogDescription className="sr-only">{subtitle}</DialogDescription> : null}
         <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
@@ -498,23 +491,15 @@ export function Modal({
               <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted"
-          >
-            <X className="size-4" />
-          </button>
         </header>
-        <div className="space-y-3.5 px-5 py-4">{children}</div>
+        <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
         {footer ? (
           <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
             {footer}
           </footer>
         ) : null}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

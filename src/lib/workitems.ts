@@ -325,11 +325,31 @@ export function projectLabel(item: Pick<WorkItemRow, "project_id" | "projects">)
   return item.project_id ? (item.projects?.name ?? "Project") : "Company / Unassigned";
 }
 
+/**
+ * One ownership rule for every personal Work view. Older records can predate
+ * owner_user_id, so their stored owner label remains a valid fallback.
+ */
+export function isItemOwnedBy(
+  item: Pick<WorkItemRow, "owner_user_id" | "owner">,
+  userId?: string | null,
+  userFullName?: string | null,
+) {
+  if (item.owner_user_id) return Boolean(userId) && item.owner_user_id === userId;
+  const stored = item.owner?.trim().toLocaleLowerCase();
+  const profile = userFullName?.trim().toLocaleLowerCase();
+  return Boolean(stored && profile && stored === profile);
+}
+
 export function isComplete(item: WorkItemRow) {
   return item.status === "Complete" || item.status === "Done" || Boolean(item.completed_at);
 }
 
-export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow, userId?: string | null) {
+export function matchesWorkFilter(
+  filter: WorkFilter,
+  item: WorkItemRow,
+  userId?: string | null,
+  userFullName?: string | null,
+) {
   const done = isComplete(item);
   switch (filter) {
     case "Completed":
@@ -339,7 +359,7 @@ export function matchesWorkFilter(filter: WorkFilter, item: WorkItemRow, userId?
     case "Important":
       return !done && Boolean(item.is_important);
     case "My Work":
-      return !done && Boolean(userId) && item.owner_user_id === userId;
+      return !done && isItemOwnedBy(item, userId, userFullName);
     case "Due Soon":
       return isDueSoon(item);
   }

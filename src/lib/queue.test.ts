@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { QUEUE_BUCKETS, matchesKpi, queueBucket, workKpiCounts } from "@/lib/queue";
-import { isComplete, todayIso, type WorkItemRow } from "@/lib/workitems";
+import { isComplete, isItemOwnedBy, todayIso, type WorkItemRow } from "@/lib/workitems";
 
 function item(patch: Partial<WorkItemRow> = {}): WorkItemRow {
   return {
@@ -44,6 +44,17 @@ const done = item({ status: "Complete", completed_at: new Date().toISOString() }
 const all = [bare, late, dueToday, waiting, scheduled, important, done];
 
 describe("action queue", () => {
+  it("includes legacy owner labels in Mine without rewriting ownership", () => {
+    expect(
+      isItemOwnedBy(item({ owner_user_id: "user-1", owner: "Old Name" }), "user-1", "Sam Lee"),
+    ).toBe(true);
+    expect(
+      isItemOwnedBy(item({ owner_user_id: null, owner: "Sam Lee" }), "user-1", "Sam Lee"),
+    ).toBe(true);
+    expect(
+      isItemOwnedBy(item({ owner_user_id: null, owner: "Someone Else" }), "user-1", "Sam Lee"),
+    ).toBe(false);
+  });
   it("assigns every open item to exactly one bucket", () => {
     const open = all.filter((i) => !isComplete(i));
     for (const i of open) {

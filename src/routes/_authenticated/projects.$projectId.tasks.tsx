@@ -1,17 +1,5 @@
-import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { MessageSquarePlus } from "lucide-react";
-import { Button } from "@/components/kit";
-import { WorkList } from "@/components/WorkList";
-import { CreateWorkItemModal } from "@/components/WorkItemDialogs";
-import {
-  compareWorkItems,
-  isComplete,
-  matchesTodayFilter,
-  TODAY_FILTERS,
-  useWorkFeed,
-  type WorkItemRow,
-} from "@/lib/workitems";
+import { createFileRoute } from "@tanstack/react-router";
+import { WorkBoard } from "@/components/work/WorkBoard";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/tasks")({
   head: () => ({
@@ -32,46 +20,5 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId/tasks"
 
 function ProjectTasksPage() {
   const { projectId } = Route.useParams();
-  const { data: feed = [] } = useWorkFeed();
-  const navigate = useNavigate();
-  const [creating, setCreating] = useState(false);
-
-  const projectWork = feed.filter((i) => i.project_id === projectId);
-  const sorted = [...projectWork].sort(compareWorkItems);
-
-  return (
-    <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-[15px] font-semibold tracking-tight">Open Tasks</h2>
-          <p className="text-[12.5px] text-muted-foreground">
-            {projectWork.filter((i) => !isComplete(i)).length} open ·{" "}
-            {projectWork.filter((i) => isComplete(i)).length} completed
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setCreating(true)}>
-          <MessageSquarePlus className="size-4" /> Add task
-        </Button>
-      </div>
-      <WorkList
-        items={projectWork}
-        onOpen={(item) => void navigate({ to: "/work-item/$itemId", params: { itemId: item.id } })}
-        selectedId={null}
-        filters={TODAY_FILTERS}
-        matchFilter={matchesTodayFilter}
-        defaultFilter="Active"
-        showProjectColumn={false}
-        showViewToggle={false}
-        showSearch={false}
-        emptyTitle="Nothing open on this project"
-        emptyNote="Use Add task or Quick Capture to log what came in from the field."
-      />
-      <CreateWorkItemModal
-        open={creating}
-        onClose={() => setCreating(false)}
-        kind="Task"
-        projectId={projectId}
-      />
-    </section>
-  );
+  return <WorkBoard projectId={projectId} />;
 }

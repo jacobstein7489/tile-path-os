@@ -7,7 +7,13 @@ import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { Button } from "@/components/kit";
 import { todaySections, todaySummaryLine } from "@/lib/today";
-import { projectLabel, todayIso, useWorkFeed, type WorkItemRow } from "@/lib/workitems";
+import {
+  isItemOwnedBy,
+  projectLabel,
+  todayIso,
+  useWorkFeed,
+  type WorkItemRow,
+} from "@/lib/workitems";
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -53,12 +59,7 @@ function TodayPage() {
   // Same work_items records as Work, narrowed to this person. Legacy rows that
   // never got an owner_user_id still match on the stored owner name.
   const mine = useMemo(
-    () =>
-      items.filter((i) =>
-        i.owner_user_id
-          ? i.owner_user_id === user?.id
-          : Boolean(profile?.full_name) && i.owner === profile?.full_name,
-      ),
+    () => items.filter((item) => isItemOwnedBy(item, user?.id, profile?.full_name)),
     [items, profile?.full_name, user?.id],
   );
 
