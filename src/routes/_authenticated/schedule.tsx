@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Users } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
+import { ProjectQuickViewDialog } from "@/components/projects/ProjectQuickViewDialog";
+import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
 import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -15,6 +17,7 @@ import {
   useUpdateRow,
   type Project,
 } from "@/lib/data";
+import { compareWorkItems, isComplete, isOverdue, isWaiting, useWorkFeed } from "@/lib/workitems";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -63,11 +66,13 @@ function SchedulePage() {
 
   const [view, setView] = useState<View>("Week");
   const [offset, setOffset] = useState(0);
-  const [queueOpen, setQueueOpen] = useState(true);
+  const { data: workFeed = [] } = useWorkFeed();
   const [assignFor, setAssignFor] = useState<{ project: Project; kind: string } | null>(null);
   const [reportFor, setReportFor] = useState<{ project: Project; crewId: string | null } | null>(
     null,
   );
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [mobileZone, setMobileZone] = useState<"Schedule" | "Ready">("Schedule");
 
   const today = new Date();
   const todayIsoDate = iso(today);
@@ -129,6 +134,12 @@ function SchedulePage() {
       : p.lifecycle_stage === "Ready"
         ? { text: "Assign crew and resume", kind: "Tile / Grout" }
         : { text: "Schedule crew", kind: "Tile / Grout" };
+  const selectedJob = useMemo((): ProjectQueueRecord | null => {
+    if (!selectedProject) return null;
+    const work = workFeed.filter((item) => item.project_id === selectedProject.id && !isComplete(item)).sort(compareWorkItems);
+    const projectSchedule = assignments.filter((item) => item.project_id === selectedProject.id && item.work_date >= todayIsoDate).sort((a, b) => a.work_date.localeCompare(b.work_date));
+    return { project: selectedProject, work, next: work[0], attention: work.find(isOverdue)?.title ?? work.find(isWaiting)?.waiting_on ?? selectedProject.needs_attention, relevantDate: projectSchedule[0]?.work_date ?? selectedProject.target_date, upcoming: projectSchedule[0], latestReport: allReports.find((item) => item.project_id === selectedProject.id) };
+  }, [allReports, assignments, selectedProject, todayIsoDate, workFeed]);
 
   const rangeLabel =
     view === "Month"
@@ -215,68 +226,18 @@ function SchedulePage() {
                 </Button>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => setQueueOpen((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-soft/50"
-            >
-              <Users className="size-4" />
-              Ready to assign · {unassigned.length}
-              {queueOpen ? " (hide)" : " (show)"}
-            </button>
+            <div className="flex rounded-lg bg-muted p-1 md:hidden"><button type="button" onClick={() => setMobileZone("Schedule")} className={cn("rounded-md px-3 py-1.5 text-[12px] font-bold", mobileZone === "Schedule" && "bg-card shadow-[var(--shadow-card)]")}>Schedule</button><button type="button" onClick={() => setMobileZone("Ready")} className={cn("rounded-md px-3 py-1.5 text-[12px] font-bold", mobileZone === "Ready" && "bg-card shadow-[var(--shadow-card)]")}>Ready · {unassigned.length}</button></div>
           </div>
-
-          {queueOpen ? (
-            <div className="border-t border-border bg-card px-3 py-3 md:px-4">
-              {unassigned.length === 0 ? (
-                <p className="px-1 py-2 text-[12.5px] text-muted-foreground">
-                  Every active job has a crew assignment.
-                </p>
-              ) : (
-                <div className="flex gap-2.5 overflow-x-auto pb-1">
-                  {unassigned.map((p) => {
-                    const label = readyLabel(p);
-                    return (
-                      <div
-                        key={p.id}
-                        className="min-w-[236px] shrink-0 rounded-xl border border-border bg-background/70 p-3"
-                      >
-                        <p className="truncate text-[13px] font-bold">{p.name}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {p.lifecycle_stage} · readiness {p.readiness_pct ?? 0}%
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {p.next_move ?? label.text}
-                        </p>
-                        <div className="mt-2.5 flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => setAssignFor({ project: p, kind: label.kind })}
-                          >
-                            <Plus className="size-3.5" /> Assign
-                          </Button>
-                          <Link
-                            to="/projects/$projectId"
-                            params={{ projectId: p.id }}
-                            className="text-[11.5px] font-semibold text-primary hover:underline"
-                          >
-                            Open
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : null}
         </div>
 
+        <div className={cn("mt-4 gap-4 md:grid md:grid-cols-[280px_minmax(0,1fr)]", view !== "Week" && "md:grid-cols-1")}>
+        {view === "Week" || mobileZone === "Ready" ? <ReadyQueue projects={unassigned} readyLabel={readyLabel} onAssign={(project, kind) => setAssignFor({ project, kind })} onOpen={setSelectedProject} className={cn("mb-4 md:mb-0", view !== "Week" && "md:hidden", mobileZone !== "Ready" && "hidden md:block")} /> : null}
+        <div className={cn(mobileZone === "Ready" && "hidden md:block")}>
         {view === "Week" ? (
-          <section className="workspace-panel mt-4 overflow-hidden">
+          <section className="workspace-panel overflow-hidden">
+            <div className="md:hidden"><DayAgenda days={weekDays} assignments={assignments} projects={projects} crews={crews} onOpen={setSelectedProject} /></div>
             <div className="overflow-x-auto">
-              <div className="min-w-[860px]">
+              <div className="hidden min-w-[760px] md:block">
                 <div className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
                   <div className="px-3 py-2.5 text-[10.5px] font-bold text-muted-foreground uppercase">
                     Crew
@@ -332,10 +293,10 @@ function SchedulePage() {
                                     ? "border-warning/40 bg-warning-soft"
                                     : "border-primary/30 bg-primary-soft";
                             return (
-                              <Link
+                              <button
+                                type="button"
                                 key={a.id}
-                                to="/projects/$projectId"
-                                params={{ projectId: p.id }}
+                                onClick={() => setSelectedProject(p)}
                                 className={cn(
                                   "mb-1.5 block rounded-lg border px-2 py-1.5 transition-shadow hover:shadow-[var(--shadow-card)]",
                                   tone,
@@ -347,7 +308,7 @@ function SchedulePage() {
                                 <span className="block truncate text-[10.5px] text-muted-foreground">
                                   {a.kind}
                                 </span>
-                              </Link>
+                              </button>
                             );
                           })}
                           {cell.length === 0 ? (
@@ -369,7 +330,7 @@ function SchedulePage() {
         ) : null}
 
         {view === "Today" ? (
-          <section className="workspace-panel mt-4 overflow-hidden">
+          <section className="workspace-panel overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
               <div className="min-w-0">
                 <p className="v2-kicker">Working today</p>
@@ -397,13 +358,9 @@ function SchedulePage() {
                     className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
                   >
                     <div className="min-w-0">
-                      <Link
-                        to="/projects/$projectId"
-                        params={{ projectId: p.id }}
-                        className="block truncate text-[13.5px] font-bold hover:text-primary"
-                      >
+                      <button type="button" onClick={() => setSelectedProject(p)} className="block truncate text-[13.5px] font-bold hover:text-primary">
                         {p.name}
-                      </Link>
+                      </button>
                       <p className="truncate text-[11.5px] text-muted-foreground">
                         {[crewById(a.crew_id)?.name ?? "No crew", a.kind, p.address]
                           .filter(Boolean)
@@ -429,7 +386,7 @@ function SchedulePage() {
         ) : null}
 
         {view === "Month" ? (
-          <section className="workspace-panel mt-4 overflow-hidden">
+          <section className="workspace-panel overflow-hidden">
             <div className="grid grid-cols-7 border-b border-border bg-muted/30">
               {DAY_LABELS.map((label) => (
                 <div
@@ -466,17 +423,17 @@ function SchedulePage() {
                       const p = projectById(a.project_id);
                       if (!p) return null;
                       return (
-                        <Link
+                        <button
+                          type="button"
                           key={a.id}
-                          to="/projects/$projectId"
-                          params={{ projectId: p.id }}
+                          onClick={() => setSelectedProject(p)}
                           className="mb-1 block truncate rounded-md border border-primary/25 bg-primary-soft px-1.5 py-1 text-[10.5px] font-semibold hover:shadow-[var(--shadow-card)]"
                         >
                           {crewById(a.crew_id)?.initials
                             ? `${crewById(a.crew_id)?.initials} · `
                             : ""}
                           {p.name}
-                        </Link>
+                        </button>
                       );
                     })}
                     {dayAssignments.length > 3 ? (
@@ -490,6 +447,7 @@ function SchedulePage() {
             </div>
           </section>
         ) : null}
+        </div></div>
       </main>
 
       {assignFor ? (
@@ -527,8 +485,19 @@ function SchedulePage() {
           onClose={() => setReportFor(null)}
         />
       ) : null}
+      <ProjectQuickViewDialog job={selectedJob} onClose={() => setSelectedProject(null)} />
     </>
   );
+}
+
+function ReadyQueue({ projects, readyLabel, onAssign, onOpen, className }: { projects: Project[]; readyLabel: (project: Project) => { text: string; kind: string }; onAssign: (project: Project, kind: string) => void; onOpen: (project: Project) => void; className?: string }) {
+  return <aside className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-270px)]", className)}><div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-4 py-3"><Users className="size-4 text-warning" /><div><h2 className="text-[13px] font-bold">Ready to schedule</h2><p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p></div></div><div className="max-h-[60dvh] overflow-y-auto p-2">{projects.length ? projects.map((project) => { const label = readyLabel(project); return <article key={project.id} className="mb-2 rounded-xl border border-border bg-card p-3 last:mb-0"><button type="button" onClick={() => onOpen(project)} className="w-full text-left"><strong className="block truncate text-[13px]">{project.name}</strong><span className="mt-1 block text-[10.5px] font-semibold text-warning">{project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}</span><span className="mt-1 block truncate text-[11px] text-muted-foreground">{project.next_move ?? label.text}</span></button><Button size="sm" variant="primary" className="mt-3 w-full" onClick={() => onAssign(project, label.kind)}><Plus className="size-3.5" /> Assign crew</Button></article>; }) : <p className="p-3 text-[12px] text-muted-foreground">Every active job has a crew assignment.</p>}</div></aside>;
+}
+
+function DayAgenda({ days, assignments, projects, crews, onOpen }: { days: Date[]; assignments: ReturnType<typeof useScheduleAssignments>["data"] extends infer T ? NonNullable<T> : never; projects: Project[]; crews: ReturnType<typeof useCrews>["data"] extends infer T ? NonNullable<T> : never; onOpen: (project: Project) => void }) {
+  const [selected, setSelected] = useState(iso(new Date()));
+  const rows = assignments.filter((item) => item.work_date === selected);
+  return <div><div className="flex gap-1 overflow-x-auto border-b border-border p-2">{days.map((day) => <button key={iso(day)} type="button" onClick={() => setSelected(iso(day))} className={cn("min-w-12 rounded-lg px-2 py-2 text-center text-[11px] font-bold", selected === iso(day) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{day.toLocaleDateString(undefined, { weekday: "short" })}<span className="block text-[10px]">{day.getDate()}</span></button>)}</div><div className="p-2">{rows.length ? rows.map((item) => { const project = projects.find((p) => p.id === item.project_id); if (!project) return null; return <button key={item.id} type="button" onClick={() => onOpen(project)} className="mb-2 flex w-full items-center justify-between rounded-xl border border-border bg-card p-3 text-left"><span className="min-w-0"><strong className="block truncate text-[13px]">{project.name}</strong><span className="text-[11px] text-muted-foreground">{crews.find((crew) => crew.id === item.crew_id)?.name ?? "Unassigned"} · {item.kind}</span></span><ChevronRight className="size-4" /></button>; }) : <p className="p-4 text-center text-[12px] text-muted-foreground">No crews scheduled this day.</p>}</div></div>;
 }
 
 function AssignModal({
