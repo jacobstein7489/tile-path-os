@@ -91,6 +91,7 @@ export function todaySummaryLine(s: TodaySections) {
   if (s.needsNow.length) parts.push(`${s.needsNow.length} need attention`);
   if (s.followUps.length) parts.push(`${s.followUps.length} follow-ups`);
   if (s.scheduledToday.length) parts.push(`${s.scheduledToday.length} scheduled`);
+  if (!parts.length && s.nextMoves.length) parts.push(`${s.nextMoves.length} open next moves`);
   return parts.length ? parts.join(" · ") : "Nothing needs you right now.";
 }
 
