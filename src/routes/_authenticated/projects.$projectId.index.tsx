@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, CircleAlert, Clock3, Layers3 } from "lucide-react";
 import { useProject, useScheduleAssignments, useAreasWithSurfaces } from "@/lib/data";
@@ -13,6 +13,7 @@ import {
   type WorkItemRow,
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
+import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
   head: () => ({
@@ -48,6 +49,7 @@ function ProjectOverview() {
   const { data: schedule = [] } = useScheduleAssignments();
   const { areas, surfaces } = useAreasWithSurfaces(projectId);
   const setup = useProjectSetup(projectId);
+  const [selectedWork, setSelectedWork] = useState<WorkItemRow | null>(null);
 
   const work = useMemo(
     () => feed.filter((i) => i.project_id === projectId && !isComplete(i)).sort(compareWorkItems),
@@ -60,7 +62,7 @@ function ProjectOverview() {
     .filter((s) => s.project_id === projectId && s.work_date >= today)
     .sort((a, b) => a.work_date.localeCompare(b.work_date));
   const waitingAll = work.filter(isWaiting);
-  const waiting = waitingAll.slice(0, 3);
+  const waiting = waitingAll;
   const latest = reports[0] ?? null;
   const stage = project.exception_state ?? project.lifecycle_stage;
 
@@ -167,13 +169,13 @@ function ProjectOverview() {
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
           {next.work ? (
-            <Link
-              to="/work-item/$itemId"
-              params={{ itemId: next.work.id }}
+            <button
+              type="button"
+              onClick={() => setSelectedWork(next.work ?? null)}
               className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8"
             >
               {nextContent}
-            </Link>
+            </button>
           ) : next.to ? (
             <Link
               to={next.to}
@@ -235,21 +237,14 @@ function ProjectOverview() {
             <Panel
               title="Waiting / blocked"
               icon={<CircleAlert className="size-4" />}
-              action={
-                waitingAll.length > 3 ? (
-                  <Link to="/projects/$projectId/tasks" params={{ projectId }}>
-                    View all {waitingAll.length}
-                  </Link>
-                ) : undefined
-              }
             >
               {waiting.length ? (
                 <div className="mt-1 space-y-2">
                   {waiting.map((item) => (
-                    <Link
+                    <button
                       key={item.id}
-                      to="/work-item/$itemId"
-                      params={{ itemId: item.id }}
+                      type="button"
+                      onClick={() => setSelectedWork(item)}
                       className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-warning-soft px-3.5 py-3 text-left transition-colors hover:bg-warning-soft/70"
                     >
                       <span className="min-w-0">
@@ -263,7 +258,7 @@ function ProjectOverview() {
                           {formatDate(item.follow_up_on)}
                         </span>
                       ) : null}
-                    </Link>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -353,6 +348,7 @@ function ProjectOverview() {
           </div>
         </div>
       </div>
+      <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
     </>
   );
 }
