@@ -5,13 +5,13 @@ import { WorkBoard } from "@/components/work/WorkBoard";
 export const Route = createFileRoute("/_authenticated/work")({
   head: () => ({
     meta: [
-      { title: "Work — Cobblestone Job Operations" },
+      { title: "Action Center — Cobblestone Job Operations" },
       {
         name: "description",
         content:
           "Every open company action, grouped by job or by person, opened in one shared work item panel.",
       },
-      { property: "og:title", content: "Work — Cobblestone Job Operations" },
+      { property: "og:title", content: "Action Center — Cobblestone Job Operations" },
       { property: "og:description", content: "All company work, grouped by job or by person." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/work")({
 function WorkPage() {
   return (
     <>
-      <AppHeader crumbs={[{ label: "Work" }]} />
+      <AppHeader crumbs={[{ label: "Action Center" }]} />
       <WorkBoard />
     </>
   );

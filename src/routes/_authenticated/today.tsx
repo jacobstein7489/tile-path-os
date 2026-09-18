@@ -132,37 +132,49 @@ function TodayPage() {
         </div>
 
         <section className="workspace-panel mt-4 overflow-hidden">
-          {shows("needsNow") ? (
+          {shows("needsNow") && sections.needsNow.length ? (
             <TodaySection
               label="Needs you now"
               items={sections.needsNow}
-              empty="Nothing is late or due today."
               onOpen={setSelectedItem}
             />
           ) : null}
-          {shows("followUps") ? (
+          {shows("followUps") && sections.followUps.length ? (
             <TodaySection
               label="Follow-ups due"
               items={sections.followUps}
-              empty="No follow-ups are due yet."
               onOpen={setSelectedItem}
             />
           ) : null}
-          {shows("scheduledToday") ? (
+          {shows("scheduledToday") && sections.scheduledToday.length ? (
             <TodaySection
               label="Scheduled today"
               items={sections.scheduledToday}
-              empty="Nothing is scheduled for today."
               onOpen={setSelectedItem}
             />
           ) : null}
-          {shows("nextMoves") ? (
+          {shows("nextMoves") && sections.nextMoves.length ? (
             <TodaySection
               label="Your open next moves"
               items={sections.nextMoves}
-              empty="No other open work is assigned to you."
               onOpen={setSelectedItem}
             />
+          ) : null}
+          {!sections.needsNow.length &&
+          !sections.followUps.length &&
+          !sections.scheduledToday.length &&
+          !sections.nextMoves.length ? (
+            <div className="flex min-h-28 items-center justify-between gap-4 px-4 py-5 sm:px-5">
+              <div>
+                <p className="text-[14px] font-bold">Your day is clear</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  No assigned actions need attention right now.
+                </p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
+                <ListChecks className="size-4" />
+              </span>
+            </div>
           ) : null}
         </section>
         {focus ? (
@@ -224,33 +236,27 @@ function TodayMetric({
 function TodaySection({
   label,
   items,
-  empty,
   onOpen,
 }: {
   label: string;
   items: WorkItemRow[];
-  empty: string;
   onOpen: (item: WorkItemRow) => void;
 }) {
   return (
     <section className="border-b border-border last:border-b-0">
       <OpsSectionHeading label={label} count={items.length} />
-      {items.length ? (
-        <ul>
-          {items.map((item) => (
-            <OpsRow
-              key={item.id}
-              item={item}
-              selected={false}
-              context={[projectLabel(item), item.category ?? null]}
-              person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
-              onOpen={onOpen}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="px-4 pb-4 text-[12.5px] text-muted-foreground">{empty}</p>
-      )}
+      <ul>
+        {items.map((item) => (
+          <OpsRow
+            key={item.id}
+            item={item}
+            selected={false}
+            context={[projectLabel(item), item.category ?? null]}
+            person={item.waiting_on ? `Waiting on ${item.waiting_on}` : null}
+            onOpen={onOpen}
+          />
+        ))}
+      </ul>
     </section>
   );
 }

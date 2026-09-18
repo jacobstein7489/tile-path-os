@@ -1,4 +1,4 @@
-import { currentMoveState } from "@/lib/moveforward";
+import { currentMoveState, type MoveState } from "@/lib/moveforward";
 import { isComplete, isDueToday, isOverdue, isWaiting, type WorkItemRow } from "@/lib/workitems";
 
 /* ============================================================
@@ -38,7 +38,7 @@ export function bucketOrder(bucket: string) {
 
 /* ---------------- KPI filters ---------------- */
 
-export const WORK_KPIS = ["Open", "Waiting", "Overdue", "Scheduled"] as const;
+export const WORK_KPIS = ["Open", "To Do", "Waiting", "Scheduled", "Needs Attention"] as const;
 export type WorkKpi = (typeof WORK_KPIS)[number];
 
 /** Does this record belong to the given KPI card? */
@@ -47,10 +47,12 @@ export function matchesKpi(kpi: WorkKpi, item: WorkItemRow) {
   switch (kpi) {
     case "Open":
       return true;
+    case "To Do":
+      return currentMoveState(item) === "To Do";
     case "Waiting":
       return currentMoveState(item) === "Waiting" || isWaiting(item);
-    case "Overdue":
-      return isOverdue(item);
+    case "Needs Attention":
+      return isOverdue(item) || isDueToday(item) || item.is_important || item.priority === "High";
     case "Scheduled":
       return currentMoveState(item) === "Scheduled";
   }
@@ -59,10 +61,18 @@ export function matchesKpi(kpi: WorkKpi, item: WorkItemRow) {
 export function workKpiCounts(items: WorkItemRow[]): Record<WorkKpi, number> {
   return {
     Open: items.filter((i) => matchesKpi("Open", i)).length,
+    "To Do": items.filter((i) => matchesKpi("To Do", i)).length,
     Waiting: items.filter((i) => matchesKpi("Waiting", i)).length,
-    Overdue: items.filter((i) => matchesKpi("Overdue", i)).length,
     Scheduled: items.filter((i) => matchesKpi("Scheduled", i)).length,
+    "Needs Attention": items.filter((i) => matchesKpi("Needs Attention", i)).length,
   };
+}
+
+export const ACTION_STATES: MoveState[] = ["To Do", "Waiting", "Scheduled", "Done"];
+
+/** Canonical visible state. Urgency remains a separate derived condition. */
+export function actionState(item: WorkItemRow): MoveState {
+  return currentMoveState(item);
 }
 
 /** Free-text match over the fields a user would actually search. */

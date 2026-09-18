@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   CheckSquare,
+  ContactRound,
   FolderClosed,
   Menu,
   Package,
@@ -19,8 +20,9 @@ import { usePermissions } from "@/hooks/useAuth";
 /** Everyday destinations. */
 const NAV = [
   { label: "Today", short: "Today", to: "/today", icon: Sun },
-  { label: "Work", short: "Work", to: "/work", icon: CheckSquare },
+  { label: "Actions", short: "Actions", to: "/work", icon: CheckSquare },
   { label: "Projects", short: "Jobs", to: "/projects", icon: FolderClosed },
+  { label: "Customers", short: "Customers", to: "/customers", icon: ContactRound },
   { label: "Schedule", short: "Sched", to: "/schedule", icon: CalendarDays },
   { label: "Materials", short: "Materials", to: "/materials", icon: Package },
 ] as const;
@@ -121,7 +123,7 @@ export function AppSidebar() {
 
       {mobileMore ? (
         <div className="fixed inset-x-3 bottom-[68px] z-50 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-raised)] md:hidden">
-          {[NAV[3], NAV[4], ...more].map((item) => (
+          {[NAV[3], NAV[4], NAV[5], ...more].map((item) => (
             <Link
               key={item.to}
               to={item.to}

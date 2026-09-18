@@ -14,13 +14,14 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMoreMenu } from "@/components/ProjectMoreMenu";
 import { ProjectStatusUpdateSheet } from "@/components/ProjectStatusUpdateSheet";
 import { ProjectQuickViewDialog } from "@/components/projects/ProjectQuickViewDialog";
-import { WorkItemDialog } from "@/components/work/WorkItemDialog";
+import { CustomerQuickViewDialog } from "@/components/customers/CustomersWorkspace";
 import { Button, Select } from "@/components/kit";
 import type { Project, ScheduleAssignment } from "@/lib/data";
 import type { FieldReport } from "@/lib/fieldreports";
 import { normalizeStage } from "@/lib/lifecycle";
 import { Dot, stageTone } from "@/lib/status";
 import type { WorkItemRow } from "@/lib/workitems";
+import { useCompanies, type Company } from "@/lib/people";
 import { cn } from "@/lib/utils";
 
 export type ProjectQueueRecord = {
@@ -65,7 +66,8 @@ export function ProjectsWorkspaceV2({
   onStatusProject: (project: Project | null) => void;
 }) {
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
-  const [selectedWork, setSelectedWork] = useState<WorkItemRow | null>(null);
+  const { data: companies = [] } = useCompanies("customer");
+  const [selectedCustomer, setSelectedCustomer] = useState<Company | null>(null);
   const [readiness, setReadiness] = useState<"All" | "Ready" | "Partial" | "Not ready">("All");
 
   const visible = jobs.filter((job) => {
@@ -144,6 +146,12 @@ export function ProjectsWorkspaceV2({
               job={job}
               onOpen={() => onSelect(job.project.id)}
               onStatusUpdate={() => onStatusProject(job.project)}
+              onOpenCustomer={() => {
+                const company = companies.find(
+                  (item) => item.id === job.project.customer_company_id,
+                );
+                if (company) setSelectedCustomer(company);
+              }}
             />
           ))
         )}
@@ -156,12 +164,24 @@ export function ProjectsWorkspaceV2({
       <ProjectQuickViewDialog
         job={selectedJob}
         onClose={() => onSelect("")}
-        onOpenWork={(item) => {
-          onSelect("");
-          setSelectedWork(item);
+        onOpenCustomer={(companyId) => {
+          const company = companies.find((item) => item.id === companyId);
+          if (company) {
+            onSelect("");
+            setSelectedCustomer(company);
+          }
         }}
       />
-      <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
+      {selectedCustomer ? (
+        <CustomerQuickViewDialog
+          company={selectedCustomer}
+          onClose={() => setSelectedCustomer(null)}
+          onProject={(project) => {
+            setSelectedCustomer(null);
+            onSelect(project.id);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -170,14 +190,15 @@ function ProjectQueueItem({
   job,
   onStatusUpdate,
   onOpen,
+  onOpenCustomer,
 }: {
   job: ProjectQueueRecord;
   onStatusUpdate: () => void;
   onOpen: () => void;
+  onOpenCustomer: () => void;
 }) {
   const { project, next, attention, relevantDate, work } = job;
-  const identity =
-    [project.address, project.customer].filter(Boolean).join(" · ") || project.project_type;
+  const identity = project.address ?? project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   const readiness = Math.max(0, Math.min(100, project.readiness_pct ?? 0));
   const progress = Math.max(0, Math.min(100, project.installation_progress ?? 0));
@@ -198,6 +219,26 @@ function ProjectQueueItem({
               {project.name}
             </h2>
             <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
+            {project.customer ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenCustomer();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onOpenCustomer();
+                  }
+                }}
+                className="mt-1 block max-w-full truncate text-[11.5px] font-bold text-primary hover:underline"
+              >
+                {project.customer}
+              </span>
+            ) : null}
             <span className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground">
               <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
               <span className="truncate">{stage}</span>
