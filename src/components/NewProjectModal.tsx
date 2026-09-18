@@ -98,7 +98,8 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
           <FolderCheck className="size-5" />
         </span>
         <InfoBanner>
-          This creates an approved project directly in <strong>Setup</strong>. Add only confirmed job facts.
+          This creates an approved project directly in <strong>Setup</strong>. Add only confirmed
+          job facts.
         </InfoBanner>
       </div>
 
@@ -136,56 +137,56 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
       </div>
 
       <div className="grid gap-3.5 rounded-xl border border-border bg-muted/25 p-4 sm:grid-cols-2">
-            <Field label="Jobsite address" hint="Optional">
-              <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
-            </Field>
-            <Field label="General contractor" hint="Optional">
-              <Combobox
-                options={companyOptions(companies)}
-                value={form.gc_company_id}
-                onChange={(next) => set("gc_company_id", next)}
-                placeholder="Search companies…"
-                onCreate={async (label) => {
-                  const company = await saveCompany.mutateAsync({
-                    values: { name: label, kind: "gc" },
-                  });
-                  if (company) set("gc_company_id", company.id);
-                }}
-                createLabel="Add company"
-              />
-            </Field>
-            <Field label="Primary contact" hint="Optional">
-              <Combobox
-                options={contactOptions(contacts, companies)}
-                value={form.primary_contact_id}
-                onChange={(next) => set("primary_contact_id", next)}
-                placeholder="Search contacts…"
-                onCreate={async (label) => {
-                  const contact = await saveContact.mutateAsync({
-                    values: { full_name: label, company_id: form.customer_company_id },
-                  });
-                  if (contact) set("primary_contact_id", contact.id);
-                }}
-                createLabel="Add contact"
-              />
-            </Field>
-            <Field label="Target date" hint="Optional">
-              <TextInput
-                type="date"
-                value={form.target_date}
-                onChange={(e) => set("target_date", e.target.value)}
-              />
-            </Field>
+        <Field label="Jobsite address" hint="Optional">
+          <TextInput value={form.address} onChange={(e) => set("address", e.target.value)} />
+        </Field>
+        <Field label="General contractor" hint="Optional">
+          <Combobox
+            options={companyOptions(companies)}
+            value={form.gc_company_id}
+            onChange={(next) => set("gc_company_id", next)}
+            placeholder="Search companies…"
+            onCreate={async (label) => {
+              const company = await saveCompany.mutateAsync({
+                values: { name: label, kind: "gc" },
+              });
+              if (company) set("gc_company_id", company.id);
+            }}
+            createLabel="Add company"
+          />
+        </Field>
+        <Field label="Primary contact" hint="Optional">
+          <Combobox
+            options={contactOptions(contacts, companies)}
+            value={form.primary_contact_id}
+            onChange={(next) => set("primary_contact_id", next)}
+            placeholder="Search contacts…"
+            onCreate={async (label) => {
+              const contact = await saveContact.mutateAsync({
+                values: { full_name: label, company_id: form.customer_company_id },
+              });
+              if (contact) set("primary_contact_id", contact.id);
+            }}
+            createLabel="Add contact"
+          />
+        </Field>
+        <Field label="Target date" hint="Optional">
+          <TextInput
+            type="date"
+            value={form.target_date}
+            onChange={(e) => set("target_date", e.target.value)}
+          />
+        </Field>
       </div>
 
-          <Field label="Setup notes" hint="Scope, access, or handoff facts already confirmed">
-            <TextArea
-              rows={3}
-              value={form.intake_notes}
-              onChange={(e) => set("intake_notes", e.target.value)}
-              placeholder="Two bathrooms and kitchen backsplash. Plans received from GC."
-            />
-          </Field>
+      <Field label="Setup notes" hint="Scope, access, or handoff facts already confirmed">
+        <TextArea
+          rows={3}
+          value={form.intake_notes}
+          onChange={(e) => set("intake_notes", e.target.value)}
+          placeholder="Two bathrooms and kitchen backsplash. Plans received from GC."
+        />
+      </Field>
     </Modal>
   );
 }

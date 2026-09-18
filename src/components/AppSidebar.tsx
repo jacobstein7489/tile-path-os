@@ -76,8 +76,12 @@ export function AppSidebar() {
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
 
-          <div className="mt-6 px-3 pb-1 text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">More</div>
-          {more.map((item) => <NavRow key={item.to} item={item} active={isActive(item.to)} />)}
+          <div className="mt-6 px-3 pb-1 text-[9px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+            More
+          </div>
+          {more.map((item) => (
+            <NavRow key={item.to} item={item} active={isActive(item.to)} />
+          ))}
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3">
@@ -106,7 +110,10 @@ export function AppSidebar() {
         <button
           type="button"
           onClick={() => setMobileMore((v) => !v)}
-          className={cn("flex min-h-[56px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold", mobileMore ? "text-primary" : "text-muted-foreground")}
+          className={cn(
+            "flex min-h-[56px] flex-col items-center justify-center gap-1 text-[10.5px] font-semibold",
+            mobileMore ? "text-primary" : "text-muted-foreground",
+          )}
         >
           <Menu className="size-5" /> More
         </button>
@@ -115,7 +122,12 @@ export function AppSidebar() {
       {mobileMore ? (
         <div className="fixed inset-x-3 bottom-[68px] z-50 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-raised)] md:hidden">
           {[NAV[3], NAV[4], ...more].map((item) => (
-            <Link key={item.to} to={item.to} onClick={() => setMobileMore(false)} className="flex min-h-12 items-center gap-3 border-b border-border px-4 text-sm font-semibold last:border-0">
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => setMobileMore(false)}
+              className="flex min-h-12 items-center gap-3 border-b border-border px-4 text-sm font-semibold last:border-0"
+            >
               <item.icon className="size-4 text-muted-foreground" /> {item.label}
             </Link>
           ))}

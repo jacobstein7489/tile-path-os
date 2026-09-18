@@ -234,10 +234,7 @@ function ProjectOverview() {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="grid content-start gap-4">
-            <Panel
-              title="Waiting / blocked"
-              icon={<CircleAlert className="size-4" />}
-            >
+            <Panel title="Waiting / blocked" icon={<CircleAlert className="size-4" />}>
               {waiting.length ? (
                 <div className="mt-1 space-y-2">
                   {waiting.map((item) => (

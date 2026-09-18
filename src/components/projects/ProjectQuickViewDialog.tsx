@@ -162,9 +162,7 @@ export function ProjectQuickViewDialog({
             <div className="grid gap-3 lg:grid-cols-2">
               <Panel title="Current work" detail={`${work.length} open`}>
                 {work.length ? (
-                  work.map((item) => (
-                    <WorkLine key={item.id} item={item} onOpen={onOpenWork} />
-                  ))
+                  work.map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
                 ) : (
                   <EmptyLine text="No open work on this project." />
                 )}

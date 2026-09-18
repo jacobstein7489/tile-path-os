@@ -79,7 +79,9 @@ export function OpsRow({
               <Star className="size-3 shrink-0 translate-y-[-1px] fill-warning text-warning" />
             ) : null}
           </span>
-          {sub ? <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{sub}</span> : null}
+          {sub ? (
+            <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{sub}</span>
+          ) : null}
           {item.next_action ? (
             <span className="mt-1 hidden truncate text-[11.5px] font-medium text-secondary-foreground sm:block">
               Next · {item.next_action}
