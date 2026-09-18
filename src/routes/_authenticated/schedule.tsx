@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Users } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { Button, Field, Modal, SectionCard, Select, TextInput } from "@/components/kit";
+import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
 import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
@@ -22,12 +22,13 @@ export const Route = createFileRoute("/_authenticated/schedule")({
       { title: "Schedule & Crews — Cobblestone Tile OS" },
       {
         name: "description",
-        content: "View crew schedules, manage assignments and plan the week ahead.",
+        content:
+          "Crew-first scheduling: today, the seven-day crew board, month overview and the ready-to-assign queue.",
       },
       { property: "og:title", content: "Schedule & Crews — Cobblestone Tile OS" },
       {
         property: "og:description",
-        content: "Weekly crew lanes, unassigned jobs and return visits.",
+        content: "Crew lanes across the week, month overview and jobs ready to assign.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -36,7 +37,8 @@ export const Route = createFileRoute("/_authenticated/schedule")({
   component: SchedulePage,
 });
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+type View = "Today" | "Week" | "Month";
 
 function mondayOf(date: Date) {
   const d = new Date(date);
@@ -45,7 +47,11 @@ function mondayOf(date: Date) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => {
+  const c = new Date(d);
+  c.setMinutes(c.getMinutes() - c.getTimezoneOffset());
+  return c.toISOString().slice(0, 10);
+};
 
 function SchedulePage() {
   const { data: crews = [] } = useCrews();
@@ -54,29 +60,57 @@ function SchedulePage() {
   const insertAssignment = useInsertRow("schedule_assignments");
   const updateProject = useUpdateRow("projects");
   const { data: allReports = [] } = useFieldReports();
-  const [weekOffset, setWeekOffset] = useState(0);
+
+  const [view, setView] = useState<View>("Week");
+  const [offset, setOffset] = useState(0);
+  const [queueOpen, setQueueOpen] = useState(true);
   const [assignFor, setAssignFor] = useState<{ project: Project; kind: string } | null>(null);
   const [reportFor, setReportFor] = useState<{ project: Project; crewId: string | null } | null>(
     null,
   );
 
-  const start = mondayOf(new Date());
-  start.setDate(start.getDate() + weekOffset * 7);
-  const days = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
+  const today = new Date();
+  const todayIsoDate = iso(today);
+
+  const weekStart = useMemo(() => {
+    const s = mondayOf(today);
+    s.setDate(s.getDate() + offset * 7);
+    return s;
+  }, [offset]);
+
+  const weekDays = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        return d;
+      }),
+    [weekStart],
+  );
+
+  const monthAnchor = useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth() + offset, 1);
     return d;
-  });
-  const weekIsos = days.map(iso);
-  const weekAssignments = assignments.filter((a) => weekIsos.includes(a.work_date));
+  }, [offset]);
+
+  const monthCells = useMemo(() => {
+    const first = mondayOf(monthAnchor);
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(first);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [monthAnchor]);
 
   const projectById = (id: string) => projects.find((p) => p.id === id);
-  const todayIsoDate = iso(new Date());
-  const todayAssignments = assignments.filter((a) => a.work_date === todayIsoDate);
+  const crewById = (id: string | null) => crews.find((c) => c.id === id);
+  const forDay = (day: string) => assignments.filter((a) => a.work_date === day);
+
+  const todayAssignments = forDay(todayIsoDate);
   const reportedToday = new Set(
     allReports.filter((r) => r.report_date === todayIsoDate).map((r) => r.project_id),
   );
-  const crewsWorking = new Set(todayAssignments.map((a) => a.crew_id).filter(Boolean)).size;
+  const crewsWorkingToday = new Set(todayAssignments.map((a) => a.crew_id).filter(Boolean)).size;
 
   const unassigned = projects.filter(
     (p) =>
@@ -84,248 +118,379 @@ function SchedulePage() {
       !["Complete", "New Submission", "Estimating", "Proposal"].includes(p.lifecycle_stage) &&
       !assignments.some((a) => a.project_id === p.id && a.crew_id),
   );
-  const returnVisits = weekAssignments.filter((a) => a.kind === "Return Visit");
-  const finishingSoon = projects.filter((p) => p.lifecycle_stage === "Closeout / Return");
-
-  const readyToAssign = projects
-    .filter((p) => ["Closeout / Return", "Ready", "Setup"].includes(p.lifecycle_stage))
-    .slice(0, 4);
+  const weekIsos = weekDays.map(iso);
+  const returnVisits = assignments.filter(
+    (a) => weekIsos.includes(a.work_date) && a.kind === "Return Visit",
+  );
 
   const readyLabel = (p: Project) =>
     p.lifecycle_stage === "Closeout / Return"
       ? { text: "Assign return visit", kind: "Return Visit" }
       : p.lifecycle_stage === "Ready"
         ? { text: "Assign crew and resume", kind: "Tile / Grout" }
-        : { text: "Start setup", kind: "Tile / Grout" };
+        : { text: "Schedule crew", kind: "Tile / Grout" };
+
+  const rangeLabel =
+    view === "Month"
+      ? monthAnchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+      : view === "Week"
+        ? `${weekDays[0]?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) ?? ""} – ${weekDays[6]?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) ?? ""}`
+        : today.toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          });
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
-      <div className="mx-auto max-w-7xl mx-auto px-8 pt-8 pb-16">
-        <h1 className="text-[30px] leading-tight font-bold tracking-[-0.02em]">
-          Schedule &amp; Crews
-        </h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">
-          View crew schedules, manage assignments and plan the week ahead.
-        </p>
-
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] text-muted-foreground">
-          <span>
-            <span className="font-semibold text-foreground tabular-nums">{crewsWorking}</span> of{" "}
-            {crews.length} crews working today
-          </span>
-          <span>
-            <span className="font-semibold text-foreground tabular-nums">{unassigned.length}</span>{" "}
-            jobs ready to assign
-          </span>
-          <span>
-            <span className="font-semibold text-foreground tabular-nums">
-              {returnVisits.length}
-            </span>{" "}
-            return visits this week
-          </span>
-        </div>
-
-        {/* Who is out today, and which jobs still owe a daily field report. */}
-        <div className="mt-5">
-          <SectionCard
-            title="Working today"
-            subtitle="Every job scheduled today needs a daily field report before the day closes."
-            icon={<ClipboardCheck className="size-[18px] text-primary" />}
-            bodyClassName="divide-y divide-border"
-          >
-            {todayAssignments.map((a) => {
-              const p = projectById(a.project_id);
-              if (!p) return null;
-              const missing = !reportedToday.has(p.id);
-              return (
-                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                  <div className="min-w-0">
-                    <Link
-                      to="/projects/$projectId"
-                      params={{ projectId: p.id }}
-                      className="block truncate text-[13px] font-semibold text-primary hover:underline"
-                    >
-                      {p.name}
-                    </Link>
-                    <div className="truncate text-[12px] text-muted-foreground">
-                      {[crews.find((c) => c.id === a.crew_id)?.name ?? "No crew", a.kind]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  </div>
-                  {missing ? (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
-                    >
-                      Report missing
-                    </Button>
-                  ) : (
-                    <Chip tone="green">Reported</Chip>
+      <main className="mx-auto w-full max-w-[1480px] px-4 pb-28 md:px-7 md:pb-12">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+          <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+            <div className="min-w-0">
+              <p className="v2-kicker mb-1">Crew-first scheduling</p>
+              <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+                Schedule &amp; Crews
+              </h1>
+              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+                <span>
+                  <strong className="text-foreground tabular-nums">{crewsWorkingToday}</strong> of{" "}
+                  {crews.length} crews working today
+                </span>
+                <span>
+                  <strong className="text-foreground tabular-nums">{unassigned.length}</strong>{" "}
+                  ready to assign
+                </span>
+                <span>
+                  <strong className="text-foreground tabular-nums">{returnVisits.length}</strong>{" "}
+                  return visits this week
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-[var(--shadow-card)]">
+              {(["Today", "Week", "Month"] as View[]).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setView(value);
+                    setOffset(0);
+                  }}
+                  aria-pressed={view === value}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition-colors",
+                    view === value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-primary-soft/50 hover:text-foreground",
                   )}
-                </div>
-              );
-            })}
-            {todayAssignments.length === 0 ? (
-              <div className="px-5 py-4 text-[12.5px] text-muted-foreground">
-                No crews are scheduled today.
-              </div>
-            ) : null}
-          </SectionCard>
-        </div>
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </header>
 
-        <div className="mt-5 grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
-          <SectionCard
-            title="Weekly Crew Schedule"
-            icon={<CalendarDays className="size-[18px] text-primary" />}
-            actions={
-              <>
-                <Button size="sm" onClick={() => setWeekOffset(0)}>
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 px-3 py-2.5 md:px-4">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => setOffset((o) => o - 1)}
+                aria-label="Previous period"
+                disabled={view === "Today"}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="min-w-[160px] text-center text-[13px] font-bold">{rangeLabel}</span>
+              <Button
+                size="sm"
+                onClick={() => setOffset((o) => o + 1)}
+                aria-label="Next period"
+                disabled={view === "Today"}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+              {offset !== 0 ? (
+                <Button size="sm" onClick={() => setOffset(0)}>
                   Today
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setWeekOffset((w) => w - 1)}
-                  aria-label="Previous week"
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setWeekOffset((w) => w + 1)}
-                  aria-label="Next week"
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </>
-            }
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full table-fixed border-collapse">
-                <thead>
-                  <tr>
-                    <th className="w-[110px] border-b border-border px-4 py-2.5 text-left text-[11.5px] font-semibold text-muted-foreground">
-                      Crew
-                    </th>
-                    {days.map((d, i) => (
-                      <th
-                        key={i}
-                        className="border-b border-border px-2 py-2.5 text-center text-[12px] font-semibold"
-                      >
-                        {DAY_LABELS[i]}
-                        <div className="text-[11px] font-normal text-muted-foreground">
-                          {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {crews.map((crew) => (
-                    <tr key={crew.id}>
-                      <td className="border-b border-border/70 px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="grid size-7 place-items-center rounded-full bg-muted text-[10.5px] font-bold text-secondary-foreground">
-                            {crew.initials}
-                          </span>
-                          <span className="text-[13px] font-semibold">{crew.name}</span>
-                        </div>
-                      </td>
-                      {crew.is_open_lane ? (
-                        <td colSpan={6} className="border-b border-border/70 px-3 py-3 text-center">
-                          <div className="rounded-lg border border-dashed border-border-strong py-3 text-[12.5px] text-muted-foreground">
-                            Open for assignment
-                          </div>
-                        </td>
-                      ) : (
-                        days.map((d) => {
-                          const day = iso(d);
-                          const cell = weekAssignments.filter(
-                            (a) => a.crew_id === crew.id && a.work_date === day,
-                          );
-                          return (
-                            <td
-                              key={day}
-                              className="border-b border-border/70 px-1.5 py-2 align-top"
-                            >
-                              {cell.map((a) => {
-                                const p = projectById(a.project_id);
-                                const tone =
-                                  a.kind === "Return Visit"
-                                    ? "border-info/40 bg-info-soft"
-                                    : crew.tone === "green"
-                                      ? "border-success/40 bg-success-soft"
-                                      : crew.tone === "blue"
-                                        ? "border-info/40 bg-info-soft"
-                                        : crew.tone === "amber"
-                                          ? "border-warning/40 bg-warning-soft"
-                                          : "border-primary/30 bg-primary-soft";
-                                return p ? (
-                                  <Link
-                                    key={a.id}
-                                    to="/projects/$projectId"
-                                    params={{ projectId: p.id }}
-                                    className={cn(
-                                      "mb-1.5 block rounded-lg border px-2 py-1.5 text-left transition-shadow hover:shadow-[var(--shadow-card)]",
-                                      tone,
-                                    )}
-                                  >
-                                    <div className="truncate text-[11.5px] font-semibold text-foreground">
-                                      {p.name}
-                                    </div>
-                                    <div className="truncate text-[10.5px] text-muted-foreground">
-                                      {a.kind}
-                                    </div>
-                                  </Link>
-                                ) : null;
-                              })}
-                            </td>
-                          );
-                        })
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              ) : null}
             </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Ready to Assign"
-            icon={<Users className="size-[18px] text-primary" />}
-            bodyClassName="divide-y divide-border"
-          >
-            {readyToAssign.map((p) => {
-              const label = readyLabel(p);
-              return (
-                <div key={p.id} className="flex items-start justify-between gap-3 px-5 py-3.5">
-                  <div className="min-w-0">
-                    <Link
-                      to="/projects/$projectId"
-                      params={{ projectId: p.id }}
-                      className="block truncate text-[13px] font-semibold text-primary hover:underline"
-                    >
-                      {p.name}
-                    </Link>
-                    <div className="truncate text-[12px] text-muted-foreground">{label.text}</div>
-                  </div>
-                  <Button size="sm" onClick={() => setAssignFor({ project: p, kind: label.kind })}>
-                    {label.text.split(" ").slice(0, 2).join(" ")}
-                  </Button>
-                </div>
-              );
-            })}
-            <Link
-              to="/projects"
-              className="block px-5 py-3.5 text-[12.5px] font-semibold text-primary hover:underline"
+            <button
+              type="button"
+              onClick={() => setQueueOpen((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-primary hover:bg-primary-soft/50"
             >
-              View all unassigned jobs →
-            </Link>
-          </SectionCard>
+              <Users className="size-4" />
+              Ready to assign · {unassigned.length}
+              {queueOpen ? " (hide)" : " (show)"}
+            </button>
+          </div>
+
+          {queueOpen ? (
+            <div className="border-t border-border bg-card px-3 py-3 md:px-4">
+              {unassigned.length === 0 ? (
+                <p className="px-1 py-2 text-[12.5px] text-muted-foreground">
+                  Every active job has a crew assignment.
+                </p>
+              ) : (
+                <div className="flex gap-2.5 overflow-x-auto pb-1">
+                  {unassigned.map((p) => {
+                    const label = readyLabel(p);
+                    return (
+                      <div
+                        key={p.id}
+                        className="min-w-[236px] shrink-0 rounded-xl border border-border bg-background/70 p-3"
+                      >
+                        <p className="truncate text-[13px] font-bold">{p.name}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          {p.lifecycle_stage} · readiness {p.readiness_pct ?? 0}%
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          {p.next_move ?? label.text}
+                        </p>
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => setAssignFor({ project: p, kind: label.kind })}
+                          >
+                            <Plus className="size-3.5" /> Assign
+                          </Button>
+                          <Link
+                            to="/projects/$projectId"
+                            params={{ projectId: p.id }}
+                            className="text-[11.5px] font-semibold text-primary hover:underline"
+                          >
+                            Open
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
-      </div>
+
+        {view === "Week" ? (
+          <section className="workspace-panel mt-4 overflow-hidden">
+            <div className="overflow-x-auto">
+              <div className="min-w-[860px]">
+                <div className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/30">
+                  <div className="px-3 py-2.5 text-[10.5px] font-bold text-muted-foreground uppercase">
+                    Crew
+                  </div>
+                  {weekDays.map((d, i) => {
+                    const isToday = iso(d) === todayIsoDate;
+                    return (
+                      <div
+                        key={iso(d)}
+                        className={cn("px-2 py-2.5 text-center", isToday && "bg-primary-soft/60")}
+                      >
+                        <p className="text-[12px] font-bold">{DAY_LABELS[i]}</p>
+                        <p className="text-[11px] text-muted-foreground tabular-nums">
+                          {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {crews.map((crew) => (
+                  <div
+                    key={crew.id}
+                    className="grid grid-cols-[130px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
+                  >
+                    <div className="flex items-center gap-2 px-3 py-3">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-chip text-[10.5px] font-bold text-secondary-foreground">
+                        {crew.initials}
+                      </span>
+                      <span className="min-w-0 truncate text-[12.5px] font-bold">{crew.name}</span>
+                    </div>
+                    {weekDays.map((d) => {
+                      const day = iso(d);
+                      const cell = assignments.filter(
+                        (a) => a.crew_id === crew.id && a.work_date === day,
+                      );
+                      return (
+                        <div
+                          key={day}
+                          className={cn(
+                            "min-h-[74px] border-l border-border/60 p-1.5 align-top",
+                            day === todayIsoDate && "bg-primary-soft/25",
+                          )}
+                        >
+                          {cell.map((a) => {
+                            const p = projectById(a.project_id);
+                            if (!p) return null;
+                            const tone =
+                              a.kind === "Return Visit"
+                                ? "border-info/40 bg-info-soft"
+                                : crew.tone === "green"
+                                  ? "border-success/40 bg-success-soft"
+                                  : crew.tone === "amber"
+                                    ? "border-warning/40 bg-warning-soft"
+                                    : "border-primary/30 bg-primary-soft";
+                            return (
+                              <Link
+                                key={a.id}
+                                to="/projects/$projectId"
+                                params={{ projectId: p.id }}
+                                className={cn(
+                                  "mb-1.5 block rounded-lg border px-2 py-1.5 transition-shadow hover:shadow-[var(--shadow-card)]",
+                                  tone,
+                                )}
+                              >
+                                <span className="block truncate text-[11.5px] font-bold">
+                                  {p.name}
+                                </span>
+                                <span className="block truncate text-[10.5px] text-muted-foreground">
+                                  {a.kind}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                          {cell.length === 0 ? (
+                            <span className="block h-full rounded-lg border border-dashed border-border/70" />
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {crews.length === 0 ? (
+                  <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+                    No crews have been set up yet.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {view === "Today" ? (
+          <section className="workspace-panel mt-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
+              <div className="min-w-0">
+                <p className="v2-kicker">Working today</p>
+                <p className="mt-0.5 text-[13px] font-semibold">
+                  {todayAssignments.length} crew assignment
+                  {todayAssignments.length === 1 ? "" : "s"} · daily field report required
+                </p>
+              </div>
+              <span className="grid size-9 place-items-center rounded-lg bg-primary-soft text-primary">
+                <ClipboardCheck className="size-4" />
+              </span>
+            </div>
+            {todayAssignments.length === 0 ? (
+              <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+                No crews are scheduled today. Assign a job from the ready-to-assign queue above.
+              </p>
+            ) : (
+              todayAssignments.map((a) => {
+                const p = projectById(a.project_id);
+                if (!p) return null;
+                const missing = !reportedToday.has(p.id);
+                return (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to="/projects/$projectId"
+                        params={{ projectId: p.id }}
+                        className="block truncate text-[13.5px] font-bold hover:text-primary"
+                      >
+                        {p.name}
+                      </Link>
+                      <p className="truncate text-[11.5px] text-muted-foreground">
+                        {[crewById(a.crew_id)?.name ?? "No crew", a.kind, p.address]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    {missing ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => setReportFor({ project: p, crewId: a.crew_id ?? null })}
+                      >
+                        Report missing
+                      </Button>
+                    ) : (
+                      <Chip tone="green">Reported</Chip>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </section>
+        ) : null}
+
+        {view === "Month" ? (
+          <section className="workspace-panel mt-4 overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+              {DAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="px-2 py-2.5 text-center text-[10.5px] font-bold text-muted-foreground uppercase"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {monthCells.map((d) => {
+                const day = iso(d);
+                const inMonth = d.getMonth() === monthAnchor.getMonth();
+                const dayAssignments = forDay(day);
+                return (
+                  <div
+                    key={day}
+                    className={cn(
+                      "min-h-[104px] border-r border-b border-border/60 p-1.5",
+                      !inMonth && "bg-muted/25",
+                      day === todayIsoDate && "bg-primary-soft/30",
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "mb-1 px-1 text-[11px] font-bold tabular-nums",
+                        inMonth ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {d.getDate()}
+                    </p>
+                    {dayAssignments.slice(0, 3).map((a) => {
+                      const p = projectById(a.project_id);
+                      if (!p) return null;
+                      return (
+                        <Link
+                          key={a.id}
+                          to="/projects/$projectId"
+                          params={{ projectId: p.id }}
+                          className="mb-1 block truncate rounded-md border border-primary/25 bg-primary-soft px-1.5 py-1 text-[10.5px] font-semibold hover:shadow-[var(--shadow-card)]"
+                        >
+                          {crewById(a.crew_id)?.initials
+                            ? `${crewById(a.crew_id)?.initials} · `
+                            : ""}
+                          {p.name}
+                        </Link>
+                      );
+                    })}
+                    {dayAssignments.length > 3 ? (
+                      <p className="px-1 text-[10.5px] font-semibold text-muted-foreground">
+                        +{dayAssignments.length - 3} more
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+      </main>
 
       {assignFor ? (
         <AssignModal

@@ -20,6 +20,11 @@ export type TodaySections = {
   needsNow: WorkItemRow[];
   followUps: WorkItemRow[];
   scheduledToday: WorkItemRow[];
+  /**
+   * Fallback so the command center is never blank: every other open item this
+   * person owns, so undated work is still workable from Today.
+   */
+  nextMoves: WorkItemRow[];
 };
 
 /** The date a scheduled item is scheduled for: the item's existing date field. */
@@ -57,7 +62,11 @@ export function todaySections(items: WorkItemRow[], today = todayIso()): TodaySe
     return isOverdue(i) || isDueToday(i) || (i.is_important && !hasFutureDate(i, today));
   });
 
+  const placed = new Set([...scheduledToday, ...followUps, ...needsNow].map((i) => i.id));
+  const nextMoves = active.filter((i) => !placed.has(i.id));
+
   return {
+    nextMoves: [...nextMoves].sort(compareWorkItems),
     // Overdue first, then due today, then the normal work sort.
     needsNow: [...needsNow].sort((a, b) => {
       const oa = isOverdue(a) ? 0 : 1;
@@ -82,6 +91,7 @@ export function todaySummaryLine(s: TodaySections) {
   if (s.needsNow.length) parts.push(`${s.needsNow.length} need attention`);
   if (s.followUps.length) parts.push(`${s.followUps.length} follow-ups`);
   if (s.scheduledToday.length) parts.push(`${s.scheduledToday.length} scheduled`);
+  if (!parts.length && s.nextMoves.length) parts.push(`${s.nextMoves.length} open next moves`);
   return parts.length ? parts.join(" · ") : "Nothing needs you right now.";
 }
 

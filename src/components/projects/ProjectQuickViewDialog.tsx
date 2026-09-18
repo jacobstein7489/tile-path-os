@@ -1,10 +1,9 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
-  ClipboardList,
   ExternalLink,
   Hammer,
   Layers3,
@@ -15,9 +14,15 @@ import { CenterDialog } from "@/components/ops/CenterDialog";
 import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
 import { Button } from "@/components/kit";
 import { normalizeStage } from "@/lib/lifecycle";
-import type { WorkItemRow } from "@/lib/workitems";
+import { isOverdue, isWaiting, type WorkItemRow } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 
+type Tab = "Overview" | "Work" | "Readiness";
+
+/**
+ * Project operating popup. Compact by design: header facts, one dominant next
+ * move, then tabbed operational detail so routine review stays one click deep.
+ */
 export function ProjectQuickViewDialog({
   job,
   onClose,
@@ -27,36 +32,43 @@ export function ProjectQuickViewDialog({
   onClose: () => void;
   onOpenWork: (item: WorkItemRow) => void;
 }) {
+  const [tab, setTab] = useState<Tab>("Overview");
   if (!job) return null;
   const { project, work, next, attention, upcoming, latestReport } = job;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
   const readiness = Math.max(0, Math.min(100, project.readiness_pct ?? 0));
   const progress = Math.max(0, Math.min(100, project.installation_progress ?? 0));
+  const overdue = work.filter(isOverdue);
+  const waiting = work.filter(isWaiting);
 
   return (
     <CenterDialog
       open
       onOpenChange={(open) => !open && onClose()}
       title={project.name}
-      description="Project operating snapshot with current work, readiness, schedule, and activity."
+      description="Project operating snapshot with current work, readiness, schedule and activity."
     >
       <div className="bg-canvas">
-        <header className="relative overflow-hidden border-b border-border bg-card px-5 py-6 sm:px-8 sm:py-7">
-          <div className="absolute inset-y-0 left-0 w-1.5 bg-primary" />
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-5">
+        <header className="border-b border-border bg-card px-4 pt-5 pb-0 sm:px-6">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
             <div className="min-w-0">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary-soft px-3 py-1 text-[11px] font-bold text-primary">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10.5px] font-bold text-primary">
                   {stage}
                 </span>
-                <span className="rounded-full bg-neutral-chip px-3 py-1 text-[11px] font-semibold text-secondary-foreground">
+                <span className="rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-semibold text-secondary-foreground">
                   {project.project_type}
                 </span>
+                {attention ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-[10.5px] font-bold text-warning">
+                    <AlertTriangle className="size-3.5" /> Needs attention
+                  </span>
+                ) : null}
               </div>
-              <h2 className="font-display text-[25px] leading-tight font-bold sm:text-[32px]">
+              <h2 className="truncate font-display text-[22px] leading-tight font-bold sm:text-[28px]">
                 {project.name}
               </h2>
-              <p className="mt-2 text-[13px] text-muted-foreground sm:text-[14px]">
+              <p className="mt-1 truncate text-[12.5px] text-muted-foreground">
                 {[project.address, project.customer].filter(Boolean).join(" · ") ||
                   "Project details not yet set"}
               </p>
@@ -68,216 +80,239 @@ export function ProjectQuickViewDialog({
               </Button>
             </Link>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <ProgressCard
-              label="Readiness"
-              value={readiness}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
               icon={Layers3}
-              tone={readiness < 100 ? "warning" : "success"}
+              label="Readiness"
+              value={`${readiness}%`}
+              bar={readiness}
+              tone="bg-warning"
             />
-            <ProgressCard label="Physical progress" value={progress} icon={Hammer} tone="info" />
+            <Stat
+              icon={Hammer}
+              label="Install progress"
+              value={`${progress}%`}
+              bar={progress}
+              tone="bg-info"
+            />
+            <Stat
+              icon={CalendarDays}
+              label="Next scheduled"
+              value={
+                upcoming ? `${formatDate(upcoming.work_date)} · ${upcoming.kind}` : "Not scheduled"
+              }
+            />
+            <Stat
+              icon={UserRound}
+              label="Crew / owner"
+              value={
+                project.crew_lead ??
+                project.project_manager ??
+                project.next_move_owner ??
+                "Unassigned"
+              }
+            />
+          </div>
+
+          <div className="mt-4 flex gap-1 overflow-x-auto">
+            {(["Overview", "Work", "Readiness"] as Tab[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setTab(value)}
+                aria-pressed={tab === value}
+                className={cn(
+                  "shrink-0 rounded-t-lg border-b-2 px-3.5 py-2.5 text-[12.5px] font-bold transition-colors",
+                  tab === value
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {value}
+                {value === "Work" ? ` · ${work.length}` : ""}
+              </button>
+            ))}
           </div>
         </header>
 
-        <div className="grid gap-4 p-3 sm:p-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,.8fr)]">
-          <div className="space-y-4">
-            <section className="rounded-xl border border-primary/20 bg-primary-soft/55 p-5 shadow-[var(--shadow-card)]">
-              <p className="v2-kicker !text-primary">Next move</p>
-              <h3 className="mt-2 text-[20px] font-bold">
-                {next?.title ?? project.next_move ?? "Review current project work"}
-              </h3>
-              <p className="mt-1 text-[12.5px] text-muted-foreground">
-                {next?.next_action ??
-                  project.readiness_note ??
-                  `${work.length} open item${work.length === 1 ? "" : "s"}`}
-              </p>
+        <div className="space-y-3 p-3 sm:p-5">
+          <section className="rounded-xl border border-primary/20 bg-primary-soft/55 p-4 shadow-[var(--shadow-card)]">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+              <div className="min-w-0">
+                <p className="v2-kicker !text-primary">Next move</p>
+                <h3 className="mt-1 truncate text-[17px] font-bold sm:text-[19px]">
+                  {next?.title ?? project.next_move ?? "Review current project work"}
+                </h3>
+                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                  {next?.next_action ??
+                    project.readiness_note ??
+                    `${work.length} open item${work.length === 1 ? "" : "s"}`}
+                </p>
+              </div>
               {next ? (
-                <Button variant="primary" className="mt-4" onClick={() => onOpenWork(next)}>
-                  Open action <ArrowRight className="size-4" />
+                <Button variant="primary" onClick={() => onOpenWork(next)}>
+                  Open <ArrowRight className="size-4" />
                 </Button>
               ) : null}
-            </section>
+            </div>
+          </section>
 
-            <section className="workspace-panel overflow-hidden">
-              <SectionHead
-                icon={ClipboardList}
-                title="Current work"
-                detail={`${work.length} open`}
-              />
-              {work.length ? (
-                work.slice(0, 5).map((item) => (
+          {tab === "Overview" ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Panel title="Current work" detail={`${work.length} open`}>
+                {work.length ? (
+                  work
+                    .slice(0, 4)
+                    .map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
+                ) : (
+                  <EmptyLine text="No open work on this project." />
+                )}
+                {work.length > 4 ? (
                   <button
-                    key={item.id}
                     type="button"
-                    onClick={() => onOpenWork(item)}
-                    className="group grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-3 text-left transition-colors hover:bg-primary-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30"
+                    onClick={() => setTab("Work")}
+                    className="w-full border-t border-border px-4 py-2.5 text-left text-[12px] font-semibold text-primary hover:bg-primary-soft/40"
                   >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13.5px] font-bold">{item.title}</span>
-                      <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
-                        {item.category ?? item.item_type}
-                        {item.owner ? ` · ${item.owner}` : ""}
-                      </span>
-                    </span>
-                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                    View all {work.length} items
                   </button>
-                ))
-              ) : (
-                <EmptyLine text="No open work on this project." />
-              )}
-            </section>
-
-            <section className="workspace-panel overflow-hidden">
-              <SectionHead
-                icon={CheckCircle2}
+                ) : null}
+              </Panel>
+              <Panel
                 title="Recent activity"
                 detail={
                   latestReport?.report_date ? formatDate(latestReport.report_date) : "No report"
                 }
-              />
-              <div className="border-t border-border p-4">
-                <p className="text-[13px] leading-6">
-                  {latestReport?.progress_note ?? "No field update has been submitted yet."}
-                </p>
-                {latestReport?.blockers ? (
-                  <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-[12px] font-semibold text-warning">
-                    {latestReport.blockers}
+              >
+                <div className="border-t border-border p-4">
+                  <p className="text-[12.5px] leading-6">
+                    {latestReport?.progress_note ?? "No field update has been submitted yet."}
                   </p>
-                ) : null}
-              </div>
-            </section>
-          </div>
+                  {latestReport?.blockers ? (
+                    <p className="mt-2 rounded-lg bg-warning-soft px-3 py-2 text-[11.5px] font-semibold text-warning">
+                      {latestReport.blockers}
+                    </p>
+                  ) : null}
+                </div>
+              </Panel>
+            </div>
+          ) : null}
 
-          <div className="space-y-4">
-            {attention ? (
-              <section className="rounded-xl border border-warning/20 bg-warning-soft p-4">
-                <p className="flex items-center gap-2 text-[11px] font-bold text-warning uppercase">
-                  <AlertTriangle className="size-4" /> Needs attention
-                </p>
-                <p className="mt-2 text-[13px] font-semibold leading-5">{attention}</p>
-              </section>
-            ) : null}
-            <section className="workspace-panel p-4">
-              <p className="v2-kicker">Schedule & crew</p>
-              <InfoRow
-                icon={CalendarDays}
-                label="Next date"
-                value={
-                  upcoming
-                    ? `${formatDate(upcoming.work_date)} · ${upcoming.kind}`
-                    : "Nothing scheduled"
-                }
-              />
-              <InfoRow
-                icon={UserRound}
-                label="Crew / owner"
-                value={
-                  project.crew_lead ??
-                  project.project_manager ??
-                  project.next_move_owner ??
-                  "Unassigned"
-                }
-              />
-            </section>
-            <section className="workspace-panel p-4">
-              <p className="v2-kicker">Material readiness</p>
-              <div className="mt-3 flex items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-success-soft text-success">
-                  <PackageCheck className="size-4" />
-                </span>
-                <div>
-                  <p className="text-[13.5px] font-bold">
-                    {project.material_status || "Not evaluated"}
-                  </p>
-                  <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground">
+          {tab === "Work" ? (
+            <Panel
+              title="All open work"
+              detail={`${overdue.length} overdue · ${waiting.length} waiting`}
+            >
+              {work.length ? (
+                work.map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
+              ) : (
+                <EmptyLine text="No open work on this project." />
+              )}
+            </Panel>
+          ) : null}
+
+          {tab === "Readiness" ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Panel title="Material readiness" detail={project.material_status || "Not evaluated"}>
+                <div className="flex items-start gap-3 border-t border-border p-4">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-success-soft text-success">
+                    <PackageCheck className="size-4" />
+                  </span>
+                  <p className="text-[12.5px] leading-6 text-muted-foreground">
                     {project.readiness_note ??
-                      "Readiness is derived from the project’s current setup and materials."}
+                      "Readiness is derived from this project’s setup, selections and materials."}
                   </p>
                 </div>
-              </div>
-            </section>
-          </div>
+              </Panel>
+              <Panel title="Blockers & attention" detail={`${overdue.length} overdue`}>
+                <div className="space-y-2 border-t border-border p-4">
+                  {attention ? (
+                    <p className="rounded-lg bg-warning-soft px-3 py-2 text-[12px] font-semibold text-warning">
+                      {attention}
+                    </p>
+                  ) : null}
+                  {project.needs_attention ? (
+                    <p className="text-[12.5px] leading-6">{project.needs_attention}</p>
+                  ) : null}
+                  {!attention && !project.needs_attention ? (
+                    <p className="text-[12.5px] text-muted-foreground">Nothing is flagged.</p>
+                  ) : null}
+                </div>
+              </Panel>
+            </div>
+          ) : null}
         </div>
       </div>
     </CenterDialog>
   );
 }
 
-function SectionHead({
-  icon: Icon,
+function WorkLine({ item, onOpen }: { item: WorkItemRow; onOpen: (item: WorkItemRow) => void }) {
+  const late = isOverdue(item);
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      className="group grid min-h-13 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-2.5 text-left transition-colors hover:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none"
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-bold">{item.title}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+          {[item.category ?? item.item_type, item.owner, late ? "Overdue" : null]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+      <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+    </button>
+  );
+}
+
+function Panel({
   title,
   detail,
+  children,
 }: {
-  icon: typeof ClipboardList;
   title: string;
   detail: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-      <h3 className="flex items-center gap-2 text-[14px] font-bold">
-        <span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <Icon className="size-4" />
-        </span>
-        {title}
-      </h3>
-      <span className="text-[11.5px] font-semibold text-muted-foreground">{detail}</span>
-    </div>
+    <section className="workspace-panel overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <h3 className="text-[13px] font-bold">{title}</h3>
+        <span className="truncate text-[11px] font-semibold text-muted-foreground">{detail}</span>
+      </div>
+      {children}
+    </section>
   );
 }
 
-function ProgressCard({
+function Stat({
+  icon: Icon,
   label,
   value,
-  icon: Icon,
+  bar,
   tone,
 }: {
-  label: string;
-  value: number;
   icon: typeof Layers3;
-  tone: "warning" | "success" | "info";
-}) {
-  const colors = {
-    warning: "bg-warning text-warning",
-    success: "bg-success text-success",
-    info: "bg-info text-info",
-  } as const;
-  return (
-    <div className="rounded-xl border border-border bg-background/70 p-4">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[12px] font-bold text-secondary-foreground">
-          <Icon className={cn("size-4", colors[tone].split(" ")[1])} />
-          {label}
-        </span>
-        <strong className="text-[18px] tabular-nums">{value}%</strong>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-track">
-        <div
-          className={cn("h-full rounded-full", colors[tone].split(" ")[0])}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof CalendarDays;
   label: string;
   value: string;
+  bar?: number;
+  tone?: string;
 }) {
   return (
-    <div className="mt-3 flex items-start gap-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-info-soft text-info">
-        <Icon className="size-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
-        <p className="mt-0.5 text-[12.5px] font-semibold leading-5">{value}</p>
-      </div>
+    <div className="rounded-xl border border-border bg-background/70 p-3">
+      <p className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase">
+        <Icon className="size-3.5" />
+        {label}
+      </p>
+      <p className="mt-1 truncate text-[13.5px] font-bold">{value}</p>
+      {typeof bar === "number" ? (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-track">
+          <div className={cn("h-full rounded-full", tone)} style={{ width: `${bar}%` }} />
+        </div>
+      ) : null}
     </div>
   );
 }

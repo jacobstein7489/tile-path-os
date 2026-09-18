@@ -1,9 +1,10 @@
 import {
   AlertTriangle,
-  ArrowUpRight,
   CalendarDays,
   ChevronRight,
   FolderKanban,
+  Hammer,
+  Layers3,
   Plus,
   Search,
   UserRound,
@@ -65,47 +66,79 @@ export function ProjectsWorkspaceV2({
 }) {
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
   const [selectedWork, setSelectedWork] = useState<WorkItemRow | null>(null);
+  const [readiness, setReadiness] = useState<"All" | "Ready" | "Partial" | "Not ready">("All");
+
+  const visible = jobs.filter((job) => {
+    if (readiness === "All") return true;
+    const pct = job.project.readiness_pct ?? 0;
+    if (readiness === "Ready") return pct >= 100;
+    if (readiness === "Partial") return pct > 0 && pct < 100;
+    return pct <= 0;
+  });
+
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-7 md:pb-10">
-      <header className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-4 md:grid-cols-[minmax(180px,1fr)_minmax(240px,420px)_150px_auto] md:py-5">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <h1 className="truncate font-display text-[28px] font-bold md:text-[36px]">Projects</h1>
-          <span className="shrink-0 text-[12px] text-muted-foreground">{activeCount} active</span>
+      <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-5 md:px-6">
+          <div className="min-w-0">
+            <p className="v2-kicker mb-1">Project directory</p>
+            <h1 className="truncate text-[26px] leading-tight font-bold md:text-[34px]">
+              Projects
+            </h1>
+            <p className="mt-1 truncate text-[12px] text-muted-foreground">
+              {visible.length} shown · {activeCount} active
+            </p>
+          </div>
+          <Button variant="primary" onClick={() => onCreating(true)}>
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">New Project</span>
+            <span className="sm:hidden">New</span>
+          </Button>
+        </header>
+        <div className="grid gap-2.5 bg-muted/30 p-3 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center md:px-4">
+          <label className="relative min-w-0">
+            <span className="sr-only">Search projects</span>
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              placeholder="Search name, customer or address"
+              className="h-9 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-[12.5px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+          </label>
+          <Select
+            aria-label="Project stage view"
+            value={filter}
+            onChange={(event) => onFilter(event.target.value as ProjectView)}
+          >
+            {(["Active", "Upcoming", "On Hold", "Completed"] as ProjectView[]).map((view) => (
+              <option key={view}>{view}</option>
+            ))}
+          </Select>
+          <Select
+            aria-label="Readiness filter"
+            value={readiness}
+            onChange={(event) =>
+              setReadiness(event.target.value as "All" | "Ready" | "Partial" | "Not ready")
+            }
+          >
+            {["All", "Ready", "Partial", "Not ready"].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </Select>
         </div>
-        <label className="relative col-span-2 min-w-0 md:col-span-1">
-          <span className="sr-only">Search projects</span>
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(event) => onSearch(event.target.value)}
-            placeholder="Search projects"
-            className="h-9 w-full rounded-md border border-border bg-card pr-3 pl-9 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
-          />
-        </label>
-        <Select
-          aria-label="Project status"
-          value={filter}
-          onChange={(event) => onFilter(event.target.value as ProjectView)}
-          className="col-span-2 md:col-span-1"
-        >
-          {(["Active", "Upcoming", "On Hold", "Completed"] as ProjectView[]).map((view) => (
-            <option key={view}>{view}</option>
-          ))}
-        </Select>
-        <Button variant="primary" onClick={() => onCreating(true)}>
-          <Plus className="size-4" />
-          <span className="hidden sm:inline">New Project</span>
-          <span className="sm:hidden">New</span>
-        </Button>
-      </header>
+      </div>
 
-      <section aria-label="Project portfolio" className="workspace-panel min-w-0 overflow-hidden">
+      <section
+        aria-label="Project portfolio"
+        className="workspace-panel mt-4 min-w-0 overflow-hidden"
+      >
         {loading ? (
           <QueueMessage>Loading projects…</QueueMessage>
-        ) : jobs.length === 0 ? (
-          <QueueMessage>No projects in this view.</QueueMessage>
+        ) : visible.length === 0 ? (
+          <QueueMessage>No projects match this view.</QueueMessage>
         ) : (
-          jobs.map((job) => (
+          visible.map((job) => (
             <ProjectQueueItem
               key={job.project.id}
               job={job}
@@ -142,31 +175,42 @@ function ProjectQueueItem({
   onStatusUpdate: () => void;
   onOpen: () => void;
 }) {
-  const { project, next, attention, relevantDate } = job;
+  const { project, next, attention, relevantDate, work } = job;
   const identity =
     [project.address, project.customer].filter(Boolean).join(" · ") || project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
+  const readiness = Math.max(0, Math.min(100, project.readiness_pct ?? 0));
+  const progress = Math.max(0, Math.min(100, project.installation_progress ?? 0));
+
   return (
-    <article className="group relative min-w-0 border-b border-border/70 last:border-b-0 transition-all hover:z-[1] hover:bg-primary-soft/30 hover:shadow-[var(--shadow-card)] focus-within:bg-primary-soft/40">
+    <article className="group relative min-w-0 border-b border-border/70 transition-all last:border-b-0 focus-within:bg-primary-soft/40 hover:z-[1] hover:bg-primary-soft/25">
       <button
         type="button"
         onClick={onOpen}
-        className="grid min-h-[118px] w-full min-w-0 grid-cols-[52px_minmax(0,1fr)] gap-x-4 gap-y-3 px-4 py-5 pr-14 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[52px_minmax(210px,1.15fr)_minmax(240px,1.25fr)_minmax(150px,.7fr)_110px] md:items-center md:gap-5 md:px-6 md:pr-16"
+        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 px-4 py-4 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:grid-cols-[minmax(240px,1.25fr)_minmax(200px,1fr)_minmax(150px,.75fr)] md:items-center md:px-6 md:pr-16"
       >
-        <span className="grid size-13 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
-          <FolderKanban className="size-5" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="truncate font-display text-[18px] font-bold md:text-[20px]">
-            {project.name}
-          </h2>
-          <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
-          <p className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground md:mt-1.5">
-            <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
-            <span className="truncate">{stage}</span>
-          </p>
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="grid size-12 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
+            <FolderKanban className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate font-display text-[18px] font-bold md:text-[21px]">
+              {project.name}
+            </h2>
+            <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
+            <span className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2.5 py-1 text-[10.5px] font-bold text-secondary-foreground">
+              <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
+              <span className="truncate">{stage}</span>
+            </span>
+          </div>
         </div>
-        <div className="col-span-2 min-w-0 rounded-lg border border-border bg-background/70 px-3 py-2 md:col-span-1 md:border-l-2 md:border-y-0 md:border-r-0 md:bg-transparent md:px-4 md:py-1">
+
+        <div className="min-w-0 space-y-2">
+          <MiniBar icon={Layers3} label="Readiness" value={readiness} tone="bg-warning" />
+          <MiniBar icon={Hammer} label="Install" value={progress} tone="bg-info" />
+        </div>
+
+        <div className="min-w-0 rounded-xl border border-border bg-background/70 px-3 py-2.5">
           <p className="text-[9.5px] font-bold text-muted-foreground uppercase">Next move</p>
           <p
             className={cn(
@@ -174,31 +218,61 @@ function ProjectQueueItem({
               !next && "font-medium text-muted-foreground",
             )}
           >
-            {next?.title ?? "No current action"}
+            {next?.title ?? project.next_move ?? "No current action"}
           </p>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 truncate">
+              <UserRound className="size-3.5 shrink-0" />
+              {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="size-3.5 shrink-0" />
+              {relevantDate ? formatDate(relevantDate) : "No date"}
+            </span>
+            <span className="tabular-nums">{work.length} open</span>
+          </p>
+          {attention ? (
+            <p className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate rounded-lg bg-warning-soft px-2 py-1 text-[11px] font-semibold text-warning">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <span className="truncate">{attention}</span>
+            </p>
+          ) : null}
         </div>
-        <p className="col-span-2 flex min-w-0 items-center gap-2 truncate text-[11.5px] text-muted-foreground md:col-span-1">
-          <UserRound className="size-3.5 shrink-0" />{" "}
-          {project.crew_lead ?? project.next_move_owner ?? next?.owner ?? "Unassigned"}
-        </p>
-        <p className="col-span-2 flex items-center gap-1.5 text-[11.5px] text-muted-foreground md:col-span-1 md:justify-end">
-          <CalendarDays className="size-3.5 shrink-0" />
-          {relevantDate ? formatDate(relevantDate) : "No date"}
-        </p>
-        {attention ? (
-          <p className="col-span-2 flex min-w-0 items-center gap-1.5 truncate rounded-lg bg-warning-soft px-2.5 py-1.5 text-[11.5px] font-semibold text-warning md:col-start-3 md:col-end-6">
-            <AlertTriangle className="size-3.5 shrink-0" />
-            <span className="truncate">{attention}</span>
-          </p>
-        ) : null}
         <span className="absolute top-1/2 right-4 grid size-8 -translate-y-1/2 place-items-center rounded-lg bg-card text-muted-foreground shadow-[var(--shadow-card)] transition-all group-hover:translate-x-0.5 group-hover:text-primary">
           <ChevronRight className="size-4" />
         </span>
       </button>
-      <div className="absolute right-2 bottom-2 md:top-1/2 md:bottom-auto md:-translate-y-1/2">
+      <div className="absolute right-2 bottom-2 md:top-2 md:bottom-auto">
         <ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} />
       </div>
     </article>
+  );
+}
+
+function MiniBar({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof Layers3;
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between text-[10.5px] font-bold text-muted-foreground uppercase">
+        <span className="inline-flex items-center gap-1.5">
+          <Icon className="size-3.5" />
+          {label}
+        </span>
+        <span className="tabular-nums text-secondary-foreground">{value}%</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-track">
+        <div className={cn("h-full rounded-full", tone)} style={{ width: `${value}%` }} />
+      </div>
+    </div>
   );
 }
 
