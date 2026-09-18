@@ -12,8 +12,8 @@ import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { useProfiles } from "@/lib/people";
-import { useAuthUser } from "@/hooks/useAuth";
-import { compareWorkItems, isComplete, projectLabel, useWorkFeed } from "@/lib/workitems";
+import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
+import { compareWorkItems, isComplete, isItemOwnedBy, projectLabel, useWorkFeed } from "@/lib/workitems";
 import type { WorkItemRow } from "@/lib/workitems";
 import {
   bucketOrder,
@@ -42,6 +42,7 @@ export function WorkBoard() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { data: profiles = [] } = useProfiles();
   const { user } = useAuthUser();
+  const { data: myProfile } = useMyProfile();
   const capture = useCapture();
 
   const [grouping, setGrouping] = useState<Grouping>("Action Queue");
@@ -56,8 +57,11 @@ export function WorkBoard() {
     profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ?? item.owner ?? null;
 
   const scoped = useMemo(
-    () => (scope === "Mine" ? items.filter((i) => i.owner_user_id === user?.id) : items),
-    [items, scope, user?.id],
+    () =>
+      scope === "Mine"
+        ? items.filter((item) => isItemOwnedBy(item, user?.id, myProfile?.full_name))
+        : items,
+    [items, myProfile?.full_name, scope, user?.id],
   );
 
   const counts = useMemo(() => workKpiCounts(scoped), [scoped]);

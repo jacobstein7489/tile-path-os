@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, CircleAlert, Clock3, Star } from "lucide-react";
+import { CalendarDays, ChevronRight, CircleAlert, Clock3, Star, UserRound } from "lucide-react";
 import { isOverdue, isWaiting, todayIso, type WorkItemRow } from "@/lib/workitems";
 import { currentMoveState } from "@/lib/moveforward";
 import { cn } from "@/lib/utils";
@@ -53,14 +53,14 @@ export function OpsRow({
         type="button"
         onClick={() => onOpen(item)}
         className={cn(
-          "group grid min-h-[78px] w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-3 text-left transition-all duration-150 last:border-b-0",
+          "group grid min-h-[88px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-3 text-left transition-all duration-150 last:border-b-0",
           "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-5",
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
         <span
           className={cn(
-            "grid size-10 shrink-0 place-items-center rounded-xl border shadow-[var(--shadow-card)]",
+            "grid size-11 shrink-0 place-items-center rounded-xl border shadow-[var(--shadow-card)]",
             late
               ? "border-danger/15 bg-danger-soft text-danger"
               : waiting
@@ -72,15 +72,18 @@ export function OpsRow({
         </span>
         <span className="min-w-0">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="min-w-0 truncate text-[14px] leading-snug font-bold">
+            <span className="min-w-0 truncate text-[14px] leading-snug font-bold sm:text-[14.5px]">
               {item.title}
             </span>
             {item.is_important ? (
               <Star className="size-3 shrink-0 translate-y-[-1px] fill-warning text-warning" />
             ) : null}
           </span>
-          {sub ? (
-            <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{sub}</span>
+          {sub ? <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">{sub}</span> : null}
+          {item.next_action ? (
+            <span className="mt-1 hidden truncate text-[11.5px] font-medium text-secondary-foreground sm:block">
+              Next · {item.next_action}
+            </span>
           ) : null}
         </span>
 
@@ -101,7 +104,9 @@ export function OpsRow({
               </span>
             ) : null}
             {person ? (
-              <span className="max-w-[150px] truncate text-muted-foreground">{person}</span>
+              <span className="hidden max-w-[150px] items-center gap-1 truncate text-muted-foreground sm:inline-flex">
+                <UserRound className="size-3 shrink-0" /> {person}
+              </span>
             ) : null}
           </span>
           <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />

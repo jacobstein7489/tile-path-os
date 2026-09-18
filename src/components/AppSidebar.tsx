@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
   CalendarDays,
   CheckSquare,
   FolderClosed,
@@ -28,7 +27,6 @@ const NAV = [
 
 const MORE = [
   { label: "Commissions", to: "/commissions", icon: Percent, money: true },
-  { label: "Reports", to: "/dashboard", icon: BarChart3, money: false },
   { label: "Settings", to: "/settings", icon: Settings, money: false },
 ] as const;
 
