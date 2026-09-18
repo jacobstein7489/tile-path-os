@@ -62,3 +62,9 @@
 - [x] Rebuild Work with summaries and grouped workspace
 - [x] Rebuild Projects portfolio presentation
 - [x] Verify desktop/mobile viewports and shared work panel
+
+## Owner UX refinement pass
+- [ ] Replace Today, Work, and Projects card collections with compact single-column lists
+- [ ] Route work-item inspection and editing to a full detail page with back navigation
+- [ ] Replace fragile native Add Date interaction with a reliable calendar and verify persistence
+- [ ] Validate Today, Work, Projects, detail navigation, and date editing at desktop and mobile sizes
