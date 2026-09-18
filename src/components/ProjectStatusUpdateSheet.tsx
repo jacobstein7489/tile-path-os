@@ -7,14 +7,30 @@ import { useScheduleAssignments, type Project } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
 import { compareWorkItems, isComplete, isWaiting, useWorkFeed } from "@/lib/workitems";
 
-export function ProjectStatusUpdateSheet({ project, onClose }: { project: Project; onClose: () => void }) {
+export function ProjectStatusUpdateSheet({
+  project,
+  onClose,
+}: {
+  project: Project;
+  onClose: () => void;
+}) {
   const { data: reports = [] } = useFieldReports(project.id);
   const { data: work = [] } = useWorkFeed();
   const { data: schedule = [] } = useScheduleAssignments();
   const facts = useMemo(() => {
-    const items = work.filter((i) => i.project_id === project.id && !isComplete(i)).sort(compareWorkItems);
-    const waiting = items.filter(isWaiting).slice(0, 3).map((i) => i.title).join("\n");
-    const upcoming = schedule.filter((s) => s.project_id === project.id && s.work_date >= new Date().toISOString().slice(0, 10)).sort((a,b) => a.work_date.localeCompare(b.work_date))[0];
+    const items = work
+      .filter((i) => i.project_id === project.id && !isComplete(i))
+      .sort(compareWorkItems);
+    const waiting = items
+      .filter(isWaiting)
+      .slice(0, 3)
+      .map((i) => i.title)
+      .join("\n");
+    const upcoming = schedule
+      .filter(
+        (s) => s.project_id === project.id && s.work_date >= new Date().toISOString().slice(0, 10),
+      )
+      .sort((a, b) => a.work_date.localeCompare(b.work_date))[0];
     return {
       completed: reports[0]?.progress_note ?? "",
       current: items[0]?.title ?? "",
@@ -24,7 +40,17 @@ export function ProjectStatusUpdateSheet({ project, onClose }: { project: Projec
     };
   }, [project.id, reports, schedule, work]);
   const [form, setForm] = useState(facts);
-  const text = [project.name, `Stage: ${project.exception_state ?? project.lifecycle_stage}`, form.completed && `Completed since last update:\n${form.completed}`, form.current && `Currently working on:\n${form.current}`, form.waiting && `Waiting / blockers:\n${form.waiting}`, form.next && `Next steps:\n${form.next}`, form.upcoming && `Upcoming:\n${form.upcoming}`].filter(Boolean).join("\n\n");
+  const text = [
+    project.name,
+    `Stage: ${project.exception_state ?? project.lifecycle_stage}`,
+    form.completed && `Completed since last update:\n${form.completed}`,
+    form.current && `Currently working on:\n${form.current}`,
+    form.waiting && `Waiting / blockers:\n${form.waiting}`,
+    form.next && `Next steps:\n${form.next}`,
+    form.upcoming && `Upcoming:\n${form.upcoming}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const set = (key: keyof typeof form, value: string) => setForm((v) => ({ ...v, [key]: value }));
   return (
     <CenterDialog

@@ -79,10 +79,10 @@ export function WorkBoard() {
         grouping === "Action Queue"
           ? actionBucket(item)
           : grouping === "By Project"
-          ? projectLabel(item)
-          : (profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ??
-            item.owner ??
-            "Unassigned");
+            ? projectLabel(item)
+            : (profiles.find((p) => p.user_id === item.owner_user_id)?.full_name ??
+              item.owner ??
+              "Unassigned");
       const list = map.get(key);
       if (list) list.push(item);
       else map.set(key, [item]);
@@ -259,8 +259,7 @@ const ACTION_BUCKETS = [
 ];
 
 function actionBucket(item: WorkItemRow) {
-  if (item.is_important || (item.priority === "High" && !item.due_date))
-    return "Needs attention";
+  if (item.is_important || (item.priority === "High" && !item.due_date)) return "Needs attention";
   if (isOverdue(item) || item.due_date === new Date().toISOString().slice(0, 10))
     return "Due or overdue";
   if (currentMoveState(item) === "Waiting" || item.follow_up_on) return "Waiting or follow-up";

@@ -10,6 +10,7 @@
   - [x] Zero configuration: correct the seeded question-rule values in place so all four screens work immediately on existing project data
 
 ## Sprint 1 (installer chain on 114 Park Place) — done
+
 - Authoritative spec resolver (`src/lib/spec.ts`) feeds Rooms, snapshot and print sheet; legacy flat columns kept as fallback only.
 - Measurement/geometry fields exposed in the surface drawer.
 - Tracked (unresolved) decisions stay answerable; confirming closes the same Work item.
@@ -17,6 +18,7 @@
 - Retired unused LifecycleTrack.tsx and ops/TaskDrawer.tsx.
 
 ## Production Experience Pass
+
 - [x] Unify global shell and mobile navigation
 - [x] Finalize Today and Work shared experience
 - [x] Finalize Projects operational list using only existing Work, readiness, schedule, and project dates
@@ -26,6 +28,7 @@
 - [x] Verify desktop, mobile, workflows, unchanged production counts, and screenshots without production mutations
 
 ## V2 Frontend Rebuild
+
 - [x] Build the new V2 shell, tokens, navigation, and interaction primitives
 - [x] Rebuild Today, Work, and the universal Work drawer
 - [x] Rebuild Projects and the dedicated project workspace shell
@@ -39,12 +42,14 @@
 - [x] Stop before Materials Sprint 2
 
 ## Projects V2 hard acceptance gate
+
 - [x] Replace the live Projects route with a new master-detail operations workspace
 - [x] Verify 1440px desktop and 390px mobile without overflow
 - [x] Confirm production data counts remain unchanged
 - [x] Deliver old/new/mobile evidence and stop before other routes
 
 ## Projects V2 exact frontend contract
+
 - [x] Replace Projects with the exact continuous queue + inspector composition
 - [x] Restore the specified light global shell and semantic palette
 - [x] Verify 1440×900, 1280×800, and 390px without horizontal overflow
@@ -52,11 +57,13 @@
 - [x] Confirm production counts unchanged and deliver old/new evidence
 
 ## Controlled UI surgery — Projects + project shell
+
 - [x] Replace the split Projects queue/inspector with a compact full-width operations list
 - [x] Simplify the project shell while preserving its five permanent destinations and wired actions
 - [x] Verify 1280×800, 1366×768, 1440×900, and mobile overflow without production mutations
 
 ## Controlled visual rebuild
+
 - [x] Establish shared bright card-based visual foundation
 - [x] Rebuild Today with summaries, operational list, quick actions
 - [x] Rebuild Work with summaries and grouped workspace
@@ -64,17 +71,20 @@
 - [x] Verify desktop/mobile viewports and shared work panel
 
 ## Owner UX refinement pass
+
 - [x] Replace Today, Work, and Projects card collections with compact single-column lists
 - [x] Route work-item inspection and editing to a full detail page with back navigation
 - [x] Replace fragile native Add Date interaction with a reliable calendar and verify persistence path
 - [ ] Validate Today, Work, Projects, detail navigation, and date editing at desktop and mobile sizes
 
 ## Owner visual restoration
+
 - [x] Restore premium shell, summary cards, state anchors, and composed single-column lists
 - [x] Restore a focused full-page Work Item workspace without changing mutations
 - [ ] Verify 1440×900 and 390px screenshots, calendar opening, typecheck, and overflow
 
 ## Centered operations workflow
+
 - [x] Add reusable centered Project and Work Item quick-view dialogs
 - [x] Reframe Work as a curated action queue with collapsed project groups
 - [x] Keep Today in context with the shared Work Item dialog
