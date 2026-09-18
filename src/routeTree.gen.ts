@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedCommissionsRouteImport } from './routes/_authenticated/commissions'
+import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedMaterialsRouteImport } from './routes/_authenticated/materials'
@@ -60,6 +61,11 @@ const AuthenticatedCommissionsRoute =
     path: '/commissions',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/commissions': typeof AuthenticatedCommissionsRoute
+  '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/materials': typeof AuthenticatedMaterialsRoute
@@ -243,6 +250,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/commissions': typeof AuthenticatedCommissionsRoute
+  '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/materials': typeof AuthenticatedMaterialsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/commissions': typeof AuthenticatedCommissionsRoute
+  '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/_authenticated/materials': typeof AuthenticatedMaterialsRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/commissions'
+    | '/customers'
     | '/dashboard'
     | '/leads'
     | '/materials'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/commissions'
+    | '/customers'
     | '/dashboard'
     | '/materials'
     | '/schedule'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/commissions'
+    | '/_authenticated/customers'
     | '/_authenticated/dashboard'
     | '/_authenticated/leads'
     | '/_authenticated/materials'
@@ -431,6 +443,13 @@ declare module '@tanstack/react-router' {
       path: '/commissions'
       fullPath: '/commissions'
       preLoaderRoute: typeof AuthenticatedCommissionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/customers': {
+      id: '/_authenticated/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AuthenticatedCustomersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -683,6 +702,7 @@ const AuthenticatedProjectsProjectIdRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCommissionsRoute: typeof AuthenticatedCommissionsRoute
+  AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRouteWithChildren
   AuthenticatedMaterialsRoute: typeof AuthenticatedMaterialsRoute
@@ -697,6 +717,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCommissionsRoute: AuthenticatedCommissionsRoute,
+  AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRouteWithChildren,
   AuthenticatedMaterialsRoute: AuthenticatedMaterialsRoute,
