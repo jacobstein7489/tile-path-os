@@ -81,6 +81,11 @@ export function ProjectsWorkspaceV2({
       </header>
 
       <section aria-label="Project portfolio" className="workspace-panel min-w-0 overflow-hidden">
+          {!loading && jobs.length ? (
+            <div className="hidden grid-cols-[minmax(190px,1.2fr)_120px_minmax(220px,1.5fr)_140px_110px] gap-4 border-b border-border bg-muted/45 px-5 py-2.5 pr-12 text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase md:grid">
+              <span>Project</span><span>Stage</span><span>Next move</span><span>Crew / owner</span><span className="text-right">Relevant date</span>
+            </div>
+          ) : null}
           {loading ? <QueueMessage>Loading projects…</QueueMessage> : jobs.length === 0 ? <QueueMessage>No projects in this view.</QueueMessage> : jobs.map((job) => (
             <ProjectQueueItem key={job.project.id} job={job} onStatusUpdate={() => onStatusProject(job.project)} />
           ))}

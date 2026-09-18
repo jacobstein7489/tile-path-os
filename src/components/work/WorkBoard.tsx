@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, ListChecks, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { OpsRow, OpsSectionHeading } from "@/components/work/OpsRow";
 import { useCapture } from "@/components/ops/CaptureProvider";
 import { useProfiles } from "@/lib/people";

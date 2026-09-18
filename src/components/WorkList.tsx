@@ -559,11 +559,10 @@ export function WorkList({
   };
 
   const setDate = (item: WorkItemRow, next: string | null) => {
-    const waiting = isWaiting(item) && Boolean(item.follow_up_on);
     patch(
       item,
-      waiting ? { follow_up_on: next } : { due_date: next },
-      next ? `Date set to ${shortDate(next)}` : "Date cleared",
+      { due_date: next },
+      next ? `Due date set to ${shortDate(next)}` : "Due date cleared",
     );
   };
 
@@ -626,7 +625,7 @@ export function WorkList({
     const done = isComplete(item) || Boolean(justDone[item.id]);
     const selected = selectedId === item.id;
     const waiting = !done && isWaiting(item);
-    const dateValue = waiting && item.follow_up_on ? item.follow_up_on : item.due_date;
+    const dateValue = item.due_date;
 
     const context = [
       waiting && item.waiting_on ? `Waiting on ${item.waiting_on}` : "",
