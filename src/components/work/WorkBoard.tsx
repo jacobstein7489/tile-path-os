@@ -135,9 +135,9 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
             <div className="flex gap-2 overflow-x-auto p-2 md:block md:space-y-1 md:overflow-x-visible">
               {railGroups.map((group) => {
                 const project = mode === "By Project" && group.key !== "company" ? projectMap.get(group.key) : null;
-                const title = mode === "By Project" ? (project?.name ?? "Company / Unassigned") : ownerName(group.rows[0]);
                 const firstRow = group.rows[0];
                 if (!firstRow) return null;
+                const title = mode === "By Project" ? (project?.name ?? "Company / Unassigned") : ownerName(firstRow);
                 const customer = mode === "By Project" ? customerFor(firstRow) : `${new Set(group.rows.map(projectLabel)).size} projects`;
                 const waiting = group.rows.filter((row) => actionState(row) === "Waiting").length;
                 return <button key={group.key} type="button" onClick={() => setSelectedKey(group.key)} aria-pressed={selectedKey === group.key} className={cn("min-w-[240px] rounded-xl border px-3 py-3 text-left transition-all md:min-w-0 md:w-full", selectedKey === group.key ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]" : "border-transparent hover:border-border hover:bg-card")}>
