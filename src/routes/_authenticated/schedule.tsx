@@ -1,13 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-  Plus,
-  Users,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Users } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Button, Field, Modal, Select, TextInput } from "@/components/kit";
 import { FieldReportSheet } from "@/components/FieldReportSheet";
@@ -165,8 +158,8 @@ function SchedulePage() {
                   {crews.length} crews working today
                 </span>
                 <span>
-                  <strong className="text-foreground tabular-nums">{unassigned.length}</strong> ready
-                  to assign
+                  <strong className="text-foreground tabular-nums">{unassigned.length}</strong>{" "}
+                  ready to assign
                 </span>
                 <span>
                   <strong className="text-foreground tabular-nums">{returnVisits.length}</strong>{" "}
@@ -293,10 +286,7 @@ function SchedulePage() {
                     return (
                       <div
                         key={iso(d)}
-                        className={cn(
-                          "px-2 py-2.5 text-center",
-                          isToday && "bg-primary-soft/60",
-                        )}
+                        className={cn("px-2 py-2.5 text-center", isToday && "bg-primary-soft/60")}
                       >
                         <p className="text-[12px] font-bold">{DAY_LABELS[i]}</p>
                         <p className="text-[11px] text-muted-foreground tabular-nums">

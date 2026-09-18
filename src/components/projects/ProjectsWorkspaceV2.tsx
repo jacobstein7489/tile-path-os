@@ -129,7 +129,10 @@ export function ProjectsWorkspaceV2({
         </div>
       </div>
 
-      <section aria-label="Project portfolio" className="workspace-panel mt-4 min-w-0 overflow-hidden">
+      <section
+        aria-label="Project portfolio"
+        className="workspace-panel mt-4 min-w-0 overflow-hidden"
+      >
         {loading ? (
           <QueueMessage>Loading projects…</QueueMessage>
         ) : visible.length === 0 ? (

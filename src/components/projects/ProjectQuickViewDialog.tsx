@@ -82,12 +82,26 @@ export function ProjectQuickViewDialog({
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat icon={Layers3} label="Readiness" value={`${readiness}%`} bar={readiness} tone="bg-warning" />
-            <Stat icon={Hammer} label="Install progress" value={`${progress}%`} bar={progress} tone="bg-info" />
+            <Stat
+              icon={Layers3}
+              label="Readiness"
+              value={`${readiness}%`}
+              bar={readiness}
+              tone="bg-warning"
+            />
+            <Stat
+              icon={Hammer}
+              label="Install progress"
+              value={`${progress}%`}
+              bar={progress}
+              tone="bg-info"
+            />
             <Stat
               icon={CalendarDays}
               label="Next scheduled"
-              value={upcoming ? `${formatDate(upcoming.work_date)} · ${upcoming.kind}` : "Not scheduled"}
+              value={
+                upcoming ? `${formatDate(upcoming.work_date)} · ${upcoming.kind}` : "Not scheduled"
+              }
             />
             <Stat
               icon={UserRound}
@@ -148,7 +162,9 @@ export function ProjectQuickViewDialog({
             <div className="grid gap-3 lg:grid-cols-2">
               <Panel title="Current work" detail={`${work.length} open`}>
                 {work.length ? (
-                  work.slice(0, 4).map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
+                  work
+                    .slice(0, 4)
+                    .map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
                 ) : (
                   <EmptyLine text="No open work on this project." />
                 )}
@@ -164,7 +180,9 @@ export function ProjectQuickViewDialog({
               </Panel>
               <Panel
                 title="Recent activity"
-                detail={latestReport?.report_date ? formatDate(latestReport.report_date) : "No report"}
+                detail={
+                  latestReport?.report_date ? formatDate(latestReport.report_date) : "No report"
+                }
               >
                 <div className="border-t border-border p-4">
                   <p className="text-[12.5px] leading-6">
@@ -181,7 +199,10 @@ export function ProjectQuickViewDialog({
           ) : null}
 
           {tab === "Work" ? (
-            <Panel title="All open work" detail={`${overdue.length} overdue · ${waiting.length} waiting`}>
+            <Panel
+              title="All open work"
+              detail={`${overdue.length} overdue · ${waiting.length} waiting`}
+            >
               {work.length ? (
                 work.map((item) => <WorkLine key={item.id} item={item} onOpen={onOpenWork} />)
               ) : (
