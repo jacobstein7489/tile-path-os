@@ -80,21 +80,24 @@ export function ProjectMoreMenu({
           ),
         },
     ...(perms.isAdmin || perms.has("gm")
-      ? [{
-      label: "Cancel project",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Cancel project?",
-          note: "The project stays in the database with its full history and can be restored later.",
-          confirmLabel: "Cancel project",
-          danger: true,
-          run: () => setException("Cancelled", "Project marked cancelled"),
-        })
-      ),
-    }]
+      ? [
+          {
+            label: "Cancel project",
+            run: () => (
+              setOpen(false),
+              setPendingAction({
+                title: "Cancel project?",
+                note: "The project stays in the database with its full history and can be restored later.",
+                confirmLabel: "Cancel project",
+                danger: true,
+                run: () => setException("Cancelled", "Project marked cancelled"),
+              })
+            ),
+          },
+        ]
       : []),
-    ...((project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled") && perms.isAdmin
+    ...((project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled") &&
+    perms.isAdmin
       ? [
           {
             label: "Archive project",

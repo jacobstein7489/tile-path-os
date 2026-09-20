@@ -527,48 +527,44 @@ function ContactEditor({
   const set = (key: keyof typeof form, value: string) =>
     setForm((old) => ({ ...old, [key]: value }));
   return (
-      <div className="grid gap-3 bg-canvas p-4 sm:grid-cols-2">
-        <Field label="Name">
-          <TextInput value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
+    <div className="grid gap-3 bg-canvas p-4 sm:grid-cols-2">
+      <Field label="Name">
+        <TextInput value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
+      </Field>
+      <Field label="Title">
+        <TextInput value={form.title} onChange={(e) => set("title", e.target.value)} />
+      </Field>
+      <Field label="Phone">
+        <TextInput value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+      </Field>
+      <Field label="Email">
+        <TextInput type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+      </Field>
+      <div className="sm:col-span-2">
+        <Field label="Notes">
+          <TextArea rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
         </Field>
-        <Field label="Title">
-          <TextInput value={form.title} onChange={(e) => set("title", e.target.value)} />
-        </Field>
-        <Field label="Phone">
-          <TextInput value={form.phone} onChange={(e) => set("phone", e.target.value)} />
-        </Field>
-        <Field label="Email">
-          <TextInput
-            type="email"
-            value={form.email}
-            onChange={(e) => set("email", e.target.value)}
-          />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="Notes">
-            <TextArea rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 sm:col-span-2">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            disabled={!form.full_name.trim() || saving}
-            onClick={() =>
-              onSave({
-                full_name: form.full_name.trim(),
-                title: form.title || null,
-                phone: form.phone || null,
-                email: form.email || null,
-                notes: form.notes || null,
-                company_id: companyId,
-              })
-            }
-          >
-            {saving ? "Saving…" : "Save contact"}
-          </Button>
-        </div>
       </div>
+      <div className="flex justify-end gap-2 sm:col-span-2">
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="primary"
+          disabled={!form.full_name.trim() || saving}
+          onClick={() =>
+            onSave({
+              full_name: form.full_name.trim(),
+              title: form.title || null,
+              phone: form.phone || null,
+              email: form.email || null,
+              notes: form.notes || null,
+              company_id: companyId,
+            })
+          }
+        >
+          {saving ? "Saving…" : "Save contact"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

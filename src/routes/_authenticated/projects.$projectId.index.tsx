@@ -195,46 +195,86 @@ function ProjectOverview() {
             </div>
           )}
 
-          {showReadiness ? <Panel title={readinessThreat ? "Upcoming work readiness" : "Readiness"} icon={<Layers3 className="size-4" />} className="min-h-[218px]">
-            <p
-              className={cn(
-                "mt-1 text-[22px] font-bold",
-                conclusion.tone === "green"
-                  ? "text-success"
-                  : conclusion.tone === "amber"
-                    ? "text-warning"
-                    : "text-muted-foreground",
-              )}
+          {showReadiness ? (
+            <Panel
+              title={readinessThreat ? "Upcoming work readiness" : "Readiness"}
+              icon={<Layers3 className="size-4" />}
+              className="min-h-[218px]"
             >
-              {conclusion.label}
-            </p>
-            <div className="mt-4 space-y-3">
-              {reasons.length ? (
-                reasons.map((r) => (
-                  <div
-                    key={r.category}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"
-                  >
-                    <span className="truncate font-semibold">{r.category}</span>
-                    <span className="text-right text-warning">{r.reason}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[12.5px] leading-5 text-muted-foreground">
-                  {evaluated
-                    ? "Every setup requirement on this job is satisfied."
-                    : "Readiness starts once rooms and surfaces exist."}
-                </p>
-              )}
-            </div>
-            <Link
-              to="/projects/$projectId/scope"
-              params={{ projectId }}
-              className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary"
+              <p
+                className={cn(
+                  "mt-1 text-[22px] font-bold",
+                  conclusion.tone === "green"
+                    ? "text-success"
+                    : conclusion.tone === "amber"
+                      ? "text-warning"
+                      : "text-muted-foreground",
+                )}
+              >
+                {conclusion.label}
+              </p>
+              <div className="mt-4 space-y-3">
+                {reasons.length ? (
+                  reasons.map((r) => (
+                    <div
+                      key={r.category}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[12px]"
+                    >
+                      <span className="truncate font-semibold">{r.category}</span>
+                      <span className="text-right text-warning">{r.reason}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[12.5px] leading-5 text-muted-foreground">
+                    {evaluated
+                      ? "Every setup requirement on this job is satisfied."
+                      : "Readiness starts once rooms and surfaces exist."}
+                  </p>
+                )}
+              </div>
+              <Link
+                to="/projects/$projectId/scope"
+                params={{ projectId }}
+                className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary"
+              >
+                Review readiness <ArrowRight className="size-3.5" />
+              </Link>
+            </Panel>
+          ) : showsInstallationProgress(normalizedStage) && normalizedStage !== "Complete" ? (
+            <Panel
+              title="Installation progress"
+              icon={<Layers3 className="size-4" />}
+              className="min-h-[218px]"
             >
-              Review readiness <ArrowRight className="size-3.5" />
-            </Link>
-          </Panel> : showsInstallationProgress(normalizedStage) && normalizedStage !== "Complete" ? <Panel title="Installation progress" icon={<Layers3 className="size-4" />} className="min-h-[218px]"><p className="mt-1 text-[28px] font-bold text-primary">{project.installation_progress ?? 0}%</p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-track"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, project.installation_progress ?? 0))}%` }} /></div><p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">Physical tile installation completed.</p></Panel> : <Panel title="Project status" icon={<Layers3 className="size-4" />} className="min-h-[218px]"><p className="mt-1 text-[22px] font-bold">{normalizedStage}</p><p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">{work.length ? `${work.length} open project item${work.length === 1 ? "" : "s"}.` : "No open project work."}</p></Panel>}
+              <p className="mt-1 text-[28px] font-bold text-primary">
+                {project.installation_progress ?? 0}%
+              </p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-track">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, project.installation_progress ?? 0))}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">
+                Physical tile installation completed.
+              </p>
+            </Panel>
+          ) : (
+            <Panel
+              title="Project status"
+              icon={<Layers3 className="size-4" />}
+              className="min-h-[218px]"
+            >
+              <p className="mt-1 text-[22px] font-bold">{normalizedStage}</p>
+              <p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">
+                {work.length
+                  ? `${work.length} open project item${work.length === 1 ? "" : "s"}.`
+                  : "No open project work."}
+              </p>
+            </Panel>
+          )}
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

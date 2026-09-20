@@ -176,18 +176,26 @@ function ProjectShell() {
                         <Button
                           className="mt-3 w-full"
                           variant="primary"
-                           disabled={!canEdit || !gate?.ok || (following === "Complete" && openWork.length > 0)}
-                           {...(following === "Complete" && openWork.length > 0
-                             ? { disabledReason: `${openWork.length} open work item${openWork.length === 1 ? "" : "s"} must be reviewed first` }
-                             : !gate?.ok && gate?.reason
-                               ? { disabledReason: gate.reason }
-                               : {})}
+                          disabled={
+                            !canEdit ||
+                            !gate?.ok ||
+                            (following === "Complete" && openWork.length > 0)
+                          }
+                          {...(following === "Complete" && openWork.length > 0
+                            ? {
+                                disabledReason: `${openWork.length} open work item${openWork.length === 1 ? "" : "s"} must be reviewed first`,
+                              }
+                            : !gate?.ok && gate?.reason
+                              ? { disabledReason: gate.reason }
+                              : {})}
                           onClick={() => {
                             update.mutate({ lifecycle_stage: following });
                             setStageOpen(false);
                           }}
                         >
-                           {following === "Complete" ? "Complete project" : `Advance to ${following}`}
+                          {following === "Complete"
+                            ? "Complete project"
+                            : `Advance to ${following}`}
                         </Button>
                       ) : (
                         <div className="mt-3 text-xs font-semibold text-success">

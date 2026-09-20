@@ -178,8 +178,16 @@ function ProjectView({
           </Link>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4">
-          {readiness.visible ? <HeaderFact icon={Layers3} label="Readiness" value={readiness.label} /> : null}
-          {primaryMetric ? <HeaderFact icon={Hammer} label={primaryMetric.label} value={`${primaryMetric.value}%`} /> : null}
+          {readiness.visible ? (
+            <HeaderFact icon={Layers3} label="Readiness" value={readiness.label} />
+          ) : null}
+          {primaryMetric ? (
+            <HeaderFact
+              icon={Hammer}
+              label={primaryMetric.label}
+              value={`${primaryMetric.value}%`}
+            />
+          ) : null}
           <HeaderFact
             icon={UserRound}
             label="Crew / owner"
@@ -234,7 +242,17 @@ function ProjectView({
             </section>
             <section className="workspace-panel px-4 py-3">
               <p className="v2-kicker">Operating context</p>
-              {readiness.visible ? <Fact label="Why" value={readiness.detail ?? (readiness.label === "Ready" ? "No current readiness blockers" : "Review room and surface readiness")} /> : null}
+              {readiness.visible ? (
+                <Fact
+                  label="Why"
+                  value={
+                    readiness.detail ??
+                    (readiness.label === "Ready"
+                      ? "No current readiness blockers"
+                      : "Review room and surface readiness")
+                  }
+                />
+              ) : null}
               <Fact
                 label="Next schedule"
                 value={

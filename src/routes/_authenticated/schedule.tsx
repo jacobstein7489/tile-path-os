@@ -619,8 +619,23 @@ function ReadyQueue({
               >
                 <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
                   <strong className="block truncate text-[13px]">{project.name}</strong>
-                  <span className={cn("mt-2 inline-flex rounded-md px-2 py-1 text-[10.5px] font-bold", readiness.tone === "green" ? "bg-success-soft text-success" : readiness.tone === "red" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")}>{readiness.label}</span>
-                  {readiness.detail ? <span className="mt-1 line-clamp-2 text-[10.5px] text-muted-foreground">{readiness.detail}</span> : null}
+                  <span
+                    className={cn(
+                      "mt-2 inline-flex rounded-md px-2 py-1 text-[10.5px] font-bold",
+                      readiness.tone === "green"
+                        ? "bg-success-soft text-success"
+                        : readiness.tone === "red"
+                          ? "bg-danger-soft text-danger"
+                          : "bg-warning-soft text-warning",
+                    )}
+                  >
+                    {readiness.label}
+                  </span>
+                  {readiness.detail ? (
+                    <span className="mt-1 line-clamp-2 text-[10.5px] text-muted-foreground">
+                      {readiness.detail}
+                    </span>
+                  ) : null}
                   <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                     {project.next_move ?? label.text}
                   </span>
