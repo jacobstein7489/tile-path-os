@@ -75,5 +75,6 @@ export function stageFamily(stage: VNextStage) {
 }
 export function nextVNextStage(stage: VNextStage): VNextStage | null {
   const index = VNEXT_STAGES.indexOf(stage);
-  return index >= 0 && index < VNEXT_STAGES.length - 1 ? VNEXT_STAGES[index + 1] : null;
+  const next = index >= 0 && index < VNEXT_STAGES.length - 1 ? VNEXT_STAGES[index + 1] : undefined;
+  return next ?? null;
 }

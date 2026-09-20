@@ -20,12 +20,15 @@ import { Route as AuthenticatedMaterialsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
+import { Route as AuthenticatedVnextRouteImport } from './routes/_authenticated.vnext'
 import { Route as AuthenticatedWorkRouteImport } from './routes/_authenticated/work'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedLeadsCommissionsRouteImport } from './routes/_authenticated/leads.commissions'
 import { Route as AuthenticatedLeadsCustomersRouteImport } from './routes/_authenticated/leads.customers'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as AuthenticatedVnextIndexRouteImport } from './routes/_authenticated.vnext.index'
+import { Route as AuthenticatedVnextJobsRouteImport } from './routes/_authenticated.vnext.jobs'
 import { Route as AuthenticatedWorkItemItemIdRouteImport } from './routes/_authenticated/work-item.$itemId'
 import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 import { Route as AuthenticatedProjectsProjectIdIndexRouteImport } from './routes/_authenticated/projects.$projectId.index'
@@ -40,6 +43,10 @@ import { Route as AuthenticatedProjectsProjectIdScopeRouteImport } from './route
 import { Route as AuthenticatedProjectsProjectIdTasksRouteImport } from './routes/_authenticated/projects.$projectId.tasks'
 import { Route as AuthenticatedProjectsProjectIdTilesRouteImport } from './routes/_authenticated/projects.$projectId.tiles'
 import { Route as AuthenticatedProjectsProjectIdUpdatesRouteImport } from './routes/_authenticated/projects.$projectId.updates'
+import { Route as AuthenticatedVnextJobsIndexRouteImport } from './routes/_authenticated.vnext.jobs.index'
+import { Route as AuthenticatedVnextJobsJobIdRouteImport } from './routes/_authenticated.vnext.jobs.$jobId'
+import { Route as AuthenticatedVnextJobsJobIdIndexRouteImport } from './routes/_authenticated.vnext.jobs.$jobId.index'
+import { Route as AuthenticatedVnextJobsJobIdEstimateRouteImport } from './routes/_authenticated.vnext.jobs.$jobId.estimate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -96,6 +103,11 @@ const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   path: '/today',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVnextRoute = AuthenticatedVnextRouteImport.update({
+  id: '/vnext',
+  path: '/vnext',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedWorkRoute = AuthenticatedWorkRouteImport.update({
   id: '/work',
   path: '/work',
@@ -130,6 +142,16 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVnextIndexRoute = AuthenticatedVnextIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedVnextRoute,
+} as any)
+const AuthenticatedVnextJobsRoute = AuthenticatedVnextJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AuthenticatedVnextRoute,
+} as any)
 const AuthenticatedWorkItemItemIdRoute =
   AuthenticatedWorkItemItemIdRouteImport.update({
     id: '/work-item/$itemId',
@@ -213,6 +235,30 @@ const AuthenticatedProjectsProjectIdUpdatesRoute =
     path: '/updates',
     getParentRoute: () => AuthenticatedProjectsProjectIdRoute,
   } as any)
+const AuthenticatedVnextJobsIndexRoute =
+  AuthenticatedVnextJobsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedVnextJobsRoute,
+  } as any)
+const AuthenticatedVnextJobsJobIdRoute =
+  AuthenticatedVnextJobsJobIdRouteImport.update({
+    id: '/$jobId',
+    path: '/$jobId',
+    getParentRoute: () => AuthenticatedVnextJobsRoute,
+  } as any)
+const AuthenticatedVnextJobsJobIdIndexRoute =
+  AuthenticatedVnextJobsJobIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedVnextJobsJobIdRoute,
+  } as any)
+const AuthenticatedVnextJobsJobIdEstimateRoute =
+  AuthenticatedVnextJobsJobIdEstimateRouteImport.update({
+    id: '/estimate',
+    path: '/estimate',
+    getParentRoute: () => AuthenticatedVnextJobsJobIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -225,14 +271,17 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
+  '/vnext': typeof AuthenticatedVnextRouteWithChildren
   '/work': typeof AuthenticatedWorkRoute
   '/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/vnext/jobs': typeof AuthenticatedVnextJobsRouteWithChildren
   '/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/vnext/': typeof AuthenticatedVnextIndexRoute
   '/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -244,7 +293,11 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
   '/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
   '/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
+  '/vnext/jobs/$jobId': typeof AuthenticatedVnextJobsJobIdRouteWithChildren
   '/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
+  '/vnext/jobs/': typeof AuthenticatedVnextJobsIndexRoute
+  '/vnext/jobs/$jobId/estimate': typeof AuthenticatedVnextJobsJobIdEstimateRoute
+  '/vnext/jobs/$jobId/': typeof AuthenticatedVnextJobsJobIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -263,6 +316,7 @@ export interface FileRoutesByTo {
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/vnext': typeof AuthenticatedVnextIndexRoute
   '/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -275,6 +329,9 @@ export interface FileRoutesByTo {
   '/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
   '/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdIndexRoute
+  '/vnext/jobs': typeof AuthenticatedVnextJobsIndexRoute
+  '/vnext/jobs/$jobId/estimate': typeof AuthenticatedVnextJobsJobIdEstimateRoute
+  '/vnext/jobs/$jobId': typeof AuthenticatedVnextJobsJobIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -289,14 +346,17 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
+  '/_authenticated/vnext': typeof AuthenticatedVnextRouteWithChildren
   '/_authenticated/work': typeof AuthenticatedWorkRoute
   '/_authenticated/leads/commissions': typeof AuthenticatedLeadsCommissionsRoute
   '/_authenticated/leads/customers': typeof AuthenticatedLeadsCustomersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRouteWithChildren
+  '/_authenticated/vnext/jobs': typeof AuthenticatedVnextJobsRouteWithChildren
   '/_authenticated/work-item/$itemId': typeof AuthenticatedWorkItemItemIdRoute
   '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/vnext/': typeof AuthenticatedVnextIndexRoute
   '/_authenticated/projects/$projectId/design': typeof AuthenticatedProjectsProjectIdDesignRoute
   '/_authenticated/projects/$projectId/field': typeof AuthenticatedProjectsProjectIdFieldRoute
   '/_authenticated/projects/$projectId/files': typeof AuthenticatedProjectsProjectIdFilesRoute
@@ -308,7 +368,11 @@ export interface FileRoutesById {
   '/_authenticated/projects/$projectId/tasks': typeof AuthenticatedProjectsProjectIdTasksRoute
   '/_authenticated/projects/$projectId/tiles': typeof AuthenticatedProjectsProjectIdTilesRoute
   '/_authenticated/projects/$projectId/updates': typeof AuthenticatedProjectsProjectIdUpdatesRoute
+  '/_authenticated/vnext/jobs/$jobId': typeof AuthenticatedVnextJobsJobIdRouteWithChildren
   '/_authenticated/projects/$projectId/': typeof AuthenticatedProjectsProjectIdIndexRoute
+  '/_authenticated/vnext/jobs/': typeof AuthenticatedVnextJobsIndexRoute
+  '/_authenticated/vnext/jobs/$jobId/estimate': typeof AuthenticatedVnextJobsJobIdEstimateRoute
+  '/_authenticated/vnext/jobs/$jobId/': typeof AuthenticatedVnextJobsJobIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -323,14 +387,17 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/today'
+    | '/vnext'
     | '/work'
     | '/leads/commissions'
     | '/leads/customers'
     | '/projects/$projectId'
+    | '/vnext/jobs'
     | '/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/leads/'
     | '/projects/'
+    | '/vnext/'
     | '/projects/$projectId/design'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
@@ -342,7 +409,11 @@ export interface FileRouteTypes {
     | '/projects/$projectId/tasks'
     | '/projects/$projectId/tiles'
     | '/projects/$projectId/updates'
+    | '/vnext/jobs/$jobId'
     | '/projects/$projectId/'
+    | '/vnext/jobs/'
+    | '/vnext/jobs/$jobId/estimate'
+    | '/vnext/jobs/$jobId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -361,6 +432,7 @@ export interface FileRouteTypes {
     | '/api/public/qa-provision'
     | '/leads'
     | '/projects'
+    | '/vnext'
     | '/projects/$projectId/design'
     | '/projects/$projectId/field'
     | '/projects/$projectId/files'
@@ -373,6 +445,9 @@ export interface FileRouteTypes {
     | '/projects/$projectId/tiles'
     | '/projects/$projectId/updates'
     | '/projects/$projectId'
+    | '/vnext/jobs'
+    | '/vnext/jobs/$jobId/estimate'
+    | '/vnext/jobs/$jobId'
   id:
     | '__root__'
     | '/'
@@ -386,14 +461,17 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/today'
+    | '/_authenticated/vnext'
     | '/_authenticated/work'
     | '/_authenticated/leads/commissions'
     | '/_authenticated/leads/customers'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/vnext/jobs'
     | '/_authenticated/work-item/$itemId'
     | '/api/public/qa-provision'
     | '/_authenticated/leads/'
     | '/_authenticated/projects/'
+    | '/_authenticated/vnext/'
     | '/_authenticated/projects/$projectId/design'
     | '/_authenticated/projects/$projectId/field'
     | '/_authenticated/projects/$projectId/files'
@@ -405,7 +483,11 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/$projectId/tasks'
     | '/_authenticated/projects/$projectId/tiles'
     | '/_authenticated/projects/$projectId/updates'
+    | '/_authenticated/vnext/jobs/$jobId'
     | '/_authenticated/projects/$projectId/'
+    | '/_authenticated/vnext/jobs/'
+    | '/_authenticated/vnext/jobs/$jobId/estimate'
+    | '/_authenticated/vnext/jobs/$jobId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -494,6 +576,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTodayRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/vnext': {
+      id: '/_authenticated/vnext'
+      path: '/vnext'
+      fullPath: '/vnext'
+      preLoaderRoute: typeof AuthenticatedVnextRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/work': {
       id: '/_authenticated/work'
       path: '/work'
@@ -535,6 +624,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects/$projectId'
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/vnext/': {
+      id: '/_authenticated/vnext/'
+      path: '/'
+      fullPath: '/vnext/'
+      preLoaderRoute: typeof AuthenticatedVnextIndexRouteImport
+      parentRoute: typeof AuthenticatedVnextRoute
+    }
+    '/_authenticated/vnext/jobs': {
+      id: '/_authenticated/vnext/jobs'
+      path: '/jobs'
+      fullPath: '/vnext/jobs'
+      preLoaderRoute: typeof AuthenticatedVnextJobsRouteImport
+      parentRoute: typeof AuthenticatedVnextRoute
     }
     '/_authenticated/work-item/$itemId': {
       id: '/_authenticated/work-item/$itemId'
@@ -634,6 +737,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdUpdatesRouteImport
       parentRoute: typeof AuthenticatedProjectsProjectIdRoute
     }
+    '/_authenticated/vnext/jobs/': {
+      id: '/_authenticated/vnext/jobs/'
+      path: '/'
+      fullPath: '/vnext/jobs/'
+      preLoaderRoute: typeof AuthenticatedVnextJobsIndexRouteImport
+      parentRoute: typeof AuthenticatedVnextJobsRoute
+    }
+    '/_authenticated/vnext/jobs/$jobId': {
+      id: '/_authenticated/vnext/jobs/$jobId'
+      path: '/$jobId'
+      fullPath: '/vnext/jobs/$jobId'
+      preLoaderRoute: typeof AuthenticatedVnextJobsJobIdRouteImport
+      parentRoute: typeof AuthenticatedVnextJobsRoute
+    }
+    '/_authenticated/vnext/jobs/$jobId/': {
+      id: '/_authenticated/vnext/jobs/$jobId/'
+      path: '/'
+      fullPath: '/vnext/jobs/$jobId/'
+      preLoaderRoute: typeof AuthenticatedVnextJobsJobIdIndexRouteImport
+      parentRoute: typeof AuthenticatedVnextJobsJobIdRoute
+    }
+    '/_authenticated/vnext/jobs/$jobId/estimate': {
+      id: '/_authenticated/vnext/jobs/$jobId/estimate'
+      path: '/estimate'
+      fullPath: '/vnext/jobs/$jobId/estimate'
+      preLoaderRoute: typeof AuthenticatedVnextJobsJobIdEstimateRouteImport
+      parentRoute: typeof AuthenticatedVnextJobsJobIdRoute
+    }
   }
 }
 
@@ -651,6 +782,54 @@ const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
 
 const AuthenticatedLeadsRouteWithChildren =
   AuthenticatedLeadsRoute._addFileChildren(AuthenticatedLeadsRouteChildren)
+
+interface AuthenticatedVnextJobsJobIdRouteChildren {
+  AuthenticatedVnextJobsJobIdEstimateRoute: typeof AuthenticatedVnextJobsJobIdEstimateRoute
+  AuthenticatedVnextJobsJobIdIndexRoute: typeof AuthenticatedVnextJobsJobIdIndexRoute
+}
+
+const AuthenticatedVnextJobsJobIdRouteChildren: AuthenticatedVnextJobsJobIdRouteChildren =
+  {
+    AuthenticatedVnextJobsJobIdEstimateRoute:
+      AuthenticatedVnextJobsJobIdEstimateRoute,
+    AuthenticatedVnextJobsJobIdIndexRoute:
+      AuthenticatedVnextJobsJobIdIndexRoute,
+  }
+
+const AuthenticatedVnextJobsJobIdRouteWithChildren =
+  AuthenticatedVnextJobsJobIdRoute._addFileChildren(
+    AuthenticatedVnextJobsJobIdRouteChildren,
+  )
+
+interface AuthenticatedVnextJobsRouteChildren {
+  AuthenticatedVnextJobsJobIdRoute: typeof AuthenticatedVnextJobsJobIdRouteWithChildren
+  AuthenticatedVnextJobsIndexRoute: typeof AuthenticatedVnextJobsIndexRoute
+}
+
+const AuthenticatedVnextJobsRouteChildren: AuthenticatedVnextJobsRouteChildren =
+  {
+    AuthenticatedVnextJobsJobIdRoute:
+      AuthenticatedVnextJobsJobIdRouteWithChildren,
+    AuthenticatedVnextJobsIndexRoute: AuthenticatedVnextJobsIndexRoute,
+  }
+
+const AuthenticatedVnextJobsRouteWithChildren =
+  AuthenticatedVnextJobsRoute._addFileChildren(
+    AuthenticatedVnextJobsRouteChildren,
+  )
+
+interface AuthenticatedVnextRouteChildren {
+  AuthenticatedVnextJobsRoute: typeof AuthenticatedVnextJobsRouteWithChildren
+  AuthenticatedVnextIndexRoute: typeof AuthenticatedVnextIndexRoute
+}
+
+const AuthenticatedVnextRouteChildren: AuthenticatedVnextRouteChildren = {
+  AuthenticatedVnextJobsRoute: AuthenticatedVnextJobsRouteWithChildren,
+  AuthenticatedVnextIndexRoute: AuthenticatedVnextIndexRoute,
+}
+
+const AuthenticatedVnextRouteWithChildren =
+  AuthenticatedVnextRoute._addFileChildren(AuthenticatedVnextRouteChildren)
 
 interface AuthenticatedProjectsProjectIdRouteChildren {
   AuthenticatedProjectsProjectIdDesignRoute: typeof AuthenticatedProjectsProjectIdDesignRoute
@@ -709,6 +888,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
+  AuthenticatedVnextRoute: typeof AuthenticatedVnextRouteWithChildren
   AuthenticatedWorkRoute: typeof AuthenticatedWorkRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRouteWithChildren
   AuthenticatedWorkItemItemIdRoute: typeof AuthenticatedWorkItemItemIdRoute
@@ -724,6 +904,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
+  AuthenticatedVnextRoute: AuthenticatedVnextRouteWithChildren,
   AuthenticatedWorkRoute: AuthenticatedWorkRoute,
   AuthenticatedProjectsProjectIdRoute:
     AuthenticatedProjectsProjectIdRouteWithChildren,
