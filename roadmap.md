@@ -11,3 +11,12 @@
 - [x] Reduce the project overflow menu to rare administrative actions
 - [x] Keep stage transitions and status updates visible in the project workspace
 - [x] Validate customer, project, and lifecycle corrections; authenticated visual review remains owner confirmation
+
+## VNext visual gate
+
+- [ ] Build isolated VNext shell and routes without replacing the current app
+- [ ] Build full-lifecycle VNext Jobs directory and centered Job Quick View
+- [ ] Build canonical VNext full Job Overview with signature lifecycle flow
+- [ ] Build VNext tile-estimating workspace from existing project data
+- [ ] Build VNext Today after the Job model is established
+- [ ] Validate desktop/mobile layout, typecheck, queue tests, and diff checks
