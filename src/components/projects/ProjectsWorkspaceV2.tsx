@@ -246,11 +246,26 @@ function ProjectQueueItem({
         </div>
 
         <div className="min-w-0 space-y-2">
-          {primaryMetric ? <OpsMeter label={primaryMetric.label} value={primaryMetric.value} /> : null}
+          {primaryMetric ? (
+            <OpsMeter label={primaryMetric.label} value={primaryMetric.value} />
+          ) : null}
           {readiness.visible ? (
-            <div className={cn("rounded-lg border px-3 py-2", readiness.tone === "green" ? "border-success/20 bg-success-soft" : readiness.tone === "red" ? "border-danger/20 bg-danger-soft" : "border-warning/20 bg-warning-soft")}>
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2",
+                readiness.tone === "green"
+                  ? "border-success/20 bg-success-soft"
+                  : readiness.tone === "red"
+                    ? "border-danger/20 bg-danger-soft"
+                    : "border-warning/20 bg-warning-soft",
+              )}
+            >
               <p className="text-[11.5px] font-bold">{readiness.label}</p>
-              {readiness.detail ? <p className="mt-0.5 line-clamp-2 text-[10.5px] text-muted-foreground">{readiness.detail}</p> : null}
+              {readiness.detail ? (
+                <p className="mt-0.5 line-clamp-2 text-[10.5px] text-muted-foreground">
+                  {readiness.detail}
+                </p>
+              ) : null}
             </div>
           ) : primaryMetric ? null : (
             <p className="text-[11.5px] font-semibold text-muted-foreground">{stage}</p>

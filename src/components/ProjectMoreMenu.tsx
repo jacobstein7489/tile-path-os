@@ -18,7 +18,13 @@ import {
 import { Combobox } from "@/components/kit";
 import { cn } from "@/lib/utils";
 
-export function ProjectMoreMenu({ project, compact = false }: { project: Project; compact?: boolean }) {
+export function ProjectMoreMenu({
+  project,
+  compact = false,
+}: {
+  project: Project;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -86,18 +92,22 @@ export function ProjectMoreMenu({ project, compact = false }: { project: Project
         })
       ),
     },
-    ...(project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled" ? [{
-      label: "Archive project",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Archive project?",
-          note: "The project will leave active lists but its records and history remain intact.",
-          confirmLabel: "Archive project",
-          run: archive,
-        })
-      ),
-    }] : []),
+    ...(project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled"
+      ? [
+          {
+            label: "Archive project",
+            run: () => (
+              setOpen(false),
+              setPendingAction({
+                title: "Archive project?",
+                note: "The project will leave active lists but its records and history remain intact.",
+                confirmLabel: "Archive project",
+                run: archive,
+              })
+            ),
+          },
+        ]
+      : []),
     ...(perms.isAdmin
       ? [
           {
@@ -113,7 +123,13 @@ export function ProjectMoreMenu({ project, compact = false }: { project: Project
 
   return (
     <div className="relative" ref={ref}>
-      <Button className={compact ? "size-9 px-0" : undefined} onClick={() => setOpen((o) => !o)} aria-label={compact ? "Project actions" : undefined} aria-haspopup="menu" aria-expanded={open}>
+      <Button
+        className={compact ? "size-9 px-0" : undefined}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={compact ? "Project actions" : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         <MoreHorizontal className="size-4" /> {compact ? null : "More"}
       </Button>
       {open ? (

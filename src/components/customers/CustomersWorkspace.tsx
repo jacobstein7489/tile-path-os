@@ -250,7 +250,7 @@ export function CustomerQuickViewDialog({
             </div>
             <Button
               size="sm"
-              variant={editing ? "primary" : undefined}
+              variant={editing ? "primary" : "secondary"}
               onClick={() => setEditing((value) => !value)}
             >
               <Pencil className="size-3.5" /> {editing ? "Editing" : "Edit"}
