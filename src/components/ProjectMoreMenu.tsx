@@ -18,7 +18,7 @@ import {
 import { Combobox } from "@/components/kit";
 import { cn } from "@/lib/utils";
 
-export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onStatusUpdate }: { project: Project; compact?: boolean; onDailyUpdate?: () => void; onStatusUpdate?: () => void }) {
+export function ProjectMoreMenu({ project, compact = false }: { project: Project; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,8 +58,6 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
   };
 
   const items: { label: string; run: () => void; danger?: boolean }[] = [
-    ...(onDailyUpdate ? [{ label: "Daily Update", run: () => { setOpen(false); onDailyUpdate(); } }] : []),
-    ...(onStatusUpdate ? [{ label: "Project Status Update", run: () => { setOpen(false); onStatusUpdate(); } }] : []),
     { label: "Edit project", run: () => (setOpen(false), setEdit(true)) },
     project.exception_state === "On Hold"
       ? { label: "Take off hold", run: () => setException(null, "Project resumed") }
@@ -76,32 +74,19 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
           ),
         },
     {
-      label: "Mark cancelled",
+      label: "Cancel project",
       run: () => (
         setOpen(false),
         setPendingAction({
-          title: "Mark project cancelled?",
+          title: "Cancel project?",
           note: "The project stays in the database with its full history and can be restored later.",
-          confirmLabel: "Mark cancelled",
+          confirmLabel: "Cancel project",
           danger: true,
           run: () => setException("Cancelled", "Project marked cancelled"),
         })
       ),
     },
-    {
-      label: "Mark lost",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Mark project lost?",
-          note: "The project stays in the database with its full history and can be restored later.",
-          confirmLabel: "Mark lost",
-          danger: true,
-          run: () => setException("Lost", "Project marked lost"),
-        })
-      ),
-    },
-    {
+    ...(project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled" ? [{
       label: "Archive project",
       run: () => (
         setOpen(false),
@@ -112,7 +97,7 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
           run: archive,
         })
       ),
-    },
+    }] : []),
     ...(perms.isAdmin
       ? [
           {
