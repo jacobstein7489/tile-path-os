@@ -213,7 +213,7 @@ function ProjectView({
           )}
         </nav>
       </header>
-       <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
         {tab === "Overview" ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
             <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-foreground p-5 text-card shadow-[var(--shadow-raised)] sm:p-6">

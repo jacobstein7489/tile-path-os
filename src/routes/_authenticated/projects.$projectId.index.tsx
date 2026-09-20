@@ -365,7 +365,10 @@ function Panel({
 }) {
   return (
     <section
-       className={cn("rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-workspace)] md:p-6", className)}
+      className={cn(
+        "rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-workspace)] md:p-6",
+        className,
+      )}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-[13px] font-bold">

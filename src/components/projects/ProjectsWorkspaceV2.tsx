@@ -23,7 +23,14 @@ import { Dot, stageTone } from "@/lib/status";
 import type { WorkItemRow } from "@/lib/workitems";
 import { useCompanies, type Company } from "@/lib/people";
 import { cn } from "@/lib/utils";
-import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark, OpsMeter, StatusPill } from "@/components/ops/PremiumOps";
+import {
+  OpsCanvas,
+  OpsPageHeader,
+  OpsPlane,
+  ObjectMark,
+  OpsMeter,
+  StatusPill,
+} from "@/components/ops/PremiumOps";
 
 export type ProjectQueueRecord = {
   project: Project;
@@ -81,11 +88,18 @@ export function ProjectsWorkspaceV2({
 
   return (
     <OpsCanvas>
-      <OpsPageHeader eyebrow="Project operations" title="Projects" summary={`${visible.length} shown · ${activeCount} active`} action={<Button variant="primary" onClick={() => onCreating(true)}>
+      <OpsPageHeader
+        eyebrow="Project operations"
+        title="Projects"
+        summary={`${visible.length} shown · ${activeCount} active`}
+        action={
+          <Button variant="primary" onClick={() => onCreating(true)}>
             <Plus className="size-4" />
             <span className="hidden sm:inline">New Project</span>
             <span className="sm:hidden">New</span>
-          </Button>}>
+          </Button>
+        }
+      >
         <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center">
           <label className="relative min-w-0">
             <span className="sr-only">Search projects</span>
@@ -200,7 +214,9 @@ function ProjectQueueItem({
         className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 px-4 py-3.5 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:min-h-[112px] md:grid-cols-[minmax(280px,1.15fr)_minmax(190px,.75fr)_minmax(280px,1fr)] md:items-center md:px-5 md:pr-14"
       >
         <div className="flex min-w-0 items-start gap-3">
-          <ObjectMark tone="ink"><FolderKanban className="size-5" /></ObjectMark>
+          <ObjectMark tone="ink">
+            <FolderKanban className="size-5" />
+          </ObjectMark>
           <div className="min-w-0">
             <h2 className="truncate font-display text-[16px] font-bold md:text-[18px]">
               {project.name}
@@ -234,7 +250,11 @@ function ProjectQueueItem({
         </div>
 
         <div className="min-w-0 space-y-1.5">
-          <OpsMeter label="Readiness" value={readiness} tone={readiness >= 100 ? "green" : "amber"} />
+          <OpsMeter
+            label="Readiness"
+            value={readiness}
+            tone={readiness >= 100 ? "green" : "amber"}
+          />
           <OpsMeter label="Installed" value={progress} />
         </div>
 

@@ -211,40 +211,40 @@ export function WorkItemPanel({
           className={cn(
             "space-y-4",
             compact &&
-               "lg:grid lg:grid-cols-[minmax(0,.8fr)_minmax(360px,1.2fr)] lg:items-start lg:gap-4 lg:space-y-0",
+              "lg:grid lg:grid-cols-[minmax(0,.8fr)_minmax(360px,1.2fr)] lg:items-start lg:gap-4 lg:space-y-0",
           )}
         >
           <div className="space-y-3.5">
             <section className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
               <p className="ops-eyebrow mb-3">Action controls</p>
               <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Owner">
-                <Combobox
-                  options={profileOptions(profiles)}
-                  value={item.owner_user_id ?? null}
-                  onChange={(v) =>
-                    save.mutate({
-                      id: item.id,
-                      patch: {
-                        owner_user_id: v || null,
-                        owner: v
-                          ? (profiles.find((p) => p.user_id === v)?.full_name ?? null)
-                          : null,
-                      },
-                      note: "Owner changed",
-                    })
-                  }
-                  placeholder="Unassigned"
-                />
-              </Field>
-              <Field label="Due date" hint="Available on any work item.">
-                <DateField
-                  value={dueDate}
-                  label="Due date"
-                  placeholder="No due date"
-                  onChange={(v) => void saveDueDate(v || null)}
-                />
-              </Field>
+                <Field label="Owner">
+                  <Combobox
+                    options={profileOptions(profiles)}
+                    value={item.owner_user_id ?? null}
+                    onChange={(v) =>
+                      save.mutate({
+                        id: item.id,
+                        patch: {
+                          owner_user_id: v || null,
+                          owner: v
+                            ? (profiles.find((p) => p.user_id === v)?.full_name ?? null)
+                            : null,
+                        },
+                        note: "Owner changed",
+                      })
+                    }
+                    placeholder="Unassigned"
+                  />
+                </Field>
+                <Field label="Due date" hint="Available on any work item.">
+                  <DateField
+                    value={dueDate}
+                    label="Due date"
+                    placeholder="No due date"
+                    onChange={(v) => void saveDueDate(v || null)}
+                  />
+                </Field>
               </div>
             </section>
 
@@ -275,7 +275,7 @@ export function WorkItemPanel({
             {/* ONE dominant action. */}
             <section className="overflow-hidden rounded-2xl border border-primary/25 bg-foreground text-card shadow-[var(--shadow-raised)]">
               {moveOpen ? (
-                 <div className="space-y-4 px-4 py-5 sm:px-5">
+                <div className="space-y-4 px-4 py-5 sm:px-5">
                   <VoiceField
                     label="What happened?"
                     value={note}

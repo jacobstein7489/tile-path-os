@@ -19,7 +19,13 @@ import { compareWorkItems, isComplete, isOverdue, isWaiting, useWorkFeed } from 
 import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
 import { normalizeStage } from "@/lib/lifecycle";
 import { cn } from "@/lib/utils";
-import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark, StatusPill } from "@/components/ops/PremiumOps";
+import {
+  OpsCanvas,
+  OpsPageHeader,
+  OpsPlane,
+  ObjectMark,
+  StatusPill,
+} from "@/components/ops/PremiumOps";
 
 type Tab = "Overview" | "Projects" | "Contacts" | "Open Actions";
 
@@ -88,7 +94,16 @@ export function CustomersWorkspace() {
 
   return (
     <OpsCanvas className="max-w-[1440px]">
-      <OpsPageHeader eyebrow="Customer operations" title="Customers" summary={`${records.length} relationships · projects, people and actions together`} action={<ObjectMark tone="ink"><ContactRound className="size-5"/></ObjectMark>}>
+      <OpsPageHeader
+        eyebrow="Customer operations"
+        title="Customers"
+        summary={`${records.length} relationships · projects, people and actions together`}
+        action={
+          <ObjectMark tone="ink">
+            <ContactRound className="size-5" />
+          </ObjectMark>
+        }
+      >
         <div className="mt-5">
           <label className="flex h-8 max-w-xl items-center gap-2 rounded-lg border border-border bg-card px-3">
             <Search className="size-4 text-muted-foreground" />
@@ -110,12 +125,14 @@ export function CustomersWorkspace() {
               key={record.company.id}
               type="button"
               onClick={() => setCustomer(record.company)}
-               className="group mb-2 grid min-h-[96px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-left last:mb-0 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)] sm:px-5"
+              className="group mb-2 grid min-h-[96px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-left last:mb-0 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)] sm:px-5"
             >
               <span className="flex min-w-0 items-center gap-3">
-                 <ObjectMark tone="ink"><Building2 className="size-5" /></ObjectMark>
+                <ObjectMark tone="ink">
+                  <Building2 className="size-5" />
+                </ObjectMark>
                 <span className="min-w-0">
-                   <strong className="block truncate text-[16px] sm:text-[18px]">
+                  <strong className="block truncate text-[16px] sm:text-[18px]">
                     {record.company.name}
                   </strong>
                   <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
@@ -123,16 +140,10 @@ export function CustomersWorkspace() {
                     {record.current ? ` · Current: ${record.current.name}` : ""}
                   </span>
                   <span className="mt-1.5 flex flex-wrap gap-2 text-[10.5px] font-bold">
-                     <StatusPill tone="blue">
-                      {record.active.length} active
-                     </StatusPill>
-                     <StatusPill>
-                      {record.complete.length} complete
-                     </StatusPill>
+                    <StatusPill tone="blue">{record.active.length} active</StatusPill>
+                    <StatusPill>{record.complete.length} complete</StatusPill>
                     {record.open.length ? (
-                       <StatusPill tone="amber">
-                        {record.open.length} open actions
-                       </StatusPill>
+                      <StatusPill tone="amber">{record.open.length} open actions</StatusPill>
                     ) : null}
                   </span>
                 </span>

@@ -578,7 +578,10 @@ function ReadyQueue({
         <div>
           <h2 className="text-[13px] font-bold">Ready to schedule</h2>
           <p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p>
-        </div><StatusPill tone="amber">{projects.length} waiting</StatusPill></div>
+        </div>
+        </div>
+        <StatusPill tone="amber">{projects.length} waiting</StatusPill>
+      </div>
       <div className="grid max-h-[250px] gap-2 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-4">
         {projects.length ? (
           projects.map((project) => {

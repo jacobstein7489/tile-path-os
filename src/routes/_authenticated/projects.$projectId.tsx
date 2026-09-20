@@ -132,7 +132,16 @@ function ProjectShell() {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 md:px-6 md:py-5">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground text-card"><svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true"><path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" /></svg></span>
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground text-card">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="size-4"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
+                  </svg>
+                </span>
                 <h1 className="truncate font-display text-[22px] leading-tight font-bold md:text-[27px]">
                   {project.name}
                 </h1>

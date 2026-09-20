@@ -80,7 +80,21 @@ function TodayPage() {
       <AppHeader crumbs={[{ label: "Today" }]} />
 
       <OpsCanvas className="max-w-[1380px]">
-        <OpsPageHeader eyebrow="Daily command center" title={first ? `${greeting()}, ${first}` : "Today"} summary={<>{dateLine} · {isLoading ? "Loading your day…" : todaySummaryLine(sections)}</>} action={<Button variant="primary" onClick={() => capture()}><Plus className="size-4"/><span className="hidden sm:inline">Capture</span></Button>}>
+        <OpsPageHeader
+          eyebrow="Daily command center"
+          title={first ? `${greeting()}, ${first}` : "Today"}
+          summary={
+            <>
+              {dateLine} · {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
+            </>
+          }
+          action={
+            <Button variant="primary" onClick={() => capture()}>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">Capture</span>
+            </Button>
+          }
+        >
           <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
             <TodayMetric
               icon={AlertTriangle}
@@ -117,7 +131,27 @@ function TodayPage() {
           </div>
         </OpsPageHeader>
 
-        {focusItem ? <button type="button" onClick={() => setSelectedItem(focusItem)} className="mt-4 grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-primary/25 bg-foreground px-4 py-4 text-left text-card shadow-[var(--shadow-raised)] sm:px-5"><ObjectMark tone="blue"><AlertTriangle className="size-5"/></ObjectMark><span className="min-w-0"><span className="block text-[10px] font-bold uppercase text-primary-soft">Focus now</span><strong className="mt-1 block truncate text-[18px]">{focusItem.title}</strong><span className="mt-1 block truncate text-[11.5px] text-card/65">{projectLabel(focusItem)} · {focusItem.next_action ?? "Open and move this forward"}</span></span><span className="text-[12px] font-bold text-primary-soft">Open →</span></button> : null}
+        {focusItem ? (
+          <button
+            type="button"
+            onClick={() => setSelectedItem(focusItem)}
+            className="mt-4 grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-primary/25 bg-foreground px-4 py-4 text-left text-card shadow-[var(--shadow-raised)] sm:px-5"
+          >
+            <ObjectMark tone="blue">
+              <AlertTriangle className="size-5" />
+            </ObjectMark>
+            <span className="min-w-0">
+              <span className="block text-[10px] font-bold uppercase text-primary-soft">
+                Focus now
+              </span>
+              <strong className="mt-1 block truncate text-[18px]">{focusItem.title}</strong>
+              <span className="mt-1 block truncate text-[11.5px] text-card/65">
+                {projectLabel(focusItem)} · {focusItem.next_action ?? "Open and move this forward"}
+              </span>
+            </span>
+            <span className="text-[12px] font-bold text-primary-soft">Open →</span>
+          </button>
+        ) : null}
 
         <OpsPlane className="mt-4">
           {shows("needsNow") && sections.needsNow.length ? (
