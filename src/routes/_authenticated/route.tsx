@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CaptureProvider } from "@/components/ops/CaptureProvider";
@@ -39,6 +39,10 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  const isVNext = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/vnext"),
+  });
+  if (isVNext) return <Outlet />;
   return (
     <CaptureProvider>
       <div className="min-h-screen bg-canvas">

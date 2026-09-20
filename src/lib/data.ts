@@ -34,6 +34,9 @@ export type Project = {
   follow_up_date?: string | null;
   intake_notes?: string | null;
   job_number?: string | null;
+  awarded_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
   commission_user_id?: string | null;
   /** Manual for now; later this comes from the approved contract/estimate. */
   commissionable_amount?: number | null;
