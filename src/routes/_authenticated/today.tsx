@@ -73,6 +73,7 @@ function TodayPage() {
   });
 
   const shows = (key: Focus) => !focus || focus === key;
+  const focusItem = sections.needsNow[0];
 
   return (
     <>
@@ -116,7 +117,7 @@ function TodayPage() {
           </div>
         </OpsPageHeader>
 
-        {sections.needsNow[0] ? <button type="button" onClick={() => setSelectedItem(sections.needsNow[0])} className="mt-4 grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-primary/25 bg-foreground px-4 py-4 text-left text-card shadow-[var(--shadow-raised)] sm:px-5"><ObjectMark tone="blue"><AlertTriangle className="size-5"/></ObjectMark><span className="min-w-0"><span className="block text-[10px] font-bold uppercase text-primary-soft">Focus now</span><strong className="mt-1 block truncate text-[18px]">{sections.needsNow[0].title}</strong><span className="mt-1 block truncate text-[11.5px] text-card/65">{projectLabel(sections.needsNow[0])} · {sections.needsNow[0].next_action ?? "Open and move this forward"}</span></span><span className="text-[12px] font-bold text-primary-soft">Open →</span></button> : null}
+        {focusItem ? <button type="button" onClick={() => setSelectedItem(focusItem)} className="mt-4 grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-primary/25 bg-foreground px-4 py-4 text-left text-card shadow-[var(--shadow-raised)] sm:px-5"><ObjectMark tone="blue"><AlertTriangle className="size-5"/></ObjectMark><span className="min-w-0"><span className="block text-[10px] font-bold uppercase text-primary-soft">Focus now</span><strong className="mt-1 block truncate text-[18px]">{focusItem.title}</strong><span className="mt-1 block truncate text-[11.5px] text-card/65">{projectLabel(focusItem)} · {focusItem.next_action ?? "Open and move this forward"}</span></span><span className="text-[12px] font-bold text-primary-soft">Open →</span></button> : null}
 
         <OpsPlane className="mt-4">
           {shows("needsNow") && sections.needsNow.length ? (

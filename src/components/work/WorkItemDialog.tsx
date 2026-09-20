@@ -16,8 +16,9 @@ export function WorkItemDialog({
       title={item?.title ?? "Work item"}
       description="Review and move this work item forward without leaving the action queue."
     >
+      className="sm:max-w-[1020px]"
       {item ? (
-        <div className="min-h-full bg-canvas p-2 pb-4 sm:p-3.5">
+        <div className="min-h-full bg-canvas p-2 pb-4 sm:p-4">
           <WorkItemPanel item={item} compact />
         </div>
       ) : null}
