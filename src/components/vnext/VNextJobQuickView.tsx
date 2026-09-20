@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, ClipboardList, FileText, Layers3, MapPin, UserRound } from "lucide-react";
 import { CenterDialog } from "@/components/ops/CenterDialog";
@@ -26,7 +27,7 @@ function VNextJobQuickViewLoaded({ jobId, onClose }: { jobId: string; onClose: (
   const { data: reports = [] } = useFieldReports(jobId);
   const { data: files = [] } = useProjectFiles(jobId);
   const { areas, surfaces } = useAreasWithSurfaces(jobId);
-  const [selectedWork, setSelectedWork] = React.useState<import("@/lib/workitems").WorkItemRow | null>(null);
+  const [selectedWork, setSelectedWork] = useState<import("@/lib/workitems").WorkItemRow | null>(null);
   if (!project) return null;
   const stage = vnextStage(project); const family = stageFamily(stage);
   const work = feed.filter((item) => item.project_id === jobId && !isComplete(item)).sort(compareWorkItems);
