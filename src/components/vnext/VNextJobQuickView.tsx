@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, ClipboardList, FileText, Layers3, MapPin, UserRound } from "lucide-react";
 import { CenterDialog } from "@/components/ops/CenterDialog";
 import { Button } from "@/components/kit";
+import { WorkItemPanel } from "@/components/work/WorkItemPanel";
 import { VNextLifecycle } from "@/components/vnext/VNextLifecycle";
 import { JobIdentity, VNextPanel, WorkRow, formatDate } from "@/components/vnext/VNextPrimitives";
 import { useAreasWithSurfaces, useProject, useScheduleAssignments, type Project } from "@/lib/data";
@@ -25,6 +26,7 @@ function VNextJobQuickViewLoaded({ jobId, onClose }: { jobId: string; onClose: (
   const { data: reports = [] } = useFieldReports(jobId);
   const { data: files = [] } = useProjectFiles(jobId);
   const { areas, surfaces } = useAreasWithSurfaces(jobId);
+  const [selectedWork, setSelectedWork] = React.useState<import("@/lib/workitems").WorkItemRow | null>(null);
   if (!project) return null;
   const stage = vnextStage(project); const family = stageFamily(stage);
   const work = feed.filter((item) => item.project_id === jobId && !isComplete(item)).sort(compareWorkItems);
@@ -34,6 +36,7 @@ function VNextJobQuickViewLoaded({ jobId, onClose }: { jobId: string; onClose: (
   const areaCount = areas.data?.length ?? 0; const surfaceCount = surfaces.data?.length ?? 0;
   return <CenterDialog open onOpenChange={(next) => !next && onClose()} title={project.name} description="VNext job operating workspace" className="sm:max-w-[1140px]" bodyClassName="bg-vnext-canvas">
     <div className="vnext min-h-full">
+      {selectedWork ? <><header className="sticky top-0 z-20 flex items-center gap-3 border-b border-vnext-line bg-vnext-surface px-5 py-3"><Button size="sm" onClick={() => setSelectedWork(null)}>Back to job</Button><span className="truncate text-[11px] font-bold text-vnext-muted">{project.name}</span></header><div className="p-3 sm:p-5"><WorkItemPanel item={selectedWork} compact /></div></> : <>
       <header className="sticky top-0 z-20 border-b border-vnext-line bg-vnext-surface/97 px-5 py-4 backdrop-blur sm:px-7">
         <div className="flex items-start justify-between gap-4"><JobIdentity project={project} customer={customer} stage={stage} /><Link to="/vnext/jobs/$jobId" params={{ jobId }} className="mr-8 hidden h-9 items-center gap-2 rounded-lg bg-vnext-ink px-3.5 text-[11.5px] font-bold text-vnext-surface sm:flex">Open full job <ArrowRight className="size-3.5" /></Link></div>
         <div className="mt-4 grid grid-cols-2 gap-2 text-[10.5px] sm:grid-cols-4"><Fact icon={UserRound} label="Owner" value={owner ?? "Unassigned"} /><Fact icon={MapPin} label="Address" value={project.address ?? "Not set"} /><Fact icon={CalendarDays} label="Relevant date" value={formatDate(isPreAwardStage(stage) ? project.follow_up_date ?? project.bid_due_date : nextSchedule?.work_date ?? project.target_date)} /><Fact icon={ClipboardList} label="Open actions" value={String(work.length)} /></div>
@@ -45,11 +48,12 @@ function VNextJobQuickViewLoaded({ jobId, onClose }: { jobId: string; onClose: (
           <StageBody family={family} project={project} work={work} files={files.length} areas={areaCount} surfaces={surfaceCount} nextSchedule={nextSchedule?.work_date} report={reports[0]?.progress_note ?? reports[0]?.blockers ?? null} />
         </div>
         <div className="space-y-4">
-          <VNextPanel title="Open actions" eyebrow={`${work.length} active`}>{work.length ? <div className="space-y-2 p-3">{work.map((item) => <WorkRow key={item.id} item={item} />)}</div> : <Empty text="No open actions on this job." />}</VNextPanel>
+          <VNextPanel title="Open actions" eyebrow={`${work.length} active`}>{work.length ? <div className="space-y-2 p-3">{work.map((item) => <WorkRow key={item.id} item={item} onClick={() => setSelectedWork(item)} />)}</div> : <Empty text="No open actions on this job." />}</VNextPanel>
           <VNextPanel title="Recent activity"><div className="space-y-3 p-4">{reports.slice(0,3).map((report) => <div key={report.id} className="border-l-2 border-vnext-blue-soft pl-3"><p className="text-[11px] font-bold">{formatDate(report.report_date)} · {report.submitted_by_name ?? "Field update"}</p><p className="mt-1 text-[11px] leading-4 text-vnext-muted">{report.progress_note ?? report.notes ?? "Update submitted"}</p></div>)}{!reports.length ? <p className="text-[11.5px] text-vnext-muted">No field activity yet.</p> : null}</div></VNextPanel>
         </div>
       </div>
       <div className="border-t border-vnext-line bg-vnext-surface px-5 py-3 sm:hidden"><Link to="/vnext/jobs/$jobId" params={{ jobId }} className="flex h-10 items-center justify-center gap-2 rounded-lg bg-vnext-ink text-[12px] font-bold text-vnext-surface">Open full job <ArrowRight className="size-4" /></Link></div>
+      </>}
     </div>
   </CenterDialog>;
 }

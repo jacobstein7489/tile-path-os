@@ -3,6 +3,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CircleAlert, ClipboardList, FileText, Layers3, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/kit";
+import { WorkItemDialog } from "@/components/work/WorkItemDialog";
 import { VNextJobQuickView } from "@/components/vnext/VNextJobQuickView";
 import { VNextLifecycle } from "@/components/vnext/VNextLifecycle";
 import { JobIdentity, VNextPanel, WorkRow, formatDate } from "@/components/vnext/VNextPrimitives";
@@ -54,7 +55,7 @@ export function VNextJobOverview() {
       </div>
     </div>
     <VNextJobQuickView jobId={quickOpen ? jobId : null} onClose={() => setQuickOpen(false)} />
-    {selectedWork ? <div className="fixed inset-0 z-50 grid place-items-center bg-vnext-ink/35 p-3" onClick={() => setSelectedWork(null)}><div className="w-full max-w-[680px] rounded-[16px] bg-vnext-surface p-6 shadow-[var(--vnext-shadow-float)]" onClick={(event) => event.stopPropagation()}><p className="vnext-kicker">Work item</p><h3 className="mt-2 font-display text-[21px] font-bold">{selectedWork.title}</h3><p className="mt-3 text-[12px] text-vnext-muted">{selectedWork.description ?? selectedWork.next_action ?? "No additional detail recorded."}</p><Button className="mt-5" onClick={() => setSelectedWork(null)}>Close</Button></div></div> : null}
+    <WorkItemDialog item={selectedWork} onClose={() => setSelectedWork(null)} />
   </div>;
 }
 
