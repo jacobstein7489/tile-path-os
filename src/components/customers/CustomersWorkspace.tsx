@@ -224,6 +224,39 @@ export function CustomerQuickViewDialog({
         </div>
       </CenterDialog>
     );
+  if (contactEdit)
+    return (
+      <CenterDialog
+        open
+        onOpenChange={(open) => !open && onClose()}
+        title={contactEdit === "new" ? "Add contact" : "Edit contact"}
+        description={current.name}
+        className="sm:max-w-[720px]"
+      >
+        <header className="border-b border-border bg-card px-4 py-2.5">
+          <Button size="sm" onClick={() => setContactEdit(null)}>
+            <ArrowLeft className="size-4" /> Back to customer
+          </Button>
+        </header>
+        <ContactEditor
+          companyId={current.id}
+          contact={contactEdit === "new" ? null : contactEdit}
+          saving={saveContact.isPending}
+          onClose={() => setContactEdit(null)}
+          onSave={async (values) => {
+            await saveContact.mutateAsync({
+              ...(contactEdit !== "new" ? { id: contactEdit.id } : {}),
+              values: {
+                ...values,
+                company_id: current.id,
+                kind: contactEdit !== "new" ? contactEdit.kind : "customer",
+              },
+            });
+            setContactEdit(null);
+          }}
+        />
+      </CenterDialog>
+    );
   return (
     <CenterDialog
       open
@@ -402,25 +435,6 @@ export function CustomerQuickViewDialog({
           ) : null}
         </div>
       </div>
-      {contactEdit ? (
-        <ContactEditor
-          companyId={current.id}
-          contact={contactEdit === "new" ? null : contactEdit}
-          saving={saveContact.isPending}
-          onClose={() => setContactEdit(null)}
-          onSave={async (values) => {
-            await saveContact.mutateAsync({
-              ...(contactEdit !== "new" ? { id: contactEdit.id } : {}),
-              values: {
-                ...values,
-                company_id: current.id,
-                kind: contactEdit !== "new" ? contactEdit.kind : "customer",
-              },
-            });
-            setContactEdit(null);
-          }}
-        />
-      ) : null}
     </CenterDialog>
   );
 }
@@ -513,13 +527,6 @@ function ContactEditor({
   const set = (key: keyof typeof form, value: string) =>
     setForm((old) => ({ ...old, [key]: value }));
   return (
-    <CenterDialog
-      open
-      onOpenChange={(open) => !open && onClose()}
-      title={contact ? "Edit contact" : "Add contact"}
-      description="Customer contact"
-      className="sm:max-w-[620px]"
-    >
       <div className="grid gap-3 bg-canvas p-4 sm:grid-cols-2">
         <Field label="Name">
           <TextInput value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
@@ -562,7 +569,6 @@ function ContactEditor({
           </Button>
         </div>
       </div>
-    </CenterDialog>
   );
 }
 

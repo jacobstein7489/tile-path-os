@@ -14,6 +14,7 @@ import {
 } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
 import { WorkItemDialog } from "@/components/work/WorkItemDialog";
+import { normalizeStage, showsInstallationProgress } from "@/lib/lifecycle";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId/")({
   head: () => ({
@@ -64,7 +65,8 @@ function ProjectOverview() {
   const waitingAll = work.filter(isWaiting);
   const waiting = waitingAll;
   const latest = reports[0] ?? null;
-  const stage = project.exception_state ?? project.lifecycle_stage;
+  const normalizedStage = normalizeStage(project.lifecycle_stage);
+  const stage = project.exception_state ?? normalizedStage;
 
   const setupMove = deriveSetupMove(setup);
   const urgent = work.find((i) => (i.due_date && i.due_date < today) || i.priority === "High");
@@ -102,6 +104,9 @@ function ProjectOverview() {
       : blocked.length <= 2
         ? { label: "Partial", tone: "amber" as const }
         : { label: "Not ready", tone: "amber" as const };
+  const readinessHeadline = ["Approved", "Setup", "Ready", "Scheduled"].includes(normalizedStage);
+  const readinessThreat = normalizedStage === "Installation" && blocked.length > 0;
+  const showReadiness = readinessHeadline || readinessThreat;
 
   const reasons = READINESS_CATEGORIES.map((category) => {
     const rows = setup.requirements.filter((r) => r.category === category);
@@ -190,7 +195,7 @@ function ProjectOverview() {
             </div>
           )}
 
-          <Panel title="Readiness" icon={<Layers3 className="size-4" />} className="min-h-[218px]">
+          {showReadiness ? <Panel title={readinessThreat ? "Upcoming work readiness" : "Readiness"} icon={<Layers3 className="size-4" />} className="min-h-[218px]">
             <p
               className={cn(
                 "mt-1 text-[22px] font-bold",
@@ -229,7 +234,7 @@ function ProjectOverview() {
             >
               Review readiness <ArrowRight className="size-3.5" />
             </Link>
-          </Panel>
+          </Panel> : showsInstallationProgress(normalizedStage) && normalizedStage !== "Complete" ? <Panel title="Installation progress" icon={<Layers3 className="size-4" />} className="min-h-[218px]"><p className="mt-1 text-[28px] font-bold text-primary">{project.installation_progress ?? 0}%</p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-track"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, project.installation_progress ?? 0))}%` }} /></div><p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">Physical tile installation completed.</p></Panel> : <Panel title="Project status" icon={<Layers3 className="size-4" />} className="min-h-[218px]"><p className="mt-1 text-[22px] font-bold">{normalizedStage}</p><p className="mt-4 text-[12.5px] leading-5 text-muted-foreground">{work.length ? `${work.length} open project item${work.length === 1 ? "" : "s"}.` : "No open project work."}</p></Panel>}
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

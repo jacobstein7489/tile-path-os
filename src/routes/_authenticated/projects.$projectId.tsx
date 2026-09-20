@@ -12,6 +12,7 @@ import { useProfiles } from "@/lib/people";
 import { useCanEditProject } from "@/hooks/useAuth";
 import { canEnterStage, nextStage, normalizeStage } from "@/lib/lifecycle";
 import { cn } from "@/lib/utils";
+import { isComplete, useWorkFeed } from "@/lib/workitems";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   component: ProjectShell,
@@ -79,6 +80,7 @@ function ProjectShell() {
   const { canEdit } = useCanEditProject(projectId);
   const { data: profiles = [] } = useProfiles();
   const setup = useProjectSetup(projectId);
+  const { data: work = [] } = useWorkFeed();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [moreOpen, setMoreOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -107,6 +109,7 @@ function ProjectShell() {
     (moreActive ? "more" : "/projects/$projectId");
   const stage = normalizeStage(project.lifecycle_stage);
   const following = nextStage(stage);
+  const openWork = work.filter((item) => item.project_id === projectId && !isComplete(item));
   const gate = following
     ? canEnterStage(following, {
         blockers: setup.blockers.length,
@@ -173,14 +176,18 @@ function ProjectShell() {
                         <Button
                           className="mt-3 w-full"
                           variant="primary"
-                          disabled={!canEdit || !gate?.ok}
-                          {...(!gate?.ok && gate?.reason ? { disabledReason: gate.reason } : {})}
+                           disabled={!canEdit || !gate?.ok || (following === "Complete" && openWork.length > 0)}
+                           {...(following === "Complete" && openWork.length > 0
+                             ? { disabledReason: `${openWork.length} open work item${openWork.length === 1 ? "" : "s"} must be reviewed first` }
+                             : !gate?.ok && gate?.reason
+                               ? { disabledReason: gate.reason }
+                               : {})}
                           onClick={() => {
                             update.mutate({ lifecycle_stage: following });
                             setStageOpen(false);
                           }}
                         >
-                          Advance to {following}
+                           {following === "Complete" ? "Complete project" : `Advance to ${following}`}
                         </Button>
                       ) : (
                         <div className="mt-3 text-xs font-semibold text-success">
