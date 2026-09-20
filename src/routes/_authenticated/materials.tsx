@@ -1,29 +1,41 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Upload } from "lucide-react";
-import { Button, EmptyState, FilterGroup, SearchInput, Table, Td, Th } from "@/components/kit";
-import { PageShell } from "@/components/PageShell";
+import {
+  AlertTriangle,
+  Boxes,
+  ChevronRight,
+  PackageCheck,
+  Search,
+  Truck,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/components/kit";
 import { MaterialDetailModal, ReceiveMaterialModal } from "@/components/MaterialDialogs";
-import { Chip, materialTone } from "@/lib/status";
+import {
+  OpsCanvas,
+  OpsPageHeader,
+  OpsPlane,
+  ObjectMark,
+  OpsMeter,
+  StatusPill,
+} from "@/components/ops/PremiumOps";
 import { useMaterialItems, useProjects, type MaterialItem } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const FILTERS = ["Needs Action", "To Order", "Waiting / Expected", "Received"] as const;
 type Filter = (typeof FILTERS)[number];
-
 export const Route = createFileRoute("/_authenticated/materials")({
   head: () => ({
     meta: [
       { title: "Install Materials — Cobblestone Tile OS" },
       {
         name: "description",
-        content:
-          "A cross-project action board for installation supplies: what needs ordering, what we are waiting on and what has landed.",
+        content: "Installation material lifecycle and receiving across active tile projects.",
       },
       { property: "og:title", content: "Install Materials — Cobblestone Tile OS" },
       {
         property: "og:description",
-        content: "Which installation material needs attention across all tile jobs.",
+        content: "Installation material lifecycle and receiving across active tile projects.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -31,22 +43,15 @@ export const Route = createFileRoute("/_authenticated/materials")({
   }),
   component: MaterialsPage,
 });
-
 function matches(filter: Filter, m: MaterialItem) {
-  switch (filter) {
-    case "Needs Action":
-      return (
-        m.needs_attention || ["Short", "Wrong", "Damaged", "Partially Received"].includes(m.status)
-      );
-    case "To Order":
-      return ["Needed", "To Order"].includes(m.status);
-    case "Waiting / Expected":
-      return ["Ordered", "Expected"].includes(m.status);
-    case "Received":
-      return ["Received", "Ready"].includes(m.status);
-  }
+  if (filter === "Needs Action")
+    return (
+      m.needs_attention || ["Short", "Wrong", "Damaged", "Partially Received"].includes(m.status)
+    );
+  if (filter === "To Order") return ["Needed", "To Order"].includes(m.status);
+  if (filter === "Waiting / Expected") return ["Ordered", "Expected"].includes(m.status);
+  return ["Received", "Ready"].includes(m.status);
 }
-
 function MaterialsPage() {
   const { data: materials = [], isLoading } = useMaterialItems();
   const { data: projects = [] } = useProjects();
@@ -54,127 +59,155 @@ function MaterialsPage() {
   const [search, setSearch] = useState("");
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [detail, setDetail] = useState<MaterialItem | null>(null);
-
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? "Project";
   const install = materials.filter((m) => m.category === "Installation Materials");
-  const rows = install.filter(
-    (m) =>
-      matches(filter, m) &&
-      (!search.trim() ||
-        `${m.name} ${projectName(m.project_id)}`
-          .toLowerCase()
-          .includes(search.trim().toLowerCase())),
+  const rows = useMemo(
+    () =>
+      install.filter(
+        (m) =>
+          matches(filter, m) &&
+          (!search.trim() ||
+            `${m.name} ${projectName(m.project_id)}`
+              .toLowerCase()
+              .includes(search.trim().toLowerCase())),
+      ),
+    [filter, install, search],
   );
-
   return (
-    <PageShell
-      crumbs={[{ label: "Install Materials" }]}
-      title="Install Materials"
-      subtitle="Cobblestone supplies across every job — thinset, mud, Portland, sand, primer, membrane. Tile, grout and metals live on each project under Tiles & Finishes."
-      actions={
-        <Button variant="primary" onClick={() => setReceiveOpen(true)}>
-          <Upload className="size-4" /> Receive material
-        </Button>
-      }
-    >
-      <div className="flex flex-wrap items-center gap-4">
-        <FilterGroup
-          options={FILTERS.map((f) => ({
-            value: f,
-            label: f,
-            count: install.filter((m) => matches(f, m)).length,
-          }))}
-          value={filter}
-          onChange={(v) => setFilter(v as Filter)}
-        />
-        <div className="ml-auto">
-          <SearchInput
+    <OpsCanvas>
+      <OpsPageHeader
+        eyebrow="Installation material lifecycle"
+        title="Materials"
+        summary="Needs, orders, delivery exceptions and site readiness across active jobs."
+        action={
+          <Button variant="primary" onClick={() => setReceiveOpen(true)}>
+            <Upload className="size-4" />
+            Receive
+          </Button>
+        }
+      >
+        <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {FILTERS.map((item) => {
+            const count = install.filter((m) => matches(item, m)).length;
+            const Icon =
+              item === "Needs Action"
+                ? AlertTriangle
+                : item === "To Order"
+                  ? Boxes
+                  : item === "Waiting / Expected"
+                    ? Truck
+                    : PackageCheck;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setFilter(item)}
+                className={cn(
+                  "flex min-h-16 items-center gap-3 rounded-xl border px-3 text-left",
+                  filter === item
+                    ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]"
+                    : "border-border bg-background/70",
+                )}
+              >
+                <ObjectMark
+                  tone={
+                    item === "Needs Action"
+                      ? "red"
+                      : item === "Waiting / Expected"
+                        ? "amber"
+                        : item === "Received"
+                          ? "green"
+                          : "blue"
+                  }
+                >
+                  <Icon className="size-4" />
+                </ObjectMark>
+                <span>
+                  <strong className="block text-xl tabular-nums">{count}</strong>
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    {item}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <label className="mt-4 flex h-9 max-w-lg items-center gap-2 rounded-lg border border-border bg-background px-3">
+          <Search className="size-4 text-muted-foreground" />
+          <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search material or job"
-            className="w-[220px]"
+            className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
+            placeholder="Search material or project"
           />
-        </div>
-      </div>
-
-      <div className="surface overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold tracking-tight">{filter}</h2>
-          <span className="text-xs font-medium text-muted-foreground tabular-nums">
-            {rows.length} of {install.length} lines
-          </span>
-        </div>
+        </label>
+      </OpsPageHeader>
+      <OpsPlane className="mt-4 p-2 sm:p-3">
         {isLoading ? (
-          <div className="px-5 py-10 text-[13px] text-muted-foreground">Loading material…</div>
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="Nothing in this view"
-            note="Material needs are requested on the project, then tracked here across all jobs."
-          />
-        ) : (
-          <Table className="table-fixed">
-            <colgroup>
-              <col className="w-[16%]" />
-              <col className="w-[26%]" />
-              <col className="w-[10%]" />
-              <col className="w-[13%]" />
-              <col className="w-[10%]" />
-              <col className="w-[25%]" />
-            </colgroup>
-            <thead>
-              <tr className="bg-muted/60">
-                {["Project", "Material", "Need", "Status", "Needed By", "Next Action"].map((h) => (
-                  <Th key={h}>{h}</Th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((m) => (
-                <tr
-                  key={m.id}
-                  onClick={() => setDetail(m)}
-                  className={cn(
-                    "group cursor-pointer transition-colors duration-100 hover:bg-muted/50",
-                    detail?.id === m.id && "bg-primary-soft/60",
-                  )}
-                >
-                  <Td className="font-semibold group-last:border-0">
-                    <span className="block break-words">{projectName(m.project_id)}</span>
-                  </Td>
-                  <Td className="group-last:border-0">
-                    <span className="font-medium">{m.name}</span>
-                    {m.spec ? (
-                      <div className="text-[11.5px] text-muted-foreground">{m.spec}</div>
-                    ) : null}
-                  </Td>
-                  <Td className="whitespace-nowrap text-secondary-foreground group-last:border-0">
-                    {m.required_qty ?? "—"} {m.unit ?? ""}
-                  </Td>
-                  <Td className="group-last:border-0">
-                    <Chip tone={materialTone(m.status)}>{m.status}</Chip>
-                  </Td>
-                  <Td className="whitespace-nowrap text-muted-foreground group-last:border-0">
-                    {m.expected_date
-                      ? new Date(m.expected_date + "T00:00:00").toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "—"}
-                  </Td>
-                  <Td className="group-last:border-0">
-                    <span className="font-medium text-foreground transition-colors duration-100 group-hover:text-primary">
-                      {m.next_step ?? "Review with supplier"}
+          <Quiet>Loading materials…</Quiet>
+        ) : rows.length ? (
+          rows.map((m) => {
+            const required = Number(m.required_qty ?? 0);
+            const received = Number(m.received_qty ?? 0);
+            const pct = required ? Math.round((received / required) * 100) : 0;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setDetail(m)}
+                className="group mb-2 grid min-h-[96px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-left last:mb-0 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)]"
+              >
+                <ObjectMark tone={m.needs_attention ? "amber" : "blue"}>
+                  <Boxes className="size-5" />
+                </ObjectMark>
+                <span className="grid min-w-0 gap-3 md:grid-cols-[minmax(180px,1fr)_minmax(160px,.7fr)_minmax(220px,1fr)] md:items-center">
+                  <span className="min-w-0">
+                    <strong className="block truncate text-[16px]">{m.name}</strong>
+                    <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
+                      {projectName(m.project_id)} · {m.spec ?? "Specification pending"}
                     </span>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                    <StatusPill
+                      tone={
+                        m.needs_attention
+                          ? "amber"
+                          : ["Ready", "Received"].includes(m.status)
+                            ? "green"
+                            : "blue"
+                      }
+                    >
+                      {m.status}
+                    </StatusPill>
+                  </span>
+                  <OpsMeter
+                    label={`${received} of ${required || "—"} ${m.unit ?? ""} received`}
+                    value={pct}
+                    tone={pct >= 100 ? "green" : "blue"}
+                  />
+                  <span>
+                    <span className="ops-eyebrow">Next action</span>
+                    <strong className="mt-1 block text-[13px]">
+                      {m.next_step ?? "Review with supplier"}
+                    </strong>
+                    {m.expected_date ? (
+                      <span className="mt-1 block text-[11px] text-muted-foreground">
+                        Expected {m.expected_date}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 text-muted-foreground group-hover:text-primary" />
+              </button>
+            );
+          })
+        ) : (
+          <Quiet>Nothing in this view.</Quiet>
         )}
-      </div>
-
+      </OpsPlane>
       <ReceiveMaterialModal open={receiveOpen} onClose={() => setReceiveOpen(false)} />
       {detail ? <MaterialDetailModal item={detail} onClose={() => setDetail(null)} /> : null}
-    </PageShell>
+    </OpsCanvas>
   );
+}
+function Quiet({ children }: { children: React.ReactNode }) {
+  return <div className="px-6 py-14 text-center text-sm text-muted-foreground">{children}</div>;
 }

@@ -23,6 +23,14 @@ import { Dot, stageTone } from "@/lib/status";
 import type { WorkItemRow } from "@/lib/workitems";
 import { useCompanies, type Company } from "@/lib/people";
 import { cn } from "@/lib/utils";
+import {
+  OpsCanvas,
+  OpsPageHeader,
+  OpsPlane,
+  ObjectMark,
+  OpsMeter,
+  StatusPill,
+} from "@/components/ops/PremiumOps";
 
 export type ProjectQueueRecord = {
   project: Project;
@@ -79,25 +87,20 @@ export function ProjectsWorkspaceV2({
   });
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-[1480px] px-4 pb-28 md:min-h-screen md:px-6 md:pb-10">
-      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
-          <div className="min-w-0">
-            <p className="v2-kicker mb-1">Project directory</p>
-            <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
-              Projects
-            </h1>
-            <p className="mt-1 truncate text-[12px] text-muted-foreground">
-              {visible.length} shown · {activeCount} active
-            </p>
-          </div>
+    <OpsCanvas>
+      <OpsPageHeader
+        eyebrow="Project operations"
+        title="Projects"
+        summary={`${visible.length} shown · ${activeCount} active`}
+        action={
           <Button variant="primary" onClick={() => onCreating(true)}>
             <Plus className="size-4" />
             <span className="hidden sm:inline">New Project</span>
             <span className="sm:hidden">New</span>
           </Button>
-        </header>
-        <div className="grid gap-2 bg-muted/30 p-2.5 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center md:px-4">
+        }
+      >
+        <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center">
           <label className="relative min-w-0">
             <span className="sr-only">Search projects</span>
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -129,11 +132,11 @@ export function ProjectsWorkspaceV2({
             ))}
           </Select>
         </div>
-      </div>
+      </OpsPageHeader>
 
       <section
         aria-label="Project portfolio"
-        className="workspace-panel mt-3 min-w-0 overflow-hidden"
+        className="ops-plane mt-4 min-w-0 overflow-hidden p-2 sm:p-3"
       >
         {loading ? (
           <QueueMessage>Loading projects…</QueueMessage>
@@ -182,7 +185,7 @@ export function ProjectsWorkspaceV2({
           }}
         />
       ) : null}
-    </main>
+    </OpsCanvas>
   );
 }
 
@@ -204,18 +207,18 @@ function ProjectQueueItem({
   const progress = Math.max(0, Math.min(100, project.installation_progress ?? 0));
 
   return (
-    <article className="group relative min-w-0 border-b border-border/70 transition-all last:border-b-0 focus-within:bg-primary-soft/40 hover:z-[1] hover:bg-primary-soft/25">
+    <article className="group relative mb-2 min-w-0 overflow-hidden rounded-xl border border-border bg-background/60 transition-all last:mb-0 focus-within:border-primary/30 focus-within:bg-card hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)]">
       <button
         type="button"
         onClick={onOpen}
-        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-2 px-4 py-2.5 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:min-h-[82px] md:grid-cols-[minmax(250px,1.2fr)_minmax(170px,.8fr)_minmax(230px,1fr)] md:items-center md:px-5 md:pr-14"
+        className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 px-4 py-3.5 pr-12 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:min-h-[112px] md:grid-cols-[minmax(280px,1.15fr)_minmax(190px,.75fr)_minmax(280px,1fr)] md:items-center md:px-5 md:pr-14"
       >
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-primary/15 bg-primary-soft text-primary shadow-[var(--shadow-card)]">
-            <FolderKanban className="size-4.5" />
-          </span>
+          <ObjectMark tone="ink">
+            <FolderKanban className="size-5" />
+          </ObjectMark>
           <div className="min-w-0">
-            <h2 className="truncate font-display text-[15px] font-bold md:text-[16px]">
+            <h2 className="truncate font-display text-[16px] font-bold md:text-[18px]">
               {project.name}
             </h2>
             <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{identity}</p>
@@ -239,23 +242,27 @@ function ProjectQueueItem({
                 {project.customer}
               </span>
             ) : null}
-            <span className="mt-1 inline-flex max-w-full items-center gap-2 rounded-full bg-neutral-chip px-2 py-0.5 text-[10px] font-bold text-secondary-foreground">
+            <StatusPill tone="blue">
               <Dot tone={stageTone(project.lifecycle_stage, project.exception_state)} />
               <span className="truncate">{stage}</span>
-            </span>
+            </StatusPill>
           </div>
         </div>
 
         <div className="min-w-0 space-y-1.5">
-          <MiniBar icon={Layers3} label="Readiness" value={readiness} tone="bg-warning" />
-          <MiniBar icon={Hammer} label="Install" value={progress} tone="bg-info" />
+          <OpsMeter
+            label="Readiness"
+            value={readiness}
+            tone={readiness >= 100 ? "green" : "amber"}
+          />
+          <OpsMeter label="Installed" value={progress} />
         </div>
 
         <div className="min-w-0 px-1 py-1">
-          <p className="text-[9.5px] font-bold text-muted-foreground uppercase">Next move</p>
+          <p className="ops-eyebrow">Next move</p>
           <p
             className={cn(
-              "truncate text-[13px] font-semibold",
+              "mt-1 line-clamp-2 text-[14px] leading-5 font-bold",
               !next && "font-medium text-muted-foreground",
             )}
           >

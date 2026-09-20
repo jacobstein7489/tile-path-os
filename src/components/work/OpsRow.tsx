@@ -53,14 +53,14 @@ export function OpsRow({
         type="button"
         onClick={() => onOpen(item)}
         className={cn(
-          "group grid min-h-[62px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-x-3 border-b border-border/70 px-3 py-2 text-left transition-all duration-150 last:border-b-0",
-          "hover:bg-primary-soft/35 focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-4",
+          "group my-1 grid min-h-[66px] w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl border border-transparent px-3 py-2 text-left transition-all duration-150",
+          "hover:border-primary/15 hover:bg-card hover:shadow-[var(--shadow-card)] focus-visible:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/25 md:px-4",
           selected && "bg-primary-soft hover:bg-primary-soft",
         )}
       >
         <span
           className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-lg border",
+            "grid size-10 shrink-0 place-items-center rounded-xl border",
             late
               ? "border-danger/15 bg-danger-soft text-danger"
               : waiting
@@ -72,7 +72,7 @@ export function OpsRow({
         </span>
         <span className="min-w-0">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="min-w-0 truncate text-[14px] leading-snug font-bold sm:text-[14.5px]">
+            <span className="min-w-0 truncate text-[14px] leading-snug font-bold sm:text-[15px]">
               {item.title}
             </span>
             {item.is_important ? (

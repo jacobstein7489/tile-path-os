@@ -61,7 +61,7 @@ export function ProjectQuickViewDialog({
       description="Project operating workspace"
       bodyClassName="overflow-hidden"
     >
-      <div className="flex h-[calc(100dvh-0.5rem)] max-h-[80dvh] flex-col bg-canvas sm:h-[min(650px,80dvh)]">
+      <div className="flex h-[calc(100dvh-0.5rem)] max-h-[84dvh] flex-col bg-canvas sm:h-[min(760px,84dvh)]">
         {workItem ? (
           <>
             <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5">
@@ -131,7 +131,7 @@ function ProjectView({
   );
   return (
     <>
-      <header className="shrink-0 border-b border-border bg-card px-4 pt-3 sm:px-5">
+      <header className="relative shrink-0 overflow-hidden border-b border-border bg-card px-4 pt-4 sm:px-6 sm:pt-5 after:absolute after:inset-y-0 after:left-0 after:w-1 after:bg-primary">
         {onBack ? (
           <button
             type="button"
@@ -153,7 +153,7 @@ function ProjectView({
                 </span>
               ) : null}
             </div>
-            <h2 className="mt-1.5 truncate text-[21px] font-bold sm:text-[23px]">{project.name}</h2>
+            <h2 className="mt-1.5 truncate text-[23px] font-bold sm:text-[27px]">{project.name}</h2>
             <button
               type="button"
               disabled={!project.customer_company_id || !onOpenCustomer}
@@ -174,7 +174,7 @@ function ProjectView({
             </Button>
           </Link>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-border pt-2.5">
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4">
           <HeaderFact icon={Layers3} label="Readiness" value={`${project.readiness_pct ?? 0}%`} />
           <HeaderFact
             icon={Hammer}
@@ -192,7 +192,7 @@ function ProjectView({
             value={upcoming ? formatDate(upcoming.work_date) : "Not scheduled"}
           />
         </div>
-        <nav className="mt-2.5 flex gap-1 overflow-x-auto">
+        <nav className="mt-3 flex gap-1 overflow-x-auto rounded-t-xl bg-muted/55 p-1 pb-0">
           {(["Overview", "Actions", "Rooms / Readiness", "Schedule / Activity"] as Tab[]).map(
             (value) => (
               <button
@@ -200,7 +200,7 @@ function ProjectView({
                 type="button"
                 onClick={() => setTab(value)}
                 className={cn(
-                  "h-8 shrink-0 border-b-2 px-3 text-[11.5px] font-bold",
+                  "h-9 shrink-0 rounded-t-lg border-b-2 px-3 text-[11.5px] font-bold",
                   tab === value
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground",
@@ -213,15 +213,15 @@ function ProjectView({
           )}
         </nav>
       </header>
-      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
         {tab === "Overview" ? (
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(250px,.8fr)]">
-            <section className="rounded-lg border border-primary/20 bg-primary-soft p-4 shadow-[var(--shadow-card)]">
-              <p className="v2-kicker !text-primary">Next move</p>
-              <h3 className="mt-1.5 text-[17px] font-bold">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
+            <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-foreground p-5 text-card shadow-[var(--shadow-raised)] sm:p-6">
+              <p className="ops-eyebrow !text-primary-soft">Next move</p>
+              <h3 className="mt-2 text-[21px] font-bold">
                 {next?.title ?? project.next_move ?? "Review current project work"}
               </h3>
-              <p className="mt-1.5 text-[12px] leading-5 text-muted-foreground">
+              <p className="mt-2 text-[12px] leading-5 text-card/65">
                 {next?.next_action ??
                   attention ??
                   project.readiness_note ??
@@ -357,9 +357,9 @@ function HeaderFact({
   value: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-        <Icon className="size-3.5" />
+    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-background/65 px-2.5 py-2">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+        <Icon className="size-4" />
       </span>
       <span className="min-w-0">
         <p className="text-[9.5px] font-bold text-muted-foreground uppercase">{label}</p>

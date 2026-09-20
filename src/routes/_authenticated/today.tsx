@@ -16,6 +16,8 @@ import {
 } from "@/lib/workitems";
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark } from "@/components/ops/PremiumOps";
+import { useCrews, useProjects, useScheduleAssignments } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -51,6 +53,9 @@ function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
+  const { data: assignments = [] } = useScheduleAssignments();
+  const { data: projects = [] } = useProjects();
+  const { data: crews = [] } = useCrews();
   const capture = useCapture();
   const today = todayIso();
   const [selectedItem, setSelectedItem] = useState<WorkItemRow | null>(null);
@@ -72,30 +77,30 @@ function TodayPage() {
   });
 
   const shows = (key: Focus) => !focus || focus === key;
+  const focusItem = sections.needsNow[0];
+  const todayAssignments = assignments.filter((item) => item.work_date === today);
 
   return (
     <>
       <AppHeader crumbs={[{ label: "Today" }]} />
 
-      <main className="mx-auto w-full max-w-[1380px] px-4 pb-28 md:px-6">
-        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
-            <div className="min-w-0">
-              <p className="v2-kicker mb-1">Daily command center</p>
-              <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
-                {first ? `${greeting()}, ${first}` : "Today"}
-              </h1>
-              <p className="mt-1 truncate text-[12px] text-muted-foreground">
-                {dateLine} · {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
-              </p>
-            </div>
+      <OpsCanvas className="max-w-[1380px]">
+        <OpsPageHeader
+          eyebrow="Daily command center"
+          title={first ? `${greeting()}, ${first}` : "Today"}
+          summary={
+            <>
+              {dateLine} · {isLoading ? "Loading your day…" : todaySummaryLine(sections)}
+            </>
+          }
+          action={
             <Button variant="primary" onClick={() => capture()}>
               <Plus className="size-4" />
               <span className="hidden sm:inline">Capture</span>
             </Button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+          }
+        >
+          <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
             <TodayMetric
               icon={AlertTriangle}
               label="Needs attention"
@@ -129,9 +134,31 @@ function TodayPage() {
               onClick={() => setFocus(focus === "nextMoves" ? null : "nextMoves")}
             />
           </div>
-        </div>
+        </OpsPageHeader>
 
-        <section className="workspace-panel mt-3 overflow-hidden">
+        {focusItem ? (
+          <button
+            type="button"
+            onClick={() => setSelectedItem(focusItem)}
+            className="mt-4 grid w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-primary/25 bg-foreground px-4 py-4 text-left text-card shadow-[var(--shadow-raised)] sm:px-5"
+          >
+            <ObjectMark tone="blue">
+              <AlertTriangle className="size-5" />
+            </ObjectMark>
+            <span className="min-w-0">
+              <span className="block text-[10px] font-bold uppercase text-primary-soft">
+                Focus now
+              </span>
+              <strong className="mt-1 block truncate text-[18px]">{focusItem.title}</strong>
+              <span className="mt-1 block truncate text-[11.5px] text-card/65">
+                {projectLabel(focusItem)} · {focusItem.next_action ?? "Open and move this forward"}
+              </span>
+            </span>
+            <span className="text-[12px] font-bold text-primary-soft">Open →</span>
+          </button>
+        ) : null}
+
+        <OpsPlane className="mt-4">
           {shows("needsNow") && sections.needsNow.length ? (
             <TodaySection
               label="Needs you now"
@@ -176,13 +203,48 @@ function TodayPage() {
               </span>
             </div>
           ) : null}
-        </section>
+        </OpsPlane>
+        {todayAssignments.length ? (
+          <OpsPlane className="mt-4 p-3 sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="ops-eyebrow">Today on site</p>
+                <h2 className="mt-1 text-[16px] font-bold">Crew movement</h2>
+              </div>
+              <span className="ops-pill ops-pill-blue">{todayAssignments.length} assignments</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {todayAssignments.map((assignment) => {
+                const project = projects.find((item) => item.id === assignment.project_id);
+                const crew = crews.find((item) => item.id === assignment.crew_id);
+                return (
+                  <div
+                    key={assignment.id}
+                    className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background/70 p-3"
+                  >
+                    <ObjectMark tone="ink">
+                      <CalendarCheck2 className="size-4" />
+                    </ObjectMark>
+                    <span className="min-w-0">
+                      <strong className="block truncate text-[13.5px]">
+                        {project?.name ?? "Project"}
+                      </strong>
+                      <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                        {crew?.name ?? "Crew unassigned"} · {assignment.kind}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </OpsPlane>
+        ) : null}
         {focus ? (
           <div className="mt-3">
             <Button onClick={() => setFocus(null)}>Show all sections</Button>
           </div>
         ) : null}
-      </main>
+      </OpsCanvas>
       <WorkItemDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
     </>
   );
@@ -215,8 +277,8 @@ function TodayMetric({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "grid min-h-[56px] grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 bg-card px-3 py-2 text-left transition-colors hover:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:outline-none",
-        active && "bg-primary-soft/70 hover:bg-primary-soft/70",
+        "grid min-h-[64px] grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 rounded-xl border bg-background/75 px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none",
+        active ? "border-primary/30 bg-primary-soft" : "border-border",
       )}
     >
       <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${tones[tone]}`}>
