@@ -22,7 +22,7 @@ import {
 import { useMaterialItems, useProjects, type MaterialItem } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
-const FILTERS = ["Needs Action", "To Order", "Waiting / Expected", "Received"] as const;
+const FILTERS = ["Needs Action", "To Order", "Expected", "Received"] as const;
 type Filter = (typeof FILTERS)[number];
 export const Route = createFileRoute("/_authenticated/materials")({
   head: () => ({
@@ -49,7 +49,7 @@ function matches(filter: Filter, m: MaterialItem) {
       m.needs_attention || ["Short", "Wrong", "Damaged", "Partially Received"].includes(m.status)
     );
   if (filter === "To Order") return ["Needed", "To Order"].includes(m.status);
-  if (filter === "Waiting / Expected") return ["Ordered", "Expected"].includes(m.status);
+  if (filter === "Expected") return ["Ordered", "Expected"].includes(m.status);
   return ["Received", "Ready"].includes(m.status);
 }
 function MaterialsPage() {
@@ -60,10 +60,9 @@ function MaterialsPage() {
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [detail, setDetail] = useState<MaterialItem | null>(null);
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? "Project";
-  const install = materials.filter((m) => m.category === "Installation Materials");
   const rows = useMemo(
     () =>
-      install.filter(
+      materials.filter(
         (m) =>
           matches(filter, m) &&
           (!search.trim() ||
@@ -71,14 +70,14 @@ function MaterialsPage() {
               .toLowerCase()
               .includes(search.trim().toLowerCase())),
       ),
-    [filter, install, search],
+    [filter, materials, projects, search],
   );
   return (
     <OpsCanvas>
       <OpsPageHeader
-        eyebrow="Installation material lifecycle"
-        title="Materials"
-        summary="Needs, orders, delivery exceptions and site readiness across active jobs."
+        eyebrow="Readiness support"
+        title="Material exceptions"
+        summary="Missing, ordered, expected and received items that affect active work."
         action={
           <Button variant="primary" onClick={() => setReceiveOpen(true)}>
             <Upload className="size-4" />
@@ -86,15 +85,15 @@ function MaterialsPage() {
           </Button>
         }
       >
-        <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           {FILTERS.map((item) => {
-            const count = install.filter((m) => matches(item, m)).length;
+            const count = materials.filter((m) => matches(item, m)).length;
             const Icon =
               item === "Needs Action"
                 ? AlertTriangle
                 : item === "To Order"
                   ? Boxes
-                  : item === "Waiting / Expected"
+                  : item === "Expected"
                     ? Truck
                     : PackageCheck;
             return (
@@ -103,7 +102,7 @@ function MaterialsPage() {
                 type="button"
                 onClick={() => setFilter(item)}
                 className={cn(
-                  "flex min-h-16 items-center gap-3 rounded-xl border px-3 text-left",
+                  "flex h-10 items-center gap-2 rounded-lg border px-2.5 text-left",
                   filter === item
                     ? "border-primary/30 bg-primary-soft shadow-[var(--shadow-card)]"
                     : "border-border bg-background/70",
@@ -120,11 +119,11 @@ function MaterialsPage() {
                           : "blue"
                   }
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-3.5" />
                 </ObjectMark>
                 <span>
-                  <strong className="block text-xl tabular-nums">{count}</strong>
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  <strong className="text-[13px] tabular-nums">{count}</strong>
+                  <span className="ml-1.5 text-[10.5px] font-bold text-muted-foreground">
                     {item}
                   </span>
                 </span>
@@ -132,7 +131,7 @@ function MaterialsPage() {
             );
           })}
         </div>
-        <label className="mt-4 flex h-9 max-w-lg items-center gap-2 rounded-lg border border-border bg-background px-3">
+        <label className="mt-3 flex h-9 max-w-lg items-center gap-2 rounded-lg border border-border bg-background px-3">
           <Search className="size-4 text-muted-foreground" />
           <input
             value={search}
@@ -155,16 +154,16 @@ function MaterialsPage() {
                 key={m.id}
                 type="button"
                 onClick={() => setDetail(m)}
-                className="group mb-2 grid min-h-[96px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-left last:mb-0 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)]"
+                className="group mb-2 grid min-h-[78px] w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border bg-background/60 px-3 py-2.5 text-left last:mb-0 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)]"
               >
                 <ObjectMark tone={m.needs_attention ? "amber" : "blue"}>
                   <Boxes className="size-5" />
                 </ObjectMark>
-                <span className="grid min-w-0 gap-3 md:grid-cols-[minmax(180px,1fr)_minmax(160px,.7fr)_minmax(220px,1fr)] md:items-center">
+                <span className="grid min-w-0 gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(150px,.65fr)_minmax(200px,.9fr)] md:items-center">
                   <span className="min-w-0">
-                    <strong className="block truncate text-[16px]">{m.name}</strong>
+                    <strong className="block truncate text-[14px]">{m.name}</strong>
                     <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
-                      {projectName(m.project_id)} · {m.spec ?? "Specification pending"}
+                      {projectName(m.project_id)} · {m.category} · {m.spec ?? "Details pending"}
                     </span>
                     <StatusPill
                       tone={
@@ -186,7 +185,7 @@ function MaterialsPage() {
                   <span>
                     <span className="ops-eyebrow">Next action</span>
                     <strong className="mt-1 block text-[13px]">
-                      {m.next_step ?? "Review with supplier"}
+                      {m.next_step ?? "Confirm what is needed"}
                     </strong>
                     {m.expected_date ? (
                       <span className="mt-1 block text-[11px] text-muted-foreground">
