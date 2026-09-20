@@ -139,10 +139,7 @@ function matchesView(project: Project, filter: ProjectView) {
   if (filter === "On Hold") return project.exception_state === "On Hold";
   if (filter === "Upcoming")
     return !project.exception_state && ["Ready", "Scheduled"].includes(stage);
-  return (
-    stage !== "Complete" &&
-    !["On Hold", "Cancelled", "Lost"].includes(project.exception_state ?? "")
-  );
+  return stage !== "Complete" && !["On Hold", "Cancelled"].includes(project.exception_state ?? "");
 }
 
 function matchesSearch(project: Project, search: string) {
@@ -161,7 +158,12 @@ function attentionFor(project: Project, work: WorkItemRow[]) {
   const waiting = work.find(isWaiting);
   if (waiting)
     return waiting.waiting_on ? `Waiting on ${waiting.waiting_on}` : `Waiting · ${waiting.title}`;
-  return project.needs_attention ?? (project.readiness_pct < 100 ? project.readiness_note : null);
+  const stage = normalizeStage(project.lifecycle_stage);
+  const readinessMatters = ["Approved", "Setup", "Ready", "Scheduled"].includes(stage);
+  return (
+    project.needs_attention ??
+    (readinessMatters && project.readiness_pct < 100 ? project.readiness_note : null)
+  );
 }
 
 function relevantDateFor(project: Project, work: WorkItemRow[], schedule: ScheduleAssignment[]) {

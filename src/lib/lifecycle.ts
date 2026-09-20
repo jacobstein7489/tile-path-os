@@ -20,7 +20,7 @@ export const LIFECYCLE_STAGES = [
 
 export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number];
 
-export const EXCEPTION_STATES = ["On Hold", "Cancelled", "Lost"] as const;
+export const EXCEPTION_STATES = ["On Hold", "Cancelled"] as const;
 export type ExceptionState = (typeof EXCEPTION_STATES)[number];
 
 /** Stored values from earlier versions of the product. */

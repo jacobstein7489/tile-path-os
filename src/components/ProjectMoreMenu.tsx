@@ -18,7 +18,13 @@ import {
 import { Combobox } from "@/components/kit";
 import { cn } from "@/lib/utils";
 
-export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onStatusUpdate }: { project: Project; compact?: boolean; onDailyUpdate?: () => void; onStatusUpdate?: () => void }) {
+export function ProjectMoreMenu({
+  project,
+  compact = false,
+}: {
+  project: Project;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,8 +64,6 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
   };
 
   const items: { label: string; run: () => void; danger?: boolean }[] = [
-    ...(onDailyUpdate ? [{ label: "Daily Update", run: () => { setOpen(false); onDailyUpdate(); } }] : []),
-    ...(onStatusUpdate ? [{ label: "Project Status Update", run: () => { setOpen(false); onStatusUpdate(); } }] : []),
     { label: "Edit project", run: () => (setOpen(false), setEdit(true)) },
     project.exception_state === "On Hold"
       ? { label: "Take off hold", run: () => setException(null, "Project resumed") }
@@ -75,44 +79,40 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
             })
           ),
         },
-    {
-      label: "Mark cancelled",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Mark project cancelled?",
-          note: "The project stays in the database with its full history and can be restored later.",
-          confirmLabel: "Mark cancelled",
-          danger: true,
-          run: () => setException("Cancelled", "Project marked cancelled"),
-        })
-      ),
-    },
-    {
-      label: "Mark lost",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Mark project lost?",
-          note: "The project stays in the database with its full history and can be restored later.",
-          confirmLabel: "Mark lost",
-          danger: true,
-          run: () => setException("Lost", "Project marked lost"),
-        })
-      ),
-    },
-    {
-      label: "Archive project",
-      run: () => (
-        setOpen(false),
-        setPendingAction({
-          title: "Archive project?",
-          note: "The project will leave active lists but its records and history remain intact.",
-          confirmLabel: "Archive project",
-          run: archive,
-        })
-      ),
-    },
+    ...(perms.isAdmin || perms.has("gm")
+      ? [
+          {
+            label: "Cancel project",
+            run: () => (
+              setOpen(false),
+              setPendingAction({
+                title: "Cancel project?",
+                note: "The project stays in the database with its full history and can be restored later.",
+                confirmLabel: "Cancel project",
+                danger: true,
+                run: () => setException("Cancelled", "Project marked cancelled"),
+              })
+            ),
+          },
+        ]
+      : []),
+    ...((project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled") &&
+    perms.isAdmin
+      ? [
+          {
+            label: "Archive project",
+            run: () => (
+              setOpen(false),
+              setPendingAction({
+                title: "Archive project?",
+                note: "The project will leave active lists but its records and history remain intact.",
+                confirmLabel: "Archive project",
+                run: archive,
+              })
+            ),
+          },
+        ]
+      : []),
     ...(perms.isAdmin
       ? [
           {
@@ -128,7 +128,13 @@ export function ProjectMoreMenu({ project, compact = false, onDailyUpdate, onSta
 
   return (
     <div className="relative" ref={ref}>
-      <Button className={compact ? "size-9 px-0" : undefined} onClick={() => setOpen((o) => !o)} aria-label={compact ? "Project actions" : undefined} aria-haspopup="menu" aria-expanded={open}>
+      <Button
+        className={compact ? "size-9 px-0" : undefined}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={compact ? "Project actions" : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         <MoreHorizontal className="size-4" /> {compact ? null : "More"}
       </Button>
       {open ? (

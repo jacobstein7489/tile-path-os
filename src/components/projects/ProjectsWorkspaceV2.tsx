@@ -3,8 +3,6 @@ import {
   CalendarDays,
   ChevronRight,
   FolderKanban,
-  Hammer,
-  Layers3,
   Plus,
   Search,
   UserRound,
@@ -23,6 +21,7 @@ import { Dot, stageTone } from "@/lib/status";
 import type { WorkItemRow } from "@/lib/workitems";
 import { useCompanies, type Company } from "@/lib/people";
 import { cn } from "@/lib/utils";
+import { projectPrimaryMetric, readinessPresentation } from "@/lib/projectPresentation";
 import {
   OpsCanvas,
   OpsPageHeader,
@@ -76,15 +75,7 @@ export function ProjectsWorkspaceV2({
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
   const { data: companies = [] } = useCompanies("customer");
   const [selectedCustomer, setSelectedCustomer] = useState<Company | null>(null);
-  const [readiness, setReadiness] = useState<"All" | "Ready" | "Partial" | "Not ready">("All");
-
-  const visible = jobs.filter((job) => {
-    if (readiness === "All") return true;
-    const pct = job.project.readiness_pct ?? 0;
-    if (readiness === "Ready") return pct >= 100;
-    if (readiness === "Partial") return pct > 0 && pct < 100;
-    return pct <= 0;
-  });
+  const visible = jobs;
 
   return (
     <OpsCanvas>
@@ -100,7 +91,7 @@ export function ProjectsWorkspaceV2({
           </Button>
         }
       >
-        <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center">
+        <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto] sm:items-center">
           <label className="relative min-w-0">
             <span className="sr-only">Search projects</span>
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -120,17 +111,6 @@ export function ProjectsWorkspaceV2({
               <option key={view}>{view}</option>
             ))}
           </Select>
-          <Select
-            aria-label="Readiness filter"
-            value={readiness}
-            onChange={(event) =>
-              setReadiness(event.target.value as "All" | "Ready" | "Partial" | "Not ready")
-            }
-          >
-            {["All", "Ready", "Partial", "Not ready"].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </Select>
         </div>
       </OpsPageHeader>
 
@@ -148,7 +128,6 @@ export function ProjectsWorkspaceV2({
               key={job.project.id}
               job={job}
               onOpen={() => onSelect(job.project.id)}
-              onStatusUpdate={() => onStatusProject(job.project)}
               onOpenCustomer={() => {
                 const company = companies.find(
                   (item) => item.id === job.project.customer_company_id,
@@ -191,20 +170,18 @@ export function ProjectsWorkspaceV2({
 
 function ProjectQueueItem({
   job,
-  onStatusUpdate,
   onOpen,
   onOpenCustomer,
 }: {
   job: ProjectQueueRecord;
-  onStatusUpdate: () => void;
   onOpen: () => void;
   onOpenCustomer: () => void;
 }) {
   const { project, next, attention, relevantDate, work } = job;
   const identity = project.address ?? project.project_type;
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
-  const readiness = Math.max(0, Math.min(100, project.readiness_pct ?? 0));
-  const progress = Math.max(0, Math.min(100, project.installation_progress ?? 0));
+  const readiness = readinessPresentation(project);
+  const primaryMetric = projectPrimaryMetric(project);
 
   return (
     <article className="group relative mb-2 min-w-0 overflow-hidden rounded-xl border border-border bg-background/60 transition-all last:mb-0 focus-within:border-primary/30 focus-within:bg-card hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)]">
@@ -249,13 +226,31 @@ function ProjectQueueItem({
           </div>
         </div>
 
-        <div className="min-w-0 space-y-1.5">
-          <OpsMeter
-            label="Readiness"
-            value={readiness}
-            tone={readiness >= 100 ? "green" : "amber"}
-          />
-          <OpsMeter label="Installed" value={progress} />
+        <div className="min-w-0 space-y-2">
+          {primaryMetric ? (
+            <OpsMeter label={primaryMetric.label} value={primaryMetric.value} />
+          ) : null}
+          {readiness.visible ? (
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2",
+                readiness.tone === "green"
+                  ? "border-success/20 bg-success-soft"
+                  : readiness.tone === "red"
+                    ? "border-danger/20 bg-danger-soft"
+                    : "border-warning/20 bg-warning-soft",
+              )}
+            >
+              <p className="text-[11.5px] font-bold">{readiness.label}</p>
+              {readiness.detail ? (
+                <p className="mt-0.5 line-clamp-2 text-[10.5px] text-muted-foreground">
+                  {readiness.detail}
+                </p>
+              ) : null}
+            </div>
+          ) : primaryMetric ? null : (
+            <p className="text-[11.5px] font-semibold text-muted-foreground">{stage}</p>
+          )}
         </div>
 
         <div className="min-w-0 px-1 py-1">
@@ -291,36 +286,9 @@ function ProjectQueueItem({
         </span>
       </button>
       <div className="absolute right-2 bottom-2 md:top-2 md:bottom-auto">
-        <ProjectMoreMenu project={project} compact onStatusUpdate={onStatusUpdate} />
+        <ProjectMoreMenu project={project} compact />
       </div>
     </article>
-  );
-}
-
-function MiniBar({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: typeof Layers3;
-  label: string;
-  value: number;
-  tone: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <div className="flex items-center justify-between text-[10.5px] font-bold text-muted-foreground uppercase">
-        <span className="inline-flex items-center gap-1.5">
-          <Icon className="size-3.5" />
-          {label}
-        </span>
-        <span className="tabular-nums text-secondary-foreground">{value}%</span>
-      </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-track">
-        <div className={cn("h-full rounded-full", tone)} style={{ width: `${value}%` }} />
-      </div>
-    </div>
   );
 }
 

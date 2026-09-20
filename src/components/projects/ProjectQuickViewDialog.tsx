@@ -21,6 +21,7 @@ import { actionState } from "@/lib/queue";
 import { useProjectSetup } from "@/lib/setup";
 import { isOverdue, type WorkItemRow } from "@/lib/workitems";
 import { cn } from "@/lib/utils";
+import { projectPrimaryMetric, readinessPresentation } from "@/lib/projectPresentation";
 
 type Tab = "Overview" | "Actions" | "Rooms / Readiness" | "Schedule / Activity";
 
@@ -122,6 +123,8 @@ function ProjectView({
   const customer = companies.find((item) => item.id === project.customer_company_id);
   const contact = contacts.find((item) => item.id === project.primary_contact_id);
   const stage = project.exception_state ?? normalizeStage(project.lifecycle_stage);
+  const readiness = readinessPresentation(project);
+  const primaryMetric = projectPrimaryMetric(project);
   const grouped = useMemo(
     () =>
       (["To Do", "Waiting", "Scheduled"] as const)
@@ -175,12 +178,16 @@ function ProjectView({
           </Link>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4">
-          <HeaderFact icon={Layers3} label="Readiness" value={`${project.readiness_pct ?? 0}%`} />
-          <HeaderFact
-            icon={Hammer}
-            label="Installed"
-            value={`${project.installation_progress ?? 0}%`}
-          />
+          {readiness.visible ? (
+            <HeaderFact icon={Layers3} label="Readiness" value={readiness.label} />
+          ) : null}
+          {primaryMetric ? (
+            <HeaderFact
+              icon={Hammer}
+              label={primaryMetric.label}
+              value={`${primaryMetric.value}%`}
+            />
+          ) : null}
           <HeaderFact
             icon={UserRound}
             label="Crew / owner"
@@ -235,10 +242,17 @@ function ProjectView({
             </section>
             <section className="workspace-panel px-4 py-3">
               <p className="v2-kicker">Operating context</p>
-              <Fact
-                label="Readiness reason"
-                value={project.readiness_note ?? "No readiness note"}
-              />
+              {readiness.visible ? (
+                <Fact
+                  label="Why"
+                  value={
+                    readiness.detail ??
+                    (readiness.label === "Ready"
+                      ? "No current readiness blockers"
+                      : "Review room and surface readiness")
+                  }
+                />
+              ) : null}
               <Fact
                 label="Next schedule"
                 value={

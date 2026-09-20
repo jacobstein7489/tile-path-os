@@ -15,9 +15,9 @@ import {
   OpsPageHeader,
   OpsPlane,
   ObjectMark,
-  OpsMeter,
   StatusPill,
 } from "@/components/ops/PremiumOps";
+import { readinessPresentation } from "@/lib/projectPresentation";
 import {
   useCrews,
   useInsertRow,
@@ -611,6 +611,7 @@ function ReadyQueue({
         {projects.length ? (
           projects.map((project) => {
             const label = readyLabel(project);
+            const readiness = readinessPresentation(project);
             return (
               <article
                 key={project.id}
@@ -618,11 +619,23 @@ function ReadyQueue({
               >
                 <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
                   <strong className="block truncate text-[13px]">{project.name}</strong>
-                  <OpsMeter
-                    label={project.lifecycle_stage}
-                    value={project.readiness_pct ?? 0}
-                    tone="amber"
-                  />
+                  <span
+                    className={cn(
+                      "mt-2 inline-flex rounded-md px-2 py-1 text-[10.5px] font-bold",
+                      readiness.tone === "green"
+                        ? "bg-success-soft text-success"
+                        : readiness.tone === "red"
+                          ? "bg-danger-soft text-danger"
+                          : "bg-warning-soft text-warning",
+                    )}
+                  >
+                    {readiness.label}
+                  </span>
+                  {readiness.detail ? (
+                    <span className="mt-1 line-clamp-2 text-[10.5px] text-muted-foreground">
+                      {readiness.detail}
+                    </span>
+                  ) : null}
                   <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                     {project.next_move ?? label.text}
                   </span>
@@ -810,7 +823,7 @@ function AssignModal({
           <p className="text-[10px] font-bold text-primary uppercase">Assignment context</p>
           <p className="mt-1 text-[15px] font-bold">{project.name}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            {project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}
+            {readinessPresentation(project).label} · {project.lifecycle_stage}
           </p>
         </div>
         <div className="mt-3 space-y-3 rounded-lg border border-border bg-card p-3.5">
