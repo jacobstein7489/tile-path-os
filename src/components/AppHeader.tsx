@@ -9,7 +9,7 @@ export type Crumb = { label: string; to?: string; params?: Record<string, string
  */
 export function AppHeader({ crumbs }: { crumbs: Crumb[]; viewLabel?: string }) {
   return (
-    <header className="sticky top-0 z-20 grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border bg-card/92 px-4 backdrop-blur-xl md:flex md:px-6">
+    <header className="sticky top-0 z-20 grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border bg-canvas/88 px-4 backdrop-blur-xl md:flex md:px-7">
       <div
         className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)] md:hidden"
         aria-label="Cobblestone Tile Operations"
@@ -18,7 +18,7 @@ export function AppHeader({ crumbs }: { crumbs: Crumb[]; viewLabel?: string }) {
           <path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" />
         </svg>
       </div>
-      <nav className="flex min-w-0 items-center gap-2 text-xs" aria-label="Breadcrumb">
+      <nav className="flex min-w-0 items-center gap-2 text-[11.5px]" aria-label="Breadcrumb">
         {crumbs.map((c, i) => (
           <span key={i} className="flex min-w-0 items-center gap-2">
             {i > 0 ? <span className="text-border-strong">/</span> : null}
