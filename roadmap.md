@@ -14,9 +14,9 @@
 
 ## VNext visual gate
 
-- [ ] Build isolated VNext shell and routes without replacing the current app
-- [ ] Build full-lifecycle VNext Jobs directory and centered Job Quick View
-- [ ] Build canonical VNext full Job Overview with signature lifecycle flow
-- [ ] Build VNext tile-estimating workspace from existing project data
-- [ ] Build VNext Today after the Job model is established
-- [ ] Validate desktop/mobile layout, typecheck, queue tests, and diff checks
+- [x] Build isolated VNext shell and routes without replacing the current app
+- [x] Build full-lifecycle VNext Jobs directory and centered Job Quick View
+- [x] Build canonical VNext full Job Overview with signature lifecycle flow
+- [x] Build VNext tile-estimating workspace from existing project data
+- [x] Build VNext Today after the Job model is established
+- [x] Validate desktop/mobile layout, typecheck, queue tests, and diff checks
