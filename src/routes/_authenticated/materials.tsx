@@ -27,13 +27,13 @@ type Filter = (typeof FILTERS)[number];
 export const Route = createFileRoute("/_authenticated/materials")({
   head: () => ({
     meta: [
-      { title: "Install Materials — Cobblestone Tile OS" },
+      { title: "Materials — Cobblestone Tile OS" },
       {
         name: "description",
         content:
           "Material exceptions, receiving, and readiness support across active tile projects.",
       },
-      { property: "og:title", content: "Install Materials — Cobblestone Tile OS" },
+      { property: "og:title", content: "Materials — Cobblestone Tile OS" },
       {
         property: "og:description",
         content:
@@ -78,7 +78,7 @@ function MaterialsPage() {
     <OpsCanvas>
       <OpsPageHeader
         eyebrow="Readiness support"
-        title="Material exceptions"
+        title="Materials"
         summary="Missing, ordered, expected and received items that affect active work."
         action={
           <Button variant="primary" onClick={() => setReceiveOpen(true)}>
