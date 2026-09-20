@@ -151,8 +151,8 @@ function ProjectOverview() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[1280px] px-4 pt-5 pb-24 md:px-7 md:pt-7">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="mx-auto w-full max-w-[1280px] px-4 pt-5 pb-24 md:px-7 md:pt-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-[var(--shadow-card)]">
           <div>
             <p className="text-[10px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
               Project command center
@@ -167,12 +167,12 @@ function ProjectOverview() {
           </span>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)]">
           {next.work ? (
             <button
               type="button"
               onClick={() => setSelectedWork(next.work ?? null)}
-              className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 text-left shadow-raised transition-transform hover:-translate-y-0.5 md:p-8"
+              className="group min-h-[218px] rounded-2xl border border-foreground bg-foreground p-6 text-left text-card shadow-[var(--shadow-raised)] transition-transform hover:-translate-y-0.5 md:p-8"
             >
               {nextContent}
             </button>
@@ -180,12 +180,12 @@ function ProjectOverview() {
             <Link
               to={next.to}
               params={{ projectId }}
-              className="group min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised transition-transform hover:-translate-y-0.5 md:p-8"
+              className="group min-h-[218px] rounded-2xl border border-foreground bg-foreground p-6 text-card shadow-[var(--shadow-raised)] transition-transform hover:-translate-y-0.5 md:p-8"
             >
               {nextContent}
             </Link>
           ) : (
-            <div className="min-h-[218px] rounded-xl border border-primary/25 bg-primary-soft p-6 shadow-raised md:p-8">
+            <div className="min-h-[218px] rounded-2xl border border-foreground bg-foreground p-6 text-card shadow-[var(--shadow-raised)] md:p-8">
               {nextContent}
             </div>
           )}
@@ -365,7 +365,7 @@ function Panel({
 }) {
   return (
     <section
-      className={cn("rounded-xl border border-border bg-card p-5 shadow-card md:p-6", className)}
+       className={cn("rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-workspace)] md:p-6", className)}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-[13px] font-bold">

@@ -128,11 +128,12 @@ function ProjectShell() {
           <span className="mx-2 text-border-strong">/</span>
           <span className="truncate">{project.name}</span>
         </div>
-        <header>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:px-6 md:py-3">
+        <header className="mx-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-workspace)] md:mx-6">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 md:px-6 md:py-5">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2.5">
-                <h1 className="truncate font-display text-[19px] leading-tight font-bold md:text-[23px]">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground text-card"><svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true"><path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" /></svg></span>
+                <h1 className="truncate font-display text-[22px] leading-tight font-bold md:text-[27px]">
                   {project.name}
                 </h1>
                 <div className="relative shrink-0">
@@ -181,7 +182,7 @@ function ProjectShell() {
                   </Popover>
                 </div>
               </div>
-              <div className="mt-1 truncate text-[11.5px] text-muted-foreground">
+              <div className="mt-2 truncate text-[12px] text-muted-foreground">
                 <span className="md:hidden">
                   {project.address ?? project.customer ?? "Address not set"}
                   {pmName ? ` · PM ${pmName}` : ""}
@@ -244,7 +245,7 @@ function ProjectShell() {
               </div>
             </div>
           </div>
-          <div className="flex h-10 items-end gap-0 border-y border-border bg-card px-1 md:gap-1 md:px-5">
+          <div className="flex h-11 items-end gap-0 border-t border-border bg-muted/45 px-1 md:gap-1 md:px-5">
             <UnderlineTabs
               className="min-w-0 flex-1 justify-between border-b-0 [&_a]:px-2 md:justify-start md:[&_a]:px-3.5"
               items={PROJECT_TABS.map((t) => ({ ...t, params: { projectId } }))}

@@ -10,6 +10,7 @@ import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspace
 import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark, OpsMeter, StatusPill } from "@/components/ops/PremiumOps";
 import {
   useCrews,
   useInsertRow,
@@ -171,15 +172,8 @@ function SchedulePage() {
   return (
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
-      <main className="mx-auto w-full max-w-[1480px] px-4 pb-28 md:px-6 md:pb-10">
-        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]">
-          <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-border bg-gradient-to-br from-primary-soft/55 to-transparent px-4 py-3.5 md:px-5">
-            <div className="min-w-0">
-              <p className="v2-kicker mb-1">Crew-first scheduling</p>
-              <h1 className="truncate text-[24px] leading-tight font-bold md:text-[27px]">
-                Schedule &amp; Crews
-              </h1>
-              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+      <OpsCanvas>
+        <OpsPageHeader eyebrow="Crew operations" title="Schedule & Crews" summary={<span className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span>
                   <strong className="text-foreground tabular-nums">{crewsWorkingToday}</strong> of{" "}
                   {crews.length} crews working today
@@ -192,9 +186,7 @@ function SchedulePage() {
                   <strong className="text-foreground tabular-nums">{returnVisits.length}</strong>{" "}
                   return visits this week
                 </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5 shadow-[var(--shadow-card)]">
+              </span>} action={<div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5 shadow-[var(--shadow-card)]">
               {(["Today", "Week", "Month"] as View[]).map((value) => (
                 <button
                   key={value}
@@ -214,10 +206,9 @@ function SchedulePage() {
                   {value}
                 </button>
               ))}
-            </div>
-          </header>
+            </div>}>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 px-3 py-2 md:px-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -265,30 +256,27 @@ function SchedulePage() {
               </button>
             </div>
           </div>
-        </div>
+        </OpsPageHeader>
+
+        {view === "Week" ? <ReadyQueue projects={unassigned} readyLabel={readyLabel} onAssign={(project, kind) => setAssignFor({ project, kind })} onOpen={setSelectedProject} className={cn("mt-4", mobileZone !== "Ready" && "hidden md:block")} /> : null}
 
         <div
           className={cn(
-            "mt-3 gap-3 md:grid md:grid-cols-[240px_minmax(0,1fr)]",
-            view !== "Week" && "md:grid-cols-1",
+            "mt-4",
           )}
         >
-          {view === "Week" || mobileZone === "Ready" ? (
+          {view !== "Week" && mobileZone === "Ready" ? (
             <ReadyQueue
               projects={unassigned}
               readyLabel={readyLabel}
               onAssign={(project, kind) => setAssignFor({ project, kind })}
               onOpen={setSelectedProject}
-              className={cn(
-                "mb-4 md:mb-0",
-                view !== "Week" && "md:hidden",
-                mobileZone !== "Ready" && "hidden md:block",
-              )}
+               className="mb-4 md:hidden"
             />
           ) : null}
           <div className={cn(mobileZone === "Ready" && "hidden md:block")}>
             {view === "Week" ? (
-              <section className="workspace-panel overflow-hidden">
+               <OpsPlane>
                 <div className="md:hidden">
                   <DayAgenda
                     days={weekDays}
@@ -325,10 +313,10 @@ function SchedulePage() {
                     {crews.map((crew) => (
                       <div
                         key={crew.id}
-                        className="grid min-h-[54px] grid-cols-[112px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
+                         className="grid min-h-[72px] grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
                       >
-                        <div className="flex items-center gap-2 px-2 py-2">
-                          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-neutral-chip text-[10px] font-bold text-secondary-foreground">
+                         <div className="flex items-center gap-2 px-3 py-2">
+                           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground text-[10px] font-bold text-card">
                             {crew.initials}
                           </span>
                           <span className="min-w-0 truncate text-[12.5px] font-bold">
@@ -344,7 +332,7 @@ function SchedulePage() {
                             <div
                               key={day}
                               className={cn(
-                                "min-h-[54px] border-l border-border/60 p-1 align-top",
+                                 "min-h-[72px] border-l border-border/60 bg-background/35 p-1.5 align-top",
                                 day === todayIsoDate && "bg-primary-soft/25",
                               )}
                             >
@@ -365,7 +353,7 @@ function SchedulePage() {
                                     key={a.id}
                                     onClick={() => setSelectedProject(p)}
                                     className={cn(
-                                      "mb-1 block rounded-md border px-1.5 py-1 transition-shadow hover:shadow-[var(--shadow-card)]",
+                                       "mb-1 block w-full rounded-lg border px-2 py-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]",
                                       tone,
                                     )}
                                   >
@@ -378,9 +366,7 @@ function SchedulePage() {
                                   </button>
                                 );
                               })}
-                              {cell.length === 0 ? (
-                                <span className="block h-full rounded-lg border border-dashed border-border/70" />
-                              ) : null}
+                               {cell.length === 0 ? <span className="block px-1 pt-1 text-[9px] font-semibold uppercase text-muted-foreground/45">Available</span> : null}
                             </div>
                           );
                         })}
@@ -393,7 +379,7 @@ function SchedulePage() {
                     ) : null}
                   </div>
                 </div>
-              </section>
+               </OpsPlane>
             ) : null}
 
             {view === "Today" ? (
@@ -529,7 +515,7 @@ function SchedulePage() {
             ) : null}
           </div>
         </div>
-      </main>
+      </OpsCanvas>
 
       {assignFor ? (
         <AssignModal
@@ -585,30 +571,26 @@ function ReadyQueue({
   className?: string;
 }) {
   return (
-    <aside
-      className={cn("workspace-panel overflow-hidden md:max-h-[calc(100dvh-220px)]", className)}
-    >
-      <div className="flex items-center gap-2 border-b border-border bg-warning-soft/35 px-3 py-2.5">
+    <aside className={cn("ops-plane overflow-hidden", className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-warning-soft/35 px-4 py-3">
+        <div className="flex items-center gap-2">
         <Users className="size-4 text-warning" />
         <div>
           <h2 className="text-[13px] font-bold">Ready to schedule</h2>
           <p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p>
-        </div>
-      </div>
-      <div className="max-h-[60dvh] overflow-y-auto p-2">
+        </div><StatusPill tone="amber">{projects.length} waiting</StatusPill></div>
+      <div className="grid max-h-[250px] gap-2 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-4">
         {projects.length ? (
           projects.map((project) => {
             const label = readyLabel(project);
             return (
               <article
                 key={project.id}
-                className="mb-1.5 rounded-lg border border-border bg-card p-2.5 last:mb-0"
+                 className="rounded-xl border border-border bg-background/70 p-3"
               >
                 <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
                   <strong className="block truncate text-[13px]">{project.name}</strong>
-                  <span className="mt-1 block text-[10.5px] font-semibold text-warning">
-                    {project.readiness_pct ?? 0}% ready · {project.lifecycle_stage}
-                  </span>
+                   <OpsMeter label={project.lifecycle_stage} value={project.readiness_pct ?? 0} tone="amber" />
                   <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                     {project.next_move ?? label.text}
                   </span>
