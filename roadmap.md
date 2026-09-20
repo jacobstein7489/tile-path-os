@@ -1,14 +1,12 @@
-## P0 core operating loop
+# Roadmap
 
-- [x] Standardize centered desktop and near-full-screen mobile operating dialogs
-- [x] Consolidate Today, Work, Overview, and Project Work on canonical Work rows/dialogs
-- [x] Fix Mine matching for legacy owner-name records and preserve queue invariants
-- [x] Rebuild Projects directory, Project Quick View, and Approved Job Setup
-- [x] Strengthen project shell and Overview; remove misleading navigation
-- [x] Verify typecheck, queue tests, diff hygiene, interactions, and mobile overflow statically
-
-## Compact premium density calibration
-
-- [x] Tighten shell, Today, Actions, Projects, Customers, quick views, and Schedule scale
-- [x] Preserve all locked navigation, modal drill-downs, filters, data, and mutations
-- [x] Verify typecheck, queue tests, diff hygiene, and responsive overflow statically
+- [ ] Rebuild premium primary presentation primitives and shell
+- [ ] Rebuild Today command center
+- [ ] Rebuild Actions as grouped single-canvas workspace
+- [ ] Rebuild Work Item center workspace
+- [ ] Rebuild Projects and Project Quick View
+- [ ] Rebuild project full-page header and Overview
+- [ ] Rebuild Customers directory and workspace
+- [ ] Rebuild Schedule crew operations board
+- [ ] Rebuild global Materials lifecycle workspace
+- [ ] Verify typecheck, queue tests, diff, metadata, and responsive behavior
