@@ -75,15 +75,7 @@ export function ProjectsWorkspaceV2({
   const selectedJob = jobs.find((job) => job.project.id === selectedId) ?? null;
   const { data: companies = [] } = useCompanies("customer");
   const [selectedCustomer, setSelectedCustomer] = useState<Company | null>(null);
-  const [readiness, setReadiness] = useState<"All" | "Ready" | "Partial" | "Not ready">("All");
-
-  const visible = jobs.filter((job) => {
-    if (readiness === "All") return true;
-    const pct = job.project.readiness_pct ?? 0;
-    if (readiness === "Ready") return pct >= 100;
-    if (readiness === "Partial") return pct > 0 && pct < 100;
-    return pct <= 0;
-  });
+  const visible = jobs;
 
   return (
     <OpsCanvas>
@@ -99,7 +91,7 @@ export function ProjectsWorkspaceV2({
           </Button>
         }
       >
-        <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto_auto] sm:items-center">
+        <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(180px,1fr)_auto] sm:items-center">
           <label className="relative min-w-0">
             <span className="sr-only">Search projects</span>
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -117,17 +109,6 @@ export function ProjectsWorkspaceV2({
           >
             {(["Active", "Upcoming", "On Hold", "Completed"] as ProjectView[]).map((view) => (
               <option key={view}>{view}</option>
-            ))}
-          </Select>
-          <Select
-            aria-label="Readiness filter"
-            value={readiness}
-            onChange={(event) =>
-              setReadiness(event.target.value as "All" | "Ready" | "Partial" | "Not ready")
-            }
-          >
-            {["All", "Ready", "Partial", "Not ready"].map((value) => (
-              <option key={value}>{value}</option>
             ))}
           </Select>
         </div>
