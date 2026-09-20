@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CircleAlert, ClipboardList, FileText, Layers3, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/kit";
 import { VNextJobQuickView } from "@/components/vnext/VNextJobQuickView";
 import { VNextLifecycle } from "@/components/vnext/VNextLifecycle";
 import { JobIdentity, VNextPanel, WorkRow, formatDate } from "@/components/vnext/VNextPrimitives";
-import { useAreasWithSurfaces, useProject, useScheduleAssignments, useUpdateProject } from "@/lib/data";
+import { useAreasWithSurfaces, useProject, useScheduleAssignments, useUpdateProject, type Project } from "@/lib/data";
 import { useFieldReports } from "@/lib/fieldreports";
 import { useCompanies, useProfiles } from "@/lib/people";
 import { useProjectSetup } from "@/lib/setup";
@@ -14,7 +14,7 @@ import { compareWorkItems, isComplete, useWorkFeed, type WorkItemRow } from "@/l
 import { isPreAwardStage, nextVNextStage, readinessRelevant, stageFamily, storedVNextStage, vnextStage } from "@/lib/vnext";
 
 export function VNextJobOverview() {
-  const { jobId } = import("@/routes/_authenticated.vnext.jobs.$jobId.index").Route.useParams();
+  const { jobId } = useParams({ from: "/_authenticated/vnext/jobs/$jobId/" });
   const { data: project, isLoading } = useProject(jobId);
   const { data: companies = [] } = useCompanies(); const { data: profiles = [] } = useProfiles();
   const { data: feed = [] } = useWorkFeed(); const { data: schedule = [] } = useScheduleAssignments(); const { data: reports = [] } = useFieldReports(jobId);
@@ -42,7 +42,7 @@ export function VNextJobOverview() {
       <div className="space-y-5">
         <section className="grid overflow-hidden rounded-[18px] border border-vnext-ink bg-vnext-ink text-vnext-surface shadow-[var(--vnext-shadow-float)] sm:grid-cols-[minmax(0,1fr)_auto]">
           <div className="p-6 sm:p-8"><p className="vnext-kicker text-vnext-blue-soft">Where the job stands</p><h2 className="mt-3 max-w-[30ch] font-display text-[26px] leading-[1.18] font-bold sm:text-[31px]">{nextMove}</h2><p className="mt-3 max-w-[70ch] text-[12px] leading-5 text-vnext-surface/65">{contextLine(project, stage, work.length, setup.blockers.length)}</p></div>
-          {nextStage ? <div className="flex items-end border-t border-vnext-surface/10 p-5 sm:w-[220px] sm:border-t-0 sm:border-l"><Button variant="secondary" className="w-full border-vnext-surface/20 bg-vnext-surface text-vnext-ink" disabled={!canAdvance || update.isPending} disabledReason={advanceBlock(nextStage, setup.blockers.length, Boolean(upcoming), work.length)} onClick={() => void advance()}>Advance to {nextStage} <ArrowRight className="size-3.5" /></Button></div> : null}
+          {nextStage ? <div className="flex items-end border-t border-vnext-surface/10 p-5 sm:w-[220px] sm:border-t-0 sm:border-l"><Button variant="secondary" className="w-full border-vnext-surface/20 bg-vnext-surface text-vnext-ink" disabled={!canAdvance || update.isPending} {...(advanceBlock(nextStage, setup.blockers.length, Boolean(upcoming), work.length) ? { disabledReason: advanceBlock(nextStage, setup.blockers.length, Boolean(upcoming), work.length) } : {})} onClick={() => void advance()}>Advance to {nextStage} <ArrowRight className="size-3.5" /></Button></div> : null}
         </section>
         <StageOverview family={family} project={project} rooms={rooms.length} surfaces={surfaceRows.length} files={setup.fileList.length} blockers={setup.blockers} scheduleDate={upcoming?.work_date} latestReport={reports[0]?.progress_note ?? reports[0]?.blockers ?? null} work={work} />
         <VNextPanel title="Open actions" eyebrow="Move the job forward"><div className="grid gap-2 p-3 sm:grid-cols-2">{work.map((item) => <WorkRow key={item.id} item={item} onClick={() => setSelectedWork(item)} />)}{!work.length ? <p className="p-3 text-[11.5px] text-vnext-muted">No open work remains.</p> : null}</div></VNextPanel>
@@ -57,7 +57,7 @@ export function VNextJobOverview() {
   </div>;
 }
 
-function StageOverview({ family, project, rooms, surfaces, files, blockers, scheduleDate, latestReport, work }: { family: ReturnType<typeof stageFamily>; project: NonNullable<ReturnType<typeof useProject>["data"]>; rooms: number; surfaces: number; files: number; blockers: { id: string; label: string; detail: string | null }[]; scheduleDate?: string; latestReport: string | null; work: WorkItemRow[] }) {
+function StageOverview({ family, project, rooms, surfaces, files, blockers, scheduleDate, latestReport, work }: { family: ReturnType<typeof stageFamily>; project: Project; rooms: number; surfaces: number; files: number; blockers: { id: string; label: string; detail: string | null }[]; scheduleDate: string | undefined; latestReport: string | null; work: WorkItemRow[] }) {
   if (family === "preaward") return <div className="grid gap-5 lg:grid-cols-2"><VNextPanel title="Estimate position" eyebrow="Commercial path"><div className="grid grid-cols-2 gap-px bg-vnext-line"><Metric label="Bid due" value={formatDate(project.bid_due_date)} /><Metric label="Follow-up" value={formatDate(project.follow_up_date)} /><Metric label="Plans / files" value={String(files)} /><Metric label="Scope rooms" value={String(rooms)} /></div></VNextPanel><VNextPanel title="Request brief" eyebrow="What is being priced"><p className="p-5 text-[12px] leading-5 text-vnext-muted">{project.intake_notes ?? "No intake or scope notes have been recorded."}</p></VNextPanel></div>;
   if (family === "setup") return <div className="grid gap-5 lg:grid-cols-[1fr_1fr]"><VNextPanel title="Rooms & surfaces" eyebrow="Source of truth"><div className="grid grid-cols-2 gap-px bg-vnext-line"><Metric label="Rooms" value={String(rooms)} /><Metric label="Surfaces" value={String(surfaces)} /></div><p className="p-4 text-[11.5px] text-vnext-muted">Selections, measurements, decisions and installer instructions resolve at the physical surface.</p></VNextPanel><VNextPanel title="Readiness — why"><div className="space-y-2 p-4">{blockers.slice(0,5).map((item) => <div key={item.id} className="rounded-lg bg-vnext-amber-soft px-3 py-2"><strong className="block text-[11.5px]">{item.label}</strong><span className="text-[10.5px] text-vnext-muted">{item.detail ?? "Requirement is not met"}</span></div>)}{!blockers.length ? <p className="text-[12px] font-bold text-vnext-green">Upcoming work is ready.</p> : null}</div></VNextPanel></div>;
   if (family === "scheduled") return <div className="grid gap-5 lg:grid-cols-2"><VNextPanel title="Start plan"><div className="grid grid-cols-2 gap-px bg-vnext-line"><Metric label="Date" value={formatDate(scheduleDate ?? project.start_date)} /><Metric label="Crew" value={project.crew_lead ?? "Unassigned"} /></div></VNextPanel><VNextPanel title="Start protection"><p className="p-5 text-[12px] leading-5 text-vnext-muted">{blockers.length ? `${blockers.length} recorded requirement${blockers.length === 1 ? "" : "s"} could threaten the start.` : "No readiness threat is recorded for the scheduled start."}</p></VNextPanel></div>;
