@@ -49,7 +49,9 @@ const DISPLAY_TO_STORED: Record<VNextStage, string> = {
   Complete: "Complete",
 };
 
-export function vnextStage(project: Pick<Project, "lifecycle_stage" | "exception_state">): VNextStage {
+export function vnextStage(
+  project: Pick<Project, "lifecycle_stage" | "exception_state">,
+): VNextStage {
   return STORED_TO_DISPLAY[project.lifecycle_stage] ?? "Awarded";
 }
 export function storedVNextStage(stage: VNextStage) {

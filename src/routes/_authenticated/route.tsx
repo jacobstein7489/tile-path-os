@@ -39,7 +39,9 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const isVNext = useRouterState({ select: (state) => state.location.pathname.startsWith("/vnext") });
+  const isVNext = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/vnext"),
+  });
   if (isVNext) return <Outlet />;
   return (
     <CaptureProvider>
