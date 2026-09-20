@@ -60,10 +60,11 @@ export function WorkBoard({ projectId }: { projectId?: string }) {
     });
     return [...map.entries()].map(([key, rows]) => {
       const project = mode === "By Project" && key !== "company" ? projectMap.get(key) : null;
+      const first = rows[0];
       return {
         key,
-        title: mode === "By Project" ? project?.name ?? "Company / Unassigned" : ownerName(rows[0]),
-        subtitle: mode === "By Project" ? customerName(rows[0]) : `${new Set(rows.map(projectLabel)).size} projects`,
+        title: mode === "By Project" ? project?.name ?? "Company / Unassigned" : first ? ownerName(first) : "Unassigned",
+        subtitle: mode === "By Project" ? (first ? customerName(first) : "Customer not set") : `${new Set(rows.map(projectLabel)).size} projects`,
         rows,
       };
     }).sort((a, b) => b.rows.filter(isOverdue).length - a.rows.filter(isOverdue).length || b.rows.length - a.rows.length);
