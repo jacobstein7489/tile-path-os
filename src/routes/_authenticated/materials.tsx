@@ -30,12 +30,12 @@ export const Route = createFileRoute("/_authenticated/materials")({
       { title: "Install Materials — Cobblestone Tile OS" },
       {
         name: "description",
-        content: "Installation material lifecycle and receiving across active tile projects.",
+        content: "Material exceptions, receiving, and readiness support across active tile projects.",
       },
       { property: "og:title", content: "Install Materials — Cobblestone Tile OS" },
       {
         property: "og:description",
-        content: "Installation material lifecycle and receiving across active tile projects.",
+        content: "Material exceptions, receiving, and readiness support across active tile projects.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -112,7 +112,7 @@ function MaterialsPage() {
                   tone={
                     item === "Needs Action"
                       ? "red"
-                      : item === "Waiting / Expected"
+                    : item === "Expected"
                         ? "amber"
                         : item === "Received"
                           ? "green"
