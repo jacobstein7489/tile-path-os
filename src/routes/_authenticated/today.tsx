@@ -17,6 +17,7 @@ import {
 import { useAuthUser, useMyProfile } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark } from "@/components/ops/PremiumOps";
+import { useCrews, useProjects, useScheduleAssignments } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
@@ -52,6 +53,9 @@ function TodayPage() {
   const { data: items = [], isLoading } = useWorkFeed();
   const { user } = useAuthUser();
   const { data: profile } = useMyProfile();
+  const { data: assignments = [] } = useScheduleAssignments();
+  const { data: projects = [] } = useProjects();
+  const { data: crews = [] } = useCrews();
   const capture = useCapture();
   const today = todayIso();
   const [selectedItem, setSelectedItem] = useState<WorkItemRow | null>(null);
@@ -74,6 +78,7 @@ function TodayPage() {
 
   const shows = (key: Focus) => !focus || focus === key;
   const focusItem = sections.needsNow[0];
+  const todayAssignments = assignments.filter((item) => item.work_date === today);
 
   return (
     <>
@@ -199,6 +204,21 @@ function TodayPage() {
             </div>
           ) : null}
         </OpsPlane>
+        {todayAssignments.length ? (
+          <OpsPlane className="mt-4 p-3 sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div><p className="ops-eyebrow">Today on site</p><h2 className="mt-1 text-[16px] font-bold">Crew movement</h2></div>
+              <span className="ops-pill ops-pill-blue">{todayAssignments.length} assignments</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {todayAssignments.map((assignment) => {
+                const project = projects.find((item) => item.id === assignment.project_id);
+                const crew = crews.find((item) => item.id === assignment.crew_id);
+                return <div key={assignment.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background/70 p-3"><ObjectMark tone="ink"><CalendarCheck2 className="size-4"/></ObjectMark><span className="min-w-0"><strong className="block truncate text-[13.5px]">{project?.name ?? "Project"}</strong><span className="mt-1 block truncate text-[11px] text-muted-foreground">{crew?.name ?? "Crew unassigned"} · {assignment.kind}</span></span></div>;
+              })}
+            </div>
+          </OpsPlane>
+        ) : null}
         {focus ? (
           <div className="mt-3">
             <Button onClick={() => setFocus(null)}>Show all sections</Button>
