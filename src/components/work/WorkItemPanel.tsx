@@ -167,7 +167,7 @@ export function WorkItemPanel({
     <article
       className={cn("mx-auto w-full space-y-3.5", compact ? "max-w-none" : "max-w-[1080px]")}
     >
-      <header className="workspace-panel relative overflow-hidden px-4 py-3.5 sm:px-5 sm:py-4">
+      <header className="relative overflow-hidden rounded-2xl border border-border bg-card px-4 py-4 shadow-[var(--shadow-workspace)] sm:px-6 sm:py-5">
         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <span className="block">
           <span className="v2-kicker block">
@@ -185,7 +185,7 @@ export function WorkItemPanel({
             {areaName ? ` · ${areaName}` : ""}
             {surfaceName ? ` · ${surfaceName}` : ""}
           </span>
-          <span className="mt-1.5 block text-[20px] leading-snug font-bold md:text-[22px]">
+          <span className="mt-2 block text-[22px] leading-snug font-bold md:text-[26px]">
             {item.title}
           </span>
         </span>
@@ -209,13 +209,15 @@ export function WorkItemPanel({
       <div>
         <div
           className={cn(
-            "space-y-3.5",
+            "space-y-4",
             compact &&
-              "lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,.85fr)] lg:items-start lg:gap-3.5 lg:space-y-0",
+               "lg:grid lg:grid-cols-[minmax(0,.8fr)_minmax(360px,1.2fr)] lg:items-start lg:gap-4 lg:space-y-0",
           )}
         >
           <div className="space-y-3.5">
-            <section className="workspace-panel grid gap-3 p-3.5 sm:grid-cols-2">
+            <section className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+              <p className="ops-eyebrow mb-3">Action controls</p>
+              <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Owner">
                 <Combobox
                   options={profileOptions(profiles)}
@@ -243,6 +245,7 @@ export function WorkItemPanel({
                   onChange={(v) => void saveDueDate(v || null)}
                 />
               </Field>
+              </div>
             </section>
 
             {/* Secondary context — read-first, never a wall of controls. */}
@@ -270,9 +273,9 @@ export function WorkItemPanel({
 
           <div className="space-y-3.5">
             {/* ONE dominant action. */}
-            <section className="overflow-hidden rounded-lg border border-primary/25 bg-primary-soft/35 shadow-[var(--shadow-card)]">
+            <section className="overflow-hidden rounded-2xl border border-primary/25 bg-foreground text-card shadow-[var(--shadow-raised)]">
               {moveOpen ? (
-                <div className="space-y-4 px-4 py-4">
+                 <div className="space-y-4 px-4 py-5 sm:px-5">
                   <VoiceField
                     label="What happened?"
                     value={note}
@@ -351,18 +354,18 @@ export function WorkItemPanel({
                 <Button
                   variant="ghost"
                   onClick={() => setMoveOpen(true)}
-                  className="h-auto w-full justify-between rounded-none px-4 py-3.5 text-left hover:bg-primary-soft/60"
+                  className="h-auto w-full justify-between rounded-none px-5 py-5 text-left text-card hover:bg-primary/20"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
                       {done ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
                     </span>
                     <span>
-                      <span className="v2-kicker block !text-primary">Primary action</span>
-                      <span className="mt-0.5 block text-[15px] font-bold text-foreground">
+                      <span className="ops-eyebrow block !text-primary-soft">Primary action</span>
+                      <span className="mt-1 block text-[19px] font-bold text-card">
                         Move forward
                       </span>
-                      <span className="mt-0.5 block text-[12px] font-medium text-muted-foreground">
+                      <span className="mt-1 block text-[12px] font-medium text-card/65">
                         Record what happened and decide what comes next
                       </span>
                     </span>
