@@ -19,6 +19,7 @@ import { compareWorkItems, isComplete, isOverdue, isWaiting, useWorkFeed } from 
 import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspaceV2";
 import { normalizeStage } from "@/lib/lifecycle";
 import { cn } from "@/lib/utils";
+import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark, StatusPill } from "@/components/ops/PremiumOps";
 
 type Tab = "Overview" | "Projects" | "Contacts" | "Open Actions";
 
@@ -86,21 +87,9 @@ export function CustomersWorkspace() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 md:px-6">
-      <section className="mt-4 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-raised)]">
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-gradient-to-br from-primary-soft/60 to-card px-4 py-3.5 sm:px-5">
-          <div className="min-w-0">
-            <p className="v2-kicker">Customer operations</p>
-            <h1 className="mt-1 truncate text-[22px] font-bold md:text-[27px]">Customers</h1>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {records.length} customer relationships · projects, people and actions together
-            </p>
-          </div>
-          <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[var(--shadow-card)]">
-            <ContactRound className="size-5" />
-          </span>
-        </header>
-        <div className="bg-muted/30 p-3 sm:px-4">
+    <OpsCanvas className="max-w-[1440px]">
+      <OpsPageHeader eyebrow="Customer operations" title="Customers" summary={`${records.length} relationships · projects, people and actions together`} action={<ObjectMark tone="ink"><ContactRound className="size-5"/></ObjectMark>}>
+        <div className="mt-5">
           <label className="flex h-8 max-w-xl items-center gap-2 rounded-lg border border-border bg-card px-3">
             <Search className="size-4 text-muted-foreground" />
             <input
@@ -111,8 +100,8 @@ export function CustomersWorkspace() {
             />
           </label>
         </div>
-      </section>
-      <section className="mt-3 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]">
+      </OpsPageHeader>
+      <OpsPlane className="mt-4 p-2 sm:p-3">
         {isLoading ? (
           <Quiet>Loading customers…</Quiet>
         ) : visible.length ? (
@@ -121,14 +110,12 @@ export function CustomersWorkspace() {
               key={record.company.id}
               type="button"
               onClick={() => setCustomer(record.company)}
-              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border/70 px-4 py-2.5 text-left last:border-0 hover:bg-primary-soft/30 sm:px-5"
+               className="group mb-2 grid min-h-[96px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-left last:mb-0 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-card hover:shadow-[var(--shadow-card)] sm:px-5"
             >
               <span className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-primary/15 bg-primary-soft text-primary">
-                  <Building2 className="size-5" />
-                </span>
+                 <ObjectMark tone="ink"><Building2 className="size-5" /></ObjectMark>
                 <span className="min-w-0">
-                  <strong className="block truncate text-[15px] sm:text-[16px]">
+                   <strong className="block truncate text-[16px] sm:text-[18px]">
                     {record.company.name}
                   </strong>
                   <span className="mt-1 block truncate text-[11.5px] text-muted-foreground">
@@ -136,16 +123,16 @@ export function CustomersWorkspace() {
                     {record.current ? ` · Current: ${record.current.name}` : ""}
                   </span>
                   <span className="mt-1.5 flex flex-wrap gap-2 text-[10.5px] font-bold">
-                    <span className="rounded-full bg-info-soft px-2 py-0.5 text-info">
+                     <StatusPill tone="blue">
                       {record.active.length} active
-                    </span>
-                    <span className="rounded-full bg-neutral-chip px-2 py-0.5 text-secondary-foreground">
+                     </StatusPill>
+                     <StatusPill>
                       {record.complete.length} complete
-                    </span>
+                     </StatusPill>
                     {record.open.length ? (
-                      <span className="rounded-full bg-warning-soft px-2 py-0.5 text-warning">
+                       <StatusPill tone="amber">
                         {record.open.length} open actions
-                      </span>
+                       </StatusPill>
                     ) : null}
                   </span>
                 </span>
@@ -156,7 +143,7 @@ export function CustomersWorkspace() {
         ) : (
           <Quiet>No customers match this search.</Quiet>
         )}
-      </section>
+      </OpsPlane>
       {customer && !project ? (
         <CustomerQuickViewDialog
           company={customer}
@@ -176,7 +163,7 @@ export function CustomersWorkspace() {
           onBack={customer ? () => setProject(null) : undefined}
         />
       ) : null}
-    </main>
+    </OpsCanvas>
   );
 }
 
@@ -210,21 +197,21 @@ export function CustomerQuickViewDialog({
       description="Customer operating workspace"
       bodyClassName="overflow-hidden"
     >
-      <div className="flex max-h-[80dvh] min-h-[480px] flex-col bg-canvas">
-        <header className="shrink-0 border-b border-border bg-card px-4 pt-3.5 sm:px-5">
+      <div className="flex max-h-[84dvh] min-h-[560px] flex-col bg-canvas">
+        <header className="relative shrink-0 overflow-hidden border-b border-border bg-card px-4 pt-4 sm:px-6 after:absolute after:inset-y-0 after:left-0 after:w-1 after:bg-primary">
           <div className="flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-foreground text-card shadow-[var(--shadow-card)]">
               <Building2 className="size-5" />
             </span>
             <div className="min-w-0">
               <p className="v2-kicker">Customer</p>
-              <h2 className="truncate text-[22px] font-bold">{company.name}</h2>
+              <h2 className="truncate text-[24px] font-bold">{company.name}</h2>
               <p className="mt-1 truncate text-[12px] text-muted-foreground">
                 {company.address ?? "Address not set"}
               </p>
             </div>
           </div>
-          <nav className="mt-3 flex gap-1 overflow-x-auto">
+          <nav className="mt-4 flex gap-1 overflow-x-auto rounded-t-xl bg-muted/55 p-1 pb-0">
             {(["Overview", "Projects", "Contacts", "Open Actions"] as Tab[]).map((value) => (
               <button
                 key={value}
