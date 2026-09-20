@@ -77,7 +77,11 @@ function TodayPage() {
   });
 
   const shows = (key: Focus) => !focus || focus === key;
-  const focusItem = sections.needsNow[0];
+  const focusItem =
+    sections.needsNow[0] ??
+    sections.followUps[0] ??
+    sections.scheduledToday[0] ??
+    sections.nextMoves[0];
   const todayAssignments = assignments.filter((item) => item.work_date === today);
 
   return (
