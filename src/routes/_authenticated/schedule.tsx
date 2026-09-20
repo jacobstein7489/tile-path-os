@@ -10,7 +10,14 @@ import type { ProjectQueueRecord } from "@/components/projects/ProjectsWorkspace
 import { useFieldReports } from "@/lib/fieldreports";
 import { Chip } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { OpsCanvas, OpsPageHeader, OpsPlane, ObjectMark, OpsMeter, StatusPill } from "@/components/ops/PremiumOps";
+import {
+  OpsCanvas,
+  OpsPageHeader,
+  OpsPlane,
+  ObjectMark,
+  OpsMeter,
+  StatusPill,
+} from "@/components/ops/PremiumOps";
 import {
   useCrews,
   useInsertRow,
@@ -173,20 +180,27 @@ function SchedulePage() {
     <>
       <AppHeader crumbs={[{ label: "Schedule & Crews" }]} />
       <OpsCanvas>
-        <OpsPageHeader eyebrow="Crew operations" title="Schedule & Crews" summary={<span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span>
-                  <strong className="text-foreground tabular-nums">{crewsWorkingToday}</strong> of{" "}
-                  {crews.length} crews working today
-                </span>
-                <span>
-                  <strong className="text-foreground tabular-nums">{unassigned.length}</strong>{" "}
-                  ready to assign
-                </span>
-                <span>
-                  <strong className="text-foreground tabular-nums">{returnVisits.length}</strong>{" "}
-                  return visits this week
-                </span>
-              </span>} action={<div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5 shadow-[var(--shadow-card)]">
+        <OpsPageHeader
+          eyebrow="Crew operations"
+          title="Schedule & Crews"
+          summary={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                <strong className="text-foreground tabular-nums">{crewsWorkingToday}</strong> of{" "}
+                {crews.length} crews working today
+              </span>
+              <span>
+                <strong className="text-foreground tabular-nums">{unassigned.length}</strong> ready
+                to assign
+              </span>
+              <span>
+                <strong className="text-foreground tabular-nums">{returnVisits.length}</strong>{" "}
+                return visits this week
+              </span>
+            </span>
+          }
+          action={
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5 shadow-[var(--shadow-card)]">
               {(["Today", "Week", "Month"] as View[]).map((value) => (
                 <button
                   key={value}
@@ -206,8 +220,9 @@ function SchedulePage() {
                   {value}
                 </button>
               ))}
-            </div>}>
-
+            </div>
+          }
+        >
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
@@ -258,25 +273,29 @@ function SchedulePage() {
           </div>
         </OpsPageHeader>
 
-        {view === "Week" ? <ReadyQueue projects={unassigned} readyLabel={readyLabel} onAssign={(project, kind) => setAssignFor({ project, kind })} onOpen={setSelectedProject} className={cn("mt-4", mobileZone !== "Ready" && "hidden md:block")} /> : null}
+        {view === "Week" ? (
+          <ReadyQueue
+            projects={unassigned}
+            readyLabel={readyLabel}
+            onAssign={(project, kind) => setAssignFor({ project, kind })}
+            onOpen={setSelectedProject}
+            className={cn("mt-4", mobileZone !== "Ready" && "hidden md:block")}
+          />
+        ) : null}
 
-        <div
-          className={cn(
-            "mt-4",
-          )}
-        >
+        <div className={cn("mt-4")}>
           {view !== "Week" && mobileZone === "Ready" ? (
             <ReadyQueue
               projects={unassigned}
               readyLabel={readyLabel}
               onAssign={(project, kind) => setAssignFor({ project, kind })}
               onOpen={setSelectedProject}
-               className="mb-4 md:hidden"
+              className="mb-4 md:hidden"
             />
           ) : null}
           <div className={cn(mobileZone === "Ready" && "hidden md:block")}>
             {view === "Week" ? (
-               <OpsPlane>
+              <OpsPlane>
                 <div className="md:hidden">
                   <DayAgenda
                     days={weekDays}
@@ -313,10 +332,10 @@ function SchedulePage() {
                     {crews.map((crew) => (
                       <div
                         key={crew.id}
-                         className="grid min-h-[72px] grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
+                        className="grid min-h-[72px] grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-border/70 last:border-b-0"
                       >
-                         <div className="flex items-center gap-2 px-3 py-2">
-                           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground text-[10px] font-bold text-card">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground text-[10px] font-bold text-card">
                             {crew.initials}
                           </span>
                           <span className="min-w-0 truncate text-[12.5px] font-bold">
@@ -332,7 +351,7 @@ function SchedulePage() {
                             <div
                               key={day}
                               className={cn(
-                                 "min-h-[72px] border-l border-border/60 bg-background/35 p-1.5 align-top",
+                                "min-h-[72px] border-l border-border/60 bg-background/35 p-1.5 align-top",
                                 day === todayIsoDate && "bg-primary-soft/25",
                               )}
                             >
@@ -353,7 +372,7 @@ function SchedulePage() {
                                     key={a.id}
                                     onClick={() => setSelectedProject(p)}
                                     className={cn(
-                                       "mb-1 block w-full rounded-lg border px-2 py-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]",
+                                      "mb-1 block w-full rounded-lg border px-2 py-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]",
                                       tone,
                                     )}
                                   >
@@ -366,7 +385,11 @@ function SchedulePage() {
                                   </button>
                                 );
                               })}
-                               {cell.length === 0 ? <span className="block px-1 pt-1 text-[9px] font-semibold uppercase text-muted-foreground/45">Available</span> : null}
+                              {cell.length === 0 ? (
+                                <span className="block px-1 pt-1 text-[9px] font-semibold uppercase text-muted-foreground/45">
+                                  Available
+                                </span>
+                              ) : null}
                             </div>
                           );
                         })}
@@ -379,7 +402,7 @@ function SchedulePage() {
                     ) : null}
                   </div>
                 </div>
-               </OpsPlane>
+              </OpsPlane>
             ) : null}
 
             {view === "Today" ? (
@@ -574,11 +597,13 @@ function ReadyQueue({
     <aside className={cn("ops-plane overflow-hidden", className)}>
       <div className="flex items-center justify-between gap-3 border-b border-border bg-warning-soft/35 px-4 py-3">
         <div className="flex items-center gap-2">
-        <Users className="size-4 text-warning" />
-        <div>
-          <h2 className="text-[13px] font-bold">Ready to schedule</h2>
-          <p className="text-[10.5px] text-muted-foreground">{projects.length} jobs need a crew</p>
-        </div>
+          <Users className="size-4 text-warning" />
+          <div>
+            <h2 className="text-[13px] font-bold">Ready to schedule</h2>
+            <p className="text-[10.5px] text-muted-foreground">
+              {projects.length} jobs need a crew
+            </p>
+          </div>
         </div>
         <StatusPill tone="amber">{projects.length} waiting</StatusPill>
       </div>
@@ -589,11 +614,15 @@ function ReadyQueue({
             return (
               <article
                 key={project.id}
-                 className="rounded-xl border border-border bg-background/70 p-3"
+                className="rounded-xl border border-border bg-background/70 p-3"
               >
                 <button type="button" onClick={() => onOpen(project)} className="w-full text-left">
                   <strong className="block truncate text-[13px]">{project.name}</strong>
-                   <OpsMeter label={project.lifecycle_stage} value={project.readiness_pct ?? 0} tone="amber" />
+                  <OpsMeter
+                    label={project.lifecycle_stage}
+                    value={project.readiness_pct ?? 0}
+                    tone="amber"
+                  />
                   <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                     {project.next_move ?? label.text}
                   </span>
