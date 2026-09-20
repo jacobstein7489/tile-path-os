@@ -79,7 +79,8 @@ export function ProjectMoreMenu({
             })
           ),
         },
-    {
+    ...(perms.isAdmin || perms.has("gm")
+      ? [{
       label: "Cancel project",
       run: () => (
         setOpen(false),
@@ -91,8 +92,9 @@ export function ProjectMoreMenu({
           run: () => setException("Cancelled", "Project marked cancelled"),
         })
       ),
-    },
-    ...(project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled"
+    }]
+      : []),
+    ...((project.lifecycle_stage === "Complete" || project.exception_state === "Cancelled") && perms.isAdmin
       ? [
           {
             label: "Archive project",
