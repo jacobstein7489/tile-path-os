@@ -1,0 +1,133 @@
+/* The Installer tab — who installs this project and everything about his part:
+ *   who he is and his days on the calendar · his PO (lines, changes, where it stands)
+ *   the daily updates from the site · the touch-ups, once there are any */
+import * as React from 'react'
+import { HardHat, CalendarDays, ClipboardList, ChevronRight, FileText, Camera, Users } from 'lucide-react'
+import { useStore } from '@/tileos/store'
+import { Button, Avatar } from '@/tileos/components/ui/core'
+import { Status } from '@/tileos/components/ui/page'
+import { cn } from '@/tileos/lib/utils'
+import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
+import { md } from '@/tileos/lib/today'
+import { installerOf } from '../upcoming'
+import { CloseOverview } from './overview'
+import { useSaveStatus } from '@/tileos/lib/save'
+
+const IPO_STATUS: Record<string, { tone: Tone; label: (who: string) => string }> = {
+  Draft: { tone: 'vio', label: () => 'Draft — not sent' },
+  Sent: { tone: 'warn', label: (who) => `Waiting for ${who} to accept` },
+  Accepted: { tone: 'ok', label: () => 'Accepted' },
+  Rejected: { tone: 'bad', label: () => 'Turned down' },
+}
+
+export function InstallerTab({ job }: { job: Job }) {
+  const s = useStore()
+  const save = useSaveStatus()
+  const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
+  const ipos = s.ipos.filter((p) => p.jobId === job.id)
+  const ipo = [...ipos].reverse().find((p) => p.status !== 'Rejected') || ipos[ipos.length - 1]
+  const bookings = s.bookings.filter((b) => b.jobId === job.id).sort((a, b) => a.start.localeCompare(b.start))
+  const diary = s.diary[job.id] || []
+  const punch = s.punch.filter((p) => p.jobId === job.id)
+  const showPunch = punch.length > 0 || ['installation', 'punch', 'closeout', 'complete'].includes(job.stage) || job.kind === 'repair'
+  const inField = ['installation', 'punch', 'closeout', 'complete'].includes(job.stage)
+  const total = ipo ? ipo.lines.reduce((n, l) => n + l.amount, 0) + ipo.changes.filter((c) => c.status !== 'pending').reduce((n, c) => n + c.amount, 0) : 0
+  const sample = save.mode === 'sample' ? ' · sample amounts' : ''
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_22.5rem] items-start gap-5 max-xl:grid-cols-1">
+      <div className="flex min-w-0 flex-col gap-5">
+        {/* who */}
+        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+          {crew ? (
+            <div className="flex flex-wrap items-center gap-4 px-5 py-4 max-sm:px-4">
+              <Avatar who={crew} size={48} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[1.0625rem] font-semibold text-ink">{PEOPLE[crew].name}</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] text-muted">
+                  {bookings.length ? <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{bookings.map((b) => `${md(b.start)} – ${md(b.end)}`).join(' · ')}</span> : job.dates?.start ? <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{job.dates.start} – {job.dates.finish}</span> : <span>No days on the calendar yet</span>}
+                  {bookings[0]?.workers ? <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{bookings[0].workers} {bookings[0].workers === 1 ? 'person' : 'people'}</span> : null}
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2 max-sm:w-full">
+                <Button size="sm" onClick={() => s.open({ t: 'sub', id: crew })}>His profile</Button>
+                <Button size="sm" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: job.id, crew })}>{bookings.length ? 'Change the days' : 'Put him on the calendar'}</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-4 px-5 py-5 max-sm:px-4">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-warn-50 text-warn-600"><HardHat className="h-6 w-6" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[1rem] font-semibold text-ink">No installer yet</div>
+                <div className="text-[0.84375rem] text-muted">Pick who installs it — his PO goes out with his rates for every line on the scope.</div>
+              </div>
+              <Button variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</Button>
+            </div>
+          )}
+        </section>
+
+        {/* daily updates */}
+        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+          <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 max-sm:px-4">
+            <h3 className="text-[0.90625rem] font-semibold text-ink">Daily updates<span className="ml-1.5 text-[0.8125rem] font-semibold text-faint">{diary.length}</span></h3>
+            {inField && <Button size="sm" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button>}
+          </header>
+          {diary.slice(0, 8).map((e) => {
+            const moved = e.rooms.flatMap((r) => r.items).filter((i) => i.to > i.from)
+            const pics = e.rooms.reduce((n, r) => n + r.media.length, 0)
+            const note = e.note || e.rooms.find((r) => r.note)?.note
+            return (
+              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
+                <span className="w-[4rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
+                <Avatar who={e.who} size={24} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.84375rem] font-medium text-ink">{moved.length ? `${moved.length} wall${moved.length === 1 ? '' : 's'} and floors moved` : 'No progress logged'} · {e.rooms.map((r) => r.room).join(', ')}</span>
+                  {note && <span className="block truncate text-[0.78125rem] text-muted">{note}</span>}
+                </span>
+                {pics > 0 && <span className="inline-flex shrink-0 items-center gap-1 text-[0.78125rem] text-muted"><Camera className="h-3.5 w-3.5" />{pics}</span>}
+                <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+              </button>
+            )
+          })}
+          {!diary.length && <div className="px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">{inField ? 'No daily update yet today.' : 'They start the first day on site — every day: what moved, photos, anything in the way.'}</div>}
+        </section>
+
+        {showPunch && <CloseOverview job={job} setTab={() => {}} />}
+      </div>
+
+      {/* his PO */}
+      <aside className="flex min-w-0 flex-col gap-4">
+        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+          <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+            <h3 className="text-[0.90625rem] font-semibold text-ink">Installer PO</h3>
+            {ipo && <Status tone={IPO_STATUS[ipo.status].tone}>{IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short)}</Status>}
+          </header>
+          {ipo ? (
+            <>
+              <div className="px-4 pb-1 pt-3 text-[0.78125rem] text-muted">{ipo.id} · {PEOPLE[ipo.crew].name} · {ipo.date}</div>
+              {ipo.lines.map((l, i) => (
+                <div key={i} className="flex items-baseline gap-3 px-4 py-1.5 text-[0.8125rem]">
+                  <span className="min-w-0 flex-1 truncate text-ink-2">{l.item}</span>
+                  <span className="shrink-0 tnum text-muted">{l.qty}</span>
+                  <span className="w-[4.5rem] shrink-0 text-right font-semibold tnum text-ink">{fmtMoney(l.amount)}</span>
+                </div>
+              ))}
+              {ipo.changes.map((c) => (
+                <div key={c.co} className="flex items-baseline gap-3 px-4 py-1.5 text-[0.8125rem]">
+                  <span className={cn('min-w-0 flex-1 truncate', c.status === 'pending' ? 'text-warn-700' : 'text-ink-2')}>{c.co} · {c.text}{c.status === 'pending' ? ' · waiting' : ''}</span>
+                  <span className="w-[4.5rem] shrink-0 text-right font-semibold tnum text-ink">+{fmtMoney(c.amount)}</span>
+                </div>
+              ))}
+              <div className="mt-1 flex items-baseline justify-between border-t border-line-2 px-4 py-2.5 text-[0.84375rem]">
+                <span className="font-semibold text-ink">Total{sample}</span>
+                <span className="font-bold tnum text-ink">{fmtMoney(total)}</span>
+              </div>
+              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-4 py-2.5 text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
+            </>
+          ) : (
+            <div className="px-4 py-4 text-[0.84375rem] text-muted">{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</div>
+          )}
+        </section>
+      </aside>
+    </div>
+  )
+}
