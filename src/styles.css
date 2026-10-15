@@ -1,601 +1,215 @@
 @import "tailwindcss" source(none);
-@source "../src";
-@import "tw-animate-css";
+@source "./tileos";
+@source "./routes";
 
-@custom-variant dark (&:is(.dark *));
 
 /*
- * Cobblestone Job Operations design system.
- * Ink & Steel: warm neutral canvas, near-white surfaces, steel-blue actions,
- * and restrained status colors. All colors are oklch tokens.
- * Never hardcode colors in components.
+ * Cobblestone Tile OS — design tokens (v16, "porcelain & cobalt")
+ * A porcelain-gray ground, white sheets with thin grout-gray borders, slate ink, one cobalt-glaze blue
+ * for what you can do and what's selected. Status colors are muted and only ever mean something:
+ * red = a problem, amber = needs attention, green = done. Headlines and big numbers are set in Archivo,
+ * a sturdy grotesk with a little width — the lettering of a drawing's title block; everything else is Inter.
  */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-@theme inline {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-canvas: var(--canvas);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary-soft: var(--primary-soft);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --color-warning: var(--warning);
-  --color-warning-soft: var(--warning-soft);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-info: var(--info);
-  --color-info-soft: var(--info-soft);
-  --color-neutral-chip: var(--neutral-chip);
-  --color-track: var(--track);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-vnext-canvas: var(--vnext-canvas);
-  --color-vnext-surface: var(--vnext-surface);
-  --color-vnext-ink: var(--vnext-ink);
-  --color-vnext-muted: var(--vnext-muted);
-  --color-vnext-faint: var(--vnext-faint);
-  --color-vnext-line: var(--vnext-line);
-  --color-vnext-wash: var(--vnext-wash);
-  --color-vnext-blue: var(--vnext-blue);
-  --color-vnext-blue-soft: var(--vnext-blue-soft);
-  --color-vnext-green: var(--vnext-green);
-  --color-vnext-green-soft: var(--vnext-green-soft);
-  --color-vnext-amber: var(--vnext-amber);
-  --color-vnext-amber-soft: var(--vnext-amber-soft);
-  --color-vnext-red: var(--vnext-red);
-  --color-vnext-red-soft: var(--vnext-red-soft);
-  --shadow-card:
-    0 1px 2px 0 oklch(0.2 0.03 260 / 0.05), 0 8px 24px -20px oklch(0.2 0.03 260 / 0.16);
-  --shadow-raised: 0 14px 40px -24px oklch(0.2 0.03 260 / 0.24);
-  --shadow-dialog:
-    0 28px 80px -24px oklch(0.18 0.025 255 / 0.34), 0 8px 24px -12px oklch(0.18 0.025 255 / 0.18);
-  --shadow-dock: 0 -1px 0 0 oklch(0.2 0.03 260 / 0.06);
-  --shadow-workspace:
-    0 1px 2px oklch(0.22 0.02 255 / 0.05), 0 18px 54px -34px oklch(0.2 0.035 255 / 0.28);
-}
+  --color-canvas: #f1f2f4;
+  --color-surface: #ffffff;
+  --color-side: #f1f2f4;
+  --color-ink: #141a24;
+  --color-ink-2: #394150;
+  --color-muted: #66707f;
+  --color-faint: #9aa1ad;
+  --color-line: #e2e5e9;
+  --color-line-2: #edeff2;
+  --color-wash: #f7f8f9;
+  --color-wash-2: #eff1f3;
 
-:root {
-  --radius: 0.75rem;
-  --background: oklch(0.96381 0.00542 95.1);
-  --canvas: oklch(0.96381 0.00542 95.1);
-  --foreground: oklch(0.22989 0.00653 258.36);
-  --card: oklch(0.99079 0.00132 106.42);
-  --card-foreground: oklch(0.22989 0.00653 258.36);
-  --popover: oklch(0.99079 0.00132 106.42);
-  --popover-foreground: oklch(0.22989 0.00653 258.36);
-  --primary: oklch(0.4632 0.08475 252.66);
-  --primary-foreground: oklch(0.99079 0.00132 106.42);
-  --primary-soft: oklch(0.92697 0.01282 244.26);
-  --secondary: oklch(0.96381 0.00542 95.1);
-  --secondary-foreground: oklch(0.22989 0.00653 258.36);
-  --muted: oklch(0.949 0.004 106.48);
-  --muted-foreground: oklch(0.55669 0.01109 252.88);
-  --accent: oklch(0.96 0.012 262);
-  --accent-foreground: oklch(0.42 0.15 262);
-  --destructive: oklch(0.58 0.21 22);
-  --destructive-foreground: oklch(0.99 0.003 250);
-  --border: oklch(0.9028 0.00404 106.48);
-  --border-strong: oklch(0.83 0.01 250);
-  --input: oklch(0.905 0.006 85);
-  --ring: oklch(0.7 0.09 250);
-  --success: oklch(0.5467 0.11112 160.25);
-  --success-soft: oklch(0.955 0.035 155);
-  --warning: oklch(0.62635 0.12479 70.45);
-  --warning-soft: oklch(0.962 0.04 75);
-  --danger: oklch(0.55139 0.14142 24.94);
-  --danger-soft: oklch(0.962 0.028 22);
-  --info: oklch(0.55 0.15 250);
-  --info-soft: oklch(0.962 0.022 250);
-  --neutral-chip: oklch(0.962 0.005 85);
-  --track: oklch(0.915 0.006 85);
-  --sidebar: oklch(0.99079 0.00132 106.42);
-  --sidebar-foreground: oklch(0.55669 0.01109 252.88);
-  --sidebar-primary: oklch(0.4632 0.08475 252.66);
-  --sidebar-primary-foreground: oklch(0.99079 0.00132 106.42);
-  --sidebar-accent: oklch(0.92697 0.01282 244.26);
-  --sidebar-accent-foreground: oklch(0.22989 0.00653 258.36);
-  --sidebar-border: oklch(0.9028 0.00404 106.48);
-  --sidebar-ring: oklch(0.7 0.09 250);
-  --canvas-deep: oklch(0.942 0.008 92);
-  --ink-soft: oklch(0.31 0.018 255);
-  --vnext-canvas: oklch(0.956 0.008 88);
-  --vnext-surface: oklch(0.995 0.002 92);
-  --vnext-ink: oklch(0.215 0.016 257);
-  --vnext-muted: oklch(0.49 0.014 254);
-  --vnext-faint: oklch(0.66 0.012 252);
-  --vnext-line: oklch(0.88 0.009 88);
-  --vnext-wash: oklch(0.973 0.006 88);
-  --vnext-blue: oklch(0.47 0.105 249);
-  --vnext-blue-soft: oklch(0.935 0.024 245);
-  --vnext-green: oklch(0.51 0.105 158);
-  --vnext-green-soft: oklch(0.95 0.03 154);
-  --vnext-amber: oklch(0.59 0.12 68);
-  --vnext-amber-soft: oklch(0.955 0.035 76);
-  --vnext-red: oklch(0.55 0.15 27);
-  --vnext-red-soft: oklch(0.955 0.028 25);
-  --vnext-shadow-row:
-    0 1px 1px oklch(0.22 0.02 255 / 0.04), 0 8px 20px -18px oklch(0.2 0.03 255 / 0.22);
-  --vnext-shadow-panel:
-    0 2px 3px oklch(0.22 0.02 255 / 0.035), 0 18px 44px -30px oklch(0.2 0.035 255 / 0.25);
-  --vnext-shadow-float:
-    0 30px 90px -28px oklch(0.17 0.03 255 / 0.38), 0 8px 28px -16px oklch(0.17 0.03 255 / 0.22);
-  --vnext-shadow-mark: 0 10px 24px -12px oklch(0.2 0.04 255 / 0.5);
+  /* cobalt glaze */
+  --color-brand-50: #eef2fc;
+  --color-brand-100: #dde5f9;
+  --color-brand-200: #c0cef3;
+  --color-brand-300: #95abe9;
+  --color-brand-400: #6a88e0;
+  --color-brand-500: #4067da;
+  --color-brand-600: #2650cf;
+  --color-brand-700: #1f42ad;
+  --color-brand-800: #1b378b;
+  --color-brand-900: #152a66;
+
+  --color-ok-50: #ecf6f0;
+  --color-ok-100: #d4ecdd;
+  --color-ok-300: #8dcba6;
+  --color-ok-500: #2e9e62;
+  --color-ok-600: #23854f;
+  --color-ok-700: #1b6a40;
+
+  --color-warn-50: #fcf5e8;
+  --color-warn-100: #f8e7c4;
+  --color-warn-300: #edc371;
+  --color-warn-500: #dd8c16;
+  --color-warn-600: #be720c;
+  --color-warn-700: #965808;
+
+  --color-bad-50: #fcf0ee;
+  --color-bad-100: #f8dad5;
+  --color-bad-200: #f2c0b8;
+  --color-bad-300: #eba096;
+  --color-bad-500: #d9493b;
+  --color-bad-600: #c03a2d;
+  --color-bad-700: #9e2f24;
+
+  --color-vio-50: #f3f1fc;
+  --color-vio-100: #e6e2f9;
+  --color-vio-500: #7462d8;
+  --color-vio-600: #604fc4;
+
+  --color-teal-50: #ecf7f5;
+  --color-teal-100: #cfebe6;
+  --color-teal-500: #23998b;
+  --color-teal-600: #1a8073;
+
+  --radius-xl: 0.625rem;
+  --radius-card: 0.875rem;
+  --radius-2xl: 0.875rem;
+
+  --shadow-xs: 0 1px 2px rgba(20, 26, 36, 0.05);
+  --shadow-card: 0 1px 2px rgba(20, 26, 36, 0.04);
+  --shadow-lift: 0 1px 2px rgba(20, 26, 36, 0.05), 0 8px 20px -12px rgba(20, 26, 36, 0.18);
+  --shadow-panel: 0 1px 2px rgba(20, 26, 36, 0.04), 0 2px 8px -2px rgba(20, 26, 36, 0.06);
+  --shadow-sheet: 0 1px 2px rgba(20, 26, 36, 0.04);
+  --shadow-raise: 0 12px 30px -14px rgba(20, 26, 36, 0.22), 0 2px 6px -2px rgba(20, 26, 36, 0.06);
+  --shadow-pop: 0 18px 44px -18px rgba(20, 26, 36, 0.3), 0 4px 12px -4px rgba(20, 26, 36, 0.08);
+  --shadow-modal: 0 44px 110px -36px rgba(20, 26, 36, 0.5), 0 18px 44px -24px rgba(20, 26, 36, 0.28);
+  --shadow-btn: 0 1px 2px rgba(20, 26, 36, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  --animate-modal-in: modal-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-overlay-in: overlay-in 180ms ease-out;
+  --animate-fade-up: fade-up 1ms linear;
+  --animate-pop-in: pop-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pulse-ring: pulse-ring 2.4s ease-out infinite;
 }
 
-@utility vnext-kicker {
-  font-size: 0.625rem;
-  line-height: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-vnext-blue);
+@keyframes popbar {
+  from { width: 100%; }
+  to { width: 0%; }
 }
-
-.vnext {
-  --background: var(--vnext-surface);
-  --foreground: var(--vnext-ink);
-  --card: var(--vnext-surface);
-  --card-foreground: var(--vnext-ink);
-  --muted: var(--vnext-wash);
-  --muted-foreground: var(--vnext-muted);
-  --border: var(--vnext-line);
-  --primary: var(--vnext-blue);
-  --primary-soft: var(--vnext-blue-soft);
-  background-image:
-    linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--vnext-line) 34%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(color-mix(in oklab, var(--vnext-line) 24%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-  background-position: center top;
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
 }
-
-@utility ops-canvas {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--color-card) 36%, transparent),
-    transparent 220px
-  );
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-
-@utility ops-hero {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-card);
-  box-shadow: var(--shadow-workspace);
-  padding: 1.25rem;
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 4px;
-    background: var(--color-primary);
-  }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
-
-@utility ops-plane {
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-card);
-  box-shadow: var(--shadow-workspace);
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }
-
-@utility ops-title {
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  line-height: 1.12;
-  font-weight: 700;
-  color: var(--color-foreground);
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(38, 80, 207, 0.35); }
+  70% { box-shadow: 0 0 0 9px rgba(38, 80, 207, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(38, 80, 207, 0); }
 }
-@utility ops-eyebrow {
-  font-size: 0.625rem;
-  line-height: 1rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-primary);
+@keyframes check-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
-@utility ops-summary {
-  margin-top: 0.45rem;
-  font-size: 0.75rem;
-  line-height: 1.15rem;
-  color: var(--color-muted-foreground);
-}
-@utility ops-mark {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-border);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-card) 70%, transparent);
-}
-@utility ops-mark-blue {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  border-color: color-mix(in oklab, var(--color-primary) 20%, var(--color-border));
-}
-@utility ops-mark-amber {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-@utility ops-mark-green {
-  background: var(--color-success-soft);
-  color: var(--color-success);
-}
-@utility ops-mark-red {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-@utility ops-mark-ink {
-  background: var(--color-foreground);
-  color: var(--color-card);
-  border-color: var(--color-foreground);
-}
-@utility ops-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 999px;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.625rem;
-  line-height: 0.875rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-@utility ops-pill-neutral {
-  background: var(--color-neutral-chip);
-  color: var(--color-secondary-foreground);
-}
-@utility ops-pill-blue {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-@utility ops-pill-amber {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-@utility ops-pill-green {
-  background: var(--color-success-soft);
-  color: var(--color-success);
-}
-@utility ops-pill-red {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-@utility ops-meter {
-  height: 0.3rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-track);
-  & > span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-  }
-}
-
-@media (max-width: 639px) {
-  .ops-title {
-    font-size: 1.45rem;
-  }
-  .ops-hero {
-    border-radius: var(--radius-lg);
-    padding: 1rem;
-  }
+@keyframes row-out {
+  to { opacity: 0; transform: translateX(12px); }
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+#root { overflow-x: clip; }
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+}
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+::selection { background: var(--color-brand-100); }
 
-  body {
-    background-color: var(--color-canvas);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-  }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-family: var(--font-display);
-    letter-spacing: 0;
-  }
+
+*:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
+
+
+
 }
 
-/* Surface primitives */
-@utility surface {
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+@layer components {
+.tnum { font-variant-numeric: tabular-nums; }
+.h-display { letter-spacing: -0.028em; }
+/* the display face: Archivo with a little width — page titles, window titles and big numbers */
+.font-display { font-family: var(--font-display); font-stretch: 108%; font-feature-settings: normal; }
+.display-num { font-family: var(--font-display); font-stretch: 104%; font-variant-numeric: tabular-nums; font-feature-settings: normal; }
+.h-tight { letter-spacing: -0.016em; }
+/* calm scrollbars */
+.scroll-soft { scrollbar-width: thin; scrollbar-color: #cdd2d9 transparent; }
+.scroll-soft::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-soft::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+.scroll-soft::-webkit-scrollbar-track { background: transparent; }
+.focus-ring:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; }
+.check-pop { animation: check-pop 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+.row-out { animation: row-out 260ms ease-in forwards; }
+/* the game plan sheet: project & meeting · installer · five steps · next step · action */
+.plan-grid { display: grid; align-items: center; column-gap: 8px; grid-template-columns: minmax(230px, 1.3fr) 136px repeat(5, 68px) 92px; }
+@media (min-width: 1340px) { .plan-grid { grid-template-columns: minmax(230px, 1.25fr) 136px repeat(5, 68px) minmax(170px, 1fr) 92px; } }
+@media (max-width: 1339.98px) { .plan-next { display: none; } }
+/* sideways scrollers (tabs, steppers) without a visible bar */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
-@utility workspace-panel {
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
-@utility workspace-control {
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-}
+/* Page ground and type, outside the layers so they also win over the host page's own reset. */
+html { background: var(--color-canvas); }
+body { margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.5; }
 
-@utility v2-kicker {
-  font-size: 0.6875rem;
-  line-height: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted-foreground);
-}
+/* Everything is sized from the page's base size, so on bigger screens the whole app grows a step —
+   text, spacing, rows, windows — instead of floating small in the middle of a wide screen. */
+html { font-size: 16px; }
+@media (min-width: 1500px) { html { font-size: 17px; } }
+@media (min-width: 1800px) { html { font-size: 18px; } }
+@media (min-width: 2200px) { html { font-size: 19px; } }
 
-@utility v2-rule-row {
-  border-bottom: 1px solid var(--color-border);
-  transition: background-color 120ms ease;
-  &:hover {
-    background-color: color-mix(in oklab, var(--color-muted) 52%, transparent);
-  }
-}
+/* cmdk */
+[cmdk-item][data-selected="true"] { background: var(--color-brand-50); }
+[cmdk-group-heading] { padding: 10px 12px 6px; font-size: 12px; font-weight: 600; color: var(--color-muted); }
 
-@utility table-head-cell {
-  padding: 0.625rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-muted-foreground);
-  text-align: left;
-  white-space: nowrap;
-}
+/* sonner toast polish */
+[data-sonner-toast] { font-family: var(--font-sans) !important; border-radius: 10px !important; }
 
-@utility table-cell-base {
-  padding: 0.75rem 0.75rem;
-  font-size: 0.8125rem;
-  vertical-align: middle;
-}
-
-/* ---------------------------------------------------------------
- * Jobsite installer room sheet. On screen it is hidden; on paper it
- * is the only thing that prints — plain, high contrast, one room per page.
- * --------------------------------------------------------------- */
-.print-sheet {
-  display: none;
-}
-
+/* printing one document (scope of work): only #print-root goes to paper */
+#print-root { display: none; }
 @media print {
-  @page {
-    size: letter portrait;
-    margin: 0.5in;
-  }
-
-  html,
-  body {
-    background: #fff !important;
-  }
-
-  .print-hide {
-    display: none !important;
-  }
-
-  /* Sidebar, header and tabs live in the app shell, so hide everything and
-     reveal only the room sheet — the printed page is jobsite paperwork. */
-  body {
-    visibility: hidden;
-  }
-
-  .print-sheet,
-  .print-sheet * {
-    visibility: visible;
-  }
-
-  .print-sheet {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    display: block !important;
-    color: #000;
-    font-family: var(--font-sans);
-  }
-
-  .print-page {
-    page-break-after: always;
-    break-after: page;
-  }
-
-  .print-page:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-
-  .print-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    border-top: 8px solid #000;
-    border-bottom: 1px solid #000;
-    padding: 12px 0 10px;
-  }
-
-  .print-head h1 {
-    font-size: 28pt;
-    font-weight: 700;
-    line-height: 1.1;
-  }
-
-  .print-head p {
-    font-size: 10.5pt;
-    margin-top: 3px;
-  }
-
-  .print-meta {
-    text-align: right;
-    font-size: 9pt;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .print-surface {
-    margin-top: 18px;
-    border: 0;
-    border-top: 3px solid #000;
-    padding: 9px 0 0;
-    break-inside: avoid;
-  }
-
-  .print-surface h2 {
-    display: flex;
-    justify-content: space-between;
-    font-size: 17pt;
-    font-weight: 700;
-    padding-bottom: 7px;
-  }
-
-  .print-surface h2 span {
-    font-size: 9.5pt;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  .print-surface dl {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 24px;
-    margin-top: 8px;
-  }
-
-  .print-surface dl > div {
-    display: grid;
-    grid-template-columns: 112px 1fr;
-    gap: 8px;
-    padding: 3px 0;
-    border-bottom: 1px solid #ccc;
-    font-size: 10pt;
-  }
-
-  .print-surface dt {
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 8pt;
-    letter-spacing: 0.04em;
-    padding-top: 1px;
-  }
-
-  .print-surface dd {
-    font-weight: 600;
-  }
-
-  .print-open {
-    margin-top: 12px;
-    border: 2px solid #000;
-    padding: 8px 10px;
-    font-size: 9pt;
-  }
-
-  .print-open b {
-    font-size: 8pt;
-    letter-spacing: 0.06em;
-  }
-  .print-open p {
-    margin-top: 3px;
-    line-height: 1.35;
-  }
-
-  .print-note {
-    margin-top: 6px;
-    border: 1px solid #000;
-    padding: 5px 7px;
-    font-size: 10pt;
-  }
-
-  .print-photos {
-    margin-top: 12px;
-    break-inside: avoid;
-  }
-
-  .print-photos h3 {
-    font-size: 10pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .print-photo-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-top: 6px;
-  }
-
-  .print-photo-grid img {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    border: 1px solid #000;
-  }
-
-  .print-photo-grid figcaption {
-    font-size: 8pt;
-  }
-
-  .print-photo-grid figure {
-    break-inside: avoid;
-  }
-
-  .print-empty {
-    margin-top: 16px;
-    font-size: 11pt;
-  }
-
-  .print-foot {
-    margin-top: 14px;
-    border-top: 1px solid #000;
-    padding-top: 6px;
-    font-size: 9pt;
-  }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; }
+  #print-root > * { box-shadow: none !important; max-width: none !important; margin: 0 !important; }
+  @page { margin: 12mm; }
 }
+
+@keyframes sheet-in { from { transform: translateX(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+.animate-sheet-in { animation: sheet-in .18s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+.animate-fade-in { animation: fade-in .15s ease both; }
