@@ -10,43 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiPublicQaProvisionRouteImport } from './routes/api/public/qa-provision'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicQaProvisionRoute = ApiPublicQaProvisionRouteImport.update({
-  id: '/api/public/qa-provision',
-  path: '/api/public/qa-provision',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/public/qa-provision': typeof ApiPublicQaProvisionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/qa-provision'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/qa-provision'
-  id: '__root__' | '/' | '/api/public/qa-provision'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiPublicQaProvisionRoute: typeof ApiPublicQaProvisionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,19 +48,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/qa-provision': {
-      id: '/api/public/qa-provision'
-      path: '/api/public/qa-provision'
-      fullPath: '/api/public/qa-provision'
-      preLoaderRoute: typeof ApiPublicQaProvisionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiPublicQaProvisionRoute: ApiPublicQaProvisionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
