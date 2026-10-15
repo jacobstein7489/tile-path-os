@@ -714,7 +714,7 @@ function Meeting({ job, v }: { job: Job; v: StepView }) {
           placeholder="Pick who goes"
           width={320}
           icon={<Users />}
-          summary={(picked) => <span className="inline-flex min-w-0 items-center gap-2"><span className="flex shrink-0 -space-x-1.5">{picked.slice(0, 4).map((o) => <Avatar key={o.key} who={o.key as PersonKey} size={22} ring />)}</span><span className="truncate">{picked.map((o) => PEOPLE[o.key as PersonKey]?.short || o.label).join(', ')}</span></span>}
+          summary={(picked) => <span className="truncate">{picked.map((o) => PEOPLE[o.key as PersonKey]?.short || o.label).join(', ')}</span>}
         />
       </Field>
       <Actions>
