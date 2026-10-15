@@ -142,18 +142,18 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
       footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} />}
     >
-      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} />}
-      <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-6 max-md:px-5 max-sm:px-4 max-sm:py-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-1"><StepIcon state={v.state} size={26} /></span>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-display text-[1.375rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
-            <div className={cn('mt-1 text-[0.90625rem] font-semibold', word.tone === 'ok' ? 'text-ok-700' : word.tone === 'warn' ? 'text-warn-700' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-brand-700' : 'text-muted')}>
+      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} />}
+      <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
+        <div className="min-w-0">
+          {list.length > 1 && <div className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">Step {i + 1} of {list.length}</div>}
+          <div className="min-w-0">
+            <h3 className="font-display mt-0.5 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
+            <div className={cn('mt-1 text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')}>
               {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
             </div>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-3.5 flex flex-wrap items-center gap-2">
           <Who job={job} v={v} />
           {dated && v.state !== 'done' && v.state !== 'na' && <When job={job} v={v} />}
         </div>
@@ -164,23 +164,42 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   )
 }
 
-/** this part's steps, one tab each across the top — same size whichever one you're on */
-function StepTabs({ list, at, go }: { list: StepView[]; at: string; go: (x?: StepView) => void }) {
+/** this part's steps, numbered 1, 2, 3 across the top: a done one gets a check, the one you're on is dark, a line joins
+ *  them (green up to where it's done). Under each, who has it — or Done, Waiting, Problem, Not yet. On a phone the
+ *  number sits over the name. */
+function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
   return (
-    <nav aria-label="Steps" className="no-scrollbar flex shrink-0 overflow-x-auto border-b border-line bg-[#fafbfc] px-3 max-sm:px-1">
-      {list.map((x) => (
-        <button
-          key={x.key}
-          aria-current={x.key === at ? 'step' : undefined}
-          onClick={() => go(x)}
-          className={cn('-mb-px flex h-12 min-w-[10rem] flex-1 items-center gap-2 border-b-2 px-3 text-left transition max-sm:min-w-[8.5rem]', x.key === at ? 'border-brand-600 bg-white' : 'border-transparent hover:bg-white/70')}
-        >
-          <StepIcon state={x.state} size={18} />
-          <span className={cn('min-w-0 flex-1 truncate text-[0.84375rem] font-semibold max-sm:text-[0.8125rem]', x.key === at ? 'text-ink' : 'text-muted')}>{x.short}</span>
-          <span className="max-sm:hidden"><Avatar who={x.owner} size={20} /></span>
-        </button>
-      ))}
+    <nav aria-label="Steps" className="no-scrollbar flex shrink-0 items-start overflow-x-auto border-b border-line bg-[#fafbfc] px-5 py-2.5 max-sm:px-2 sm:items-center">
+      {list.map((x, i) => {
+        const on = x.key === at
+        const sub = x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'bad' ? 'Problem' : x.state === 'wait' ? 'Waiting' : x.state === 'later' ? 'Not yet' : x.owner === me ? 'You' : PEOPLE[x.owner]?.short || ''
+        const prevDone = i > 0 && (list[i - 1].state === 'done' || list[i - 1].state === 'na')
+        return (
+          <React.Fragment key={x.key}>
+            {i > 0 && <span aria-hidden className={cn('mx-1.5 h-[0.125rem] min-w-[0.75rem] flex-1 rounded-full max-sm:mx-0 max-sm:mt-[1.125rem]', prevDone ? 'bg-[#2c4a3e]' : 'bg-[#dfe3e8]')} />}
+            <button
+              aria-current={on ? 'step' : undefined}
+              onClick={() => go(x)}
+              className={cn('flex shrink-0 items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-3 text-left transition max-sm:w-[4.875rem] max-sm:flex-col max-sm:gap-1 max-sm:px-0.5 max-sm:text-center', on ? 'bg-white shadow-[0_0_0_0.0625rem_#e1e5ea,0_0.0625rem_0.125rem_rgba(16,24,40,.05)]' : 'hover:bg-white')}
+            >
+              <StepNum n={i + 1} state={x.state} on={on} />
+              <span className="min-w-0 max-sm:w-full">
+                <span className={cn('block max-w-[13rem] truncate text-[0.84375rem] font-semibold max-sm:line-clamp-2 max-sm:max-w-none max-sm:whitespace-normal max-sm:text-[0.71875rem] max-sm:leading-[1.2]', on ? 'text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')}>{x.short}</span>
+                <span className={cn('block truncate text-[0.71875rem] max-sm:hidden', x.state === 'bad' ? 'font-semibold text-bad-700' : x.state === 'done' ? 'font-medium text-[#2c4a3e]' : sub === 'You' ? 'font-semibold text-ink' : 'text-muted')}>{sub}</span>
+              </span>
+            </button>
+          </React.Fragment>
+        )
+      })}
     </nav>
+  )
+}
+/** a step's number in a circle — a check once it's done, dark for the one you're on, red when there's a problem */
+function StepNum({ n, state, on }: { n: number; state: StepView['state']; on: boolean }) {
+  if (state === 'done') return <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
+  return (
+    <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-bold tnum',
+      state === 'bad' ? 'bg-bad-500 text-white' : on ? 'bg-ink text-white' : state === 'na' ? 'border border-dashed border-[#c6ccd4] text-faint' : 'border-[0.09375rem] border-[#cdd2d9] bg-white text-ink-2')}>{n}</span>
   )
 }
 
@@ -256,9 +275,9 @@ const PILL = 'inline-flex h-9 items-center gap-2 rounded-full border border-line
 function Who({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   return (
-    <Menu align="start" width={290} trigger={<button className={cn(PILL, 'py-1 pl-1 pr-3 text-ink')} aria-label="Who does it"><Avatar who={v.owner} size={26} />{PEOPLE[v.owner]?.short || 'Someone'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+    <Menu align="start" width={290} trigger={<button className={cn(PILL, 'py-1 pl-1 pr-3 text-ink')} aria-label="Who does it"><Avatar who={v.owner} size={26} plain />{PEOPLE[v.owner]?.short || 'Someone'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
       <MenuLabel>Who does it on {job.name}</MenuLabel>
-      {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={v.owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
+      {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={v.owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
     </Menu>
   )
 }

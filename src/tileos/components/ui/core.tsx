@@ -38,6 +38,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
   return (
     <button
       ref={ref}
+      data-variant={variant}
       className={cn(
         'inline-flex shrink-0 items-center justify-center whitespace-nowrap font-semibold transition-colors duration-150 select-none [&_svg]:h-4 [&_svg]:w-4',
         BTN_S[size],
@@ -112,12 +113,12 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 /* ---------------- Avatar ---------------- */
-export function Avatar({ who, size = 32, className, ring }: { who: PersonKey; size?: number; className?: string; ring?: boolean }) {
+export function Avatar({ who, size = 32, className, ring, plain }: { who: PersonKey; size?: number; className?: string; ring?: boolean; plain?: boolean }) {
   const p = PEOPLE[who] || PEOPLE.system
   return (
     <span
       title={p.name}
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', p.bg, p.fg, ring && 'ring-2 ring-white', className)}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', plain ? 'bg-[#eceef1] text-[#4a5361]' : [p.bg, p.fg], ring && 'ring-2 ring-white', className)}
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * (p.initials.length > 1 ? 0.36 : 0.42))) }}
     >
       {p.initials}

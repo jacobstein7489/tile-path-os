@@ -24,15 +24,15 @@ export function budgetOf(s: Store, job: Job) {
   return { sold, line, cap: Math.round((sold * line) / 100) }
 }
 const toneOf = (r: Ratio) => (r.over ? 'bad' : r.pct > r.line - 5 ? 'warn' : 'ok')
-const TEXT = { bad: 'text-bad-700', warn: 'text-warn-700', ok: 'text-ok-700' }
-const BAR = { bad: 'bg-bad-500', warn: 'bg-warn-500', ok: 'bg-ok-500' }
+const TEXT = { bad: 'text-bad-700', warn: 'text-ink', ok: 'text-ink' }
+const BAR = { bad: 'bg-bad-500', warn: 'bg-[#2c4a3e]', ok: 'bg-[#2c4a3e]' }
 
 /** "Leo's PO is 38% of our estimate" — and the bar, with the line marked */
 export function RatioBlock({ ipo, className }: { ipo: IPO; className?: string }) {
   const s = useStore()
   const r = poRatio(s, ipo)
   const who = PEOPLE[ipo.crew]?.short || 'His'
-  if (!r.total) return <div className={cn('text-[0.875rem] font-semibold text-warn-700', className)}>{who}’s PO has no prices on it yet — open it and put his prices in, then it’s compared with our estimate.</div>
+  if (!r.total) return <div className={cn('text-[0.875rem] font-semibold text-ink-2', className)}>{who}’s PO has no prices on it yet — open it and put his prices in, then it’s compared with our estimate.</div>
   if (!r.sold) return <div className={cn('text-[0.875rem] text-muted', className)}>{who}’s PO comes to <b className="font-semibold text-ink">{fmtMoney(r.total)}</b>. There’s no estimate to compare it with yet.</div>
   const tone = toneOf(r)
   const left = Math.round((r.sold * r.line) / 100) - r.total

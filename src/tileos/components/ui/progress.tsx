@@ -148,10 +148,10 @@ export function MiniSteps({ steps, at, tone = 'info', className, showLabels = tr
               <span
                 className={cn(
                   'relative inline-flex h-[0.625rem] w-[0.625rem] shrink-0 rounded-full',
-                  done ? 'bg-ok-500' : cur ? (late ? 'bg-bad-500 ring-4 ring-bad-100' : 'bg-brand-600 ring-4 ring-brand-100') : 'border-2 border-[#D5DBE4] bg-white',
+                  done ? 'bg-[#2c4a3e]' : cur ? (late ? 'bg-bad-500 ring-4 ring-bad-100' : 'bg-ink ring-4 ring-[#e6e8ec]') : 'border-2 border-[#D5DBE4] bg-white',
                 )}
               />
-              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-ok-500' : 'bg-[#E3E8EF]')} />}
+              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-[#2c4a3e]' : 'bg-[#E3E8EF]')} />}
             </React.Fragment>
           )
         })}
@@ -159,7 +159,7 @@ export function MiniSteps({ steps, at, tone = 'info', className, showLabels = tr
       {showLabels && (
         <div className="mt-1.5 flex justify-between">
           {steps.map((s, i) => (
-            <span key={s} className={cn('text-[0.71875rem] leading-tight', i === at ? (late ? 'font-semibold text-bad-600' : 'font-semibold text-brand-700') : i < at ? 'text-ink-2' : 'text-faint', i === 0 ? 'text-left' : i === steps.length - 1 ? 'text-right' : 'text-center')} style={{ width: `${100 / steps.length}%` }}>
+            <span key={s} className={cn('text-[0.71875rem] leading-tight', i === at ? (late ? 'font-semibold text-bad-600' : 'font-semibold text-ink') : i < at ? 'text-ink-2' : 'text-faint', i === 0 ? 'text-left' : i === steps.length - 1 ? 'text-right' : 'text-center')} style={{ width: `${100 / steps.length}%` }}>
               {s}
             </span>
           ))}

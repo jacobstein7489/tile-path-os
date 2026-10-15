@@ -111,20 +111,12 @@ function tabsFor(s: Store): { key: PTab; label: string }[] {
   ]
 }
 
-/** where the project stands, in one colored bubble — the same words as the Projects list */
+/** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list */
 function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: () => void } {
   const st = projectStatus(s, job)
   if (st.key === 'hold') return { tone: 'bad', label: `On hold · ${(job.hold?.reason || '').replace(/^Waiting for /, 'waiting for ')}`, onClick: job.hold?.shortage ? () => s.open({ t: 'short', id: job.hold!.shortage! }) : undefined }
-  if (isGettingReady(job)) {
-    const c = stepCounts(stepsFor(s, job))
-    return { tone: st.tone, label: `${st.label} · ${c.done} of ${c.total} steps done` }
-  }
-  if (st.key === 'progress') return { tone: st.tone, label: `In progress · ${job.pct ?? 0}%` }
-  if (st.key === 'touchups') {
-    const n = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified').length
-    return { tone: st.tone, label: n ? `Touch-ups · ${n} open` : 'Touch-ups' }
-  }
-  return { tone: st.tone, label: st.label }
+  /* how far it is shows in the bar under it — the bubble just says where it stands */
+  return { tone: st.tone, label: st.key === 'progress' ? 'In progress' : st.label }
 }
 
 export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'modal' | 'page'; tab?: PTab; setTab: (t: PTab) => void }) {
@@ -151,49 +143,51 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
     if (job.stage === 'closeout') return s.open({ t: 'money', id: s.money.find((m) => m.jobId === job.id && m.kind === 'final')?.id || '' })
   }
   const pricing = !tab
+  /* the one button: my next step here, or what this stage needs */
+  const main = next && (locked || !prim)
+    ? (next.mine && tab !== 'overview'
+      ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
+      : null)
+    : prim && !locked
+      ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
+      : null
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
   return (
     <div className="border-b border-line bg-white">
-      <div className={cn('px-7 pt-5 max-sm:px-4', mode === 'modal' && 'pr-16 max-sm:pr-14', pricing && 'pb-4')}>
-        <div className="flex items-start gap-4 max-lg:flex-wrap">
+      <div className={cn('px-7 pt-4 max-sm:px-4 max-sm:pt-3.5', mode === 'modal' && 'pr-16 max-sm:pr-14', pricing && 'pb-4')}>
+        <div className="flex items-start gap-4 max-lg:flex-wrap max-sm:gap-2.5">
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-              <h1 className="font-display min-w-0 truncate text-[1.5rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.3125rem]">{job.name}</h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+              <h1 className="font-display min-w-0 truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.25rem]">{job.name}</h1>
               {!pricing && role !== 'crew' && role !== 'client' && <EditButton label="Change the project’s details" onClick={() => s.open({ t: 'editproject', id: job.id })} />}
               {!pricing && (status.onClick
-                ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone}>{status.label}</Status></button>
-                : <Status tone={status.tone} className="shrink-0">{status.label}</Status>)}
+                ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+                : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.84375rem] text-muted">
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted">
               <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 text-faint" />{job.client}</button>
               <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
               {!pricing && (crew
-                ? <button onClick={() => setTab('installer')} className="inline-flex items-center gap-1.5 hover:text-brand-600"><Avatar who={crew} size={18} /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
+                ? <button onClick={() => setTab('installer')} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
                 : !['closeout', 'complete'].includes(job.stage) && <button onClick={() => s.open({ t: 'book', jobId: job.id })} className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline"><HardHat className="h-4 w-4" />Book an installer</button>)}
             </div>
           </div>
           {!pricing && role !== 'accounting' && (
-            <div className="flex shrink-0 items-center gap-2 max-lg:w-full">
+            <div className={cn('flex shrink-0 items-center gap-2 max-lg:w-full', !main && 'max-sm:hidden')}>
               <span className="max-lg:flex-1 max-sm:hidden" />
-              <Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}><span className="max-sm:hidden">Log</span></Button>
-              {next && (locked || !prim) ? (
-                next.mine && tab !== 'overview'
-                  ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
-                  : null
-              ) : prim && !locked ? (
-                <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
-              ) : null}
+              <span className="max-sm:hidden"><Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}>Log</Button></span>
+              {main}
             </div>
           )}
         </div>
       </div>
       {tab && (
-        <div className="px-6 pt-1 max-sm:px-2">
+        <div className="px-7 pt-3 max-sm:px-4 max-sm:pt-2.5">
           <PhaseBar cells={path} />
         </div>
       )}
       {tab && (
-        <div className="mt-1 flex items-center gap-3 px-7 max-sm:px-4">
+        <div className="mt-0.5 flex items-center gap-3 px-7 max-sm:px-4">
           <UnderlineTabs className="min-w-0 flex-1 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
           <div className="flex shrink-0 items-center gap-0.5 max-sm:hidden">
             <HeadIcon label={`Files and photos${files ? ` · ${files}` : ''}`} count={files} onClick={() => s.open({ t: 'files', jobId: job.id })}><Paperclip className="h-4 w-4" /></HeadIcon>
@@ -209,6 +203,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
           <button onClick={() => s.open({ t: 'files', jobId: job.id })} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-muted"><Paperclip className="h-3.5 w-3.5" />Files{files ? ` ${files}` : ''}</button>
           <button onClick={() => s.open({ t: 'chat', jobId: job.id })} className={cn('inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold', unread ? 'text-brand-700' : 'text-muted')}><MessageCircle className="h-3.5 w-3.5" />Messages{unread ? ` ${unread}` : ''}</button>
           <button onClick={() => s.open({ t: 'history', jobId: job.id })} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-muted"><History className="h-3.5 w-3.5" />History</button>
+          {role !== 'accounting' && <button onClick={() => s.open({ t: 'record', jobId: job.id })} aria-label="Log what happened" className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-ink-2"><ListPlus className="h-3.5 w-3.5" />Log</button>}
         </div>
       )}
     </div>
@@ -228,7 +223,7 @@ function HeadIcon({ label, count, hot, onClick, children }: { label: string; cou
 /* ---------------- the body: just the tab you're on ---------------- */
 export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab: (t: PTab) => void }) {
   return (
-    <div key={tab} className="animate-fade-up px-7 py-6 max-sm:px-3.5 max-sm:py-4">
+    <div key={tab} className="animate-fade-up px-7 py-5 max-sm:px-3 max-sm:py-3.5">
       {tab === 'overview' && <OverviewTab job={job} setTab={setTab} />}
       {tab === 'scope' && <ScopeTab job={job} />}
       {tab === 'orders' && <POsTab job={job} onScope={() => setTab('scope')} />}
@@ -243,9 +238,9 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
   /* three questions, in order: what needs me (or is stuck)? who has everything else? where does it stand? */
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div className="flex w-full flex-col gap-4">
       <NextUp job={job} setTab={setTab} />
-      <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
         <div className="min-w-0"><WhosOnWhat job={job} setTab={setTab} /></div>
         <div className="min-w-0"><AtAGlance job={job} setTab={setTab} /></div>
       </div>

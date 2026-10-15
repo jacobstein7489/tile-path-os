@@ -1,7 +1,8 @@
 /* The project at a glance, read the same way on every project:
  *   the bar on top — every part of the project in order (the paperwork, the design meeting, the site, the installer,
- *     the deliveries, then installing, touch-ups, billed and closed): how far each part is (the ring fills), who has
- *     it now and how many of its steps are done. Click a part and only that part's steps open.
+ *     the deliveries, then installing, touch-ups, billed and closed): how far each part is (its bar fills), who has
+ *     it now and how many of its steps are done — and how much of the whole project is done. Click a part and only
+ *     that part's steps open, numbered 1, 2, 3.
  *   To do — everything open on the project, in four groups (your turn, others, waiting, coming up), every row on the
  *     same grid: what · who · when · one button.
  *   At a glance — the five facts, each in the same shape. What we're tiling — the rooms.
@@ -32,7 +33,7 @@ import { billingOf } from './money-tab'
 import { tileStatus } from './scope-tab'
 import { budgetOf } from './ratio'
 import { todoLines, type NowState } from './todo'
-import { Section, Empty, Group, Who, ROW, firstName } from './kit'
+import { Section, Empty, Group, Who, ROW, firstName, Word, Strip } from './kit'
 
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
 const IN_FIELD = ['installation', 'punch', 'closeout', 'complete']
@@ -86,14 +87,14 @@ export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
       state: st === 'installation' ? 'active' : ['punch', 'closeout', 'complete'].includes(st) ? 'done' : 'todo',
       frac: st === 'installation' ? (job.pct ?? 0) / 100 : ['punch', 'closeout', 'complete'].includes(st) ? 1 : 0,
       who: ['punch', 'closeout', 'complete'].includes(st) ? undefined : crew,
-      line: st === 'installation' ? `${job.pct ?? 0}% done` : ['punch', 'closeout', 'complete'].includes(st) ? 'Done' : start ? `Starts ${start}` : crew ? 'No dates yet' : 'No installer yet',
+      line: st === 'installation' ? `${job.pct ?? 0}% installed` : ['punch', 'closeout', 'complete'].includes(st) ? 'Done' : start ? `Starts ${start}` : crew ? 'No dates yet' : 'No installer yet',
       onClick: setTab ? () => setTab('installer') : undefined,
     },
     {
       key: 'punch', label: 'Touch-ups',
       state: st === 'punch' ? (punchOpen ? 'active' : 'done') : ['closeout', 'complete'].includes(st) ? 'done' : 'todo',
       frac: ['closeout', 'complete'].includes(st) ? 1 : punch.length ? (punch.length - punchOpen) / punch.length : 0,
-      line: st === 'punch' ? `${punchOpen} open` : ['closeout', 'complete'].includes(st) ? 'Done' : '',
+      line: st === 'punch' ? (punchOpen ? `${punchOpen} open` : 'All fixed') : ['closeout', 'complete'].includes(st) ? 'Done' : '',
       onClick: setTab ? () => setTab('installer') : undefined,
     },
     {
@@ -106,47 +107,48 @@ export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
   ]
 }
 
-const RING: Record<PhaseState, string> = { done: '#12a150', active: '#2650cf', wait: '#d98a0b', bad: '#e5484d', todo: '#2650cf' }
-function Ring({ c, n }: { c: PhaseCell; n: number }) {
-  if (c.state === 'done') return <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
-  if (c.state === 'bad') return <span className="flex h-8 w-8 items-center justify-center rounded-full bg-bad-500 text-[0.9375rem] font-black text-white">!</span>
-  const r = 13.5
-  const len = 2 * Math.PI * r
-  const frac = Math.max(0, Math.min(1, c.frac))
-  return (
-    <span className="relative flex h-8 w-8 items-center justify-center">
-      <svg viewBox="0 0 32 32" className="absolute inset-0 h-8 w-8 -rotate-90" aria-hidden>
-        <circle cx="16" cy="16" r={r} fill="white" stroke="#e2e5e9" strokeWidth="3" />
-        {frac > 0 && <circle cx="16" cy="16" r={r} fill="none" stroke={RING[c.state]} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${Math.max(2, frac * len)} ${len}`} />}
-      </svg>
-      {c.state === 'active' ? <span className="relative h-2.5 w-2.5 rounded-full bg-brand-600" /> : c.state === 'wait' ? <Clock3 className="relative h-3.5 w-3.5 text-warn-600" strokeWidth={2.5} /> : <span className="relative text-[0.8125rem] font-bold text-faint">{n}</span>}
-    </span>
-  )
-}
-/** every part of the project, left to right — each the same size: the ring, the name, who has it, how far */
+/** how much of the whole project is done — every part counts the same, so it's exactly how much of the bar is filled */
+export const overallPct = (cells: PhaseCell[]) => Math.round((cells.reduce((n, c) => n + (c.state === 'done' ? 1 : Math.max(0, Math.min(1, c.frac))), 0) / Math.max(1, cells.length)) * 100)
+
+/** every part of the project, left to right, each the same width: its name, a bar that fills as its steps get done,
+ *  how many are done and who has it. On the left, how much of the whole project is done. Click a part to open it. */
 export function PhaseBar({ cells }: { cells: PhaseCell[] }) {
-  return (
-    <ol className="no-scrollbar flex items-start overflow-x-auto px-1 pb-1 pt-3" aria-label="Where the project is">
-      {cells.map((c, i) => {
-        const prev = cells[i - 1]
-        return (
-          <li key={c.key} className="relative flex min-w-[6.75rem] flex-1 flex-col items-center text-center">
-            {i > 0 && <span className={cn('absolute top-[0.9375rem] h-[0.125rem] rounded-full', prev.state === 'done' ? 'bg-ok-500' : 'bg-[#e2e5e9]')} style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
-            <button onClick={c.onClick} disabled={!c.onClick} aria-label={`${c.label}${c.line ? ` — ${c.line}` : ''}`} className="group relative z-[1] flex w-full flex-col items-center rounded-xl px-1 pb-1 transition enabled:hover:bg-wash disabled:cursor-default">
-              <span className="transition group-enabled:group-hover:scale-105"><Ring c={c} n={i + 1} /></span>
-              <span className={cn('mt-2 max-w-full truncate text-[0.8125rem] font-semibold', c.state === 'todo' ? 'text-muted' : c.state === 'bad' ? 'text-bad-700' : 'text-ink')}>{c.label}</span>
-              <span className="mt-1 flex h-5 max-w-full items-center justify-center gap-1.5">{c.who && PEOPLE[c.who] ? <><Avatar who={c.who} size={18} /><WhoName who={c.who} /></> : null}</span>
-              <span className={cn('h-4 text-[0.71875rem] font-medium tnum', c.state === 'done' ? 'text-ok-700' : c.state === 'bad' ? 'font-semibold text-bad-700' : 'text-muted')}>{c.line}</span>
-            </button>
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
-function WhoName({ who }: { who: PersonKey }) {
   const me = meOf(useStore((s) => s.role))
-  return <span className={cn('truncate text-[0.78125rem]', who === me ? 'font-semibold text-brand-700' : 'font-medium text-ink-2')}>{who === me ? 'You' : firstName(who)}</span>
+  const pct = overallPct(cells)
+  return (
+    <div className="flex items-stretch gap-3">
+      <div className="flex w-[4.5rem] shrink-0 flex-col justify-center border-r border-line-2 pr-3 max-sm:w-[3.75rem]" aria-label={`The project is ${pct}% done`}>
+        <span className="text-[1.5rem] font-semibold leading-none tracking-[-0.01em] tnum text-ink max-sm:text-[1.25rem]">{pct}%</span>
+        <span className="mt-1 text-[0.65625rem] font-bold uppercase tracking-[0.08em] text-muted">done</span>
+      </div>
+      <ol className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto" aria-label="Where the project is">
+        {cells.map((c) => {
+          const frac = c.state === 'done' ? 1 : Math.max(0, Math.min(1, c.frac))
+          const who = c.state !== 'done' && c.who && PEOPLE[c.who] ? (c.who === me ? 'You' : firstName(c.who)) : ''
+          const now = c.state === 'active' || c.state === 'bad' || c.state === 'wait'
+          return (
+            <li key={c.key} className="min-w-[6.75rem] flex-1">
+              <button
+                onClick={c.onClick}
+                disabled={!c.onClick}
+                aria-label={`${c.label} — ${c.state === 'done' ? 'done' : [c.line, who].filter(Boolean).join(', ') || 'not started'}`}
+                className="flex w-full flex-col rounded-lg px-2 py-1.5 text-left transition enabled:hover:bg-wash disabled:cursor-default"
+              >
+                <span className={cn('w-full truncate text-[0.8125rem]', c.state === 'bad' ? 'font-semibold text-bad-700' : now ? 'font-semibold text-ink' : c.state === 'done' ? 'font-medium text-ink-2' : 'font-medium text-muted')}>{c.label}</span>
+                <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-[#e4e7eb]">
+                  {frac > 0 && <span className={cn('block h-full rounded-full', c.state === 'bad' ? 'bg-bad-500' : 'bg-[#2c4a3e]')} style={{ width: `${Math.max(6, frac * 100)}%` }} />}
+                </span>
+                <span className="mt-1.5 flex w-full min-w-0 items-baseline gap-1.5 text-[0.71875rem] leading-tight">
+                  <span className={cn('shrink-0 tnum', c.state === 'done' ? 'font-semibold text-[#2c4a3e]' : c.state === 'bad' ? 'font-semibold text-bad-700' : now ? 'font-medium text-ink-2' : 'text-muted')}>{c.line || '\u00a0'}</span>
+                  {who && <span className={cn('ml-auto min-w-0 truncate max-sm:hidden', who === 'You' ? 'font-semibold text-ink' : 'text-muted')}>{who}</span>}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
 }
 
 /** the one thing to press: my next step on this project — or, if it's someone else's turn, whose and what */
@@ -222,7 +224,7 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
 
 function RowMark({ m, size = 24 }: { m: Mark; size?: number }) {
   if (m.kind === 'step') return <StepIcon state={m.state} size={size} />
-  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3 w-3" /></span>
+  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-[#eceef1] text-ink-2"><CalendarDays className="h-3 w-3" /></span>
   if (m.kind === 'task') return <StepIcon state={m.waiting ? 'wait' : 'now'} size={size} />
   const st = m.status
   return <StepIcon state={st === 'bad' ? 'bad' : st === 'wait' ? 'wait' : st === 'done' ? 'done' : 'now'} size={size} />
@@ -235,7 +237,7 @@ function TodoLine({ r }: { r: TodoRow }) {
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
       <button onClick={r.run} disabled={!r.run} className="min-w-0 text-left disabled:cursor-default">
         <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.title}</span>
-        <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : r.noteTone === 'warn' ? 'text-warn-700' : 'text-muted')}>
+        <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>
           <span className="md:hidden">{[r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')}{r.note ? ' · ' : ''}</span>{r.note || <span className="max-md:hidden">&nbsp;</span>}
         </span>
       </button>
@@ -259,13 +261,12 @@ export function NextUp({ job, setTab }: { job: Job; setTab: SetTab }) {
   return (
     <Section
       title="Next up"
-      sub={top.length ? [mine ? `${mine} for you` : '', stuck ? `${stuck} stuck` : ''].filter(Boolean).join(' · ') : undefined}
-      className={cn(stuck > 0 && 'border-bad-200')}
+      right={top.length ? [mine ? `${mine} for you` : '', stuck ? `${stuck} stuck` : ''].filter(Boolean).join(' · ') : undefined}
     >
       {top.map((r) => <TodoLine key={r.key} r={r} />)}
       {!top.length && (
-        <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-3 max-sm:px-4">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-[0.90625rem] font-semibold text-ink">Nothing needs you here right now</span>
             <span className="block truncate text-[0.78125rem] text-muted">{nextOther ? <>Next: {firstName(nextOther.who) || 'someone'} — {nextOther.title.charAt(0).toLowerCase() + nextOther.title.slice(1)}</> : 'Nothing stuck, nothing late.'}</span>
@@ -288,24 +289,21 @@ export function WhosOnWhat({ job, setTab }: { job: Job; setTab: SetTab }) {
   const people = Array.from(new Set(work.map((r) => r.who || ''))).map((who) => ({ who: (who || undefined) as PersonKey | undefined, items: work.filter((r) => (r.who || '') === who) }))
   people.sort((a, b) => Number(b.items.some((r) => r.late)) - Number(a.items.some((r) => r.late)) || b.items.length - a.items.length)
   return (
-    <Section title="Who’s on what" count={work.length} sub="Everything else open here, by person — tap a line to open it">
+    <Section title="Who’s on what" count={work.length} right={work.length ? 'By person' : undefined}>
       {people.map((p) => (
-        <div key={p.who || 'nobody'} className="border-t border-line-2 py-2 first:border-t-0">
-          <div className="flex items-center gap-2.5 px-5 pb-1 pt-1 max-sm:px-4">
-            {p.who && PEOPLE[p.who] ? <Avatar who={p.who} size={26} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] rounded-full border border-dashed border-[#c6ccd4]" />}
-            <span className="min-w-0 flex-1 truncate text-[0.90625rem] font-semibold text-ink">{!p.who ? 'Nobody yet' : p.who === me ? 'You' : firstName(p.who) || PEOPLE[p.who]?.name}{p.who && p.who !== me && PEOPLE[p.who]?.roleLabel ? <span className="ml-2 text-[0.78125rem] font-normal text-muted">{PEOPLE[p.who]?.roleLabel}</span> : null}</span>
-            <span className="shrink-0 text-[0.78125rem] font-semibold text-muted">{p.items.length} open</span>
+        <div key={p.who || 'nobody'}>
+          <div className="flex items-center gap-2.5 bg-[#eef0ee] px-5 py-1.5 max-sm:px-4">
+            {p.who && PEOPLE[p.who] ? <Avatar who={p.who} size={22} plain className="bg-white" /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] rounded-full border border-dashed border-[#c6ccd4]" />}
+            <span className="min-w-0 flex-1 truncate text-[0.84375rem] font-bold text-ink">{!p.who ? 'Nobody yet' : p.who === me ? 'You' : firstName(p.who) || PEOPLE[p.who]?.name}{p.who && p.who !== me && PEOPLE[p.who]?.roleLabel ? <span className="ml-2 text-[0.75rem] font-medium text-muted">{PEOPLE[p.who]?.roleLabel}</span> : null}</span>
+            <span className="shrink-0 text-[0.75rem] font-bold tnum text-ink">{p.items.length} open</span>
           </div>
-          {p.items.map((r) => <PersonLine key={r.key} r={r} />)}
+          <div className="py-1">{p.items.map((r) => <PersonLine key={r.key} r={r} />)}</div>
         </div>
       ))}
       {coming.length > 0 && (
-        <div className="border-t border-line-2 py-2">
-          <div className="flex items-center gap-2.5 px-5 pb-1 pt-1 max-sm:px-4">
-            <span className="inline-flex h-[1.625rem] w-[1.625rem] items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3.5 w-3.5" /></span>
-            <span className="min-w-0 flex-1 text-[0.90625rem] font-semibold text-ink">Coming up</span>
-          </div>
-          {coming.map((r) => <PersonLine key={r.key} r={r} />)}
+        <div>
+          <Group label="Coming up" count={coming.length} />
+          <div className="py-1">{coming.map((r) => <PersonLine key={r.key} r={r} />)}</div>
         </div>
       )}
       {!work.length && !coming.length && <Empty className="py-5">Nobody else has anything open here.</Empty>}
@@ -327,14 +325,14 @@ function PersonLine({ r }: { r: TodoRow }) {
   return (
     <button onClick={r.run} disabled={!r.run} className="group grid w-full grid-cols-[1.125rem_minmax(0,1fr)_6.5rem] items-center gap-2.5 py-1.5 pl-[3.5rem] pr-5 text-left transition hover:bg-[#f8f9fb] disabled:cursor-default max-sm:pl-12 max-sm:pr-4">
       <span className="flex justify-center"><RowMark m={r.mark} size={18} /></span>
-      <span className="min-w-0 truncate text-[0.875rem] text-ink"><span className="font-medium group-hover:text-brand-700">{r.title}</span>{r.note ? <span className={cn('ml-1.5', r.noteTone === 'warn' ? 'text-warn-700' : 'text-muted')}>· {r.note}</span> : null}</span>
+      <span className="min-w-0 truncate text-[0.875rem] text-ink"><span className="font-medium group-hover:underline">{r.title}</span>{r.note ? <span className="ml-1.5 text-muted">· {r.note}</span> : null}</span>
       <span className={cn('truncate text-right text-[0.8125rem] tnum', r.late ? 'font-semibold text-bad-600' : 'text-ink-2')}>{r.when === '—' ? '' : r.when}</span>
     </button>
   )
 }
 /* ================= the facts ================= */
-/* No colored dots to decode: every fact is a plain line. Only when something needs doing does a line turn colour —
- * and then it says what, in words (red = it's a problem, amber = someone has to do something). */
+/* No colored dots to decode: every fact is a plain line. Only a problem turns red — and then it says what, in words.
+ * Something someone has to do is said in plain darker words. */
 type Flag = { text: string; tone: 'bad' | 'warn' }
 type Fact = { icon: React.ReactNode; label: string; value: string; sub?: string; flag?: Flag; tab: string }
 export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
@@ -393,13 +391,13 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
   return (
     <Section title="At a glance">
       {facts.map((x) => (
-        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-3 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
+        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
           <span className="mt-0.5 inline-flex text-faint transition group-hover:text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{x.icon}</span>
           <span className="pt-px text-[0.8125rem] font-medium text-muted">{x.label}</span>
           <span className="min-w-0">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.value}</span>
             {x.flag
-              ? <span className={cn('block text-[0.78125rem] font-semibold leading-snug', x.flag.tone === 'bad' ? 'text-bad-600' : 'text-warn-700')}>{x.flag.text}</span>
+              ? <span className={cn('block text-[0.78125rem] leading-snug', x.flag.tone === 'bad' ? 'font-semibold text-bad-600' : 'font-medium text-ink-2')}>{x.flag.text}</span>
               : x.sub && <span className="block text-[0.78125rem] leading-snug text-muted">{x.sub}</span>}
           </span>
         </button>
@@ -469,21 +467,41 @@ export function EstimateTab({ job }: { job: Job }) {
   const s = useStore()
   const ests = s.estimates.filter((e) => e.jobId === job.id)
   const cos = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
+  const main = ests.find((e) => e.status === 'approved') || ests[0]
+  const total = main ? revTotal(curRev(main)) : 0
+  /* the same numbers as Billing: changes approved before Tile OS count too */
+  const pic = billingOf(job)
+  const yes = cos.filter((m) => m.step >= 0 && m.amount)
+  const waiting = cos.filter((m) => m.step < 0)
+  const before = job.before?.changes || 0
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
+      <Strip stats={[
+        { label: 'Estimate', value: total ? fmtMoney(total) : '—', sub: main ? `${main.id}${main.approvedOn ? ` · approved ${main.approvedOn}` : ''}` : 'Priced before Tile OS' },
+        { label: 'Approved changes', value: `+${fmtMoney(pic.changes)}`, sub: `${yes.length + (before ? 1 : 0)} change${yes.length + (before ? 1 : 0) === 1 ? '' : 's'}` },
+        { label: 'Waiting for a yes', value: fmtMoney(pic.pending), sub: waiting.length ? `${waiting.length} change order${waiting.length === 1 ? '' : 's'}` : 'None waiting' },
+        { label: 'Contract now', value: fmtMoney((pic.contract || total) + pic.changes), sub: 'The contract and approved changes' },
+      ]} />
       <Section title="The estimate" count={ests.length}>
         {ests.map((e) => <EstRow key={e.id} e={e} />)}
         {!ests.length && <Empty>No estimate in the system for this project — it was priced before Tile OS. The contract is on Billing.</Empty>}
       </Section>
-      <Section title="Change orders" count={cos.length} action={<Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button>}>
+      <Section title="Change orders" count={cos.length + (before ? 1 : 0)} action={<Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button>}>
         {cos.map((m) => (
-          <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1fr)_7rem_7.5rem] items-center gap-3 border-t border-line-2 px-5 py-3 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
-            <span className="min-w-0"><span className="block truncate text-[0.90625rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
-            <span className="text-right text-[0.90625rem] font-semibold tnum text-ink">{fmtMoney(m.amount || 0)}</span>
-            <span className="flex justify-end"><Status tone={m.state === 'paid' ? 'ok' : m.state === 'waiting' ? 'warn' : 'neutral'}>{m.state === 'paid' ? 'Paid' : m.state === 'waiting' ? 'Billed' : 'Approved'}</Status></span>
+          <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
+            <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
+            <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>
+            <span className="flex justify-end"><Word tone={m.state === 'paid' ? 'ok' : m.step < 0 ? undefined : 'ok'}>{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for a yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</Word></span>
           </button>
         ))}
-        {!cos.length && <Empty>No changes from the estimate.</Empty>}
+        {before > 0 && (
+          <div className="grid min-h-[3rem] grid-cols-[minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
+            <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">Approved before Tile OS</span><span className="block truncate text-[0.78125rem] text-muted">Put in with what was already billed</span></span>
+            <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(before)}</span>
+            <span className="flex justify-end"><Word tone="ok">Approved</Word></span>
+          </div>
+        )}
+        {!cos.length && !before && <Empty>No changes from the estimate.</Empty>}
       </Section>
     </div>
   )
@@ -499,7 +517,7 @@ function EstRow({ e }: { e: Estimate }) {
         <span className="block truncate text-[0.90625rem] font-semibold text-ink">{e.id}{e.revs.length > 1 ? ` · Revision ${r?.n}` : ''}</span>
         <span className="block truncate text-[0.78125rem] text-muted">{r?.lines.length || 0} lines{e.approvedOn ? ` · approved ${e.approvedOn}` : ''}</span>
       </span>
-      <span className="flex justify-end max-md:hidden"><Status tone={c.tone}>{c.label}</Status></span>
+      <span className="flex justify-end max-md:hidden"><Word tone={c.tone}>{c.label}</Word></span>
       <span className="text-right text-[0.9375rem] font-semibold tnum text-ink max-md:hidden">{fmtMoney(revTotal(r))}</span>
       <span className="flex justify-end gap-1.5">
         <Button size="sm" onClick={() => s.open({ t: 'sow', jobId: e.jobId, estId: e.id })}>Scope of work</Button>

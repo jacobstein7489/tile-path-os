@@ -12,8 +12,9 @@ import { md } from '@/tileos/lib/today'
 import { installerOf } from '../upcoming'
 import { CloseOverview } from './overview'
 import { useSaveStatus } from '@/tileos/lib/save'
-import { Section, Empty } from './kit'
+import { Section, Empty, Word, Strip } from './kit'
 import { RatioBlock } from './ratio'
+import { poRatio } from '../poratio'
 
 const IPO_STATUS: Record<string, { tone: Tone; label: (who: string) => string }> = {
   Draft: { tone: 'vio', label: () => 'Draft — not sent' },
@@ -35,14 +36,23 @@ export function InstallerTab({ job }: { job: Job }) {
   const inField = ['installation', 'punch', 'closeout', 'complete'].includes(job.stage)
   const total = ipo ? ipo.lines.reduce((n, l) => n + l.amount, 0) + ipo.changes.filter((c) => c.status !== 'pending').reduce((n, c) => n + c.amount, 0) : 0
   const sample = save.mode === 'sample' ? ' · sample amounts' : ''
+  const r = ipo && ipo.status !== 'Rejected' ? poRatio(s, ipo) : undefined
+  const days = bookings.length ? `${md(bookings[0].start)} – ${md(bookings[bookings.length - 1].end)}` : job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : '—'
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
-      <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex flex-col gap-4">
+    <Strip stats={[
+      { label: 'Installer', value: crew ? PEOPLE[crew].short : 'Not picked', sub: crew ? (bookings[0]?.workers ? `${bookings[0].workers} people` : 'His crew') : 'Book an installer' },
+      { label: 'On the calendar', value: days, sub: bookings.length ? `${bookings.length} booking${bookings.length === 1 ? '' : 's'}` : 'No days yet' },
+      { label: 'His PO', value: r && r.sold && r.total ? `${r.pct}%` : ipo ? fmtMoney(total) : '—', sub: r && r.sold && r.total ? `of our estimate · ${fmtMoney(total)}` : ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : 'No PO yet', tone: r?.over ? 'bad' : undefined },
+      { label: 'Daily updates', value: String(diary.length), sub: diary[0] ? `Last one ${diary[0].date}` : inField ? 'None yet' : 'From the first day on site' },
+    ]} />
+    <div className="grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
+      <div className="flex min-w-0 flex-col gap-4">
         {/* who */}
         <Section title="The installer">
           {crew ? (
-            <div className="flex flex-wrap items-center gap-4 px-5 py-4 max-sm:px-4">
-              <Avatar who={crew} size={48} />
+            <div className="flex flex-wrap items-center gap-4 px-5 py-3 max-sm:px-4">
+              <Avatar who={crew} size={40} plain />
               <div className="min-w-0 flex-1">
                 <div className="text-[1rem] font-semibold text-ink">{PEOPLE[crew].name}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] text-muted">
@@ -56,8 +66,8 @@ export function InstallerTab({ job }: { job: Job }) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-4 px-5 py-5 max-sm:px-4">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-warn-50 text-warn-600"><HardHat className="h-6 w-6" /></span>
+            <div className="flex flex-wrap items-center gap-4 px-5 py-3.5 max-sm:px-4">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wash-2 text-ink-2"><HardHat className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">
                 <div className="text-[1rem] font-semibold text-ink">No installer yet</div>
                 <div className="text-[0.84375rem] text-muted">Pick who installs it — his PO goes out with his rates for every line on the scope.</div>
@@ -68,15 +78,15 @@ export function InstallerTab({ job }: { job: Job }) {
         </Section>
 
         {/* daily updates */}
-        <Section title="Daily updates" count={diary.length} sub="From the site — what moved, photos, anything in the way" action={inField ? <Button size="sm" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button> : undefined}>
+        <Section title="Daily updates" count={diary.length} action={inField ? <Button size="sm" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button> : undefined}>
           {diary.slice(0, 8).map((e) => {
             const moved = e.rooms.flatMap((r) => r.items).filter((i) => i.to > i.from)
             const pics = e.rooms.reduce((n, r) => n + r.media.length, 0)
             const note = e.note || e.rooms.find((r) => r.note)?.note
             return (
-              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[3.25rem] w-full items-center gap-3 border-t border-line-2 px-5 py-2 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
-                <span className="w-[4rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
-                <Avatar who={e.who} size={24} />
+              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[2.875rem] w-full items-center gap-3 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
+                <span className="w-[3.5rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
+                <Avatar who={e.who} size={22} plain />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[0.84375rem] font-medium text-ink">{moved.length ? `${moved.length} wall${moved.length === 1 ? '' : 's'} and floors moved` : 'No progress logged'} · {e.rooms.map((r) => r.room).join(', ')}</span>
                   {note && <span className="block truncate text-[0.78125rem] text-muted">{note}</span>}
@@ -94,10 +104,10 @@ export function InstallerTab({ job }: { job: Job }) {
 
       {/* his PO */}
       <aside className="flex min-w-0 flex-col gap-4">
-        <Section title="His PO" action={ipo ? <Status tone={IPO_STATUS[ipo.status].tone}>{IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short)}</Status> : undefined}>
+        <Section title="His PO" right={ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : undefined}>
           {ipo ? (
             <>
-              <RatioBlock ipo={ipo} className="border-b border-line-2 px-5 py-4" />
+              <RatioBlock ipo={ipo} className="border-b border-line-2 px-5 py-3.5" />
               <div className="px-5 pb-1 pt-3 text-[0.78125rem] text-muted">{ipo.id} · {PEOPLE[ipo.crew].short} · {ipo.date}</div>
               {ipo.lines.map((l, i) => (
                 <div key={i} className="flex items-baseline gap-3 px-5 py-1.5 text-[0.8125rem]">
@@ -108,7 +118,7 @@ export function InstallerTab({ job }: { job: Job }) {
               ))}
               {ipo.changes.map((c) => (
                 <div key={c.co} className="flex items-baseline gap-3 px-5 py-1.5 text-[0.8125rem]">
-                  <span className={cn('min-w-0 flex-1 truncate', c.status === 'pending' ? 'text-warn-700' : 'text-ink-2')}>{c.co} · {c.text}{c.status === 'pending' ? ' · waiting' : ''}</span>
+                  <span className={cn('min-w-0 flex-1 truncate', c.status === 'pending' ? 'text-muted' : 'text-ink-2')}>{c.co} · {c.text}{c.status === 'pending' ? ' · waiting for a yes' : ''}</span>
                   <span className="w-[4.5rem] shrink-0 text-right font-semibold tnum text-ink">+{fmtMoney(c.amount)}</span>
                 </div>
               ))}
@@ -116,13 +126,14 @@ export function InstallerTab({ job }: { job: Job }) {
                 <span className="font-semibold text-ink">Total{sample}</span>
                 <span className="font-bold tnum text-ink">{fmtMoney(total)}</span>
               </div>
-              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
+              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-ink hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
             </>
           ) : (
             <Empty>{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</Empty>
           )}
         </Section>
       </aside>
+    </div>
     </div>
   )
 }

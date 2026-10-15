@@ -1,6 +1,7 @@
-/* What a project needs, worked out from the scope — checked against what's ordered and on site.
- *   Tile: each tile on the project — what our takeoff needs (with waste), what the GC (or we) ordered, what's here
- *   Our materials: what goes under and around the tile — from the square feet and how each wall and floor is set
+/* What a project needs, worked out from the scope — checked against what's ordered and on site. Both on the same
+ * columns: what · we need · ordered · here · where it's at.
+ *   Tile: each tile on the project — what our takeoff needs (with the extra for cuts), what the GC (or we) ordered
+ *   Setting materials: what goes under and around the tile — from the square feet and how each wall and floor is set
  * Tap a material to see exactly how it was worked out. */
 import * as React from 'react'
 import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler } from 'lucide-react'
@@ -16,27 +17,35 @@ import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
-import { Section, Empty, Group } from './kit'
+import { Section, Empty, Group, Word } from './kit'
 
 const HEAD = 'border-b border-line-2 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:px-4'
+/** the same columns for the tile and the materials: what · we need · ordered · here · where it's at */
+const QGRID = 'grid grid-cols-[minmax(0,1fr)_6.5rem_5.5rem_5.5rem_15rem] items-center gap-4 max-lg:grid-cols-[minmax(0,1fr)_6rem_5.5rem_12rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-3'
+const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
+function Heads({ first }: { first: string }) {
+  return (
+    <div className={cn(QGRID, HEAD)}>
+      <span>{first}</span>
+      <span className="text-right max-sm:hidden">We need</span>
+      <span className="text-right max-sm:hidden">Ordered</span>
+      <span className="text-right max-lg:hidden">Here</span>
+      <span className="text-right">Where it’s at</span>
+    </div>
+  )
+}
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
 /* ---------------- tile ---------------- */
-const TGRID = 'grid grid-cols-[minmax(0,1fr)_6.5rem_8.75rem_18.125rem] items-center gap-4 max-lg:grid-cols-[minmax(0,1fr)_6rem_8.75rem] max-sm:grid-cols-[minmax(0,1fr)_auto]'
 export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const tags = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
   return (
-    <Section title="Tile" count={tags.length} sub="What we need, with the extra for cuts, against what was ordered">
+    <Section title="Tile" count={tags.length} right={tags.length ? 'We need includes the extra for cuts' : undefined}>
       <div>
-        <div className={cn(TGRID, HEAD, !tags.length && 'hidden')}>
-          <span>Tile</span>
-          <span className="text-right">We need</span>
-          <span className="max-sm:hidden">Ordered · here</span>
-          <span className="max-lg:hidden">Status</span>
-        </div>
+        {tags.length > 0 && <Heads first="Tile" />}
         {tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
@@ -53,22 +62,23 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
             : short ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
-            <div key={tag} className={cn(TGRID, 'min-h-[3.25rem] border-t border-line-2 px-5 py-2.5 first:border-t-0 max-sm:px-4')}>
+            <div key={tag} className={cn(QGRID, 'min-h-[3rem] border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4')}>
               <span className="flex min-w-0 items-center gap-3">
-                <TileImg tile={t} size={36} radius={8} />
+                <TileImg tile={t} size={32} radius={7} />
                 <span className="min-w-0">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink"><span className="tnum">{tag}</span> · {t?.name || 'Tile'}{t?.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}</span>
                   <span className="block truncate text-[0.78125rem] text-muted">{c ? `${c.where} · ${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}` : uses.length ? `${uses.length} wall${uses.length === 1 ? '' : 's'} and floors · ${who === 'We' ? 'we order it' : `the ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}` : 'Not on a wall or floor yet'}</span>
                 </span>
               </span>
-              <span className="text-right">
+              <span className="text-right max-sm:hidden">
                 <span className="block text-[0.875rem] font-semibold tnum text-ink">{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
                 {boxes > 0 && <span className="block text-[0.75rem] tnum text-muted">{boxes} boxes</span>}
               </span>
-              <span className="text-[0.8125rem] tnum text-ink-2 max-sm:hidden">{c ? `${c.ordered.toLocaleString('en-US')} · ${c.received.toLocaleString('en-US')} here` : <span className="text-faint">Not ordered</span>}</span>
-              <span className="flex min-w-0 flex-wrap items-center gap-2 max-lg:col-span-full max-sm:col-span-full">
-                <Status tone={st.tone}>{st.label}</Status>
-                {action && <Button size="xs" className="ml-auto max-lg:ml-0" variant={short ? 'primary' : 'outline'} onClick={action.run}>{action.label}</Button>}
+              <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{c ? num(c.ordered) : '—'}</span>
+              <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{c ? num(c.received) : '—'}</span>
+              <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2.5 gap-y-1">
+                <Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word>
+                {action && <Button size="xs" variant={short ? 'primary' : 'outline'} onClick={action.run}>{action.label}</Button>}
               </span>
             </div>
           )
@@ -85,7 +95,6 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
 }
 
 /* ---------------- our materials ---------------- */
-const GRID = 'grid grid-cols-[minmax(0,1fr)_7rem_9.375rem_9.875rem] items-center gap-4 max-md:grid-cols-[minmax(0,1fr)_6rem_8.25rem]'
 export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
   const save = useSaveStatus()
@@ -95,16 +104,12 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
   const toggle = (k: string) => setOpen((o) => (o === k ? null : k))
   return (
     <Section
-      title="Our materials"
+      title="Setting materials"
       count={t.counted ? t.lines.length : undefined}
-      sub={t.counted ? `Worked out from ${t.counted} walls and floors · ${t.sf.toLocaleString('en-US')} SF${save.mode === 'sample' ? ' · sample numbers' : ''}` : 'Worked out from the square feet and what goes under each wall and floor'}
+      right={t.counted ? <span className="max-md:hidden">From {t.counted} walls and floors · {t.sf.toLocaleString('en-US')} SF{save.mode === 'sample' ? ' · sample' : ''}</span> : undefined}
       action={<>
         {s.role === 'owner' && <Button size="sm" variant="ghost" icon={<SlidersHorizontal />} onClick={() => { s.closeAll(); s.go({ page: 'settings' }) }}><span className="max-sm:hidden">The numbers</span></Button>}
-        {miss.length ? (
-          <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
-        ) : t.counted ? (
-          <Status tone="ok">Nothing to order</Status>
-        ) : null}
+        {miss.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>}
       </>}
     >
       {!t.counted ? (
@@ -114,12 +119,7 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
         </div>
       ) : (
         <div>
-          <div className={cn(GRID, HEAD)}>
-            <span>Material</span>
-            <span className="text-right">Need</span>
-            <span className="text-right">Have</span>
-            <span className="max-md:hidden">Status</span>
-          </div>
+          <Heads first="Material" />
           {GROUPS.map((g) => {
             const ls = t.lines.filter((l) => l.group === g)
             if (!ls.length) return null
@@ -133,22 +133,16 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
         </div>
       )}
       {t.skipped.length > 0 && t.counted > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-warn-50/60 px-5 py-2.5 text-[0.8125rem] text-warn-800 max-sm:px-4">
-          <span className="font-semibold">Not counted yet</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#fafbfa] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-4">
+          <span className="font-semibold text-ink">Not counted yet</span>
           <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
-          <button onClick={onScope} className="font-semibold text-warn-800 underline-offset-2 hover:underline">What we’re tiling</button>
+          <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">What we’re tiling</button>
         </div>
       )}
     </Section>
   )
 }
 
-function haveText(have: number, onSite: number) {
-  if (!have) return '—'
-  if (onSite >= have) return `${have.toLocaleString('en-US')} on site`
-  if (onSite) return `${onSite} here · ${have - onSite} coming`
-  return `${have.toLocaleString('en-US')} ordered`
-}
 
 function Line({ l, jobId, open, onToggle, waste }: { l: TakeLine; jobId: string; open: boolean; onToggle: () => void; waste: number }) {
   const s = useStore()
@@ -162,15 +156,16 @@ function Line({ l, jobId, open, onToggle, waste }: { l: TakeLine; jobId: string;
   const colors = l.itemId === 'm-grout' ? Array.from(new Set(l.uses.map((u) => s.rooms[jobId]?.find((r) => r.name === u.room)?.surfaces.find((x) => x.name === u.surface)?.grout).filter(Boolean) as string[])).map((g) => GROUTS[g]?.name || g) : []
   return (
     <div className="border-t border-line-2">
-      <button onClick={onToggle} className={cn(GRID, 'min-h-[3.25rem] w-full px-5 py-2 text-left transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
+      <button onClick={onToggle} className={cn(QGRID, 'min-h-[3rem] w-full px-5 py-1.5 text-left transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-[0.875rem] font-medium text-ink"><ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-faint transition', open && 'rotate-180')} /><span className="truncate">{it?.name || l.itemId}</span></span>
           <span className="block truncate pl-5 text-[0.78125rem] text-muted">{colors.length ? `${colors.join(', ')} · ` : ''}{where}{sf && !exact ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>
         </span>
-        <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{qtyLabel(l.need, unit)}</span>
-        <span className="text-right text-[0.8125rem] tnum text-ink-2">{haveText(l.have, l.onSite)}</span>
-        <span className="max-md:hidden">
-          {l.toOrder > 0 ? <Status tone={l.have ? 'warn' : 'bad'}>To order {l.toOrder.toLocaleString('en-US')}</Status> : l.onSite >= l.need ? <Status tone="ok">On site</Status> : <Status tone="info">Coming</Status>}
+        <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{qtyLabel(l.need, unit)}</span>
+        <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{num(l.have)}</span>
+        <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{num(l.onSite)}</span>
+        <span className="text-right">
+          {l.toOrder > 0 ? <Word className="text-ink">To order {l.toOrder.toLocaleString('en-US')}</Word> : l.onSite >= l.need ? <Word tone="ok">On site</Word> : <Word>Coming</Word>}
         </span>
       </button>
       {open && (

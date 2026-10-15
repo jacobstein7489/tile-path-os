@@ -1,8 +1,9 @@
 import * as React from 'react'
 import {
   HardHat, Ban, ArrowRight, ClipboardList, AlertTriangle, ArrowLeftRight, Truck, Camera, ListPlus, CheckCircle2, Circle, Clock3, XCircle,
-  Package, Wallet, Users, FileText, MapPin, LayoutGrid, ShieldCheck, Sparkles, Lock, CalendarDays, Plus, Layers3, Receipt, ChevronRight,
+  Package, Wallet, Users, FileText, MapPin, LayoutGrid, ShieldCheck, Sparkles, Lock, CalendarDays, Plus, Layers3, Receipt, ChevronRight, Check,
 } from 'lucide-react'
+import { Section, Word, Who as KitWho, Empty as KitEmpty } from './kit'
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
 import { Card, CardHeader, Button, Pill, Avatar, Count, Empty, NumberBadge, IconCircle, TextInput, Field, Chip } from '@/tileos/components/ui/core'
@@ -473,90 +474,76 @@ export function CloseOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) =
     { t: 'Material returns', ok: true, d: 'Nothing to return' },
     { t: 'Final billing to accounting', ok: !!fin && fin.step >= 0, d: fin && fin.step >= 0 ? (fin.state === 'paid' ? 'Paid' : fin.step === 0 ? 'Ready — accounting has it' : `Invoiced ${fin.ref}`) : 'Created the moment closeout passes' },
   ]
+  const done = checks.filter((c) => c.ok).length
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-6 max-md:gap-4">
-        <Card>
-          <CardHeader
-            title="Punch list"
-            count={left.length}
-            tone={left.length ? 'warn' : 'ok'}
-            action={<Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => s.open({ t: 'punchnew', jobId: job.id })}>Add touch-ups</Button>}
-          />
-          <div className="border-t border-line-2">
-            {adding && (
-              <div className="flex gap-2.5 border-b border-line-2 bg-wash px-6 py-3.5">
-                <TextInput data-autofocus value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="What needs fixing, and where?" autoFocus />
-                <Button variant="primary" disabled={!txt.trim()} onClick={() => { addPunch(job.id, txt.trim(), 'To place'); setTxt(''); setAdding(false) }}>Add</Button>
-                <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
-              </div>
-            )}
-            {items.map((p) => (
-              <div key={p.id} className="flex items-center gap-4 border-b border-line-2 px-6 py-4 last:border-0 max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-2.5 max-sm:px-4">
-                <div className="min-w-0 flex-1 max-sm:basis-full">
-                  <div className={cn('text-[0.90625rem] font-semibold leading-snug', p.status === 'verified' ? 'text-muted line-through decoration-faint' : 'text-ink')}>{p.text}</div>
-                  <div className="mt-0.5 line-clamp-2 text-[0.8125rem] text-muted">
-                    {p.where}
-                    {p.note ? ` · ${p.note}` : ''}
-                  </div>
-                </div>
-                <div className="w-[9.375rem] shrink-0 max-sm:w-auto max-sm:flex-1">
-                  <div className="flex items-center gap-1">
-                    {PUNCH_STEPS.map((st, i) => (
-                      <span key={st} className={cn('h-[0.375rem] flex-1 rounded-full', i <= PUNCH_IDX[p.status] ? (p.status === 'verified' ? 'bg-ok-500' : 'bg-brand-500') : 'bg-[#E3E8EF]')} />
-                    ))}
-                  </div>
-                  <div className="mt-1.5 text-[0.75rem] font-semibold text-ink-2">{PUNCH_STEPS[PUNCH_IDX[p.status]]}</div>
-                </div>
-                <Avatar who={p.owner} size={28} />
-                <div className="w-[7.375rem] text-right max-sm:w-auto">
-                  {p.status === 'verify' && <Button size="xs" variant="success" onClick={() => setPunch(p.id, 'verified')}>Verify</Button>}
-                  {p.status === 'working' && <Button size="xs" onClick={() => setPunch(p.id, 'verify')}>Ready to verify</Button>}
-                  {p.status === 'open' && (hold && /waiting/i.test(p.note || '') ? (
-                    <Tip label="The return is on hold — decide the thinset first">
-                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-warn-50 px-2.5 text-[0.78125rem] font-semibold text-warn-700"><Lock className="h-3.5 w-3.5" />On hold</span>
-                    </Tip>
-                  ) : (
-                    <Button size="xs" onClick={() => setPunch(p.id, 'working')}>Start</Button>
-                  ))}
-                  {p.status === 'verified' && <span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Done</span>}
-                </div>
-              </div>
-            ))}
-            {!items.length && <Empty icon={<CheckCircle2 className="h-6 w-6" />} title="No punch items" className="py-8" />}
+    <>
+      <Section
+        title="Touch-ups"
+        count={left.length || undefined}
+        right={items.length ? `${items.length - left.length} of ${items.length} fixed` : undefined}
+        action={<Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => s.open({ t: 'punchnew', jobId: job.id })}>Add touch-ups</Button>}
+      >
+        {adding && (
+          <div className="flex gap-2.5 border-b border-line-2 bg-wash px-5 py-3">
+            <TextInput data-autofocus value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="What needs fixing, and where?" autoFocus />
+            <Button variant="primary" disabled={!txt.trim()} onClick={() => { addPunch(job.id, txt.trim(), 'To place'); setTxt(''); setAdding(false) }}>Add</Button>
+            <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
           </div>
-        </Card>
-        <Card>
-          <CardHeader
-            title="Closeout checks"
-            count={`${checks.filter((c) => c.ok).length}/${checks.length}`}
-            tone={checks.every((c) => c.ok) ? 'ok' : 'warn'}
-            action={
-              job.stage === 'closeout' ? (
-                <Button size="sm" variant="primary" icon={<Receipt className="h-4 w-4" />} onClick={() => fin && s.open({ t: 'money', id: fin.id })}>Final bill</Button>
-              ) : (
-                <Tip label={left.length ? 'Verify the punch list first' : 'Run the closeout checks'}>
-                  <span className="inline-block">
-                    <Button size="sm" variant="primary" disabled={!!left.length} icon={left.length ? <Lock className="h-4 w-4" /> : undefined}>Review for completion</Button>
-                  </span>
+        )}
+        {items.map((p) => (
+          <div key={p.id} className="grid min-h-[3rem] grid-cols-[minmax(0,1fr)_8rem_7rem_7.5rem] items-center gap-4 border-t border-line-2 px-5 py-2 first:border-t-0 max-md:grid-cols-[minmax(0,1fr)_7.5rem] max-sm:px-4">
+            <span className="min-w-0">
+              <span className={cn('block truncate text-[0.875rem] font-semibold', p.status === 'verified' ? 'text-muted line-through decoration-faint' : 'text-ink')}>{p.text}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{p.where}{p.note ? ` · ${p.note}` : ''}</span>
+            </span>
+            <span className="max-md:hidden"><Word tone={p.status === 'verified' ? 'ok' : undefined}>{PUNCH_STEPS[PUNCH_IDX[p.status]]}</Word></span>
+            <KitWho who={p.owner} className="max-md:hidden" />
+            <span className="text-right">
+              {p.status === 'verify' && <Button size="xs" onClick={() => setPunch(p.id, 'verified')}>Verify</Button>}
+              {p.status === 'working' && <Button size="xs" onClick={() => setPunch(p.id, 'verify')}>Ready to verify</Button>}
+              {p.status === 'open' && (hold && /waiting/i.test(p.note || '') ? (
+                <Tip label="The return is on hold — decide the thinset first">
+                  <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2"><Lock className="h-3.5 w-3.5" />On hold</span>
                 </Tip>
-              )
-            }
-          />
-          <div className="grid grid-cols-3 gap-2 px-6 pb-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:px-4">
-            {checks.map((c) => (
-              <div key={c.t} className={cn('flex items-center gap-3 rounded-xl px-3.5 py-3', c.ok ? 'bg-ok-50/60' : 'bg-wash')}>
-                {c.ok ? <CheckCircle2 className="h-5 w-5 shrink-0 text-ok-500" /> : <Circle className="h-5 w-5 shrink-0 text-[#CDD4DE]" />}
-                <div className="min-w-0">
-                  <div className="truncate text-[0.84375rem] font-semibold text-ink">{c.t}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{c.d}</div>
-                </div>
-              </div>
-            ))}
+              ) : (
+                <Button size="xs" onClick={() => setPunch(p.id, 'working')}>Start</Button>
+              ))}
+              {p.status === 'verified' && <Word tone="ok">Done</Word>}
+            </span>
           </div>
-        </Card>
-      </div>
-    </div>
+        ))}
+        {!items.length && <KitEmpty>No touch-ups. Add them when the GC or the client finds something.</KitEmpty>}
+      </Section>
+      <Section
+        title="Closing out"
+        right={`${done} of ${checks.length} done`}
+        action={
+          job.stage === 'closeout' ? (
+            <Button size="sm" variant="primary" icon={<Receipt className="h-4 w-4" />} onClick={() => fin && s.open({ t: 'money', id: fin.id })}>Final bill</Button>
+          ) : (
+            <Tip label={left.length ? 'Verify the touch-ups first' : 'Run the closeout checks'}>
+              <span className="inline-block">
+                <Button size="sm" variant="primary" disabled={!!left.length} icon={left.length ? <Lock className="h-4 w-4" /> : undefined}>Review for completion</Button>
+              </span>
+            </Tip>
+          )
+        }
+      >
+        <div className="grid grid-cols-2 max-md:grid-cols-1">
+          {checks.map((c) => (
+            <div key={c.t} className="flex min-h-[2.75rem] items-center gap-3 border-t border-line-2 px-5 py-2 odd:border-r md:[&:nth-child(-n+2)]:border-t-0 max-md:odd:border-r-0 max-md:first:border-t-0 max-sm:px-4">
+              {c.ok
+                ? <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>
+                : <span className="h-5 w-5 shrink-0 rounded-full border-[0.09375rem] border-[#cdd2d9]" />}
+              <span className="min-w-0 flex-1">
+                <span className={cn('block truncate text-[0.84375rem] font-semibold', c.ok ? 'text-ink-2' : 'text-ink')}>{c.t}</span>
+                <span className="block truncate text-[0.75rem] text-muted">{c.d}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
   )
 }
 

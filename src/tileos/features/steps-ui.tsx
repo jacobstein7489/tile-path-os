@@ -21,10 +21,10 @@ export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
 export function StepIcon({ state, size = 26 }: { state: StepState; size?: number }) {
   const box = { width: size, height: size }
   const ic = size >= 26 ? 'h-3.5 w-3.5' : size > 16 ? 'h-3 w-3' : 'h-2.5 w-2.5'
-  if (state === 'done') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className={ic} strokeWidth={3.2} /></span>
+  if (state === 'done') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className={ic} strokeWidth={3.2} /></span>
   if (state === 'bad') return <span style={{ ...box, fontSize: Math.round(size * 0.58) }} className="inline-flex shrink-0 items-center justify-center rounded-full bg-bad-500 font-black leading-none text-white">!</span>
-  if (state === 'wait') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-warn-50 text-warn-700 ring-[0.09375rem] ring-inset ring-warn-300"><Clock3 className={ic} strokeWidth={2.4} /></span>
-  if (state === 'now') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-inset ring-brand-600"><span className={cn('rounded-full bg-brand-600', size > 16 ? 'h-2 w-2' : 'h-1.5 w-1.5')} /></span>
+  if (state === 'wait') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white text-[#7a8494] ring-[0.09375rem] ring-inset ring-[#c3c9d2]"><Clock3 className={ic} strokeWidth={2.4} /></span>
+  if (state === 'now') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-inset ring-ink"><span className={cn('rounded-full bg-ink', size > 16 ? 'h-2 w-2' : 'h-1.5 w-1.5')} /></span>
   if (state === 'na') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><Minus className={ic} strokeWidth={2.4} /></span>
   return <span style={box} className="inline-flex shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#c6ccd4] bg-white" />
 }
