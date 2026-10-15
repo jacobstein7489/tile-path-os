@@ -295,9 +295,15 @@ export const ID = { sfx: '' }
 /** new task numbers carry on after the ones already saved */
 export const seedTasks = (n: number) => { if (n >= tid) tid = n + 1 }
 
+/** the real app (sign-in, the company's database) never holds the sample, not even for a moment: everything in it
+ *  comes from the database. Its first page sets this flag before any of the app's code loads. */
+export const REAL_APP = typeof globalThis !== 'undefined' && !!(globalThis as any).__TILEOS_REAL__
+/** what the app holds before anything is opened: the sample in the preview, a clean start in the real app */
+const startData = (): Data => (REAL_APP ? freshData(initialData()) : initialData())
+
 export const useStore = create<Store>()(
   immer((set, get) => ({
-    ...initialData(),
+    ...startData(),
     role: 'owner',
     route: parseHash(),
     modals: [],
@@ -354,7 +360,8 @@ export const useStore = create<Store>()(
     },
     replaceData: (d) => {
       set((s) => {
-        DATA_KEYS.forEach((k) => ((s as any)[k] = (d as any)[k] ?? (k === 'tiles' ? {} : (initialData() as any)[k])))
+        let base: Data | undefined
+        DATA_KEYS.forEach((k) => ((s as any)[k] = (d as any)[k] ?? (k === 'tiles' ? {} : ((base ||= startData()) as any)[k])))
         ensureTiles(s)
         moveLogins(s.team)
         s.tasks = s.tasks.filter((x) => !(x.state === 'later' && x.laterUntil === 'When setup is ready' && /^Review the .+ setup$/.test(x.title)))

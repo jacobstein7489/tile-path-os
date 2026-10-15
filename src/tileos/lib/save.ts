@@ -296,12 +296,15 @@ function restart(d: Data, mode: SaveMode) {
   markAll()
   schedule(200)
 }
-/** no projects, estimates, tasks or clients — the team, logins, items and settings stay */
+/** no projects, estimates, tasks or clients — the team, logins, items and settings stay (the preview only: the real
+ *  app's data is the company's, and the sample never goes near it) */
 export function startFresh() {
+  if (status.where === 'cloud') return
   restart(freshData(pickData(useStore.getState())), 'fresh')
   showPop({ title: 'Clean slate', sub: 'No projects, estimates, tasks or clients. Your team, items and settings stayed. Start with + New → Estimate.' })
 }
 export function bringBackSample() {
+  if (status.where === 'cloud') return
   restart(initialData(), 'sample')
   showPop({ title: 'The sample is back', sub: 'Every sample project, estimate and task, as they were.' })
 }

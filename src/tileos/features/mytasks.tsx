@@ -25,6 +25,7 @@ import { followersOf, toggleFollow, setEveryone } from './taskshare'
 import { stepTodos, type StepView } from './steps'
 import { StepButton } from './steps-ui'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
+import { REAL } from '@/tileos/lib/save'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -456,12 +457,14 @@ function CleanSlate() {
   const steps: { n: number; title: string; sub: string; btn: React.ReactNode }[] = [
     { n: 1, title: 'Start an estimate', sub: 'Pick the rooms — each one brings its surfaces and your prices. It goes straight to the takeoff.', btn: <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New estimate</Button> },
     { n: 2, title: ours ? `Your ${ours} QuickBooks items are in` : 'Bring in your QuickBooks items', sub: ours ? 'Check the units and add what you pay the installer — his PO and weekly pay come from it.' : 'Export Products and Services from QuickBooks and import the file.', btn: <Button onClick={() => s.go({ page: 'items' })}>Open Items</Button> },
-    { n: 3, title: 'Run it to the end', sub: 'Send it, mark it won, get it ready, book the crew, send daily updates, approve pay, bill it. Everything you do is saved.', btn: <Button variant="ghost" onClick={() => s.go({ page: 'settings', tab: 'testdata' } as any)}>See the sample instead</Button> },
+    REAL.cloud
+      ? { n: 3, title: 'Let your team in', sub: 'Everyone signs up with their own email. You let them in from Settings → Team and pick what they do.', btn: <Button onClick={() => s.go({ page: 'settings', tab: 'team' } as any)}>Open Team</Button> }
+      : { n: 3, title: 'Run it to the end', sub: 'Send it, mark it won, get it ready, book the crew, send daily updates, approve pay, bill it. Everything you do is saved.', btn: <Button variant="ghost" onClick={() => s.go({ page: 'settings', tab: 'testdata' } as any)}>See the sample instead</Button> },
   ]
   return (
     <div className={cn('py-8', PX)}>
-      <div className="text-[1.125rem] font-bold text-ink">A clean slate</div>
-      <div className="mt-1 max-w-2xl text-[0.875rem] text-muted">No projects, estimates or tasks yet — this is where your own test starts. Your team, logins and settings are here.</div>
+      <div className="text-[1.125rem] font-bold text-ink">{REAL.cloud ? 'Nothing here yet' : 'A clean slate'}</div>
+      <div className="mt-1 max-w-2xl text-[0.875rem] text-muted">{REAL.cloud ? 'No projects, estimates or tasks yet — the first estimate starts it. Your team, items and settings are in.' : 'No projects, estimates or tasks yet — this is where your own test starts. Your team, logins and settings are here.'}</div>
       <div className="mt-6 grid grid-cols-3 gap-4 max-lg:grid-cols-1">
         {steps.map((x) => (
           <div key={x.n} className="flex flex-col rounded-2xl border border-line p-5">

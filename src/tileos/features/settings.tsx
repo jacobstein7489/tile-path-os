@@ -29,7 +29,8 @@ const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0
 
 export function SettingsPage() {
   const s = useStore()
-  const [tab, setTab] = React.useState<Tab>((s.route.tab as Tab) || 'team')
+  /* the real app has no test data — the company's data is the real thing */
+  const [tab, setTab] = React.useState<Tab>(((s.route.tab === 'testdata' && REAL.cloud ? 'team' : s.route.tab) as Tab) || 'team')
   return (
     <Page
       title="Settings"
@@ -45,7 +46,7 @@ export function SettingsPage() {
       {tab === 'rules' && <RulesTab />}
       {tab === 'numbers' && <NumbersTab />}
       {tab === 'connections' && <ConnectionsTab />}
-      {tab === 'testdata' && <TestDataTab />}
+      {tab === 'testdata' && !REAL.cloud && <TestDataTab />}
     </Page>
   )
 }

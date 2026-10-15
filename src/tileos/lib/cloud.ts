@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs, type Data } from '@/tileos/store'
 import { REAL, redate, seedCounters, setSaveStatus } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
+import { showPop } from '@/tileos/lib/pop'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -196,6 +197,12 @@ export async function flush() {
   const now = pickNow()
   const c = diff(synced, now)
   if (!c.up.length && !c.del.length) return
+  if (c.up.some((r) => r.collection === 'jobs' && SAMPLE.jobs.has(r.id))) {
+    /* the sample got onto the screen somehow — it never goes up; open fresh from the database */
+    setSaveStatus({ saving: false, problem: 'Reloading your data…' })
+    location.reload()
+    return
+  }
   sending = true
   setSaveStatus({ saving: true })
   try {
@@ -240,6 +247,49 @@ function applyInbox() {
   useStore.setState(next as any)
 }
 
+/* ---------------- the sample never lives in the company's data ---------------- */
+/* The preview's sample projects (115 Park, 118 Park…) have fixed ids no real record can have — real ones are made
+ * from the time they were created. If any ever reached the database, they're taken out on the next start, with
+ * everything tied to them; and nothing with a sample project's id is ever sent up. */
+const SAMPLE = (() => {
+  const d = initialData()
+  return { d, jobs: new Set(Object.keys(d.jobs)), clients: new Set(Object.keys(d.clients)), tasks: new Set(d.tasks.map((t) => t.id)) }
+})()
+const KEEP = new Set(['team', 'items', 'suppliers', 'rules', 'access'])
+export function withoutSample(d: Data): { data: Data; jobs: number } | null {
+  const found = Object.keys(d.jobs || {}).filter((id) => SAMPLE.jobs.has(id))
+  if (!found.length) return null
+  const out: any = { ...d }
+  const sampleJob = (j: unknown) => typeof j === 'string' && SAMPLE.jobs.has(j)
+  for (const k of DATA_KEYS) {
+    if (KEEP.has(k)) continue
+    const v: any = (d as any)[k]
+    if (!v) continue
+    if (k === 'jobs' || k === 'clients') {
+      const ids = k === 'jobs' ? SAMPLE.jobs : SAMPLE.clients
+      out[k] = Object.fromEntries(Object.entries(v).filter(([id]) => !ids.has(id)))
+    } else if (k === 'inactive') {
+      out[k] = (v as string[]).filter((x) => !SAMPLE.clients.has(x.replace(/^client:/, '')))
+    } else if (k === 'lost') {
+      const sl = new Set(SAMPLE.d.lost.map((x) => x.name + '|' + x.client))
+      out[k] = (v as any[]).filter((x) => !sl.has(x.name + '|' + x.client))
+    } else if (k === 'pay') {
+      out[k] = v
+    } else if (shapeOf(k) === 'map') {
+      out[k] = Object.fromEntries(Object.entries(v).filter(([id]) => !SAMPLE.jobs.has(id)))
+    } else if (Array.isArray(v)) {
+      const own = new Set(((SAMPLE.d as any)[k] || []).map((e: any) => idOf(k, e)))
+      out[k] = v.filter((e: any) => !(sampleJob(e?.jobId) || (k === 'tasks' && SAMPLE.tasks.has(e?.id)) || (!e?.jobId && own.has(idOf(k, e)) && k !== 'tasks')))
+    }
+  }
+  return { data: out as Data, jobs: found.length }
+}
+
+/* ---------------- a new version of the app arrives (Lovable's editor swaps code in place) ---------------- */
+/* Swapping the code in place would start the app over without the company's data — the screen would show an empty
+ * or made-up copy that saves nowhere. So the page reloads instead, and opens from the database as always. */
+if (import.meta.hot) import.meta.hot.on('vite:beforeUpdate', () => { if (synced) location.reload() })
+
 /* ---------------- starting: load, sign the person in, then keep in step ---------------- */
 export type StartResult = { ok: true; member: Member } | { ok: false; why: CloudProblem; detail?: string }
 export async function startCloud(user: User, opts: { admin: boolean; name: string; appRoles: string[] }): Promise<StartResult> {
@@ -249,7 +299,9 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   /* the database as it is (what's "saved"), and the data to work with (with the clean start filling any gaps) */
   const fixed = rows.map(fresh)
   const db = assemble(fixed, undefined)
-  const data = assemble(fixed, base)
+  let data = assemble(fixed, base)
+  const cleaned = withoutSample(data)
+  if (cleaned) data = cleaned.data
   ensureTiles(data as any)
   seedCounters(JSON.stringify(data))
   ID.sfx = '.' + CLIENT.slice(0, 4)
@@ -262,6 +314,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.people = opts.admin ? { waiting: waitingPeople, letIn } : undefined
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: undefined })
   const member = linkMember(user, opts)
+  if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
   /* whatever the clean start filled in (the first time: everything) goes up right away */
   schedule(30)
   unsub?.()
