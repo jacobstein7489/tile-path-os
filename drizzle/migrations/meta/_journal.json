@@ -22,6 +22,13 @@
       "when": 1792026177633,
       "tag": "0002_tileos_records",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792085632481,
+      "tag": "0003_tileos_files_policies",
+      "breakpoints": true
     }
   ]
 }
