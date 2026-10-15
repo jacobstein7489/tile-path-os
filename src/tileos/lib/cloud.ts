@@ -310,12 +310,12 @@ export type Waiting = { uid: string; name: string; email: string; since: string 
 /** people who signed up and aren't let in yet */
 export async function waitingPeople(): Promise<Waiting[]> {
   const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
-    sb.from('profiles').select('user_id,full_name,email,created_at').order('created_at', { ascending: false }),
+    sb.from('profiles').select('user_id,full_name,email,created_at,is_active').order('created_at', { ascending: false }),
     sb.from('user_roles').select('user_id'),
   ])
   if (e1 || e2) throw e1 || e2
   const has = new Set((roles || []).map((r: any) => r.user_id))
-  return (profiles || []).filter((p: any) => !has.has(p.user_id)).map((p: any) => ({ uid: p.user_id, name: p.full_name || p.email || 'New person', email: p.email || '', since: p.created_at }))
+  return (profiles || []).filter((p: any) => !has.has(p.user_id) && p.is_active !== false).map((p: any) => ({ uid: p.user_id, name: p.full_name || p.email || 'New person', email: p.email || '', since: p.created_at }))
 }
 /** let someone in as a team member with a role (a new team member, or one already on the list) */
 export async function letIn(p: Waiting, role: Role, memberKey?: string) {
