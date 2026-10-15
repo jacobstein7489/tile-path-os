@@ -5,7 +5,7 @@
  *
  * And the project's game plan — the same list, grouped, one line per step, in plain words. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight, Lock } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -20,7 +20,7 @@ import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jo
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, setCompanyStepOwner, companySteps, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, setCompanyStepOwner, companySteps, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView } from './steps'
 import { insidePeople, AddStep, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
@@ -423,26 +423,27 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const flat = flatOf(s, job.id)
   const tiled = flat.filter((f) => takesTile(f.x.name))
   const missing = tiled.filter((f) => !f.x.tile)
+  const lock = scopeLock(s, job.id)
   const loose = tiles.filter((t) => !flat.some((f) => f.x.tile === t.tag))
   const totalSF = rooms.reduce((n, r) => n + r.surfaces.reduce((m, x) => m + (x.sf || 0), 0), 0)
   const shownRooms = allRooms ? rooms : rooms.slice(0, 3)
   return (
     <div className="flex flex-col gap-4">
-      <PaperRead job={job} />
-      <Block title="Tile on the paperwork" right={<Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button>}>
+      {lock.canEdit ? <PaperRead job={job} /> : <div className="flex items-center gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked — it’s {PEOPLE[lock.owner]?.short}’s scope. Only {PEOPLE[lock.owner]?.short} can change it.</div>}
+      <Block title="Tile on the paperwork" right={lock.canEdit ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
         {!tiles.length && <Quiet>Upload the paperwork above — or add each tile by hand: its tag, its name, where it goes.</Quiet>}
-        {tiles.map((t) => <TileWhere key={t.tag} job={job} t={t} loose={loose.includes(t)} />)}
+        {tiles.map((t) => <TileWhere key={t.tag} job={job} t={t} loose={loose.includes(t)} locked={!lock.canEdit} />)}
       </Block>
       {missing.length > 0 && (
         <Block title={<span className="text-warn-800">Not matched yet — no tile</span>} right={`${missing.length} of ${tiled.length}`}>
           {missing.map((f) => (
             <div key={f.room + '|' + f.x.name} className="flex items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0">
               <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink"><b className="font-semibold">{f.room}</b> · {f.x.name}{f.x.sf ? <span className="text-muted"> · {f.x.sf} SF</span> : null}</span>
-              <Menu align="end" width={280} trigger={<Button size="sm">Pick a tile<ChevronDown className="h-3.5 w-3.5" /></Button>}>
+              {lock.canEdit && <Menu align="end" width={280} trigger={<Button size="sm">Pick a tile<ChevronDown className="h-3.5 w-3.5" /></Button>}>
                 <MenuLabel>{f.room} · {f.x.name}</MenuLabel>
                 {tiles.map((t) => <MenuItem key={t.tag} icon={<TileImg tile={t} size={20} radius={4} />} onSelect={() => setSurfaceTile(job.id, f.room, f.x.name, t.tag)}>{t.tag} {t.name}</MenuItem>)}
                 <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'tile', jobId: job.id, room: f.room, surface: f.x.name })}>A new tile…</MenuItem>
-              </Menu>
+              </Menu>}
             </div>
           ))}
         </Block>
@@ -471,7 +472,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   )
 }
 /** one tile from the paperwork: what it is and which walls and floors it goes on */
-function TileWhere({ job, t, loose }: { job: Job; t: Tile; loose?: boolean }) {
+function TileWhere({ job, t, loose, locked }: { job: Job; t: Tile; loose?: boolean; locked?: boolean }) {
   const s = useStore()
   const flat = flatOf(s, job.id)
   const opts = flat.filter((f) => takesTile(f.x.name) || f.x.tile === t.tag).map((f) => ({ key: refKey({ room: f.room, surface: f.x.name }), label: `${f.room} · ${f.x.name}`, hint: f.x.tile && f.x.tile !== t.tag ? `Has ${f.x.tile} now` : f.x.sf ? `${f.x.sf} SF` : undefined }))
@@ -481,7 +482,7 @@ function TileWhere({ job, t, loose }: { job: Job; t: Tile; loose?: boolean }) {
       <TileImg tile={t} size={40} radius={8} />
       <div className="min-w-0 flex-1">
         <button onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{t.tag} {t.name}{t.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}{t.paper ? <span className="font-normal text-muted"> · {t.paper.qty.toLocaleString('en-US')} {unitWord(t.paper.unit, t.paper.qty)} on the paperwork</span> : null}</button>
-        <MultiSelect values={vals} options={opts} label={`Where ${t.tag} goes`} placeholder="Where does it go?" width={360} className={cn('mt-1 min-h-8 py-1 text-[0.8125rem]', loose && 'border-warn-300 bg-warn-50/50')} onChange={(keys) => setTileOn(job.id, t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))} summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))} />
+        {locked ? <div className="mt-0.5 truncate text-[0.8125rem] text-muted">{vals.length ? opts.filter((o) => vals.includes(o.key)).map((o) => o.label).join(', ') : 'Not on a wall or floor'}</div> : <MultiSelect values={vals} options={opts} label={`Where ${t.tag} goes`} placeholder="Where does it go?" width={360} className={cn('mt-1 min-h-8 py-1 text-[0.8125rem]', loose && 'border-warn-300 bg-warn-50/50')} onChange={(keys) => setTileOn(job.id, t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))} summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))} />}
       </div>
       {loose && <Status tone="warn">Not on a wall or floor</Status>}
     </div>

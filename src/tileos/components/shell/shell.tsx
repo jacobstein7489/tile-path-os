@@ -101,7 +101,7 @@ export function Sidebar() {
         aria-current={on ? 'page' : undefined}
         className={cn(
           'group flex h-8 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.84375rem] transition-colors',
-          on ? 'bg-white font-semibold text-ink shadow-[0_0.0625rem_0.125rem_rgba(20,26,36,.06),0_0_0_0.0625rem_rgba(20,26,36,.07)]' : 'font-medium text-ink-2 hover:bg-[rgba(20,26,36,.045)] hover:text-ink',
+          on ? 'bg-brand-50 font-semibold text-brand-800' : 'font-medium text-ink-2 hover:bg-wash hover:text-ink',
         )}
       >
         <Icon className={cn('h-4 w-4 shrink-0', on ? 'text-brand-600' : 'text-[#7b8492] group-hover:text-ink-2')} strokeWidth={1.9} />
@@ -112,7 +112,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col bg-side max-lg:hidden">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col border-r border-line bg-white shadow-[0.0625rem_0_0.25rem_rgba(20,26,36,.03)] max-lg:hidden">
       <button onClick={() => go(homeOf(role))} className="flex shrink-0 items-center gap-2.5 px-4 pb-3.5 pt-4 text-left">
         <Logo size={28} />
         <span className="min-w-0 leading-[1.1]">
@@ -135,8 +135,8 @@ export function Sidebar() {
           const keys = g.keys.filter((k) => keysFor.includes(k))
           if (!keys.length) return null
           return (
-            <div key={g.label || 'top'} className={cn(g.label && 'mt-3 [@media(max-height:47.5rem)]:mt-2')}>
-              {g.label && <div className="px-2.5 pb-1 text-[0.75rem] font-semibold text-faint">{g.label}</div>}
+            <div key={g.label || 'top'} className={cn(g.label && 'mt-2.5 border-t border-line-2 pt-2.5 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')}>
+              {g.label && <div className="px-2.5 pb-1 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-faint">{g.label}</div>}
               <div className="flex flex-col gap-[0.125rem]">
                 {keys.map((k) => <Item key={k} k={k as Page} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
               </div>
@@ -144,7 +144,7 @@ export function Sidebar() {
           )
         })}
       </nav>
-      <div className="shrink-0 px-3 pb-3 pt-1 [@media(max-height:47.5rem)]:hidden">
+      <div className="shrink-0 border-t border-line-2 px-3 pb-3 pt-3 [@media(max-height:47.5rem)]:hidden">
         <button onClick={() => go({ page: 'flow' })} className="group flex w-full items-center gap-2.5 rounded-[0.6875rem] border border-line bg-white p-2 text-left transition hover:border-[#cbd1d9]">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] bg-brand-50 text-brand-600"><Workflow className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">

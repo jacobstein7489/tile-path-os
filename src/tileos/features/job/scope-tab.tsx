@@ -3,8 +3,8 @@
  *   then every wall and floor, by room (or by tile): tile · grout · layout · what goes under it · edge or metal · SF · status
  * Tap a wall or floor to change it (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
-import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight } from 'lucide-react'
-import { useStore, type Store } from '@/tileos/store'
+import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock } from 'lucide-react'
+import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea } from '@/tileos/components/ui/core'
 import { Modal, Pop, Tip } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
@@ -12,12 +12,13 @@ import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
-import type { Job, Tone } from '@/tileos/data/model'
+import { PEOPLE, type Job, type Tone } from '@/tileos/data/model'
 import { GROUTS, JOINTS, SURF_TONE, surfacePct, roomPct, tilesOf, tileOf, floorsOf, type Room, type Surface, type Tile } from '@/tileos/data/jobs'
 import { needWithWaste } from '@/tileos/data/work'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { methodOf, suggestMethod, methodsFor, kindOf } from '../takeoff'
 import { settingStatus } from '../setting'
+import { scopeLock, takesTile } from '../steps'
 import { surfaceFix } from './overview'
 import { LayoutArt } from './rooms'
 import {
@@ -63,6 +64,7 @@ export function ScopeTab({ job }: { job: Job }) {
     )
   return (
     <div className="flex flex-col gap-5">
+      <ScopeLockBar job={job} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
         <Segmented value={view} onChange={setView} items={[{ key: 'room', label: 'By room' }, { key: 'tile', label: 'By tile' }]} />
         <span className="text-[0.84375rem] text-muted">
@@ -81,12 +83,51 @@ export function ScopeTab({ job }: { job: Job }) {
       )}
       {view === 'room' ? (
         <>
-          <TileBoard job={job} />
+          <TileStrip job={job} />
           <ByRoom job={job} />
         </>
       ) : (
         <ByTile job={job} />
       )}
+    </div>
+  )
+}
+
+/* ---------------- whose scope it is, and whether you can change it ---------------- */
+export function ScopeLockBar({ job }: { job: Job }) {
+  const s = useStore()
+  const lock = scopeLock(s, job.id)
+  const me = meOf(s.role)
+  const who = PEOPLE[lock.owner]?.short || 'its owner'
+  if (!lock.done) return <div className="flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Unlock className="h-4 w-4 shrink-0 text-faint" /><span>The scope is <b className="font-semibold text-ink">{lock.owner === me ? 'yours' : `${who}’s`}</b> — it locks when the tile paperwork is entered. Until then it can be filled in.</span></div>
+  return (
+    <div className={cn('flex items-center gap-2.5 rounded-[0.75rem] px-4 py-2.5 text-[0.84375rem]', lock.canEdit ? 'bg-brand-50/70 text-brand-800' : 'bg-wash text-ink-2')}>
+      <Lock className="h-4 w-4 shrink-0" />
+      <span>{lock.canEdit ? <>Locked — it’s <b className="font-semibold">your</b> scope, so only you can change it.</> : <>Locked — it’s <b className="font-semibold text-ink">{who}’s</b> scope. Only {who} changes it.</>}</span>
+    </div>
+  )
+}
+/** the tiles on the project, one small chip each — tap one for the tile */
+function TileStrip({ job }: { job: Job }) {
+  const s = useStore()
+  const tiles = tilesOf(job.id)
+  const open = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => takesTile(x.name) && !x.tile).length
+  const lock = scopeLock(s, job.id)
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-[0.8125rem] font-semibold text-ink">Tiles<span className="ml-1 text-faint">{tiles.length}</span></span>
+      {tiles.map((t) => {
+        const st = tileStatus(s, job.id, t.tag)
+        return (
+          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="inline-flex h-9 max-w-full items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 text-left text-[0.8125rem] transition hover:border-[#cbd1d9]">
+            <TileImg tile={t} size={26} radius={13} />
+            <span className="truncate"><b className="font-semibold tnum text-ink">{t.tag}</b> <span className="text-ink-2">{t.name}</span></span>
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', st.tone === 'ok' ? 'bg-ok-500' : st.tone === 'bad' ? 'bg-bad-500' : st.tone === 'warn' ? 'bg-warn-500' : st.tone === 'info' ? 'bg-brand-500' : 'bg-[#c6ccd4]')} title={st.label} />
+          </button>
+        )
+      })}
+      {lock.canEdit && <button onClick={() => s.open({ t: 'tile', jobId: job.id })} className="inline-flex h-9 items-center gap-1 rounded-full border border-dashed border-[#cfd4db] px-3 text-[0.8125rem] font-semibold text-muted hover:border-brand-300 hover:text-brand-700"><Plus className="h-3.5 w-3.5" />Add a tile</button>}
+      {open > 0 && <span className="text-[0.8125rem] font-medium text-warn-700">{open} wall{open === 1 ? '' : 's'} or floor{open === 1 ? '' : 's'} without a tile</span>}
     </div>
   )
 }
@@ -135,7 +176,7 @@ function TileCard({ job, t }: { job: Job; t: Tile }) {
 }
 
 /* ---------------- every wall and floor, room by room ---------------- */
-const COLS = 'grid grid-cols-[minmax(9.375rem,1fr)_13.125rem_9.375rem_10.625rem_9.375rem_11.25rem_3.5rem_7.75rem] items-center gap-4 max-2xl:grid-cols-[minmax(8.75rem,1fr)_10.625rem_9.375rem_10.625rem_7.75rem_9.375rem_3rem_7rem] max-xl:grid-cols-[minmax(9.375rem,1fr)_11.25rem_8.125rem_9.375rem_3.25rem_7.375rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(8.75rem,11.875rem)_3.25rem_7rem]'
+const COLS = 'grid grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,1.3fr)_minmax(10rem,1fr)_3.75rem_8.5rem] items-center gap-4 max-lg:grid-cols-[minmax(0,1fr)_minmax(9rem,12rem)_3.5rem_7.5rem]'
 function ByRoom({ job }: { job: Job }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
@@ -144,13 +185,10 @@ function ByRoom({ job }: { job: Job }) {
     <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <div className={cn(COLS, 'border-b border-line bg-wash px-5 py-2 text-[0.75rem] font-semibold text-muted max-md:hidden')}>
         <span>Wall or floor</span>
-        <span>Tile</span>
-        <span className="max-lg:hidden">Grout</span>
-        <span className="max-lg:hidden">Layout</span>
-        <span className="max-xl:hidden">Under it</span>
-        <span className="max-xl:hidden">Edge or metal</span>
+        <span>Tile and grout</span>
+        <span className="max-lg:hidden">How it’s set</span>
         <span className="text-right">SF</span>
-        <span>{inField ? 'Progress' : 'Status'}</span>
+        <span>Where it’s at</span>
       </div>
       {floorsOf(rooms).map((g) => (
         <div key={g.floor}>
@@ -189,12 +227,9 @@ function SurfaceRow({ job, room, x, inField }: { job: Job; room: Room; x: Surfac
         )}
       </span>
       <span className="flex min-w-0 items-center gap-2 max-md:hidden">
-        {t ? <><TileImg tile={t} size={26} radius={6} /><span className="min-w-0 truncate text-[0.84375rem]"><span className="font-semibold tnum text-ink">{t.tag}</span> <span className="text-ink-2">{t.name}</span></span></> : <span className="inline-flex h-7 items-center rounded-full border border-dashed border-warn-300 bg-warn-50 px-2.5 text-[0.78125rem] font-semibold text-warn-700">Pick the tile</span>}
+        {t ? <><TileImg tile={t} size={30} radius={6} /><span className="min-w-0 leading-tight"><span className="block truncate text-[0.84375rem]"><span className="font-semibold tnum text-ink">{t.tag}</span> <span className="text-ink-2">{t.name}</span></span><span className="flex min-w-0 items-center gap-1 text-[0.75rem] text-muted">{x.grout ? <><GroutDot grout={x.grout} size={10} /><span className="truncate">{GROUTS[x.grout]?.name}{x.joint ? ` · ${x.joint}` : ''}</span></> : <span className="text-faint">No grout yet</span>}</span></span></> : takesTile(x.name) ? <span className="inline-flex h-7 items-center rounded-full border border-dashed border-warn-300 bg-warn-50 px-2.5 text-[0.78125rem] font-semibold text-warn-700">No tile yet</span> : <span className="text-[0.8125rem] text-faint">—</span>}
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2 max-lg:hidden">{x.grout ? <><GroutDot grout={x.grout} size={13} /><span className="truncate">{GROUTS[x.grout]?.name}{x.joint ? <span className="text-muted"> · {x.joint}</span> : null}</span></> : <span className="text-faint">—</span>}</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2 max-lg:hidden">{x.dims && <Ruler className="h-3.5 w-3.5 shrink-0 text-brand-500" />}<span className={cn('truncate', !lay.pattern && 'text-faint')}>{lay.pattern || '—'}</span></span>
-      <span className="min-w-0 truncate text-[0.8125rem] max-xl:hidden">{m.auto ? <span className="inline-flex max-w-full items-center gap-1 text-muted"><Sparkles className="h-3.5 w-3.5 shrink-0 text-warn-500" /><span className="truncate">{METHODS[m.key].short}</span></span> : <span className="text-ink-2">{METHODS[m.key].short}</span>}</span>
-      <span className={cn('min-w-0 truncate text-[0.8125rem] max-xl:hidden', x.edge ? 'text-ink-2' : 'text-faint')}>{x.edge ? shortEdge(x.edge) : '—'}</span>
+      <span className="min-w-0 truncate text-[0.8125rem] text-ink-2 max-lg:hidden">{[lay.pattern, METHODS[m.key]?.short, x.edge ? shortEdge(x.edge) : ''].filter(Boolean).join(' · ') || <span className="text-faint">—</span>}{m.auto && <Sparkles className="ml-1 inline h-3 w-3 text-warn-500" />}</span>
       <span className={cn('text-right text-[0.84375rem] font-semibold tnum max-md:hidden', x.sf ? 'text-ink-2' : 'text-warn-700')}>{x.sf || 'Add'}</span>
       <span className="min-w-0 max-md:shrink-0">
         {inField && x.state === 'working' ? (
@@ -338,6 +373,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
       tile, grout, joint, layout: touched ? layout || undefined : x.layout, method: method || x.method || undefined, edge, height: kind === 'wall' ? height : x.height, sf: Math.round(Number(sf.replace(/[^0-9.]/g, ''))) || undefined, notes,
     })
   const tiles = tilesOf(jobId)
+  const lock = scopeLock(s, jobId)
   return (
     <Modal
       level={level}
@@ -350,11 +386,16 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           {x.state !== 'done' && (
             <button onClick={() => s.swap({ t: 'sitechange', jobId, room, surface })} className="inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-muted hover:text-ink max-sm:hidden"><ArrowLeftRight className="h-4 w-4" />Client wants a change</button>
           )}
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" onClick={save}>Save</Button>
+          {lock.canEdit ? (
+            <>
+              <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+              <Button variant="primary" onClick={save}>Save</Button>
+            </>
+          ) : <Button className="ml-auto" onClick={s.close}>Close</Button>}
         </>
       }
     >
+      {!lock.canEdit && <div className="mb-4 flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked — it’s {PEOPLE[lock.owner]?.short || 'its owner'}’s scope. Only {PEOPLE[lock.owner]?.short || 'they'} can change it.</div>}
       {(x.reason || x.pending) && ['blocked', 'hold', 'waitmat', 'unknown'].includes(x.state) && (
         <div className={cn('mb-4 flex items-center gap-3 rounded-[0.75rem] border px-4 py-3 max-sm:flex-wrap', tone === 'bad' ? 'border-bad-100 bg-bad-50' : 'border-warn-100 bg-warn-50')}>
           {x.state === 'blocked' ? <Ban className="h-5 w-5 shrink-0 text-bad-500" /> : x.state === 'hold' ? <PauseCircle className="h-5 w-5 shrink-0 text-warn-600" /> : x.state === 'unknown' ? <AlertTriangle className="h-5 w-5 shrink-0 text-warn-600" /> : <Clock3 className="h-5 w-5 shrink-0 text-warn-600" />}
@@ -372,6 +413,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           <span className="text-[0.8125rem] font-semibold tnum text-ink">{surfacePct(x)}% · {Math.round(((x.sf || 0) * surfacePct(x)) / 100)} of {x.sf} SF</span>
         </div>
       ) : null}
+      <fieldset disabled={!lock.canEdit} className="m-0 min-w-0 border-0 p-0">
       <Row label="Tile">
         <SearchSelect
           label="Tile"
@@ -449,6 +491,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
       <Row label="Note">
         <TextArea aria-label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the crew should know — e.g. niche centered on the wall, 12 × 24" className="min-h-[4rem]" />
       </Row>
+      </fieldset>
     </Modal>
   )
 }

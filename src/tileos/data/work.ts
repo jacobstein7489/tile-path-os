@@ -28,6 +28,8 @@ export interface Task {
   result?: string
   /** people who see it on their Following list and get told when it moves — the owner still does it */
   followers?: PersonKey[]
+  /** someone reminded the owner it's late (the admin's "Remind") — it pops up on the owner's screen */
+  nudge?: { by: PersonKey; at: string; day: string }
   /** shows at the top of everyone's Today until it's done */
   everyone?: boolean
   /** the checklist step this task is ("jobId:step"), or "*:step" for one task that covers that step everywhere */

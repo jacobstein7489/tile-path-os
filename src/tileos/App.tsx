@@ -48,6 +48,8 @@ import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
 import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
 import { WhoWhatModal, WhoWatcher } from '@/tileos/features/whowhat'
+import { LateModal, LateWatcher } from '@/tileos/features/late'
+import { EditProjectModal } from '@/tileos/features/job/plan'
 import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
@@ -108,7 +110,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'short': return <ShortageModal id={m.id} level={level} />
     case 'chat': return <MessagesModal jobId={m.jobId} level={level} />
     case 'readytobook': return <ReadyToBookModal level={level} />
-    case 'newclient': return <NewClientModal level={level} />
+    case 'newclient': return <NewClientModal level={level} id={m.id} />
     case 'payweek': return <PayWeekModal level={level} />
     case 'progress': return <ProgressModal jobId={m.jobId} week={m.week} level={level} />
     case 'incoming': return <IncomingModal keys={m.keys} level={level} />
@@ -147,6 +149,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'verify': return <VerifyModal taskId={m.taskId} level={level} />
     case 'roles': return <RolesModal level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
+    case 'late': return <LateModal level={level} />
+    case 'editproject': return <EditProjectModal id={m.id} level={level} />
     case 'addperson': return <AddPersonModal level={level} />
     case 'buildrooms': return <BuildRoomsModal jobId={m.jobId} level={level} />
     default: return null
@@ -231,6 +235,7 @@ export default function App() {
           <BottomNav />
           <IncomingWatcher />
           <WhoWatcher />
+          <LateWatcher />
         </div>
       )}
       <ModalHost />

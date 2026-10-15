@@ -1,8 +1,11 @@
 /* Fixing what we're tiling, right where you see it: a room's square feet, one more wall or floor, one more room.
- * The materials, the installer's PO and the bills all follow the square feet. */
+ * The materials, the installer's PO and the bills all follow the square feet. Once the scope is locked, only the
+ * person it belongs to sees these as buttons — everyone else just reads it. */
 import * as React from 'react'
 import { Plus, Check } from 'lucide-react'
 import { Button, TextInput } from '@/tileos/components/ui/core'
+import { useStore } from '@/tileos/store'
+import { scopeLock } from './steps'
 import { Pop } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import type { Surface } from '@/tileos/data/jobs'
@@ -15,8 +18,10 @@ export const SURFACE_NAMES = ['Floor', 'Walls', 'Shower walls', 'Shower floor', 
 export function SFChip({ jobId, room, x }: { jobId: string; room: string; x: Surface }) {
   const [open, setOpen] = React.useState(false)
   const [v, setV] = React.useState(x.sf ? String(x.sf) : '')
+  const canEdit = useStore((s) => scopeLock(s, jobId).canEdit)
   React.useEffect(() => { if (open) setV(x.sf ? String(x.sf) : '') }, [open, x.sf])
   const save = () => { const n = Math.round(Number(v)); if (n > 0 && n !== x.sf) setSurfaceSF(jobId, room, x.name, n); setOpen(false) }
+  if (!canEdit) return <span className="inline-flex h-7 items-center gap-1 rounded-full border border-line-2 bg-wash px-2.5 text-[0.78125rem] font-medium text-ink-2">{x.name.toLowerCase()}<span className="tnum font-semibold">{x.sf ? x.sf.toLocaleString('en-US') : '—'}</span></span>
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={240} trigger={
       <button className={cn('inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[0.78125rem] font-medium transition', x.sf ? 'border-line bg-white text-ink-2 hover:border-brand-200 hover:text-brand-700' : 'border-dashed border-warn-300 bg-warn-50/50 text-warn-800 hover:border-warn-400')} aria-label={`${room} ${x.name} square feet`}>
@@ -39,7 +44,9 @@ export function AddSurfaceButton({ jobId, room, have, className }: { jobId: stri
   const [name, setName] = React.useState('')
   const [sf, setSf] = React.useState('')
   const left = SURFACE_NAMES.filter((n) => !have.some((h) => h.toLowerCase() === n.toLowerCase()))
+  const canEdit = useStore((s) => scopeLock(s, jobId).canEdit)
   const save = () => { if (!name.trim()) return; addSurface(jobId, room, name, Math.round(Number(sf)) || undefined); setName(''); setSf(''); setOpen(false) }
+  if (!canEdit) return null
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={320} trigger={
       <button className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed border-[#cbd2db] px-2.5 text-[0.78125rem] font-semibold text-muted transition hover:border-brand-300 hover:text-brand-700', className)} aria-label={`Add a wall or floor to ${room}`}><Plus className="h-3.5 w-3.5" />Add</button>
@@ -63,7 +70,9 @@ export function AddRoomButton({ jobId, have, label = 'Add a room', className }: 
   const [name, setName] = React.useState('')
   const [picked, setPicked] = React.useState<string[]>(['Floor', 'Walls'])
   const clash = have.some((h) => h.toLowerCase() === name.trim().toLowerCase())
+  const canEdit = useStore((s) => scopeLock(s, jobId).canEdit)
   const save = () => { if (!name.trim() || clash) return; addRoom(jobId, name, picked); setName(''); setPicked(['Floor', 'Walls']); setOpen(false) }
+  if (!canEdit) return null
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={340} trigger={<Button size="xs" icon={<Plus />} className={className}>{label}</Button>}>
       <div className="text-[0.84375rem] font-semibold text-ink">A room that isn’t on the list</div>

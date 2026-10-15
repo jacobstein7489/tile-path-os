@@ -21,6 +21,7 @@ import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
+import { insidePeople } from './steps-ui'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
 
@@ -122,7 +123,7 @@ export function EstimatesPage() {
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
-            <Filter icon={<UserRound />} label="Who has it" value={who} options={EST_PEOPLE.map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))} onChange={setWho} />
+            <Filter icon={<UserRound />} label="Who has it" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
             <ClearFilters show={client !== 'all' || who !== 'all' || !!q} onClear={() => { setClient('all'); setWho('all'); setQ('') }} />
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search estimates" />
           </div>
@@ -334,7 +335,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           <span className="text-[0.84375rem] text-muted max-sm:hidden">Takeoff by</span>
           <Menu align="start" width={260} trigger={<Button icon={<Avatar who={takeoffBy} size={18} />}>{PEOPLE[takeoffBy].name}</Button>}>
             <MenuLabel>Who does the takeoff?</MenuLabel>
-            {(['takeoff', 'estimator', 'ys'] as PersonKey[]).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={takeoffBy === p} hint={PEOPLE[p].roleLabel} onSelect={() => setTakeoffBy(p)}>{PEOPLE[p].name}</MenuItem>)}
+            {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={takeoffBy === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setTakeoffBy(p)}>{PEOPLE[p]?.name}</MenuItem>)}
           </Menu>
           {ai && <Button className="ml-auto" icon={<Sparkles />} onClick={() => s.open({ t: 'aiplans', estId: e.id })}>Draft it from the plans</Button>}
           <Button className={cn(!ai && 'ml-auto')} variant="primary" icon={<ArrowRight />} onClick={() => estStartTakeoff(e.id, takeoffBy)}>Start the takeoff</Button>

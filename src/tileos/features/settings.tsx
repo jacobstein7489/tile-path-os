@@ -1,6 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X } from 'lucide-react'
+import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, Field, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -54,34 +54,18 @@ export function SettingsPage() {
 /* ================= the team ================= */
 function TeamTab() {
   const s = useStore()
-  const onToday = (c: string) => s.bookings.find((b) => b.crew === c && b.start <= TODAY && b.end >= TODAY)
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
+    <div className="flex max-w-[56rem] flex-col gap-4">
       {REAL.people && REAL.admin && <WaitingToJoin />}
       <Card pad={false}>
-        <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The office" sub="Everyone signs in with their own email and sees only their part." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
+        <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The team" sub="Everyone in the office and the field signs in with their own email and sees only their part." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
         <div className="border-t border-line-2">
-          {s.team.map((m) => <MemberRow key={m.key} k={m.key} />)}
+          {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
       </Card>
-      <Card pad={false}>
-        <CardHeader icon={<IconCircle tone="info" size={34}><HardHat className="h-4 w-4" /></IconCircle>} title="Crews" sub="Each foreman signs in on his phone and sees only his job." />
-        <div className="flex flex-col border-t border-line-2">
-          {CREWS.map((c) => {
-            const b = onToday(c)
-            return (
-              <div key={c} className="flex items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-0">
-                <Avatar who={c} size={32} />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[c].name}</span>
-                  <span className="block truncate text-[0.78125rem] text-muted">{b ? s.jobs[b.jobId]?.name : 'Free this week'}</span>
-                </span>
-                <span className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-ok-700"><Smartphone className="h-3.5 w-3.5" />Phone</span>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#cfd4db] hover:text-ink">
+        <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page — <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+      </button>
     </div>
   )
 }

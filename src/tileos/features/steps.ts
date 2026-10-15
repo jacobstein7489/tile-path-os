@@ -33,6 +33,10 @@ export interface StepRec {
   wait?: { on: string; back: string; at: string }
   /** what changed from the estimate, found at the meeting or on the site walk */
   changes?: { what: string; where?: string; note?: string }[]
+  /** it was late and its owner moved it to this day ("Tomorrow" on the late list) */
+  moved?: string
+  /** someone reminded the owner it's late — it pops up on the owner's screen */
+  nudge?: { by: PersonKey; at: string; day: string }
 }
 /* what the site manager looks at on the site check */
 export const SITE_CHECKS: { k: string; label: string; sub: string }[] = [
@@ -134,6 +138,20 @@ function saveSteps(st: Store, list: StepDef[]) {
 /** the company's people on every step at once (the Who does what window) — inside a commit */
 export function setCompanyOwners(st: Store, owners: Record<string, PersonKey | 'matBy'>) {
   saveSteps(st, companySteps(st).map((d) => (owners[d.key] ? { ...d, owner: owners[d.key] } : d)))
+}
+/** the scope — rooms, square feet, which tile goes where — belongs to whoever enters the tile paperwork. Until that's
+ *  done anyone can fill it in; once it's done it's locked: only its owner changes it (the admin can hand it to someone
+ *  else, from Who does what or the step). */
+export function scopeLock(s: Store, jobId: string): { owner: PersonKey; done: boolean; canEdit: boolean } {
+  const j = s.jobs[jobId]
+  const def = companySteps(s).find((d) => d.key === 'rooms')
+  const rec = s.stepRecs[jobId]?.rooms
+  const owner = (rec?.owner || (def ? (def.owner === 'matBy' ? matBy(s) : def.owner) : 'takeoff')) as PersonKey
+  const me = meOf(s.role)
+  if (!j || ['request', 'estimating', 'proposal', 'followup'].includes(j.stage)) return { owner, done: false, canEdit: true }
+  const tiled = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
+  const done = !!rec?.done || !['awarded', 'setup'].includes(j.stage) || (tiled.length > 0 && tiled.every((x) => x.tile))
+  return { owner, done, canEdit: !done || me === owner }
 }
 /** a wall or floor that gets tile — not the underlayment, waterproofing, metals or drains under and around it */
 export const takesTile = (name: string) => !/underlay|waterproof|membrane|metal|schluter|trim|drain|skim|mud bed|self.?level|prep|saddle|threshold/i.test(name)
@@ -352,6 +370,8 @@ export function stepsFor(s: Store, j: Job): StepView[] {
         ? { ...raw, state: 'wait', due: back, note: `Waiting on ${rec.wait.on} — back ${labelFromIso(back)}` }
         : { ...raw, state: 'now', due: back, note: `Asked ${rec.wait.on} ${rec.wait.at} — did it come through?` }
     }
+    /* late, and its owner moved it to a later day: due that day */
+    if (rec.moved && (raw.state === 'now' || raw.state === 'bad') && (raw.due || rec.due || '') < rec.moved) raw = { ...raw, due: rec.moved }
     const owner = (task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,

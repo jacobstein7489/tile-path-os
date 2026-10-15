@@ -23,11 +23,38 @@ const byName = (s: Store, re: RegExp) => s.team.find((m) => m.status !== 'off' &
  *  reviews the estimates and gets the paperwork from the store; the owner does the final review and sends it, picks the
  *  installer and gets his yes; the site manager checks the site, decides the setup, orders our materials and takes the
  *  deliveries. Only people who are on the team are used — anyone not there keeps what it was. */
+/** 3 = the steps nobody had said (Oct 15, "you decide"): the design meeting, the estimate check after it, grout and
+ *  pictures, layouts, the tile delivery date, showing the installer the job, the deposit */
+export const WHO_V = 3
+const REST: Record<string, string> = { design: 'office', change: 'office', tile: 'estimator', layouts: 'office', order: 'office', walk: 'yakov', deposit: 'accounting' }
+/** the rest, decided: the office reviewer runs the store and the meeting side (he gets the paperwork, so he gets the
+ *  delivery date; he sets the design meeting — the boss and the site manager get it on their calendar — and the grout,
+ *  pictures and layouts come out of that meeting); the boss checks the estimate after the meeting (he's in it and sends
+ *  the estimate); the site manager shows the installer the job; the deposit goes to whoever does the books, or the boss */
+function rest(s: Store, team: EstTeam, owners: Owners, filled: Set<string>, onlyDefaults: boolean) {
+  const here = (k?: string) => (k && s.team.some((m) => m.key === k && m.status !== 'off') ? (k as PersonKey) : undefined)
+  const site = s.team.find((m) => m.role === 'site' && m.status !== 'off')?.key as PersonKey | undefined
+  const books = s.team.find((m) => m.role === 'accounting' && m.status !== 'off')?.key as PersonKey | undefined
+  const boss = here(team.final) || (REAL.me && here(REAL.me)) || undefined
+  const pick: Record<string, PersonKey | undefined> = {
+    design: here(team.review), tile: here(team.review), layouts: here(team.review), order: here(owners.getpaper as string) || here(team.review),
+    change: boss, walk: site, deposit: books || boss,
+  }
+  Object.entries(pick).forEach(([k, who]) => {
+    if (!who || owners[k] === undefined || owners[k] === who) return
+    if (onlyDefaults && owners[k] !== REST[k]) return
+    owners[k] = who
+    filled.add(k)
+  })
+}
 function suggest(s: Store): { team: EstTeam; owners: Owners; filled: Set<string> } {
   const team = companyTeam(s)
   const owners: Owners = Object.fromEntries(companySteps(s).map((d) => [d.key, d.owner]))
   const filled = new Set<string>()
-  if (s.rules.whoSet) return { team, owners, filled }
+  if (s.rules.whoSet) {
+    if ((s.rules.whoV || 0) < WHO_V) rest(s, team, owners, filled, true)
+    return { team, owners, filled }
+  }
   const set = (k: string, who?: PersonKey | 'matBy') => { if (!who || owners[k] === who) return; owners[k] = who; filled.add(k) }
   const setT = (k: keyof EstTeam, who?: PersonKey) => { if (!who || team[k] === who) return; team[k] = who; filled.add('est:' + k) }
   const takeoff = byName(s, /\b(malisa|melissa|malissa)\b/i)
@@ -47,6 +74,7 @@ function suggest(s: Store): { team: EstTeam; owners: Owners; filled: Set<string>
   set('delivered', site)
   set('materials', 'matBy')
   set('matin', 'matBy')
+  rest(s, team, owners, filled, false)
   return { team, owners, filled }
 }
 
@@ -58,6 +86,7 @@ export function saveWhoWhat(team: EstTeam, owners: Owners, alsoOpen: boolean) {
     st.rules.estTeam = { ...team }
     setCompanyOwners(st, owners)
     st.rules.whoSet = NOW
+    st.rules.whoV = WHO_V
     if (!alsoOpen) return
     st.estimates.forEach((e) => {
       if (e.status !== 'estimating' && e.status !== 'revision' && e.status !== 'request') return
@@ -111,7 +140,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
       size="lg"
       onClose={s.close}
       title="Who does what"
-      sub={first ? 'Filled in the way you described it — check it and save. Change any of it later in Settings.' : 'Every new estimate and every project follows this. One project can still be changed from its own step.'}
+      sub={first && s.rules.whoSet ? 'The steps nobody had yet — I filled them in (the ones with a ✨). Check it and save.' : first ? 'Filled in the way you described it — check it and save. Change any of it later in Settings.' : 'Every new estimate and every project follows this. One project can still be changed from its own step.'}
       footer={
         <>
           <label className="inline-flex cursor-pointer items-center gap-2 text-[0.84375rem] text-ink-2"><input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} className="h-4 w-4 accent-[#2650cf]" />Also on the estimates in progress</label>
@@ -120,7 +149,9 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
         </>
       }
     >
-      {start.filled.size > 0 && <div className="mb-4 flex items-start gap-2 rounded-xl bg-brand-50/70 px-4 py-3 text-[0.84375rem] text-brand-800"><Sparkles className="mt-0.5 h-4 w-4 shrink-0" /><span>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> are filled in from how you said it works. Nothing changes until you save.</span></div>}
+      {start.filled.size > 0 && <div className="mb-4 flex items-start gap-2 rounded-xl bg-brand-50/70 px-4 py-3 text-[0.84375rem] text-brand-800"><Sparkles className="mt-0.5 h-4 w-4 shrink-0" /><span>{s.rules.whoSet
+        ? <>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> had nobody. The office reviewer sets the design meeting (you and the site manager get it on your calendar) and handles what comes out of it and the store; you check the estimate after the meeting; the site manager shows the installer the job; the deposit goes to whoever does the books. Nothing changes until you save.</>
+        : <>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> are filled in from how you said it works. Nothing changes until you save.</>}</span></div>}
       <section className="overflow-hidden rounded-xl border border-line">
         <header className="border-b border-line-2 bg-[#fafbfc] px-4 py-2 text-[0.8125rem] font-bold text-ink">Estimates</header>
         {TEAM_KEYS.map((k) => row(TEAM_WORDS[k].split(' — ')[0], TEAM_WORDS[k].split(' — ')[1], pick(team[k], (p) => setTeam({ ...team, [k]: p as PersonKey }), TEAM_WORDS[k], 'est:' + k), 'est' + k))}
@@ -143,13 +174,14 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
 export function WhoWatcher() {
   React.useEffect(() => {
     const s = useStore.getState()
-    if (!REAL.cloud || !REAL.admin || s.rules.whoSet) return
+    const settled = (st: Store) => !!st.rules.whoSet && ((st.rules.whoV || 0) >= WHO_V || suggest(st).filled.size === 0)
+    if (!REAL.cloud || !REAL.admin || settled(s)) return
     const asked = () => { try { return !!sessionStorage.getItem('tileos-who-asked') } catch { return false } }
     if (asked()) return
     /* once the screen is free (nothing else open), and only once this visit */
     const t = setInterval(() => {
       const st = useStore.getState()
-      if (st.rules.whoSet || asked()) { clearInterval(t); return }
+      if (settled(st) || asked()) { clearInterval(t); return }
       if (st.modals.length) return
       clearInterval(t)
       try { sessionStorage.setItem('tileos-who-asked', '1') } catch { /* private window */ }

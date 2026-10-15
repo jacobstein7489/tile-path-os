@@ -426,7 +426,7 @@ export function MyTasksPage() {
   return (
     <Page
       title={`${greeting()}, ${PEOPLE[me].short}`}
-      sub={<>{TODAY_LABEL}<span className="mx-2 text-faint">·</span>{today.length ? `${today.length} to do today` : 'Nothing due today'}{late.length ? <><span className="mx-2 text-faint">·</span><span className="font-semibold text-bad-600">{late.length} overdue</span></> : null}{meetingsToday ? <><span className="mx-2 text-faint">·</span>{meetingsToday} {meetingsToday === 1 ? 'meeting' : 'meetings'}</> : null}</>}
+      sub={<>{TODAY_LABEL}<span className="mx-2 text-faint">·</span>{today.length ? `${today.length} to do today` : 'Nothing due today'}{late.length ? <><span className="mx-2 text-faint">·</span><button onClick={() => s.open({ t: 'late' })} className="font-semibold text-bad-600 underline decoration-bad-200 underline-offset-2 hover:decoration-bad-500">{late.length} overdue</button></> : null}{meetingsToday ? <><span className="mx-2 text-faint">·</span>{meetingsToday} {meetingsToday === 1 ? 'meeting' : 'meetings'}</> : null}</>}
       actions={<Button icon={<Plus />} onClick={() => s.open({ t: 'newtask' })}>New task</Button>}
       top={
         <Bubbles

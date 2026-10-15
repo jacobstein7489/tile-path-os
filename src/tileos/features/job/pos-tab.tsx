@@ -1,6 +1,5 @@
-/* A project's orders, in the order things get ordered:
- *   the tile (the GC's order checked against our takeoff) · our materials (worked out from the scope) · every PO —
- *   the installer's PO and our materials POs, with where each one is. */
+/* A project's POs, first thing: the installer's PO (and what share of the estimate it is) and every materials PO,
+ * with where each one is. Then the tile the store sends, and what our materials take (worked out from the scope). */
 import * as React from 'react'
 import { Plus, HardHat, Package } from 'lucide-react'
 import { useStore } from '@/tileos/store'
@@ -10,6 +9,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job } from '@/tileos/data/model'
 import { PO_STEPS } from '@/tileos/data/work'
 import { TileOrders, MaterialsNeed } from './takeoff'
+import { poRatio } from '../poratio'
 
 const COLS = 'grid grid-cols-[2.25rem_minmax(0,1fr)_6.875rem_12.5rem] items-center gap-4 max-sm:grid-cols-[2.25rem_minmax(0,1fr)_auto]'
 export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
@@ -29,8 +29,6 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   )
   return (
     <div className="flex flex-col gap-8">
-      <TileOrders job={job} onScope={onScope} />
-      <MaterialsNeed job={job} onScope={onScope} />
       <section>
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -55,7 +53,7 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
               onClick={() => s.open({ t: 'ipo', id: p.id })}
               icon={<HardHat />}
               title={`${p.id} · ${PEOPLE[p.crew].name}`}
-              sub={`Installer PO · ${p.lines.length} lines${p.changes.length ? ` · ${p.changes.length} change${p.changes.length > 1 ? 's' : ''}` : ''}`}
+              sub={(() => { const r = poRatio(s, p); return `Installer PO${r.sold ? ` · ${r.pct}% of the estimate${r.over ? ' — over the line' : ''}` : ''} · ${p.lines.length} lines${p.changes.length ? ` · ${p.changes.length} change${p.changes.length > 1 ? 's' : ''}` : ''}` })()}
               amount={p.lines.reduce((n, l) => n + l.amount, 0)}
               status={<Status tone={p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'bad' : 'warn'}>{p.status === 'Draft' ? 'Draft — not sent' : p.status === 'Sent' ? `Waiting for ${PEOPLE[p.crew].short}` : p.status === 'Rejected' ? 'Turned down' : 'Accepted'}</Status>}
             />
@@ -74,6 +72,8 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
           {!ipos.length && !pos.length && <div className="px-5 py-5 text-[0.84375rem] text-muted">No POs on this project yet.</div>}
         </div>
       </section>
+      <TileOrders job={job} onScope={onScope} />
+      <MaterialsNeed job={job} onScope={onScope} />
     </div>
   )
 }

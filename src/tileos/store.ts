@@ -47,6 +47,8 @@ export interface Rules {
   stepsV?: number
   /** when the admin set who does what (the window that asks once) */
   whoSet?: string
+  /** which version of who-does-what he saved (3 = the steps that had nobody got someone) */
+  whoV?: number
   /** automations the admin turned off (Settings → Automations) */
   autoOff?: string[]
   /** who does each estimate step by default — new estimates start with these people */

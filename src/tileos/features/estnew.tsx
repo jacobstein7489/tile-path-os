@@ -13,11 +13,14 @@ import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday } from '@/tileos/lib/today'
 import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
 import { isOff } from './active'
+import { insidePeople } from './steps-ui'
 
 export type PickedArea = { name: string; floor?: string; surfaces: string[] }
 
 /** one person per step — tap a face to change it */
 export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onChange?: (k: keyof EstTeam, p: PersonKey) => void; now?: keyof EstTeam | null; compact?: boolean }) {
+  const st = useStore()
+  const people = insidePeople(st)
   return (
     <div className={cn('grid gap-2', compact ? 'grid-cols-1' : 'grid-cols-4 max-md:grid-cols-2')}>
       {TEAM_KEYS.map((k, i) => {
@@ -36,7 +39,7 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
         return (
           <Menu key={k} align="start" width={260} trigger={<button type="button" aria-label={`${TEAM_LABEL[k]} — ${PEOPLE[p].name}`} className="block w-full">{body}</button>}>
             <MenuLabel>{TEAM_LABEL[k]}</MenuLabel>
-            {EST_PEOPLE.map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} />} checked={x === p} hint={PEOPLE[x].roleLabel} onSelect={() => onChange(k, x)}>{PEOPLE[x].name}</MenuItem>)}
+            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} />} checked={x === p} hint={PEOPLE[x]?.roleLabel} onSelect={() => onChange(k, x)}>{PEOPLE[x]?.name}</MenuItem>)}
           </Menu>
         )
       })}

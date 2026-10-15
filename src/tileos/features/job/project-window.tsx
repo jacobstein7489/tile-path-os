@@ -1,24 +1,22 @@
-/* The project window — opens nearly full screen. One clean header, five tabs, nothing else.
- *   header: the project and where it stands (one colored status), the client, the address, the installer; Log and
- *           the one main button. Files, messages and history are small icons next to the tabs.
- *   tabs:   Overview  — four facts at a glance (installer · tile · our materials · billing), then what's open:
- *                       while it's getting ready, the checklist (every step, who has it, done or not) and whatever
- *                       else is open on the side; once the crew is on it, what's open and how far each room is
- *           Scope     — the tiles (a card each: picture, grout, where it goes, is it here) and every wall and floor:
- *                       tile · grout · layout · what goes under it · edge or metal · SF — by room or by tile
- *           Orders    — the tile from the store, our materials worked out from the scope, every PO
- *           Installer — who installs it, his PO, his days, the daily updates, the touch-ups
- *           Billing */
+/* The project window — opens nearly full screen, and reads like the estimate:
+ *   header: the project and where it stands, the client and the address (the pencil changes them), the bar of where
+ *           it's at — paperwork, design meeting, site, installer, deliveries, installing, touch-ups, closed — with who
+ *           has each part now, and the one button: your next step here (or whose turn it is).
+ *   tabs:   Overview          — what's open now, each with its button; the few facts; what we're tiling
+ *           What we're tiling — every room, wall and floor: the tile, how it's set, the square feet, where it's at
+ *           POs               — the installer's PO (against the estimate) and every materials PO, then the tile
+ *           Estimate          — the estimate it came from, and the change orders
+ *           Installer, Billing */
 import * as React from 'react'
 import {
   Building2, MapPin, CalendarDays, Maximize2, ListPlus, Lock, Check, X, Clock3, Contrast, Plus, ChevronDown, ChevronRight,
-  Printer, HardHat, Send, Play, ClipboardList, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert } from 'lucide-react'
+  Printer, HardHat, Send, Play, ClipboardList, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight } from 'lucide-react'
 import { useStore, historyOf, type Store } from '@/tileos/store'
 import type { Task } from '@/tileos/data/work'
 import type { CalEvent } from '@/tileos/data/calendar'
 import { Button, Avatar, IconButton, UnderlineTabs } from '@/tileos/components/ui/core'
 import { Modal, Tip } from '@/tileos/components/ui/overlay'
-import { Status } from '@/tileos/components/ui/page'
+import { Status, Path } from '@/tileos/components/ui/page'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { EstimatePaper } from '../estpaper'
@@ -42,19 +40,20 @@ import { settingStatus } from '../setting'
 import { heightStatus } from '../heights'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
-import { isGettingReady, stepsFor, stepCounts, type StepView } from '../steps'
+import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton } from '../steps-ui'
-import { GamePlan } from '../stepwin'
+import { openStep, todoOf } from '../stepwin'
+import { projectPath, nextOn, OpenNow, AtAGlance, TilingCard, EstimateTab, EditButton } from './plan'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
 
 export { floorsOf }
-export type PTab = 'overview' | 'scope' | 'orders' | 'installer' | 'money'
+export type PTab = 'overview' | 'scope' | 'orders' | 'estimate' | 'installer' | 'money'
 
 /** old links into the window (tab names from earlier versions) land on the right tab */
 const tabFrom = (initial: string | undefined): PTab =>
-  (['overview', 'scope', 'orders', 'installer', 'money'] as PTab[]).includes(initial as PTab)
+  (['overview', 'scope', 'orders', 'estimate', 'installer', 'money'] as PTab[]).includes(initial as PTab)
     ? (initial as PTab)
     : initial === 'rooms' || initial === 'setup' ? 'scope'
       : initial === 'materials' || initial === 'pos' ? 'orders'
@@ -103,11 +102,13 @@ function tabsFor(s: Store, job: Job): { key: PTab; label: string; count?: number
   const pos = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
   const bills = s.money.filter((m) => m.jobId === job.id && m.state !== 'paid' && m.kind !== 'custpo').length
   const punchOpen = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified').length
-  const noTile = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => !x.tile).length
+  const noTile = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => !x.tile && takesTile(x.name)).length
+  const ests = s.estimates.filter((e) => e.jobId === job.id).length
   return [
     { key: 'overview', label: 'Overview', count: open.n || undefined, tone: open.bad ? 'bad' : undefined },
-    { key: 'scope', label: 'Scope', count: noTile || undefined },
-    { key: 'orders', label: 'Orders', count: pos || undefined },
+    { key: 'scope', label: 'What we’re tiling', count: noTile || undefined },
+    { key: 'orders', label: 'POs', count: pos || undefined },
+    ...(s.role !== 'site' ? [{ key: 'estimate' as PTab, label: 'Estimate', count: ests || undefined }] : []),
     { key: 'installer', label: 'Installer', count: punchOpen || undefined },
     ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Billing', count: bills || undefined }] : []),
   ]
@@ -139,6 +140,9 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
   const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
   const locked = left.length > 0
+  /* the one thing to press: my next step here — or whose turn it is */
+  const next = nextOn(s, job)
+  const path = projectPath(s, job)
   const save = useSaveStatus()
   const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
   const unread = unreadOf(s, job.id)
@@ -158,6 +162,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
               <h1 className="font-display min-w-0 truncate text-[1.5rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.3125rem]">{job.name}</h1>
+              {!pricing && role !== 'crew' && role !== 'client' && <EditButton label="Change the project’s details" onClick={() => s.open({ t: 'editproject', id: job.id })} />}
               {!pricing && (status.onClick
                 ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone}>{status.label}</Status></button>
                 : <Status tone={status.tone} className="shrink-0">{status.label}</Status>)}
@@ -174,17 +179,24 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
             <div className="flex shrink-0 items-center gap-2 max-lg:w-full">
               <span className="max-lg:flex-1 max-sm:hidden" />
               <Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}><span className="max-sm:hidden">Log</span></Button>
-              {prim && (
-                <Tip label={locked ? `${left.length} step${left.length > 1 ? 's' : ''} left: ${left.slice(0, 3).map((v) => v.short.toLowerCase()).join(', ')}${left.length > 3 ? '…' : ''}` : prim.label}>
-                  <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={locked ? <Lock /> : prim.icon} disabled={locked} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
-                </Tip>
-              )}
+              {next && (locked || !prim) ? (
+                next.mine
+                  ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">{todoOf(next.v)}</span></Button></span>
+                  : <button onClick={() => openStep(job.id, next.v.key)} className="inline-flex h-10 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white py-1 pl-1.5 pr-3 text-left text-[0.84375rem] transition hover:border-[#cbd1d9] max-sm:flex-1"><Avatar who={next.v.owner} size={26} /><span className="min-w-0 leading-tight"><span className="block text-[0.71875rem] font-semibold text-muted">{PEOPLE[next.v.owner]?.short}’s turn</span><span className="block truncate font-semibold text-ink">{todoOf(next.v)}</span></span></button>
+              ) : prim && !locked ? (
+                <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
+              ) : null}
             </div>
           )}
         </div>
       </div>
       {tab && (
-        <div className="mt-2 flex items-center gap-3 px-7 max-sm:px-4">
+        <div className="px-7 pt-2 max-sm:px-3">
+          <Path steps={path} />
+        </div>
+      )}
+      {tab && (
+        <div className="mt-1 flex items-center gap-3 px-7 max-sm:px-4">
           <UnderlineTabs className="min-w-0 flex-1 border-b-0" value={tab} onChange={setTab} items={tabsFor(s, job)} />
           <div className="flex shrink-0 items-center gap-0.5 max-sm:hidden">
             <HeadIcon label={`Files and photos${files ? ` · ${files}` : ''}`} count={files} onClick={() => s.open({ t: 'files', jobId: job.id })}><Paperclip className="h-4 w-4" /></HeadIcon>
@@ -223,6 +235,7 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
       {tab === 'overview' && <OverviewTab job={job} setTab={setTab} />}
       {tab === 'scope' && <ScopeTab job={job} />}
       {tab === 'orders' && <POsTab job={job} onScope={() => setTab('scope')} />}
+      {tab === 'estimate' && <EstimateTab job={job} />}
       {tab === 'installer' && <InstallerTab job={job} />}
       {tab === 'money' && <MoneyTab job={job} />}
     </div>
@@ -231,16 +244,14 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const s = useStore()
   const ready = isGettingReady(job)
-  /* getting ready: the game plan — every step, grouped the way the work goes, one line each; tap a step to do it */
-  if (ready) return <GamePlan job={job} />
+  /* left: what's open now, each with its one button. right: the few facts, and what we're tiling */
   return (
-    <div className="flex flex-col gap-5">
-      <Glance job={job} setTab={setTab} />
-      <div className="grid w-full grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-5 max-xl:grid-cols-1">
-        <div className="min-w-0"><TodoList job={job} setTab={setTab} /></div>
-        <div className="flex min-w-0 flex-col gap-4"><RoomsProgress job={job} setTab={setTab} /></div>
+    <div className="grid w-full grid-cols-[minmax(0,1fr)_22rem] items-start gap-5 max-xl:grid-cols-1">
+      <div className="min-w-0">{ready ? <OpenNow job={job} /> : <TodoList job={job} setTab={setTab} />}</div>
+      <div className="flex min-w-0 flex-col gap-4">
+        <AtAGlance job={job} setTab={setTab} />
+        {ready ? <TilingCard job={job} setTab={setTab} /> : <RoomsProgress job={job} setTab={setTab} />}
       </div>
     </div>
   )

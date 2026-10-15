@@ -26,12 +26,13 @@ const shortDate = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateStrin
 /* ================= the shared frame ================= */
 type Kpi = { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: 'bad' | 'warn' | 'ok'; tab?: string }
 function Profile({
-  level, lead, kind, name, lines, kpis, tabs, tab, setTab, children, footer,
+  level, lead, kind, name, lines, kpis, tabs, tab, setTab, children, footer, onEdit,
 }: {
   level: number
   lead: React.ReactNode
   kind: string
   name: string
+  onEdit?: () => void
   lines: { icon: React.ReactNode; text: string; href?: string }[]
   kpis: Kpi[]
   tabs: { key: string; label: string; count?: number }[]
@@ -47,7 +48,10 @@ function Profile({
         {lead}
         <div className="min-w-0 flex-1">
           <div className="text-[0.8125rem] font-medium text-muted">{kind}</div>
-          <h2 className="truncate text-[1.5625rem] font-bold leading-tight tracking-[-0.02em] text-ink max-sm:text-[1.3125rem]">{name}</h2>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h2 className="truncate text-[1.5625rem] font-bold leading-tight tracking-[-0.02em] text-ink max-sm:text-[1.3125rem]">{name}</h2>
+            {onEdit && <button onClick={onEdit} aria-label="Change the details" title="Change the details" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><Pencil className="h-4 w-4" /></button>}
+          </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.84375rem] text-ink-2">
             {lines.map((l) => (
               <a key={l.text} href={l.href} onClick={(e) => !l.href && e.preventDefault()} className={cn('inline-flex min-w-0 items-center gap-1.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:text-faint', l.href && 'hover:text-brand-700')}>
@@ -198,6 +202,7 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
       lead={<Initials name={c.name} color="#2650cf" />}
       kind={`Client · ${c.kind}`}
       name={c.name}
+      onEdit={() => s.open({ t: 'newclient', id })}
       lines={[{ icon: <Phone />, text: c.phone, href: `tel:${c.phone}` }, { icon: <Mail />, text: c.email, href: `mailto:${c.email}` }, { icon: <MapPin />, text: c.address }]}
       kpis={[
         { label: 'Open projects', value: live.length, sub: `${won.length} won with us`, tab: 'projects' },
