@@ -19,10 +19,11 @@ import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, r
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
+import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
-type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'testdata'
+type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
@@ -36,7 +37,7 @@ export function SettingsPage() {
       title="Settings"
       sub="You’re the admin — the team, what each login sees, and the rules the system runs on."
       bare
-      top={<UnderlineTabs value={tab} onChange={setTab} items={[{ key: 'team', label: 'Team', count: s.team.filter((m) => m.status !== 'off').length }, { key: 'access', label: 'What each login sees' }, { key: 'checklist', label: 'Checklists' }, { key: 'autos', label: 'Automations' }, { key: 'statuses', label: 'Statuses' }, { key: 'rules', label: 'Company rules' }, { key: 'numbers', label: 'Material numbers' }, { key: 'connections', label: 'Connections' }, ...(REAL.cloud ? [] : [{ key: 'testdata' as Tab, label: 'Test data' }])]} />}
+      top={<UnderlineTabs value={tab} onChange={setTab} items={[{ key: 'team', label: 'Team', count: s.team.filter((m) => m.status !== 'off').length }, { key: 'access', label: 'What each login sees' }, { key: 'checklist', label: 'Checklists' }, { key: 'autos', label: 'Automations' }, { key: 'statuses', label: 'Statuses' }, { key: 'rules', label: 'Company rules' }, { key: 'numbers', label: 'Material numbers' }, { key: 'connections', label: 'Connections' }, { key: 'practice', label: 'Practice project' }, ...(REAL.cloud ? [] : [{ key: 'testdata' as Tab, label: 'Test data' }])]} />}
     >
       {tab === 'team' && <TeamTab />}
       {tab === 'access' && <AccessTab />}
@@ -46,6 +47,7 @@ export function SettingsPage() {
       {tab === 'rules' && <RulesTab />}
       {tab === 'numbers' && <NumbersTab />}
       {tab === 'connections' && <ConnectionsTab />}
+      {tab === 'practice' && <PracticeTab />}
       {tab === 'testdata' && !REAL.cloud && <TestDataTab />}
     </Page>
   )
