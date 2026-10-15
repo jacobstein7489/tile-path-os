@@ -198,6 +198,8 @@ export function applyTeam(team: Member[]) {
   applyTeamNames(team)
   applyCrews(team)
 }
+/** login spots named for the work, not a person — they keep their whole name */
+const ROLE_NAMES = new Set(['Back office', 'Takeoff estimator', 'Estimator', 'Materials', 'Accounting', 'New person', 'Tile OS'])
 function applyTeamNames(team: Member[]) {
   team.forEach((m, i) => {
     const name = [m.first, m.last].filter(Boolean).join(' ').trim() || 'New person'
@@ -206,7 +208,7 @@ function applyTeamNames(team: Member[]) {
     const cur = PEOPLE[m.key]
     /* a person goes by their first name ("Mordcha", even when the whole name was typed as the first); a role-type
      * login nobody has taken yet ("Back office") keeps its whole name */
-    const short = m.last ? m.first : m.email || m.uid ? words[0] : name
+    const short = m.last ? m.first : ROLE_NAMES.has(name) ? name : words[0]
     PEOPLE[m.key] = { ...(cur || { key: m.key, bg: AV[i % AV.length][0], fg: AV[i % AV.length][1] }), key: m.key, name, short, initials, roleLabel: ROLES.find((r) => r.key === m.role)?.label.split(' · ')[0] }
   })
 }

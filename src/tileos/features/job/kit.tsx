@@ -15,7 +15,7 @@ export const firstName = (p?: PersonKey) => (p ? PEOPLE[p]?.short || PEOPLE[p]?.
 
 export function Section({ title, count, sub, action, children, className, id }: { title?: React.ReactNode; count?: number; sub?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={cn('overflow-hidden rounded-[0.875rem] border border-line bg-white', className)}>
+    <section id={id} className={cn('overflow-hidden rounded-2xl border border-line bg-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.04)]', className)}>
       {title && (
         <header className="flex min-h-[3.25rem] items-center gap-3 border-b border-line px-5 py-2.5 max-sm:px-4">
           <div className="min-w-0 flex-1">

@@ -11,6 +11,7 @@ import { PO_STEPS } from '@/tileos/data/work'
 import { TileOrders, MaterialsNeed } from './takeoff'
 import { poRatio } from '../poratio'
 import { Section, Empty } from './kit'
+import { InstallerVsEstimate } from './ratio'
 
 const COLS = 'grid grid-cols-[2.25rem_minmax(0,1fr)_7rem_11.5rem] items-center gap-4 max-sm:grid-cols-[2.25rem_minmax(0,1fr)_auto]'
 export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
@@ -30,6 +31,7 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   )
   return (
     <div className="flex flex-col gap-5">
+      <InstallerVsEstimate job={job} />
       <Section
         title="Purchase orders"
         count={ipos.length + pos.length}

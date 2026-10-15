@@ -7,7 +7,7 @@
  *   At a glance — the five facts, each in the same shape. What we're tiling — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, Clock3, ListPlus } from 'lucide-react'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, Clock3, ListPlus, HardHat, Grid2x2, Package, Wallet, Ruler } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -30,6 +30,7 @@ import { poRatio } from '../poratio'
 import { CAT, catOf } from '../estimates'
 import { billingOf } from './money-tab'
 import { tileStatus } from './scope-tab'
+import { budgetOf } from './ratio'
 import { todoLines, type NowState } from './todo'
 import { Section, Empty, Group, Who, ROW, firstName } from './kit'
 
@@ -331,40 +332,75 @@ function PersonLine({ r }: { r: TodoRow }) {
     </button>
   )
 }
-/* ================= the five facts ================= */
-const DOT: Record<Tone, string> = { ok: 'bg-ok-500', warn: 'bg-warn-500', bad: 'bg-bad-500', info: 'bg-brand-500', vio: 'bg-vio-500', neutral: 'bg-[#c6ccd4]' }
+/* ================= the facts ================= */
+/* No colored dots to decode: every fact is a plain line. Only when something needs doing does a line turn colour —
+ * and then it says what, in words (red = it's a problem, amber = someone has to do something). */
+type Flag = { text: string; tone: 'bad' | 'warn' }
+type Fact = { icon: React.ReactNode; label: string; value: string; sub?: string; flag?: Flag; tab: string }
 export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
   const s = useStore()
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id && p.status !== 'Rejected')
+  const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id && p.status !== 'Rejected') || [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const b = s.bookings.find((x) => x.jobId === job.id)
   const start = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : b ? `${md(b.start)} – ${md(b.end)}` : s.prep[job.id]?.targetISO ? `Starts ${labelFromIso(s.prep[job.id]!.targetISO!)}` : 'No dates yet'
   const tiles = tilesOf(job.id)
-  const sts = tiles.map((t) => tileStatus(s, job.id, t.tag))
-  const worst = sts.find((x) => x.tone === 'bad') || sts.find((x) => x.tone === 'warn')
+  const sts = tiles.map((t) => ({ t, st: tileStatus(s, job.id, t.tag) })).filter((x) => x.st.label !== 'Not on a wall or floor yet')
+  const worst = sts.find((x) => x.st.tone === 'bad') || sts.find((x) => x.st.tone === 'warn')
+  const here = sts.filter((x) => x.st.tone === 'ok').length
   const ms = materialStatus(s, job.id)
   const m = billingOf(job)
-  const r = ipo ? poRatio(s, ipo) : undefined
-  const ipoWord = !ipo ? 'no PO yet' : ipo.status === 'Accepted' ? 'took his PO' : ipo.status === 'Sent' ? 'PO sent — waiting for his yes' : 'PO not sent yet'
-  const matValue = ms.state === 'yes' ? 'On site' : ms.state === 'wait' ? 'Ordered' : ms.label === 'Add SF' || ms.label === 'No scope' ? 'Not worked out yet' : ms.label
-  const matSub = ms.label === 'Add SF' ? 'Needs the square feet first' : ms.label === 'No scope' ? 'Needs the rooms first' : ms.hint
-  const rows: { label: string; value: string; sub?: string; tone: Tone; tab: string }[] = [
-    { label: 'Installer', value: crew ? firstName(crew) : 'Not picked yet', sub: crew ? `${start} · ${ipoWord}` : 'Pick who installs it', tone: !crew ? 'warn' : ipo?.status === 'Accepted' ? 'ok' : 'info', tab: 'installer' },
-    { label: 'His PO', value: r && r.sold ? `${r.pct}% of the estimate` : ipo ? fmtMoney(r?.total || 0) : 'No PO yet', sub: r && r.sold ? `${fmtMoney(r.total)} of ${fmtMoney(r.sold)} · keep it under ${r.line}%` : undefined, tone: !r || !r.sold ? 'neutral' : r.over ? 'bad' : 'ok', tab: 'orders' },
+  const r = ipo && ipo.status !== 'Rejected' ? poRatio(s, ipo) : undefined
+  const dep = s.money.find((x) => x.jobId === job.id && x.kind === 'deposit')
+  const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1)
+  const facts: Fact[] = [
+    {
+      icon: <HardHat />, label: 'Installer', tab: 'installer',
+      value: crew ? PEOPLE[crew]?.name || firstName(crew) : 'Not picked yet',
+      sub: crew ? `${start} · ${!ipo ? 'no PO yet' : ipo.status === 'Accepted' ? 'took his PO' : ipo.status === 'Sent' ? 'PO sent, waiting for his yes' : 'PO not sent yet'}` : undefined,
+      flag: !crew ? { text: 'Pick who installs it', tone: 'warn' } : ipo?.status === 'Rejected' ? { text: `He turned the PO down${ipo.reason ? ` — ${lower(ipo.reason)}` : ''}`, tone: 'bad' } : ipo?.status === 'Draft' ? { text: `${start} · PO not sent yet`, tone: 'warn' } : undefined,
+    },
+    (() => {
+      const bud = budgetOf(s, job)
+      if (!r) return { icon: <FileText />, label: 'His PO', tab: 'orders', value: 'No PO yet', sub: bud.sold ? `Keep it under ${fmtMoney(bud.cap)} — ${bud.line}% of our ${fmtMoney(bud.sold)}` : undefined }
+      if (!r.total) return { icon: <FileText />, label: 'His PO', tab: 'orders', value: 'No prices on it yet', flag: { text: 'Put his prices on the PO to compare it with our estimate', tone: 'warn' as const } }
+      return {
+        icon: <FileText />, label: 'His PO', tab: 'orders',
+        value: r.sold ? `${r.pct}% of our estimate` : fmtMoney(r.total),
+        sub: r.sold ? `${fmtMoney(r.total)} of ${fmtMoney(r.sold)} · keep it under ${r.line}%` : 'No estimate to compare with',
+        flag: r.sold && r.over ? { text: `Over the ${r.line}% line — ${fmtMoney(r.total)} of ${fmtMoney(r.sold)}`, tone: 'bad' as const } : undefined,
+      }
+    })(),
     roomsFact(s, job),
-    { label: 'Tile', value: tiles.length ? `${tiles.length} tile${tiles.length === 1 ? '' : 's'}` : 'No tiles yet', sub: worst ? worst.label : tiles.length ? 'All on site or on the way' : 'They come with the paperwork', tone: worst ? worst.tone : tiles.length ? 'ok' : 'warn', tab: 'scope' },
-    { label: 'Materials', value: matValue, sub: matSub, tone: ms.state === 'yes' ? 'ok' : ms.state === 'wait' ? 'info' : ms.go === 'order' ? 'warn' : 'neutral', tab: 'orders' },
-    ...(s.role !== 'site' ? [{ label: 'Billing', value: m.contract ? fmtMoney(m.contract + m.changes) : 'No contract yet', sub: `${m.billedPct}% billed · ${m.paidPct}% paid`, tone: (m.toBill > 0 ? 'warn' : 'ok') as Tone, tab: 'money' }] : []),
+    {
+      icon: <Grid2x2 />, label: 'Tile', tab: 'scope',
+      value: tiles.length ? `${tiles.length} tile${tiles.length === 1 ? '' : 's'}` : 'No tiles yet',
+      sub: !tiles.length ? 'They come in with the paperwork' : sts.length && here === sts.length ? 'All on site' : `${here} of ${tiles.length} on site`,
+      flag: worst ? { text: `${worst.t.tag}: ${lower(worst.st.label)}`, tone: worst.st.tone === 'bad' ? 'bad' : 'warn' } : undefined,
+    },
+    {
+      icon: <Package />, label: 'Materials', tab: 'orders',
+      value: ms.state === 'yes' ? 'On site' : ms.state === 'wait' ? 'Ordered' : ms.label === 'Add SF' || ms.label === 'No scope' ? 'Not worked out yet' : ms.label,
+      sub: ms.label === 'Add SF' ? 'Needs the square feet first' : ms.label === 'No scope' ? 'Needs the rooms first' : ms.go === 'order' ? undefined : ms.hint,
+      flag: ms.go === 'order' ? { text: ms.hint.split(' — ')[0], tone: 'warn' } : undefined,
+    },
+    ...(s.role !== 'site' ? [{
+      icon: <Wallet />, label: 'Billing', tab: 'money',
+      value: m.contract ? fmtMoney(m.contract + m.changes) : 'No contract yet',
+      sub: `${m.billedPct}% billed · ${m.paidPct}% paid`,
+      flag: m.toBill > 0 ? { text: `${fmtMoney(m.toBill)} ready to bill · ${m.billedPct}% billed so far`, tone: 'warn' as const } : dep && dep.state !== 'paid' && isGettingReady(job) ? { text: dep.step >= 1 ? `Deposit invoiced${dep.ref ? ` (${dep.ref})` : ''} — not paid yet` : 'Deposit not invoiced yet', tone: 'warn' as const } : undefined,
+    }] : []),
   ]
   return (
     <Section title="At a glance">
-      {rows.map((x) => (
-        <button key={x.label} onClick={() => setTab(x.tab)} className="grid w-full grid-cols-[0.5rem_5.5rem_minmax(0,1fr)] items-start gap-x-2.5 border-t border-line-2 px-5 py-3 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
-          <span className={cn('mt-[0.4375rem] h-2 w-2 rounded-full', DOT[x.tone])} />
+      {facts.map((x) => (
+        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-3 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
+          <span className="mt-0.5 inline-flex text-faint transition group-hover:text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{x.icon}</span>
           <span className="pt-px text-[0.8125rem] font-medium text-muted">{x.label}</span>
           <span className="min-w-0">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.value}</span>
-            {x.sub && <span className="block text-[0.78125rem] leading-snug text-muted">{x.sub}</span>}
+            {x.flag
+              ? <span className={cn('block text-[0.78125rem] font-semibold leading-snug', x.flag.tone === 'bad' ? 'text-bad-600' : 'text-warn-700')}>{x.flag.text}</span>
+              : x.sub && <span className="block text-[0.78125rem] leading-snug text-muted">{x.sub}</span>}
           </span>
         </button>
       ))}
@@ -373,18 +409,23 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
 }
 
 /** the rooms, as one fact: how much there is to tile — or, once the crew is on it, how far it is */
-function roomsFact(s: Store, job: Job): { label: string; value: string; sub?: string; tone: Tone; tab: string } {
+function roomsFact(s: Store, job: Job): Fact {
   const rooms = s.rooms[job.id] || []
   const flat = rooms.flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
   const sf = flat.reduce((n, x) => n + (x.sf || 0), 0)
-  if (!rooms.length) return { label: 'Rooms', value: 'No rooms yet', sub: 'They come from the estimate', tone: 'warn', tab: 'scope' }
+  if (!rooms.length) return { icon: <Ruler />, label: 'Rooms', value: 'No rooms yet', flag: { text: 'They come from the estimate — or build them on What we’re tiling', tone: 'warn' }, tab: 'scope' }
   if (IN_FIELD.includes(job.stage)) {
     const done = rooms.filter((r) => (r.pct ?? roomPct(r)) >= 100).length
-    return { label: 'Installed', value: `${job.pct ?? 0}%`, sub: `${done} of ${rooms.length} rooms done`, tone: 'info', tab: 'scope' }
+    return { icon: <Ruler />, label: 'Installed', value: `${job.pct ?? 0}%`, sub: `${done} of ${rooms.length} rooms done`, tab: 'scope' }
   }
   const noTile = flat.filter((x) => !x.tile).length
   const noSF = flat.filter((x) => !x.sf).length
-  return { label: 'Rooms', value: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`, sub: noTile ? `${noTile} wall${noTile === 1 ? '' : 's'} or floor${noTile === 1 ? '' : 's'} without a tile` : noSF ? `${noSF} without square feet` : `${flat.length} walls and floors`, tone: noTile || noSF ? 'warn' : 'ok', tab: 'scope' }
+  return {
+    icon: <Ruler />, label: 'Rooms', tab: 'scope',
+    value: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`,
+    sub: `${flat.length} walls and floors`,
+    flag: noTile ? { text: `${noTile} wall${noTile === 1 ? '' : 's'} or floor${noTile === 1 ? '' : 's'} without a tile`, tone: 'warn' } : noSF ? { text: `${noSF} without square feet`, tone: 'warn' } : undefined,
+  }
 }
 
 /* ================= what we're tiling, room by room ================= */

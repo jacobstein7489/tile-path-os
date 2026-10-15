@@ -13,6 +13,7 @@ import { installerOf } from '../upcoming'
 import { CloseOverview } from './overview'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty } from './kit'
+import { RatioBlock } from './ratio'
 
 const IPO_STATUS: Record<string, { tone: Tone; label: (who: string) => string }> = {
   Draft: { tone: 'vio', label: () => 'Draft — not sent' },
@@ -96,6 +97,7 @@ export function InstallerTab({ job }: { job: Job }) {
         <Section title="His PO" action={ipo ? <Status tone={IPO_STATUS[ipo.status].tone}>{IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short)}</Status> : undefined}>
           {ipo ? (
             <>
+              <RatioBlock ipo={ipo} className="border-b border-line-2 px-5 py-4" />
               <div className="px-5 pb-1 pt-3 text-[0.78125rem] text-muted">{ipo.id} · {PEOPLE[ipo.crew].short} · {ipo.date}</div>
               {ipo.lines.map((l, i) => (
                 <div key={i} className="flex items-baseline gap-3 px-5 py-1.5 text-[0.8125rem]">

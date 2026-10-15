@@ -71,7 +71,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   const [tab, setTab] = React.useState<PTab>(initial ? tabFrom(initial) : role === 'accounting' ? 'money' : 'overview')
   if (!job) return null
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass="p-0">
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass={pricing ? 'p-0' : 'bg-[#f6f7f9] p-0'}>
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : <ProjectBody job={job} tab={tab} setTab={setTab} />}
     </Modal>
   )
@@ -83,7 +83,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
       <ProjectHeader job={job} mode="page" tab={tab} setTab={setTab} />
-      <div className="min-h-[35rem]"><ProjectBody job={job} tab={tab} setTab={setTab} /></div>
+      <div className="min-h-[35rem] bg-[#f6f7f9]"><ProjectBody job={job} tab={tab} setTab={setTab} /></div>
     </div>
   )
 }

@@ -152,7 +152,10 @@ export function POsPage() {
                   {r.kind === 'installer' ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><Avatar who={r.po.crew} size={20} />{PEOPLE[r.po.crew].name}</span> : <span className="text-[0.84375rem]">{r.po.supplier}</span>}
                 </Td>
                 <Td className="truncate text-[0.84375rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
-                <Td right className="tnum text-ink max-md:hidden">{fmtMoney(amount)}</Td>
+                <Td right className="tnum text-ink max-md:hidden">
+                  {fmtMoney(amount)}
+                  {r.kind === 'installer' && (() => { const ra = poRatio(s, r.po); return ra.sold && ra.total ? <div className={cn('text-[0.75rem] font-semibold', ra.over ? 'text-bad-600' : 'text-muted')}>{ra.pct}% of estimate</div> : null })()}
+                </Td>
                 <Td className="max-md:hidden"><Status tone={x.tone}>{x.label}</Status></Td>
                 <Td className="text-[0.84375rem] text-muted max-xl:hidden">{r.kind === 'material' ? r.po.date || r.po.log[0]?.date : r.po.date}</Td>
               </Tr>
