@@ -18,6 +18,33 @@ import { heightStatus } from './heights'
 import { materialStatus } from './takeoff'
 import { installerOf } from './upcoming'
 import { matBy, runTaskAction } from './flows'
+import { companyTeam } from './estflow'
+import { REAL } from '@/tileos/lib/save'
+
+/* ---------------- who a step really goes to ----------------
+ * The real app starts with login spots for each part of the work ("Estimator", "Accounting"…) that a person takes
+ * when they join. A spot nobody has taken isn't a person — a step that still points at one goes to whoever does that
+ * part: from who does what, else whoever has that kind of login, else the admin. (The sample's spots are its people.) */
+const SPOT: Record<string, string> = { office: 'Back office', takeoff: 'Takeoff estimator', estimator: 'Estimator', materials: 'Materials', accounting: 'Accounting' }
+export function emptySpot(s: Pick<Store, 'team'>, key?: string) {
+  if (!key || !SPOT[key]) return false
+  const m = s.team.find((y) => y.key === key)
+  return !m || (!m.uid && !m.email && !m.last && (m.first || '').trim() === SPOT[key])
+}
+export function realOwner(s: Store, key: PersonKey): PersonKey {
+  if (!REAL.cloud || !emptySpot(s, key)) return key
+  const t = companyTeam(s)
+  const person = (k?: string) => (k && !emptySpot(s, k) && s.team.some((m) => m.key === k && m.status !== 'off') ? (k as PersonKey) : undefined)
+  const holder = (r: string) => s.team.find((m) => m.role === r && m.status !== 'off' && !emptySpot(s, m.key))?.key as PersonKey | undefined
+  const order: Record<string, (PersonKey | undefined)[]> = {
+    takeoff: [person(t.takeoff), holder('takeoff')],
+    estimator: [person(t.review), holder('estimator')],
+    office: [holder('office'), person(t.follow)],
+    materials: [person(matBy(s)), holder('site')],
+    accounting: [holder('accounting')],
+  }
+  return (order[key] || []).find(Boolean) || holder('owner') || key
+}
 
 const S = () => useStore.getState()
 
@@ -146,7 +173,7 @@ export function scopeLock(s: Store, jobId: string): { owner: PersonKey; done: bo
   const j = s.jobs[jobId]
   const def = companySteps(s).find((d) => d.key === 'rooms')
   const rec = s.stepRecs[jobId]?.rooms
-  const owner = (rec?.owner || (def ? (def.owner === 'matBy' ? matBy(s) : def.owner) : 'takeoff')) as PersonKey
+  const owner = realOwner(s, (rec?.owner || (def ? (def.owner === 'matBy' ? matBy(s) : def.owner) : 'takeoff')) as PersonKey)
   const me = meOf(s.role)
   if (!j || ['request', 'estimating', 'proposal', 'followup'].includes(j.stage)) return { owner, done: false, canEdit: true }
   const tiled = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
@@ -372,7 +399,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     }
     /* late, and its owner moved it to a later day: due that day */
     if (rec.moved && (raw.state === 'now' || raw.state === 'bad') && (raw.due || rec.due || '') < rec.moved) raw = { ...raw, due: rec.moved }
-    const owner = (task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey
+    const owner = realOwner(s, (task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey)
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
       after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',

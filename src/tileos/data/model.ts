@@ -204,8 +204,9 @@ function applyTeamNames(team: Member[]) {
     const words = name.split(' ').filter(Boolean)
     const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
     const cur = PEOPLE[m.key]
-    /* a person goes by their first name; a role-type login ("Back office") keeps its whole name */
-    const short = m.last ? m.first : name
+    /* a person goes by their first name ("Mordcha", even when the whole name was typed as the first); a role-type
+     * login nobody has taken yet ("Back office") keeps its whole name */
+    const short = m.last ? m.first : m.email || m.uid ? words[0] : name
     PEOPLE[m.key] = { ...(cur || { key: m.key, bg: AV[i % AV.length][0], fg: AV[i % AV.length][1] }), key: m.key, name, short, initials, roleLabel: ROLES.find((r) => r.key === m.role)?.label.split(' · ')[0] }
   })
 }

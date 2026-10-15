@@ -1,12 +1,13 @@
 /* The project window — opens nearly full screen, and reads like the estimate:
- *   header: the project and where it stands, the client and the address (the pencil changes them), the bar of where
- *           it's at — paperwork, design meeting, site, installer, deliveries, installing, touch-ups, closed — with who
- *           has each part now, and the one button: your next step here (or whose turn it is).
- *   tabs:   Overview          — what's open now, each with its button; the few facts; what we're tiling
+ *   header: the project and where it stands, the client and the address (the pencil changes them), and the one button
+ *           when there's something for you here. Then the bar of where it's at — paperwork, design meeting, site,
+ *           installer, deliveries, installing, touch-ups, closed — each part the same size: how far it is, who has it.
+ *   tabs:   Overview          — To do (your turn, others, waiting, coming up); at a glance; what we're tiling
  *           What we're tiling — every room, wall and floor: the tile, how it's set, the square feet, where it's at
  *           POs               — the installer's PO (against the estimate) and every materials PO, then the tile
  *           Estimate          — the estimate it came from, and the change orders
- *           Installer, Billing */
+ *           Installer, Billing
+ * Every tab is built from the same pieces (job/kit): the same cards, rows, people and dates. */
 import * as React from 'react'
 import {
   Building2, MapPin, CalendarDays, Maximize2, ListPlus, Lock, Check, X, Clock3, Contrast, Plus, ChevronDown, ChevronRight,
@@ -16,7 +17,7 @@ import type { Task } from '@/tileos/data/work'
 import type { CalEvent } from '@/tileos/data/calendar'
 import { Button, Avatar, IconButton, UnderlineTabs } from '@/tileos/components/ui/core'
 import { Modal, Tip } from '@/tileos/components/ui/overlay'
-import { Status, Path } from '@/tileos/components/ui/page'
+import { Status } from '@/tileos/components/ui/page'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { EstimatePaper } from '../estpaper'
@@ -43,7 +44,8 @@ import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, OpenNow, AtAGlance, TilingCard, EstimateTab, EditButton } from './plan'
+import { projectPath, nextOn, PhaseBar, TodoCard, AtAGlance, TilingCard, EstimateTab, EditButton } from './plan'
+import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
@@ -97,20 +99,15 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
   closeout: { label: 'Final invoice', icon: <Receipt /> },
 }
 
-function tabsFor(s: Store, job: Job): { key: PTab; label: string; count?: number; tone?: Tone }[] {
-  const open = todoCount(s, job)
-  const pos = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
-  const bills = s.money.filter((m) => m.jobId === job.id && m.state !== 'paid' && m.kind !== 'custpo').length
-  const punchOpen = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified').length
-  const noTile = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => !x.tile && takesTile(x.name)).length
-  const ests = s.estimates.filter((e) => e.jobId === job.id).length
+/** the tabs, the same on every project — no numbers on them (the To do and the bar on top have the counts) */
+function tabsFor(s: Store): { key: PTab; label: string }[] {
   return [
-    { key: 'overview', label: 'Overview', count: open.n || undefined, tone: open.bad ? 'bad' : undefined },
-    { key: 'scope', label: 'What we’re tiling', count: noTile || undefined },
-    { key: 'orders', label: 'POs', count: pos || undefined },
-    ...(s.role !== 'site' ? [{ key: 'estimate' as PTab, label: 'Estimate', count: ests || undefined }] : []),
-    { key: 'installer', label: 'Installer', count: punchOpen || undefined },
-    ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Billing', count: bills || undefined }] : []),
+    { key: 'overview', label: 'Overview' },
+    { key: 'scope', label: 'What we’re tiling' },
+    { key: 'orders', label: 'POs' },
+    ...(s.role !== 'site' ? [{ key: 'estimate' as PTab, label: 'Estimate' }] : []),
+    { key: 'installer', label: 'Installer' },
+    ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Billing' }] : []),
   ]
 }
 
@@ -142,7 +139,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   const locked = left.length > 0
   /* the one thing to press: my next step here — or whose turn it is */
   const next = nextOn(s, job)
-  const path = projectPath(s, job)
+  const path = projectPath(s, job, setTab)
   const save = useSaveStatus()
   const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
   const unread = unreadOf(s, job.id)
@@ -181,8 +178,8 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}><span className="max-sm:hidden">Log</span></Button>
               {next && (locked || !prim) ? (
                 next.mine
-                  ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">{todoOf(next.v)}</span></Button></span>
-                  : <button onClick={() => openStep(job.id, next.v.key)} className="inline-flex h-10 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white py-1 pl-1.5 pr-3 text-left text-[0.84375rem] transition hover:border-[#cbd1d9] max-sm:flex-1"><Avatar who={next.v.owner} size={26} /><span className="min-w-0 leading-tight"><span className="block text-[0.71875rem] font-semibold text-muted">{PEOPLE[next.v.owner]?.short}’s turn</span><span className="block truncate font-semibold text-ink">{todoOf(next.v)}</span></span></button>
+                  ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
+                  : null
               ) : prim && !locked ? (
                 <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
               ) : null}
@@ -191,13 +188,13 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
         </div>
       </div>
       {tab && (
-        <div className="px-7 pt-2 max-sm:px-3">
-          <Path steps={path} />
+        <div className="px-6 pt-1 max-sm:px-2">
+          <PhaseBar cells={path} />
         </div>
       )}
       {tab && (
         <div className="mt-1 flex items-center gap-3 px-7 max-sm:px-4">
-          <UnderlineTabs className="min-w-0 flex-1 border-b-0" value={tab} onChange={setTab} items={tabsFor(s, job)} />
+          <UnderlineTabs className="min-w-0 flex-1 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
           <div className="flex shrink-0 items-center gap-0.5 max-sm:hidden">
             <HeadIcon label={`Files and photos${files ? ` · ${files}` : ''}`} count={files} onClick={() => s.open({ t: 'files', jobId: job.id })}><Paperclip className="h-4 w-4" /></HeadIcon>
             <HeadIcon label="Messages — the team, the crew and the GC" count={unread} hot onClick={() => s.open({ t: 'chat', jobId: job.id })}><MessageCircle className="h-4 w-4" /></HeadIcon>
@@ -244,169 +241,15 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const ready = isGettingReady(job)
-  /* left: what's open now, each with its one button. right: the few facts, and what we're tiling */
+  /* left: To do — every row on the same grid. right: the five facts, and what we're tiling */
   return (
-    <div className="grid w-full grid-cols-[minmax(0,1fr)_22rem] items-start gap-5 max-xl:grid-cols-1">
-      <div className="min-w-0">{ready ? <OpenNow job={job} /> : <TodoList job={job} setTab={setTab} />}</div>
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
+      <div className="min-w-0"><TodoCard job={job} setTab={setTab} /></div>
+      <div className="flex min-w-0 flex-col gap-5">
         <AtAGlance job={job} setTab={setTab} />
-        {ready ? <TilingCard job={job} setTab={setTab} /> : <RoomsProgress job={job} setTab={setTab} />}
+        <TilingCard job={job} setTab={setTab} />
       </div>
     </div>
-  )
-}
-
-/** four facts anyone can read in a second: who installs it, the tile, our materials, the money */
-function Glance({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const s = useStore()
-  const save = useSaveStatus()
-  const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id && p.status !== 'Rejected') || [...s.ipos].reverse().find((p) => p.jobId === job.id)
-  const booking = s.bookings.find((b) => b.jobId === job.id)
-  const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : booking ? `${md(booking.start)} – ${md(booking.end)}` : ''
-  const ipoWord = !ipo ? '' : ipo.status === 'Accepted' ? 'PO accepted' : ipo.status === 'Sent' ? 'PO sent — waiting for him' : ipo.status === 'Draft' ? 'PO not sent yet' : 'PO turned down'
-  /* tile: how many, and the worst news first */
-  const tiles = tilesOf(job.id)
-  const flat = (s.rooms[job.id] || []).flatMap((r) => r.surfaces)
-  const unpicked = flat.filter((x) => !x.tile).length
-  const sts = tiles.map((t) => ({ t, st: tileStatus(s, job.id, t.tag) })).filter((x) => x.st.label !== 'Not on a wall or floor yet')
-  const worst = sts.find((x) => x.st.tone === 'bad') || sts.find((x) => x.st.tone === 'warn') || sts.find((x) => x.st.tone === 'info')
-  const tileTone: Tone = unpicked || !tiles.length ? 'warn' : worst ? worst.st.tone : 'ok'
-  const tileSub = !flat.length ? 'Rooms come from the estimate' : unpicked ? `${unpicked} wall${unpicked === 1 ? '' : 's'} or floor${unpicked === 1 ? '' : 's'} still need${unpicked === 1 ? 's' : ''} a tile` : worst ? `${worst.t.tag} · ${worst.st.label.charAt(0).toLowerCase() + worst.st.label.slice(1)}` : 'All on site'
-  /* our materials */
-  const ms = materialStatus(s, job.id)
-  const matMain = ms.state === 'yes' ? 'On site' : ms.state === 'wait' ? 'Ordered' : ms.label === 'No scope' || ms.label === 'Add SF' ? 'Not worked out yet' : ms.label
-  const matTone: Tone = ms.state === 'yes' ? 'ok' : ms.state === 'wait' ? 'info' : ms.go === 'order' ? (ms.state === 'part' ? 'warn' : 'bad') : 'neutral'
-  /* money */
-  const m = moneyFacts(s, job)
-  const sample = save.mode === 'sample' ? ' · sample' : ''
-  const dep = m.dep
-  const depLine = !dep ? '' : dep.state === 'paid' ? 'Deposit paid' : dep.step >= 1 ? `Deposit invoiced ${dep.ref || ''} — not paid`.replace('  ', ' ') : 'Deposit not invoiced yet'
-  const facts: Fact[] = [
-    { key: 'installer', tab: 'installer', label: 'Installer', icon: <HardHat />, lead: crew ? <Avatar who={crew} size={26} /> : undefined, main: crew ? PEOPLE[crew].name : 'Not booked yet', sub: crew ? [dates, ipoWord].filter(Boolean).join(' · ') || 'No dates yet' : 'Pick who installs it', tone: !crew ? 'warn' : ipo?.status === 'Rejected' ? 'bad' : ipo?.status === 'Accepted' ? 'ok' : 'info' },
-    { key: 'tile', tab: 'scope', label: 'Tile', icon: <Grid2x2 />, lead: tiles.length ? <span className="flex -space-x-2">{tiles.slice(0, 4).map((t) => <TileImg key={t.tag} tile={t} size={26} radius={7} className="ring-2 ring-white" />)}</span> : undefined, main: tiles.length ? `${tiles.length} tile${tiles.length === 1 ? '' : 's'}` : 'No tiles yet', sub: tileSub, tone: tileTone },
-    { key: 'materials', tab: 'orders', label: 'Our materials', icon: <Package />, main: matMain, sub: ms.hint, tone: matTone },
-    ...(s.role !== 'site' ? [{ key: 'money', tab: 'money' as PTab, label: 'Billing', icon: <Wallet />, main: m.contract ? fmtMoney(m.contract) : 'No contract yet', sub: isGettingReady(job) && depLine ? depLine : m.toBill > 0 ? `${fmtMoney(m.toBill)} to bill · ${m.billedPct}% billed${sample}` : `${m.billedPct}% billed · ${m.paidPct}% paid${sample}`, tone: (dep && dep.state !== 'paid' && isGettingReady(job) ? 'warn' : m.toBill > 0 ? 'warn' : 'ok') as Tone }] : []),
-  ]
-  return (
-    <div className={cn('grid gap-3 max-sm:gap-2', facts.length === 4 ? 'grid-cols-4 max-xl:grid-cols-2' : 'grid-cols-3 max-xl:grid-cols-3 max-sm:grid-cols-2')}>
-      {facts.map((f) => <FactCard key={f.key} f={f} onClick={() => setTab(f.tab)} />)}
-    </div>
-  )
-}
-type Fact = { key: string; tab: PTab; label: string; icon: React.ReactNode; lead?: React.ReactNode; main: string; sub: string; tone: Tone }
-const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-500', warn: 'bg-warn-500', bad: 'bg-bad-500', info: 'bg-brand-500', vio: 'bg-vio-500', neutral: 'bg-[#c6ccd4]' }
-function FactCard({ f, onClick }: { f: Fact; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="group flex min-w-0 flex-col rounded-[0.875rem] border border-line bg-white px-4 py-3 text-left transition hover:border-[#cfd4db] hover:shadow-card max-sm:px-3 max-sm:py-2.5">
-      <span className="flex min-w-0 items-center gap-2 text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-muted max-sm:text-[0.6875rem]">
-        <span className="inline-flex text-faint [&_svg]:h-3.5 [&_svg]:w-3.5 max-sm:hidden">{f.icon}</span><span className="truncate">{f.label}</span>
-        <span className={cn('ml-auto h-2 w-2 shrink-0 rounded-full', TONE_DOT[f.tone])} />
-      </span>
-      <span className="mt-2 flex min-w-0 items-center gap-2.5 max-sm:mt-1.5 max-sm:gap-2">
-        <span className="shrink-0 max-sm:hidden">{f.lead}</span>
-        <span className="min-w-0 truncate text-[1rem] font-semibold text-ink max-sm:text-[0.9375rem]">{f.main}</span>
-      </span>
-      <span className={cn('mt-0.5 truncate text-[0.78125rem]', f.tone === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>{f.sub}</span>
-    </button>
-  )
-}
-/** the contract, how much is billed and paid — worked out from the estimate, the daily updates and the bills */
-function moneyFacts(s: Store, job: Job) {
-  const b = billingOf(job)
-  const dep = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')
-  return { contract: b.contract + b.changes, billedPct: b.billedPct, paidPct: b.paidPct, dep, toBill: b.toBill }
-}
-
-/** while it's getting ready: everything open that isn't a checklist step — tasks, meetings, tile that came up short */
-function AlsoOpen({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const s = useStore()
-  const { lines } = todoLines(s, job, setTab, true)
-  const open = lines.filter((l) => l.task || l.it)
-  const meets = lines.filter((l) => l.ev)
-  return (
-    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-        <h3 className="text-[0.90625rem] font-semibold text-ink">Also open<span className="ml-1.5 text-[0.8125rem] font-semibold text-faint">{open.length}</span></h3>
-        <span className="truncate text-[0.78125rem] text-muted">Outside the checklist</span>
-      </header>
-      {open.map((l) => <SideLine key={l.key} l={l} />)}
-      {!open.length && <div className="px-4 py-3 text-[0.8125rem] text-muted">Nothing else open.</div>}
-      {meets.length > 0 && (
-        <>
-          <div className="border-t border-line-2 bg-wash px-4 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">Meetings</div>
-          {meets.map((l) => <SideLine key={l.key} l={l} />)}
-        </>
-      )}
-      <div className="flex items-center gap-1 border-t border-line-2 px-2 py-1.5">
-        <button onClick={() => s.open({ t: 'newtask', jobId: job.id })} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink"><Plus className="h-4 w-4" />Task</button>
-        <button onClick={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink"><CalendarDays className="h-4 w-4" />Meeting</button>
-      </div>
-    </section>
-  )
-}
-function SideLine({ l }: { l: Line }) {
-  const s = useStore()
-  if (l.ev) {
-    const e = l.ev
-    return (
-      <button onClick={() => s.open({ t: 'event', id: e.id })} className="flex w-full items-center gap-2.5 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 hover:bg-[#f7f8fa]">
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3.5 w-3.5" /></span>
-        <span className="min-w-0 flex-1"><span className="block truncate text-[0.84375rem] font-semibold text-ink">{e.title}</span><span className="block truncate text-[0.75rem] text-muted">{dayLabel(e.date)} · {timeLabel(e.start)}</span></span>
-        <span className="flex -space-x-1.5">{e.people.slice(0, 2).map((p) => <Avatar key={p} who={p} size={22} ring />)}</span>
-      </button>
-    )
-  }
-  if (l.it) {
-    const it = l.it
-    return (
-      <button onClick={it.action?.run} className="flex w-full items-center gap-2.5 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 hover:bg-[#f7f8fa]">
-        <span className="shrink-0 [&>span]:h-6 [&>span]:w-6">{NOW_ICON[it.status]}</span>
-        <span className="min-w-0 flex-1"><span className="block truncate text-[0.84375rem] font-semibold text-ink">{it.title}</span><span className={cn('block truncate text-[0.75rem]', it.status === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>{it.note}</span></span>
-        {it.action && <span className="shrink-0 text-[0.78125rem] font-semibold text-brand-600">{it.action.label}</span>}
-      </button>
-    )
-  }
-  const t = l.task!
-  return (
-    <button onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-2.5 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 hover:bg-[#f7f8fa]">
-      <span className="shrink-0 [&>span]:h-6 [&>span]:w-6">{NOW_ICON[t.state === 'waiting' ? 'wait' : 'todo']}</span>
-      <span className="min-w-0 flex-1"><span className="block truncate text-[0.84375rem] font-semibold text-ink">{t.title}</span><span className={cn('block truncate text-[0.75rem]', t.state === 'waiting' ? 'text-warn-700' : 'text-muted')}>{t.state === 'waiting' ? `Waiting on ${t.waitingOn} · back ${t.followUp}` : t.due || 'No date'}</span></span>
-      <Avatar who={t.owner} size={22} />
-    </button>
-  )
-}
-
-/** once the crew is on it: how far each room is */
-function RoomsProgress({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const s = useStore()
-  const rooms = s.rooms[job.id] || []
-  return (
-    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="border-b border-line px-4 py-3">
-        <div className="flex items-baseline justify-between gap-2"><h3 className="text-[0.90625rem] font-semibold text-ink">Installed</h3><span className="text-[0.8125rem] font-semibold tnum text-ink">{job.pct ?? 0}%</span></div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-wash-2"><div className="h-full rounded-full bg-ok-500" style={{ width: `${Math.max(3, job.pct ?? 0)}%` }} /></div>
-      </header>
-      <ol className="py-1.5">
-        {rooms.map((r) => {
-          const pct = r.pct ?? roomPct(r)
-          const held = r.surfaces.some((x) => ['blocked', 'waitmat', 'hold'].includes(x.state))
-          return (
-            <li key={r.name}>
-              <button onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name })} className="flex w-full items-center gap-3 px-4 py-[0.375rem] text-left transition hover:bg-[#f7f8fa]">
-                <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium text-ink-2">{r.name}</span>
-                {held && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warn-500" />}
-                <span className="h-1 w-[4.5rem] shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', held ? 'bg-warn-500' : 'bg-ok-500')} style={{ width: `${Math.max(4, pct)}%` }} /></span>
-                <span className={cn('w-9 shrink-0 text-right text-[0.78125rem] font-semibold tnum', pct >= 100 ? 'text-ok-700' : 'text-muted')}>{pct}%</span>
-              </button>
-            </li>
-          )
-        })}
-        {!rooms.length && <li className="px-4 py-2 text-[0.8125rem] text-muted">Rooms come from the scope.</li>}
-      </ol>
-      <button onClick={() => setTab('scope')} className="flex w-full items-center justify-between border-t border-line-2 px-4 py-2.5 text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash">Every wall and floor<ChevronRight className="h-4 w-4" /></button>
-    </section>
   )
 }
 
@@ -422,291 +265,6 @@ export function HistoryModal({ jobId, level }: { jobId: string; level: number })
   const job = s.jobs[jobId]
   if (!job) return null
   return <Modal level={level} size="lg" tall onClose={s.close} title="History" sub={`${job.name} · ${historyOf(s, job.id).length} entries`}><HistoryTab job={job} /></Modal>
-}
-
-/* ================= Now: what has to happen at this stage ================= */
-type NowState = 'done' | 'todo' | 'part' | 'wait' | 'bad'
-type NowItem = { key: string; title: string; status: NowState; note?: string; action?: { label: string; run: () => void } }
-const CELL_TO_NOW: Record<string, NowState> = { yes: 'done', no: 'todo', part: 'part', wait: 'wait', bad: 'bad', na: 'done' }
-
-export function nowItems(s: Store, job: Job, setTab: (t: PTab) => void): { heading: string; items: NowItem[] } {
-  const rooms = s.rooms[job.id] || []
-  const flat = rooms.flatMap((r) => r.surfaces.map((sf) => ({ room: r.name, sf })))
-  const dep = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')
-  const depItem = (): NowItem | null => !dep ? null : dep.state === 'paid'
-    ? { key: 'dep', title: 'Deposit', status: 'done', note: `Paid${dep.date ? ' ' + dep.date : ''}` }
-    : dep.paid
-      ? { key: 'dep', title: 'Deposit', status: 'part', note: `${fmtMoney((dep.amount || 0) - dep.paid)} still open`, action: { label: 'Open invoice', run: () => s.open({ t: 'money', id: dep.id }) } }
-      : dep.step >= 1
-        ? { key: 'dep', title: 'Deposit', status: 'wait', note: `Invoice ${dep.ref} sent — not paid`, action: { label: 'Record payment', run: () => s.open({ t: 'money', id: dep.id }) } }
-        : { key: 'dep', title: 'Deposit', status: 'todo', note: 'Not invoiced yet', action: { label: 'Create invoice', run: () => s.open({ t: 'money', id: dep.id }) } }
-  const st = job.stage
-  if (['awarded', 'setup'].includes(st)) {
-    const picked = flat.filter((x) => x.sf.tile).length
-    const checks = s.checks.filter((c) => c.jobId === job.id)
-    const short = checks.find((c) => c.ordered < needWithWaste(c))
-    const pos = s.pos.filter((p) => p.jobId === job.id)
-    const cpo = s.money.find((m) => m.jobId === job.id && m.kind === 'custpo')
-    const items: (NowItem | null)[] = [
-      rooms.length
-        ? { key: 'rooms', title: 'Rooms and surfaces', status: 'done', note: `${rooms.length} rooms · ${flat.length} surfaces` }
-        : { key: 'rooms', title: 'Rooms and surfaces', status: 'todo', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: job.id }) } },
-      { key: 'tile', title: 'Tile picked for every surface', status: !flat.length ? 'todo' : picked === flat.length ? 'done' : 'part', note: flat.length ? `${picked} of ${flat.length} picked` : 'After the rooms', action: flat.length && picked < flat.length ? { label: 'Pick tiles', run: () => setTab('scope') } : undefined },
-      short
-        ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${needWithWaste(short) - short.ordered} ${short.unit} short of our takeoff`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
-        : { key: 'qty', title: 'Tile quantity', status: checks.length ? 'done' : 'wait', note: checks.length ? 'Covers our takeoff and waste' : 'Waiting for the store’s order' },
-      (() => {
-        const st = settingStatus(s, job.id)
-        if (!st.total) return null
-        return { key: 'set', title: 'Underlayment for every surface', status: st.set === st.total ? 'done' : st.set ? 'part' : 'todo', note: st.set === st.total ? 'Set — materials worked out from it' : `${st.set} of ${st.total} picked · suggestions ready`, action: st.set === st.total ? undefined : { label: 'Pick it', run: () => s.open({ t: 'setting', jobId: job.id }) } } as NowItem
-      })(),
-      (() => {
-        const ms = materialStatus(s, job.id)
-        const status: NowState = ms.state === 'yes' ? 'done' : ms.state === 'wait' ? 'wait' : ms.state === 'part' ? 'part' : 'todo'
-        const note = ms.go === 'order' ? `${ms.label} — ${ms.hint.split(' — ')[0]}` : ms.hint
-        const action = ms.go === 'order' ? { label: 'Order', run: () => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true }) } : ms.go === 'scope' ? { label: 'Open scope', run: () => setTab('scope') } : ms.state === 'yes' ? undefined : { label: 'See it', run: () => setTab('orders') }
-        return { key: 'mat', title: 'Our materials', status, note, action } as NowItem
-      })(),
-      depItem(),
-      cpo ? { key: 'cpo', title: 'Client PO', status: cpo.state === 'paid' ? 'done' : 'wait', note: cpo.state === 'paid' ? 'Received' : 'Requested from the GC', action: cpo.state !== 'paid' ? { label: 'Mark received', run: () => s.open({ t: 'money', id: cpo.id }) } : undefined } : null,
-    ]
-    return { heading: 'Setup', items: items.filter(Boolean) as NowItem[] }
-  }
-  if (st === 'verification') {
-    const unknown = flat.filter((x) => x.sf.state === 'unknown')
-    const hs = heightStatus(s, job.id)
-    return {
-      heading: 'Site check',
-      items: [
-        ...(hs.total ? [{ key: 'heights', title: 'Wall heights measured', status: (hs.measured === hs.total ? 'done' : 'bad') as NowState, note: hs.measured === hs.total ? 'Square feet and materials follow the real heights' : `${hs.measured} of ${hs.total} walls — required before the start`, action: hs.measured === hs.total ? undefined : { label: 'Measure', run: () => s.open({ t: 'heights', jobId: job.id }) } }] : []),
-        { key: 'walk', title: 'Walkthrough on site', status: 'todo', note: 'Heights, prep and anything unclear', action: { label: 'Done', run: () => verificationDone(job.id) } },
-        { key: 'unk', title: 'Surfaces to verify', status: unknown.length ? 'wait' : 'done', note: unknown.length ? unknown.map((x) => `${x.room} ${x.sf.name.toLowerCase()}`).join(' · ') : 'Nothing unclear', action: unknown.length ? { label: 'Open', run: () => setTab('scope') } : undefined },
-        ...(depItem() ? [depItem()!] : []),
-      ],
-    }
-  }
-  if (['ready', 'scheduled'].includes(st)) {
-    const cells = planCells(s, job)
-    const crew = installerOf(s, job)
-    const items: NowItem[] = CELLS.map((c) => {
-      const cell = cells[c.key]
-      const label = cell.state === 'yes' || cell.state === 'na' ? undefined : c.key === 'po' ? (crew ? 'Send PO' : 'Book installer') : c.key === 'material' ? (cell.state === 'wait' ? 'Open' : cell.label === 'Add SF' || cell.label === 'No scope' ? 'Open scope' : 'Order') : c.key === 'deposit' ? 'Open invoice' : c.key === 'picked' ? 'Pick tiles' : 'Open'
-      return { key: c.key, title: c.short, status: CELL_TO_NOW[cell.state], note: /^\d|\$/.test(cell.label) ? `${cell.label} — ${cell.hint}` : cell.hint, action: label && cell.run ? { label, run: cell.run } : undefined }
-    })
-    return { heading: st === 'scheduled' ? 'Scheduled — ready to start' : 'Ready — before the crew starts', items }
-  }
-  if (st === 'installation') {
-    const items: NowItem[] = []
-    /* surfaces held up by the same thing are one line: the thing, and where it holds up the work */
-    const held = flat.filter((x) => ['blocked', 'hold', 'waitmat'].includes(x.sf.state))
-    const reasons = Array.from(new Set(held.map((x) => x.sf.reason || (x.sf.state === 'hold' ? 'On hold' : 'Waiting on material'))))
-    reasons.forEach((why) => {
-      const these = held.filter((x) => (x.sf.reason || (x.sf.state === 'hold' ? 'On hold' : 'Waiting on material')) === why)
-      const fix = surfaceFix(job, these[0].room, these[0].sf)
-      items.push({ key: 'held:' + why, title: why.replace(/ \d+ days? late$/, ''), status: these.some((x) => x.sf.state === 'blocked') ? 'bad' : 'wait', note: `${/late/.test(why) ? why.match(/\d+ days? late/)?.[0] + ' · ' : ''}holds up ${these.map((x) => `${x.room.toLowerCase()} ${x.sf.name.toLowerCase()}`).join(', ')}`, action: fix || undefined })
-    })
-    const sentToday = s.diary[job.id]?.[0]?.date === NOW
-    items.push({ key: 'daily', title: 'Today’s daily update', status: sentToday ? 'done' : 'todo', note: sentToday ? 'Sent' : `${PEOPLE[(job.crew as PersonKey) || 'ys'].short}’s crew · ${job.pct ?? 0}% installed`, action: sentToday ? undefined : { label: 'Send', run: () => s.open({ t: 'daily', jobId: job.id }) } })
-    s.money.filter((m) => m.jobId === job.id && m.state === 'todo').forEach((m) => items.push({ key: m.id, title: m.title, status: 'todo', note: m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) } }))
-    return { heading: 'In progress', items }
-  }
-  if (st === 'punch') {
-    const left = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified')
-    const booking = s.bookings.find((b) => b.jobId === job.id)
-    const hold = s.ready.find((r) => r.jobId === job.id && r.kind === 'hold')
-    const items: NowItem[] = [
-      { key: 'punch', title: 'Touch-ups', status: left.length ? 'todo' : 'done', note: left.length ? `${left.length} still open` : 'All verified', action: left.length ? { label: 'Open list', run: () => setTab('installer') } : undefined },
-      hold
-        ? { key: 'ret', title: 'Return visit', status: 'bad', note: hold.warn || 'On hold', action: job.id === '828' ? { label: 'Chase or reorder', run: () => s.open({ t: 'thinset' }) } : undefined }
-        : { key: 'ret', title: 'Return visit', status: booking ? 'done' : 'todo', note: booking ? `${PEOPLE[booking.crew as PersonKey].short} · ${booking.start.slice(5).replace('-', '/')}` : 'Not booked yet', action: booking ? undefined : { label: 'Book it', run: () => s.open({ t: 'assign', jobId: job.id }) } },
-    ]
-    s.money.filter((m) => m.jobId === job.id && m.state === 'todo').forEach((m) => items.push({ key: m.id, title: m.title, status: 'todo', note: m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) } }))
-    return { heading: 'Touch-ups', items }
-  }
-  /* closeout / complete */
-  const items: NowItem[] = s.money.filter((m) => m.jobId === job.id && m.state !== 'paid' && ['final', 'retainage', 'change', 'progress'].includes(m.kind)).map((m) => ({
-    key: m.id, title: m.title, status: m.state === 'todo' ? 'todo' : 'wait', note: m.state === 'waiting' ? `Invoice ${m.ref || ''} sent — not paid` : m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) },
-  }))
-  if (!items.length) items.push({ key: 'paid', title: 'Everything billed and paid', status: 'done' })
-  return { heading: st === 'complete' ? 'Finished' : 'Closing out', items }
-}
-
-const NOW_ICON: Record<NowState, React.ReactNode> = {
-  done: <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-3.5 w-3.5" strokeWidth={3.2} /></span>,
-  bad: <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-bad-500 text-white"><X className="h-3.5 w-3.5" strokeWidth={3.2} /></span>,
-  wait: <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-2 ring-inset ring-brand-200"><Clock3 className="h-3.5 w-3.5" strokeWidth={2.4} /></span>,
-  part: <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-warn-50 text-warn-700 ring-2 ring-inset ring-warn-300"><Contrast className="h-3.5 w-3.5" strokeWidth={2.4} /></span>,
-  todo: <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-dashed border-[#d6dae0] bg-white" />,
-}
-
-/* the stage checklist and the team's tasks are often the same thing ("Deposit" ↔ "Send the deposit invoice"):
- * show it once — the checklist line, with the person who has it */
-const norm = (x?: string) => (x || '').toLowerCase().replace(/[^a-z0-9]/g, '')
-function sameThing(it: NowItem, t: Task, depId?: string): boolean {
-  const title = t.title.toLowerCase()
-  const kind = t.action?.kind || ''
-  if (kind === 'money:' + it.key) return true
-  if (it.key.startsWith('sh:')) return kind === 'short:' + it.key.slice(3)
-  switch (it.key) {
-    case 'dep':
-    case 'deposit': return (!!depId && kind === 'money:' + depId) || /deposit/.test(title)
-    case 'qty': return kind.startsWith('qty') || /short of our takeoff/.test(title)
-    case 'cpo': return /client po/.test(title)
-    case 'daily': return /daily update/.test(title)
-    case 'walk': return kind.startsWith('walk-done') || /^walk /.test(title)
-    case 'mat':
-    case 'material': return /^order /.test(title)
-    case 'rooms': return /^build .*paperwork/.test(title)
-    case 'po': return /installer po|\bipo\b/.test(title)
-  }
-  const n = norm(it.title)
-  return n.length > 6 && (norm(t.where).startsWith(n) || norm(t.blocks).startsWith(n))
-}
-type Line = { key: string; rank: number; it?: NowItem; task?: Task; owner?: Task; ev?: CalEvent; step?: StepView }
-function todoLines(s: Store, job: Job, setTab: (t: PTab) => void, extrasOnly?: boolean, withSteps?: boolean) {
-  /* while a project is getting ready its checklist lives in the steps — here only what's outside them */
-  const base = extrasOnly ? [] : nowItems(s, job, setTab).items
-  /* tile that came up short: one line that shows where the shortage is */
-  const shorts = s.shortages.filter((x) => x.jobId === job.id && x.step !== 'received')
-  const covered = new Set(shorts.flatMap((x) => x.surfaces.map((f) => `${f.room} · ${f.surface}`)))
-  const items: NowItem[] = [
-    ...shorts.map((x): NowItem => ({ key: 'sh:' + x.id, title: `${x.tag} short · ${x.qty} ${x.unit}`, status: x.step === 'short' ? 'bad' : 'wait', note: x.step === 'short' ? `${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')} wait for it — reorder it` : `Reordered from ${x.orderedFrom} · arrives ${x.eta}${job.hold?.shortage === x.id ? ' · project on hold' : ''}`, action: { label: x.step === 'short' ? 'Reorder' : 'It came in', run: () => s.open({ t: 'short', id: x.id }) } })),
-    ...base.filter((i) => !covered.has(i.title)),
-  ]
-  const depId = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')?.id
-  const tasks = s.tasks.filter((t) => t.jobId === job.id && (t.state === 'now' || t.state === 'waiting') && !(extrasOnly && t.step))
-  const used = new Set<string>()
-  const lines: Line[] = []
-  items.filter((i) => i.status !== 'done').forEach((it) => {
-    const owner = tasks.find((t) => !used.has(t.id) && sameThing(it, t, depId))
-    if (owner) used.add(owner.id)
-    lines.push({ key: 'c' + it.key, rank: it.status === 'bad' ? 0 : it.status === 'wait' ? 2 : 1, it, owner })
-  })
-  tasks.filter((t) => !used.has(t.id)).forEach((t) => lines.push({ key: 't' + t.id, rank: t.state === 'waiting' ? 2 : 1, task: t }))
-  s.events.filter((e) => e.jobId === job.id && e.date >= CAL_TODAY).sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).forEach((e) => lines.push({ key: 'e' + e.id, rank: 3, ev: e }))
-  /* while it's getting ready, the checklist steps that are someone's turn (or waiting) are part of the work list */
-  if (withSteps) stepsFor(s, job).filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait').forEach((v) => lines.push({ key: 's' + v.key, rank: v.state === 'bad' ? 0 : v.state === 'wait' ? 2 : 1, step: v }))
-  lines.sort((a, b) => a.rank - b.rank)
-  return { lines, done: items.filter((i) => i.status === 'done') }
-}
-/** how many things are open on a project (for the To do tab's count) */
-export function todoCount(s: Store, job: Job) {
-  /* what needs someone here — waiting on others doesn't count */
-  if (isGettingReady(job)) {
-    const steps = stepsFor(s, job).filter((x) => x.state === 'now' || x.state === 'bad')
-    const { lines } = todoLines(s, job, () => {}, true)
-    const extra = lines.filter((l) => !l.ev && l.rank !== 2)
-    return { n: steps.length + extra.length, bad: steps.some((x) => x.state === 'bad') || extra.some((l) => l.it?.status === 'bad') }
-  }
-  const { lines } = todoLines(s, job, () => {})
-  const open = lines.filter((l) => !l.ev && l.rank !== 2)
-  return { n: open.length, bad: open.some((l) => l.it?.status === 'bad') }
-}
-
-/* ================= To do: one list — what this stage needs, everyone's part, meetings ================= */
-function TodoList({ job, setTab, extrasOnly, withSteps }: { job: Job; setTab: (t: PTab) => void; extrasOnly?: boolean; withSteps?: boolean }) {
-  const s = useStore()
-  const [showDone, setShowDone] = React.useState(false)
-  const [showWait, setShowWait] = React.useState(false)
-  const { lines, done } = todoLines(s, job, setTab, extrasOnly || withSteps, withSteps)
-  const act = lines.filter((l) => l.rank !== 2)
-  const waits = lines.filter((l) => l.rank === 2)
-  const who = (t: Task) => (
-    <Tip label={`${PEOPLE[t.owner].name} has it — open the task`}>
-      <button onClick={(e) => { e.stopPropagation(); s.open({ t: 'task', id: t.id }) }} className="inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 text-[0.78125rem] font-medium text-muted hover:bg-wash-2 hover:text-ink">
-        <Avatar who={t.owner} size={24} />
-        <span className="max-md:hidden">{PEOPLE[t.owner].short}</span>
-      </button>
-    </Tip>
-  )
-  const row = (l: Line) => {
-    if (l.step) {
-      const v = l.step
-      return (
-        <LineShell lead={<StepIcon state={v.state} size={28} />} title={v.label} note={v.note || (v.state === 'wait' ? 'Waiting' : 'Checklist step')} bad={v.state === 'bad'} wrap
-          right={<><span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-muted"><Avatar who={v.owner} size={24} /><span className="max-md:hidden">{PEOPLE[v.owner]?.short}</span></span><StepButton job={job} v={v} /></>}
-        />
-      )
-    }
-    if (l.it) return <CheckLine it={l.it} owner={l.owner ? who(l.owner) : undefined} />
-    if (l.task) {
-      const t = l.task
-      return (
-        <LineShell lead={NOW_ICON[t.state === 'waiting' ? 'wait' : 'todo']} onClick={() => s.open({ t: 'task', id: t.id })}
-          title={t.title}
-          note={<span className={t.state === 'waiting' ? 'text-warn-700' : undefined}>{t.state === 'waiting' ? `Waiting on ${t.waitingOn} · back ${t.followUp}` : t.due || 'No date'}</span>}
-          right={<><span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-muted"><Avatar who={t.owner} size={24} /><span className="max-md:hidden">{PEOPLE[t.owner].short}</span></span><ChevronRight className="h-4 w-4 text-faint" /></>}
-        />
-      )
-    }
-    const e = l.ev!
-    return (
-      <LineShell lead={<span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3.5 w-3.5" /></span>} onClick={() => s.open({ t: 'event', id: e.id })}
-        title={e.title}
-        note={`${dayLabel(e.date)} · ${timeLabel(e.start)}${e.with ? ` · with ${e.with}` : ''}`}
-        right={<><span className="flex -space-x-1.5 max-sm:hidden">{e.people.slice(0, 3).map((p) => <Avatar key={p} who={p} size={24} ring />)}</span><ChevronRight className="h-4 w-4 text-faint" /></>}
-      />
-    )
-  }
-  return (
-    <div className="w-full min-w-0">
-      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-        <header className="flex items-baseline justify-between gap-3 border-b border-line px-5 py-3 max-sm:px-4">
-          <h3 className="text-[0.90625rem] font-semibold text-ink">What’s open<span className="ml-1.5 text-[0.8125rem] font-semibold text-faint">{act.filter((l) => !l.ev).length}</span></h3>
-          <span className="truncate text-[0.78125rem] text-muted max-sm:hidden">{withSteps ? 'The steps that are someone’s turn, and anything else open here' : 'Everything that needs doing here, with who has each'}</span>
-        </header>
-        {act.length ? act.map((l) => <div key={l.key} className="border-t border-line-2 first:border-t-0">{row(l)}</div>) : (
-          <div className="flex items-center gap-3 px-5 py-5 text-[0.875rem] font-medium text-muted">{NOW_ICON.done}<span className="font-semibold text-ink">{waits.length ? 'Nothing for us right now — only waiting on others' : 'Nothing open on this project'}</span></div>
-        )}
-        {waits.length > 0 && (
-          <>
-            <button onClick={() => setShowWait((v) => !v)} className="flex w-full items-center gap-2 border-t border-line bg-wash px-5 py-2.5 text-left text-[0.8125rem] font-semibold text-ink-2 transition hover:text-ink max-sm:px-4">
-              {showWait ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}Waiting on others<span className="text-[0.78125rem] font-semibold text-faint">{waits.length}</span>
-              <span className="ml-auto truncate text-[0.78125rem] font-normal text-muted">{!showWait && waits.map((l) => l.step?.short || l.task?.waitingOn || l.it?.title).filter(Boolean).slice(0, 3).join(' · ')}</span>
-            </button>
-            {showWait && waits.map((l) => <div key={l.key} className="border-t border-line-2">{row(l)}</div>)}
-          </>
-        )}
-        <div className="flex items-center gap-1 border-t border-line-2 px-3 py-2">
-          <button onClick={() => s.open({ t: 'newtask', jobId: job.id })} className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 text-[0.84375rem] font-semibold text-muted hover:bg-wash hover:text-ink"><Plus className="h-4 w-4" />Add a task</button>
-          <button onClick={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })} className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 text-[0.84375rem] font-semibold text-muted hover:bg-wash hover:text-ink"><CalendarDays className="h-4 w-4" />Add a meeting</button>
-        </div>
-      </div>
-      {done.length > 0 && (
-        <div className="mt-4">
-          <button onClick={() => setShowDone((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-[0.8125rem] font-semibold text-muted hover:text-ink">
-            {showDone ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}Done · {done.length}
-          </button>
-          {showDone && (
-            <div className="mt-2 overflow-hidden rounded-[0.875rem] border border-line bg-white">
-              {done.map((it) => <div key={it.key} className="border-t border-line-2 first:border-t-0"><CheckLine it={it} /></div>)}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function LineShell({ lead, title, note, right, onClick, bad, dim, wrap }: { lead: React.ReactNode; title: React.ReactNode; note?: React.ReactNode; right?: React.ReactNode; onClick?: () => void; bad?: boolean; dim?: boolean; wrap?: boolean }) {
-  const Tag = onClick ? 'button' : 'div'
-  return (
-    <Tag onClick={onClick} className={cn('flex min-h-[3.25rem] w-full items-center gap-3 px-5 py-2 text-left max-sm:px-4', wrap && 'max-sm:flex-wrap max-sm:gap-y-2', onClick && 'transition hover:bg-[#f7f8fa]')}>
-      <span className="shrink-0">{lead}</span>
-      <span className="min-w-0 flex-1">
-        <span className={cn('block truncate text-[0.875rem] font-semibold leading-5', dim ? 'text-muted' : 'text-ink')}>{title}</span>
-        {note && <span className={cn('block truncate text-[0.78125rem] leading-[1.125rem]', bad ? 'font-medium text-bad-600' : 'text-muted')}>{note}</span>}
-      </span>
-      {right && <span className={cn('flex shrink-0 items-center gap-3', wrap && 'max-sm:w-full max-sm:justify-between max-sm:pl-[2.625rem]')}>{right}</span>}
-    </Tag>
-  )
-}
-function CheckLine({ it, owner }: { it: NowItem; owner?: React.ReactNode }) {
-  return (
-    <LineShell lead={NOW_ICON[it.status]} title={it.title} note={it.note} bad={it.status === 'bad'} dim={it.status === 'done'} wrap={!!it.action}
-      right={it.action || owner ? <>{owner || <span />}{it.action && <Button size="sm" variant={it.status === 'bad' ? 'primary' : 'outline'} onClick={it.action.run}>{it.action.label}</Button>}</> : undefined}
-    />
-  )
 }
 
 /** one room up close — its surfaces, the daily log and photos (the rooms view, in its own window) */

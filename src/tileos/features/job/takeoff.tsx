@@ -16,8 +16,9 @@ import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
+import { Section, Empty, Group } from './kit'
 
-const HEAD = 'border-b border-line bg-wash px-5 py-2 text-[0.75rem] font-semibold text-muted max-sm:px-4'
+const HEAD = 'border-b border-line-2 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:px-4'
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
 /* ---------------- tile ---------------- */
@@ -28,15 +29,9 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const tags = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
   return (
-    <section>
-      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-[0.9375rem] font-semibold text-ink">Tile</h3>
-          <p className="mt-0.5 text-[0.8125rem] text-muted">What our takeoff needs, with waste, against what was ordered — so nobody runs short on site</p>
-        </div>
-      </div>
-      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-        <div className={cn(TGRID, HEAD)}>
+    <Section title="Tile" count={tags.length} sub="What we need, with the extra for cuts, against what was ordered">
+      <div>
+        <div className={cn(TGRID, HEAD, !tags.length && 'hidden')}>
           <span>Tile</span>
           <span className="text-right">We need</span>
           <span className="max-sm:hidden">Ordered · here</span>
@@ -58,7 +53,7 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
             : short ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
-            <div key={tag} className={cn(TGRID, 'border-b border-line-2 px-5 py-3 last:border-0 max-sm:px-4')}>
+            <div key={tag} className={cn(TGRID, 'min-h-[3.25rem] border-t border-line-2 px-5 py-2.5 first:border-t-0 max-sm:px-4')}>
               <span className="flex min-w-0 items-center gap-3">
                 <TileImg tile={t} size={36} radius={8} />
                 <span className="min-w-0">
@@ -80,12 +75,12 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
         })}
         {!tags.length && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
-            <span className="min-w-0 flex-1">No tiles on this project yet — add them on the Scope tab, from the finish schedule.</span>
-            <Button size="sm" icon={<Ruler />} onClick={onScope}>Open the scope</Button>
+            <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered.</span>
+            <Button size="sm" icon={<Ruler />} onClick={onScope}>What we’re tiling</Button>
           </div>
         )}
       </div>
-    </section>
+    </Section>
   )
 }
 
@@ -99,30 +94,26 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
   const miss = t.lines.filter((l) => l.toOrder > 0)
   const toggle = (k: string) => setOpen((o) => (o === k ? null : k))
   return (
-    <section>
-      <div className="mb-2.5 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-[0.9375rem] font-semibold text-ink">Our materials</h3>
-          <p className="mt-0.5 text-[0.8125rem] text-muted">{t.counted ? `Worked out from ${t.counted} walls and floors · ${t.sf.toLocaleString('en-US')} SF — what goes under the tile, thinset, grout, metal${save.mode === 'sample' ? ' · sample numbers' : ''}` : 'Worked out from the square feet and what goes under each wall and floor'}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {s.role === 'owner' && <Button size="sm" variant="ghost" icon={<SlidersHorizontal />} onClick={() => { s.closeAll(); s.go({ page: 'settings' }) }}>The numbers</Button>}
-          {miss.length ? (
-            <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
-          ) : t.counted ? (
-            <Status tone="ok">Nothing to order</Status>
-          ) : null}
-        </div>
-      </div>
+    <Section
+      title="Our materials"
+      count={t.counted ? t.lines.length : undefined}
+      sub={t.counted ? `Worked out from ${t.counted} walls and floors · ${t.sf.toLocaleString('en-US')} SF${save.mode === 'sample' ? ' · sample numbers' : ''}` : 'Worked out from the square feet and what goes under each wall and floor'}
+      action={<>
+        {s.role === 'owner' && <Button size="sm" variant="ghost" icon={<SlidersHorizontal />} onClick={() => { s.closeAll(); s.go({ page: 'settings' }) }}><span className="max-sm:hidden">The numbers</span></Button>}
+        {miss.length ? (
+          <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
+        ) : t.counted ? (
+          <Status tone="ok">Nothing to order</Status>
+        ) : null}
+      </>}
+    >
       {!t.counted ? (
-        <div className="flex flex-col items-center rounded-[0.875rem] border border-dashed border-line bg-white px-6 py-8 text-center">
-          <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><Calculator className="h-5 w-5" /></span>
-          <div className="text-[0.9375rem] font-semibold text-ink">{t.total ? 'Nothing to work out yet' : 'No rooms yet'}</div>
-          <div className="mt-1 max-w-md text-[0.84375rem] text-muted">{t.total ? 'Each wall and floor needs its square feet and its tile — then the materials work themselves out.' : 'The rooms come over from the estimate.'}</div>
-          <Button className="mt-3" size="sm" icon={<Ruler />} onClick={onScope}>Open the scope</Button>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
+          <span className="min-w-0 flex-1">{t.total ? 'Each wall and floor needs its square feet and its tile — then the materials work themselves out.' : 'No rooms yet — they come over from the estimate.'}</span>
+          <Button size="sm" icon={<Ruler />} onClick={onScope}>What we’re tiling</Button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        <div>
           <div className={cn(GRID, HEAD)}>
             <span>Material</span>
             <span className="text-right">Need</span>
@@ -134,7 +125,7 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
             if (!ls.length) return null
             return (
               <section key={g}>
-                <div className="border-b border-line-2 bg-[#f7f8fa] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:px-4">{g}</div>
+                <Group label={g} />
                 {ls.map((l) => <Line key={l.itemId} l={l} jobId={job.id} open={open === l.itemId} onToggle={() => toggle(l.itemId)} waste={t.rules.waste} />)}
               </section>
             )
@@ -142,13 +133,13 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
         </div>
       )}
       {t.skipped.length > 0 && t.counted > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-warn-50 px-4 py-2.5 text-[0.8125rem] text-warn-800">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-warn-50/60 px-5 py-2.5 text-[0.8125rem] text-warn-800 max-sm:px-4">
           <span className="font-semibold">Not counted yet</span>
           <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
-          <button onClick={onScope} className="font-semibold text-warn-800 underline-offset-2 hover:underline">Open the scope</button>
+          <button onClick={onScope} className="font-semibold text-warn-800 underline-offset-2 hover:underline">What we’re tiling</button>
         </div>
       )}
-    </section>
+    </Section>
   )
 }
 
@@ -170,8 +161,8 @@ function Line({ l, jobId, open, onToggle, waste }: { l: TakeLine; jobId: string;
   /* grout: which colors, so the order says them */
   const colors = l.itemId === 'm-grout' ? Array.from(new Set(l.uses.map((u) => s.rooms[jobId]?.find((r) => r.name === u.room)?.surfaces.find((x) => x.name === u.surface)?.grout).filter(Boolean) as string[])).map((g) => GROUTS[g]?.name || g) : []
   return (
-    <div className="border-b border-line-2 last:border-0">
-      <button onClick={onToggle} className={cn(GRID, 'w-full px-5 py-2.5 text-left transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
+    <div className="border-t border-line-2">
+      <button onClick={onToggle} className={cn(GRID, 'min-h-[3.25rem] w-full px-5 py-2 text-left transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-[0.875rem] font-medium text-ink"><ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-faint transition', open && 'rotate-180')} /><span className="truncate">{it?.name || l.itemId}</span></span>
           <span className="block truncate pl-5 text-[0.78125rem] text-muted">{colors.length ? `${colors.join(', ')} · ` : ''}{where}{sf && !exact ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>

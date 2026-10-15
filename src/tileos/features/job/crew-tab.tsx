@@ -12,6 +12,7 @@ import { md } from '@/tileos/lib/today'
 import { installerOf } from '../upcoming'
 import { CloseOverview } from './overview'
 import { useSaveStatus } from '@/tileos/lib/save'
+import { Section, Empty } from './kit'
 
 const IPO_STATUS: Record<string, { tone: Tone; label: (who: string) => string }> = {
   Draft: { tone: 'vio', label: () => 'Draft — not sent' },
@@ -34,15 +35,15 @@ export function InstallerTab({ job }: { job: Job }) {
   const total = ipo ? ipo.lines.reduce((n, l) => n + l.amount, 0) + ipo.changes.filter((c) => c.status !== 'pending').reduce((n, c) => n + c.amount, 0) : 0
   const sample = save.mode === 'sample' ? ' · sample amounts' : ''
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_22.5rem] items-start gap-5 max-xl:grid-cols-1">
+    <div className="grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
       <div className="flex min-w-0 flex-col gap-5">
         {/* who */}
-        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        <Section title="The installer">
           {crew ? (
             <div className="flex flex-wrap items-center gap-4 px-5 py-4 max-sm:px-4">
               <Avatar who={crew} size={48} />
               <div className="min-w-0 flex-1">
-                <div className="text-[1.0625rem] font-semibold text-ink">{PEOPLE[crew].name}</div>
+                <div className="text-[1rem] font-semibold text-ink">{PEOPLE[crew].name}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem] text-muted">
                   {bookings.length ? <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{bookings.map((b) => `${md(b.start)} – ${md(b.end)}`).join(' · ')}</span> : job.dates?.start ? <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{job.dates.start} – {job.dates.finish}</span> : <span>No days on the calendar yet</span>}
                   {bookings[0]?.workers ? <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{bookings[0].workers} {bookings[0].workers === 1 ? 'person' : 'people'}</span> : null}
@@ -63,20 +64,16 @@ export function InstallerTab({ job }: { job: Job }) {
               <Button variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</Button>
             </div>
           )}
-        </section>
+        </Section>
 
         {/* daily updates */}
-        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-          <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3 max-sm:px-4">
-            <h3 className="text-[0.90625rem] font-semibold text-ink">Daily updates<span className="ml-1.5 text-[0.8125rem] font-semibold text-faint">{diary.length}</span></h3>
-            {inField && <Button size="sm" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button>}
-          </header>
+        <Section title="Daily updates" count={diary.length} sub="From the site — what moved, photos, anything in the way" action={inField ? <Button size="sm" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button> : undefined}>
           {diary.slice(0, 8).map((e) => {
             const moved = e.rooms.flatMap((r) => r.items).filter((i) => i.to > i.from)
             const pics = e.rooms.reduce((n, r) => n + r.media.length, 0)
             const note = e.note || e.rooms.find((r) => r.note)?.note
             return (
-              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
+              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[3.25rem] w-full items-center gap-3 border-t border-line-2 px-5 py-2 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
                 <span className="w-[4rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
                 <Avatar who={e.who} size={24} />
                 <span className="min-w-0 flex-1">
@@ -88,45 +85,41 @@ export function InstallerTab({ job }: { job: Job }) {
               </button>
             )
           })}
-          {!diary.length && <div className="px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">{inField ? 'No daily update yet today.' : 'They start the first day on site — every day: what moved, photos, anything in the way.'}</div>}
-        </section>
+          {!diary.length && <Empty>{inField ? 'No daily update yet today.' : 'They start the first day on site.'}</Empty>}
+        </Section>
 
         {showPunch && <CloseOverview job={job} setTab={() => {}} />}
       </div>
 
       {/* his PO */}
       <aside className="flex min-w-0 flex-col gap-4">
-        <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-          <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <h3 className="text-[0.90625rem] font-semibold text-ink">Installer PO</h3>
-            {ipo && <Status tone={IPO_STATUS[ipo.status].tone}>{IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short)}</Status>}
-          </header>
+        <Section title="His PO" action={ipo ? <Status tone={IPO_STATUS[ipo.status].tone}>{IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short)}</Status> : undefined}>
           {ipo ? (
             <>
-              <div className="px-4 pb-1 pt-3 text-[0.78125rem] text-muted">{ipo.id} · {PEOPLE[ipo.crew].name} · {ipo.date}</div>
+              <div className="px-5 pb-1 pt-3 text-[0.78125rem] text-muted">{ipo.id} · {PEOPLE[ipo.crew].short} · {ipo.date}</div>
               {ipo.lines.map((l, i) => (
-                <div key={i} className="flex items-baseline gap-3 px-4 py-1.5 text-[0.8125rem]">
+                <div key={i} className="flex items-baseline gap-3 px-5 py-1.5 text-[0.8125rem]">
                   <span className="min-w-0 flex-1 truncate text-ink-2">{l.item}</span>
                   <span className="shrink-0 tnum text-muted">{l.qty}</span>
                   <span className="w-[4.5rem] shrink-0 text-right font-semibold tnum text-ink">{fmtMoney(l.amount)}</span>
                 </div>
               ))}
               {ipo.changes.map((c) => (
-                <div key={c.co} className="flex items-baseline gap-3 px-4 py-1.5 text-[0.8125rem]">
+                <div key={c.co} className="flex items-baseline gap-3 px-5 py-1.5 text-[0.8125rem]">
                   <span className={cn('min-w-0 flex-1 truncate', c.status === 'pending' ? 'text-warn-700' : 'text-ink-2')}>{c.co} · {c.text}{c.status === 'pending' ? ' · waiting' : ''}</span>
                   <span className="w-[4.5rem] shrink-0 text-right font-semibold tnum text-ink">+{fmtMoney(c.amount)}</span>
                 </div>
               ))}
-              <div className="mt-1 flex items-baseline justify-between border-t border-line-2 px-4 py-2.5 text-[0.84375rem]">
+              <div className="mt-1 flex items-baseline justify-between border-t border-line-2 px-5 py-2.5 text-[0.84375rem]">
                 <span className="font-semibold text-ink">Total{sample}</span>
                 <span className="font-bold tnum text-ink">{fmtMoney(total)}</span>
               </div>
-              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-4 py-2.5 text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
+              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
             </>
           ) : (
-            <div className="px-4 py-4 text-[0.84375rem] text-muted">{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</div>
+            <Empty>{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</Empty>
           )}
-        </section>
+        </Section>
       </aside>
     </div>
   )

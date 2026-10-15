@@ -1,9 +1,8 @@
-/* One step of getting a project ready, in one window that never changes size: the whole list down the side (every step
- * by name, where it stands, who has it), the step itself on the right — what it is, whose turn, when, the one or two
- * things that finish it, and what opens when it's done. The project's list, Today and the step's own task all open it;
- * Back / Next walk through the steps in order.
- *
- * And the project's game plan — the same list, grouped, one line per step, in plain words. */
+/* One part of getting a project ready — the paperwork, the design meeting, the site, the installer, the deliveries —
+ * in one window that never changes size. Only that part's steps: a tab for each across the top (where it stands, who
+ * has it), and under it the one step you're on and only what that step needs — what it is, whose turn, when, the one
+ * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
+ * Back / Next walk through that part's steps. */
 import * as React from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight, Lock } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
@@ -120,30 +119,31 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   const s = useStore()
   const job = s.jobs[jobId]
   const all = job ? stepsFor(s, job) : []
-  const list = all.filter((x) => x.state !== 'na' || x.key === k)
+  const at = all.find((x) => x.key === k)
+  /* only this part's steps */
+  const list = at ? all.filter((x) => x.phase === at.phase && (x.state !== 'na' || x.key === k)) : []
   const i = list.findIndex((x) => x.key === k)
   const v = list[i]
   if (!job || !v) return null
   const me = meOf(s.role)
   const go = (x?: StepView) => { if (x) s.swap({ t: 'step', jobId, k: x.key }) }
-  const c = stepCounts(all)
+  const c = stepCounts(list)
   const word = stateWords(v, me)
   const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
-  const opens = all.filter((x) => x.after.includes(v.key) && x.state !== 'na')
+  const part = PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
   return (
     <Modal
       level={level}
       size="xl"
       onClose={s.close}
-      className="h-[min(50rem,92vh)] max-sm:h-[94dvh]"
-      title={`${job.name} — getting ready`}
-      sub={`${c.done} of ${c.total} steps done${c.bad ? ` · ${c.bad} with a problem` : ''}`}
-      bodyClass="flex min-h-0 overflow-hidden p-0"
+      className="h-[min(48rem,92vh)] max-sm:h-[94dvh]"
+      title={part}
+      sub={`${job.name} · ${c.done === c.total ? 'all done' : `${c.done} of ${c.total} done`}${c.bad ? ` · ${c.bad} with a problem` : ''}`}
+      bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
       footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} />}
     >
-      <Rail list={list} at={v.key} go={go} me={me} />
-      <div key={v.key} className="scroll-soft min-w-0 flex-1 overflow-y-auto px-7 py-6 max-md:px-5 max-sm:px-4 max-sm:py-4">
-        <PhonePicker list={list} at={i} go={go} />
+      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} />}
+      <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-6 max-md:px-5 max-sm:px-4 max-sm:py-4">
         <div className="flex items-start gap-3">
           <span className="mt-1"><StepIcon state={v.state} size={26} /></span>
           <div className="min-w-0 flex-1">
@@ -157,17 +157,30 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
           <Who job={job} v={v} />
           {dated && v.state !== 'done' && v.state !== 'na' && <When job={job} v={v} />}
         </div>
-        <UsualOwner v={v} />
         {WHAT[v.key] && v.state !== 'done' && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
         <div className="mt-5"><Body job={job} v={v} /></div>
-        {opens.length > 0 && (
-          <div className="mt-6 flex items-start gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2">
-            <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-faint" />
-            <span>{v.state === 'done' ? 'This opened ' : 'When this is done, it opens '}{opens.map((x, n) => <React.Fragment key={x.key}>{n > 0 && (n === opens.length - 1 ? ' and ' : ', ')}<button onClick={() => go(x)} className="font-semibold text-ink hover:text-brand-700">{x.short.toLowerCase()}</button> for {x.owner === me ? 'you' : PEOPLE[x.owner]?.short}</React.Fragment>)} — {opens.length === 1 ? 'it goes' : 'they go'} on {opens.every((x) => x.owner === me) ? 'your' : 'their'} Today by {opens.length === 1 ? 'itself' : 'themselves'}.</span>
-          </div>
-        )}
       </div>
     </Modal>
+  )
+}
+
+/** this part's steps, one tab each across the top — same size whichever one you're on */
+function StepTabs({ list, at, go }: { list: StepView[]; at: string; go: (x?: StepView) => void }) {
+  return (
+    <nav aria-label="Steps" className="no-scrollbar flex shrink-0 overflow-x-auto border-b border-line bg-[#fafbfc] px-3 max-sm:px-1">
+      {list.map((x) => (
+        <button
+          key={x.key}
+          aria-current={x.key === at ? 'step' : undefined}
+          onClick={() => go(x)}
+          className={cn('-mb-px flex h-12 min-w-[10rem] flex-1 items-center gap-2 border-b-2 px-3 text-left transition max-sm:min-w-[8.5rem]', x.key === at ? 'border-brand-600 bg-white' : 'border-transparent hover:bg-white/70')}
+        >
+          <StepIcon state={x.state} size={18} />
+          <span className={cn('min-w-0 flex-1 truncate text-[0.84375rem] font-semibold max-sm:text-[0.8125rem]', x.key === at ? 'text-ink' : 'text-muted')}>{x.short}</span>
+          <span className="max-sm:hidden"><Avatar who={x.owner} size={20} /></span>
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -243,7 +256,7 @@ const PILL = 'inline-flex h-9 items-center gap-2 rounded-full border border-line
 function Who({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   return (
-    <Menu align="start" width={290} trigger={<button className={cn(PILL, 'py-1 pl-1 pr-3 text-ink')} aria-label="Who does it"><Avatar who={v.owner} size={26} />{PEOPLE[v.owner]?.name || 'Someone'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+    <Menu align="start" width={290} trigger={<button className={cn(PILL, 'py-1 pl-1 pr-3 text-ink')} aria-label="Who does it"><Avatar who={v.owner} size={26} />{PEOPLE[v.owner]?.short || 'Someone'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
       <MenuLabel>Who does it on {job.name}</MenuLabel>
       {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={v.owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
     </Menu>
@@ -281,7 +294,7 @@ function Foot({ job, v, prev, next, go }: { job: Job; v: StepView; prev?: StepVi
             : <Button variant="ghost" onClick={() => skipStep(job.id, v.key, true)}>Not needed on this project</Button>}
       <span className="ml-auto" />
       {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => go(prev)}>Back</Button>}
-      {next && <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {next.short}</span></Button>}
+      {next ? <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {next.short}</span></Button> : <Button onClick={s.close}>Close</Button>}
     </>
   )
 }
@@ -597,9 +610,8 @@ function Selections({ job }: { job: Job }) {
   const flat = flatOf(s, job.id)
   return (
     <div className="flex flex-col gap-4">
-      {!tiles.length && <PaperRead job={job} />}
-      <Block title="Each tile" right={<Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button>}>
-        {!tiles.length && <Quiet>No tiles yet — add them from the tile paperwork.</Quiet>}
+      <Block title="Each tile" right={tiles.length ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
+        {!tiles.length && <div className="flex flex-wrap items-center gap-3 px-4 py-3"><span className="min-w-0 flex-1 text-[0.84375rem] text-muted">No tiles yet — they come in when the tile paperwork is entered.</span><Button size="sm" onClick={() => s.swap({ t: 'step', jobId: job.id, k: 'rooms' })}>Enter the paperwork</Button></div>}
         {tiles.map((t) => <TilePick key={t.tag} job={job} t={t} n={flat.filter((f) => f.x.tile === t.tag).length} />)}
       </Block>
       {tiles.length > 0 && tiles.every((t) => t.grout && (t.photo || t.swatch)) && <Good>Every tile has its grout and a picture.</Good>}

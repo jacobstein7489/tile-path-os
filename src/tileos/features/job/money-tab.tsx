@@ -10,6 +10,7 @@ import { fmtMoney, PEOPLE, type Job } from '@/tileos/data/model'
 import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileos/data/work'
 import { pictureOf, LAST_WEEK } from '../progressbill'
 import { InstallerPOCard } from '../field'
+import { Section, Empty } from './kit'
 
 /** a project's money in one place: contract (with approved changes), invoiced and paid so far */
 export function jobMoney(job: Job) {
@@ -27,7 +28,7 @@ export function MoneyRow({ m, showJob }: { m: MoneyItem; showJob?: boolean }) {
   const steps = MONEY_STEPS[m.kind]
   const at = m.state === 'paid' ? steps.length - 1 : m.step
   return (
-    <button onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_7.5rem_11rem] items-center gap-6 border-b border-line-2 px-6 py-4 text-left transition-colors last:border-0 hover:bg-wash md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
+    <button onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_7.5rem_11rem] items-center gap-6 border-b border-line-2 px-5 py-3.5 text-left transition-colors last:border-0 hover:bg-wash md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
       <div className="min-w-0 md:max-xl:row-span-2 md:max-xl:self-center">
         <div className="flex items-center gap-2">
           <Pill tone={m.kind === 'change' ? 'vio' : m.kind === 'progress' ? 'info' : m.kind === 'deposit' ? 'warn' : 'neutral'} size="sm">{MONEY_KIND_LABEL[m.kind]}</Pill>
@@ -67,9 +68,8 @@ export function MoneyTab({ job }: { job: Job }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader title="Contract and billing" sub={smp('Sample amounts') || undefined} action={<Pill tone="neutral">Retainage {s.rules.retainage}%</Pill>} />
-        <div className="grid grid-cols-4 gap-0 divide-x divide-line-2 border-y border-line-2 max-md:grid-cols-2 max-md:divide-x-0 max-md:[&>*:nth-child(odd)]:border-r max-md:[&>*:nth-child(odd)]:border-line-2 max-md:[&>*:nth-child(-n+2)]:border-b max-md:[&>*:nth-child(-n+2)]:border-line-2">
+      <Section title="Contract and billing" sub={[smp('Sample amounts'), `Retainage ${s.rules.retainage}%`].filter(Boolean).join(' · ')}>
+        <div className="grid grid-cols-4 gap-0 divide-x divide-line-2 border-b border-line-2 max-md:grid-cols-2 max-md:divide-x-0 max-md:[&>*:nth-child(odd)]:border-r max-md:[&>*:nth-child(odd)]:border-line-2 max-md:[&>*:nth-child(-n+2)]:border-b max-md:[&>*:nth-child(-n+2)]:border-line-2">
           {[
             { l: 'Contract', v: fmtMoney(b.contract), sub: 'Approved revision' },
             { l: 'Approved changes', v: '+' + fmtMoney(b.changes), sub: b.pending ? `${fmtMoney(b.pending)} still pending` : 'Nothing pending' },
@@ -78,12 +78,12 @@ export function MoneyTab({ job }: { job: Job }) {
           ].map((x) => (
             <div key={x.l} className="min-w-0 px-6 py-4 max-sm:px-4">
               <div className="text-[0.8125rem] font-medium text-muted">{x.l}</div>
-              <div className="mt-1 text-[1.375rem] font-bold tnum h-tight text-ink max-sm:text-[1.1875rem]">{x.v}</div>
+              <div className="mt-1 text-[1.25rem] font-bold tnum h-tight text-ink max-sm:text-[1.125rem]">{x.v}</div>
               <div className="text-[0.78125rem] text-muted">{x.sub}</div>
             </div>
           ))}
         </div>
-        <div className="px-6 py-5 max-sm:px-4">
+        <div className="px-5 py-5 max-sm:px-4">
           <StackBar
             h={16}
             parts={[
@@ -116,35 +116,14 @@ export function MoneyTab({ job }: { job: Job }) {
             </div>
           )}
         </div>
-      </Card>
+      </Section>
 
-      <Card className="overflow-hidden">
-        <CardHeader title="Billing" count={items.length} />
-        <div className="border-t border-line-2">
+      <Section title="Bills" count={items.length} sub="Every invoice on this project — they go out from QuickBooks">
+        <div>
           {items.map((m) => <MoneyRow key={m.id} m={m} />)}
-          {!items.length && <div className="px-6 py-6 text-[0.875rem] text-muted">Nothing billed on this project yet.</div>}
+          {!items.length && <Empty>Nothing billed on this project yet.</Empty>}
         </div>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1">
-        <Card className="overflow-hidden">
-          <CardHeader title="Purchases for this project" count={pos.length} action={<Button size="sm" icon={<Package className="h-4 w-4" />} onClick={() => s.open({ t: 'newpo', jobId: job.id })}>Create PO</Button>} />
-          <div className="border-t border-line-2">
-            {pos.map((p) => (
-              <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className="flex w-full items-center gap-4 border-b border-line-2 px-6 py-3.5 text-left last:border-0 hover:bg-wash max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-2 max-sm:px-4">
-                <div className="min-w-0 flex-1 max-sm:min-w-[calc(100%-5.625rem)]">
-                  <div className="text-[0.875rem] font-semibold text-ink">{p.id} · {p.supplier}</div>
-                  <div className={cn('truncate text-[0.78125rem]', p.late ? 'font-medium text-bad-600' : 'text-muted')}>{p.what} · {p.note}</div>
-                </div>
-                <div className="w-[12.5rem] max-sm:order-last max-sm:w-full"><MiniSteps steps={PO_STEPS} at={p.step} late={p.late} showLabels={false} /></div>
-                <div className="w-[4.75rem] text-right text-[0.875rem] font-semibold tnum">{fmtMoney(p.amount)}</div>
-              </button>
-            ))}
-            {!pos.length && <div className="px-6 py-6 text-[0.875rem] text-muted">No purchase orders yet.</div>}
-          </div>
-        </Card>
-        <InstallerPOCard job={job} />
-      </div>
+      </Section>
     </div>
   )
 }
