@@ -76,7 +76,7 @@ const DURS: [number, string][] = [[15, '15 min'], [30, '30 min'], [45, '45 min']
 const BACK_OPTS = ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks']
 const nextHour = () => { const d = new Date(); const m = (d.getHours() + 1) * 60; return m >= 7 * 60 && m <= 17 * 60 ? m : 9 * 60 }
 
-export function RecordModal({ jobId: initialJob, type: initialType, where: initialWhere, level }: { jobId?: string; type?: string; where?: string; level: number }) {
+export function RecordModal({ jobId: initialJob, type: initialType, where: initialWhere, title: initialTitle, meetKind: initialKind, level }: { jobId?: string; type?: string; where?: string; title?: string; meetKind?: 'meeting' | 'walkthrough'; level: number }) {
   const s = useStore()
   const [type, setType] = React.useState<TypeKey | ''>((initialType as TypeKey) || '')
   const [jobId, setJobId] = React.useState(initialJob || '')
@@ -95,7 +95,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [back, setBack] = React.useState('Tomorrow')
   const [note, setNote] = React.useState('')
   const me = meOf(s.role)
-  const [meetKind, setMeetKind] = React.useState<'meeting' | 'walkthrough'>('meeting')
+  const [meetKind, setMeetKind] = React.useState<'meeting' | 'walkthrough'>(initialKind || 'meeting')
   const [people, setPeople] = React.useState<PersonKey[]>([me])
   const [others, setOthers] = React.useState<string[]>([])
   const [installer, setInstaller] = React.useState<PersonKey | ''>('')
@@ -103,7 +103,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [date, setDate] = React.useState(late ? workDays(2)[1] : workDays(1)[0])
   const [start, setStart] = React.useState<number>(late ? 9 * 60 : nextHour())
   const [dur, setDur] = React.useState(60)
-  const [title, setTitle] = React.useState('')
+  const [title, setTitle] = React.useState(initialTitle || '')
   const job = s.jobs[jobId]
   const tpl = TPL.find((t) => t.key === type)
   const rooms = s.rooms[jobId] || []

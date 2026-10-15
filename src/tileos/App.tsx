@@ -45,6 +45,7 @@ import { SettingsPage, AddPersonModal } from '@/tileos/features/settings'
 import { CrewView } from '@/tileos/features/crew'
 import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
+import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal } from '@/tileos/features/layout'
@@ -98,13 +99,14 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newclient': return <NewClientModal level={level} />
     case 'payweek': return <PayWeekModal level={level} />
     case 'progress': return <ProgressModal jobId={m.jobId} week={m.week} level={level} />
+    case 'incoming': return <IncomingModal keys={m.keys} level={level} />
     case 'estsend': return <EstSendModal id={m.id} sent={m.sent} level={level} />
     case 'estchanges': return <EstChangesModal id={m.id} level={level} />
     case 'estfollow': return <EstFollowModal id={m.id} level={level} />
     case 'estlost': return <EstLostModal id={m.id} level={level} />
     case 'billedbefore': return <BilledBeforeModal jobId={m.jobId} level={level} />
     case 'reportshort': return <ReportShortModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
-    case 'record': return <RecordModal jobId={m.jobId} type={m.type} where={m.where} level={level} />
+    case 'record': return <RecordModal jobId={m.jobId} type={m.type} where={m.where} title={m.title} meetKind={m.meetKind} level={level} />
     case 'event': return <EventModal id={m.id} level={level} />
     case 'pay': return <PayModal crew={m.crew} week={m.week} level={level} />
     case 'layout': return <LayoutModal jobId={m.jobId} room={m.room} surface={m.surface} tile={m.tile} level={level} />
@@ -213,6 +215,7 @@ export default function App() {
             </main>
           </div>
           <BottomNav />
+          <IncomingWatcher />
         </div>
       )}
       <ModalHost />

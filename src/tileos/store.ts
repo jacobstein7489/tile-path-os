@@ -357,6 +357,7 @@ export const useStore = create<Store>()(
         DATA_KEYS.forEach((k) => ((s as any)[k] = (d as any)[k] ?? (k === 'tiles' ? {} : (initialData() as any)[k])))
         ensureTiles(s)
         moveLogins(s.team)
+        s.tasks = s.tasks.filter((x) => !(x.state === 'later' && x.laterUntil === 'When setup is ready' && /^Review the .+ setup$/.test(x.title)))
         s.past = []
         s.modals = []
       })

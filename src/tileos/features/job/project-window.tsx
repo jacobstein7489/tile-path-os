@@ -43,7 +43,7 @@ import { heightStatus } from '../heights'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, type StepView } from '../steps'
-import { StepsList, StepIcon, StepButton } from '../steps-ui'
+import { StepsList, StepIcon, StepButton, StepPath } from '../steps-ui'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
@@ -88,8 +88,8 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
 
 /* ---------------- header ---------------- */
 const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>> = {
-  setup: { label: 'Send to the site manager', icon: <Send /> },
-  verification: { label: 'Site check done', icon: <Check /> },
+  setup: { label: 'Ready to start', icon: <Check /> },
+  verification: { label: 'Ready to start', icon: <Check /> },
   ready: { label: 'Start the job', icon: <Play /> },
   scheduled: { label: 'Start the job', icon: <Play /> },
   installation: { label: 'Daily update', icon: <ClipboardList /> },
@@ -135,12 +135,13 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const prim = PRIMARY[job.stage]
   const blockers = nowItems(s, job, setTab).items.filter((i) => i.status === 'bad').length
-  const locked = (job.stage === 'setup' || job.stage === 'verification') && blockers > 0
+  /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
+  const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
+  const locked = left.length > 0
   const files = filesFor(job.id).length
   const unread = unreadOf(s, job.id)
   const runPrimary = () => {
-    if (job.stage === 'setup') return sendToSite(job.id)
-    if (job.stage === 'verification') return verificationDone(job.id)
+    if (job.stage === 'setup' || job.stage === 'verification') return verificationDone(job.id)
     if (job.stage === 'ready' || job.stage === 'scheduled') return startProject(job.id)
     if (job.stage === 'installation') return s.open({ t: 'daily', jobId: job.id })
     if (job.stage === 'punch') return s.open({ t: 'assign', jobId: job.id })
@@ -172,7 +173,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <span className="max-lg:flex-1 max-sm:hidden" />
               <Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}><span className="max-sm:hidden">Log</span></Button>
               {prim && (
-                <Tip label={locked ? `${blockers} thing${blockers > 1 ? 's' : ''} in red to settle first` : prim.label}>
+                <Tip label={locked ? `${left.length} step${left.length > 1 ? 's' : ''} left: ${left.slice(0, 3).map((v) => v.short.toLowerCase()).join(', ')}${left.length > 3 ? '…' : ''}` : prim.label}>
                   <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={locked ? <Lock /> : prim.icon} disabled={locked} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
                 </Tip>
               )}
@@ -228,13 +229,27 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
+  const s = useStore()
   const ready = isGettingReady(job)
+  /* getting ready: the step bar on top says where it stands; the checklist below says what's next and whose it is */
+  if (ready) {
+    const extra = todoLines(s, job, setTab, true).lines.filter((l) => l.task || l.it || l.ev).length
+    return (
+      <div className="flex flex-col gap-5">
+        <StepPath job={job} />
+        <div className={cn('grid w-full items-start gap-5 max-xl:grid-cols-1', extra ? 'grid-cols-[minmax(0,1fr)_21.25rem]' : 'grid-cols-1')}>
+          <div className="min-w-0"><StepsList job={job} /></div>
+          {extra > 0 && <div className="flex min-w-0 flex-col gap-4"><AlsoOpen job={job} setTab={setTab} /></div>}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col gap-5">
       <Glance job={job} setTab={setTab} />
       <div className="grid w-full grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-5 max-xl:grid-cols-1">
-        <div className="min-w-0">{ready ? <StepsList job={job} /> : <TodoList job={job} setTab={setTab} />}</div>
-        <div className="flex min-w-0 flex-col gap-4">{ready ? <AlsoOpen job={job} setTab={setTab} /> : <RoomsProgress job={job} setTab={setTab} />}</div>
+        <div className="min-w-0"><TodoList job={job} setTab={setTab} /></div>
+        <div className="flex min-w-0 flex-col gap-4"><RoomsProgress job={job} setTab={setTab} /></div>
       </div>
     </div>
   )

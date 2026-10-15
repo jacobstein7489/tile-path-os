@@ -44,18 +44,20 @@ export interface StepView {
   doneBy?: PersonKey
 }
 
-/* the company's checklist, in order. "Electrical and plumbing" is one you added — remove it or add more in Settings. */
+/* the company's checklist, in the order Cobblestone works once a project is won. The design meeting and the
+ * walkthrough with the installer are checked off (or set on the calendar); the rest read themselves from what happened. */
 export const STEP_DEFAULTS: StepDef[] = [
-  { key: 'rooms', label: 'Rooms and surfaces built from the paperwork', short: 'Rooms', owner: 'office' },
-  { key: 'tile', label: 'Tile picked for every surface', short: 'Tile picks', owner: 'office', after: ['rooms'] },
-  { key: 'setup', label: 'Setup decided — what goes under the tile', short: 'Setup', owner: 'office', after: ['rooms'] },
-  { key: 'order', label: 'Tile ordered — delivery date set', short: 'Tile order', owner: 'office', after: ['tile'] },
-  { key: 'heights', label: 'Wall heights measured on site', short: 'Heights', owner: 'yakov', after: ['rooms'] },
-  { key: 'rough', label: 'Electrical and plumbing in the right spots', short: 'Rough-ins', owner: 'yakov', after: ['rooms'], custom: true },
-  { key: 'materials', label: 'Our setting materials ordered', short: 'Materials', owner: 'matBy', after: ['setup', 'heights'] },
+  { key: 'rooms', label: 'Paperwork in — rooms and quantities checked', short: 'Paperwork', owner: 'estimator' },
+  { key: 'tile', label: 'Tile selections in — pictures and grout', short: 'Tile picks', owner: 'estimator', after: ['rooms'] },
+  { key: 'design', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
+  { key: 'installer', label: 'Installer found — his PO sent and accepted', short: 'Installer', owner: 'ys', after: ['rooms'] },
+  { key: 'setup', label: 'Underlayment and setup confirmed', short: 'Setup', owner: 'office', after: ['rooms'] },
+  { key: 'order', label: 'Tile delivery date confirmed', short: 'Tile order', owner: 'office', after: ['tile'] },
+  { key: 'deposit', label: 'Deposit invoiced and paid', short: 'Deposit', owner: 'accounting' },
+  { key: 'heights', label: 'Site check — heights, electrical and plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
+  { key: 'materials', label: 'Our materials ordered', short: 'Materials', owner: 'matBy', after: ['setup', 'heights'] },
   { key: 'delivered', label: 'Tile delivered and counted', short: 'Tile delivery', owner: 'yakov', after: ['order'] },
-  { key: 'installer', label: 'Installer booked — PO accepted', short: 'Installer', owner: 'ys', after: ['tile'] },
-  { key: 'deposit', label: 'Deposit received', short: 'Deposit', owner: 'accounting' },
+  { key: 'walk', label: 'Walkthrough with the installer', short: 'Walkthrough', owner: 'yakov', after: ['installer'], custom: true },
 ]
 export const BUILT_IN = new Set(STEP_DEFAULTS.filter((d) => !d.custom).map((d) => d.key))
 
@@ -76,7 +78,10 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
   const openJob = (tab: string) => () => s.open({ t: 'job', id: j.id, tab })
   switch (key) {
     case 'rooms':
-      return rooms.length ? { state: 'done', note: `${rooms.length} rooms · ${flat.length} surfaces` } : { state: 'now', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: j.id }) } }
+      if (!rooms.length) return { state: 'now', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: j.id }) } }
+      /* the rooms came from the estimate — the estimator checks them against the paperwork and says so */
+      if (rec.done || !['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: `${rooms.length} rooms · ${flat.length} surfaces${rec.done ? ' — checked against the paperwork' : ''}` }
+      return { state: 'now', note: `${rooms.length} rooms · ${flat.length} surfaces from the estimate — check them against the paperwork`, action: { label: 'Quantities check out', pick: 'check' } }
     case 'tile': {
       if (!flat.length) return { state: 'now', note: 'After the rooms' }
       const picked = flat.filter((x) => x.tile).length
@@ -104,11 +109,11 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     }
     case 'heights': {
       const hs = heightStatus(s, j.id)
-      if (!hs.total) return { state: 'na', note: 'No walls on this project' }
+      if (!hs.total) return rec.done ? { state: 'done', note: rec.note || 'Checked on site' } : { state: 'now', note: 'Electrical, plumbing and drains where the layout needs them', action: { label: 'Checked — all good', pick: 'check' } }
       if (hs.measured === hs.total) return { state: 'done', note: 'Square feet and materials follow the real heights' }
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: `${hs.measured} of ${hs.total} walls measured`, action: { label: 'Record the heights', run: () => s.open({ t: 'heights', jobId: j.id }) } }
+      return { state: 'now', note: `Heights ${hs.measured} of ${hs.total} walls · boxes, valves and drains where the layout needs them`, action: { label: 'Do the site check', run: () => s.open({ t: 'heights', jobId: j.id }) } }
     }
     case 'materials': {
       const ms = materialStatus(s, j.id)
@@ -168,6 +173,12 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     const rec = recs[d.key] || {}
     const task = taskForStep(s, j.id, d.key)
     let raw: Raw | null = BUILT_IN.has(d.key) && !d.only ? builtIn(s, j, d.key, rec) : null
+    if (!raw) {
+      /* the design meeting and the walkthrough: set on the calendar from here, done once they've happened */
+      const ev = d.key === 'design' ? s.events.find((x) => x.jobId === j.id && /design/i.test(x.title)) : d.key === 'walk' ? s.events.find((x) => x.jobId === j.id && x.kind === 'walkthrough' && /installer|crew/i.test(`${x.title} ${x.with || ''}`)) : undefined
+      if (!rec.done && !rec.na && ev) raw = ev.date < TODAY ? { state: 'done', note: `${ev.kind === 'walkthrough' ? 'Walked through' : 'Met'} ${labelFromIso(ev.date)}` } : { state: 'wait', due: ev.date, note: `Set for ${labelFromIso(ev.date)}` }
+      else if (!rec.done && !rec.na && (d.key === 'design' || d.key === 'walk')) raw = { state: 'now', due: rec.due, note: d.key === 'design' ? 'With the designer or the client — tile, layout, grout' : 'Show him the job before he starts', action: { label: d.key === 'design' ? 'Set the meeting' : 'Set the walkthrough', run: () => s.open({ t: 'record', type: 'meeting', jobId: j.id, title: d.key === 'design' ? 'Design meeting' : 'Walkthrough with the installer', meetKind: d.key === 'walk' ? 'walkthrough' : 'meeting' }) } }
+    }
     if (!raw) {
       raw = rec.done
         ? { state: 'done', note: rec.note }
@@ -247,6 +258,8 @@ export function markStep(jobId: string, key: string, note?: string) {
     r.done = NOW
     r.by = me()
     if (note) r.note = note
+    /* the step's own task is done too */
+    st.tasks.forEach((x) => { if (x.step === `${jobId}:${key}` && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'Done' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: done`, detail: note } as any)
   }, `${def.short} — done`, { sub: to.length ? 'The next steps are on their lists now.' : 'Checked off on the project.', to: to.length ? to : undefined, close: false })
 }

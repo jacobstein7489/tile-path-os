@@ -281,7 +281,7 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
     j.swatch = AWARD_SWATCH[jobId] || 'bianco'
     j.keyDate = { label: 'Awarded', value: NOW }
     j.stageDates = { won: NOW }
-    j.next = { text: 'Build the rooms and surfaces', owner: 'office', due: 'Wed' }
+    j.next = { text: 'Check the paperwork and quantities', owner: 'estimator', due: 'Today' }
     /* the start window the client gave puts it on the Game plan, on that day, ready to book */
     const iso = startWindowISO(o.start)
     if (iso) s.prep[jobId] = { ...(s.prep[jobId] || {}), targetISO: iso, target: o.start }
@@ -292,10 +292,9 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
     j.status = 'warn'
     j.headline = 'Awarded today · setup starts'
     closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.state !== 'done').map((t) => t.id), 'Awarded')
-    newTask(s, { jobId, step: `${jobId}:rooms`, title: `Build ${j.name} from the paperwork`, type: 'Setup', owner: 'office', for: ['office'], watch: ['owner', 'pm'], state: 'now', due: 'Wed', tone: 'info', blocks: 'Site walkthrough', where: 'Setup', detail: 'Rooms, surfaces, finish records, suppliers and who orders what.', action: { label: 'Start setup', kind: 'open-job' }, log: [L('system', 'Created at award')] })
+    newTask(s, { jobId, step: `${jobId}:rooms`, title: `Check the ${j.name} paperwork and quantities`, type: 'Setup', owner: 'estimator', for: ['estimator'], watch: ['owner', 'pm'], state: 'now', due: 'Today', tone: 'info', where: 'Paperwork', detail: 'The rooms and square feet came from the estimate — check them against the final plans and finish schedule, then say they check out.', action: { label: 'Open the project', kind: 'open-job' }, log: [L('system', 'Created at award')] })
     newTask(s, { jobId, step: `${jobId}:order`, title: `Check the ${j.name} tile order against our takeoff`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'When paperwork arrives', tone: 'info', where: 'Quantity check', log: [L('system', 'Created at award')] })
     newTask(s, { jobId, step: `${jobId}:materials`, title: `Plan setting materials for ${j.name}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'later', laterUntil: md(addDays(MONDAY, 7)), tone: 'neutral', where: 'Installation materials', log: [L('system', 'Created at award')] })
-    newTask(s, { jobId, title: `Review the ${j.name} setup`, type: 'Setup', owner: o.pm, for: ['pm'], state: 'later', laterUntil: 'When setup is ready', tone: 'neutral', where: 'Setup', log: [L('system', 'Created at award')] })
     if (o.depositPct) {
       const amt = Math.round((o.amount * o.depositPct) / 100)
       s.money.unshift({ id: 'dep-' + jobId, jobId, kind: 'deposit', title: `Deposit ${o.depositPct}%`, amount: amt, step: 0, state: 'todo', due: 'Awarded today', dueTone: 'warn', note: `Created at award. Company rule: ${s.rules.depositRule === 'warn' ? 'warn' : 'block'} before the crew starts until it is received.`, log: [L('system', 'Deposit required — created at award')], action: 'Create invoice' })
@@ -391,9 +390,10 @@ export function verificationDone(jobId: string) {
     j.stage = 'ready'
     j.readiness = 'partial'
     j.stageDates = { ...(j.stageDates || {}), verification: NOW }
-    j.next = { text: 'Assign a crew', owner: 'ys', due: 'This week' }
-    addHist(s, jobId, { who: me(), kind: 'field', title: 'Verification done · unknowns attached to their surfaces' })
-  }, 'Verified — the rules reviewed it for scheduling')
+    j.next = { text: 'Start the job', owner: 'ys', due: 'This week' }
+    j.headline = 'Ready to start'
+    addHist(s, jobId, { who: me(), kind: 'field', title: 'Getting ready is done — ready to start' })
+  }, `${S().jobs[jobId]?.name || 'The project'} is ready to start`, { sub: 'Start it from here when the crew goes in.' })
 }
 
 /* business-day helper for the schedule */

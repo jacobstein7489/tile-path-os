@@ -5,6 +5,7 @@ import { Check, X, Clock3, Minus, Plus, MoreHorizontal, ChevronDown, Truck, Pack
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
+import { Path } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, md } from '@/tileos/lib/today'
@@ -103,12 +104,36 @@ function OwnerChip({ job, v, compact }: { job: Job; v: StepView; compact?: boole
   )
 }
 
-/** the full checklist for one project */
+/** where getting ready stands, as a bar of steps — the same look as the estimate's */
+export function StepPath({ job }: { job: Job }) {
+  const s = useStore()
+  const steps = stepsFor(s, job).filter((v) => v.state !== 'na')
+  return (
+    <section className="rounded-[0.875rem] border border-line bg-white px-3 pb-3 pt-2">
+      <Path
+        steps={steps.map((v) => ({
+          key: v.key,
+          label: v.short,
+          state: v.state === 'done' ? 'done' : v.state === 'bad' ? 'blocked' : v.state === 'later' ? 'future' : 'current',
+          sub: PEOPLE[v.owner]?.short,
+          date: v.state === 'done' ? (v.doneOn || 'Done') : v.due ? labelFromIso(v.due) : v.state === 'wait' ? 'Waiting' : undefined,
+          onClick: () => document.getElementById(`step-${job.id}-${v.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+        }))}
+      />
+    </section>
+  )
+}
+
+/** the full checklist for one project: what's up now first, what comes after, and what's done folded away */
 export function StepsList({ job }: { job: Job }) {
   const s = useStore()
   const steps = stepsFor(s, job)
   const c = stepCounts(steps)
   const [adding, setAdding] = React.useState(false)
+  const [showDone, setShowDone] = React.useState(false)
+  const now = steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
+  const later = steps.filter((v) => v.state === 'later')
+  const done = steps.filter((v) => v.state === 'done' || v.state === 'na')
   return (
     <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-5 py-3.5 max-sm:px-4">
@@ -125,10 +150,23 @@ export function StepsList({ job }: { job: Job }) {
       </header>
       {adding && <AddStep job={job} steps={steps} onDone={() => setAdding(false)} />}
       <div>
-        {steps.map((v) => <StepRow key={v.key} job={job} v={v} />)}
+        {now.length > 0 && <GroupHead label="Now" count={now.length} />}
+        {now.map((v) => <StepRow key={v.key} job={job} v={v} />)}
+        {later.length > 0 && <GroupHead label="After that" count={later.length} />}
+        {later.map((v) => <StepRow key={v.key} job={job} v={v} />)}
+        {done.length > 0 && (
+          <button onClick={() => setShowDone(!showDone)} className="flex w-full items-center gap-2 border-t border-line-2 bg-wash/60 px-5 py-2 text-left text-[0.78125rem] font-semibold text-muted hover:text-ink max-sm:px-4">
+            <ChevronDown className={cn('h-3.5 w-3.5 transition', !showDone && '-rotate-90')} />Done <span className="font-medium text-faint">{done.length}</span>
+          </button>
+        )}
+        {showDone && done.map((v) => <StepRow key={v.key} job={job} v={v} />)}
       </div>
     </section>
   )
+}
+
+function GroupHead({ label, count }: { label: string; count: number }) {
+  return <div className="border-t border-line-2 bg-wash/60 px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted first:border-t-0 max-sm:px-4">{label} <span className="font-semibold text-faint">{count}</span></div>
 }
 
 function StepRow({ job, v }: { job: Job; v: StepView }) {
@@ -138,7 +176,7 @@ function StepRow({ job, v }: { job: Job; v: StepView }) {
     ? (v.doneOn ? `Done ${v.doneOn}` : 'Done')
     : v.due ? (v.state === 'wait' ? labelFromIso(v.due) : `Due ${labelFromIso(v.due)}`) : ''
   return (
-    <div className={cn('group grid grid-cols-[1.75rem_minmax(0,1fr)_9.375rem_6.875rem_10.75rem_2rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-lg:grid-cols-[1.75rem_minmax(0,1fr)_2rem] max-lg:items-start max-sm:px-4', v.state === 'later' && 'bg-[#fbfbfc]')}>
+    <div id={`step-${job.id}-${v.key}`} className={cn('group grid grid-cols-[1.75rem_minmax(0,1fr)_9.375rem_6.875rem_10.75rem_2rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-lg:grid-cols-[1.75rem_minmax(0,1fr)_2rem] max-lg:items-start max-sm:px-4', v.state === 'later' && 'bg-[#fbfbfc]')}>
       <span className="max-lg:mt-0.5"><StepIcon state={v.state} /></span>
       <span className="min-w-0">
         <button disabled={!task} onClick={() => task && s.open({ t: 'task', id: task.id })} className="block w-full min-w-0 text-left disabled:cursor-default">
