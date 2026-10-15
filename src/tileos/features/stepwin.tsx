@@ -157,7 +157,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
           <Who job={job} v={v} />
           {dated && v.state !== 'done' && v.state !== 'na' && <When job={job} v={v} />}
         </div>
-        {WHAT[v.key] && v.state !== 'done' && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
+        {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
         <div className="mt-5"><Body job={job} v={v} /></div>
       </div>
     </Modal>
@@ -426,7 +426,6 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
 function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
-  const [allRooms, setAllRooms] = React.useState(false)
   if (!rooms.length) return (
     <div className="flex flex-col gap-4">
       <Block title="What we’re tiling" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet — they come from the estimate. Add them here, one room at a time.</Quiet></Block>
@@ -439,7 +438,6 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const lock = scopeLock(s, job.id)
   const loose = tiles.filter((t) => !flat.some((f) => f.x.tile === t.tag))
   const totalSF = rooms.reduce((n, r) => n + r.surfaces.reduce((m, x) => m + (x.sf || 0), 0), 0)
-  const shownRooms = allRooms ? rooms : rooms.slice(0, 3)
   return (
     <div className="flex flex-col gap-4">
       {lock.canEdit ? <PaperRead job={job} /> : <div className="flex items-center gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked — it’s {PEOPLE[lock.owner]?.short}’s scope. Only {PEOPLE[lock.owner]?.short} can change it.</div>}
@@ -462,22 +460,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
         </Block>
       )}
       {!missing.length && tiled.length > 0 && tiles.length > 0 && <Good>Every wall and floor has its tile.</Good>}
-      <Block title="What we’re tiling" right={<><span className="max-sm:hidden">{`${rooms.length} room${rooms.length === 1 ? '' : 's'} · ${totalSF.toLocaleString('en-US')} SF`}</span><AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} /></>}>
-        {shownRooms.map((r) => {
-          const sf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
-          return (
-            <div key={r.name} className="flex items-start gap-3 border-t border-line-2 px-4 py-2 first:border-t-0 max-sm:flex-wrap">
-              <span className="w-[9.5rem] shrink-0 truncate pt-1 text-[0.84375rem] font-semibold text-ink max-sm:w-auto max-sm:flex-1">{r.name}</span>
-              <span className="flex min-w-0 flex-1 flex-wrap gap-1.5 max-sm:order-last max-sm:basis-full">
-                {r.surfaces.map((x) => <SFChip key={x.name} jobId={job.id} room={r.name} x={x} />)}
-                <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} />
-              </span>
-              <span className="shrink-0 pt-1 text-[0.8125rem] font-semibold tnum text-ink-2">{sf ? `${sf.toLocaleString('en-US')} SF` : '—'}</span>
-            </div>
-          )
-        })}
-        {rooms.length > 3 && <button onClick={() => setAllRooms(!allRooms)} className="w-full border-t border-line-2 px-4 py-2 text-left text-[0.8125rem] font-semibold text-brand-600 hover:bg-wash">{allRooms ? 'Show fewer' : `Show all ${rooms.length} rooms`}</button>}
-      </Block>
+      <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF — the rooms, walls and square feet are on <b className="font-semibold text-ink-2">What we’re tiling</b>.</div>
       {v.state !== 'done' && tiles.length > 0 && missing.length > 0 && (
         <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered — ${missing.length} without a tile on this paperwork`, { close: true })}>Entered — the rest isn’t on this paperwork</Button></Actions>
       )}
@@ -723,12 +706,16 @@ function Meeting({ job, v }: { job: Job; v: StepView }) {
         <Field label="With"><TextInput value={withWho} onChange={(e) => setWith(e.target.value)} placeholder={walk ? 'The installer' : 'The designer, the client…'} /></Field>
       </div>
       <Field label="Who from us — it goes on their calendar and Today, and they’re told">
-        <div className="flex flex-wrap gap-1.5">
-          {people.map((p) => {
-            const on = who.includes(p)
-            return <button key={p} type="button" aria-pressed={on} onClick={() => setWho(on ? who.filter((x) => x !== p) : [...who, p])} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border pl-1 pr-3 text-[0.8125rem] font-medium transition', on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><Avatar who={p} size={26} />{PEOPLE[p]?.short}{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</button>
-          })}
-        </div>
+        <MultiSelect
+          label="Who from us"
+          values={who}
+          options={people.map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))}
+          onChange={(keys) => setWho(keys as PersonKey[])}
+          placeholder="Pick who goes"
+          width={320}
+          icon={<Users />}
+          summary={(picked) => <span className="inline-flex min-w-0 items-center gap-2"><span className="flex shrink-0 -space-x-1.5">{picked.slice(0, 4).map((o) => <Avatar key={o.key} who={o.key as PersonKey} size={22} ring />)}</span><span className="truncate">{picked.map((o) => PEOPLE[o.key as PersonKey]?.short || o.label).join(', ')}</span></span>}
+        />
       </Field>
       <Actions>
         {ev && <Button variant="ghost" onClick={() => setEdit(false)}>Cancel</Button>}
@@ -772,11 +759,12 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
           </div>
         ))}
         <div className={cn('px-4 py-3', items.length > 0 && 'border-t border-line-2')}>
-          <div className="flex flex-wrap gap-1.5">
-            {CHANGE_KINDS.map((k) => <button key={k} type="button" aria-pressed={what === k} onClick={() => setWhat(what === k ? '' : k)} className={cn('inline-flex h-8 items-center rounded-full border px-3 text-[0.8125rem] font-medium transition', what === k ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{k}</button>)}
-          </div>
-          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_14rem] gap-2 max-sm:grid-cols-1">
-            <TextInput mic value={what} onChange={(e) => setWhat(e.target.value)} placeholder="What changed — or pick one above" aria-label="What changed" className="h-10" />
+          <div className="grid grid-cols-[minmax(0,1fr)_12rem_12rem] gap-2 max-md:grid-cols-2 max-sm:grid-cols-1">
+            <TextInput mic value={what} onChange={(e) => setWhat(e.target.value)} placeholder="What changed — say it, or pick one" aria-label="What changed" className="h-10 max-md:col-span-2 max-sm:col-span-1" />
+            <Menu align="end" width={300} trigger={<button aria-label="Pick a common change" className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cbd1d9]"><span className="truncate">The usual ones</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+              <MenuLabel>What changed</MenuLabel>
+              {CHANGE_KINDS.map((k) => <MenuItem key={k} checked={what === k} onSelect={() => setWhat(k)}>{k}</MenuItem>)}
+            </Menu>
             <Menu align="end" width={260} trigger={<button className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cbd1d9]"><span className="truncate">{where || 'Where'}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
               <MenuLabel>Where</MenuLabel>
               {['Whole project', ...rooms.map((r) => r.name)].map((r) => <MenuItem key={r} checked={where === r} onSelect={() => setWhere(r)}>{r}</MenuItem>)}

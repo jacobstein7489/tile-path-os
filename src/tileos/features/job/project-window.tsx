@@ -44,7 +44,7 @@ import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, TodoCard, AtAGlance, TilingCard, EstimateTab, EditButton } from './plan'
+import { projectPath, nextOn, PhaseBar, NextUp, WhosOnWhat, AtAGlance, EstimateTab, EditButton } from './plan'
 import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
@@ -177,7 +177,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <span className="max-lg:flex-1 max-sm:hidden" />
               <Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}><span className="max-sm:hidden">Log</span></Button>
               {next && (locked || !prim) ? (
-                next.mine
+                next.mine && tab !== 'overview'
                   ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
                   : null
               ) : prim && !locked ? (
@@ -241,13 +241,13 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  /* left: To do — every row on the same grid. right: the five facts, and what we're tiling */
+  /* three questions, in order: what needs me (or is stuck)? who has everything else? where does it stand? */
   return (
-    <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
-      <div className="min-w-0"><TodoCard job={job} setTab={setTab} /></div>
-      <div className="flex min-w-0 flex-col gap-5">
-        <AtAGlance job={job} setTab={setTab} />
-        <TilingCard job={job} setTab={setTab} />
+    <div className="flex w-full flex-col gap-5">
+      <NextUp job={job} setTab={setTab} />
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-5 max-[68rem]:grid-cols-1">
+        <div className="min-w-0"><WhosOnWhat job={job} setTab={setTab} /></div>
+        <div className="min-w-0"><AtAGlance job={job} setTab={setTab} /></div>
       </div>
     </div>
   )

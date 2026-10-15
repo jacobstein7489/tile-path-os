@@ -219,12 +219,12 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
   return rows.sort((a, b) => rank(a) - rank(b))
 }
 
-function RowMark({ m }: { m: Mark }) {
-  if (m.kind === 'step') return <StepIcon state={m.state} size={24} />
-  if (m.kind === 'meet') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3.5 w-3.5" /></span>
-  if (m.kind === 'task') return <StepIcon state={m.waiting ? 'wait' : 'now'} size={24} />
+function RowMark({ m, size = 24 }: { m: Mark; size?: number }) {
+  if (m.kind === 'step') return <StepIcon state={m.state} size={size} />
+  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3 w-3" /></span>
+  if (m.kind === 'task') return <StepIcon state={m.waiting ? 'wait' : 'now'} size={size} />
   const st = m.status
-  return <StepIcon state={st === 'bad' ? 'bad' : st === 'wait' ? 'wait' : st === 'done' ? 'done' : 'now'} size={24} />
+  return <StepIcon state={st === 'bad' ? 'bad' : st === 'wait' ? 'wait' : st === 'done' ? 'done' : 'now'} size={size} />
 }
 function TodoLine({ r }: { r: TodoRow }) {
   const me = meOf(useStore((s) => s.role))
@@ -239,36 +239,75 @@ function TodoLine({ r }: { r: TodoRow }) {
         </span>
       </button>
       <Who who={r.who} className="max-md:hidden" />
-      <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', r.late ? 'font-semibold text-bad-600' : r.when === '—' ? 'text-faint' : 'text-ink-2')}>{r.when}</span>
+      <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', r.late ? 'font-semibold text-bad-600' : 'text-ink-2')}>{r.when === '—' ? '' : r.when}</span>
       <span>{r.run && <Button size="sm" variant={mine ? 'primary' : 'secondary'} className="w-full" onClick={r.run}>{mine ? 'Start' : 'Open'}</Button>}</span>
     </div>
   )
 }
 
-/** everything open on the project — your turn first, then everyone else's, what's waiting, what's coming up */
-export function TodoCard({ job, setTab }: { job: Job; setTab: SetTab }) {
+/* ================= the overview: Next up, then who's on what ================= */
+const isProblem = (r: TodoRow) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')
+/** what needs you, or is stuck — the first thing on the project, with its one button */
+export function NextUp({ job, setTab }: { job: Job; setTab: SetTab }) {
   const s = useStore()
   const rows = todoRows(s, job, setTab)
+  const top = rows.filter((r) => isProblem(r) || r.group === 'mine')
+  const stuck = top.filter(isProblem).length
+  const mine = top.filter((r) => r.group === 'mine').length
+  const nextOther = rows.find((r) => r.group === 'others')
+  return (
+    <Section
+      title="Next up"
+      sub={top.length ? [mine ? `${mine} for you` : '', stuck ? `${stuck} stuck` : ''].filter(Boolean).join(' · ') : undefined}
+      className={cn(stuck > 0 && 'border-bad-200')}
+    >
+      {top.map((r) => <TodoLine key={r.key} r={r} />)}
+      {!top.length && (
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.90625rem] font-semibold text-ink">Nothing needs you here right now</span>
+            <span className="block truncate text-[0.78125rem] text-muted">{nextOther ? <>Next: {firstName(nextOther.who) || 'someone'} — {nextOther.title.charAt(0).toLowerCase() + nextOther.title.slice(1)}</> : 'Nothing stuck, nothing late.'}</span>
+          </span>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+/** everyone else's part, person by person — what each one has open here, and when it's due */
+export function WhosOnWhat({ job, setTab }: { job: Job; setTab: SetTab }) {
+  const s = useStore()
+  const rows = todoRows(s, job, setTab).filter((r) => !isProblem(r) && r.group !== 'mine')
+  const me = meOf(s.role)
   const [adding, setAdding] = React.useState(false)
   const steps = isGettingReady(job) ? stepsFor(s, job) : []
-  const c = steps.length ? stepCounts(steps) : undefined
-  const open = rows.filter((r) => r.group !== 'coming').length
+  const work = rows.filter((r) => r.group !== 'coming')
+  const coming = rows.filter((r) => r.group === 'coming')
+  const people = Array.from(new Set(work.map((r) => r.who || ''))).map((who) => ({ who: (who || undefined) as PersonKey | undefined, items: work.filter((r) => (r.who || '') === who) }))
+  people.sort((a, b) => Number(b.items.some((r) => r.late)) - Number(a.items.some((r) => r.late)) || b.items.length - a.items.length)
   return (
-    <Section title="To do" count={open} sub={c ? (c.done === c.total ? 'Every step is done' : `${c.done} of ${c.total} steps done — the bar on top opens each part`) : undefined}>
-      <div className="hidden grid-cols-[1.75rem_minmax(0,1fr)_8.75rem_7.25rem_5.75rem] gap-3 border-b border-line-2 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted md:grid">
-        <span /><span>What</span><span>Who</span><span className="text-right">When</span><span />
-      </div>
-      {GROUPS.map((g) => {
-        const these = rows.filter((r) => r.group === g.key)
-        if (!these.length) return null
-        return (
-          <div key={g.key}>
-            <Group label={g.label} count={these.length} />
-            {these.map((r) => <TodoLine key={r.key} r={r} />)}
+    <Section title="Who’s on what" count={work.length} sub="Everything else open here, by person — tap a line to open it">
+      {people.map((p) => (
+        <div key={p.who || 'nobody'} className="border-t border-line-2 py-2 first:border-t-0">
+          <div className="flex items-center gap-2.5 px-5 pb-1 pt-1 max-sm:px-4">
+            {p.who && PEOPLE[p.who] ? <Avatar who={p.who} size={26} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] rounded-full border border-dashed border-[#c6ccd4]" />}
+            <span className="min-w-0 flex-1 truncate text-[0.90625rem] font-semibold text-ink">{!p.who ? 'Nobody yet' : p.who === me ? 'You' : firstName(p.who) || PEOPLE[p.who]?.name}{p.who && p.who !== me && PEOPLE[p.who]?.roleLabel ? <span className="ml-2 text-[0.78125rem] font-normal text-muted">{PEOPLE[p.who]?.roleLabel}</span> : null}</span>
+            <span className="shrink-0 text-[0.78125rem] font-semibold text-muted">{p.items.length} open</span>
           </div>
-        )
-      })}
-      {!rows.length && <Empty className="py-5">{c && c.done < c.total ? 'Nothing open right now — the next steps open as these finish.' : 'Nothing open on this project.'}</Empty>}
+          {p.items.map((r) => <PersonLine key={r.key} r={r} />)}
+        </div>
+      ))}
+      {coming.length > 0 && (
+        <div className="border-t border-line-2 py-2">
+          <div className="flex items-center gap-2.5 px-5 pb-1 pt-1 max-sm:px-4">
+            <span className="inline-flex h-[1.625rem] w-[1.625rem] items-center justify-center rounded-full bg-vio-50 text-vio-600"><CalendarDays className="h-3.5 w-3.5" /></span>
+            <span className="min-w-0 flex-1 text-[0.90625rem] font-semibold text-ink">Coming up</span>
+          </div>
+          {coming.map((r) => <PersonLine key={r.key} r={r} />)}
+        </div>
+      )}
+      {!work.length && !coming.length && <Empty className="py-5">Nobody else has anything open here.</Empty>}
       {adding && steps.length ? <AddStep job={job} steps={steps} onDone={() => setAdding(false)} compact /> : (
         <div className="flex flex-wrap items-center gap-1 border-t border-line-2 px-3 py-1.5">
           <FootLink icon={<Plus />} onClick={() => s.open({ t: 'newtask', jobId: job.id })}>Add a task</FootLink>
@@ -282,7 +321,16 @@ export function TodoCard({ job, setTab }: { job: Job; setTab: SetTab }) {
 const FootLink = ({ icon, onClick, children }: { icon: React.ReactNode; onClick: () => void; children: React.ReactNode }) => (
   <button onClick={onClick} className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink [&_svg]:h-4 [&_svg]:w-4">{icon}{children}</button>
 )
-
+/** one line under a person: the mark, what it is (and a word on where it stands), when */
+function PersonLine({ r }: { r: TodoRow }) {
+  return (
+    <button onClick={r.run} disabled={!r.run} className="group grid w-full grid-cols-[1.125rem_minmax(0,1fr)_6.5rem] items-center gap-2.5 py-1.5 pl-[3.5rem] pr-5 text-left transition hover:bg-[#f8f9fb] disabled:cursor-default max-sm:pl-12 max-sm:pr-4">
+      <span className="flex justify-center"><RowMark m={r.mark} size={18} /></span>
+      <span className="min-w-0 truncate text-[0.875rem] text-ink"><span className="font-medium group-hover:text-brand-700">{r.title}</span>{r.note ? <span className={cn('ml-1.5', r.noteTone === 'warn' ? 'text-warn-700' : 'text-muted')}>· {r.note}</span> : null}</span>
+      <span className={cn('truncate text-right text-[0.8125rem] tnum', r.late ? 'font-semibold text-bad-600' : 'text-ink-2')}>{r.when === '—' ? '' : r.when}</span>
+    </button>
+  )
+}
 /* ================= the five facts ================= */
 const DOT: Record<Tone, string> = { ok: 'bg-ok-500', warn: 'bg-warn-500', bad: 'bg-bad-500', info: 'bg-brand-500', vio: 'bg-vio-500', neutral: 'bg-[#c6ccd4]' }
 export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
@@ -303,6 +351,7 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
   const rows: { label: string; value: string; sub?: string; tone: Tone; tab: string }[] = [
     { label: 'Installer', value: crew ? firstName(crew) : 'Not picked yet', sub: crew ? `${start} · ${ipoWord}` : 'Pick who installs it', tone: !crew ? 'warn' : ipo?.status === 'Accepted' ? 'ok' : 'info', tab: 'installer' },
     { label: 'His PO', value: r && r.sold ? `${r.pct}% of the estimate` : ipo ? fmtMoney(r?.total || 0) : 'No PO yet', sub: r && r.sold ? `${fmtMoney(r.total)} of ${fmtMoney(r.sold)} · keep it under ${r.line}%` : undefined, tone: !r || !r.sold ? 'neutral' : r.over ? 'bad' : 'ok', tab: 'orders' },
+    roomsFact(s, job),
     { label: 'Tile', value: tiles.length ? `${tiles.length} tile${tiles.length === 1 ? '' : 's'}` : 'No tiles yet', sub: worst ? worst.label : tiles.length ? 'All on site or on the way' : 'They come with the paperwork', tone: worst ? worst.tone : tiles.length ? 'ok' : 'warn', tab: 'scope' },
     { label: 'Materials', value: matValue, sub: matSub, tone: ms.state === 'yes' ? 'ok' : ms.state === 'wait' ? 'info' : ms.go === 'order' ? 'warn' : 'neutral', tab: 'orders' },
     ...(s.role !== 'site' ? [{ label: 'Billing', value: m.contract ? fmtMoney(m.contract + m.changes) : 'No contract yet', sub: `${m.billedPct}% billed · ${m.paidPct}% paid`, tone: (m.toBill > 0 ? 'warn' : 'ok') as Tone, tab: 'money' }] : []),
@@ -321,6 +370,21 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
       ))}
     </Section>
   )
+}
+
+/** the rooms, as one fact: how much there is to tile — or, once the crew is on it, how far it is */
+function roomsFact(s: Store, job: Job): { label: string; value: string; sub?: string; tone: Tone; tab: string } {
+  const rooms = s.rooms[job.id] || []
+  const flat = rooms.flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
+  const sf = flat.reduce((n, x) => n + (x.sf || 0), 0)
+  if (!rooms.length) return { label: 'Rooms', value: 'No rooms yet', sub: 'They come from the estimate', tone: 'warn', tab: 'scope' }
+  if (IN_FIELD.includes(job.stage)) {
+    const done = rooms.filter((r) => (r.pct ?? roomPct(r)) >= 100).length
+    return { label: 'Installed', value: `${job.pct ?? 0}%`, sub: `${done} of ${rooms.length} rooms done`, tone: 'info', tab: 'scope' }
+  }
+  const noTile = flat.filter((x) => !x.tile).length
+  const noSF = flat.filter((x) => !x.sf).length
+  return { label: 'Rooms', value: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`, sub: noTile ? `${noTile} wall${noTile === 1 ? '' : 's'} or floor${noTile === 1 ? '' : 's'} without a tile` : noSF ? `${noSF} without square feet` : `${flat.length} walls and floors`, tone: noTile || noSF ? 'warn' : 'ok', tab: 'scope' }
 }
 
 /* ================= what we're tiling, room by room ================= */

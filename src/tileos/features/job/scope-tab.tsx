@@ -23,6 +23,7 @@ import { settingStatus } from '../setting'
 import { scopeLock, takesTile } from '../steps'
 import { surfaceFix } from './overview'
 import { Section, Empty, Group } from './kit'
+import { AddSurfaceButton, AddRoomButton } from '../roomedit'
 import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
@@ -195,6 +196,7 @@ function ByRoom({ job }: { job: Job }) {
               <div key={r.name}>
                 <div className="flex items-center gap-3 border-t border-line-2 px-5 pb-1 pt-3 max-sm:px-4">
                   <span className="min-w-0 flex-1 truncate text-[0.90625rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
+                  <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} />
                   {inField
                     ? <span className="flex w-[8.25rem] shrink-0 items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-ok-500' : 'bg-brand-500')} style={{ width: Math.max(3, pct) + '%' }} /></span><span className="w-9 text-right text-[0.75rem] font-semibold tnum text-muted">{pct}%</span></span>
                     : <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>}
@@ -205,8 +207,15 @@ function ByRoom({ job }: { job: Job }) {
           })}
         </div>
       ))}
+      <AddRoomRow job={job} />
     </div>
   )
+}
+/** one more room — only for whoever can change the scope */
+function AddRoomRow({ job }: { job: Job }) {
+  const s = useStore()
+  if (!scopeLock(s, job.id).canEdit) return null
+  return <div className="flex border-t border-line-2 px-5 py-2.5 max-sm:px-4"><AddRoomButton jobId={job.id} have={(s.rooms[job.id] || []).map((r) => r.name)} /></div>
 }
 function SurfaceRow({ job, room, x, inField }: { job: Job; room: Room; x: Surface; inField: boolean }) {
   const s = useStore()
