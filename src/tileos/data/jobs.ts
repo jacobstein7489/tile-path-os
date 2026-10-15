@@ -390,6 +390,10 @@ export interface Tile {
   /** how much the tile paperwork (the client's or the store's) has of it — checked against what we need */
   paper?: { qty: number; unit: 'SF' | 'boxes' }
 }
+/** a file kept with a project — the tile paperwork, plans, a photo. In the real app it's in the company's storage
+ *  (`path`); the preview keeps it only while the page is open. */
+export interface FileRec { id: string; jobId: string; name: string; size: number; type: string; kind: 'paperwork' | 'plans' | 'photo' | 'other'; path?: string; by: PersonKey; at: string; /** what AI found when it read it */ read?: string }
+
 /** the sample projects' tiles. A real project's tiles live with the project (the store's tiles, by project) */
 export const TILES: Record<string, Tile> = {
   'T-01': { tag: 'T-01', name: 'Grigio', size: '24 × 24', finish: 'Honed', maker: 'Florim', supplier: 'Best Tile', suppliedBy: 'GC', sku: 'FLO-GR-2424-H', swatch: 'grigio' },

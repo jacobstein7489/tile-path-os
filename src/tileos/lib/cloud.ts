@@ -15,6 +15,8 @@ import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs,
 import { REAL, redate, seedCounters, setSaveStatus } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
+import { ReadError } from '@/tileos/features/reader'
+import { askCompanyAI, type Answer } from '@/lib/company-ai'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -29,7 +31,7 @@ type Shape = 'map' | 'list' | 'one'
 const SHAPE: Partial<Record<keyof Data, Shape>> = {
   jobs: 'map', clients: 'map', tiles: 'map', pricing: 'map', hist: 'map', rooms: 'map', diary: 'map', prep: 'map', notes: 'map', pay: 'map',
   messages: 'map', stepRecs: 'map', jobSteps: 'map',
-  tasks: 'list', money: 'list', pos: 'list', mats: 'list', checks: 'list', bookings: 'list', notices: 'list', punch: 'list', ipos: 'list',
+  tasks: 'list', money: 'list', pos: 'list', mats: 'list', checks: 'list', bookings: 'list', notices: 'list', punch: 'list', ipos: 'list', files: 'list',
   items: 'list', estimates: 'list', designers: 'list', suppliers: 'list', events: 'list', team: 'list', shortages: 'list',
   ready: 'one', lost: 'one', rules: 'one', access: 'one', inactive: 'one',
 }
@@ -312,6 +314,9 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.email = user.email || undefined
   /* the admin lets people in from Settings → Team */
   REAL.people = opts.admin ? { waiting: waitingPeople, letIn } : undefined
+  /* the company's AI reads paperwork; files go to the company's storage */
+  REAL.ai = askAI
+  REAL.files = files
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: undefined })
   const member = linkMember(user, opts)
   if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
@@ -330,6 +335,43 @@ export function stopCloud() {
   unsub?.(); unsub = null
   channel?.unsubscribe(); channel = null
   synced = null
+}
+
+/* ---------------- the company's AI and file storage ---------------- */
+const AI_WORDS: Record<string, string> = {
+  nokey: 'AI isn’t switched on for the app yet. In Lovable, ask: “Turn on Lovable AI for this project.”',
+  busy: 'The AI is busy right now — try again in a minute.',
+  credits: 'The AI credits are used up — add credits in Lovable (Settings → Plans & credits).',
+  denied: 'Only the team can use this — ask the admin to let you in.',
+  error: 'Couldn’t read it just now — try again.',
+}
+const asDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
+async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal): Promise<string> {
+  const urls = await Promise.all(pages.slice(0, 10).map(asDataUrl))
+  if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
+  let r: Answer
+  try { r = (await askCompanyAI({ data: { prompt, pages: urls } })) as Answer } catch (e: any) {
+    console.warn('AI call failed', e)
+    throw new ReadError('error', /unauthorized/i.test(String(e?.message)) ? 'Sign in again, then try once more.' : AI_WORDS.error)
+  }
+  if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
+  if (r.ok) return r.text
+  if (r.detail) console.warn('AI said no:', r.why, r.detail)
+  throw new ReadError(r.why, AI_WORDS[r.why] || AI_WORDS.error)
+}
+const BUCKET = 'tileos-files'
+const files = {
+  async put(jobId: string, id: string, file: File) {
+    const path = `${jobId}/${id}-${file.name.replace(/[^\w.\-]+/g, '_').slice(-80)}`
+    const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })
+    if (error) throw new Error(/bucket|not.?found|does not exist/i.test(error.message || '') ? 'files need a one-time setup — in Lovable, type “Apply pending Supabase migrations”.' : error.message)
+    return path
+  },
+  async url(path: string) {
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 60 * 10)
+    if (error || !data?.signedUrl) throw error || new Error('no link')
+    return data.signedUrl as string
+  },
 }
 
 /* ---------------- who's signed in: their place on the team ---------------- */

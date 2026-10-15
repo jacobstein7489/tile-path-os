@@ -3,7 +3,8 @@
  *   a wall or floor: which tile, grout and joint, the layout, what goes under it, the edge or metal, the height, square feet
  * Every change is saved to the project's history; the materials and the scope of work follow by themselves. */
 import { useStore, addHist, meOf } from '@/tileos/store'
-import { GROUTS, type Tile, type Surface, type Grout } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, type Tile, type Surface, type Grout } from '@/tileos/data/jobs'
+import type { ReadTile } from './reader'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 
 const S = () => useStore.getState()
@@ -91,6 +92,66 @@ export function setTileOn(jobId: string, tag: string, on: SurfaceRef[]) {
       }),
     )
   })
+}
+
+/** a grout named on paperwork, as one of ours (a new one is added to the company's list) */
+function groutKeyFor(s: { rules: { grouts?: Record<string, Grout> } }, name: string): string {
+  const n = name.toLowerCase().replace(/\b(grout|sanded|unsanded|epoxy|color)\b/g, '').replace(/\s+/g, ' ').trim()
+  const hit = Object.entries(GROUTS).find(([, g]) => g.name.toLowerCase() === n) || Object.entries(GROUTS).find(([, g]) => n && n.includes(g.name.toLowerCase()))
+  if (hit) return hit[0]
+  const key = 'g-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const g: Grout = { name: name.replace(/\s*grout\s*$/i, ''), color: guessColor(name) }
+  GROUTS[key] = g
+  s.rules.grouts = { ...(s.rules.grouts || {}), [key]: g }
+  return key
+}
+const jointOf = (j: string) => JOINTS.find((x) => x.replace(/[^\d/]/g, '') === j.replace(/[^\d/]/g, '')) || j
+
+/** what was read off the tile paperwork goes onto the project in one go: new tiles added, known ones filled in, the
+ *  walls and floors pointed at their tile, and the paperwork's quantity kept for the check */
+export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string } = {}) {
+  let added = 0
+  let placed = 0
+  S().commit(
+    (s) => {
+      const mine = (s.tiles[jobId] ||= {})
+      const taken = new Set(Object.keys(mine))
+      const next = () => {
+        const lead = [...taken].find((t) => /^[A-Z]+-?\d/i.test(t))?.match(/^([A-Z]+-?)/i)?.[1] || 'T-'
+        let n = Math.max(0, ...[...taken].map((t) => Number((t.match(/(\d+)\s*$/) || [])[1] || 0))) + 1
+        while (taken.has(`${lead}${n}`)) n++
+        return `${lead}${n}`
+      }
+      for (const p of picks) {
+        const same = (p.tag && mine[p.tag]) || Object.values(mine).find((t) => t.name.toLowerCase() === p.name.toLowerCase())
+        const tag = same ? same.tag : p.tag && !taken.has(p.tag) ? p.tag : next()
+        taken.add(tag)
+        const base: Tile = same ? { ...same } : { tag, name: p.name, size: '', finish: '', maker: '', supplier: '', suppliedBy: 'GC', sku: '' }
+        const t: Tile = {
+          ...base,
+          name: p.name || base.name,
+          ...(p.size ? { size: p.size } : {}), ...(p.finish ? { finish: p.finish } : {}), ...(p.maker ? { maker: p.maker } : {}), ...(p.supplier ? { supplier: p.supplier } : {}),
+          ...(p.grout ? { grout: groutKeyFor(s, p.grout) } : {}), ...(p.joint ? { joint: jointOf(p.joint) } : {}), ...(p.boxSF ? { boxSF: p.boxSF } : {}),
+          ...(p.qty ? { paper: { qty: p.qty, unit: p.unit || 'SF' } } : {}), ...(p.note && !base.note ? { note: p.note } : {}),
+        }
+        mine[tag] = t
+        if (!same) added++
+        p.goesOn.forEach((label) => {
+          const [room, surface] = label.split(' · ')
+          const x = s.rooms[jobId]?.find((r) => r.name === room)?.surfaces.find((y) => y.name === surface)
+          if (!x) return
+          x.tile = tag
+          if (t.grout) x.grout = t.grout
+          if (t.joint) x.joint = t.joint
+          if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
+          placed++
+        })
+      }
+      addHist(s, jobId, { who: me(), kind: 'setup', title: `Read from the tile paperwork${o.file ? ` · ${o.file}` : ''}`, detail: `${picks.length} tile${picks.length === 1 ? '' : 's'} (${added} new) · ${placed} wall${placed === 1 ? '' : 's'} and floors matched` })
+    },
+    `Read from the paperwork — ${picks.length} tile${picks.length === 1 ? '' : 's'}`,
+    { sub: `${placed} wall${placed === 1 ? '' : 's'} and floors matched. Check the quantities below.` },
+  )
 }
 
 /** take a tile off a project — the walls and floors that had it go back to "no tile" */

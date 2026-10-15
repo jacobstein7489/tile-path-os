@@ -30,6 +30,7 @@ import { createInvoice, recordPayment, matBy } from './flows'
 import { addEvent, removeEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
+import { PaperRead } from './paperread'
 
 /* ---------------- words ---------------- */
 /** the window's title */
@@ -250,6 +251,7 @@ function Paperwork({ job, v }: { job: Job; v: StepView }) {
   const shownRooms = allRooms ? rooms : rooms.slice(0, 4)
   return (
     <div className="flex flex-col gap-4">
+      <PaperRead job={job} />
       <Block title="What we’re tiling" right={`${rooms.length} room${rooms.length === 1 ? '' : 's'} · ${totalSF.toLocaleString('en-US')} SF · from the estimate`}>
         {shownRooms.map((r) => {
           const sf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
@@ -360,6 +362,7 @@ function Selections({ job }: { job: Job }) {
   const missing = flat.filter((f) => !f.x.tile)
   return (
     <div className="flex flex-col gap-4">
+      {!tiles.length && <PaperRead job={job} />}
       <Block title="Each tile" right={<Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button>}>
         {!tiles.length && <Quiet>No tiles yet — add them from the tile paperwork.</Quiet>}
         {tiles.map((t) => <TilePick key={t.tag} job={job} t={t} n={flat.filter((f) => f.x.tile === t.tag).length} />)}

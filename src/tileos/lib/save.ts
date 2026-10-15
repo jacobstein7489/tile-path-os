@@ -30,6 +30,10 @@ export type WaitingPerson = { uid: string; name: string; email: string; since: s
 export const REAL: {
   cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void
   people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
+  /** the company's AI on the server: read these pages (pictures) and answer the prompt */
+  ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
+  /** the company's file storage: keep a file with a project, and a link to open it */
+  files?: { put: (jobId: string, id: string, file: File) => Promise<string>; url: (path: string) => Promise<string> }
 } = { cloud: false, admin: true, home: 'owner' }
 let status: SaveStatus = { where: OFF ? 'none' : 'browser', mode: 'sample', saving: false }
 const listeners = new Set<() => void>()

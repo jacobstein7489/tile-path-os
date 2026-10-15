@@ -7,7 +7,7 @@ import { immer } from 'zustand/middleware/immer'
 import { showPop, type FlowStep } from '@/tileos/lib/pop'
 import type { Job, Role, Stage, PersonKey, Customer } from '@/tileos/data/model'
 import { roleDef, PEOPLE, fmtMoney, TEAM0, ROLES, ACCESS, applyTeam, moveLogins, type Member } from '@/tileos/data/model'
-import { JOBS0, PRICING0, ROOMS, LOST0, CUSTOMERS, CUSTOMERS0, TILES, JOB_TILES, GROUTS, historyFor, roomPct, jobPct, hasSF, type Pricing, type Room, type HistEntry, type Tile, type Grout } from '@/tileos/data/jobs'
+import { JOBS0, PRICING0, ROOMS, LOST0, CUSTOMERS, CUSTOMERS0, TILES, JOB_TILES, GROUTS, historyFor, roomPct, jobPct, hasSF, type Pricing, type Room, type HistEntry, type Tile, type Grout, type FileRec } from '@/tileos/data/jobs'
 import { DIARY0, IPOS0, type DiaryEntry, type IPO } from '@/tileos/data/field'
 import { PREP0, NOTES0, type Prep, type Note } from '@/tileos/data/upcoming'
 import { ITEMS0, type Item } from '@/tileos/data/items'
@@ -96,6 +96,8 @@ export interface Data {
   messages: Record<string, Msg[]>
   /** installer pay by week: approved, or questioned */
   pay: Record<string, { status: 'approved' | 'paid' | 'asked'; amount: number; date: string; note?: string }>
+  /** files kept with the projects — the tile paperwork, plans, photos */
+  files: FileRec[]
   /** each project's checklist: what was checked off by hand, owners changed, dates set */
   stepRecs: Record<string, Record<string, StepRec>>
   /** steps added to just one project */
@@ -224,6 +226,7 @@ export function initialData(): Data {
     /* the rough-ins were looked at during the site visits of the projects that are already ready */
     stepRecs: Object.fromEntries(['530', 'mdrive', 'wilk', 'green'].map((id) => [id, { rough: { done: 'Sep 24', by: 'yakov' } }])) as Record<string, Record<string, StepRec>>,
     jobSteps: {},
+    files: [],
     inactive: [],
   } as Data)
   ensureTiles(d)
@@ -260,7 +263,7 @@ function pinDates(s: Data) {
   })
   Object.values(s.jobs).forEach((j) => { if (j.next?.due) { const d = pinDate(j.next.due); if (d !== j.next.due) j.next.due = d } })
 }
-export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'stepRecs', 'jobSteps', 'inactive']
+export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'files', 'stepRecs', 'jobSteps', 'inactive']
 /** a clean start for testing: no projects, estimates, tasks or clients — the team, logins, items and settings stay */
 export function freshData(keep: Data): Data {
   const d = initialData()
