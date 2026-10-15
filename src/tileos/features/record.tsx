@@ -7,6 +7,7 @@ import {
   Building2, FileText, Package, CircleDollarSign, CalendarPlus, AlertTriangle, CalendarDays, Clock3, HardHat,
 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
+import { keepFiles } from '@/tileos/lib/files'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Modal, WAIT_WHO } from '@/tileos/components/ui/overlay'
 import { Button, TextArea, SearchField, TextInput, Avatar, Segmented } from '@/tileos/components/ui/core'
@@ -79,6 +80,9 @@ const nextHour = () => { const d = new Date(); const m = (d.getHours() + 1) * 60
 export function RecordModal({ jobId: initialJob, type: initialType, where: initialWhere, title: initialTitle, meetKind: initialKind, level }: { jobId?: string; type?: string; where?: string; title?: string; meetKind?: 'meeting' | 'walkthrough'; level: number }) {
   const s = useStore()
   const [type, setType] = React.useState<TypeKey | ''>((initialType as TypeKey) || '')
+  /* photos picked for this record — they go onto the project's photos when it's saved */
+  const [photos, setPhotos] = React.useState<File[]>([])
+  const photoInput = React.useRef<HTMLInputElement>(null)
   const [jobId, setJobId] = React.useState(initialJob || '')
   const [invoice, setInvoice] = React.useState('')
   const [full, setFull] = React.useState(true)
@@ -136,7 +140,8 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
       s.closeAll()
       return
     }
-    recordEvent({ jobId, type, label: tpl!.label, kind, where: type === 'delivery' ? dl?.title : where, from, to, waitingOn: needWait ? waitOn : '', back, note: note.trim() || undefined })
+    if (photos.length && jobId) void keepFiles(jobId, photos, 'photo', { quiet: true })
+    recordEvent({ jobId, type, label: tpl!.label, kind, where: type === 'delivery' ? dl?.title : where, from, to, waitingOn: needWait ? waitOn : '', back, note: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || undefined })
   }
   const withText = [...others.filter((o) => o !== 'Installer'), others.includes('Installer') ? (installer ? `${PEOPLE[installer].name} (installer)` : 'the installer') : ''].filter(Boolean).join(', ')
   const kindLabel = meetKind === 'walkthrough' ? 'Walkthrough' : 'Meeting'
@@ -185,7 +190,8 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
       {type === 'payment' && <Button className="ml-auto" variant="primary" icon={<Check />} disabled={!ready} onClick={savePayment}>Record {amount ? fmtMoney(amount) : 'payment'}</Button>}
       {type !== 'meeting' && type !== 'payment' && type !== 'daily' && (
         <>
-          <Button className="ml-auto" icon={<Camera className="h-4 w-4" />} onClick={() => toast('Photo attached (demo)')}>Add photo</Button>
+          <input ref={photoInput} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; setPhotos((p) => [...p, ...l]) }} />
+          <Button className="ml-auto" icon={<Camera className="h-4 w-4" />} onClick={() => photoInput.current?.click()}>{photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : 'Add photo'}</Button>
           <Button variant="primary" disabled={!ready} onClick={save}>Save</Button>
         </>
       )}

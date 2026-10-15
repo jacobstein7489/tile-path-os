@@ -11,7 +11,7 @@ import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow,
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, roleDef, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { SUBS0, type SupplierInfo } from '@/tileos/data/directory'
+import { allSubs, type SupplierInfo } from '@/tileos/data/directory'
 import { ITEM_TYPE_LABEL, type ItemType } from '@/tileos/data/items'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, PAY_STATE, payRow } from './pay'
@@ -152,7 +152,7 @@ export function DesignersPage() {
     <Page
       title="Designers"
       sub={DIR_META.designers.sub}
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => toast('New designer — firm, contact, phone and email')}>New designer</Button>}
+      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'designerform' })}>New designer</Button>}
       top={
         <Bubbles
           items={[
@@ -212,15 +212,16 @@ export function SubsPage() {
   const freeSoon = (c: PersonKey) => { const f = free.find((y) => y.crew === c); return !!f && f.iso <= addDays(MONDAY, 4) }
   const payOpenFor = (c: PersonKey) => { const r = payRow(s, c, PAY_WEEKS[0]); return !!r && !['approved', 'paid'].includes(r.state) }
   const inTab = (c: PersonKey) => tab === 'all' || tab === 'off' || (tab === 'working' ? working(c) : tab === 'free' ? freeSoon(c) : payOpenFor(c))
-  const live = SUBS0.filter((x) => !isOff(s, 'crew', x.crew))
-  const offList = SUBS0.filter((x) => isOff(s, 'crew', x.crew))
+  const subs = allSubs()
+  const live = subs.filter((x) => !isOff(s, 'crew', x.crew))
+  const offList = subs.filter((x) => isOff(s, 'crew', x.crew))
   const list = (tab === 'off' ? offList : live).filter((x) => inTab(x.crew as PersonKey) && (!q || PEOPLE[x.crew as PersonKey].name.toLowerCase().includes(q.toLowerCase())))
   const pick = (k: typeof tab) => () => setTab(tab === k ? 'all' : k)
   return (
     <Page
       title="Installers"
       sub={DIR_META.subs.sub}
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => toast('New installer — name, trade, phone, insurance and W-9')}>New installer</Button>}
+      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'installerform' })}>New installer</Button>}
       top={
         <Bubbles
           items={[
@@ -508,6 +509,66 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
           {field('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}
         </div>
         {field('Email — where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
+      </div>
+    </Modal>
+  )
+}
+
+/* ================= a new designer, a new installer ================= */
+const formField = (label: string, el: React.ReactNode) => (
+  <label className="block min-w-0"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">{label}</span>{el}</label>
+)
+export function DesignerFormModal({ level }: { level: number }) {
+  const s = useStore()
+  const [f, setF] = React.useState({ name: '', contact: '', phone: '', email: '', notes: '' })
+  const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }))
+  const clash = !!f.name.trim() && s.designers.some((d) => d.name.toLowerCase() === f.name.trim().toLowerCase())
+  const ok = !!f.name.trim() && !clash
+  const save = () => {
+    const id = 'd' + Date.now().toString(36)
+    s.commit((x) => { x.designers.push({ id, name: f.name.trim(), contact: f.contact.trim(), phone: f.phone.trim(), email: f.email.trim(), clients: [], notes: f.notes.trim() }) }, `${f.name.trim()} added`, { close: true })
+  }
+  return (
+    <Modal level={level} size="md" onClose={s.close} title="New designer" sub="The firm, who to talk to, and how to reach them" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>Add the designer</Button></>}>
+      <div className="flex flex-col gap-3.5">
+        {formField('Firm', <TextInput data-autofocus aria-label="Firm" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Ivy Lane Interiors" className="h-10" />)}
+        {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That designer is already on the list.</div>}
+        {formField('Who to talk to', <TextInput aria-label="Contact" value={f.contact} onChange={(e) => set({ contact: e.target.value })} placeholder="Name, or their role" className="h-10" />)}
+        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
+          {formField('Email', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="studio@designer.com" className="h-10" />)}
+        </div>
+        {formField('Notes', <TextInput aria-label="Notes" value={f.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Answers by email within a week" className="h-10" />)}
+      </div>
+    </Modal>
+  )
+}
+export function InstallerFormModal({ level }: { level: number }) {
+  const s = useStore()
+  const [f, setF] = React.useState({ name: '', phone: '', email: '', region: '', trade: 'Tile installation' })
+  const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }))
+  const taken = !!f.name.trim() && Object.values(PEOPLE).some((p) => p.crew && p.name.toLowerCase() === f.name.trim().toLowerCase())
+  const ok = !!f.name.trim() && !taken
+  const save = () => {
+    const key = ('c' + Date.now().toString(36)) as PersonKey
+    const [first, ...rest] = f.name.trim().split(/\s+/)
+    s.commit((x) => {
+      x.team.push({ key, first, last: rest.join(' ') || undefined, phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, role: 'crew', status: 'active', trade: f.trade.trim() || 'Tile installation', region: f.region.trim() || undefined })
+    }, `${f.name.trim()} added`, { close: true, sub: 'He shows on the schedule, the installer list and when you pick who installs a job.' })
+  }
+  return (
+    <Modal level={level} size="md" onClose={s.close} title="New installer" sub="He shows up on the schedule, in Installer pay, and when you pick who installs a job" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>Add the installer</Button></>}>
+      <div className="flex flex-col gap-3.5">
+        {formField('Name', <TextInput data-autofocus aria-label="Installer name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Marco" className="h-10" />)}
+        {taken && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">There’s already an installer with that name.</div>}
+        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
+          {formField('Email (for his POs and his phone app)', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@email.com" className="h-10" />)}
+        </div>
+        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          {formField('What he does', <TextInput aria-label="Trade" value={f.trade} onChange={(e) => set({ trade: e.target.value })} className="h-10" />)}
+          {formField('Where he works (optional)', <TextInput aria-label="Area" value={f.region} onChange={(e) => set({ region: e.target.value })} placeholder="e.g. New Jersey" className="h-10" />)}
+        </div>
       </div>
     </Modal>
   )

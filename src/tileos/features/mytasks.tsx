@@ -43,8 +43,15 @@ export function dailyDue(s: Store, role: Role): DailyItem[] {
     .filter((b) => s.diary[b.jobId]?.[0]?.date !== NOW)
     .map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
 }
-/** a task is mine when it's for my login type (or one folded into it), or I own it */
-export const isMine = (t: Task, role: Role) => t.for.some((r) => r === role || loginOf(r) === role) || t.owner === meOf(role)
+/** a task is mine when it has my name on it — or it's for my login type (or one folded into it) and nobody else
+ * on my login has it by name. Two people on one login (the takeoff person and the office reviewer) each see their own.
+ * No person (me = null): everything for the login — that's the Everyone list. */
+export const isMine = (t: Task, role: Role, me: PersonKey | null = meOf(role)) => {
+  if (me && t.owner === me) return true
+  if (!t.for.some((r) => r === role || loginOf(r) === role)) return false
+  if (!me || !t.owner) return true
+  return !useStore.getState().team.some((m) => m.key === t.owner && m.status !== 'off' && loginOf(m.role) === loginOf(role))
+}
 
 /* ---------------- when: one word for each section ---------------- */
 type Bucket = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'aside'
@@ -249,13 +256,13 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   dailyDue(s, role).forEach((d) => out.push({ key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
-  s.tasks.filter((t) => isMine(t, role) && t.state === 'now' && !t.paused && (!t.everyone || t.owner === me)).forEach((t) => {
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'now' && !t.paused && (!t.everyone || !me || t.owner === me)).forEach((t) => {
     /* a hand-off (a takeoff, a review) is yours the moment it lands — it's on Today, with its due date */
     const b0 = taskBucket(t)
     const b = t.action?.kind?.startsWith('estimate:') && (b0 === 'tomorrow' || b0 === 'week' || b0 === 'later') ? 'today' : b0
     out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: t.owner })
   })
-  s.tasks.filter((t) => isMine(t, role) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))
   stepTodos(s, me || 'all').forEach(({ job, step: v }) => {
     /* a step with no date of its own is due a week before the start (everything left has to be done by then) — no start yet, it's due now */
     const start = s.prep[job.id]?.targetISO
@@ -270,7 +277,7 @@ const sortPlate = (xs: PlateItem[]) => xs.sort((x, y) => (x.iso || '9999').local
 const TEAM_ROLES: Role[] = ['owner', 'site', 'office', 'takeoff', 'estimator', 'materials', 'accounting']
 function teamPlate(s: Store): PlateItem[] {
   const seen = new Map<string, PlateItem>()
-  TEAM_ROLES.forEach((r) => plateOf(s, r).forEach((x) => { if (!seen.has(x.key)) seen.set(x.key, x) }))
+  TEAM_ROLES.forEach((r) => plateOf(s, r, null).forEach((x) => { if (!seen.has(x.key)) seen.set(x.key, x) }))
   s.events.filter((e) => e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
   return sortPlate(Array.from(seen.values()))
 }

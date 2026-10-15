@@ -36,7 +36,7 @@ export function PaperRead({ job }: { job: Job }) {
     setSt({ k: 'reading', name, n: files.length })
     ctl.current?.abort()
     const c = (ctl.current = new AbortController())
-    const keep = keepFiles(job.id, files, 'paperwork')
+    const keep = keepFiles(job.id, files, 'paperwork', { quiet: true })
     try {
       const st0 = useStore.getState()
       const res = await readTilePaperwork(job, st0.rooms[job.id] || [], Object.values(st0.tiles[job.id] || {}).sort(byTag), files, c.signal)

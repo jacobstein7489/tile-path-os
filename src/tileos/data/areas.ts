@@ -56,6 +56,32 @@ export const AREA_PRESETS: AreaPreset[] = [
   { name: 'Lobby', surfaces: ['floor', 'base'] },
 ]
 
+/** the usual surfaces for a room you typed yourself — a bathroom comes with its niche, waterproofing, saddle and
+ *  metals, a kitchen with its backsplash… the same way the rooms on the list do. Untick what it doesn't have. */
+export function guessSurfaces(name: string, presets: AreaPreset[] = AREA_PRESETS): string[] {
+  const n = name.toLowerCase()
+  const exact = presets.find((p) => p.name.toLowerCase() === n)
+  if (exact) return [...exact.surfaces]
+  const like = (re: RegExp, fallback: string[]) => [...(presets.find((p) => re.test(p.name.toLowerCase()))?.surfaces || fallback)]
+  const bath = /bath|shower|\bwc\b|lav/.test(n)
+  if (/powder|half.?bath|\bwc\b|toilet room/.test(n)) return like(/powder/, ['floor', 'wall', 'saddle'])
+  if (bath && /master|primary|main|en.?suite|owner/.test(n)) return like(/master/, ['floor', 'showerfloor', 'drain', 'wall', 'niche', 'window', 'saddle', 'metals', 'wp'])
+  if (bath && /kid|child|jack|jill/.test(n)) return like(/kids/, ['floor', 'tubwalls', 'niche', 'saddle', 'metals', 'wp'])
+  if (bath && /tub/.test(n)) return like(/tub bath/, ['floor', 'tubwalls', 'niche', 'saddle', 'metals', 'wp'])
+  if (bath) return like(/shower bath/, ['floor', 'showerfloor', 'wall', 'niche', 'saddle', 'metals', 'wp'])
+  if (/kitchen|kitchenette|pantry|bar\b/.test(n)) return like(/kitchen/, ['floor', 'splash'])
+  if (/laundry|utility/.test(n)) return like(/laundry/, ['floor', 'splash', 'saddle'])
+  if (/mud/.test(n)) return like(/mudroom/, ['floor'])
+  if (/foyer|hall|entry|vestibule|corridor|landing/.test(n)) return like(/foyer/, ['floor', 'saddle'])
+  if (/basement|cellar/.test(n)) return like(/basement/, ['floor', 'under'])
+  if (/lobby|common|amenity/.test(n)) return like(/lobby/, ['floor', 'base'])
+  if (/fireplace|accent|feature wall/.test(n)) return ['accent']
+  if (/backsplash/.test(n)) return ['splash']
+  if (/stair|steps/.test(n)) return ['steps']
+  if (/dining|family|living|den|office|bedroom|room|great/.test(n)) return ['floor', 'under']
+  return ['floor']
+}
+
 /** a surface you typed yourself: priced like the closest thing we have, or left at $0 for the estimator */
 export function customSurface(label: string): SurfaceDef {
   const w = label.toLowerCase()

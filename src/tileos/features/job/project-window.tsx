@@ -139,7 +139,8 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
   const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
   const locked = left.length > 0
-  const files = filesFor(job.id).length
+  const save = useSaveStatus()
+  const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
   const unread = unreadOf(s, job.id)
   const runPrimary = () => {
     if (job.stage === 'setup' || job.stage === 'verification') return verificationDone(job.id)

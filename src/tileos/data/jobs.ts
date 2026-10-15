@@ -392,7 +392,7 @@ export interface Tile {
 }
 /** a file kept with a project — the tile paperwork, plans, a photo. In the real app it's in the company's storage
  *  (`path`); the preview keeps it only while the page is open. */
-export interface FileRec { id: string; jobId: string; name: string; size: number; type: string; kind: 'paperwork' | 'plans' | 'photo' | 'other'; path?: string; by: PersonKey; at: string; /** what AI found when it read it */ read?: string }
+export interface FileRec { id: string; jobId: string; name: string; size: number; type: string; kind: 'paperwork' | 'plans' | 'photo' | 'other'; path?: string; by: PersonKey; at: string; /** a small picture of a photo, kept with the record so lists load fast */ thumb?: string; /** what AI found when it read it */ read?: string }
 
 /** the sample projects' tiles. A real project's tiles live with the project (the store's tiles, by project) */
 export const TILES: Record<string, Tile> = {
@@ -665,13 +665,9 @@ export const FILES0: Record<string, FileDoc[]> = {
     { name: 'Installer package', kind: 'package', rev: 'Rev 3', date: 'Sep 24', current: true, note: 'Boys bath held at 3 ft' },
   ],
 }
+/** the sample projects' documents (only the sample has them — a real project's files are the ones people add) */
 export function filesFor(id: string): FileDoc[] {
-  if (FILES0[id]) return FILES0[id]
-  return [
-    { name: 'Architectural plans', kind: 'plans', rev: 'A1', date: 'Sep 2', current: true },
-    { name: 'Finish schedule', kind: 'finish', rev: 'Rev 1', date: 'Sep 4', current: true },
-    { name: 'Approved proposal', kind: 'proposal', rev: 'R1', date: 'Sep 1', current: true },
-  ]
+  return FILES0[id] || []
 }
 
 export const toneOrder: Record<Tone, number> = { bad: 0, warn: 1, info: 2, vio: 3, ok: 4, neutral: 5 }

@@ -1,20 +1,154 @@
 import * as React from 'react'
 import { refFor, refLabel } from '../activity'
-import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Cpu, ArrowRight } from 'lucide-react'
+import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Loader2, MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, historyOf } from '@/tileos/store'
 import { Card, CardHeader, Button, Pill, Avatar, Chip, Empty } from '@/tileos/components/ui/core'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type SwatchKey } from '@/tileos/data/model'
-import { filesFor, type HistKind } from '@/tileos/data/jobs'
+import { filesFor, type HistKind, type FileRec } from '@/tileos/data/jobs'
+import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { REAL, useSaveStatus } from '@/tileos/lib/save'
+import { keepFiles, openFile, removeFile, fileUrl, sizeLabel, KIND_LABEL } from '@/tileos/lib/files'
 import { shiftText, NOW } from '@/tileos/lib/today'
 
-const KIND_ICON: Record<string, React.ElementType> = { plans: Map, spec: BookOpen, finish: Palette, paperwork: ScrollText, proposal: FileText, contract: FileSignature, package: Package2, photo: Camera }
+const KIND_ICON: Record<string, React.ElementType> = { plans: Map, spec: BookOpen, finish: Palette, paperwork: ScrollText, proposal: FileText, contract: FileSignature, package: Package2, photo: Camera, other: FileText }
+const ACCEPT: Record<FileRec['kind'], string> = { paperwork: 'application/pdf,image/*', plans: 'application/pdf,image/*', photo: 'image/*', other: '' }
+const ORDER: FileRec['kind'][] = ['paperwork', 'plans', 'photo', 'other']
 
+/** a project's files and photos: the tile paperwork, plans and specs, site photos — add them, open them, remove them */
 export function FilesTab({ job }: { job: Job }) {
-  const files = filesFor(job.id)
-  const role = useStore((s) => s.role)
+  const s = useStore()
+  const st = useSaveStatus()
+  const mine = s.files.filter((f) => f.jobId === job.id)
+  /* the sample's documents and photos show only while the sample is open */
+  const sampleOn = st.mode === 'sample' && st.where !== 'cloud'
+  const sample = sampleOn ? filesFor(job.id) : []
+  const input = React.useRef<HTMLInputElement>(null)
+  const [kind, setKind] = React.useState<FileRec['kind']>('photo')
+  const [busy, setBusy] = React.useState<FileRec['kind'] | null>(null)
+  const [over, setOver] = React.useState(false)
+  const pick = (k: FileRec['kind']) => {
+    setKind(k)
+    requestAnimationFrame(() => { if (input.current) { input.current.accept = ACCEPT[k]; input.current.click() } })
+  }
+  const add = async (list: File[], k: FileRec['kind']) => {
+    if (!list.length) return
+    setBusy(k)
+    const { problem } = await keepFiles(job.id, list, k)
+    setBusy(null)
+    if (problem) toast(`Not kept — ${problem}`)
+  }
+  const kindOfFile = (f: File): FileRec['kind'] => (/^image\//.test(f.type) ? 'photo' : 'other')
+  const photos = mine.filter((f) => f.kind === 'photo')
+  const docs = mine.filter((f) => f.kind !== 'photo')
+  return (
+    <div
+      className="flex flex-col gap-5"
+      onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false) }}
+      onDrop={(e) => { e.preventDefault(); setOver(false); const l = Array.from(e.dataTransfer.files || []); const ph = l.filter((f) => kindOfFile(f) === 'photo'); const rest = l.filter((f) => kindOfFile(f) !== 'photo'); void add(ph, 'photo').then(() => add(rest, 'other')) }}
+    >
+      <input ref={input} type="file" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; void add(l, kind) }} />
+      <div className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.90625rem] font-semibold text-ink">{busy ? `Adding ${KIND_LABEL[busy].toLowerCase()}…` : 'Add files and photos'}</span>
+          <span className="block text-[0.8125rem] text-muted">The tile paperwork, plans and spec book, site photos — drop them here or pick them.{REAL.cloud ? '' : ' (The preview keeps them only while it’s open.)'}</span>
+        </span>
+        <span className="flex flex-wrap gap-2">
+          <Button size="sm" icon={<Camera />} onClick={() => pick('photo')}>Photos</Button>
+          <Button size="sm" icon={<ScrollText />} onClick={() => pick('paperwork')}>Tile paperwork</Button>
+          <Button size="sm" icon={<Map />} onClick={() => pick('plans')}>Plans</Button>
+          <Button size="sm" variant="ghost" onClick={() => pick('other')}>Other</Button>
+        </span>
+      </div>
+
+      {ORDER.filter((k) => k !== 'photo' && docs.some((f) => f.kind === k)).map((k) => (
+        <Card key={k}>
+          <CardHeader title={KIND_LABEL[k]} count={docs.filter((f) => f.kind === k).length} />
+          <div className="px-3 pb-3">{docs.filter((f) => f.kind === k).slice().reverse().map((f) => <DocRow key={f.id} f={f} />)}</div>
+        </Card>
+      ))}
+
+      {photos.length > 0 && (
+        <Card>
+          <CardHeader title="Photos" count={photos.length} />
+          <div className="grid grid-cols-6 gap-3 px-6 pb-6 max-md:grid-cols-4 max-sm:grid-cols-3 max-sm:gap-2 max-sm:px-4">
+            {photos.slice().reverse().map((f) => <PhotoTile key={f.id} f={f} all={photos} />)}
+          </div>
+        </Card>
+      )}
+
+      {!mine.length && !sample.length && <div className="rounded-xl border border-line px-5 py-8 text-center text-[0.875rem] text-muted">No files yet. The tile paperwork read on the paperwork step lands here too.</div>}
+
+      {sample.length > 0 && (
+        <Card>
+          <CardHeader title="Sample documents" count={sample.length} />
+          <div className="grid grid-cols-3 gap-3 px-6 pb-6 max-md:grid-cols-1 max-sm:px-4">
+            {sample.map((f) => {
+              const Ic = KIND_ICON[f.kind] || FileText
+              return (
+                <button key={f.name} onClick={() => toast(`${f.name} — a sample document`)} className="flex items-start gap-3.5 rounded-2xl border border-line p-4 text-left transition hover:bg-wash">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Ic className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.90625rem] font-semibold text-ink">{f.name}</span>
+                    <span className="mt-0.5 block text-[0.78125rem] text-muted">{f.rev} · {f.date}</span>
+                    {f.note && <span className="mt-1 block truncate text-[0.78125rem] text-muted">{f.note}</span>}
+                  </span>
+                  {f.current && <Pill tone="ok" size="sm"><CheckCircle2 className="h-3 w-3" />Current</Pill>}
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+      {sampleOn && job.id === '119' && <SamplePhotos />}
+    </div>
+  )
+}
+
+function DocRow({ f }: { f: FileRec }) {
+  const Ic = KIND_ICON[f.kind] || FileText
+  return (
+    <div className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-wash">
+      <button onClick={() => openFile(f)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Ic className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.90625rem] font-semibold text-ink">{f.name}</span>
+          <span className="block truncate text-[0.78125rem] text-muted">{[f.at, sizeLabel(f.size), PEOPLE[f.by]?.short, f.path || !REAL.cloud ? '' : 'not in storage'].filter(Boolean).join(' · ')}</span>
+        </span>
+      </button>
+      <FileMenu f={f} />
+    </div>
+  )
+}
+function FileMenu({ f }: { f: FileRec }) {
+  return (
+    <Menu align="end" width={200} trigger={<button aria-label={`More · ${f.name}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+      <MenuItem icon={<ExternalLink className="h-4 w-4" />} onSelect={() => openFile(f)}>Open</MenuItem>
+      <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeFile(f)}>Remove</MenuItem>
+    </Menu>
+  )
+}
+function PhotoTile({ f, all }: { f: FileRec; all: FileRec[] }) {
+  const s = useStore()
+  const view = async () => {
+    const items = await Promise.all(all.slice().reverse().map(async (p) => ({ id: p.id, kind: 'photo' as const, url: (await fileUrl(p).catch(() => undefined)) || p.thumb, cap: p.name, day: p.at, who: p.by })))
+    s.open({ t: 'media', items, index: Math.max(0, items.findIndex((x) => x.id === f.id)) })
+  }
+  return (
+    <div className="group relative overflow-hidden rounded-xl border border-line">
+      <button onClick={view} className="block aspect-square w-full bg-wash-2" aria-label={`Photo ${f.name}`}>
+        {f.thumb ? <img src={f.thumb} alt={f.name} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-faint"><Camera className="h-6 w-6" /></span>}
+      </button>
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-2 pb-1.5 pt-5 text-[0.6875rem] font-medium text-white">{f.at} · {PEOPLE[f.by]?.short}</span>
+      <span className="absolute right-1 top-1 opacity-0 transition group-hover:opacity-100 max-sm:opacity-100"><FileMenu f={f} /></span>
+    </div>
+  )
+}
+function SamplePhotos() {
   const photos: { sw: SwatchKey; cap: string; who: string }[] = [
     { sw: 'subway', cap: 'Guest bath walls', who: 'Philip · Sat' },
     { sw: 'toscana', cap: 'Master shower wall A', who: 'Philip · Fri' },
@@ -24,55 +158,23 @@ export function FilesTab({ job }: { job: Job }) {
     { sw: 'bianco', cap: 'Guest bath floor', who: shiftText('Philip · Sep 17') },
   ]
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader
-          title="Documents"
-          count={files.length}
-          action={
-            <div className="flex gap-2">
-              <Button size="sm" icon={<Upload className="h-4 w-4" />} onClick={() => toast('Upload — it asks whether scope, quantity or layout needs a review')}>Upload</Button>
-              {role !== 'accounting' && <Button size="sm" variant="primary" onClick={() => toast('New plan revision — the system asks what it changes and who has to review it')}>New plan revision</Button>}
+    <Card>
+      <CardHeader title="Sample photos" count={photos.length} />
+      <div className="grid grid-cols-6 gap-3 px-6 pb-6 max-md:grid-cols-4 max-sm:grid-cols-3 max-sm:gap-2 max-sm:px-4">
+        {photos.map((p, i) => (
+          <div key={i} className="overflow-hidden rounded-2xl border border-line">
+            <div className="relative aspect-[4/3]">
+              <Swatch kind={p.sw} size={400} radius={0} className="!h-full !w-full" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
-          }
-        />
-        <div className="grid grid-cols-3 gap-3 px-6 pb-6 max-md:grid-cols-1 max-sm:px-4">
-          {files.map((f) => {
-            const Ic = KIND_ICON[f.kind] || FileText
-            return (
-              <button key={f.name} onClick={() => toast(`${f.name} — opens the file (demo)`)} className="flex items-start gap-3.5 rounded-2xl border border-line p-4 text-left transition hover:bg-wash">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Ic className="h-5 w-5" /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.90625rem] font-semibold text-ink">{f.name}</span>
-                  <span className="mt-0.5 block text-[0.78125rem] text-muted">{f.rev} · {f.date}</span>
-                  {f.note && <span className="mt-1 block truncate text-[0.78125rem] text-muted">{f.note}</span>}
-                </span>
-                {f.current && <Pill tone="ok" size="sm"><CheckCircle2 className="h-3 w-3" />Current</Pill>}
-              </button>
-            )
-          })}
-        </div>
-      </Card>
-      {job.id === '119' && (
-        <Card>
-          <CardHeader title="Photos" count={photos.length} action={<Button size="sm" icon={<Camera className="h-4 w-4" />} onClick={() => toast('Add photos — pick the room and surface')}>Add photos</Button>} />
-          <div className="grid grid-cols-6 gap-3 px-6 pb-6 max-md:grid-cols-4 max-sm:grid-cols-3 max-sm:gap-2 max-sm:px-4">
-            {photos.map((p, i) => (
-              <div key={i} className="overflow-hidden rounded-2xl border border-line">
-                <div className="relative aspect-[4/3]">
-                  <Swatch kind={p.sw} size={400} radius={0} className="!h-full !w-full" />
-                  <span className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-                </div>
-                <div className="px-3 py-2">
-                  <div className="truncate text-[0.8125rem] font-semibold text-ink">{p.cap}</div>
-                  <div className="text-[0.75rem] text-muted">{p.who}</div>
-                </div>
-              </div>
-            ))}
+            <div className="px-3 py-2">
+              <div className="truncate text-[0.8125rem] font-semibold text-ink">{p.cap}</div>
+              <div className="text-[0.75rem] text-muted">{p.who}</div>
+            </div>
           </div>
-        </Card>
-      )}
-    </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 

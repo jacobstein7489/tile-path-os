@@ -3,7 +3,8 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
 import { CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
-import { REAL } from '@/tileos/lib/save'
+import { REAL, awayFromMe, backToMe } from '@/tileos/lib/save'
+import { BUILT } from '@/tileos/lib/version'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
 import { payOpen } from '@/tileos/features/pay'
@@ -196,12 +197,12 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   const role = useStore((s) => s.role)
   const go = useStore((s) => s.go)
   const open = useStore((s) => s.open)
-  const setRole = useStore((s) => s.setRole)
+  const away = useStore((s) => awayFromMe(s))
   return (
     <>
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="People, logins, what each one sees">Team and settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
-      {REAL.admin && role !== REAL.home && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => setRole(REAL.home)} hint="Your own login">Back to me</MenuItem>}
+      {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&
         phoneNav(roleDef(role).nav).more.map((k) => {
@@ -215,6 +216,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       <MenuItem icon={<Workflow className="h-4 w-4" />} onSelect={() => go({ page: 'flow' })} hint="The whole process, start to finish">How it works</MenuItem>
       {role === 'owner' && !REAL.cloud && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
+      {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
     </>
   )
 }

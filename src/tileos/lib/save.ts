@@ -4,12 +4,12 @@
  * Tests that pin a day (?today=…) or ask for the sample (?sample) open the sample and don't save, unless the address
  * also says ?save. */
 import * as React from 'react'
-import { useStore, DATA_KEYS, initialData, freshData, pickData, seedTasks, type Data } from '@/tileos/store'
+import { useStore, DATA_KEYS, initialData, freshData, pickData, seedTasks, signInAs, meOf, type Data } from '@/tileos/store'
 import { seedLines } from '@/tileos/features/flows2'
 import { seedRefs } from '@/tileos/lib/utils'
 import { TODAY, addDays, dow, labelFromIso } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
-import type { Role } from '@/tileos/data/model'
+import type { Role, PersonKey } from '@/tileos/data/model'
 
 export type SaveMode = 'sample' | 'fresh'
 type Meta = { v: number; day: string; at: number; mode: SaveMode; keys: Record<string, { gen: number; n: number }> }
@@ -29,12 +29,30 @@ export type WaitingPerson = { uid: string; name: string; email: string; since: s
  *  and, for the admin, the people waiting to be let in */
 export const REAL: {
   cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void
+  /** who's signed in (the real app) — "Back to me" comes back to this person */
+  me?: PersonKey
   people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */
-  files?: { put: (jobId: string, id: string, file: File) => Promise<string>; url: (path: string) => Promise<string> }
+  files?: { put: (jobId: string, id: string, file: Blob, name: string) => Promise<string>; url: (path: string) => Promise<string>; remove: (path: string) => Promise<void> }
 } = { cloud: false, admin: true, home: 'owner' }
+/** the signed-in person, when they're on the team */
+const myKey = (team: { key: string }[]) => (REAL.me && team.some((m) => m.key === REAL.me) ? REAL.me : undefined)
+/** the admin is looking through someone else's eyes (another login, or another person on their own login) */
+export function awayFromMe(s: { role: Role; team: { key: string }[] }) {
+  if (!REAL.admin) return false
+  if (s.role !== REAL.home) return true
+  const me = myKey(s.team)
+  return !!me && meOf(s.role) !== me
+}
+/** back to your own view */
+export function backToMe() {
+  const s = useStore.getState()
+  const me = myKey(s.team)
+  if (me) signInAs(me)
+  if (useStore.getState().role !== REAL.home) s.setRole(REAL.home)
+}
 let status: SaveStatus = { where: OFF ? 'none' : 'browser', mode: 'sample', saving: false }
 const listeners = new Set<() => void>()
 const setStatus = (p: Partial<SaveStatus>) => { status = { ...status, ...p }; listeners.forEach((f) => f()) }

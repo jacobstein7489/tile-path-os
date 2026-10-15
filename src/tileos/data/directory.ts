@@ -1,3 +1,4 @@
+import { CREWS, crewInfo } from './model'
 /* The people and companies we work with besides clients: designers, subs (our installers) and suppliers.
  * Designers here are sample firms. Subs are the crews Cobblestone actually uses. */
 export interface Designer { id: string; name: string; contact: string; phone: string; email: string; clients: string[]; notes: string }
@@ -18,6 +19,11 @@ export const SUBS0: SubInfo[] = [
   { crew: 'giovanni', trade: 'Tile installation' },
   { crew: 'jose', trade: 'Tile installation', region: 'New Jersey' },
 ]
+
+/** every installer: the standing crews and the ones added on the Installers page */
+export function allSubs(): SubInfo[] {
+  return [...SUBS0, ...CREWS.filter((c) => !SUBS0.some((x) => x.crew === c)).map((c) => ({ crew: c, trade: crewInfo[c]?.trade || 'Tile installation', region: crewInfo[c]?.region }))]
+}
 
 export interface SupplierInfo { name: string; supplies: string; contact?: string; phone?: string; email?: string; note?: string }
 export const SUPPLIERS0: SupplierInfo[] = [

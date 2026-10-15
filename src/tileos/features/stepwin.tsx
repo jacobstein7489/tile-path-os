@@ -31,6 +31,7 @@ import { addEvent, removeEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
 import { PaperRead } from './paperread'
+import { SFChip, AddSurfaceButton, AddRoomButton } from './roomedit'
 
 /* ---------------- words ---------------- */
 /** the window's title */
@@ -242,7 +243,12 @@ function Paperwork({ job, v }: { job: Job; v: StepView }) {
   const rooms = s.rooms[job.id] || []
   const [sending, setSending] = React.useState(false)
   const [allRooms, setAllRooms] = React.useState(false)
-  if (!rooms.length) return <Block title="What we’re tiling"><Quiet>No rooms yet — they come from the estimate. <button className="font-semibold text-brand-600 hover:underline" onClick={() => s.open({ t: 'buildrooms', jobId: job.id })}>Build them</button></Quiet></Block>
+  if (!rooms.length) return (
+    <div className="flex flex-col gap-4">
+      <PaperRead job={job} />
+      <Block title="What we’re tiling" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet — they come from the estimate. Add them here, one room at a time.</Quiet></Block>
+    </div>
+  )
   const tiles = Object.values(s.tiles[job.id] || {}).sort(byTag)
   const rows = tiles.map((t) => qtyRow(s, job.id, t))
   const short = rows.filter((r) => r.short > 0)
@@ -252,14 +258,17 @@ function Paperwork({ job, v }: { job: Job; v: StepView }) {
   return (
     <div className="flex flex-col gap-4">
       <PaperRead job={job} />
-      <Block title="What we’re tiling" right={`${rooms.length} room${rooms.length === 1 ? '' : 's'} · ${totalSF.toLocaleString('en-US')} SF · from the estimate`}>
+      <Block title="What we’re tiling" right={<><span className="max-sm:hidden">{`${rooms.length} room${rooms.length === 1 ? '' : 's'} · ${totalSF.toLocaleString('en-US')} SF · tap a number to fix it`}</span><AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} /></>}>
         {shownRooms.map((r) => {
           const sf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
           return (
-            <div key={r.name} className="flex items-baseline gap-3 border-t border-line-2 px-4 py-2 first:border-t-0">
-              <span className="w-[9.5rem] shrink-0 truncate text-[0.84375rem] font-semibold text-ink max-sm:w-[7rem]">{r.name}</span>
-              <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-muted">{r.surfaces.map((x) => `${x.name.toLowerCase()}${x.sf ? ` ${x.sf}` : ''}`).join(' · ')}</span>
-              <span className="shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{sf ? `${sf.toLocaleString('en-US')} SF` : '—'}</span>
+            <div key={r.name} className="flex items-start gap-3 border-t border-line-2 px-4 py-2 first:border-t-0 max-sm:flex-wrap">
+              <span className="w-[9.5rem] shrink-0 truncate pt-1 text-[0.84375rem] font-semibold text-ink max-sm:w-auto max-sm:flex-1">{r.name}</span>
+              <span className="flex min-w-0 flex-1 flex-wrap gap-1.5 max-sm:order-last max-sm:basis-full">
+                {r.surfaces.map((x) => <SFChip key={x.name} jobId={job.id} room={r.name} x={x} />)}
+                <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} />
+              </span>
+              <span className="shrink-0 pt-1 text-[0.8125rem] font-semibold tnum text-ink-2">{sf ? `${sf.toLocaleString('en-US')} SF` : '—'}</span>
             </div>
           )
         })}

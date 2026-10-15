@@ -11,6 +11,7 @@ import { GROUTS, SURF_LABEL, SURF_TONE, surfacePct, type Room, type Surface, typ
 import { confirmSurface } from '../flows'
 import { surfaceFix } from './overview'
 import { RoomDiary, RoomPhotos, roomMedia, openChangeFor } from '../field'
+import { AddRoomButton, AddSurfaceButton } from '../roomedit'
 
 const STATE_ICON: Record<SurfState, React.ReactNode> = {
   done: <CheckCircle2 className="h-[1.375rem] w-[1.375rem] fill-ok-500 text-white" />,
@@ -89,9 +90,7 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
       <div className="flex min-w-0 flex-col border-r border-line max-xl:hidden">
         <div className="flex items-center justify-between px-5 pb-3 pt-5">
           <div className="text-[1.0625rem] font-semibold text-ink">Rooms</div>
-          <button className="inline-flex items-center gap-1 text-[0.84375rem] font-semibold text-brand-600" onClick={() => toast('Add room — the office names it and adds only the surfaces that apply')}>
-            <Plus className="h-4 w-4" />Add room
-          </button>
+          <AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} label="Add room" />
         </div>
         <div className="mx-5 mb-3 rounded-xl bg-wash p-3">
           <div className="flex items-center justify-between text-[0.8125rem] font-semibold text-ink-2">
@@ -182,9 +181,7 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
                   </button>
                 ))}
               </div>
-              <button className="mx-5 mb-4 mt-1 inline-flex items-center gap-1 self-start text-[0.84375rem] font-semibold text-brand-600" onClick={() => toast('Add surface — only what actually applies')}>
-                <Plus className="h-4 w-4" />Add surface
-              </button>
+              <AddSurfaceButton jobId={job.id} room={room.name} have={room.surfaces.map((x) => x.name)} className="mx-5 mb-4 mt-1 self-start" />
             </div>
             {/* phones and tablets: surfaces as a sideways row */}
             <div className="no-scrollbar flex gap-2 overflow-x-auto border-b border-line-2 px-4 py-3 md:hidden">

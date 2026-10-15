@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { cn } from '@/tileos/lib/utils'
 import { CenterPop } from '@/tileos/lib/pop'
-import { useStore, homeOf, type Page } from '@/tileos/store'
-import { ROLES } from '@/tileos/data/model'
+import { useStore, homeOf, meOf, type Page } from '@/tileos/store'
+import { ROLES, PEOPLE } from '@/tileos/data/model'
+import { REAL, awayFromMe, backToMe } from '@/tileos/lib/save'
 import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
@@ -11,7 +12,7 @@ import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
 import { EstimatesPage, EstimateModal, AiPlansModal, EstSendModal, EstChangesModal, EstFollowModal, EstLostModal } from '@/tileos/features/estimates'
 import { LostModal } from '@/tileos/features/projects'
-import { DirectoryPage, SupplierFormModal } from '@/tileos/features/directory'
+import { DirectoryPage, SupplierFormModal, DesignerFormModal, InstallerFormModal } from '@/tileos/features/directory'
 import { ItemsPage, ItemModal, ImportItemsModal } from '@/tileos/features/items'
 import { EmailModal } from '@/tileos/features/email'
 import { SettingModal } from '@/tileos/features/setting'
@@ -97,6 +98,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'sub': return <InstallerProfile id={m.id} level={level} />
     case 'supplier': return <SupplierProfile id={m.id} level={level} />
     case 'supplierform': return <SupplierFormModal name={m.name} level={level} />
+    case 'designerform': return <DesignerFormModal level={level} />
+    case 'installerform': return <InstallerFormModal level={level} />
     case 'item': return <ItemModal id={m.id} level={level} />
     case 'importitems': return <ImportItemsModal level={level} />
     case 'email': return <EmailModal what={m.what} level={level} />
@@ -179,6 +182,7 @@ export default function App() {
   const narrow = useNarrow()
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
+  const away = useStore((s) => awayFromMe(s))
   const navList = roleDef(role).nav
   const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
@@ -215,7 +219,7 @@ export default function App() {
         <div className="min-h-screen bg-canvas">
           <Sidebar />
           <div className="lg:pl-[14rem]">
-            {role !== 'owner' && <PreviewBar />}
+            {away && <PreviewBar />}
             <TopBar />
             <DesktopTopBar />
             <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
@@ -236,12 +240,14 @@ export default function App() {
 /** while the admin tries another login: say so, and one tap back */
 function PreviewBar() {
   const role = useStore((s) => s.role)
-  const setRole = useStore((s) => s.setRole)
+  const open = useStore((s) => s.open)
   const label = ROLES.find((r) => r.key === role)?.label.split(' · ')[0] || role
+  const who = PEOPLE[meOf(role)]
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-ink px-4 py-2 text-[0.8125rem] text-white/90">
-      <span>You’re seeing what a <b className="font-semibold text-white">{label}</b> login sees — in the real app they sign in with their own email.</span>
-      <button onClick={() => setRole('owner')} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to admin</button>
+      <span>You’re seeing <b className="font-semibold text-white">{who && !/^(Estimator|Back office|Accounting|Site manager|Office)$/i.test(who.name) ? `${who.name}’s` : `a ${label}`}</b> view{who ? ` (${label})` : ''} — exactly what lands on their Today.</span>
+      <button onClick={() => open({ t: 'roles' })} className="rounded-md bg-white/10 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/20">Someone else</button>
+      <button onClick={backToMe} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to me</button>
     </div>
   )
 }

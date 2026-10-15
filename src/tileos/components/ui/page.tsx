@@ -571,7 +571,7 @@ export function Status({ tone = 'neutral', children, className, plain }: { tone?
 /* ---------------- where something stands: step circles joined by a line ---------------- */
 export function Path({ steps, className }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; onClick?: () => void }[]; className?: string }) {
   return (
-    <ol className={cn('no-scrollbar flex items-start overflow-x-auto px-1 pb-1 pt-2', className)}>
+    <ol className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
       {steps.map((st, i) => {
         const prevDone = i > 0 && (steps[i - 1].state === 'done')
         const n = i + 1
@@ -587,7 +587,7 @@ export function Path({ steps, className }: { steps: { key: string; label: string
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full text-[0.8125rem] font-bold transition',
                   st.state === 'done' && 'bg-ok-500 text-white shadow-[0_0.125rem_0.375rem_-0.0625rem_rgba(18,183,106,.45)]',
-                  st.state === 'current' && 'bg-white text-brand-600 ring-[0.1875rem] ring-brand-600 shadow-[0_0_0_0.375rem_rgba(38,80,207,.12)]',
+                  st.state === 'current' && 'bg-white text-brand-600 ring-[0.1875rem] ring-brand-600 shadow-[0_0_0_0.3125rem_rgba(38,80,207,.12)]',
                   st.state === 'blocked' && 'bg-bad-500 text-white shadow-[0_0.125rem_0.375rem_-0.0625rem_rgba(240,68,56,.45)]',
                   st.state === 'future' && 'bg-white text-faint ring-2 ring-[#e2e5e9]',
                   st.onClick && 'group-hover:scale-105',

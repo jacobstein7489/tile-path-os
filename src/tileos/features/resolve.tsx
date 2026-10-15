@@ -1,6 +1,8 @@
 import * as React from 'react'
-import { Droplets, ArrowRight, CheckCircle2, AlertTriangle, Package, CalendarDays, Smartphone, Receipt, Layers3, ScrollText, Camera, Truck, HardHat, Clock3, Repeat, Building2, ShieldCheck, UserRound } from 'lucide-react'
+import { Droplets, ArrowRight, Check, CheckCircle2, AlertTriangle, Package, CalendarDays, Smartphone, Receipt, Layers3, ScrollText, Camera, Truck, HardHat, Clock3, Repeat, Building2, ShieldCheck, UserRound } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
+import { keepFiles } from '@/tileos/lib/files'
+import { REAL, backToMe } from '@/tileos/lib/save'
 import { useStore, signInAs, meOf } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, OptionCard, Chip, Field, Pill, IconCircle, Avatar, Stepper as NumStepper, TextInput } from '@/tileos/components/ui/core'
@@ -239,9 +241,21 @@ export function ReceiveModal({ matId, level }: { matId: string; level: number })
             {['Good', 'Damaged', 'Wrong item'].map((x) => <Chip key={x} on={cond === x} onClick={() => setCond(x)}>{x}</Chip>)}
           </div>
         </Field>
-        <Button className="self-start" icon={<Camera className="h-4 w-4" />} onClick={() => toast('Photo attached to the receipt (demo)')}>Add photo of the packing slip</Button>
+        <SlipPhoto jobId={m.jobId} />
       </div>
     </Modal>
+  )
+}
+
+/** a photo of the packing slip goes onto the project's photos */
+function SlipPhoto({ jobId }: { jobId: string }) {
+  const ref = React.useRef<HTMLInputElement>(null)
+  const [n, setN] = React.useState(0)
+  return (
+    <>
+      <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) { setN((x) => x + l.length); void keepFiles(jobId, l, 'photo', { quiet: true }) } }} />
+      <Button className="self-start" icon={n ? <Check className="h-4 w-4" /> : <Camera className="h-4 w-4" />} onClick={() => ref.current?.click()}>{n ? `${n} photo${n === 1 ? '' : 's'} of the packing slip added` : 'Add photo of the packing slip'}</Button>
+    </>
   )
 }
 
@@ -313,19 +327,31 @@ export function RolesModal({ level }: { level: number }) {
   const count = (r: Role) => s.team.filter((m) => loginOf(m.role) === r && m.status !== 'off').length
   const what: Partial<Record<Role, string>> = { crew: 'An installer’s phone — only his job: where to work, what not to start, his touch-ups', client: 'A GC or client — their projects, photos, approvals, invoices, messages' }
   return (
-    <Modal level={level} size="lg" onClose={s.close} title="See what each login sees" sub="Pick a login type to try it. In the real app everyone signs in with their own email and lands on this view.">
+    <Modal level={level} size="lg" onClose={s.close} title="See what each person sees" sub="Tap a person to see exactly their Today — every task that lands on them. In the real app everyone signs in with their own email.">
       <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
         {TYPES.map((r) => {
           const on = s.role === r
+          const people = s.team.filter((m) => loginOf(m.role) === r && m.status !== 'off')
           return (
-            <button key={r} onClick={() => s.setRole(r)} className={cn('flex items-start gap-3.5 rounded-[0.75rem] border p-3.5 text-left transition', on ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-100' : 'border-line hover:border-[#cbd1d9] hover:bg-wash')}>
-              <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.5625rem]', on ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{r === 'crew' ? <Smartphone className="h-4 w-4" /> : r === 'client' ? <Building2 className="h-4 w-4" /> : r === 'owner' ? <ShieldCheck className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}</span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ink">{r === 'owner' ? 'Admin' : r === 'crew' ? 'Installer (crew)' : r === 'client' ? 'GC / client' : label(r)}{r !== 'crew' && r !== 'client' && <span className="text-[0.75rem] font-medium text-muted">{count(r)} {count(r) === 1 ? 'person' : 'people'}</span>}</span>
-                <span className="mt-0.5 line-clamp-2 block text-[0.78125rem] leading-snug text-muted">{what[r] || (r === 'owner' ? 'Everything, plus Settings — the team, logins and rules' : pages(r).join(' · '))}</span>
-              </span>
-              <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-faint" />
-            </button>
+            <div key={r} className={cn('overflow-hidden rounded-[0.75rem] border transition', on ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-100' : 'border-line')}>
+              <button onClick={() => (r === REAL.home ? backToMe() : people[0] ? signInAs(people[0].key) : s.setRole(r))} className="flex w-full items-start gap-3.5 p-3.5 text-left transition hover:bg-wash">
+                <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.5625rem]', on ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{r === 'crew' ? <Smartphone className="h-4 w-4" /> : r === 'client' ? <Building2 className="h-4 w-4" /> : r === 'owner' ? <ShieldCheck className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ink">{r === 'owner' ? 'Admin' : r === 'crew' ? 'Installer (crew)' : r === 'client' ? 'GC / client' : label(r)}{r !== 'crew' && r !== 'client' && <span className="text-[0.75rem] font-medium text-muted">{count(r)} {count(r) === 1 ? 'person' : 'people'}</span>}</span>
+                  <span className="mt-0.5 line-clamp-2 block text-[0.78125rem] leading-snug text-muted">{what[r] || (r === 'owner' ? 'Everything, plus Settings — the team, logins and rules' : pages(r).join(' · '))}</span>
+                </span>
+                <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-faint" />
+              </button>
+              {people.length > 0 && r !== 'client' && (
+                <div className="flex flex-wrap gap-1.5 border-t border-line-2 px-3.5 py-2.5">
+                  {people.map((m) => (
+                    <button key={m.key} data-person={m.key} onClick={() => signInAs(m.key)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border bg-white pl-1 pr-2.5 text-[0.78125rem] font-medium transition hover:border-brand-300 hover:text-brand-700', on && meOf(s.role) === m.key ? 'border-brand-500 text-brand-700' : 'border-line text-ink-2')}>
+                      <Avatar who={m.key} size={22} />{PEOPLE[m.key]?.name || m.first}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )
         })}
       </div>

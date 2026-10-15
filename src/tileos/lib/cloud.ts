@@ -361,8 +361,8 @@ async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal): Promi
 }
 const BUCKET = 'tileos-files'
 const files = {
-  async put(jobId: string, id: string, file: File) {
-    const path = `${jobId}/${id}-${file.name.replace(/[^\w.\-]+/g, '_').slice(-80)}`
+  async put(jobId: string, id: string, file: Blob, name: string) {
+    const path = `${jobId}/${id}-${name.replace(/[^\w.\-]+/g, '_').slice(-80)}`
     const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })
     if (error) throw new Error(/bucket|not.?found|does not exist/i.test(error.message || '') ? 'files need a one-time setup — in Lovable, type “Apply pending Supabase migrations”.' : error.message)
     return path
@@ -371,6 +371,10 @@ const files = {
     const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 60 * 10)
     if (error || !data?.signedUrl) throw error || new Error('no link')
     return data.signedUrl as string
+  },
+  async remove(path: string) {
+    const { error } = await sb.storage.from(BUCKET).remove([path])
+    if (error) throw error
   },
 }
 
@@ -396,6 +400,7 @@ function linkMember(user: User, opts: { admin: boolean; name: string; appRoles: 
   }
   const me = useStore.getState().team.find((x) => x.key === m!.key)!
   REAL.home = me.role
+  REAL.me = me.key
   signInAs(me.key)
   return me
 }

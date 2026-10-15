@@ -7,6 +7,7 @@ import { Avatar, Button, UnderlineTabs } from '@/tileos/components/ui/core'
 import { ProgressRing, Status } from '@/tileos/components/ui/page'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { showPop } from '@/tileos/lib/pop'
+import { backToMe } from '@/tileos/lib/save'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, STAGE_LABEL, fmtMoney } from '@/tileos/data/model'
 import { CUSTOMERS, roomPct } from '@/tileos/data/jobs'
@@ -42,7 +43,7 @@ export function PortalView() {
         <span className="ml-auto flex items-center gap-2.5">
           <Avatar who={me} size={30} />
           <span className="text-[0.84375rem] font-semibold text-ink max-sm:hidden">{PEOPLE[me]?.name}</span>
-          {previewing && <Button size="sm" icon={<LogOut />} onClick={() => s.setRole('owner')}>Back to me</Button>}
+          {previewing && <Button size="sm" icon={<LogOut />} onClick={backToMe}>Back to me</Button>}
         </span>
       </header>
       {previewing && <div className="bg-brand-50 px-6 py-2 text-center text-[0.8125rem] font-medium text-brand-800">This is what {c?.name} sees when they sign in — only their projects, nothing internal.</div>}

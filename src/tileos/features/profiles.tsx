@@ -12,7 +12,7 @@ import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, STAGE_LABEL, fmtMoney, type PersonKey, type Tone, type Job } from '@/tileos/data/model'
 import { CUSTOMERS, TILES, tileOf } from '@/tileos/data/jobs'
-import { SUBS0 } from '@/tileos/data/directory'
+import { allSubs } from '@/tileos/data/directory'
 import { EST_STATUS, curRev, revTotal, estAmount, bucketOf, EST_STEP, type Estimate } from '@/tileos/data/estimates'
 import { dayLabel, timeLabel, CAL_TODAY } from '@/tileos/data/calendar'
 import { jobMoney } from './job/money-tab'
@@ -374,7 +374,7 @@ export function DesignerProfile({ id, level }: { id: string; level: number }) {
 export function InstallerProfile({ id, level }: { id: PersonKey; level: number }) {
   const s = useStore()
   const [tab, setTab] = React.useState('overview')
-  const info = SUBS0.find((x) => x.crew === id)
+  const info = allSubs().find((x) => x.crew === id)
   if (!info) return null
   const bks = s.bookings.filter((b) => b.crew === id).sort((a, b) => a.start.localeCompare(b.start))
   const now = bks.find((b) => b.start <= TODAY && b.end >= TODAY)

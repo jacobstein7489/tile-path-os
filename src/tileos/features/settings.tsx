@@ -527,7 +527,7 @@ function ConnectionsTab() {
       <CardHeader icon={<IconCircle tone="info" size={34}><Plug className="h-4 w-4" /></IconCircle>} title="Connections" sub="Tile OS runs the operation; these keep the paperwork and conversations in one place." />
       <div className="grid grid-cols-3 gap-3 px-6 pb-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:px-4">
         {[
-          { i: BookOpen, t: 'QuickBooks Online', d: 'Items, invoices, bills and payments. Tile OS creates them and reads back what’s paid.', on: true },
+          { i: BookOpen, t: 'QuickBooks Online', d: 'Items, invoices, bills and payments. Tile OS creates them and reads back what’s paid.', on: !REAL.cloud },
           { i: Mail, t: 'Gmail', d: 'Estimates, POs and invoices go out from your address. Replies land on the right project.', on: false },
           { i: Calendar, t: 'Google Calendar', d: 'Meetings and walkthroughs show on everyone’s phone calendar.', on: false },
           { i: MessageCircle, t: 'Text / WhatsApp', d: 'Crews get their job and POs by text; site photos come back to the project.', on: false },
@@ -541,8 +541,10 @@ function ConnectionsTab() {
             <div className="mt-3 flex-1 text-[0.84375rem] leading-snug text-muted">{c.d}</div>
             {c.on ? (
               <div className="mt-4 inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Connected</div>
+            ) : REAL.cloud ? (
+              <div className="mt-4 text-[0.8125rem] font-semibold text-muted">{c.t === 'QuickBooks Online' ? 'Next up — it needs your QuickBooks sign-in once' : 'Coming later'}</div>
             ) : (
-              <Button size="sm" className="mt-4 self-start" onClick={() => toast(`${c.t} connects in the real build`)}>Connect</Button>
+              <Button size="sm" className="mt-4 self-start" onClick={() => toast(`${c.t} connects in the real app`)}>Connect</Button>
             )}
           </div>
         ))}

@@ -3,13 +3,13 @@
  * for a yes. Saved, it becomes the surface's layout on the scope and the installer's sheet. */
 import * as React from 'react'
 import { Sparkles, Send, Check, Ruler, TriangleAlert, Printer } from 'lucide-react'
-import { toast } from '@/tileos/lib/pop'
 import { useStore, addHist, newTask, meOf, NOW } from '@/tileos/store'
 import { Button, Chip } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { GROUTS, type Surface, tileOf } from '@/tileos/data/jobs'
 import { kindOf } from './takeoff'
+import { printNode } from '@/tileos/lib/print'
 
 export type Pattern = 'stack' | 'half' | 'third' | 'vertical'
 export const PATTERNS: { key: Pattern; label: string }[] = [
@@ -131,6 +131,8 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
   const [pattern, setPattern] = React.useState<Pattern>(initial)
   const [start, setStart] = React.useState<Start>('best')
   const [grout, setGrout] = React.useState(x?.grout || tile?.grout || 'warmgray')
+  /* the drawing, for printing the crew's sheet */
+  const drawRef = React.useRef<HTMLDivElement>(null)
   const j = parseJoint(x?.joint)
   if (!x) return null
   const job = s.jobs[jobId]
@@ -169,7 +171,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{text}</span>
-          <Button className="ml-auto" icon={<Printer />} onClick={() => toast('Printing the layout sheet for the crew')}>Print</Button>
+          <Button className="ml-auto" icon={<Printer />} onClick={() => printNode(drawRef.current)}>Print</Button>
           <Button icon={<Send />} onClick={() => sendLayout(jobId, room, surface, text)}>Send to the designer</Button>
           <Button variant="primary" icon={<Check />} onClick={() => saveLayout(jobId, room, surface, { text, dims: { w: W, h: H }, grout })}>Use this layout</Button>
         </>
@@ -177,7 +179,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
       bodyClass="p-0"
     >
       <div className="grid min-h-full grid-cols-[minmax(0,1fr)_20rem] max-lg:grid-cols-1">
-        <div className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f6f7f9] px-6 py-6">
+        <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f6f7f9] px-6 py-6">
           <div className="flex max-w-full items-end gap-3">
             {/* height label */}
             <div className="flex flex-col items-center justify-center text-[0.75rem] font-semibold tnum text-muted max-sm:hidden" style={{ height: ph }}>

@@ -6,6 +6,7 @@ import { PEOPLE, fmtMoney, type PersonKey, type Role } from '@/tileos/data/model
 import { curRev, revTotal, teamOf, openNotes, bucketOf, EST_STEP, EST_TEAM0, type Estimate, type EstStep, type EstLine, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { AREA_PRESETS, SURFACES, customSurface, uniqueArea, sortAreas, type AreaPreset, type SurfaceDef } from '@/tileos/data/areas'
 import { estSend, newLine } from './flows2'
+import { isoFromLabel, md } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
@@ -36,8 +37,8 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
     for: [s.team.find((m: any) => m.key === who)?.role || ROLE_OF[who] || 'office'],
     watch: step === 'final' ? [] : ['owner'],
     state: 'now',
-    /* it's theirs the moment it lands: on their Today now (a takeoff keeps the estimate's due date) */
-    due: step === 'takeoff' && !o.notes ? e.due || 'Today' : 'Today',
+    /* it's theirs the moment it lands — on their Today right now, every step (the bid's own due date is on the estimate) */
+    due: 'Today',
     dueTone: step === 'final' ? 'warn' : 'neutral',
     tone: o.notes ? 'warn' : 'info',
     where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? `Ready from ${PEOPLE[teamOf(e).takeoff].short}` : `Office review done · ${fmtMoney(revTotal(rev))}`,
@@ -47,6 +48,22 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
     j.next = { text: step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'review note')}` : 'Finish the takeoff') : EST_STEP[step].label, owner: who, due: 'Today' }
     j.headline = step === 'takeoff' ? (o.notes ? `Back with ${PEOPLE[who].short} · ${plural(o.notes, 'note')}` : `Takeoff · ${PEOPLE[who].short}`) : step === 'review' ? 'Takeoff done · with the office for review' : 'Office review done · owner review'
   }
+}
+
+/** move the bid's due date — the estimate, its project and the list all follow */
+export function setEstimateDue(estId: string, label: string) {
+  const iso = isoFromLabel(label)
+  const due = iso ? md(iso) : label
+  S().commit((s) => {
+    const e = s.estimates.find((x) => x.id === estId)
+    if (!e || e.due === due) return
+    e.log.push({ date: NOW, who: me(), text: `Due ${e.due ? `${e.due} → ` : ''}${due}` })
+    e.due = due
+    const j = s.jobs[e.jobId]
+    if (j) j.keyDate = { label: 'Bid due', value: due }
+    const p = s.pricing[e.jobId]
+    if (p) p.due = due
+  }, `Due ${due}`)
 }
 
 export function estStartTakeoff(estId: string, who: PersonKey = 'takeoff') {
@@ -307,7 +324,7 @@ export function newEstimate(d: NewEstimate) {
         id, name: d.name, client: d.client, clientId, address: d.address || 'Address to confirm', stage: 'estimating',
         status: missing.length ? 'warn' : 'info', headline: `Takeoff · ${PEOPLE[t.takeoff].short}`,
         issues: missing.map((m) => ({ tone: 'warn' as const, text: `${m} missing` })),
-        next: { text: 'Finish the takeoff', owner: t.takeoff, due: d.due },
+        next: { text: 'Finish the takeoff', owner: t.takeoff, due: 'Today' },
         keyDate: { label: 'Bid due', value: d.due }, swatch: 'blueprint', building: 'midrise', estimator: t.takeoff, scope: d.scope,
       } as Store['jobs'][string]
       s.pricing[id] = {

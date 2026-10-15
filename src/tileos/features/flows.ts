@@ -997,13 +997,36 @@ export function confirmSurface(jobId: string, room: string, surf: string) {
 }
 export function buildRooms(jobId: string, rooms: { name: string; surfaces: string[] }[]) {
   S().commit((s) => {
-    s.rooms[jobId] = rooms.map((r) => ({ name: r.name, pct: 0, surfaces: r.surfaces.map((n) => ({ name: n, tile: 'T-05', state: 'unknown' as const, reason: 'Built from paperwork · verify on site' })) }))
+    s.rooms[jobId] = rooms.map((r) => ({ name: r.name, pct: 0, surfaces: r.surfaces.map((n) => ({ name: n, tile: '', state: 'notstarted' as const })) }))
     const j = s.jobs[jobId]
     setIssues(s, jobId, (iss) => iss.filter((i) => !/setup not started/i.test(i.text)))
     j.next = { text: 'Enter the tile paperwork and check quantities', owner: 'office', due: 'Wed' }
     addHist(s, jobId, { who: me(), kind: 'setup', title: `Rooms built · ${rooms.length} rooms, ${rooms.reduce((n, r) => n + r.surfaces.length, 0)} surfaces` })
   }, `${rooms.length} rooms built from the finish schedule`)
   S().close()
+}
+
+/** one more room on a project — the estimate missed it, or the paperwork has it */
+export function addRoom(jobId: string, name: string, surfaces: string[]) {
+  const n = name.trim()
+  if (!n) return
+  S().commit((s) => {
+    const rooms = (s.rooms[jobId] ||= [])
+    if (rooms.some((r) => r.name.toLowerCase() === n.toLowerCase())) return
+    rooms.push({ name: n, pct: 0, surfaces: surfaces.map((x) => ({ name: x, tile: '', state: 'notstarted' as const })) })
+    addHist(s, jobId, { who: me(), kind: 'setup', title: `Room added · ${n}`, detail: surfaces.join(', ') })
+  }, `${n} added`, { sub: 'Put in the square feet so the materials and the bills follow.' })
+}
+/** one more wall or floor in a room */
+export function addSurface(jobId: string, room: string, name: string, sf?: number) {
+  const n = name.trim()
+  if (!n) return
+  S().commit((s) => {
+    const r = s.rooms[jobId]?.find((x) => x.name === room)
+    if (!r || r.surfaces.some((x) => x.name.toLowerCase() === n.toLowerCase())) return
+    r.surfaces.push({ name: n, tile: '', state: 'notstarted', ...(sf ? { sf } : {}) })
+    addHist(s, jobId, { who: me(), kind: 'setup', title: `${room} · ${n.toLowerCase()} added`, detail: sf ? `${sf} SF` : undefined })
+  }, `${room} · ${n} added`)
 }
 
 /* ================= the designer meeting and the height check ================= */

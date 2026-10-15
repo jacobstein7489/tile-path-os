@@ -158,7 +158,7 @@ export const ACCESS_PAGES: { key: string; label: string; group: string }[] = [
   { key: 'suppliers', label: 'Suppliers', group: 'People' },
 ]
 /** the people who sign in — the admin adds them, names them and picks their login */
-export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string }
+export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string; /** installers: what they do and where they work */ trade?: string; region?: string }
 export const TEAM0: Member[] = [
   { key: 'ys', first: 'Yaakov', last: 'Stein', role: 'owner', status: 'active' },
   { key: 'yakov', first: 'Yakov', role: 'site', status: 'active' },
@@ -170,8 +170,35 @@ export const TEAM0: Member[] = [
   { key: 'gcpp', first: 'GC super', last: '(Park Place)', role: 'client', status: 'active', clientId: 'parkplace' },
 ]
 const AV: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#d6efea]', 'text-[#0d6b61]'], ['bg-[#e8e3f9]', 'text-[#5536ad]'], ['bg-[#f9e0ee]', 'text-[#9b1f63]'], ['bg-[#f9e8d6]', 'text-[#8c4609]'], ['bg-[#d8efe2]', 'text-[#1b6a40]'], ['bg-[#e4e7ec]', 'text-[#46505f]'], ['bg-[#d8edf5]', 'text-[#0b5f80]']]
+/* installers added on the Installers page are team members with the installer role — they join the crews */
+const BASE_CREWS = [...CREWS]
+const CREW_COLORS: { bg: string; bar: string; text: string; av: [string, string] }[] = [
+  { bg: '#EAF4FB', bar: '#2F7FB8', text: '#174A70', av: ['bg-[#dcecf7]', 'text-[#174a70]'] },
+  { bg: '#FBF0F7', bar: '#B44B8C', text: '#6E1F50', av: ['bg-[#f7e1ef]', 'text-[#6e1f50]'] },
+  { bg: '#F1F5E8', bar: '#6F8F2A', text: '#3E5212', av: ['bg-[#e6eed4]', 'text-[#3e5212]'] },
+  { bg: '#FFF4E5', bar: '#C77C12', text: '#734504', av: ['bg-[#fbe9cc]', 'text-[#734504]'] },
+  { bg: '#EEF0FB', bar: '#5B63C9', text: '#2F3584', av: ['bg-[#e2e4f8]', 'text-[#2f3584]'] },
+]
+export const crewInfo: Record<string, { trade: string; region?: string; phone?: string; email?: string }> = {}
+function applyCrews(team: Member[]) {
+  const added = team.filter((m) => m.role === 'crew' && m.status !== 'off' && !BASE_CREWS.includes(m.key))
+  const keep = new Set([...BASE_CREWS, ...added.map((m) => m.key)])
+  for (let i = CREWS.length - 1; i >= 0; i--) if (!keep.has(CREWS[i])) CREWS.splice(i, 1)
+  added.forEach((m, i) => {
+    if (!CREWS.includes(m.key)) CREWS.push(m.key)
+    const c = CREW_COLORS[i % CREW_COLORS.length]
+    if (!CREW_BLOCK[m.key]) CREW_BLOCK[m.key] = { bg: c.bg, bar: c.bar, text: c.text }
+    crewInfo[m.key] = { trade: m.trade || 'Tile installation', region: m.region, phone: m.phone, email: m.email }
+    const p = PEOPLE[m.key]
+    if (p) { p.crew = true; p.roleLabel = 'Installer'; p.bg = c.av[0]; p.fg = c.av[1] }
+  })
+}
 /** keep every name on screen in step with the team list */
 export function applyTeam(team: Member[]) {
+  applyTeamNames(team)
+  applyCrews(team)
+}
+function applyTeamNames(team: Member[]) {
   team.forEach((m, i) => {
     const name = [m.first, m.last].filter(Boolean).join(' ').trim() || 'New person'
     const words = name.split(' ').filter(Boolean)

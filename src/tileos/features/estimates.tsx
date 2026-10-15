@@ -19,7 +19,8 @@ import { EstimatePaper } from './estpaper'
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
-import { estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
+import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
+import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
 
@@ -528,7 +529,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           </div>
           <dl className="text-[0.84375rem]">
             <Prop label="Client"><button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="font-medium text-brand-700 hover:underline">{j.client}</button></Prop>
-            {e.due && ['request', 'estimating', 'revision'].includes(st) && <Prop label="Due">{e.due}</Prop>}
+            {['request', 'estimating', 'revision'].includes(st) && <Prop label="Due"><DueEdit id={e.id} due={e.due} /></Prop>}
             {sent && <Prop label="Sent">{sent.sentOn} · revision {sent.n}</Prop>}
             {st === 'sent' && <Prop label="Follow up"><span className={cn(e.followUp === 'Today' && 'font-medium text-warn-700')}>{PEOPLE[team.follow].short} · {e.followUp || 'Thu'}</span></Prop>}
             {s.pricing[e.jobId]?.docs && (
@@ -761,6 +762,22 @@ export function AiPlansModal({ estId, level }: { estId: string; level: number })
         </div>
       )}
     </Modal>
+  )
+}
+
+/** the bid's due date — tap it to move it */
+function DueEdit({ id, due }: { id: string; due?: string }) {
+  const [open, setOpen] = React.useState(false)
+  const late = !!due && (isoFromLabel(due) || '9') < TODAY
+  return (
+    <Pop open={open} onOpenChange={setOpen} align="start" width={380} trigger={
+      <button className={cn('inline-flex items-center gap-1 rounded-md font-medium hover:text-brand-700', late ? 'text-bad-600' : 'text-ink-2')} aria-label="Change the due date">
+        {due ? (labelFromIso(isoFromLabel(due) || '') || due) : 'Set a date'}<ChevronDown className="h-3.5 w-3.5 text-faint" />
+      </button>
+    }>
+      <div className="text-[0.875rem] font-semibold text-ink">When is the bid due?</div>
+      <div className="mt-3"><DatePresets value={due} onPick={(d) => { setEstimateDue(id, d); setOpen(false) }} presets={['Today', 'Tomorrow', 'Fri', 'Next Mon']} /></div>
+    </Pop>
   )
 }
 

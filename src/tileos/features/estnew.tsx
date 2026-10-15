@@ -4,11 +4,11 @@ import * as React from 'react'
 import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Chip } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { FLOORS, uniqueArea, sortAreas } from '@/tileos/data/areas'
+import { FLOORS, uniqueArea, sortAreas, guessSurfaces } from '@/tileos/data/areas'
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday } from '@/tileos/lib/today'
 import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
@@ -119,12 +119,14 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
         {presets.map((p) => {
           const n = onFloor(p.name).length
           return (
-            <button key={p.name} type="button" aria-pressed={n > 0} onClick={() => toggle(p)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-medium transition', n ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:text-brand-700')}>
-              {n ? <Check className="h-3.5 w-3.5" strokeWidth={2.6} /> : <Plus className="h-3.5 w-3.5" />}{p.name}{n > 1 && <span className="text-[0.75rem] font-semibold">×{n}</span>}
-            </button>
+            <Tip key={p.name} label={`Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}`}>
+              <button type="button" aria-pressed={n > 0} onClick={() => toggle(p)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-medium transition', n ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:text-brand-700')}>
+                {n ? <Check className="h-3.5 w-3.5" strokeWidth={2.6} /> : <Plus className="h-3.5 w-3.5" />}{p.name}{n > 1 && <span className="text-[0.75rem] font-semibold">×{n}</span>}
+              </button>
+            </Tip>
           )
         })}
-        <form className="inline-flex" onSubmit={(e) => { e.preventDefault(); if (!own.trim()) return; add(own.trim(), ['floor']); setOwn('') }}>
+        <form className="inline-flex" onSubmit={(e) => { e.preventDefault(); if (!own.trim()) return; add(own.trim(), guessSurfaces(own.trim(), presets)); setOwn('') }}>
           <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Your own area…" aria-label="Your own area" className="h-8 w-[9.375rem] rounded-l-full border border-r-0 border-line bg-white px-3 text-[0.8125rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none" />
           <button type="submit" disabled={!own.trim()} className="inline-flex h-8 items-center rounded-r-full border border-line bg-wash px-2.5 text-[0.78125rem] font-semibold text-ink-2 disabled:text-faint">Add</button>
         </form>
@@ -163,7 +165,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then tap its rooms — each comes with its usual surfaces.</div>
+        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then tap its rooms — each comes with its usual surfaces (a bathroom brings its niche, waterproofing, saddle and metals). Untick what it doesn’t have.</div>
       )}
     </div>
   )
@@ -177,7 +179,8 @@ export function NewEstimateModal({ level }: { level: number }) {
   const [address, setAddress] = React.useState('')
   const [cq, setCq] = React.useState('')
   const [client, setClient] = React.useState<{ id: string; name: string } | null>(null)
-  const [due, setDue] = React.useState(md(workday(addDays(TODAY, 10))))
+  /* an estimate is due right away unless you say otherwise */
+  const [due, setDue] = React.useState(md(TODAY))
   const [scope, setScope] = React.useState('')
   const [docs, setDocs] = React.useState<string[]>(['Plans'])
   const [team, setTeam] = React.useState<EstTeam>(() => companyTeam(s))
@@ -247,7 +250,7 @@ export function NewEstimateModal({ level }: { level: number }) {
           </div>
           <div>
             <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Bid due</div>
-            <DatePresets value={due} onPick={setDue} presets={[4, 7, 10, 14].map((n) => md(workday(addDays(TODAY, n))))} />
+            <DatePresets value={due} onPick={setDue} presets={[md(TODAY), md(workday(addDays(TODAY, 1))), ...[3, 5, 10].map((n) => md(workday(addDays(TODAY, n))))]} />
           </div>
         </div>
       )}
