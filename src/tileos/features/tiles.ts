@@ -65,6 +65,34 @@ export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: Surface
   )
 }
 
+/** a small change to a tile — its picture, its grout, the paperwork's quantity. The walls and floors that had the
+ *  tile's old grout follow the new one. */
+export function patchTile(jobId: string, tag: string, p: Partial<Tile>, msg?: string) {
+  S().commit((s) => {
+    const t = s.tiles[jobId]?.[tag]
+    if (!t) return
+    const was = t.grout
+    Object.assign(t, p)
+    if (p.grout) (s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === tag && (!x.grout || x.grout === was)) x.grout = p.grout }))
+    if (p.joint) (s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === tag && !x.joint) x.joint = p.joint }))
+  }, msg)
+}
+/** where a tile goes: these walls and floors get it, any other that had it goes back to "no tile" */
+export function setTileOn(jobId: string, tag: string, on: SurfaceRef[]) {
+  S().commit((s) => {
+    const want = new Set(on.map(refKey))
+    const t = s.tiles[jobId]?.[tag]
+    ;(s.rooms[jobId] || []).forEach((r) =>
+      r.surfaces.forEach((x) => {
+        if (want.has(refKey({ room: r.name, surface: x.name }))) {
+          if (x.tile !== tag) { x.tile = tag; if (t?.grout) x.grout = t.grout; if (t?.joint) x.joint = t.joint }
+          if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
+        } else if (x.tile === tag) x.tile = ''
+      }),
+    )
+  })
+}
+
 /** take a tile off a project — the walls and floors that had it go back to "no tile" */
 export function removeTile(jobId: string, tag: string) {
   const name = S().tiles[jobId]?.[tag]?.name || ''

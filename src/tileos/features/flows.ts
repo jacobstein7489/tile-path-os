@@ -702,7 +702,7 @@ export function createInvoice(id: string) {
     m.due = 'Sent today'
     m.dueTone = undefined
     m.action = 'Record payment'
-    m.log.push(L(me(), `Invoice ${ref} emailed from Tile OS · copied to QuickBooks`))
+    m.log.push(L(me(), `Invoice ${ref} sent from QuickBooks`))
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'money:' + id).map((t) => t.id), 'Invoiced')
     if (m.kind === 'deposit') setIssues(s, m.jobId, (iss) => iss.map((i) => (/deposit/i.test(i.text) ? { tone: 'warn', text: `Deposit invoiced ${ref} · not paid` } : i)))
     if (m.kind === 'final' || m.kind === 'retainage') setIssues(s, m.jobId, (iss) => iss.filter((i) => !/final invoice/i.test(i.text)))

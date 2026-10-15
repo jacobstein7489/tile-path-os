@@ -188,7 +188,7 @@ export function approveEstimateInAward(s: any, jobId: string) {
 
 /* ================= the installer PO loop ================= */
 const SURF_ITEM: Record<string, string> = { Floor: 'i-floor', Walls: 'i-wall', 'Shower floor': 'i-mosaic', Backsplash: 'i-splash', Border: 'i-border' }
-function surfaceItem(name: string) {
+export function surfaceItem(name: string) {
   if (SURF_ITEM[name]) return SURF_ITEM[name]
   if (/shower floor|mosaic/i.test(name)) return 'i-mosaic'
   if (/splash/i.test(name)) return 'i-splash'
@@ -276,6 +276,29 @@ export function sendDraftIPO(ipoId: string) {
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(p.lines.reduce((n, l) => n + l.amount, 0))}`, ref: { t: 'ipo', id: p.id } })
   }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'It’s on his phone. You’ll see it here the moment he answers.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
+}
+/** change the lines of an installer's PO. A draft simply changes; a PO he already has goes to him again as a new
+ *  revision, and he accepts it again. */
+export function setIPOLines(ipoId: string, lines: IPOLine[], o: { revise?: boolean } = {}) {
+  const p0 = S().ipos.find((p) => p.id === ipoId)
+  if (!p0) return
+  const sum = (ls: IPOLine[]) => ls.reduce((n, l) => n + (l.amount || 0), 0)
+  const before = sum(p0.lines)
+  const after = sum(lines)
+  const rev = (p0.rev || 1) + 1
+  S().commit((s) => {
+    const p = s.ipos.find((x) => x.id === ipoId)
+    if (!p) return
+    p.lines = lines
+    if (!o.revise) return
+    p.rev = rev
+    p.status = 'Sent'
+    p.date = NOW
+    p.log.push(L(me(), `Revision ${rev} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(before)} → ${fmtMoney(after)}`))
+    closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'ipo:' + p.id && t.state !== 'done').map((t) => t.id), 'Replaced by the revision')
+    newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} revision ${rev} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
+    addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised — revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
+  }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. He accepts it again from his phone.` } : undefined)
 }
 export function answerIPO(ipoId: string, ok: boolean, reason?: string) {
   const p0 = S().ipos.find((p) => p.id === ipoId)

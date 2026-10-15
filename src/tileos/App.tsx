@@ -46,6 +46,7 @@ import { CrewView } from '@/tileos/features/crew'
 import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
 import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
+import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal } from '@/tileos/features/layout'
@@ -66,7 +67,14 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'sow': return <ScopeDocModal jobId={m.jobId} estId={m.estId} print={m.print} level={level} />
     case 'estimate': return <EstimateModal id={m.id} level={level} />
     case 'aiplans': return <AiPlansModal estId={m.estId} level={level} />
-    case 'task': return <TaskModal id={m.id} level={level} />
+    case 'task': {
+      /* a task that is a getting-ready step opens the step's own window */
+      const t = useStore.getState().tasks.find((x) => x.id === m.id)
+      const [jobId, k] = (t?.step || '').split(':')
+      if (t && jobId && jobId !== '*' && k && useStore.getState().jobs[jobId]) return <StepModal jobId={jobId} k={k} level={level} />
+      return <TaskModal id={m.id} level={level} />
+    }
+    case 'step': return <StepModal jobId={m.jobId} k={m.k} level={level} />
     case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
     case 'fresh': return <FreshModal mode={m.mode} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} level={level} />

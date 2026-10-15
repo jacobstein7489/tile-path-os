@@ -30,58 +30,16 @@ export function StepIcon({ state, size = 26 }: { state: StepState; size?: number
 
 const STATE_WORD: Record<StepState, string> = { done: 'Done', now: 'Their turn', wait: 'Waiting', later: 'Later', bad: 'Problem', na: 'Not needed' }
 
-/** the step's one button — some ask a quick question first (when is the delivery? did all of it come?) */
+/** the step's one button: it opens the step's own window, where it gets done */
 export function StepButton({ job, v, size = 'sm' }: { job: Job; v: StepView; size?: 'sm' | 'xs' }) {
   const s = useStore()
-  const [open, setOpen] = React.useState(false)
-  const [when, setWhen] = React.useState('Wed')
-  const [who, setWho] = React.useState<PersonKey>('yakov')
-  if (!v.action) return null
+  if (!v.action && v.state === 'done') return null
   const primary = v.state === 'now' || v.state === 'bad'
-  const btn = (onClick?: () => void) => (
-    <Button size={size} variant={primary ? 'secondary' : 'ghost'} className={cn(primary && 'border-[#c6ccd4] text-ink')} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
-      {v.action!.label}
+  return (
+    <Button size={size} variant={primary ? 'secondary' : 'ghost'} className={cn(primary && 'border-[#c6ccd4] text-ink')} onClick={(e) => { e.stopPropagation(); s.open({ t: 'step', jobId: job.id, k: v.key }) }}>
+      {v.action?.label || 'Open'}
     </Button>
   )
-  if (v.action.pick === 'delivery')
-    return (
-      <Pop open={open} onOpenChange={setOpen} align="end" width={380} trigger={btn()}>
-        <div className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ink"><Truck className="h-4 w-4 text-muted" />When is the tile being delivered?</div>
-        <div className="mt-3"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
-        <div className="mt-4 text-[0.84375rem] font-semibold text-ink">Who checks it in that day?</div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {insidePeople(s).filter((p) => ['yakov', 'materials', 'office', 'ys'].includes(p)).map((p) => (
-            <button key={p} onClick={() => setWho(p)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-[0.5625rem] border pl-1 pr-2.5 text-[0.8125rem] font-medium transition', who === p ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
-              <Avatar who={p} size={22} />{PEOPLE[p].short}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 rounded-lg bg-wash px-3 py-2 text-[0.78125rem] text-muted">It lands on {PEOPLE[who].short}’s list that day: count the boxes, or report what’s short.</div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button size="sm" variant="primary" onClick={() => { setOpen(false); markTileOrdered(job.id, when, who) }}>Save</Button>
-        </div>
-      </Pop>
-    )
-  if (v.action.pick === 'checkin')
-    return (
-      <Pop open={open} onOpenChange={setOpen} align="end" width={340} trigger={btn()}>
-        <div className="text-[0.90625rem] font-semibold text-ink">Did all of it come?</div>
-        <div className="mt-1 text-[0.8125rem] text-muted">{job.name} · count the boxes against the order.</div>
-        <div className="mt-3 flex flex-col gap-2">
-          <button onClick={() => { setOpen(false); checkInTile(job.id) }} className="flex items-center gap-3 rounded-[0.625rem] border border-line px-3 py-2.5 text-left transition hover:border-ok-300 hover:bg-ok-50/50">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.5rem] bg-ok-50 text-ok-600"><PackageCheck className="h-4 w-4" /></span>
-            <span><span className="block text-[0.875rem] font-semibold text-ink">All here</span><span className="block text-[0.78125rem] text-muted">Mark it on site</span></span>
-          </button>
-          <button onClick={() => { setOpen(false); s.open({ t: 'record', jobId: job.id, type: 'shortage' }) }} className="flex items-center gap-3 rounded-[0.625rem] border border-line px-3 py-2.5 text-left transition hover:border-bad-300 hover:bg-bad-50/50">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.5rem] bg-bad-50 text-bad-600"><PackageX className="h-4 w-4" /></span>
-            <span><span className="block text-[0.875rem] font-semibold text-ink">Short, wrong or broken</span><span className="block text-[0.78125rem] text-muted">Goes to whoever reorders it</span></span>
-          </button>
-        </div>
-      </Pop>
-    )
-  if (v.action.pick === 'check') return btn(() => markStep(job.id, v.key))
-  return btn(v.action.run)
 }
 
 /** who has a step — tap to hand it to someone else on this project */
@@ -117,7 +75,7 @@ export function StepPath({ job }: { job: Job }) {
           state: v.state === 'done' ? 'done' : v.state === 'bad' ? 'blocked' : v.state === 'later' ? 'future' : 'current',
           sub: PEOPLE[v.owner]?.short,
           date: v.state === 'done' ? (v.doneOn || 'Done') : v.due ? labelFromIso(v.due) : v.state === 'wait' ? 'Waiting' : undefined,
-          onClick: () => document.getElementById(`step-${job.id}-${v.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+          onClick: () => s.open({ t: 'step', jobId: job.id, k: v.key }),
         }))}
       />
     </section>
@@ -209,7 +167,7 @@ function StepRow({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
-function AddStep({ job, steps, onDone, compact }: { job: Job; steps: StepView[]; onDone: () => void; compact?: boolean }) {
+export function AddStep({ job, steps, onDone, compact }: { job: Job; steps: StepView[]; onDone: () => void; compact?: boolean }) {
   const s = useStore()
   const [label, setLabel] = React.useState('')
   const [owner, setOwner] = React.useState<PersonKey>('yakov')

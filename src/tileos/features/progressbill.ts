@@ -15,6 +15,8 @@ type BD = Pick<Store, 'jobs' | 'rooms' | 'diary' | 'estimates' | 'money' | 'rule
 
 /* ---------------- what each wall and floor is worth ---------------- */
 const keyOf = (room: string, surface: string) => `${room}\u0001${surface}`
+/** the key a surface's worth is kept under */
+export const worthKey = keyOf
 const same = (a?: string, b?: string) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase()
 export interface Worth { contract: number; byKey: Record<string, number>; est?: Estimate; from: 'estimate' | 'contract' | 'none' }
 

@@ -387,6 +387,8 @@ export interface Tile {
   /** square feet in a box, when known — so orders can be counted in boxes */
   boxSF?: number
   note?: string
+  /** how much the tile paperwork (the client's or the store's) has of it — checked against what we need */
+  paper?: { qty: number; unit: 'SF' | 'boxes' }
 }
 /** the sample projects' tiles. A real project's tiles live with the project (the store's tiles, by project) */
 export const TILES: Record<string, Tile> = {

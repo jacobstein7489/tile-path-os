@@ -24,6 +24,7 @@ import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { followersOf, toggleFollow, setEveryone } from './taskshare'
 import { stepTodos, type StepView } from './steps'
 import { StepButton } from './steps-ui'
+import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
 import { REAL } from '@/tileos/lib/save'
 
@@ -109,7 +110,9 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const job = s.jobs[t.jobId]
   const [leaving, setLeaving] = React.useState(false)
   const done = t.state === 'done'
-  const act = !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
+  /* a getting-ready step's task opens the step's own window */
+  const stepTask = !!t.step && !t.step.startsWith('*:') && !!s.jobs[t.step.split(':')[0]]
+  const act = !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
   const Ic = TYPE_ICON[t.type] || ListTodo
   const last = t.log[t.log.length - 1]
   const detail0 = t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
@@ -129,6 +132,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       whenTone={w.tone}
       action={
         done ? <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+          : stepTask ? <Button size="sm" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className="max-w-full" onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
             : t.state === 'now' ? <Button size="sm" icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
               : <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
@@ -142,9 +146,9 @@ function StepRowToday({ job, v, showOwner, when }: { job: Job; v: StepView; show
   const start = s.prep[job.id]?.targetISO
   return (
     <TodoRow
-      onClick={() => s.open({ t: 'job', id: job.id })}
+      onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}
       icon={<ListChecks />}
-      title={v.label}
+      title={todoOf(v)}
       detail={[v.state === 'bad' ? 'Problem' : '', v.note, start ? `Checklist step · starts ${md(start)}` : 'Checklist step'].filter(Boolean).join(' · ')}
       owner={showOwner ? v.owner : undefined}
       project={job.name}

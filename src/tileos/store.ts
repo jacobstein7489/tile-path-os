@@ -54,6 +54,8 @@ export interface Rules {
   surfaceItems?: Record<string, string>
   /** grout colors the company added to the standard list */
   grouts?: Record<string, Grout>
+  /** what we pay the installer should stay under this share of the estimate — the line on the PO meter (50 = half) */
+  laborPct?: number
 }
 
 export interface Data {

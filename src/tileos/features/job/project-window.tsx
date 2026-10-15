@@ -43,7 +43,8 @@ import { heightStatus } from '../heights'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, type StepView } from '../steps'
-import { StepsList, StepIcon, StepButton, StepPath } from '../steps-ui'
+import { StepIcon, StepButton, StepPath } from '../steps-ui'
+import { UpNext } from '../stepwin'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
@@ -231,16 +232,12 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
   const s = useStore()
   const ready = isGettingReady(job)
-  /* getting ready: the step bar on top says where it stands; the checklist below says what's next and whose it is */
+  /* getting ready: the step bar on top says where it stands (tap a step to do it); Up next says what's open, one line each */
   if (ready) {
-    const extra = todoLines(s, job, setTab, true).lines.filter((l) => l.task || l.it || l.ev).length
     return (
       <div className="flex flex-col gap-5">
         <StepPath job={job} />
-        <div className={cn('grid w-full items-start gap-5 max-xl:grid-cols-1', extra ? 'grid-cols-[minmax(0,1fr)_21.25rem]' : 'grid-cols-1')}>
-          <div className="min-w-0"><StepsList job={job} /></div>
-          {extra > 0 && <div className="flex min-w-0 flex-col gap-4"><AlsoOpen job={job} setTab={setTab} /></div>}
-        </div>
+        <UpNext job={job} />
       </div>
     )
   }

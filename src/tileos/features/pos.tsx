@@ -11,10 +11,12 @@ import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow,
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
 import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
-import type { IPO } from '@/tileos/data/field'
+import type { IPO, IPOLine } from '@/tileos/data/field'
+import { ipoTotal, poRatio, type Ratio } from './poratio'
+import { RatioMeter } from './stepwin'
 import { SUBS0 } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy } from './flows'
-import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines } from './flows2'
+import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
 import { METHODS } from '@/tileos/data/takeoff'
 import { crewFree } from './upcoming'
@@ -26,7 +28,6 @@ import { PAY_WEEKS, PAY_STATE, PAID_EARLIER, payRow } from './pay'
 import { shiftText, TODAY } from '@/tileos/lib/today'
 
 type Row = { kind: 'material'; po: PO } | { kind: 'installer'; po: IPO }
-const ipoTotal = (p: IPO) => p.lines.reduce((n, l) => n + l.amount, 0) + p.changes.filter((c) => c.status !== 'pending').reduce((n, c) => n + c.amount, 0)
 const matStatus = (p: PO): { tone: Tone; label: string; open: boolean } =>
   /cancelled/i.test(p.note) ? { tone: 'neutral', label: 'Cancelled', open: false }
   : p.late ? { tone: 'bad', label: `Late · ${p.eta}`, open: true }
@@ -383,9 +384,15 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const p = s.ipos.find((x) => x.id === id)
   const [rejOpen, setRejOpen] = React.useState(false)
+  /* changing a PO he already has: the lines are worked on here, then go to him as a new revision */
+  const [draft, setDraft] = React.useState<IPOLine[] | null>(null)
   if (!p) return null
   const job = s.jobs[p.jobId]
-  const total = ipoTotal(p)
+  const editing = p.status === 'Draft' || !!draft
+  const lines = draft || p.lines
+  const setLines = (ls: IPOLine[]) => (draft ? setDraft(ls) : setIPOLines(p.id, ls))
+  const ratio = poRatio(s, { jobId: p.jobId, lines, changes: p.changes })
+  const total = ratio.total
   const name = PEOPLE[p.crew].name
   const at = { Draft: 0, Sent: 1, Accepted: 2, Rejected: 2 }[p.status]
   const steps = [
@@ -398,7 +405,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
       <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-2">
         <div className="min-w-0">
           <div className="text-[0.8125rem] text-muted">Installer PO · in Purchase orders</div>
-          <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id} · {name}</h2>
+          <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id}{p.rev ? ` · rev ${p.rev}` : ''} · {name}</h2>
           <div className="mt-1 text-[0.875rem] text-muted"><button onClick={() => s.open({ t: 'job', id: p.jobId })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {job?.address}</div>
         </div>
         <div className="shrink-0 text-right max-md:text-left">
@@ -420,9 +427,17 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
           <Button className="ml-auto" variant="primary" icon={<Send />} onClick={() => sendDraftIPO(p.id)}>Send PO to {PEOPLE[p.crew].short}</Button>
         </>
       )}
-      {p.status === 'Sent' && (
+      {draft && (
         <>
-          <span className="text-[0.84375rem] text-muted">{name} answers from his phone. For the demo, answer for him:</span>
+          <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+          <span className="ml-auto text-[0.84375rem] text-muted">{fmtMoney(ipoTotal(p))} → <b className="font-semibold text-ink">{fmtMoney(total)}</b></span>
+          <Button variant="primary" icon={<Send />} onClick={() => { setIPOLines(p.id, draft, { revise: true }); setDraft(null) }}>Send revision {(p.rev || 1) + 1} to {PEOPLE[p.crew].short}</Button>
+        </>
+      )}
+      {!draft && p.status === 'Sent' && (
+        <>
+          <Button variant="ghost" icon={<FilePen />} onClick={() => setDraft(p.lines.map((l) => ({ ...l })))}>Change it</Button>
+          <span className="text-[0.84375rem] text-muted max-md:hidden">{name} answers from his phone. For the demo:</span>
           <Pop open={rejOpen} onOpenChange={setRejOpen} side="top" width={300} trigger={<Button className="ml-auto">He turned it down</Button>}>
             <div className="text-[0.875rem] font-medium text-ink">Why?</div>
             <div className="mt-2 flex flex-col gap-1">
@@ -432,7 +447,12 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
           <Button variant="primary" icon={<Check />} onClick={() => answerIPO(p.id, true)}>He accepted</Button>
         </>
       )}
-      {p.status === 'Accepted' && <span className="text-[0.84375rem] text-ok-700">Accepted {p.date} — the installer is confirmed.</span>}
+      {!draft && p.status === 'Accepted' && (
+        <>
+          <span className="text-[0.84375rem] text-ok-700">Accepted {p.date} — the installer is confirmed.</span>
+          <Button className="ml-auto" icon={<FilePen />} onClick={() => setDraft(p.lines.map((l) => ({ ...l })))}>Revise the PO</Button>
+        </>
+      )}
       {p.status === 'Rejected' && (
         <>
           <span className="text-[0.84375rem] text-bad-700">Turned down{p.reason ? ` — ${p.reason.toLowerCase()}` : ''}.</span>
@@ -443,17 +463,24 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
-      <div className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-        <span>Work</span><span className="text-right">Qty</span><span className="text-right max-sm:hidden">Rate</span><span className="text-right max-sm:hidden">Amount</span>
-      </div>
-      {p.lines.map((l, i) => (
-        <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-          <span className="truncate text-ink">{l.item}</span>
-          <span className="text-right tnum text-ink-2">{l.qty}</span>
-          <span className="text-right tnum text-ink-2 max-sm:hidden">{l.rate ? `${fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}` : 'Lump sum'}</span>
-          <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney(l.amount)}</span>
-        </div>
-      ))}
+      <RatioMeter r={ratio} className="mb-5" />
+      {editing ? (
+        <IPOLinesEdit lines={lines} ratio={ratio} onChange={setLines} />
+      ) : (
+        <>
+          <div className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_6rem]">
+            <span>Work</span><span className="text-right">Qty</span><span className="text-right max-sm:hidden">Rate</span><span className="text-right max-sm:hidden">Amount</span>
+          </div>
+          {p.lines.map((l, i) => (
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
+              <span className="min-w-0"><span className="block truncate text-ink">{l.item}</span>{ratio.lines[i]?.pct != null && <span className={cn('block text-[0.75rem]', ratio.lines[i].pct! > ratio.line ? 'font-semibold text-bad-600' : 'text-muted')}>{ratio.lines[i].pct}% of what we sell it for</span>}</span>
+              <span className="text-right tnum text-ink-2">{l.qty}</span>
+              <span className="text-right tnum text-ink-2 max-sm:hidden">{l.rate ? `${fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}` : 'Lump sum'}</span>
+              <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney(l.amount)}</span>
+            </div>
+          ))}
+        </>
+      )}
       {p.changes.map((c) => (
         <div key={c.co} className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
           <span className="truncate text-ink">{c.co} · {c.text} <span className="text-[0.78125rem] text-muted">{c.status === 'pending' ? 'pending' : c.status}</span></span>
@@ -467,6 +494,64 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
       <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
       <div className="-mx-2 mt-1">{[...p.log].reverse().map((l, i) => <ActivityRow key={i} compact jobId={p.jobId} e={{ date: l.date, who: l.who, kind: 'schedule', title: l.text, ref: { t: 'ipo', id: p.id } }} />)}</div>
     </Modal>
+  )
+}
+
+/** the PO's lines, to change: how much and at what rate (or a lump sum), and each line's share of what we sell it for */
+function IPOLinesEdit({ lines, ratio, onChange }: { lines: IPOLine[]; ratio: Ratio; onChange: (ls: IPOLine[]) => void }) {
+  const set = (i: number, p: Partial<IPOLine>) => {
+    const next = lines.map((l, j) => {
+      if (j !== i) return l
+      const m = { ...l, ...p }
+      if (m.n != null && m.rate != null && (p.n != null || p.rate != null)) {
+        m.amount = Math.round(m.n * m.rate)
+        m.qty = `${m.n.toLocaleString('en-US')} ${(l.qty.match(/[A-Za-z].*$/) || ['SF'])[0]}`
+      }
+      return m
+    })
+    onChange(next)
+  }
+  return (
+    <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem_7rem_2rem] gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden">
+        <span>Work</span><span className="text-right">Qty</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span />
+      </div>
+      {lines.map((l, i) => {
+        const r = ratio.lines[i]
+        return (
+          <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem_6rem_7rem_2rem] items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1fr_1fr_1fr_2rem]">
+            <span className="min-w-0 max-sm:col-span-3 max-sm:row-start-1">
+              <NumField text value={l.item} onSave={(v) => set(i, { item: String(v) || l.item })} className="w-full text-left" label="Work" />
+              {r?.pct != null && <span className={cn('mt-0.5 block text-[0.75rem]', r.pct > ratio.line ? 'font-semibold text-bad-600' : 'text-muted')}>{r.pct}% of what we sell it for ({fmtMoney(r.sold)})</span>}
+            </span>
+            <button aria-label="Remove the line" onClick={() => onChange(lines.filter((_, j) => j !== i))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-bad-600 sm:order-last max-sm:col-start-4 max-sm:row-start-1"><Trash2 className="h-4 w-4" /></button>
+            {l.n != null ? <NumField value={l.n} onSave={(v) => set(i, { n: Number(v) || 0 })} label="Quantity" /> : <span className="text-right text-[0.8125rem] text-muted max-sm:text-left">{l.qty}</span>}
+            {l.rate != null ? <NumField value={l.rate} money onSave={(v) => set(i, { rate: Number(v) || 0 })} label="Rate" /> : <span className="text-right text-[0.8125rem] text-muted">Lump sum</span>}
+            {l.n != null && l.rate != null ? <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(l.amount)}</span> : <NumField value={l.amount} money onSave={(v) => set(i, { amount: Math.round(Number(v) || 0) })} label="Amount" />}
+          </div>
+        )
+      })}
+      <button onClick={() => onChange([...lines, { item: 'Extra work', qty: 'Lump sum', amount: 0 }])} className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Plus className="h-4 w-4" />Add a line</button>
+    </div>
+  )
+}
+/** a number (or a few words) that saves when you leave the box */
+function NumField({ value, onSave, money, text, label, className }: { value: number | string; onSave: (v: number | string) => void; money?: boolean; text?: boolean; label: string; className?: string }) {
+  const [v, setV] = React.useState(String(value))
+  React.useEffect(() => setV(String(value)), [value])
+  return (
+    <span className={cn('relative block', className)}>
+      {money && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-faint">$</span>}
+      <TextInput
+        aria-label={label}
+        inputMode={text ? undefined : 'decimal'}
+        value={v}
+        onChange={(e) => setV(text ? e.target.value : e.target.value.replace(/[^\d.]/g, ''))}
+        onBlur={() => { if (v !== String(value)) onSave(text ? v.trim() : Number(v)) }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+        className={cn('h-9', text ? 'text-[0.875rem]' : 'text-right tnum', money && 'pl-6')}
+      />
+    </span>
   )
 }
 
