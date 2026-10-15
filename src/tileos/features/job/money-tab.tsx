@@ -2,8 +2,9 @@ import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
 import { ArrowRight, Receipt, Package, HardHat, TrendingUp, CheckCircle2 } from 'lucide-react'
 import { useStore } from '@/tileos/store'
-import { Card, CardHeader, Button, Pill, Avatar, IconCircle } from '@/tileos/components/ui/core'
+import { Card, CardHeader, Button, Pill, Avatar, IconCircle, TextInput } from '@/tileos/components/ui/core'
 import { MiniSteps, StackBar } from '@/tileos/components/ui/progress'
+import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, PEOPLE, type Job } from '@/tileos/data/model'
 import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileos/data/work'
@@ -97,6 +98,14 @@ export function MoneyTab({ job }: { job: Job }) {
             <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-warn-300" />Installed, not billed {Math.max(0, under)}%</span>
             <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#E9EDF3]" />Remaining</span>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] text-muted">
+            {job.before?.billed || job.before?.paid ? (
+              <span>Before Tile OS: <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.paid)}</b> paid — it’s counted in.</span>
+            ) : (
+              <span>Started before Tile OS?</span>
+            )}
+            <button onClick={() => s.open({ t: 'billedbefore', jobId: job.id })} className="font-semibold text-brand-600 hover:underline">{job.before?.billed || job.before?.paid ? 'Change' : 'Put in what was already billed'}</button>
+          </div>
           {b.toBill > 0 && (
             <div className="mt-4 flex items-center gap-4 rounded-2xl border border-warn-100 bg-warn-50/70 px-4 py-3.5 max-sm:flex-wrap max-sm:gap-3">
               <IconCircle tone="warn" size={40} className="max-sm:hidden"><TrendingUp className="h-5 w-5" /></IconCircle>
@@ -137,5 +146,58 @@ export function MoneyTab({ job }: { job: Job }) {
         <InstallerPOCard job={job} />
       </div>
     </div>
+  )
+}
+
+/** a project that was going before Tile OS: what was billed and paid on it already (QuickBooks has it),
+ *  so the weekly progress bill picks up from there and nothing is billed twice */
+export function BilledBeforeModal({ jobId, level }: { jobId: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  const [billed, setBilled] = React.useState(job?.before?.billed ? String(job.before.billed) : '')
+  const [paid, setPaid] = React.useState(job?.before?.paid ? String(job.before.paid) : '')
+  const [held, setHeld] = React.useState(job?.before?.retainage ? String(job.before.retainage) : '')
+  if (!job) return null
+  const num = (v: string) => Math.max(0, Math.round(Number(v.replace(/[^0-9.]/g, '')) || 0))
+  const save = () =>
+    s.commit(
+      (x) => {
+        const j = x.jobs[jobId]
+        j.before = { billed: num(billed), paid: Math.min(num(paid), num(billed) || num(paid)), retainage: num(held), changes: j.before?.changes || 0 }
+      },
+      `Saved — ${job.name} picks up from ${fmtMoney(num(billed))} billed`,
+      { close: true, sub: 'The next progress bill takes it off, so nothing is billed twice.' },
+    )
+  const money = (v: string, set: (v: string) => void, label: string, hint: string, auto?: boolean) => (
+    <label className="block">
+      <span className="mb-1 block text-[0.8125rem] font-semibold text-ink-2">{label}</span>
+      <span className="relative block">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[0.875rem] text-muted">$</span>
+        <TextInput data-autofocus={auto || undefined} inputMode="decimal" value={v} onChange={(e) => set(e.target.value)} placeholder="0" className="h-10 pl-6 tnum" />
+      </span>
+      <span className="mt-1 block text-[0.75rem] text-muted">{hint}</span>
+    </label>
+  )
+  return (
+    <Modal
+      level={level}
+      size="sm"
+      onClose={s.close}
+      title="Billed before Tile OS"
+      sub={`${job.name} — for a project that was already going: what QuickBooks shows on it so far.`}
+      footer={
+        <>
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <Button variant="primary" onClick={save}>Save</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {money(billed, setBilled, 'Billed so far', 'Every invoice on it — the deposit too', true)}
+        {money(paid, setPaid, 'Paid so far', 'What the client paid on those invoices')}
+        {money(held, setHeld, 'Retainage held so far', 'Leave it empty if they don’t hold any')}
+        <div className="rounded-xl bg-wash px-3.5 py-2.5 text-[0.8125rem] leading-snug text-ink-2">Set the walls and floors to where they are now in the Scope tab. From then on the daily updates move them, and each week’s bill is what got installed, less what’s billed here.</div>
+      </div>
+    </Modal>
   )
 }

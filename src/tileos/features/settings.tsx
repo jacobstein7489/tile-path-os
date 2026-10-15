@@ -19,7 +19,7 @@ import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, r
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
-import { REAL } from '@/tileos/lib/save'
+import { REAL, type WaitingPerson } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'testdata'
@@ -56,6 +56,7 @@ function TeamTab() {
   const onToday = (c: string) => s.bookings.find((b) => b.crew === c && b.start <= TODAY && b.end >= TODAY)
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
+      {REAL.people && REAL.admin && <WaitingToJoin />}
       <Card pad={false}>
         <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The office" sub="Everyone signs in with their own email and sees only their part." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
         <div className="border-t border-line-2">
@@ -81,6 +82,55 @@ function TeamTab() {
         </div>
       </Card>
     </div>
+  )
+}
+/** people who signed up and wait for the admin — let each in with the login type that decides what they see */
+function WaitingToJoin() {
+  const s = useStore()
+  const [list, setList] = React.useState<WaitingPerson[] | null>(null)
+  const [busy, setBusy] = React.useState('')
+  const [problem, setProblem] = React.useState('')
+  const load = React.useCallback(() => {
+    setProblem('')
+    REAL.people!.waiting().then(setList).catch((e) => { setList([]); setProblem(e?.message || 'Couldn’t load the sign-ups') })
+  }, [])
+  React.useEffect(() => { load() }, [load])
+  if (!list || (!list.length && !problem)) return null
+  const letIn = async (p: WaitingPerson, role: Role) => {
+    setBusy(p.uid)
+    try {
+      /* someone already on the team list with the same email becomes this login — or the empty spot for that job
+         (the "Back office" or "Accounting" on a fresh team), so the tasks already there are theirs */
+      const same = s.team.find((m) => !m.uid && m.email && m.email.toLowerCase() === p.email.toLowerCase()) || s.team.find((m) => !m.uid && !m.email && m.role === role && m.status !== 'off')
+      await REAL.people!.letIn(p, role, same?.key)
+      setList((xs) => (xs || []).filter((x) => x.uid !== p.uid))
+      toast(`${p.name} can sign in now`, { description: `As ${short(role)} — they see what that login sees.` })
+    } catch (e: any) {
+      setProblem(e?.message || 'That didn’t work — try again')
+    } finally {
+      setBusy('')
+    }
+  }
+  return (
+    <Card pad={false} className="col-span-full border-warn-100">
+      <CardHeader icon={<IconCircle tone="warn" size={34}><UserPlus className="h-4 w-4" /></IconCircle>} title={`Waiting to join · ${list.length}`} sub="They signed up and can’t see anything yet. Let each one in with the login type that decides what they see." action={<Button size="sm" variant="ghost" icon={<RotateCcw className="h-4 w-4" />} onClick={load}>Check again</Button>} />
+      <div className="border-t border-line-2">
+        {list.map((p) => (
+          <div key={p.uid} className="flex items-center gap-3 border-b border-line-2 px-6 py-2.5 last:border-0 max-sm:flex-wrap max-sm:px-4">
+            <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-warn-50 text-[0.8125rem] font-semibold text-warn-700">{(p.name || '?').trim().charAt(0).toUpperCase()}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.name}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{p.email}{p.since ? ` · signed up ${new Date(p.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
+            </span>
+            <Menu align="end" width={300} trigger={<Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid}>{busy === p.uid ? 'Letting in…' : 'Let in as…'}</Button>}>
+              <MenuLabel>Login type — decides what they see</MenuLabel>
+              {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
+            </Menu>
+          </div>
+        ))}
+        {problem && <div className="px-6 py-2.5 text-[0.8125rem] font-medium text-bad-700 max-sm:px-4">{problem}</div>}
+      </div>
+    </Card>
   )
 }
 function MemberRow({ k }: { k: PersonKey }) {

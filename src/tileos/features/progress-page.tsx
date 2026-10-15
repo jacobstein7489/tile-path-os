@@ -299,7 +299,8 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
               <Line label={`Less retainage ${b ? b.retainagePct : r.retainagePct}%`} value={`−${fmtMoney(b ? b.held : r.held)}`} dot="bg-[#c9d1dc]" />
               {(b ? b.credit : r.credit) > 0 && <Line label="Less the deposit’s share" value={`−${fmtMoney(b ? b.credit : r.credit)}`} />}
               <Line label="Less billed before" value={`−${fmtMoney(b ? b.before : r.before)}`} dot="bg-ok-500" />
-              {!b && r.bills.map((x) => <Line key={x.label} sub label={x.label} value={fmtMoney(x.amount)} onClick={x.id ? () => s.open({ t: 'money', id: x.id }) : undefined} />)}
+              {!b && r.bills.map((x) => <Line key={x.label} sub label={x.label} value={fmtMoney(x.amount)} onClick={x.id ? () => s.open({ t: 'money', id: x.id }) : () => s.open({ t: 'billedbefore', jobId })} />)}
+              {!b && !job.before?.billed && <button onClick={() => s.open({ t: 'billedbefore', jobId })} className="self-start pl-4 text-[0.75rem] font-semibold text-brand-600 hover:underline">Billed some of it before Tile OS?</button>}
               <Line label="Progress to bill" value={fmtMoney(b ? b.progress : r.due)} dot="bg-brand-500" strong top />
             </dl>
             {(b ? b.cos.length > 0 : r.cos.length > 0) && (

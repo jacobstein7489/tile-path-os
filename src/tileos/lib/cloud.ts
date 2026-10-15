@@ -258,6 +258,8 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.cloud = true
   REAL.admin = opts.admin
   REAL.email = user.email || undefined
+  /* the admin lets people in from Settings → Team */
+  REAL.people = opts.admin ? { waiting: waitingPeople, letIn } : undefined
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: undefined })
   const member = linkMember(user, opts)
   /* whatever the clean start filled in (the first time: everything) goes up right away */
@@ -322,7 +324,11 @@ export async function letIn(p: Waiting, role: Role, memberKey?: string) {
   const s = useStore.getState()
   s.commit((x) => {
     const t = memberKey ? x.team.find((y) => y.key === memberKey) : undefined
-    if (t) { t.uid = p.uid; t.email = t.email || p.email; t.role = role; t.status = 'active' }
+    if (t) {
+      /* an empty spot on the team (no email yet) takes their name */
+      if (!t.email && p.name) { const [first, ...rest] = p.name.split(' '); t.first = first; t.last = rest.join(' ') || undefined }
+      t.uid = p.uid; t.email = t.email || p.email; t.role = role; t.status = 'active'
+    }
     else {
       const [first, ...rest] = (p.name || p.email.split('@')[0]).split(' ')
       x.team.push({ key: ('u' + p.uid.replace(/-/g, '').slice(0, 8)) as any, first, last: rest.join(' ') || undefined, email: p.email || undefined, role, status: 'active', uid: p.uid })

@@ -23,8 +23,14 @@ const OFF = (() => {
 
 /* ---------------- what the screens show ---------------- */
 export type SaveStatus = { where: 'account' | 'browser' | 'cloud' | 'none'; at?: number; mode: SaveMode; saving: boolean; problem?: string }
-/** set by the real app (not the mockup): it saves to the company's database, who signed in, how to sign out */
-export const REAL: { cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void } = { cloud: false, admin: true, home: 'owner' }
+/** someone who signed up in the real app and is waiting for the admin to let them in */
+export type WaitingPerson = { uid: string; name: string; email: string; since: string }
+/** set by the real app (not the mockup): it saves to the company's database, who signed in, how to sign out —
+ *  and, for the admin, the people waiting to be let in */
+export const REAL: {
+  cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void
+  people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
+} = { cloud: false, admin: true, home: 'owner' }
 let status: SaveStatus = { where: OFF ? 'none' : 'browser', mode: 'sample', saving: false }
 const listeners = new Set<() => void>()
 const setStatus = (p: Partial<SaveStatus>) => { status = { ...status, ...p }; listeners.forEach((f) => f()) }
