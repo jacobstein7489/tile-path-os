@@ -9,7 +9,7 @@ import { TipProvider } from '@/tileos/components/ui/overlay'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal } from '@/tileos/features/mytasks'
 import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
-import { EstimatesPage, EstimateModal, AiPlansModal } from '@/tileos/features/estimates'
+import { EstimatesPage, EstimateModal, AiPlansModal, EstSendModal, EstChangesModal, EstFollowModal, EstLostModal } from '@/tileos/features/estimates'
 import { LostModal } from '@/tileos/features/projects'
 import { DirectoryPage, SupplierFormModal } from '@/tileos/features/directory'
 import { ItemsPage, ItemModal, ImportItemsModal } from '@/tileos/features/items'
@@ -98,6 +98,10 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newclient': return <NewClientModal level={level} />
     case 'payweek': return <PayWeekModal level={level} />
     case 'progress': return <ProgressModal jobId={m.jobId} week={m.week} level={level} />
+    case 'estsend': return <EstSendModal id={m.id} sent={m.sent} level={level} />
+    case 'estchanges': return <EstChangesModal id={m.id} level={level} />
+    case 'estfollow': return <EstFollowModal id={m.id} level={level} />
+    case 'estlost': return <EstLostModal id={m.id} level={level} />
     case 'billedbefore': return <BilledBeforeModal jobId={m.jobId} level={level} />
     case 'reportshort': return <ReportShortModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
     case 'record': return <RecordModal jobId={m.jobId} type={m.type} where={m.where} level={level} />

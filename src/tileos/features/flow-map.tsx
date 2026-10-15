@@ -4,10 +4,24 @@ import { Zap, ArrowRight, ChevronLeft, ChevronRight, MousePointerClick, FileText
 import { useStore, type Page } from '@/tileos/store'
 import { PageHeader, Card, Button, Avatar, Segmented, Chip, IconCircle, Pill } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
-import { PHASES, STAGE_LABEL, ROLES, roleDef, type Role } from '@/tileos/data/model'
+import { PHASES, STAGE_LABEL, ROLES, PEOPLE, roleDef, loginOf, type Role, type Member } from '@/tileos/data/model'
 import { PROCESS } from '@/tileos/data/process'
 
-const ROLE_ORDER: Role[] = ['office', 'estimator', 'owner', 'pm', 'site', 'materials', 'accounting', 'crew']
+const ROLE_ORDER: Role[] = ['office', 'estimator', 'owner', 'site', 'accounting', 'crew']
+/** the people on a login type now, by their names on the team list */
+const holders = (team: Member[], r: Role) => team.filter((m) => loginOf(m.role) === r && m.status !== 'off')
+const names = (team: Member[], r: Role) => (r === 'crew' ? 'Installers' : holders(team, r).map((m) => PEOPLE[m.key]?.name).filter(Boolean).join(', '))
+const face = (team: Member[], r: Role) => holders(team, r)[0]?.key || roleDef(r).person
+const typeName = (r: Role) => (r === 'owner' ? 'Admin' : r === 'crew' ? 'Installer' : roleDef(r).label.split(' · ')[0])
+/** a step's people, one card per login type (folded-in types join theirs) */
+const byLogin = (who: { role: Role; buttons: string[]; note?: string }[]) =>
+  who.reduce((acc, w) => {
+    const r = loginOf(w.role)
+    const g = acc.find((x) => x.role === r)
+    if (g) w.buttons.forEach((b) => { if (!g.buttons.includes(b)) g.buttons.push(b) })
+    else acc.push({ ...w, role: r, buttons: [...w.buttons] })
+    return acc
+  }, [] as { role: Role; buttons: string[]; note?: string }[])
 
 export function FlowPage() {
   const s = useStore()
@@ -63,15 +77,14 @@ export function FlowPage() {
               <p className="mt-2 text-[0.96875rem] leading-relaxed text-ink-2">{step.happens}</p>
               <div className="mt-6 text-[0.84375rem] font-semibold text-muted">Who does what — the buttons they press</div>
               <div className="mt-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-                {step.who.map((w, k) => {
-                  const def = roleDef(w.role)
+                {byLogin(step.who).map((w, k) => {
                   return (
                     <div key={k} className="rounded-2xl border border-line p-4">
                       <div className="flex items-center gap-3">
-                        <Avatar who={def.person} size={36} />
-                        <div>
-                          <div className="text-[0.9375rem] font-semibold text-ink">{def.label}</div>
-                          <div className="text-[0.78125rem] text-muted">{def.person === 'ys' ? 'Yaakov' : ''}</div>
+                        <Avatar who={face(s.team, w.role)} size={36} />
+                        <div className="min-w-0">
+                          <div className="text-[0.9375rem] font-semibold text-ink">{typeName(w.role)}</div>
+                          <div className="truncate text-[0.78125rem] text-muted">{names(s.team, w.role)}</div>
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -119,19 +132,19 @@ export function FlowPage() {
         <>
           <div className="flex flex-wrap gap-2">
             {ROLE_ORDER.map((r) => (
-              <Chip key={r} on={dept === r} onClick={() => setDept(r)} icon={<Avatar who={roleDef(r).person} size={22} />}>{roleDef(r).label}</Chip>
+              <Chip key={r} on={dept === r} onClick={() => setDept(r)} icon={<Avatar who={face(s.team, r)} size={22} />}>{typeName(r)}</Chip>
             ))}
           </div>
           <Card className="mt-5 overflow-hidden">
             <div className="flex items-center gap-4 border-b border-line-2 px-6 py-5 max-sm:px-4">
-              <Avatar who={roleDef(dept).person} size={46} />
+              <Avatar who={face(s.team, dept)} size={46} />
               <div>
-                <div className="text-[1.1875rem] font-bold text-ink">{roleDef(dept).label}</div>
+                <div className="text-[1.1875rem] font-bold text-ink">{typeName(dept)}{names(s.team, dept) ? <span className="ml-2 text-[0.9375rem] font-medium text-muted">{names(s.team, dept)}</span> : null}</div>
                 <div className="text-[0.875rem] text-muted">Sees: {roleDef(dept).sees}</div>
               </div>
             </div>
             {PROCESS.map((p, k) => {
-              const mine = p.who.filter((w) => w.role === dept)
+              const mine = byLogin(p.who).filter((w) => w.role === dept)
               if (!mine.length) return null
               return (
                 <div key={p.stage} className="grid grid-cols-[13.75rem_1fr_auto] items-center gap-6 border-b border-line-2 px-6 py-4 last:border-0 max-md:grid-cols-1 max-md:gap-2.5 max-sm:px-4">

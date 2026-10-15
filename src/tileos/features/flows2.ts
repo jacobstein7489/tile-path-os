@@ -96,12 +96,14 @@ export function estSend(estId: string) {
   }, `${e0.id} sent — it’s ${PEOPLE[fol].name}’s now`, { close: true, sub: `${PEOPLE[fol].short} follows up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu} — it’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [{ who: team.takeoff, label: 'Takeoff', state: 'done' }, { who: team.review, label: 'Office review', state: 'done' }, { who: team.final, label: 'Final review', state: 'done' }, { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
 }
 
-export function estRevise(estId: string, what: string) {
+/** the client wants changes: a new revision, with each thing they asked for as a note to check off */
+export function estRevise(estId: string, what: string, o: { changes?: { text: string; area?: string }[]; asked?: string } = {}) {
   S().commit((s) => {
     const e = s.estimates.find((x) => x.id === estId)
     if (!e) return
     const last = curRev(e)
-    e.revs.push({ n: last.n + 1, date: NOW, status: 'draft', what: what || 'Revision', lines: last.lines.map((l) => ({ ...l, id: 'el' + ++lid })) })
+    e.revs.push({ n: last.n + 1, date: NOW, status: 'draft', what: what || 'Revision', asked: o.asked, lines: last.lines.map((l) => ({ ...l, id: 'el' + ++lid })) })
+    ;(o.changes || []).forEach((c, i) => (e.notes ||= []).push({ id: 'nt' + Date.now().toString(36) + i, rev: last.n + 1, by: me(), step: 'review', area: c.area, text: c.text, date: NOW }))
     e.status = 'revision'
     e.backTo = undefined
     e.log.push(L(me(), `Revision ${last.n + 1} started — ${what || 'changes requested'}`))

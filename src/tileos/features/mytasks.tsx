@@ -10,7 +10,7 @@ import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker
 import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
-import { PEOPLE, fmtMoney, type Role, type PersonKey, type Job } from '@/tileos/data/model'
+import { PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
 import { TODAY_LABEL } from '@/tileos/data/jobs'
 import { REPEAT_LABEL, type Task, type TaskType } from '@/tileos/data/work'
 import { runTaskAction } from './flows'
@@ -41,7 +41,8 @@ export function dailyDue(s: Store, role: Role): DailyItem[] {
     .filter((b) => s.diary[b.jobId]?.[0]?.date !== NOW)
     .map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
 }
-export const isMine = (t: Task, role: Role) => t.for.includes(role) || t.owner === meOf(role)
+/** a task is mine when it's for my login type (or one folded into it), or I own it */
+export const isMine = (t: Task, role: Role) => t.for.some((r) => r === role || loginOf(r) === role) || t.owner === meOf(role)
 
 /* ---------------- when: one word for each section ---------------- */
 type Bucket = 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'aside'
@@ -244,7 +245,9 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
   s.tasks.filter((t) => isMine(t, role) && t.state === 'now' && !t.paused && (!t.everyone || t.owner === me)).forEach((t) => {
-    const b = taskBucket(t)
+    /* a hand-off (a takeoff, a review) is yours the moment it lands — it's on Today, with its due date */
+    const b0 = taskBucket(t)
+    const b = t.action?.kind?.startsWith('estimate:') && (b0 === 'tomorrow' || b0 === 'week' || b0 === 'later') ? 'today' : b0
     out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: t.owner })
   })
   s.tasks.filter((t) => isMine(t, role) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))

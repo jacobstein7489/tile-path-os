@@ -117,15 +117,25 @@ export interface RoleDef {
 export const ROLES: RoleDef[] = [
   { key: 'owner', label: 'Admin · Owner', person: 'ys', greetName: 'Yanky', sees: 'Everything — and controls who sees what', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'pay', 'money', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
   { key: 'pm', label: 'Project manager', person: 'ys', greetName: 'Yanky', sees: 'Projects, readiness, changes, schedule', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
-  { key: 'office', label: 'Back office', person: 'office', greetName: 'team', sees: 'Requests, follow-ups, award setup, documents', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
+  { key: 'office', label: 'Office', person: 'office', greetName: 'team', sees: 'Requests, follow-ups, project setup, documents, materials and deliveries', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
   { key: 'takeoff', label: 'Takeoff estimator', person: 'takeoff', greetName: 'team', sees: 'The first pass on every estimate — quantities from the plans', nav: ['today', 'estimates', 'items'] },
-  { key: 'estimator', label: 'Estimator · office', person: 'estimator', greetName: 'team', sees: 'Reviews every takeoff, prices revisions and changes', nav: ['today', 'estimates', 'projects', 'items', 'clients', 'designers'] },
+  { key: 'estimator', label: 'Estimator', person: 'estimator', greetName: 'team', sees: 'Takeoffs from the plans, reviews, revisions and changes', nav: ['today', 'estimates', 'projects', 'items', 'clients', 'designers'] },
   { key: 'site', label: 'Site manager', person: 'yakov', greetName: 'Yakov', sees: 'Walkthroughs, field issues, daily updates, the daily crew report', nav: ['today', 'projects', 'upcoming', 'subs'] },
   { key: 'materials', label: 'Materials', person: 'materials', greetName: 'team', sees: 'Tile quantities, deliveries, our POs', nav: ['today', 'projects', 'upcoming', 'pos', 'items', 'suppliers'] },
   { key: 'accounting', label: 'Accounting', person: 'accounting', greetName: 'team', sees: 'Billing, purchase orders and installer pay', nav: ['money', 'today', 'pos', 'pay'] },
   { key: 'client', label: 'GC · Client', person: 'gcpp', greetName: 'there', sees: 'Only their own projects — progress, photos, approvals, invoices and messages', nav: ['portal'] },
   { key: 'crew', label: 'Crew · foreman', person: 'philip', greetName: 'Philip', sees: 'Where to work and what not to start — on his phone', nav: [] },
 ]
+/** the login types people get: five inside, plus the installers' phones and the GC's portal.
+ *  Project manager folds into Admin, Takeoff into Estimator, Materials into Office — their work follows. */
+export const LOGIN_TYPES: Role[] = ['owner', 'office', 'estimator', 'site', 'accounting', 'crew', 'client']
+const MERGED: Partial<Record<Role, Role>> = { pm: 'owner', takeoff: 'estimator', materials: 'office' }
+/** the login type a role's work shows up for */
+export const loginOf = (r: Role): Role => MERGED[r] || r
+/** team members on a login type that's been folded in move over (not Project manager — that would make them an admin) */
+export function moveLogins(team: Member[]) {
+  team.forEach((m) => { if (m.role === 'takeoff' || m.role === 'materials') m.role = loginOf(m.role) })
+}
 /** what each login sees — the admin changes it in Settings; this map follows the store */
 export const ACCESS: Record<Role, string[]> = Object.fromEntries(ROLES.map((r) => [r.key, [...r.nav]])) as Record<Role, string[]>
 export const roleDef = (r: Role) => {
@@ -153,9 +163,9 @@ export const TEAM0: Member[] = [
   { key: 'ys', first: 'Yaakov', last: 'Stein', role: 'owner', status: 'active' },
   { key: 'yakov', first: 'Yakov', role: 'site', status: 'active' },
   { key: 'office', first: 'Back office', role: 'office', status: 'active' },
-  { key: 'takeoff', first: 'Takeoff estimator', role: 'takeoff', status: 'active' },
+  { key: 'takeoff', first: 'Takeoff estimator', role: 'estimator', status: 'active' },
   { key: 'estimator', first: 'Estimator', role: 'estimator', status: 'active' },
-  { key: 'materials', first: 'Materials', role: 'materials', status: 'active' },
+  { key: 'materials', first: 'Materials', role: 'office', status: 'active' },
   { key: 'accounting', first: 'Accounting', role: 'accounting', status: 'active' },
   { key: 'gcpp', first: 'GC super', last: '(Park Place)', role: 'client', status: 'active', clientId: 'parkplace' },
 ]

@@ -32,17 +32,19 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
     title,
     type: 'Pricing',
     owner: who,
-    for: [ROLE_OF[who] || 'office'],
+    /* the person's own login type — whoever the admin put on this step */
+    for: [s.team.find((m: any) => m.key === who)?.role || ROLE_OF[who] || 'office'],
     watch: step === 'final' ? [] : ['owner'],
     state: 'now',
-    due: step === 'takeoff' ? (o.notes ? 'Tomorrow' : e.due || 'Thu') : step === 'review' ? 'Tomorrow' : 'Today',
+    /* it's theirs the moment it lands: on their Today now (a takeoff keeps the estimate's due date) */
+    due: step === 'takeoff' && !o.notes ? e.due || 'Today' : 'Today',
     dueTone: step === 'final' ? 'warn' : 'neutral',
     tone: o.notes ? 'warn' : 'info',
     where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? `Ready from ${PEOPLE[teamOf(e).takeoff].short}` : `Office review done · ${fmtMoney(revTotal(rev))}`,
     action: { label: step === 'takeoff' ? 'Open estimate' : 'Review', kind: 'estimate:' + e.id },
   })
   if (j) {
-    j.next = { text: step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'review note')}` : 'Finish the takeoff') : EST_STEP[step].label, owner: who, due: step === 'final' ? 'Today' : 'Tomorrow' }
+    j.next = { text: step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'review note')}` : 'Finish the takeoff') : EST_STEP[step].label, owner: who, due: 'Today' }
     j.headline = step === 'takeoff' ? (o.notes ? `Back with ${PEOPLE[who].short} · ${plural(o.notes, 'note')}` : `Takeoff · ${PEOPLE[who].short}`) : step === 'review' ? 'Takeoff done · with the office for review' : 'Office review done · owner review'
   }
 }

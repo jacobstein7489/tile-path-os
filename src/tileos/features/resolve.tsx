@@ -6,7 +6,7 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, OptionCard, Chip, Field, Pill, IconCircle, Avatar, Stepper as NumStepper, TextInput } from '@/tileos/components/ui/core'
 import { Swatch, TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { fmtMoney, PEOPLE, ROLES, roleDef, type Role } from '@/tileos/data/model'
+import { fmtMoney, PEOPLE, ROLES, roleDef, type Role, LOGIN_TYPES, loginOf } from '@/tileos/data/model'
 import { tileOf } from '@/tileos/data/jobs'
 import { needWithWaste } from '@/tileos/data/work'
 import { DRAIN_ANSWERS, resolveDrain, approveCO004, thinsetDecision, settleQty, receiveMat, receiveTile, verifyPunch } from './flows'
@@ -309,8 +309,8 @@ export function RolesModal({ level }: { level: number }) {
   const s = useStore()
   const label = (r: string) => ROLES.find((x) => x.key === r)?.label.split(' · ')[0]
   const pages = (r: Role) => (s.access[r] || []).map((k) => ({ today: 'Today', estimates: 'Estimates', projects: 'Projects', upcoming: 'Schedule', pos: 'POs', pay: 'Installer pay', money: 'Billing', items: 'Items', clients: 'Clients', designers: 'Designers', subs: 'Installers', suppliers: 'Suppliers' } as Record<string, string>)[k]).filter(Boolean)
-  const TYPES: Role[] = ['owner', 'pm', 'office', 'estimator', 'takeoff', 'site', 'materials', 'accounting', 'crew', 'client']
-  const count = (r: Role) => s.team.filter((m) => m.role === r && m.status !== 'off').length
+  const TYPES: Role[] = LOGIN_TYPES
+  const count = (r: Role) => s.team.filter((m) => loginOf(m.role) === r && m.status !== 'off').length
   const what: Partial<Record<Role, string>> = { crew: 'An installer’s phone — only his job: where to work, what not to start, his touch-ups', client: 'A GC or client — their projects, photos, approvals, invoices, messages' }
   return (
     <Modal level={level} size="lg" onClose={s.close} title="See what each login sees" sub="Pick a login type to try it. In the real app everyone signs in with their own email and lands on this view.">

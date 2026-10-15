@@ -1,12 +1,12 @@
 /* Estimates — where every project starts. Six words for where one stands: New request · Estimating · Pending approval ·
  * Revision needed · Approved · Lost. Inside "Estimating" it goes Takeoff → Office review → Final review, then to the client. Whose turn it is lives on the estimate, so nobody's tasks change hands; review notes are pinned
  * to the room they're about and go back as a checklist. Approved, it becomes a project. */
-import { smp } from '@/tileos/lib/save'
+import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
-import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers } from 'lucide-react'
+import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, UnderlineTabs } from '@/tileos/components/ui/core'
-import { RevisionsPanel } from './revisions'
+import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Path, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
@@ -238,6 +238,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const [reviseWhat, setReviseWhat] = React.useState('')
   const [lostOpen, setLostOpen] = React.useState(false)
   const [fuOpen, setFuOpen] = React.useState(false)
+  const [showAct, setShowAct] = React.useState(false)
   if (!e) return null
   const j = s.jobs[e.jobId]
   if (!j) return null
@@ -257,7 +258,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const inside = b === 'takeoff' || b === 'review' || b === 'final'
   const notes = (e.notes || []).filter((n) => n.rev === shown.n)
   const open = openNotes(e)
-  const ai = aiDraftFor(e.jobId)
+  /* reading the plans is shown in the preview; the real app doesn't offer it until it's real */
+  const ai = REAL.cloud ? undefined : aiDraftFor(e.jobId)
   const canNote = shown === cur && inside
   const me = meOf(s.role)
   /* everyone acts for themselves; the owner can act for anyone */
@@ -266,14 +268,27 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const order: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent', 'approved']
   const at = b === 'lost' ? 5 : order.indexOf(b)
   const state = (i: number) => (i < at ? 'done' : i === at ? (b === 'lost' ? 'blocked' : 'current') : 'future') as 'done' | 'current' | 'future' | 'blocked'
+  /* when each step was done — from the estimate's own log (the last time, if it went round again) */
+  const lastLog = (re: RegExp) => [...e.log].reverse().find((l) => re.test(l.text))?.date
+  const doneOn: Record<string, string | undefined> = {
+    request: e.log[0]?.date,
+    takeoff: lastLog(/Ready for review/),
+    review: lastLog(/^Office review done/),
+    final: lastLog(/^Final review done/) || sent?.sentOn,
+    sent: sent?.sentOn,
+    approved: e.approvedOn,
+  }
   const path = [
-    { key: 'request', label: 'Request', sub: e.log[0]?.date },
+    { key: 'request', label: 'Request', sub: PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].name : PEOPLE[team.follow].name },
     { key: 'takeoff', label: cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : 'Takeoff', sub: PEOPLE[team.takeoff].name },
     { key: 'review', label: 'Office review', sub: PEOPLE[team.review].name },
     { key: 'final', label: 'Final review', sub: PEOPLE[team.final].name },
     { key: 'sent', label: 'Sent · follow-up', sub: PEOPLE[team.follow].name },
-    { key: 'approved', label: b === 'lost' ? 'Lost' : 'Approved', sub: st === 'approved' ? e.approvedOn : undefined },
-  ].map((p, i) => ({ ...p, state: state(i) }))
+    { key: 'approved', label: b === 'lost' ? 'Lost' : 'Approved', sub: undefined },
+  ].map((p, i) => {
+    const s0 = state(i)
+    return { ...p, state: s0, date: s0 === 'done' ? doneOn[p.key] : s0 === 'current' && e.since && p.key !== 'sent' ? `since ${e.since}` : s0 === 'current' && p.key === 'sent' ? sent?.sentOn : st === 'approved' && p.key === 'approved' ? e.approvedOn : undefined }
+  })
 
   const header = (
     <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:pl-4 max-sm:pr-14">
@@ -348,35 +363,22 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
             <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>Looks good — to {PEOPLE[team.final].short}</Button>
           ) : (
             <>
-              <Button icon={<Mail />} onClick={() => s.open({ t: 'email', what: { kind: 'estimate', id: e.id } })}>What the client gets</Button>
-              <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>Approve and send to the client</Button>
+              <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => s.open({ t: 'estsend', id: e.id })}>Preview and send</Button>
             </>
           )}
         </>
       )}
       {st === 'sent' && (
         <>
-          <Pop open={lostOpen} onOpenChange={setLostOpen} side="top" width={320} trigger={<Button variant="ghost">Not proceeding</Button>}>
-            <div className="text-[0.875rem] font-medium text-ink">Why didn’t it go ahead?</div>
-            <div className="mt-3 flex flex-col gap-1.5">
-              {['Went with another installer', 'Price too high', 'Project cancelled', 'No answer'].map((r) => (
-                <button key={r} onClick={() => { setLostOpen(false); estLost(e.id, r); s.close() }} className="rounded-md px-2.5 py-2 text-left text-[0.875rem] text-ink-2 hover:bg-wash-2">{r}</button>
-              ))}
-            </div>
-          </Pop>
-          <Pop open={fuOpen} onOpenChange={setFuOpen} side="top" width={360} trigger={<Button>Log a follow-up</Button>}>
-            <FollowUpForm onSave={(o) => { setFuOpen(false); estFollowUp(e.id, o) }} />
-          </Pop>
-          <Pop open={reviseOpen} onOpenChange={setReviseOpen} side="top" width={360} trigger={<Button>Client wants changes</Button>}>
-            <div className="text-[0.875rem] font-medium text-ink">What do they want changed?</div>
-            <TextInput className="mt-3" data-autofocus value={reviseWhat} onChange={(x) => setReviseWhat(x.target.value)} placeholder="e.g. Remove the basement bath" />
-            <div className="mt-3 flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setReviseOpen(false)}>Cancel</Button>
-              <Button size="sm" variant="primary" disabled={!reviseWhat.trim()} onClick={() => { setReviseOpen(false); estRevise(e.id, reviseWhat.trim()); setReviseWhat(''); setRevN(null) }}>Start revision {cur.n + 1}</Button>
-            </div>
-          </Pop>
-          <Button className="ml-auto" variant="ghost" icon={<Mail />} onClick={() => s.open({ t: 'email', what: { kind: 'estimate', id: e.id } })}>What they got</Button>
-          <Button variant="primary" icon={<Check />} onClick={() => s.open({ t: 'award', jobId: e.jobId })}>Approved — make it a project</Button>
+          <Button variant="ghost" icon={<FileText />} onClick={() => s.open({ t: 'estsend', id: e.id, sent: true })}>What they got</Button>
+          <span className="ml-auto text-[0.84375rem] text-muted max-md:hidden">{PEOPLE[team.follow].short} follows up {e.followUp || 'Thu'}</span>
+          <Menu align="end" width={300} trigger={<Button variant="primary" iconRight={<ChevronDown />} className="max-md:ml-auto">What did the client say?</Button>}>
+            <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project — scope, deposit, getting ready" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>Approved</MenuItem>
+            <MenuItem icon={<Undo2 className="h-4 w-4 text-warn-600" />} hint="List what they asked for — a new revision" onSelect={() => s.open({ t: 'estchanges', id: e.id })}>They want changes</MenuItem>
+            <MenuItem icon={<CalendarDays className="h-4 w-4 text-brand-600" />} hint="Called, emailed — and when to try again" onSelect={() => s.open({ t: 'estfollow', id: e.id })}>Still deciding · log a follow-up</MenuItem>
+            <MenuSep />
+            <MenuItem icon={<X className="h-4 w-4 text-bad-600" />} hint="Kept for the record, with the reason" onSelect={() => s.open({ t: 'estlost', id: e.id })}>Not going ahead</MenuItem>
+          </Menu>
         </>
       )}
       {st === 'approved' && (
@@ -390,6 +392,16 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   )
 
   const general = notes.filter((n) => !n.area)
+  /* on a revision: what changed from the one before — added, changed (with the old numbers) and removed lines */
+  const prevRev = shown.n > 1 ? e.revs.find((r) => r.n === shown.n - 1) : undefined
+  const diffs = prevRev ? diffRevs(s.items, prevRev, shown) : []
+  const diffOf = (l: EstLine) => diffs.find((d) => d.b?.id === l.id && d.kind !== 'same')
+  const removedIn = (a: string) => diffs.filter((d) => d.kind === 'removed' && d.area === a)
+  const changes = diffs.filter((d) => d.kind !== 'same')
+  const areasShown = [...areas, ...Array.from(new Set(diffs.filter((d) => d.kind === 'removed' && !areas.includes(d.area)).map((d) => d.area)))]
+  /* square feet per room, to check the takeoff at a glance */
+  const sfOf = (a: string) => shown.lines.filter((l) => l.area === a && (itemOf(l)?.unit || '').toUpperCase() === 'SF').reduce((n, l) => n + l.qty, 0)
+  const [actOpen, setActOpen] = [showAct, setShowAct]
   return (
     <Modal level={level} size="xl" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0">
       <div className="grid min-h-full grid-cols-[1fr_18.75rem] max-lg:grid-cols-1">
@@ -415,7 +427,21 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
               <span className="min-w-0 truncate text-[0.8125rem] text-muted">{shown.what}</span>
             </div>
           )}
-          {shown === cur && (st === 'request' || editable) && !shown.lines.some((l) => l.qty > 1) && <AiCard e={e} filled={shown.lines.length > 0} />}
+          {ai && shown === cur && (st === 'request' || editable) && !shown.lines.some((l) => l.qty > 1) && <AiCard e={e} filled={shown.lines.length > 0} />}
+          {prevRev && (
+            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-line bg-wash px-3.5 py-2.5 text-[0.8125rem] text-ink-2">
+              <span className="font-semibold text-ink">{changes.length ? `What changed from revision ${prevRev.n}` : `Same lines as revision ${prevRev.n}`}</span>
+              {changes.length > 0 && (
+                <>
+                  {(['added', 'changed', 'removed'] as const).map((k) => {
+                    const n = changes.filter((d) => d.kind === k).length
+                    return n ? <span key={k} className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.75rem] font-semibold', k === 'added' ? 'bg-ok-50 text-ok-700' : k === 'changed' ? 'bg-warn-50 text-warn-700' : 'bg-bad-50 text-bad-700')}>{n} {k}</span> : null
+                  })}
+                  <span className={cn('ml-auto font-semibold tnum', revTotal(shown) - revTotal(prevRev) < 0 ? 'text-bad-600' : 'text-ok-700')}>{revTotal(shown) - revTotal(prevRev) < 0 ? '−' : '+'}{fmtMoney(Math.abs(revTotal(shown) - revTotal(prevRev)))}</span>
+                </>
+              )}
+            </div>
+          )}
           {!shown.lines.length && !editable && <div className="py-10 text-center text-[0.875rem] text-muted">No lines on this revision.</div>}
           {(general.length > 0 || (canNote && noteAt === '')) && (
             <div className="mb-3 overflow-hidden rounded-xl border border-line">
@@ -430,8 +456,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
                   <button onClick={() => setNoteAt('')} className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-warn-700 hover:text-ink"><MessageSquarePlus className="h-4 w-4" />Add a note</button>
                 </div>
               )}
-              <div className="overflow-hidden rounded-xl border border-line">
-                <div className={cn(LINE_GRID, 'h-10 border-b border-line bg-wash px-3 text-[0.75rem] font-semibold text-muted max-sm:hidden')}>
+              <div className="overflow-clip rounded-xl border border-line">
+                <div className={cn(LINE_GRID, 'h-10 border-b border-line bg-wash px-3 text-[0.75rem] font-semibold text-muted max-sm:hidden', STICKY_HEAD)}>
                   <span>Scope · {shown.lines.length} lines</span>
                   <span className="text-right">Qty</span>
                   <span className="pl-2">Unit</span>
@@ -439,15 +465,18 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
                   <span className="text-right">Amount</span>
                   <span />
                 </div>
-                {areas.map((a) => {
+                {areasShown.map((a) => {
                   const ls = shown.lines.filter((l) => l.area === a)
+                  const gone = removedIn(a)
+                  const sf = sfOf(a)
                   const pinned = notes.filter((n) => n.area === a)
                   return (
                     <section key={a}>
                       <div className="group/area flex items-center justify-between gap-3 border-b border-line-2 bg-[#fafbfc] px-3 py-2">
                         <span className="flex min-w-0 items-center gap-2">
                           {metaOf(a)?.floor && <span className="shrink-0 rounded-md bg-ink px-1.5 py-[0.0625rem] text-[0.6875rem] font-semibold text-white">{metaOf(a)!.floor}</span>}
-                          <span className="truncate text-[0.84375rem] font-semibold text-ink">{a}</span>
+                          <span className={cn('truncate text-[0.84375rem] font-semibold', !ls.length && gone.length ? 'text-bad-700 line-through' : 'text-ink')}>{a}</span>
+                          {sf > 0 && <span className="shrink-0 rounded-md bg-white px-1.5 py-[0.0625rem] text-[0.71875rem] font-semibold tnum text-ink-2 ring-1 ring-line">{sf.toLocaleString('en-US')} SF</span>}
                           {metaOf(a)?.note && <span className="truncate text-[0.78125rem] text-muted">| {metaOf(a)!.note}</span>}
                           {editable && <AreaMenu e={e} area={a} />}
                         </span>
@@ -458,8 +487,9 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
                       </div>
                       {pinned.map((n) => <NoteRow key={n.id} e={e} n={n} />)}
                       {noteAt === a && <AddNote e={e} area={a} onDone={() => setNoteAt(null)} />}
-                      {ls.map((l) => <LineRow key={l.id} e={e} l={l} editable={editable} />)}
-                      {!ls.length && <div className="border-b border-line-2 px-3 py-2 text-[0.8125rem] text-muted">No tile here yet — add a surface</div>}
+                      {ls.map((l) => <LineRow key={l.id} e={e} l={l} editable={editable} diff={diffOf(l)} />)}
+                      {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
+                      {!ls.length && !gone.length && <div className="border-b border-line-2 px-3 py-2 text-[0.8125rem] text-muted">No tile here yet — add a surface</div>}
                       {editable && (
                         <div className="flex flex-wrap items-center gap-1.5 border-b border-line-2 px-3 py-1.5">
                           <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
@@ -485,7 +515,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           </>}
         </div>
         {/* who's on it, the notes, and what happened */}
-        <aside className="px-6 py-5 max-sm:px-4">
+        <aside className="px-6 py-5 max-sm:px-4 lg:sticky lg:top-0 lg:self-start">
           {notes.length > 0 && (
             <div className="mb-4 flex items-center gap-2 rounded-xl bg-wash px-3 py-2.5 text-[0.8125rem] text-ink-2">
               <StickyNote className="h-4 w-4 text-warn-600" />
@@ -509,10 +539,15 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
               </Prop>
             )}
           </dl>
-          <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
-          <div className="-mx-2 mt-1">
-            {[...e.log].reverse().map((l, i) => <ActivityRow key={i} jobId={e.jobId} compact e={{ date: l.date, who: l.who, kind: 'pricing', title: l.text, ref: { t: 'estimate', id: e.id } }} />)}
-          </div>
+          <button onClick={() => setActOpen(!actOpen)} className="mt-5 flex w-full items-center justify-between border-t border-line-2 pt-3 text-[0.8125rem] font-medium text-muted hover:text-ink">
+            <span>Activity <span className="text-faint">· {e.log.length}</span></span>
+            <span className="text-[0.78125rem] font-semibold text-brand-600">{actOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {actOpen && (
+            <div className="-mx-2 mt-1">
+              {[...e.log].reverse().map((l, i) => <ActivityRow key={i} jobId={e.jobId} compact e={{ date: l.date, who: l.who, kind: 'pricing', title: l.text, ref: { t: 'estimate', id: e.id } }} />)}
+            </div>
+          )}
         </aside>
       </div>
     </Modal>
@@ -610,28 +645,25 @@ function AiCard({ e, filled }: { e: Estimate; filled?: boolean }) {
   const file = React.useRef<HTMLInputElement>(null)
   const hasPlans = docs.some((d) => d.name === 'Plans' && d.status === 'in')
   return (
-    <div className="mb-4 overflow-hidden rounded-[0.875rem] border border-vio-100 bg-gradient-to-br from-[#f6f4ff] via-white to-[#f2f6ff] p-4">
-      <div className="flex items-start gap-4 max-sm:flex-col">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-vio-600 shadow-xs ring-1 ring-vio-100"><Sparkles className="h-5 w-5" /></span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[0.9375rem] font-semibold text-ink">{filled ? 'Fill in the square feet from the plans' : 'Draft the takeoff from the plans'}</div>
-          <div className="mt-0.5 text-[0.8125rem] text-muted">{filled ? 'The areas are in — the plans give the rooms, surfaces, square feet and tile. Anything it had to guess is flagged.' : 'Rooms, surfaces, square feet and tile — anything it had to guess is flagged.'}</div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {docs.map((d) => (
-              <span key={d.name} className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.78125rem] font-medium', d.status === 'in' ? 'border-line bg-white text-ink-2' : 'border-warn-100 bg-warn-50 text-warn-700')}>
-                {d.status === 'in' ? <Check className="h-3.5 w-3.5 text-ok-600" /> : <X className="h-3.5 w-3.5" />}{d.name}
-              </span>
-            ))}
-          </div>
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-vio-100 bg-gradient-to-r from-[#f6f4ff] to-white px-3.5 py-2.5">
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-vio-600 ring-1 ring-vio-100"><Sparkles className="h-4 w-4" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[0.875rem] font-semibold text-ink">{filled ? 'Fill in the square feet from the plans' : 'Draft the takeoff from the plans'}</div>
+        <div className="mt-0.5 flex flex-wrap gap-1">
+          {docs.map((d) => (
+            <span key={d.name} className={cn('inline-flex items-center gap-1 rounded-full px-2 py-px text-[0.71875rem] font-medium', d.status === 'in' ? 'bg-white text-ink-2 ring-1 ring-line' : 'bg-warn-50 text-warn-700 ring-1 ring-warn-100')}>
+              {d.status === 'in' ? <Check className="h-3 w-3 text-ok-600" /> : <X className="h-3 w-3" />}{d.name}
+            </span>
+          ))}
         </div>
-        <span className="flex shrink-0 flex-col items-end gap-2 max-sm:items-start">
-          {hasPlans && <Button variant="primary" icon={<Sparkles />} onClick={() => s.open({ t: 'aiplans', estId: e.id })}>Read the plans</Button>}
-          <button onClick={() => file.current?.click()} className={cn(hasPlans ? 'text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700' : 'inline-flex h-10 items-center gap-2 rounded-xl bg-brand-600 px-4 text-[0.875rem] font-semibold text-white hover:bg-brand-700')}>
-            {hasPlans ? 'Upload newer plans' : <><Upload className="h-4 w-4" />Upload the plans</>}
-          </button>
-          <input ref={file} type="file" accept=".pdf,image/*" className="hidden" onChange={(x) => { const f = x.target.files?.[0]; if (!f) return; plansUploaded(e.jobId, f.name); setTimeout(() => s.open({ t: 'aiplans', estId: e.id }), 80); x.target.value = '' }} />
-        </span>
       </div>
+      <span className="flex shrink-0 items-center gap-3">
+        <button onClick={() => file.current?.click()} className={cn(hasPlans ? 'text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700' : 'inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-[0.8125rem] font-semibold text-white hover:bg-brand-700')}>
+          {hasPlans ? 'Newer plans' : <><Upload className="h-4 w-4" />Upload the plans</>}
+        </button>
+        {hasPlans && <Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => s.open({ t: 'aiplans', estId: e.id })}>Read the plans</Button>}
+        <input ref={file} type="file" accept=".pdf,image/*" className="hidden" onChange={(x) => { const f = x.target.files?.[0]; if (!f) return; plansUploaded(e.jobId, f.name); setTimeout(() => s.open({ t: 'aiplans', estId: e.id }), 80); x.target.value = '' }} />
+      </span>
     </div>
   )
 }
@@ -742,9 +774,29 @@ function Prop({ label, children }: { label: string; children: React.ReactNode })
 }
 
 const LINE_GRID = 'grid grid-cols-[minmax(0,1fr)_5.75rem_3.5rem_6rem_6.5rem_2.25rem] items-center gap-0'
-function LineRow({ e, l, editable }: { e: Estimate; l: EstLine; editable: boolean }) {
+/** a line that was on the revision before and isn't on this one */
+function RemovedRow({ d }: { d: LineDiff }) {
+  const a = d.a!
+  return (
+    <div className="border-b border-line-2 bg-bad-50/40 px-3 py-1.5">
+      <div className={cn(LINE_GRID, 'max-sm:flex max-sm:items-center max-sm:justify-between')}>
+        <div className="min-w-0 pr-3">
+          <div className="flex items-center gap-2"><span className="truncate text-[0.875rem] text-bad-700 line-through">{d.name}</span><span className="shrink-0 rounded-full bg-bad-50 px-1.5 text-[0.6875rem] font-semibold text-bad-700 ring-1 ring-bad-100">Removed</span></div>
+        </div>
+        <span className="text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{a.qty.toLocaleString('en-US')}</span>
+        <span className="pl-2 text-[0.8125rem] text-muted max-sm:hidden">{d.unit}</span>
+        <span className="text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{fmtMoney(a.rate, { cents: a.rate % 1 !== 0 })}</span>
+        <span className="text-right text-[0.875rem] tnum text-bad-600 line-through">{fmtMoney(a.qty * a.rate)}</span>
+        <span className="max-sm:hidden" />
+      </div>
+    </div>
+  )
+}
+
+function LineRow({ e, l, editable, diff }: { e: Estimate; l: EstLine; editable: boolean; diff?: LineDiff }) {
   const s = useStore()
   const it = s.items.find((i) => i.id === l.itemId)
+  const was = diff?.kind === 'changed' ? diff.a : undefined
   const set = (p: Partial<EstLine>) => estEditLines(e.id, (L) => L.map((x) => (x.id === l.id ? { ...x, ...p } : x)))
   const remove = editable && (
     <button aria-label="Remove line" onClick={() => estEditLines(e.id, (L) => L.filter((x) => x.id !== l.id))} className="inline-flex h-7 w-7 items-center justify-center justify-self-end rounded-md text-faint transition hover:bg-bad-50 hover:text-bad-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">
@@ -753,7 +805,12 @@ function LineRow({ e, l, editable }: { e: Estimate; l: EstLine; editable: boolea
   )
   const name = (
     <div className="min-w-0 pr-3">
-      <div className="truncate text-[0.875rem] text-ink">{l.desc || it?.name || l.itemId}</div>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="truncate text-[0.875rem] text-ink">{l.desc || it?.name || l.itemId}</span>
+        {diff?.kind === 'added' && <span className="shrink-0 rounded-full bg-ok-50 px-1.5 text-[0.6875rem] font-semibold text-ok-700 ring-1 ring-ok-100">New</span>}
+        {was && <span className="shrink-0 rounded-full bg-warn-50 px-1.5 text-[0.6875rem] font-semibold text-warn-700 ring-1 ring-warn-100">Changed</span>}
+      </div>
+      {was && <div className="truncate text-[0.75rem] font-medium text-warn-700">was {[was.qty !== l.qty ? `${was.qty.toLocaleString('en-US')} ${it?.unit || ''}`.trim() : '', was.rate !== l.rate ? `${fmtMoney(was.rate, { cents: was.rate % 1 !== 0 })}${was.qty !== 1 || was.qty !== l.qty ? (it?.unit && it.unit !== 'LS' ? `/${it.unit}` : '') : ''}` : '', was.qty !== 1 ? `= ${fmtMoney(was.qty * was.rate)}` : ''].filter(Boolean).join(' · ')}</div>}
       {l.surface ? (
         <div className="truncate text-[0.75rem] text-muted">{l.surface}{tileOf(e.jobId, l.tile) ? ` · ${tileLine(tileOf(e.jobId, l.tile))}` : ''}</div>
       ) : it && it.type !== 'other' ? (
@@ -762,7 +819,7 @@ function LineRow({ e, l, editable }: { e: Estimate; l: EstLine; editable: boolea
     </div>
   )
   return (
-    <div className="group border-b border-line-2 px-3 py-2 last:border-b-0">
+    <div className={cn('group border-b border-line-2 px-3 py-1.5 last:border-b-0', diff?.kind === 'added' && 'bg-ok-50/40', was && 'bg-warn-50/40')}>
       {/* laptops: one row with columns */}
       <div className={cn(LINE_GRID, 'max-sm:hidden')}>
         {name}
@@ -848,5 +905,136 @@ function FollowUpForm({ onSave }: { onSave: (o: { how: string; outcome: string; 
       </Field>
       <div className="flex justify-end"><Button size="sm" variant="primary" onClick={() => onSave({ how, outcome, next })}>Save follow-up</Button></div>
     </div>
+  )
+}
+
+/* ---------------- what goes to the client: the estimate exactly as they get it ---------------- */
+export function EstSendModal({ id, sent, level }: { id: string; sent?: boolean; level: number }) {
+  const s = useStore()
+  const e = s.estimates.find((x) => x.id === id)
+  const ref = React.useRef<HTMLDivElement>(null)
+  if (!e) return null
+  const j = s.jobs[e.jobId]
+  const rev = sent ? [...e.revs].reverse().find((r) => r.sentOn) || curRev(e) : curRev(e)
+  const c = j ? s.clients[j.clientId] : undefined
+  const to = c?.contacts?.find((x) => x.email)?.email || c?.email || ''
+  const blocked = openNotes(e).length > 0
+  return (
+    <Modal
+      level={level}
+      size="xl"
+      tall
+      onClose={s.close}
+      title={sent ? `What ${j?.client || 'the client'} got` : `Send ${e.id} to ${j?.client || 'the client'}`}
+      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : 'This is exactly what they get — check it, then send it'}
+      bodyClass="p-0"
+      footer={
+        <>
+          <Button variant="ghost" icon={<Printer />} onClick={() => printNode(ref.current)}>Download PDF</Button>
+          {sent ? (
+            <Button className="ml-auto" onClick={s.close}>Close</Button>
+          ) : (
+            <>
+              <Button className="ml-auto" variant="ghost" onClick={s.close}>Not yet</Button>
+              <Tip label={blocked ? 'Check off every note first' : 'It goes out, and the follow-up starts'}>
+                <span><Button variant="primary" icon={<Send />} disabled={blocked} onClick={() => { s.close(); estHandOff(e.id) }}>Approve and send</Button></span>
+              </Tip>
+            </>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-line bg-white px-6 py-3 text-[0.84375rem] max-sm:px-4">
+        <span><span className="text-muted">To </span><b className="font-semibold text-ink">{j?.client}</b>{to ? <span className="text-muted"> · {to}</span> : ''}</span>
+        <span><span className="text-muted">Subject </span><span className="text-ink">Estimate {e.id} · {j?.name}{rev.n > 1 ? ` · revision ${rev.n}` : ''}</span></span>
+        <span className="inline-flex items-center gap-1.5 text-ink-2"><FileText className="h-4 w-4 text-muted" />{e.id}{rev.n > 1 ? `-R${rev.n}` : ''}.pdf</span>
+      </div>
+      <div className="bg-wash px-6 py-5 max-sm:px-2">
+        <EstimatePaper e={e} rev={rev} innerRef={ref} />
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- the client wants changes — as many as they asked for ---------------- */
+export function EstChangesModal({ id, level }: { id: string; level: number }) {
+  const s = useStore()
+  const e = s.estimates.find((x) => x.id === id)
+  const [rows, setRows] = React.useState<{ text: string; area: string }[]>([{ text: '', area: '' }])
+  const [asked, setAsked] = React.useState('Email')
+  if (!e) return null
+  const cur = curRev(e)
+  const areas = Array.from(new Set([...(cur.areas || []).map((a) => a.name), ...cur.lines.map((l) => l.area)]))
+  const list = rows.filter((r) => r.text.trim())
+  const set = (i: number, p: Partial<{ text: string; area: string }>) => setRows((xs) => xs.map((x, k) => (k === i ? { ...x, ...p } : x)))
+  const more = (after: number) => { setRows((xs) => [...xs.slice(0, after + 1), { text: '', area: '' }, ...xs.slice(after + 1)]); setTimeout(() => document.getElementById(`chg-${after + 1}`)?.focus(), 30) }
+  const go = () => {
+    estRevise(e.id, list.length === 1 ? list[0].text.trim() : `${list.length} changes`, { changes: list.map((r) => ({ text: r.text.trim(), area: r.area || undefined })), asked: `Asked by ${asked.toLowerCase()}` })
+    s.close()
+  }
+  return (
+    <Modal
+      level={level}
+      size="md"
+      onClose={s.close}
+      title="What do they want changed?"
+      sub={`One line for each thing they asked — revision ${cur.n + 1} starts with all of them, and each one is checked off as it’s done`}
+      footer={
+        <>
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <Button variant="primary" disabled={!list.length} onClick={go}>Start revision {cur.n + 1}{list.length > 1 ? ` · ${list.length} changes` : ''}</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-2">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="w-5 shrink-0 text-right text-[0.8125rem] font-semibold tnum text-faint">{i + 1}</span>
+            <TextInput
+              id={`chg-${i}`}
+              data-autofocus={i === 0 || undefined}
+              value={r.text}
+              onChange={(x) => set(i, { text: x.target.value })}
+              onKeyDown={(x) => { if (x.key === 'Enter') { x.preventDefault(); if (r.text.trim()) more(i) } }}
+              placeholder={i === 0 ? 'e.g. Take the basement bath out' : 'Another change'}
+              aria-label={`Change ${i + 1}`}
+              className="h-10 min-w-0 flex-1"
+            />
+            <Menu align="end" width={240} trigger={<button type="button" className="inline-flex h-10 max-w-[10rem] shrink-0 items-center gap-1 truncate rounded-lg border border-line px-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash">{r.area || 'Whole estimate'}<ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+              <MenuLabel>Which room</MenuLabel>
+              <MenuItem checked={!r.area} onSelect={() => set(i, { area: '' })}>Whole estimate</MenuItem>
+              {areas.map((a) => <MenuItem key={a} checked={r.area === a} onSelect={() => set(i, { area: a })}>{a}</MenuItem>)}
+            </Menu>
+            {rows.length > 1 && <button type="button" aria-label={`Remove change ${i + 1}`} onClick={() => setRows((xs) => xs.filter((_, k) => k !== i))} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><X className="h-4 w-4" /></button>}
+          </div>
+        ))}
+        <button type="button" onClick={() => more(rows.length - 1)} className="ml-7 mt-1 self-start text-[0.8125rem] font-semibold text-brand-600 hover:underline">+ Add another change</button>
+      </div>
+      <Field label="How did they ask?" className="mt-5">
+        <div className="flex flex-wrap gap-1.5">{['Email', 'Phone', 'In person', 'Text'].map((x) => <Chip key={x} on={asked === x} onClick={() => setAsked(x)} className="h-8 px-2.5 text-[0.84375rem]">{x}</Chip>)}</div>
+      </Field>
+    </Modal>
+  )
+}
+
+export function EstFollowModal({ id, level }: { id: string; level: number }) {
+  const s = useStore()
+  return (
+    <Modal level={level} size="sm" onClose={s.close} title="Log a follow-up" sub="What happened, and when to try again">
+      <FollowUpForm onSave={(o) => { estFollowUp(id, o); s.close() }} />
+    </Modal>
+  )
+}
+
+export function EstLostModal({ id, level }: { id: string; level: number }) {
+  const s = useStore()
+  return (
+    <Modal level={level} size="sm" onClose={s.close} title="Not going ahead" sub="Why? It’s kept for the record.">
+      <div className="flex flex-col gap-1.5">
+        {['Went with another installer', 'Price too high', 'Project cancelled', 'No answer'].map((r) => (
+          <button key={r} onClick={() => { estLost(id, r); s.closeAll() }} className="rounded-lg border border-line px-3 py-2.5 text-left text-[0.875rem] font-medium text-ink-2 transition hover:border-bad-200 hover:bg-bad-50/50 hover:text-bad-700">{r}</button>
+        ))}
+      </div>
+    </Modal>
   )
 }

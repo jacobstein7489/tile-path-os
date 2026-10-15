@@ -53,35 +53,38 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces' }: { have
   const all = companySurfaces(s)
   const own = have.filter((k) => !all.some((x) => x.key === k))
   const add = () => { if (!t.trim()) return; onAdd(t.trim()); setT('') }
+  /* the checklist opens right under the room — one scroll for the whole window, nothing floating on top */
   return (
-    <Pop
-      open={open}
-      onOpenChange={setOpen}
-      width={380}
-      trigger={<button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} className="inline-flex h-7 items-center gap-1 rounded-full border border-dashed border-[#c3c9d2] px-2.5 text-[0.78125rem] font-semibold text-muted transition hover:border-brand-300 hover:text-brand-700"><Plus className="h-3.5 w-3.5" />{label}</button>}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[0.8125rem] font-semibold text-ink">Tick every surface it has</span>
-        <span className="text-[0.75rem] text-muted">{have.length} picked</span>
-      </div>
-      <div role="group" aria-label="Surfaces" className="scroll-soft mt-2 grid max-h-[min(20rem,46vh)] grid-cols-2 gap-x-1 overflow-y-auto">
-        {[...all.map((x) => ({ key: x.key, label: x.label })), ...own.map((k) => ({ key: k, label: surfaceOf(s, k).label }))].map((x) => {
-          const on = have.includes(x.key)
-          const locked = on && !onRemove
-          return (
-            <button key={x.key} type="button" role="checkbox" aria-checked={on} disabled={locked} onClick={() => (on ? onRemove?.(x.key) : onAdd(x.key))} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-[0.4375rem] text-left text-[0.8125rem] text-ink-2 transition hover:bg-wash-2 disabled:cursor-default disabled:hover:bg-transparent">
-              <span className={cn('inline-flex h-[1.0625rem] w-[1.0625rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white', locked && 'opacity-60')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
-              <span className={cn('truncate', on && 'font-semibold text-ink')}>{x.label}</span>
-            </button>
-          )
-        })}
-      </div>
-      <form className="mt-2.5 flex gap-2 border-t border-line-2 pt-2.5" onSubmit={(e) => { e.preventDefault(); add() }}>
-        <TextInput value={t} onChange={(e) => setT(e.target.value)} placeholder="Your own — e.g. Fireplace surround" aria-label="Your own surface" className="h-8 text-[0.8125rem]" />
-        <Button size="sm" type="submit" disabled={!t.trim()}>Add</Button>
-      </form>
-      <div className="mt-2.5 flex justify-end"><Button size="sm" variant="primary" onClick={() => setOpen(false)}>Done</Button></div>
-    </Pop>
+    <>
+      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c3c9d2] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
+      {open && (
+        <div className="order-last mt-1 basis-full rounded-xl border border-brand-100 bg-white p-3 shadow-xs">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[0.8125rem] font-semibold text-ink">Tick every surface it has</span>
+            <span className="text-[0.75rem] text-muted">{have.length} picked</span>
+          </div>
+          <div role="group" aria-label="Surfaces" className="mt-2 grid grid-cols-4 gap-x-1 max-lg:grid-cols-3 max-sm:grid-cols-2">
+            {[...all.map((x) => ({ key: x.key, label: x.label })), ...own.map((k) => ({ key: k, label: surfaceOf(s, k).label }))].map((x) => {
+              const on = have.includes(x.key)
+              const locked = on && !onRemove
+              return (
+                <button key={x.key} type="button" role="checkbox" aria-checked={on} disabled={locked} onClick={() => (on ? onRemove?.(x.key) : onAdd(x.key))} className="flex min-w-0 items-center gap-2 rounded-md px-2 py-[0.4375rem] text-left text-[0.8125rem] text-ink-2 transition hover:bg-wash-2 disabled:cursor-default disabled:hover:bg-transparent">
+                  <span className={cn('inline-flex h-[1.0625rem] w-[1.0625rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white', locked && 'opacity-60')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
+                  <span className={cn('truncate', on && 'font-semibold text-ink')}>{x.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2.5 flex items-center gap-2 border-t border-line-2 pt-2.5">
+            <form className="flex min-w-0 flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); add() }}>
+              <TextInput value={t} onChange={(e) => setT(e.target.value)} placeholder="Your own — e.g. Fireplace surround" aria-label="Your own surface" className="h-8 max-w-[18rem] text-[0.8125rem]" />
+              <Button size="sm" type="submit" disabled={!t.trim()}>Add</Button>
+            </form>
+            <Button size="sm" variant="primary" onClick={() => setOpen(false)}>Done</Button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

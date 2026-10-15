@@ -8,7 +8,7 @@ import { DEPOSIT_WAY, type DepositWay } from './progressbill'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Page, Card } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
-import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, type Role, type PersonKey } from '@/tileos/data/model'
+import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, LOGIN_TYPES, type Role, type PersonKey } from '@/tileos/data/model'
 import { MAT_RULES0, MAT_RULE_ROWS } from '@/tileos/data/takeoff'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { addMember, updateMember, setAccess, resetAccess, removeMember } from './team'
@@ -23,7 +23,7 @@ import { REAL, type WaitingPerson } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'testdata'
-const LOGINS = ROLES.filter((r) => r.key !== 'crew')
+const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
@@ -457,7 +457,7 @@ function RulesTab() {
       <CardHeader icon={<IconCircle tone="info" size={34}><ShieldCheck className="h-4 w-4" /></IconCircle>} title="Company rules" sub="Change a rule once — every project follows it." />
       <div className="flex flex-col divide-y divide-line-2 border-t border-line-2">
         <Rule title="Who orders our materials" sub="Gets the calculated order when setup is done, sends it, and takes the deliveries.">
-          <Segmented value={(r.matBy || 'yakov') as string} onChange={(v) => set((x) => (x.matBy = v as PersonKey))} items={[{ key: 'yakov', label: 'Site manager' }, { key: 'materials', label: 'Materials' }, { key: 'office', label: 'Back office' }]} />
+          <Segmented value={r.matBy === 'materials' ? 'office' : ((r.matBy || 'yakov') as string)} onChange={(v) => set((x) => (x.matBy = v as PersonKey))} items={[{ key: 'yakov', label: 'Site manager' }, { key: 'office', label: 'Office' }]} />
         </Rule>
         <Rule title="Deposit not received before the start" sub="What happens when a crew is booked and the deposit isn’t in.">
           <Segmented value={r.depositRule} onChange={(v) => set((x) => (x.depositRule = v))} items={[{ key: 'warn', label: 'Warn + remind' }, { key: 'block', label: 'Block the start' }]} />

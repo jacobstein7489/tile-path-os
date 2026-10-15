@@ -569,9 +569,9 @@ export function Status({ tone = 'neutral', children, className, plain }: { tone?
 }
 
 /* ---------------- where something stands: step circles joined by a line ---------------- */
-export function Path({ steps, className }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; onClick?: () => void }[]; className?: string }) {
+export function Path({ steps, className }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; onClick?: () => void }[]; className?: string }) {
   return (
-    <ol className={cn('no-scrollbar flex items-start overflow-x-auto pb-1', className)}>
+    <ol className={cn('no-scrollbar flex items-start overflow-x-auto px-1 pb-1 pt-2', className)}>
       {steps.map((st, i) => {
         const prevDone = i > 0 && (steps[i - 1].state === 'done')
         const n = i + 1
@@ -599,6 +599,7 @@ export function Path({ steps, className }: { steps: { key: string; label: string
               {st.sub && (
                 <span className={cn('mt-1 max-w-[7.5rem] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
               )}
+              {st.date && <span className={cn('mt-0.5 text-[0.71875rem] font-medium tnum', st.state === 'done' ? 'text-ok-700' : 'text-muted')}>{st.date}</span>}
             </button>
           </li>
         )

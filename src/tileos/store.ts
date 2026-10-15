@@ -6,7 +6,7 @@ import { MAT_RULES0, type MatRules } from '@/tileos/data/takeoff'
 import { immer } from 'zustand/middleware/immer'
 import { showPop, type FlowStep } from '@/tileos/lib/pop'
 import type { Job, Role, Stage, PersonKey, Customer } from '@/tileos/data/model'
-import { roleDef, PEOPLE, fmtMoney, TEAM0, ROLES, ACCESS, applyTeam, type Member } from '@/tileos/data/model'
+import { roleDef, PEOPLE, fmtMoney, TEAM0, ROLES, ACCESS, applyTeam, moveLogins, type Member } from '@/tileos/data/model'
 import { JOBS0, PRICING0, ROOMS, LOST0, CUSTOMERS, CUSTOMERS0, TILES, JOB_TILES, GROUTS, historyFor, roomPct, jobPct, hasSF, type Pricing, type Room, type HistEntry, type Tile, type Grout } from '@/tileos/data/jobs'
 import { DIARY0, IPOS0, type DiaryEntry, type IPO } from '@/tileos/data/field'
 import { PREP0, NOTES0, type Prep, type Note } from '@/tileos/data/upcoming'
@@ -19,7 +19,7 @@ import {
   type PunchItem, type Task, type MoneyItem, type PO, type OurMat, type TileCheck, type Booking, type ReadyItem, type Notice, type LogLine,
 } from '@/tileos/data/work'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
-import { NOW as NOW_T, shiftDeep, shiftText } from '@/tileos/lib/today'
+import { NOW as NOW_T, shiftDeep, shiftText, isoFromLabel, md } from '@/tileos/lib/today'
 import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
 import type { AreaPreset, SurfaceDef } from '@/tileos/data/areas'
@@ -242,6 +242,22 @@ export function ensureTiles(d: Pick<Data, 'tiles' | 'rooms' | 'checks' | 'shorta
   ;(d.shortages || []).forEach((x) => need(x.jobId, x.tag))
   ;(d.estimates || []).forEach((e) => e.revs.forEach((r) => r.lines.forEach((l) => need(e.jobId, l.tile))))
 }
+const MD_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}$/
+/** "Tomorrow", "Thu", "Next Mon" → "Oct 15": once it's saved, a date stays that date (tomorrow becomes today, then late) */
+export function pinDate(label?: string) {
+  if (!label || MD_RE.test(label) || /this week/i.test(label)) return label
+  const iso = isoFromLabel(label)
+  return iso ? md(iso) : label
+}
+function pinDates(s: Data) {
+  s.tasks.forEach((t) => {
+    if (t.state === 'done') return
+    const a = pinDate(t.due); if (a !== t.due) t.due = a
+    const b = pinDate(t.followUp); if (b !== t.followUp) t.followUp = b
+    const c = pinDate(t.laterUntil); if (c !== t.laterUntil) t.laterUntil = c
+  })
+  Object.values(s.jobs).forEach((j) => { if (j.next?.due) { const d = pinDate(j.next.due); if (d !== j.next.due) j.next.due = d } })
+}
 export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'stepRecs', 'jobSteps', 'inactive']
 /** a clean start for testing: no projects, estimates, tasks or clients — the team, logins, items and settings stay */
 export function freshData(keep: Data): Data {
@@ -340,6 +356,7 @@ export const useStore = create<Store>()(
       set((s) => {
         DATA_KEYS.forEach((k) => ((s as any)[k] = (d as any)[k] ?? (k === 'tiles' ? {} : (initialData() as any)[k])))
         ensureTiles(s)
+        moveLogins(s.team)
         s.past = []
         s.modals = []
       })
@@ -349,6 +366,7 @@ export const useStore = create<Store>()(
       set((s) => {
         fn(s as Store)
         ensureTiles(s)
+        pinDates(s)
         s.past = [...s.past.slice(-24), snap] as any
       })
       /* hand-offs close their window; the pop-up in the middle says where it went */
