@@ -40,7 +40,7 @@ const upcomingFor = (events: CalEvent[], jobId: string) =>
 export function addEvent(e: Omit<CalEvent, 'id'>) {
   const id = 'ev' + Date.now().toString(36)
   S().commit((s) => {
-    s.events.push({ ...e, id })
+    s.events.push({ ...e, id, by: e.by || meOf(s.role) })
     if (e.jobId) {
       /* the project's next meeting on the Game plan follows the calendar */
       const next = upcomingFor(s.events, e.jobId)[0]
@@ -57,12 +57,32 @@ export function addEvent(e: Omit<CalEvent, 'id'>) {
 }
 
 export function removeEvent(id: string) {
+  const e0 = S().events.find((x) => x.id === id)
   S().commit((s) => {
     const e = s.events.find((x) => x.id === id)
     s.events = s.events.filter((x) => x.id !== id)
     if (e?.jobId) {
       const next = upcomingFor(s.events, e.jobId)[0]
       s.prep[e.jobId] = { ...(s.prep[e.jobId] || {}), meeting: next ? { text: next.title, day: dayLabel(next.date), time: timeLabel(next.start) } : { text: 'TBD' } }
+      addHist(s, e.jobId, { who: meOf(s.role), kind: 'schedule', title: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} canceled · ${e.title}`, detail: `Was ${dayLabel(e.date)} ${timeLabel(e.start)}` })
     }
-  }, 'Taken off the agenda')
+  }, `${e0?.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} canceled`, { sub: e0 && /design/i.test(e0.title) ? 'It’s off everyone’s calendar — the design meeting step is back to “set the meeting”.' : 'It’s off everyone’s calendar.' })
+}
+/** a new day or time (and who's in it) — everyone in it is told again */
+export function moveEvent(id: string, p: { date: string; start: number; people?: PersonKey[]; with?: string }) {
+  S().commit((s) => {
+    const e = s.events.find((x) => x.id === id)
+    if (!e) return
+    const was = `${dayLabel(e.date)} ${timeLabel(e.start)}`
+    e.date = p.date
+    e.start = p.start
+    if (p.people?.length) e.people = p.people
+    if (p.with !== undefined) e.with = p.with
+    e.by = meOf(s.role)
+    if (e.jobId) {
+      const next = upcomingFor(s.events, e.jobId)[0]
+      if (next) s.prep[e.jobId] = { ...(s.prep[e.jobId] || {}), meeting: { text: next.title, day: dayLabel(next.date), time: timeLabel(next.start) } }
+      addHist(s, e.jobId, { who: meOf(s.role), kind: 'schedule', title: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} moved · ${dayLabel(p.date)} ${timeLabel(p.start)}`, detail: `Was ${was}` })
+    }
+  }, `Moved to ${dayLabel(p.date)} ${timeLabel(p.start)}`, { sub: 'Everyone in it sees the new time.' })
 }

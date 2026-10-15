@@ -17,18 +17,19 @@ export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
   return Array.from(new Set(keys))
 }
 
+/** where a step stands, the same mark everywhere: ✓ done · ● to do · ◷ waiting · ! problem · ○ not yet · – not needed */
 export function StepIcon({ state, size = 26 }: { state: StepState; size?: number }) {
   const box = { width: size, height: size }
-  const ic = size >= 26 ? 'h-3.5 w-3.5' : 'h-3 w-3'
+  const ic = size >= 26 ? 'h-3.5 w-3.5' : size > 16 ? 'h-3 w-3' : 'h-2.5 w-2.5'
   if (state === 'done') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className={ic} strokeWidth={3.2} /></span>
-  if (state === 'bad') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-bad-500 text-white"><X className={ic} strokeWidth={3.2} /></span>
+  if (state === 'bad') return <span style={{ ...box, fontSize: Math.round(size * 0.58) }} className="inline-flex shrink-0 items-center justify-center rounded-full bg-bad-500 font-black leading-none text-white">!</span>
   if (state === 'wait') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-warn-50 text-warn-700 ring-[0.09375rem] ring-inset ring-warn-300"><Clock3 className={ic} strokeWidth={2.4} /></span>
-  if (state === 'now') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-inset ring-brand-600"><span className="h-2 w-2 rounded-full bg-brand-600" /></span>
+  if (state === 'now') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-inset ring-brand-600"><span className={cn('rounded-full bg-brand-600', size > 16 ? 'h-2 w-2' : 'h-1.5 w-1.5')} /></span>
   if (state === 'na') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><Minus className={ic} strokeWidth={2.4} /></span>
   return <span style={box} className="inline-flex shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#c6ccd4] bg-white" />
 }
 
-const STATE_WORD: Record<StepState, string> = { done: 'Done', now: 'Their turn', wait: 'Waiting', later: 'Later', bad: 'Problem', na: 'Not needed' }
+const STATE_WORD: Record<StepState, string> = { done: 'Done', now: 'To do', wait: 'Waiting', later: 'Not yet', bad: 'Problem', na: 'Not needed' }
 
 /** the step's one button: it opens the step's own window, where it gets done */
 export function StepButton({ job, v, size = 'sm' }: { job: Job; v: StepView; size?: 'sm' | 'xs' }) {
@@ -227,7 +228,7 @@ export function OpenSteps({ steps, max = 3 }: { steps: StepView[]; max?: number 
 
 /** a short line for what we're waiting on outside the company (deliveries, the GC, invoices) */
 export function waitingOutside(steps: StepView[]): string[] {
-  return steps.filter((x) => x.state === 'wait').map((x) => (x.key === 'delivered' && x.due ? `Tile ${labelFromIso(x.due).toLowerCase() === 'today' ? 'today' : labelFromIso(x.due)}` : x.key === 'deposit' ? 'Deposit payment' : x.key === 'installer' ? 'Installer to accept' : x.key === 'materials' ? 'Materials delivery' : x.short))
+  return steps.filter((x) => x.state === 'wait').map((x) => (x.key === 'delivered' && x.due ? `Tile ${labelFromIso(x.due).toLowerCase() === 'today' ? 'today' : labelFromIso(x.due)}` : x.key === 'deposit' ? 'Deposit payment' : x.key === 'confirmed' ? 'Installer to say yes' : x.key === 'matin' ? 'Materials delivery' : x.key === 'qty' ? 'New paperwork' : x.short))
 }
 
 export function useMe() { return meOf(useStore((s) => s.role)) }

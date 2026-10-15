@@ -261,7 +261,7 @@ function ChecklistTab() {
     <EstimateDefaults />
     <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
       <Card pad={false} className="overflow-hidden">
-        <CardHeader icon={<IconCircle tone="info" size={34}><ListChecks className="h-4 w-4" /></IconCircle>} title="Getting ready — every project" sub="The steps between the client’s yes and the crew’s first day, in order. Each one has an owner; when the steps before it are done, it lands on their Today." />
+        <CardHeader icon={<IconCircle tone="info" size={34}><ListChecks className="h-4 w-4" /></IconCircle>} title="Getting ready — every project" sub="The steps between the client’s yes and the crew’s first day, in order. Each one has an owner; when the steps before it are done, it lands on their Today." action={<Button size="sm" onClick={() => s.open({ t: 'whowhat' })}>Who does what</Button>} />
         <div className="border-t border-line-2">
           {steps.map((d, i) => (
             <div key={d.key} className="grid grid-cols-[1.75rem_minmax(0,1fr)_12.5rem_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-0">

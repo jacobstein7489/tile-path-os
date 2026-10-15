@@ -214,7 +214,7 @@ export const TASKS0: Task[] = [
     action: { label: 'Receive', kind: 'receive-jolly' }, log: [L('Sep 25', 'materials', 'Received 4 of 6'), L('Sep 28', 'materials', 'Metal Works: ships tomorrow')],
   },
   {
-    id: 't-po1045', jobId: '114', step: '114:materials',  title: 'PO-1045 · waiting for Infinity to confirm', type: 'Materials', owner: 'materials', for: ['materials'],
+    id: 't-po1045', jobId: '114', step: '114:matin',  title: 'PO-1045 · waiting for Infinity to confirm', type: 'Materials', owner: 'materials', for: ['materials'],
     state: 'waiting', waitingOn: 'Infinity', followUp: 'Tomorrow', tone: 'warn', where: 'Setting materials',
     detail: 'Membrane, LFT thinset and grout for 114 Park Place. Sent Sep 26.',
     action: { label: 'Mark confirmed', kind: 'po-confirm' }, log: [L('Sep 26', 'materials', 'PO-1045 sent to Infinity')],

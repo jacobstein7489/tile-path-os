@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn, TONE } from '@/tileos/lib/utils'
+import { Mic, canListen, addSaid } from './mic'
 import type { Tone, PersonKey } from '@/tileos/data/model'
 import { PEOPLE } from '@/tileos/data/model'
 import { Check, ChevronRight, Search, X } from 'lucide-react'
@@ -315,11 +316,23 @@ export function Field({ label, children, hint, className }: { label: string; chi
   )
 }
 
-export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn('h-9 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', props.className)} />
+/** what was said into a box, handed to its onChange as if it were typed */
+const sayInto = (onChange: ((e: any) => void) | undefined, was: unknown, t: string) => {
+  const next = addSaid(typeof was === 'string' ? was : was == null ? '' : String(was), t)
+  onChange?.({ target: { value: next }, currentTarget: { value: next } })
 }
-export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={cn('min-h-[5.25rem] w-full resize-none rounded-lg border border-line bg-white px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', props.className)} />
+/** a one-line box; `mic` puts a mic in it to talk instead of typing */
+export function TextInput({ mic, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { mic?: boolean }) {
+  const box = <input {...props} className={cn('h-9 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', mic && canListen() && 'pr-11', props.className)} />
+  if (!mic || !canListen() || props.disabled || props.readOnly) return box
+  return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute right-1 top-1/2 -translate-y-1/2 [&_button]:h-7 [&_button]:w-7 [&_button]:border-transparent" /></span>
+}
+/** a note box — with a mic in the corner to talk instead of typing (mic={false} for none) */
+export function TextArea({ mic = true, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { mic?: boolean }) {
+  const on = mic && canListen() && !props.disabled && !props.readOnly
+  const box = <textarea {...props} className={cn('min-h-[5.25rem] w-full resize-none rounded-lg border border-line bg-white px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', on && 'pr-12', props.className)} />
+  if (!on) return box
+  return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute bottom-2.5 right-2" /></span>
 }
 
 export function Stepper({ value, onChange, min = 0, max = 99, suffix }: { value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string }) {

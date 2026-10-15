@@ -12,7 +12,7 @@ import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser } from 'lucide-react'
+import { Eraser, Users } from 'lucide-react'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -201,6 +201,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   return (
     <>
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="People, logins, what each one sees">Team and settings</MenuItem>}
+      {role === 'owner' && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => open({ t: 'whowhat' })} hint="Every step, and who has it">Who does what</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />

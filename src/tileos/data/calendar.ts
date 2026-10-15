@@ -23,6 +23,8 @@ export interface CalEvent {
   note?: string
   /** made from the project's "next meeting" on the Game plan */
   plan?: boolean
+  /** who set it (or moved it last) — everyone else in it is told */
+  by?: PersonKey
 }
 
 export const EVENTS0: CalEvent[] = [

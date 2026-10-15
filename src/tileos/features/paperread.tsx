@@ -12,7 +12,8 @@ import { REAL } from '@/tileos/lib/save'
 import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
 import { GROUTS, byTag, type Tile } from '@/tileos/data/jobs'
 import type { Job } from '@/tileos/data/model'
-import { readTilePaperwork, ReadError, type ReadResult, type ReadTile } from './reader'
+import { readTilePaperwork, ReadError, labelOf, type ReadResult, type ReadTile } from './reader'
+import { takesTile } from './steps'
 import { applyRead } from './tiles'
 
 type State =
@@ -100,6 +101,10 @@ function Review({ job, res, file, problem, onDone }: { job: Job; res: ReadResult
   const [on, setOn] = React.useState<boolean[]>(() => res.tiles.map(() => true))
   const picked = res.tiles.filter((_, i) => on[i])
   const matched = picked.reduce((n, t) => n + t.goesOn.length, 0)
+  /* what isn't matched: tile on the paperwork with no wall or floor, and our walls and floors nothing on it covers */
+  const covered = new Set(picked.flatMap((t) => t.goesOn))
+  const loose = picked.filter((t) => !t.goesOn.length)
+  const uncovered = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.filter((x) => takesTile(x.name) && !x.tile).map((x) => labelOf(r.name, x.name))).filter((l) => !covered.has(l))
   return (
     <section className="overflow-hidden rounded-xl border border-brand-200">
       <header className="flex items-center gap-3 bg-brand-50/60 px-4 py-3">
@@ -110,6 +115,14 @@ function Review({ job, res, file, problem, onDone }: { job: Job; res: ReadResult
         </span>
       </header>
       {res.tiles.map((t, i) => <ReadRow key={i} t={t} on={on[i]} same={(t.tag && mine[t.tag]) || Object.values(mine).find((x) => x.name.toLowerCase() === t.name.toLowerCase())} toggle={() => setOn(on.map((v, j) => (j === i ? !v : v)))} />)}
+      {(loose.length > 0 || uncovered.length > 0) && (
+        <div className="border-t border-line-2 bg-warn-50/50 px-4 py-3 text-[0.8125rem]">
+          <div className="font-semibold text-warn-800">Not matched yet</div>
+          {loose.length > 0 && <div className="mt-1 text-ink-2"><b className="font-semibold">On the paperwork, no wall or floor:</b> {loose.map((t) => [t.tag, t.name].filter(Boolean).join(' ')).join(', ')}</div>}
+          {uncovered.length > 0 && <div className="mt-1 text-ink-2"><b className="font-semibold">Ours, not on the paperwork:</b> {uncovered.slice(0, 8).join(', ')}{uncovered.length > 8 ? ` and ${uncovered.length - 8} more` : ''}</div>}
+          <div className="mt-1 text-muted">Use it anyway — then match the rest below, one tap each.</div>
+        </div>
+      )}
       {res.notes && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{res.notes}</div>}
       {problem && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />The file itself wasn’t kept with the project: {problem}</div>}
       <footer className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-white px-4 py-3">

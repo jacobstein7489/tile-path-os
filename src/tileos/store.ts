@@ -43,6 +43,10 @@ export interface Rules {
   matBy?: PersonKey
   /** the company's getting-ready checklist (Settings → Checklist); empty = the standard one */
   steps?: StepDef[]
+  /** which version of the checklist the saved list was made with (2 = the paperwork split into getting and entering it) */
+  stepsV?: number
+  /** when the admin set who does what (the window that asks once) */
+  whoSet?: string
   /** automations the admin turned off (Settings → Automations) */
   autoOff?: string[]
   /** who does each estimate step by default — new estimates start with these people */

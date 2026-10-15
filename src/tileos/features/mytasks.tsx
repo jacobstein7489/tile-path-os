@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus } from 'lucide-react'
 import { useStore, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -27,6 +27,8 @@ import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
 import { REAL } from '@/tileos/lib/save'
+import { Mic, canListen, addSaid } from '@/tileos/components/ui/mic'
+import { insidePeople } from './steps-ui'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -43,6 +45,25 @@ export function dailyDue(s: Store, role: Role): DailyItem[] {
     .filter((b) => s.diary[b.jobId]?.[0]?.date !== NOW)
     .map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
 }
+/** a project named in what was typed or said — "828 Clyde tiles…" → 828 Clyde (the longest name that fits wins) */
+const words = (t: string) => ` ${t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `
+export function projectIn(text: string, jobs: Job[]): Job | undefined {
+  const t = words(text)
+  let best: { j: Job; n: number } | undefined
+  jobs.forEach((j) => {
+    const keys = [j.name, (j.address || '').split(',')[0]].map((k) => words(k).trim()).filter((k) => k.length >= 4)
+    keys.forEach((k) => { if (t.includes(` ${k} `) && (!best || k.length > best.n)) best = { j, n: k.length } })
+  })
+  return best?.j
+}
+/** the task's words without the project's name at the front — the project shows next to it anyway */
+export function withoutProject(title: string, j: Job): string {
+  const esc = (x: string) => x.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[\\s,.-]+')
+  const re = new RegExp(`^\\s*(${[j.name, (j.address || '').split(',')[0]].filter((x) => x.trim().length >= 4).map(esc).join('|')})[\\s,:;.-]*`, 'i')
+  const out = title.replace(re, '').trim()
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : title
+}
+
 /** a task is mine when it has my name on it — or it's for my login type (or one folded into it) and nobody else
  * on my login has it by name. Two people on one login (the takeoff person and the office reviewer) each see their own.
  * No person (me = null): everything for the login — that's the Everyone list. */
@@ -310,6 +331,10 @@ export function MyTasksPage() {
   const me = meOf(role)
   const all = scope === 'all'
   const followsIt = (t?: Task) => !!t && t.owner !== me && followersOf(t).includes(me)
+  /* one project at a time: everything for a job together (the site manager starts here) — remembered on this computer */
+  const prefKey = `tileos-today-byjob:${role}`
+  const [byJob, setByJob] = React.useState<boolean>(() => { try { const v = localStorage.getItem(prefKey); return v ? v === '1' : role === 'site' } catch { return role === 'site' } })
+  const groupBy = (on: boolean) => { setByJob(on); try { localStorage.setItem(prefKey, on ? '1' : '0') } catch { /* private window */ } }
 
   /* the counts never change with the filters — they're the facts */
   const plate = all ? teamPlate(s) : plateOf(s, role)
@@ -360,6 +385,34 @@ export function MyTasksPage() {
     )
   }
 
+  /* by project: one section per job — what to check, do, hand over or record there, whatever day it's on */
+  const jobOfItem = (x: PlateItem) => x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || ''
+  const byProject = (items: PlateItem[], tasksOnly?: Task[]) => {
+    const keyOf = (id: string) => (id && s.jobs[id] ? s.jobs[id].name : '\uffff')
+    const ids = Array.from(new Set(tasksOnly ? tasksOnly.map((t) => t.jobId || '') : items.map(jobOfItem))).sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
+    return ids.map((id) => {
+      const j = id ? s.jobs[id] : undefined
+      const rows = items.filter((x) => jobOfItem(x) === id)
+      const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
+      return (
+        <section key={id || 'none'} aria-label={j ? j.name : 'Not on a project'}>
+          <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f8fa] py-2 first:border-t-0', PX)}>
+            {j ? (
+              <button onClick={() => s.open({ t: 'job', id })} className="group min-w-0 flex-1 text-left">
+                <span className="block truncate text-[0.90625rem] font-bold text-ink group-hover:text-brand-700">{j.name}</span>
+                <span className="block truncate text-[0.75rem] text-muted">{[j.address, j.client].filter(Boolean).join(' · ')}</span>
+              </button>
+            ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Not on a project</span>}
+            <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
+            {j && <Button size="xs" icon={<ListPlus />} onClick={() => s.open({ t: 'record', jobId: id })}>Log</Button>}
+          </div>
+          {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
+          {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
+        </section>
+      )
+    })
+  }
+
   const shownToday = today.filter(pick)
   const shownTomorrow = tomorrow.filter(pick)
   const shownLater = later.filter(pick)
@@ -395,7 +448,14 @@ export function MyTasksPage() {
               ))}
             </div>
           )}
-          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...ASSIGNABLE.map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))]} onChange={(v) => setWho(v as string)} />}
+          {view !== 'done' && (
+            <div role="tablist" aria-label="How it's grouped" className="inline-flex h-9 items-center rounded-[0.625rem] bg-wash-2 p-0.5">
+              {([false, true] as const).map((k) => (
+                <button key={String(k)} role="tab" aria-selected={byJob === k} onClick={() => groupBy(k)} className={cn('h-8 rounded-[0.5rem] px-3 text-[0.8125rem] font-semibold transition', byJob === k ? 'bg-white text-ink shadow-xs' : 'text-muted hover:text-ink')}>{k ? 'By project' : 'By time'}</button>
+              ))}
+            </div>
+          )}
+          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => setWho(v as string)} />}
           <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
           <ClearFilters show={job !== 'all' || who !== 'all'} onClear={() => { setJob('all'); setWho('all') }} />
           <button onClick={() => setView(view === 'done' ? 'today' : 'done')} className={cn('inline-flex h-9 items-center gap-1.5 rounded-[0.5625rem] border px-3 text-[0.8125rem] font-semibold transition', view === 'done' ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#d6dae0] bg-white text-ink-2 hover:border-[#c3c9d2]')}>
@@ -422,23 +482,24 @@ export function MyTasksPage() {
         )}
 
         {view === 'today' && !Object.keys(s.jobs).length && !s.tasks.length && role === 'owner' && <CleanSlate />}
-        {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? dayBlock(TODAY, shownToday, true) : <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? (byJob ? byProject(shownToday) : dayBlock(TODAY, shownToday, true)) : <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownToday.length > 0 && tomorrow.length > 0 && (
           <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted hover:bg-wash hover:text-ink', PX)}>
             <CalendarDays className="h-4 w-4" />{tomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
           </button>
         )}
 
-        {view === 'tomorrow' && (shownTomorrow.length ? dayBlock(TOMORROW, shownTomorrow) : <EmptyState icon={<Check />} title="Nothing for tomorrow yet" sub="Anything due tomorrow, and tomorrow’s meetings, show here." />)}
+        {view === 'tomorrow' && (shownTomorrow.length ? (byJob ? byProject(shownTomorrow) : dayBlock(TOMORROW, shownTomorrow)) : <EmptyState icon={<Check />} title="Nothing for tomorrow yet" sub="Anything due tomorrow, and tomorrow’s meetings, show here." />)}
 
-        {view === 'later' && laterDays.map((d) => dayBlock(d, shownLater.filter((x) => x.iso === d && x.b !== 'aside')))}
-        {view === 'later' && noDate.length > 0 && (
+        {view === 'later' && byJob && byProject(shownLater)}
+        {view === 'later' && !byJob && laterDays.map((d) => dayBlock(d, shownLater.filter((x) => x.iso === d && x.b !== 'aside')))}
+        {view === 'later' && !byJob && noDate.length > 0 && (
           <section>
             <Group label="No date" count={noDate.length} tone="neutral" />
             {noDate.map((x) => <PlateRow key={x.key} x={x} showOwner={all} />)}
           </section>
         )}
-        {view === 'later' && aside.length > 0 && (
+        {view === 'later' && !byJob && aside.length > 0 && (
           <section>
             <Group label="Set aside" count={aside.length} tone="neutral" hint="you put these off — they come back on their date" />
             {aside.map((x) => <PlateRow key={x.key} x={x} showOwner={all} />)}
@@ -449,7 +510,7 @@ export function MyTasksPage() {
         {view === 'waiting' && shownWaiting.length > 0 && (
           <>
             <div className={cn('border-b border-line-2 bg-wash py-2.5 text-[0.8125rem] text-muted', PX)}>Things someone else owes {all ? 'the team' : 'you'} — the GC, a supplier, a client. Each one comes back to {all ? 'its owner’s' : 'your'} Today on its date.</div>
-            {shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
+            {byJob ? byProject([], shownWaiting) : shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
           </>
         )}
         {view === 'waiting' && !shownWaiting.length && <EmptyState icon={<Check />} title="Nothing waiting on others" sub="When you’re waiting on the GC, a supplier or a client, it waits here with the day it comes back to you." />}
@@ -648,16 +709,26 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
   const [all, setAll] = React.useState(false)
   const [more, setMore] = React.useState(false)
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage) || j.id === jobId)
-  /* "call the GC tomorrow" sets the day by itself, until you pick one */
+  const [jobPicked, setJobPicked] = React.useState(!!jobId)
+  const [heard, setHeard] = React.useState('')
+  const people = insidePeople(s)
+  /* "call the GC tomorrow" sets the day, and "828 Clyde — …" the project, by themselves — until you pick one */
   const onTitle = (v: string) => {
     setTitle(v)
+    if (!jobPicked) {
+      const p = projectIn(v, Object.values(s.jobs))
+      if (p) { setJob(p.id); setHeard(p.name) } else if (heard) { setJob(''); setHeard('') }
+    }
     if (picked || repeat) return
     const hit = DAY_WORDS.find(([re]) => re.test(v.toLowerCase()))
     if (hit) setDue(hit[1])
   }
   const add = () => {
     if (!title.trim()) return
-    s.addTask({ jobId: job, title: title.trim(), type: guessType(title), owner, due: repeat ? 'Today' : due, for: ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
+    const j = s.jobs[job]
+    const clean = (j && heard ? withoutProject(title.trim(), j) : title.trim()) || title.trim()
+    const role = s.team.find((m) => m.key === owner)?.role
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
     s.close()
   }
   const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[#d6dae0] bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#c3c9d2] hover:text-ink data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
@@ -676,19 +747,23 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         </>
       }
     >
-      <input
-        data-autofocus
-        aria-label="What needs to be done?"
-        value={title}
-        onChange={(e) => onTitle(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') add() }}
-        placeholder="What needs to be done?"
-        className="h-12 w-full rounded-[0.6875rem] border border-[#d6dae0] bg-white px-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
-      />
+      <span className="relative block">
+        <input
+          data-autofocus
+          aria-label="What needs to be done?"
+          value={title}
+          onChange={(e) => onTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add() }}
+          placeholder="What needs to be done? Say the project and it’s picked"
+          className={cn('h-12 w-full rounded-[0.6875rem] border border-[#d6dae0] bg-white px-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', canListen() && 'pr-14')}
+        />
+        <Mic onText={(t) => onTitle(addSaid(title, t))} className="absolute right-2 top-1/2 -translate-y-1/2" size="sm" />
+      </span>
+      {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{owner === me ? 'Me' : PEOPLE[owner].short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Who does it</MenuLabel>
-          {ASSIGNABLE.map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p].roleLabel}>{p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name}</MenuItem>)}
+          {(people.length ? people : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p]?.roleLabel}>{p === me ? `${PEOPLE[p]?.name} (me)` : PEOPLE[p]?.name}</MenuItem>)}
         </Menu>
         <Menu align="start" width={240} trigger={<button type="button" aria-label="When" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted">{repeat ? <Repeat className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}</span><span className="truncate">{whenLabel}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Due</MenuLabel>
@@ -703,7 +778,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           </Menu>
         )}
         {!jobId && (
-          <SearchSelect value={job} onChange={setJob} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d6dae0] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
+          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d6dae0] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
         )}
         {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d6dae0] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
       </div>

@@ -34,6 +34,7 @@ export function runTaskAction(t: Task) {
     return co ? acceptIPOChange(ipo, co, t.id) : s.open({ t: 'ipo', id: ipo })
   }
   if (kind.startsWith('estimate:')) return s.open({ t: 'estimate', id: kind.slice(9) })
+  if (kind.startsWith('estchange:')) return s.open({ t: 'estimate', id: kind.slice(10) })
   if (kind.startsWith('order:')) return s.open({ t: 'newpo', jobId: kind.slice(6), fromTakeoff: true })
   if (kind.startsWith('short:')) return s.open({ t: 'short', id: kind.slice(6) })
   if (kind.startsWith('heights:')) return s.open({ t: 'heights', jobId: kind.slice(8), taskId: t.id })

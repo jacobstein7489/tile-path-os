@@ -43,8 +43,8 @@ import { heightStatus } from '../heights'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, type StepView } from '../steps'
-import { StepIcon, StepButton, StepPath } from '../steps-ui'
-import { UpNext } from '../stepwin'
+import { StepIcon, StepButton } from '../steps-ui'
+import { GamePlan } from '../stepwin'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
@@ -233,15 +233,8 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
   const s = useStore()
   const ready = isGettingReady(job)
-  /* getting ready: the step bar on top says where it stands (tap a step to do it); Up next says what's open, one line each */
-  if (ready) {
-    return (
-      <div className="flex flex-col gap-5">
-        <StepPath job={job} />
-        <UpNext job={job} />
-      </div>
-    )
-  }
+  /* getting ready: the game plan — every step, grouped the way the work goes, one line each; tap a step to do it */
+  if (ready) return <GamePlan job={job} />
   return (
     <div className="flex flex-col gap-5">
       <Glance job={job} setTab={setTab} />

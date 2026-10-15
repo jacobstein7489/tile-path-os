@@ -47,6 +47,7 @@ import { CrewView } from '@/tileos/features/crew'
 import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
 import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
+import { WhoWhatModal, WhoWatcher } from '@/tileos/features/whowhat'
 import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
@@ -145,6 +146,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'receivetile': return <ReceiveTileModal jobId={m.jobId} tag={m.tag} level={level} />
     case 'verify': return <VerifyModal taskId={m.taskId} level={level} />
     case 'roles': return <RolesModal level={level} />
+    case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'addperson': return <AddPersonModal level={level} />
     case 'buildrooms': return <BuildRoomsModal jobId={m.jobId} level={level} />
     default: return null
@@ -228,6 +230,7 @@ export default function App() {
           </div>
           <BottomNav />
           <IncomingWatcher />
+          <WhoWatcher />
         </div>
       )}
       <ModalHost />
