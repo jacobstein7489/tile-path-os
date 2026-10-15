@@ -189,6 +189,9 @@ body { margin: 0; background: var(--color-canvas); color: var(--color-ink); font
 /* Everything is sized from the page's base size, so on bigger screens the whole app grows a step —
    text, spacing, rows, windows — instead of floating small in the middle of a wide screen. */
 html { font-size: 16px; }
+/* pinned list headers sit right under the app's top bar */
+:root { --app-top: 3.5rem; }
+@media (max-width: 1023.98px) { :root { --app-top: calc(3.5rem + env(safe-area-inset-top, 0px)); } }
 @media (min-width: 1500px) { html { font-size: 17px; } }
 @media (min-width: 1800px) { html { font-size: 18px; } }
 @media (min-width: 2200px) { html { font-size: 19px; } }

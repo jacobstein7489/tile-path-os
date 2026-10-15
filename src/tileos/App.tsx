@@ -66,7 +66,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'estimate': return <EstimateModal id={m.id} level={level} />
     case 'aiplans': return <AiPlansModal estId={m.estId} level={level} />
     case 'task': return <TaskModal id={m.id} level={level} />
-    case 'new': return <NewPickerModal level={level} />
+    case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
     case 'fresh': return <FreshModal mode={m.mode} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} level={level} />

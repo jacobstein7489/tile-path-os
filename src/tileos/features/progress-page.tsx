@@ -6,7 +6,7 @@ import { Check, ChevronRight, Building2, ClipboardList, Receipt, Undo2, FileText
 import { useStore, type Store } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { Status, PX } from '@/tileos/components/ui/page'
+import { Status, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, type Tone } from '@/tileos/data/model'
 import { smp } from '@/tileos/lib/save'
@@ -85,7 +85,7 @@ export function ProgressList({ week }: { week: string }) {
   const rows = weekBills(s, w)
   return (
     <div>
-      <div className={cn(COLS, 'border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX)}>
+      <div className={cn(COLS, 'border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
         <span>Project</span>
         <span className="text-right">Work this week</span>
         <span>Installed · billed</span>

@@ -16,6 +16,8 @@ const WIDTHS = {
   xl: 'w-[min(75rem,96vw)]',
   full: 'w-[min(93.75rem,calc(100vw-2.5rem))]',
 }
+/** pinned list headers inside a window sit at the top of its scrolling area */
+const INSIDE = { '--app-top': '0px', '--bar': '0px' } as React.CSSProperties
 export function Modal({
   level = 0, size = 'md', onClose, title, sub, header, children, footer, bodyClass, tall, className,
 }: {
@@ -63,7 +65,7 @@ export function Modal({
                   <CloseButton onClick={onClose} className="max-sm:shadow-pop" />
                 </div>
                 <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Details'}</Dialog.Title>
-                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto">
+                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE}>
                   <div className="shrink-0">{header}</div>
                   <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto max-sm:flex-none max-sm:overflow-visible', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')}>{children}</div>
                 </div>
@@ -77,7 +79,7 @@ export function Modal({
                   </div>
                   <CloseButton onClick={onClose} />
                 </div>
-                <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')}>{children}</div>
+                <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
               </>
             )}
             {footer && <div className="flex shrink-0 items-center gap-2.5 border-t border-line bg-white px-6 py-3.5 max-sm:flex-wrap max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem]">{footer}</div>}

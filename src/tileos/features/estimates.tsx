@@ -8,7 +8,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { RevisionsPanel } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Path, Bubbles } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Path, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -163,7 +163,7 @@ export function EstimatesPage() {
 const EST_COLS = 'grid grid-cols-[minmax(0,1.25fr)_12.5rem_minmax(0,1.25fr)_8rem_7.5rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_11.875rem_minmax(0,1.2fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_11.25rem] max-md:grid-cols-1 max-md:gap-1.5'
 function EstHead() {
   return (
-    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-md:hidden', EST_COLS, 'px-5 max-sm:px-4')}>
+    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-md:hidden', EST_COLS, 'px-5 max-sm:px-4', STICKY_HEAD)}>
       <span>Estimate</span>
       <span>Status</span>
       <span className="max-lg:hidden">Who has it</span>

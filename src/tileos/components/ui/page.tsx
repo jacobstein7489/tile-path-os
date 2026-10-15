@@ -14,6 +14,8 @@ import type { Tone, PersonKey } from '@/tileos/data/model'
 
 /** side padding inside a card; rows line up with it */
 export const PX = 'px-5 max-sm:px-4'
+/** a list's column-name row: it stays pinned under the toolbar while the rows scroll */
+export const STICKY_HEAD = 'sticky top-[calc(var(--app-top,0px)+var(--bar,0px))] z-[5]'
 /** side padding of the page itself */
 export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
 
@@ -37,6 +39,18 @@ export function Page({
   /** render the children as they are, without the main card */
   bare?: boolean
 }) {
+  /* how tall the pinned toolbar is, so the column names pin right under it */
+  const barRef = React.useRef<HTMLDivElement>(null)
+  const [bar, setBar] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const el = barRef.current
+    if (!el) { setBar(0); return }
+    const set = () => setBar(el.offsetHeight)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [!!(tabs || toolbar)])
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
       <div className="mx-auto w-full max-w-[92.5rem]">
@@ -53,9 +67,9 @@ export function Page({
             {bare ? (
               <div className="min-w-0 flex-1">{children}</div>
             ) : (
-              <section className="min-w-0 flex-1 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-sheet">
+              <section className="min-w-0 flex-1 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-sheet" style={{ '--bar': bar + 'px' } as React.CSSProperties}>
                 {(tabs || toolbar) && (
-                  <div className={cn('flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line py-2', PX)}>
+                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX)}>
                     {tabs && <ChipTabs value={tab as string} onChange={(k) => onTab?.(k)} items={tabs} />}
                     {toolbar}
                   </div>
@@ -471,7 +485,7 @@ export function FlowStrip({ groups }: { groups: { label: string; color: string; 
 /* ================= table (for the few views that compare numbers) ================= */
 export function Table({ children, minWidth, className, auto }: { children: React.ReactNode; minWidth?: number; className?: string; auto?: boolean }) {
   return (
-    <div className={cn('scroll-soft overflow-x-auto', className)}>
+    <div className={cn('scroll-soft overflow-x-auto xl:overflow-visible', className)}>
       <table className={cn('w-full border-separate border-spacing-0 text-left', !auto && 'table-fixed', minWidth && 'md:[min-width:var(--tmin)]')} style={minWidth ? ({ '--tmin': minWidth + 'px' } as React.CSSProperties) : undefined}>
         {children}
       </table>
@@ -481,7 +495,7 @@ export function Table({ children, minWidth, className, auto }: { children: React
 const EDGE = 'first:pl-6 last:pr-6 max-sm:first:pl-4 max-sm:last:pr-4'
 export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
   return (
-    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-wash px-3 text-[0.75rem] font-semibold text-muted', EDGE, right && 'text-right', className)}>
+    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-wash px-3 text-[0.75rem] font-semibold text-muted xl:sticky xl:top-[calc(var(--app-top,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
       {children}
     </th>
   )

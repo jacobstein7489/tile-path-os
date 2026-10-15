@@ -6,7 +6,7 @@ import { ArrowRight, Check, HardHat, MessageCircleQuestion, Undo2, TriangleAlert
 import { useStore, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Pop } from '@/tileos/components/ui/overlay'
-import { Page, Status, Row, Col, Meta, PX } from '@/tileos/components/ui/page'
+import { Page, Status, Row, Col, Meta, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
 import { PAY_WEEKS, THIS_WEEK, PAY_STATE, payRows, payRow, payGrid, poBalance, mismatchWhy, approvePay, askAboutPay, undoPay, weekDays, payOpen, paidWeeks, type PayRow, type PaidRow } from './pay'
@@ -67,7 +67,7 @@ export function PayPage() {
     >
       {w.kind === 'paid' ? (
         <div>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX)}>
+          <div className={cn('grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
             <span>Installer</span><span>Project</span><span className="text-right">Paid</span><span>Status</span><span />
           </div>
           {w.paid.map((r) => <PaidLine key={r.crew} r={r} />)}
@@ -75,7 +75,7 @@ export function PayPage() {
         </div>
       ) : (
         <div>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX)}>
+          <div className={cn('grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
             <span>Installer</span><span className="text-right">Days</span><span className="text-right">Work done</span><span className="text-right">From the updates</span><span className="text-right">His bill</span><span>Status</span><span />
           </div>
           {w.rows.map((r) => <PayLine key={r.crew} r={r} weekKey={w.key} />)}

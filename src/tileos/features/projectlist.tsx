@@ -7,7 +7,7 @@ import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, Clipbo
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, ProgressRing, EmptyState, Status, Bubbles, DateTile, PX } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, ProgressRing, EmptyState, Status, Bubbles, DateTile, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -134,7 +134,7 @@ const COLS = 'grid grid-cols-[minmax(0,1.15fr)_9.375rem_minmax(0,1.5fr)_8rem_7.5
 
 function ListHead() {
   return (
-    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX)}>
+    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX, STICKY_HEAD)}>
       <span>Project</span>
       <span className="max-lg:hidden">Status</span>
       <span>Where it stands</span>
