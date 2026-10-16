@@ -41,7 +41,7 @@ const TITLE: Record<string, string> = {
   rooms: 'Enter the tile paperwork',
   qty: 'Quantities on the paperwork',
   design: 'Design meeting',
-  change: 'Is the estimate still right?',
+  change: 'Confirm what was decided',
   tile: 'Grout and a picture for every tile',
   layouts: 'Layouts',
   heights: 'Site check',
@@ -61,7 +61,7 @@ export const TODO: Record<string, string> = {
   rooms: 'Enter the tile paperwork',
   qty: 'Check the quantities on the paperwork',
   design: 'Set up the design meeting',
-  change: 'Did the meeting change the estimate?',
+  change: 'Confirm what was decided at the meeting',
   tile: 'Pick the grout and pictures',
   layouts: 'Draw the layouts',
   heights: 'Site check',
@@ -81,7 +81,7 @@ const WHAT: Record<string, string> = {
   rooms: 'Upload it and AI reads it: every tile matched to the walls and floors from the estimate. Fix what it got wrong, pick what it couldn’t.',
   qty: 'Is there enough of every tile, with the extra for cuts? Short — send them the right quantities, and it waits for the new paperwork.',
   design: 'With the designer or the client — tile, layout, grout, patterns. Everyone who needs to be there gets it on their calendar.',
-  change: 'After the meeting or the site walk: anything that changes the price — LED channels, a pattern, a bigger tile, an extra niche. It goes to the estimator.',
+  change: 'Send the designer and the GC what was decided at the meeting or the walkthrough. Anything that changes the price — LED channels, a pattern, a bigger tile, an extra niche — goes to the estimator.',
   tile: 'A grout and a picture for every tile — the installer’s sheet shows them.',
   layouts: 'Draw the layouts for what was picked at the meeting.',
   heights: 'Look at the site before we order: heights, water, electrical, plumbing.',
@@ -761,17 +761,17 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
       <Block title="What changed" right={`sent to ${PEOPLE[to]?.short}`}>
         {rec.changes.map((c, n) => <div key={n} className="border-t border-line-2 px-4 py-2.5 text-[0.875rem] text-ink first:border-t-0"><b className="font-semibold">{c.what}</b>{c.where ? <span className="text-muted"> · {c.where}</span> : null}{c.note ? <span className="block text-[0.8125rem] text-muted">{c.note}</span> : null}</div>)}
       </Block>
-    ) : <Good>{v.note || 'Nothing changed — same as the estimate'}</Good>
+    ) : <Good>{v.note || 'Confirmed — nothing changes the price'}</Good>
   const add = () => { if (!what.trim()) return; setItems([...items, { what: what.trim(), where: where || undefined, note: note.trim() || undefined }]); setWhat(''); setWhere(''); setNote('') }
   return (
     <div className="flex flex-col gap-4">
       {!items.length && (
-        <button onClick={() => markStep(job.id, 'change', 'Nothing changed — same as the estimate', { close: true })} className="flex items-center gap-3 rounded-xl border border-ok-200 bg-ok-50/60 px-4 py-3.5 text-left transition hover:bg-ok-50">
+        <button onClick={() => markStep(job.id, 'change', 'Confirmed — nothing changes the price', { close: true })} className="flex items-center gap-3 rounded-xl border border-ok-200 bg-ok-50/60 px-4 py-3.5 text-left transition hover:bg-ok-50">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
-          <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Nothing changed</span><span className="block text-[0.8125rem] text-muted">It’s the same as the estimate</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Confirmed — nothing changes the price</span><span className="block text-[0.8125rem] text-muted">What was decided is sent to the designer and the GC</span></span>
         </button>
       )}
-      <Block title={items.length ? `What changed · ${items.length}` : 'Something changed — log it'}>
+      <Block title={items.length ? `What changes the price · ${items.length}` : 'Something changes the price — log it'}>
         {items.map((c, n) => (
           <div key={n} className="flex items-start gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
             <span className="min-w-0 flex-1 text-[0.875rem] text-ink"><b className="font-semibold">{c.what}</b>{c.where ? <span className="text-muted"> · {c.where}</span> : null}{c.note ? <span className="block text-[0.8125rem] text-muted">{c.note}</span> : null}</span>
@@ -1118,7 +1118,10 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
             </div>
           ))}
         </Block>
-        {checks.some((c) => c.received < c.ordered) && <Actions><Button variant="primary" icon={<PackageCheck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })}>Check it in</Button></Actions>}
+        <Actions>
+          <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
+          {checks.some((c) => c.received < c.ordered) && <Button variant="primary" icon={<PackageCheck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })}>Check it in</Button>}
+        </Actions>
       </div>
     )
   if (v.state === 'done') return <Good>{v.note || 'On site'}</Good>
@@ -1126,7 +1129,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
     <div>
       <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> — count the boxes against the order.</> : 'No delivery date yet — it’s set on the tile order step.'}</div>
       <Actions>
-        <Button icon={<PackageX />} onClick={() => s.open({ t: 'record', jobId: job.id, type: 'shortage' })}>Short, wrong or broken</Button>
+        <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
         <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); s.close() }}>All of it is here</Button>
       </Actions>
     </div>

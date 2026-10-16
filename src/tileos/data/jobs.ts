@@ -89,9 +89,9 @@ export const JOBS0: Record<string, Job> = {
   },
   '115': {
     id: '115', name: '115 Park', client: '115 Park Ave Owner', clientId: 'p115', address: '115 Park Ave, Brooklyn NY',
-    stage: 'setup', status: 'bad', headline: 'Awarded 5 days ago · setup not started',
-    issues: [{ tone: 'bad', text: 'Setup not started · 5 days' }, { tone: 'warn', text: 'Deposit not invoiced' }],
-    next: { text: 'Build the rooms and surfaces', owner: 'office', due: '2 days late', dueTone: 'bad' },
+    stage: 'setup', status: 'warn', headline: 'Paperwork in · nothing ordered or booked yet',
+    issues: [{ tone: 'warn', text: 'Deposit not invoiced' }],
+    next: { text: 'Pick the installer and send his PO', owner: 'ys', due: 'Today' },
     keyDate: { label: 'Awarded', value: 'Sep 23' }, dates: { awarded: 'Sep 23' },
     swatch: 'terrazzo', building: 'lobby', pm: 'ys', contract: 88400, stageDates: { won: 'Sep 23' },
   },
@@ -561,6 +561,23 @@ export const ROOMS: Record<string, Room[]> = {
     { name: 'Powder Room', pct: 33, surfaces: [S('Floor', 'T-07', 'done', {}), S('Wainscot', 'T-07', 'ready', {}), S('Cap', 'T-07', 'waitmat', { reason: 'Satin nickel trim 7 days late' })] },
     { name: 'Laundry', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', {}), S('Walls', 'T-04', 'ready', {})] },
     { name: 'Entry', pct: 0, surfaces: [S('Floor', 'T-07', 'notstarted', {}), S('Base', 'T-07', 'notstarted', {})] },
+  ],
+  '115': [
+    { name: 'Master Bath', floor: '2nd floor', pct: 0, surfaces: [
+      S('Floor', 'T-01', 'ready', { sf: 85, layout: 'Straight lay · full tile at the door', grout: 'oyster', joint: '1/8″', edge: 'Marble saddle at the door' }),
+      S('Shower walls', 'T-03', 'ready', { sf: 210, layout: 'Vertical stack', grout: 'oyster', joint: '1/16″', height: 'To the ceiling', edge: 'Metal edge · brushed nickel' }),
+      S('Shower floor', 'T-02', 'ready', { sf: 18, layout: 'Pitched to the drain', grout: 'warmgray', joint: '1/16″' }),
+      S('Niche', 'T-03', 'ready', { sf: 6, layout: 'Mitered corners', grout: 'oyster', joint: '1/16″', edge: 'Mitered' }),
+    ] },
+    { name: 'Guest Bath', floor: '2nd floor', pct: 0, surfaces: [
+      S('Floor', 'T-05', 'ready', { sf: 55, layout: 'Offset 1/3', grout: 'silver', joint: '1/8″' }),
+      S('Tub walls', 'T-04', 'ready', { sf: 95, layout: 'Offset 1/2 · centered on the tub', grout: 'white', joint: '1/16″', height: '84″ · metal edge on top', edge: 'Metal edge · brushed nickel' }),
+    ] },
+    { name: 'Kitchen', floor: '1st floor', pct: 0, surfaces: [S('Backsplash', 'T-04', 'ready', { sf: 40, layout: 'Offset 1/2 · centered on the range', grout: 'white', joint: '1/16″', height: '18″ to the cabinets' })] },
+    { name: 'Powder Room', floor: '1st floor', pct: 0, surfaces: [
+      S('Floor', 'T-02', 'ready', { sf: 30, layout: 'Straight', grout: 'warmgray', joint: '1/16″' }),
+      S('Wainscot', 'T-05', 'ready', { sf: 48, layout: 'Stacked', grout: 'silver', joint: '1/8″', height: '42″ with a cap' }),
+    ] },
   ],
   '114': [
     { name: 'Master Bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 95, layout: 'Offset 1/3', grout: 'silver', prep: 'Uncoupling membrane' }), S('Walls', 'T-04', 'unknown', { sf: 300, reason: 'Store ordered 500 SF · we need 560 SF with waste', layout: 'Offset 1/2 · to be confirmed on site' })] },

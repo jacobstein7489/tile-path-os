@@ -274,6 +274,7 @@ export function ReceiveTileModal({ jobId, tag, level }: { jobId: string; tag: st
       header={<JobHead jobId={jobId} kicker={`${c.supplier} · supplied by the ${c.suppliedBy}`} title={`Receive ${tag} · ${t?.name}`} right={<Pill tone="warn">{c.received} of {c.ordered} here</Pill>} />}
       footer={
         <>
+          <Button variant="ghost" icon={<AlertTriangle className="h-4 w-4" />} onClick={() => s.swap({ t: 'problem', jobId })}>Broken, wrong or missing?</Button>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => { receiveTile(jobId, tag, qty); s.close() }}>Save receipt</Button>
         </>

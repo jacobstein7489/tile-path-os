@@ -7,21 +7,21 @@
  *   At a glance — the five facts, each in the same shape. Scope of work — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
-import { useStore, meOf, type Store } from '@/tileos/store'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
+import { useStore, meOf, historyOf, type Store } from '@/tileos/store'
 import { Button, TextInput, Field } from '@/tileos/components/ui/core'
-import { Modal } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Status, Path } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { tilesOf, tileOf, floorsOf, roomPct, CUSTOMERS } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, floorsOf, roomPct, CUSTOMERS, filesFor } from '@/tileos/data/jobs'
 import { curRev, revTotal, type Estimate } from '@/tileos/data/estimates'
 import { timeLabel } from '@/tileos/data/calendar'
-import { TODAY, labelFromIso, isoFromLabel, md } from '@/tileos/lib/today'
-import { isGettingReady, stepsFor, stepCounts, takesTile, realOwner, type StepView } from '../steps'
-import { StepIcon } from '../steps-ui'
+import { TODAY, NOW, labelFromIso, isoFromLabel, md } from '@/tileos/lib/today'
+import { isGettingReady, stepsFor, stepCounts, takesTile, realOwner, SITE_CHECKS, type StepView } from '../steps'
+import { StepIcon, AddStep } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
 import { installerOf } from '../upcoming'
 import { matBy } from '../flows'
@@ -34,6 +34,9 @@ import { budgetOf } from './ratio'
 import { todoLines, type NowState } from './todo'
 import { Section, Empty, Group, Who, ROW, firstName, Word, Strip } from './kit'
 import { ViewSwitch } from '@/tileos/components/ui/page'
+import { useSaveStatus } from '@/tileos/lib/save'
+import { unreadOf } from '../messages'
+import { allowedFor } from '../newpicker'
 
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
 const IN_FIELD = ['installation', 'punch', 'closeout', 'complete']
@@ -124,7 +127,6 @@ export function PhaseBar({ cells }: { cells: PhaseCell[] }) {
           key: c.key,
           label: c.label,
           state: c.state === 'done' ? 'done' as const : c.state === 'bad' ? 'blocked' as const : c.state === 'active' || c.state === 'wait' ? 'current' as const : 'future' as const,
-          sub: who,
           date: c.line || undefined,
           onClick: c.onClick,
           aria: `${c.label} — ${c.state === 'done' ? 'done' : [c.line, who].filter(Boolean).join(', ') || 'not started'}`,
@@ -168,6 +170,12 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
   const steps = ready ? stepsFor(s, job) : []
   steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait').forEach((v) => {
     const w = v.state === 'wait' ? { when: v.due ? labelFromIso(v.due) : '—', late: false } : dueWords(v.due)
+    /* the site check with something not ready on site: each thing is its own line — "Water on site · not on yet" */
+    const notReady = v.key === 'heights' && v.state === 'bad' ? Object.entries(s.stepRecs[job.id]?.heights?.checks || {}).filter(([, c]) => !c.ok) : []
+    if (notReady.length) {
+      notReady.forEach(([k, c]) => rows.push({ key: 's:heights:' + k, group: turn(v.owner, true, false), mark: { kind: 'step', state: 'bad' }, title: SITE_CHECKS.find((x) => x.k === k)?.label || k, note: c.note ? `Not ready — ${c.note}` : 'Not ready yet', noteTone: 'bad', who: v.owner, when: w.when, late: w.late, run: () => openStep(job.id, v.key) }))
+      return
+    }
     rows.push({ key: 's:' + v.key, group: turn(v.owner, v.state === 'bad', v.state === 'wait'), mark: { kind: 'step', state: v.state }, title: todoOf(v), note: v.note, noteTone: v.state === 'bad' ? 'bad' : v.state === 'wait' ? 'warn' : undefined, who: v.owner, when: w.when, late: w.late, run: () => openStep(job.id, v.key) })
   })
   /* what this stage needs that isn't a step (the install, touch-ups, closing out), the tasks, the meetings —
@@ -194,7 +202,9 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
       const iso = isoFromLabel(waiting ? t.followUp : t.due)
       const w = waiting ? { when: t.followUp ? (iso ? labelFromIso(iso) : t.followUp) : '—', late: false } : iso ? dueWords(iso) : { when: t.due || '—', late: false }
       const who = realOwner(s, t.owner)
-      rows.push({ key: 't:' + t.id, group: turn(who, false, waiting), mark: { kind: 'task', waiting }, title: t.title, note: waiting ? `Waiting on ${t.waitingOn}` : t.where || undefined, noteTone: waiting ? 'warn' : undefined, who, when: w.when, late: w.late, run: () => s.open({ t: 'task', id: t.id }) })
+      const problem = t.tone === 'bad'
+      const note = waiting ? `Waiting on ${t.waitingOn}${t.followUp ? ` · back ${t.followUp}` : ''}` : problem ? t.detail || t.where || undefined : t.where || undefined
+      rows.push({ key: 't:' + t.id, group: turn(who, problem, waiting), mark: problem ? { kind: 'item', status: 'bad' } : { kind: 'task', waiting }, title: t.title, note, noteTone: problem ? 'bad' : waiting ? 'warn' : undefined, who, when: w.when, late: w.late, run: () => s.open({ t: 'task', id: t.id }) })
     } else if (l.ev) {
       const e = l.ev
       if (ready && stepMeeting(e)) return
@@ -238,9 +248,12 @@ function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?
 
 /* ================= the overview: Next up, then who's on what ================= */
 const isProblem = (r: TodoRow) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')
-/** the project's to-do, one list — Mine (what's mine here) or Everyone (the whole project, person by person). Both use
- *  the same rows. The switch sits in the header and never moves; the choice is remembered on this computer. */
-export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
+/* ================= what's happening on the job ================= */
+/** What's open — everything open on the project, in one list, the way the office asks "what's going on there?":
+ *  problems first (red), then what's late, what's someone's turn, what's waiting on someone outside, what's coming up.
+ *  Every line says what it is, where it stands, whose desk it's on and when; tap it to act on it. Mine shows only
+ *  yours (the site manager starts there); Everyone is the whole job. + Add puts something new on the list. */
+export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
   const s = useStore()
   const me = meOf(s.role)
   const rows = todoRows(s, job, setTab)
@@ -250,57 +263,93 @@ export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
   const [scope, setScope0] = React.useState<'mine' | 'all'>(() => { try { const v = localStorage.getItem(key); return v === 'all' || v === 'mine' ? v : first } catch { return first } })
   const setScope = (k: 'mine' | 'all') => { setScope0(k); try { localStorage.setItem(key, k) } catch { /* private window */ } }
   const isMine = (r: TodoRow) => r.who === me || !!r.people?.includes(me)
-  const order = (r: TodoRow) => (isProblem(r) ? 0 : r.late ? 1 : r.group === 'mine' || r.group === 'others' ? 2 : r.group === 'wait' ? 3 : 4)
-  const mine = rows.filter(isMine).sort((a, b) => order(a) - order(b))
-  const first1 = mine.find((r) => r.group === 'mine' && r.run)?.key
-  const work = rows.filter((r) => r.group !== 'coming')
-  const coming = rows.filter((r) => r.group === 'coming')
-  const people = Array.from(new Set(work.map((r) => r.who || ''))).map((who) => ({ who: (who || undefined) as PersonKey | undefined, items: work.filter((r) => (r.who || '') === who).sort((a, b) => order(a) - order(b)) }))
-  people.sort((a, b) => Number(b.who === me) - Number(a.who === me) || Number(b.items.some(isProblem)) - Number(a.items.some(isProblem)) || b.items.length - a.items.length)
-  const nameOf = (who?: PersonKey) => (!who ? 'Nobody yet' : who === me ? 'You' : firstName(who) || PEOPLE[who]?.name || '')
+  const order = (r: TodoRow) => (isProblem(r) ? 0 : r.late ? 1 : r.group === 'mine' ? 2 : r.group === 'others' ? 3 : r.group === 'wait' ? 4 : 5)
+  const mine = rows.filter(isMine)
+  const list = [...(scope === 'mine' ? mine : rows)].sort((a, b) => order(a) - order(b))
+  const first1 = list.find((r) => r.group === 'mine' && r.run)?.key
+  const problems = list.filter(isProblem).length
   return (
     <Section
-      title="To do"
-      action={<ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', icon: <Users />, count: rows.length }]} />}
+      title="What’s open"
+      count={list.length}
+      right={problems ? <span className="font-semibold text-bad-600 max-sm:hidden">{problems} {problems === 1 ? 'problem' : 'problems'}</span> : undefined}
+      action={<>
+        <ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', icon: <Users />, count: rows.length }]} />
+        <AddToProject job={job} />
+      </>}
     >
-      {scope === 'mine' && (
-        <>
-          {mine.map((r) => <TodoLine key={r.key} r={r} primary={r.key === first1} noWho={r.group !== 'coming'} />)}
-          {!mine.length && (
-            <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
-              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.90625rem] font-semibold text-ink">Nothing for you on this project</span>
-                <span className="block text-[0.78125rem] text-muted">{rows.length ? `Everyone else has ${rows.length} open here.` : 'Nothing open here at all.'}</span>
-              </span>
-              {rows.length > 0 && <Button size="sm" onClick={() => setScope('all')}>See everyone’s</Button>}
-            </div>
-          )}
-        </>
-      )}
-      {scope === 'all' && (
-        <>
-          {people.map((p) => {
-            const role = p.who && p.who !== me ? PEOPLE[p.who]?.roleLabel : undefined
-            return (
-              <div key={p.who || 'nobody'}>
-                <Group label={nameOf(p.who)} count={p.items.length} right={role && role !== nameOf(p.who) ? <span className="font-semibold normal-case tracking-normal text-muted">{role}</span> : undefined} />
-                {p.items.map((r) => <TodoLine key={r.key} r={r} primary={r.key === first1} noWho />)}
-              </div>
-            )
-          })}
-          {coming.length > 0 && (
-            <div>
-              <Group label="Coming up" count={coming.length} />
-              {coming.map((r) => <TodoLine key={r.key} r={r} />)}
-            </div>
-          )}
-          {!rows.length && <Empty className="py-5">Nothing open on this project.</Empty>}
-        </>
+      {list.map((r) => <TodoLine key={r.key} r={r} primary={r.key === first1} noWho={scope === 'mine'} />)}
+      {!list.length && (
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.90625rem] font-semibold text-ink">{scope === 'mine' ? 'Nothing for you on this project' : 'Nothing open on this project'}</span>
+            <span className="block text-[0.78125rem] text-muted">{scope === 'mine' && rows.length ? `${rows.length} open for the others.` : 'All caught up.'}</span>
+          </span>
+          {scope === 'mine' && rows.length > 0 && <Button size="sm" onClick={() => setScope('all')}>See everyone’s</Button>}
+        </div>
       )}
     </Section>
   )
 }
+
+/** + Add — the few things you put on a project: a problem (tile came wrong, broken or short; the site isn't ready),
+ *  a task, a meeting or walkthrough, a step just for this project */
+function AddToProject({ job }: { job: Job }) {
+  const s = useStore()
+  const [step, setStep] = React.useState(false)
+  if (['accounting', 'client', 'crew'].includes(s.role)) return null
+  const steps = isGettingReady(job) ? stepsFor(s, job) : []
+  const canStep = steps.length > 0 && ['owner', 'pm', 'office', 'estimator'].includes(s.role)
+  return (
+    <>
+      <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
+        <MenuLabel>Add to {job.name}</MenuLabel>
+        <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
+        {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>}
+        {allowedFor(s.role, 'meeting') && <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>}
+        {canStep && <MenuItem icon={<ClipboardList className="h-4 w-4" />} onSelect={() => setStep(true)}>A step just for this project</MenuItem>}
+      </Menu>
+      {step && (
+        <Modal level={8} size="sm" onClose={() => setStep(false)} title="A step just for this project" sub={job.name}>
+          <AddStep job={job} steps={steps} onDone={() => setStep(false)} />
+        </Modal>
+      )}
+    </>
+  )
+}
+
+/** Latest — what happened on the job lately, newest first: deliveries, daily updates, meetings, decisions, problems.
+ *  Everything that ever happened, the files and the messages are one tap away. */
+export function Latest({ job }: { job: Job }) {
+  const s = useStore()
+  const save = useSaveStatus()
+  const all = historyOf(s, job.id)
+  const list = all.slice(0, 6)
+  const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
+  const unread = unreadOf(s, job.id)
+  return (
+    <Section title="Latest" action={all.length > list.length ? <button onClick={() => s.open({ t: 'history', jobId: job.id })} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">All {all.length}</button> : undefined}>
+      {list.map((h, i) => (
+        <button key={i} onClick={() => s.open({ t: 'activity', entry: h, jobId: job.id })} className="flex w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition-colors first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
+          <span className="w-12 shrink-0 pt-px text-[0.75rem] font-medium tnum text-muted">{h.date === NOW ? 'Today' : h.date}</span>
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 block text-[0.84375rem] leading-snug text-ink">{h.title}</span>
+            <span className="block truncate text-[0.75rem] text-muted">{[PEOPLE[h.who]?.short, h.detail].filter(Boolean).join(' · ')}</span>
+          </span>
+        </button>
+      ))}
+      {!list.length && <Empty className="py-6">Nothing yet — it fills in as things happen.</Empty>}
+      <div className="flex flex-wrap items-center gap-1 border-t border-line-2 px-3 py-1.5">
+        <FootLink icon={<Paperclip />} onClick={() => s.open({ t: 'files', jobId: job.id })}>Files and photos{files ? ` · ${files}` : ''}</FootLink>
+        <FootLink icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })}>Messages{unread ? ` · ${unread} new` : ''}</FootLink>
+      </div>
+    </Section>
+  )
+}
+const FootLink = ({ icon, onClick, children }: { icon: React.ReactNode; onClick: () => void; children: React.ReactNode }) => (
+  <button onClick={onClick} className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink [&_svg]:h-4 [&_svg]:w-4">{icon}{children}</button>
+)
 
 /* ================= the facts ================= */
 /* No colored dots to decode: every fact is a plain line. Only a problem turns red — and then it says what, in words.

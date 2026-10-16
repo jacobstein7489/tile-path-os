@@ -118,7 +118,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter the paperwork', owner: 'takeoff', after: ['getpaper'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Quantities', owner: 'takeoff', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
-  { key: 'change', phase: 'meet', label: 'Estimate still right after the meeting', short: 'Estimate check', owner: 'office', after: ['design'], custom: true },
+  { key: 'change', phase: 'meet', label: 'What was decided at the meeting — confirmed', short: 'Confirm what was decided', owner: 'office', after: ['design'], custom: true },
   { key: 'tile', phase: 'meet', label: 'Grout and a picture for every tile', short: 'Grout and pictures', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'meet', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
   { key: 'heights', phase: 'site', label: 'Site checked — heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
@@ -143,6 +143,8 @@ export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.in
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
 const OLD_OWNER: Record<string, string> = { rooms: 'estimator', tile: 'estimator', design: 'office', installer: 'ys', setup: 'office', order: 'office', deposit: 'accounting', heights: 'yakov', materials: 'matBy', delivered: 'yakov', walk: 'yakov' }
 export const STEPS_V = 2
+/* names a step had before it was renamed — a company list saved with the old name gets the new one */
+const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS
@@ -151,7 +153,7 @@ export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const ours = STEP_DEFAULTS.filter((d) => had.has(d.key) || (!fresh && !OLD_KEYS.has(d.key))).map((d) => {
     const x = saved.find((y) => y.key === d.key)
     if (!x) return d
-    if (fresh) return { ...d, owner: x.owner, label: x.label || d.label, short: x.short || d.short }
+    if (fresh) return { ...d, owner: x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short }
     return x.owner !== OLD_OWNER[d.key] ? { ...d, owner: x.owner } : d
   })
   const own = saved.filter((d) => !OURS.has(d.key)).map((d) => ({ ...d, custom: true, phase: d.phase || 'own' }))
@@ -382,7 +384,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     }
     /* the estimate check after the meeting, and the layouts: checked off — projects past setup had theirs before this list */
     if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
-    if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) raw = { state: 'now', due: rec.due, note: 'Did the meeting or the site walk change anything — LED, a pattern, more tile?', action: { label: 'Check it' } }
+    if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) raw = { state: 'now', due: rec.due, note: 'Send the designer and the GC what was decided — anything extra goes to the estimator', action: { label: 'Confirm it' } }
     if (!raw && !rec.done && !rec.na && d.key === 'layouts' && !d.only) raw = { state: 'now', due: rec.due, note: 'The layouts for what was picked at the meeting', action: { label: 'Mark done', pick: 'check' } }
     if (!raw) {
       raw = rec.done

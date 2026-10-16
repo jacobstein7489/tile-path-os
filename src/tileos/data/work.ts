@@ -139,13 +139,6 @@ export const TASKS0: Task[] = [
 
   /* ---- back office ---- */
   {
-    id: 't-setup115', jobId: '115', step: '115:rooms',  title: 'Build 115 Park from the paperwork', type: 'Setup', owner: 'office', for: ['office'], watch: ['owner', 'pm'],
-    state: 'now', due: '2 days late', dueTone: 'bad', tone: 'bad', blocks: 'Site walkthrough', where: 'Setup',
-    detail: 'Rooms, surfaces, finish records, suppliers and who orders what. Awarded Sep 23.',
-    action: { label: 'Start setup', kind: 'open-job' },
-    log: [L('Sep 23', 'system', 'Created at award')],
-  },
-  {
     id: 't-qty114', jobId: '114', step: '114:order',  title: 'Wall tile 60 SF short of our takeoff', type: 'Materials', owner: 'office', for: ['office'], watch: ['materials', 'owner', 'pm'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'bad', blocks: 'Master bath walls', where: 'Master Bath · walls · T-04',
     detail: 'Best Tile ordered 500 SF. Our takeoff with 12% waste needs 560 SF.',
@@ -173,6 +166,39 @@ export const TASKS0: Task[] = [
     id: 't-custpo114', jobId: '114', title: 'Client PO from the GC', type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'],
     state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Contract',
     detail: 'Company rule: their PO before the first bill.', log: [L('Sep 21', 'office', 'Requested at award')],
+  },
+
+  /* ---- Green Tree: a job the way the office sees one mid-week — the design walk to confirm, tile that came broken,
+   * wrong and short, the setting materials on the way (the water isn't on yet — that's the site check) ---- */
+  {
+    id: 't-green-decided', jobId: 'green', title: 'Confirm what was decided at the design walkthrough', type: 'Setup', owner: 'office', for: ['office'], watch: ['owner'],
+    state: 'now', due: 'Today', tone: 'warn', where: 'Design walkthrough · Sep 29',
+    detail: 'Grout warm gray everywhere · lobby feature wall centered on the doors · niches move 6″ left. Send it to the designer and the GC.',
+    log: [L('Sep 29', 'ys', 'Walked it with the designer')],
+  },
+  {
+    id: 't-green-broken', jobId: 'green', title: 'T-05: 3 boxes came broken', type: 'Materials', owner: 'office', for: ['office'], watch: ['owner'],
+    state: 'waiting', waitingOn: 'Best Tile', followUp: 'Tue', tone: 'bad', where: 'T-05 · Bianco',
+    detail: 'Cracked in one corner of the pallet — the driver saw it. Best Tile is sending 3 boxes.',
+    log: [L('Sep 30', 'yakov', 'Logged as a problem'), L('Sep 30', 'office', 'Asked Best Tile for 3 boxes')],
+  },
+  {
+    id: 't-green-wrong', jobId: 'green', title: 'T-07: 4 boxes came wrong', type: 'Materials', owner: 'office', for: ['office'], watch: ['owner'],
+    state: 'now', due: 'Today', tone: 'bad', where: 'T-07 · Calacatta',
+    detail: 'Honed came instead of polished — send them back and get the right ones.',
+    log: [L('Sep 30', 'yakov', 'Logged as a problem')],
+  },
+  {
+    id: 't-green-short', jobId: 'green', title: 'T-04: 6 boxes missing', type: 'Materials', owner: 'office', for: ['office'], watch: ['owner'],
+    state: 'waiting', waitingOn: 'Best Tile', followUp: 'Thu', tone: 'bad', where: 'T-04 · White subway',
+    detail: '54 of 60 boxes came. The store says the rest comes Thursday.',
+    log: [L('Sep 30', 'yakov', 'Logged as a problem'), L('Oct 1', 'office', 'Best Tile: the rest comes Thursday')],
+  },
+  {
+    id: 't-green-mat', jobId: 'green', title: 'Setting materials delivered', type: 'Materials', owner: 'yakov', for: ['site'], watch: ['owner'],
+    state: 'waiting', waitingOn: 'Infinity', followUp: 'Mon', tone: 'info', where: 'Thinset, grout, membrane',
+    detail: 'Ordered Sep 30 — Infinity delivers Monday.',
+    log: [L('Sep 30', 'yakov', 'Ordered from Infinity')],
   },
 
   /* ---- estimator ---- */

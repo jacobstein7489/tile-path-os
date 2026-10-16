@@ -102,16 +102,12 @@ function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {
         <SearchField value={q} onChange={setQ} placeholder="Search a room, a wall, a tile, a grout…" className="w-[24rem] bg-white max-md:w-full" />
         {hits
           ? <span className="text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{hits.lines.size}</b> of {total} walls and floors{hits.tiles.size ? <> · <b className="font-semibold text-ink">{hits.tiles.size}</b> tile{hits.tiles.size === 1 ? '' : 's'}</> : null}</span>
-          : <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-md:basis-full max-md:order-last">
-              {lock.done ? <Lock className="h-3.5 w-3.5 shrink-0 text-muted" /> : <Unlock className="h-3.5 w-3.5 shrink-0 text-faint" />}
-              <span className="truncate">{lock.done ? (lock.canEdit ? 'Locked — it’s your scope, only you change it' : `Locked — ${PEOPLE[lock.owner]?.short || 'its owner'}’s scope, only they change it`) : `${lock.owner === me ? 'Your' : `${PEOPLE[lock.owner]?.short || 'Its owner'}’s`} scope — it locks once the tile paperwork is entered`}</span>
-            </span>}
+          : <ScopeNumbers job={job} />}
         <span className="ml-auto flex shrink-0 items-center gap-2 max-md:ml-0">
           {lock.canEdit && <AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} />}
           <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: job.id })}>Print the scope of work</Button>
         </span>
       </div>
-      {!hits && <ScopeNumbers job={job} />}
       {hits && !hits.lines.size && !hits.tiles.size
         ? <Section title="Search"><Empty>Nothing on {job.name} matches “{q.trim()}”. Try a room (“master”), a tile tag (“T-04”) or a grout color.</Empty></Section>
         : <>
@@ -129,18 +125,25 @@ function ScopeNumbers({ job }: { job: Job }) {
   const flat = rooms.flatMap((r) => r.surfaces)
   const tiled = flat.filter((x) => takesTile(x.name))
   const sf = flat.reduce((n, x) => n + (x.sf || 0), 0)
-  const tiles = tilesOf(job.id)
   const noTile = tiled.filter((x) => !x.tile).length
+  const noSF = flat.filter((x) => !x.sf).length
   const inField = IN_FIELD_.includes(job.stage)
   const lock = scopeLock(s, job.id)
   const me = meOf(s.role)
-  const stats: { label: string; value: string; sub?: string; warn?: boolean }[] = [
-    { label: 'Rooms', value: String(rooms.length), sub: `${floorsOf(rooms).filter((g) => g.floor !== 'Rooms').length || 1} ${floorsOf(rooms).length === 1 ? 'floor' : 'floors'}` },
-    { label: 'Walls and floors', value: String(flat.length), sub: noTile ? `${noTile} without a tile` : 'Every one has its tile', warn: noTile > 0 },
-    { label: 'Square feet', value: sf ? sf.toLocaleString('en-US') : '—', sub: flat.some((x) => !x.sf) ? `${flat.filter((x) => !x.sf).length} without square feet` : 'All measured', warn: flat.some((x) => !x.sf) },
-    inField ? { label: 'Installed', value: `${job.pct ?? 0}%`, sub: `${rooms.filter((r) => roomPct(r) >= 100).length} of ${rooms.length} rooms done` } : { label: 'Tiles', value: String(tiles.length), sub: tiles.length ? 'On the tile schedule' : 'From the paperwork' },
-  ]
-  return <Strip stats={stats.map((x) => ({ label: x.label, value: x.value, sub: x.sub, tone: x.warn ? 'warn' as const : undefined }))} />
+  const whose = lock.owner === me ? 'yours' : `${PEOPLE[lock.owner]?.short || 'its owner'}’s`
+  return (
+    <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8125rem] text-ink-2 max-md:order-last max-md:basis-full">
+      <b className="font-semibold tnum text-ink">{rooms.length}</b> {rooms.length === 1 ? 'room' : 'rooms'} ·
+      <b className="font-semibold tnum text-ink">{flat.length}</b> walls and floors ·
+      <b className="font-semibold tnum text-ink">{sf ? sf.toLocaleString('en-US') : '—'}</b> SF
+      {inField && <> · <b className="font-semibold tnum text-ink">{job.pct ?? 0}%</b> installed</>}
+      {noTile > 0 && <span className="font-semibold text-warn-700">· {noTile} without a tile</span>}
+      {noSF > 0 && <span className="font-semibold text-warn-700">· {noSF} without square feet</span>}
+      <span className="inline-flex items-center gap-1 text-muted" title={lock.done ? 'Locked once the tile paperwork is entered — only its owner changes it' : 'It locks once the tile paperwork is entered'}>
+        · {lock.done ? <Lock className="h-3.5 w-3.5 shrink-0" /> : <Unlock className="h-3.5 w-3.5 shrink-0" />}{lock.done ? `Locked — ${whose}` : `${whose.charAt(0).toUpperCase() + whose.slice(1)} until the paperwork is in`}
+      </span>
+    </span>
+  )
 }
 export function ScopeLockBar({ job }: { job: Job }) {
   const s = useStore()
@@ -150,7 +153,7 @@ export function ScopeLockBar({ job }: { job: Job }) {
 }
 
 /* ---------------- the tile schedule ---------------- */
-const BAND = 'flex items-center justify-between gap-3 px-5 py-2 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-white max-sm:px-4'
+const BAND = 'flex items-center justify-between gap-3 px-5 py-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-white max-sm:px-4'
 function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
@@ -165,8 +168,8 @@ function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
         const st = tileStatus(s, job.id, t.tag)
         const grout = t.grout || uses.find((u) => u.x.grout)?.x.grout
         return (
-          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[3.25rem] w-full grid-cols-[2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-4 border-t border-line-2 px-5 py-2 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-md:grid-cols-[2.5rem_minmax(0,1fr)_4rem] max-sm:px-4">
-            <TileImg tile={t} size={38} radius={8} />
+          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[2.75rem] w-full grid-cols-[2rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-3.5 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-md:grid-cols-[2rem_minmax(0,1fr)_4rem] max-sm:px-4">
+            <TileImg tile={t} size={30} radius={7} />
             <span className="min-w-0">
               <span className="block truncate text-[0.90625rem] font-semibold text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
               <span className="block truncate text-[0.78125rem] text-muted">{[t.size, t.finish, t.maker].filter(Boolean).join(' · ') || 'Size not set'}</span>
@@ -203,7 +206,7 @@ function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
             const rsf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
             return (
               <div key={r.name}>
-                <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1.5 max-sm:px-4">
+                <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
                   <span className="min-w-0 truncate text-[0.75rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}{r.note && <span className="font-medium normal-case tracking-normal text-ink-2"> | {r.note}</span>}</span>
                   {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
                   <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
@@ -228,10 +231,10 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
   const pct = surfacePct(x)
   const details = [x.grout ? `${GROUTS[x.grout]?.name} grout` : '', lay.pattern, METHODS[m.key]?.short ? `${METHODS[m.key].short}${m.auto ? ' (suggested)' : ''}` : '', x.height || ''].filter(Boolean)
   return (
-    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.875rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
+    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.5rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
       <span className="min-w-0 text-[0.875rem] font-semibold text-ink max-sm:col-span-1">{x.name}</span>
       <span className="flex min-w-0 items-center gap-2.5 max-sm:col-span-2 max-sm:row-start-2">
-        {t ? <TileImg tile={t} size={26} radius={6} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] shrink-0 rounded-md border border-dashed border-[#d1cbc0]" />}
+        {t ? <TileImg tile={t} size={22} radius={5} /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 rounded-md border border-dashed border-[#d1cbc0]" />}
         <span className="min-w-0">
           <span className="block truncate text-[0.84375rem] text-ink-2">{t ? <><b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? <span className="text-muted">No tile yet</span> : <span className="text-muted">Not tiled — goes under the tile</span>}</span>
           {problem

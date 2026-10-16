@@ -37,6 +37,7 @@ import { SchedulePage, AssignModal, BookingModal } from '@/tileos/features/sched
 import { MoneyPage, MoneyModal } from '@/tileos/features/money'
 import { FollowUpModal, AwardModal } from '@/tileos/features/pricing'
 import { RecordModal } from '@/tileos/features/record'
+import { ProblemModal } from '@/tileos/features/problem'
 import { DailyModal, MediaModal, SiteChangeModal, ChangeApproveModal, MeetingModal } from '@/tileos/features/field'
 import { HeightsModal } from '@/tileos/features/heights'
 import { UpcomingPage } from '@/tileos/features/upcoming'
@@ -83,6 +84,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'fresh': return <FreshModal mode={m.mode} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} level={level} />
+    case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {

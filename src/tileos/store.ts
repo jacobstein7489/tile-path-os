@@ -209,7 +209,16 @@ export function initialData(): Data {
     bookings: clone(BOOKINGS0),
     ready: clone(READY0),
     pricing: clone(PRICING0),
-    hist: {},
+    hist: {
+      /* Green Tree, this week */
+      green: [
+        { date: 'Oct 1', who: 'office', kind: 'material', title: 'Best Tile: the missing T-04 comes Thursday', detail: '6 boxes' },
+        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Tile delivered — with problems', detail: 'T-05 3 boxes broken · T-07 4 boxes wrong (honed, not polished) · T-04 6 boxes missing' },
+        { date: 'Sep 30', who: 'yakov', kind: 'question', title: 'Site check — the water isn’t on yet', detail: 'The GC says Friday. Heights, electrical and plumbing are fine.' },
+        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Setting materials ordered from Infinity', detail: 'Thinset, grout, membrane — delivery Monday' },
+        { date: 'Sep 29', who: 'ys', kind: 'decision', title: 'Design walkthrough with the designer', detail: 'Grout warm gray · feature wall centered on the doors · niches move 6″ left' },
+      ],
+    },
     rooms,
     notices: clone(NOTICES0),
     lost: clone(LOST0),
@@ -230,12 +239,22 @@ export function initialData(): Data {
     messages: clone(MESSAGES0),
     access: Object.fromEntries(ROLES.map((r) => [r.key, [...r.nav]])) as Record<Role, string[]>,
     /* the rough-ins were looked at during the site visits of the projects that are already ready */
-    stepRecs: Object.fromEntries(['530', 'mdrive', 'wilk', 'green'].map((id) => [id, { rough: { done: 'Sep 24', by: 'yakov' } }])) as Record<string, Record<string, StepRec>>,
+    stepRecs: {
+      ...Object.fromEntries(['530', 'mdrive', 'wilk', 'green'].map((id) => [id, { rough: { done: 'Sep 24', by: 'yakov' } }])),
+      /* Green Tree: the site check found the water isn't on yet */
+      green: { rough: { done: 'Sep 24', by: 'yakov' }, design: { done: 'Sep 29', by: 'ys', note: 'Walked it with the designer Sep 29' }, heights: { checks: { heights: { ok: true }, electric: { ok: true }, plumbing: { ok: true }, water: { ok: false, note: 'The GC says Friday' }, ready: { ok: true } } } },
+    } as Record<string, Record<string, StepRec>>,
     jobSteps: {},
     files: [],
     inactive: [],
   } as Data)
   ensureTiles(d)
+  /* 115 Park's tile paperwork is in: the store is sending enough of every tile (with the extra for cuts) */
+  Object.values(d.tiles['115'] || {}).forEach((t) => {
+    const on = (d.rooms['115'] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
+    const need = on.reduce((n, x) => n + (x.sf || 0) * (/floor/i.test(x.name) ? 1.1 : 1.12), 0)
+    t.paper = { qty: Math.ceil(need / 10) * 10 + 10, unit: 'SF' }
+  })
   return d
 }
 /** every tile tag a project uses has its tile record — the sample's tiles fill in any that are missing

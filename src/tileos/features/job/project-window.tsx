@@ -44,7 +44,7 @@ import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton, AddStep } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, ProjectTodo, AtAGlance } from './plan'
+import { projectPath, nextOn, PhaseBar, WhatsOpen, Latest } from './plan'
 import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
@@ -163,26 +163,13 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
   const canBook = ['owner', 'pm', 'office'].includes(role)
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
-  const [adding, setAdding] = React.useState(false)
-  const stepsHere = isGettingReady(job) ? stepsFor(s, job) : []
-  /* everything you can do on the project, in one place */
+  /* the rest, in one short menu — adding things is on the Overview's list (+ Add) */
   const more = (
-    <Menu align="end" width={290} trigger={<Button aria-label="More for this project" icon={<MoreHorizontal />}><span className="max-sm:hidden">More</span></Button>}>
-      {role !== 'accounting' && (
-        <>
-          <MenuLabel>Add to {job.name}</MenuLabel>
-          <MenuItem icon={<ListPlus className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id })} hint="A site issue, a delivery, a decision, a call…">Log what happened</MenuItem>
-          <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>
-          <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>
-          {stepsHere.length > 0 && canEdit && <MenuItem icon={<ClipboardList className="h-4 w-4" />} onSelect={() => setAdding(true)}>A step just for this project</MenuItem>}
-          <MenuSep />
-        </>
-      )}
+    <Menu align="end" width={270} trigger={<Button aria-label="More for this project" icon={<MoreHorizontal />} />}>
+      <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>Everything that happened</MenuItem>
       <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })} hint={files ? `${files}` : undefined}>Files and photos</MenuItem>
       <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })} hint={unread ? `${unread} new` : undefined}>Messages</MenuItem>
-      <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>History — everything that happened</MenuItem>
-      {(canEdit || (canBook && !crew) || mode === 'modal') && <MenuSep />}
-      {canBook && !crew && !['closeout', 'complete'].includes(job.stage) && <MenuItem icon={<HardHat className="h-4 w-4" />} onSelect={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</MenuItem>}
+      {(canEdit || mode === 'modal') && <MenuSep />}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {mode === 'modal' && <MenuItem icon={<Maximize2 className="h-4 w-4" />} onSelect={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}>Open as a full page</MenuItem>}
     </Menu>
@@ -226,11 +213,6 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
           <UnderlineTabs className="min-w-0 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
         </div>
       )}
-      {adding && stepsHere.length > 0 && (
-        <Modal level={8} size="sm" onClose={() => setAdding(false)} title="A step just for this project" sub={job.name}>
-          <AddStep job={job} steps={stepsHere} onDone={() => setAdding(false)} />
-        </Modal>
-      )}
     </div>
   )
 }
@@ -262,11 +244,11 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
   const role = useStore((s) => s.role)
-  /* the to-do (mine, or everyone's) and where it stands */
+  /* what's open (and whose desk it's on), and what happened lately — that's the whole job at a glance */
   return (
-    <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
-      <div className="min-w-0"><ProjectTodo key={role} job={job} setTab={setTab} /></div>
-      <div className="min-w-0"><AtAGlance job={job} setTab={setTab} /></div>
+    <div className="grid w-full grid-cols-[minmax(0,1fr)_22.5rem] items-start gap-4 max-[68rem]:grid-cols-1">
+      <div className="min-w-0"><WhatsOpen key={role} job={job} setTab={setTab} /></div>
+      <div className="min-w-0"><Latest job={job} /></div>
     </div>
   )
 }
