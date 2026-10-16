@@ -28,7 +28,10 @@ export interface Prep {
   tile?: 'yes' | 'part' | 'no'
   /** the walkthrough with the crew before the start */
   walk?: { state: 'todo' | 'set' | 'done'; when?: string; with?: string }
+  /** our materials changed by hand: added, a different amount, taken off the list */
+  mats?: MatEdits
 }
+export interface MatEdits { add?: { itemId: string; qty: number; note?: string }[]; qty?: Record<string, number>; off?: string[] }
 
 export const PREP0: Record<string, Prep> = {
   green: { targetISO: '2026-09-28', target: 'Ready now', meeting: { text: 'TBD' }, tile: 'yes', installer: 'tbd', confirmed: 'no', paperwork: 'yes', po: 'no', material: 'yes', deposit: 'yes', nextStep: 'Pick the installer and send the PO', notes: 'Tile and setting materials on site' },

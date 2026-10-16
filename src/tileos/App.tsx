@@ -13,7 +13,7 @@ import { ActivityModal } from '@/tileos/features/activity'
 import { EstimatesPage, EstimateModal, AiPlansModal, EstSendModal, EstChangesModal, EstFollowModal, EstLostModal } from '@/tileos/features/estimates'
 import { LostModal } from '@/tileos/features/projects'
 import { DirectoryPage, SupplierFormModal, DesignerFormModal, InstallerFormModal } from '@/tileos/features/directory'
-import { ItemsPage, ItemModal, ImportItemsModal } from '@/tileos/features/items'
+import { ItemsPage, ItemModal, ImportItemsModal, NewItemModal } from '@/tileos/features/items'
 import { EmailModal } from '@/tileos/features/email'
 import { SettingModal } from '@/tileos/features/setting'
 import { ShortageModal, ReportShortModal } from '@/tileos/features/shortage'
@@ -104,6 +104,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'designerform': return <DesignerFormModal level={level} />
     case 'installerform': return <InstallerFormModal level={level} />
     case 'item': return <ItemModal id={m.id} level={level} />
+    case 'newitem': return <NewItemModal level={level} />
     case 'importitems': return <ImportItemsModal level={level} />
     case 'email': return <EmailModal what={m.what} level={level} />
     case 'setting': return <SettingModal jobId={m.jobId} level={level} />

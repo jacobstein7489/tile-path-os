@@ -689,6 +689,27 @@ function guessType(title: string): TaskType {
   if (/\b(site|crew|install|punch|touch-?ups?|walkthrough|measure)\b/.test(w)) return 'Field'
   return 'Setup'
 }
+/** the tasks a tile company makes over and over — one tap fills the task in, with who usually does it */
+const TYPICAL: { t: string; who: Role; due: string; for: Role[] }[] = [
+  { t: 'Call the GC for the client PO', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office'] },
+  { t: 'Get the tile delivery date from the store', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'materials'] },
+  { t: 'Confirm the installer for the start date', who: 'owner', due: 'Tomorrow', for: ['owner', 'pm', 'office'] },
+  { t: 'Ask the designer for the grout color', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Follow up on the change order with the GC', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Order the setting materials', who: 'materials', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'materials'] },
+  { t: 'Check the wall heights on site', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'site'] },
+  { t: 'Walk the job with the installer', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
+  { t: 'Count the tile boxes when they come', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site', 'materials'] },
+  { t: 'Check the drains are set before tile', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
+  { t: 'Take progress photos', who: 'site', due: 'Today', for: ['owner', 'pm', 'site'] },
+  { t: 'Punch walk with the GC', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
+  { t: 'Make sure the floors are protected', who: 'site', due: 'Today', for: ['site'] },
+  { t: 'Do the takeoff from the plans', who: 'takeoff', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
+  { t: 'Price the change order', who: 'estimator', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Ask the GC for the finish schedule', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
+  { t: 'Send the deposit invoice', who: 'accounting', due: 'Today', for: ['owner', 'office', 'accounting'] },
+  { t: 'Call the client about the open invoice', who: 'accounting', due: 'Tomorrow', for: ['owner', 'office', 'accounting'] },
+]
 export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -706,6 +727,10 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
   const [jobPicked, setJobPicked] = React.useState(!!jobId)
   const [heard, setHeard] = React.useState('')
   const people = insidePeople(s)
+  /* who usually does a typical task: whoever has that job on the team */
+  const holderOf = (r: Role): PersonKey => (s.team.find((m) => m.role === r && m.status !== 'off')?.key as PersonKey | undefined) || meOf(r) || me
+  const typical = TYPICAL.filter((x) => x.for.includes(s.role)).slice(0, 10)
+  const pickTypical = (x: (typeof TYPICAL)[number]) => { setTitle(x.t); setOwner(holderOf(x.who)); setDue(x.due); setPicked(true) }
   /* "call the GC tomorrow" sets the day, and "828 Clyde — …" the project, by themselves — until you pick one */
   const onTitle = (v: string) => {
     setTitle(v)
@@ -754,6 +779,14 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         <Mic onText={(t) => onTitle(addSaid(title, t))} className="absolute right-2 top-1/2 -translate-y-1/2" size="sm" />
       </span>
       {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
+      {!title.trim() && typical.length > 0 && (
+        <div className="mt-3">
+          <div className="mb-1.5 text-[0.75rem] font-semibold text-muted">Typical — tap one</div>
+          <div className="flex flex-wrap gap-1.5">
+            {typical.map((x) => <button key={x.t} type="button" onClick={() => pickTypical(x)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-200 hover:bg-brand-50/50 hover:text-ink">{x.t}</button>)}
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{owner === me ? 'Me' : PEOPLE[owner].short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Who does it</MenuLabel>

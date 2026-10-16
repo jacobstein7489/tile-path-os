@@ -88,10 +88,10 @@ function metalOf(x: Surface): { itemId: string; pcs: number; note: string } | nu
 
 /* ---------------- the takeoff ---------------- */
 export interface Use { room: string; surface: string; sf: number; raw: number; note: string }
-export interface TakeLine { itemId: string; group: Group; raw: number; need: number; have: number; onSite: number; toOrder: number; uses: Use[]; refs: string[] }
-export interface Takeoff { lines: TakeLine[]; skipped: { room: string; surface: string; why: string }[]; sf: number; counted: number; total: number; rules: MatRules }
+export interface TakeLine { itemId: string; group: Group; raw: number; need: number; have: number; onSite: number; toOrder: number; uses: Use[]; refs: string[]; manual?: boolean; edited?: number }
+export interface Takeoff { lines: TakeLine[]; skipped: { room: string; surface: string; why: string }[]; sf: number; counted: number; total: number; rules: MatRules; off: string[] }
 
-export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'>, jobId: string): Takeoff {
+export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Partial<Pick<Store, 'prep'>>, jobId: string): Takeoff {
   const R: MatRules = { ...MAT_RULES0, ...(s.rules?.mat || {}) }
   const w = 1 + R.waste / 100
   const rooms = s.rooms[jobId] || []
@@ -190,8 +190,20 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'>, jobI
     else if (m.rooms || m.items) scoped.push({ rooms: m.rooms && m.rooms !== 'all' ? new Set(m.rooms.map((r) => r.toLowerCase())) : null, items: m.items ? new Set(m.items) : null, onSite: here, ref: m.name })
   })
 
+  /* what was changed by hand: a material added, a different amount, one taken off the list */
+  const ed = s.prep?.[jobId]?.mats || {}
+  const manual = new Set<string>()
+  ;(ed.add || []).forEach((m) => {
+    if (!(m.qty > 0)) return
+    if (!acc[m.itemId]) { acc[m.itemId] = { raw: 0, uses: [] }; manual.add(m.itemId) }
+    acc[m.itemId].raw += m.qty / (manual.has(m.itemId) ? 1 : w)
+    acc[m.itemId].uses.push({ room: 'Added by hand', surface: m.note || '', sf: 0, raw: m.qty, note: m.note || 'added by hand' })
+  })
+  const off = (ed.off || []).filter((id) => acc[id])
+  off.forEach((id) => delete acc[id])
   const lines: TakeLine[] = Object.entries(acc).map(([itemId, a]) => {
-    const need = EXACT.has(itemId) ? Math.ceil(a.raw - 1e-9) : Math.ceil(a.raw * w - 1e-9)
+    const worked = manual.has(itemId) || EXACT.has(itemId) ? Math.ceil(a.raw - 1e-9) : Math.ceil(a.raw * w - 1e-9)
+    const need = ed.qty?.[itemId] != null ? ed.qty[itemId] : worked
     const c = cover[itemId] || { have: 0, onSite: 0, refs: [] }
     let have = c.have
     let onSite = c.onSite
@@ -211,11 +223,11 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'>, jobI
       if (a0.onSite) onSite = Math.max(onSite, need)
       if (!refs.includes(a0.ref)) refs.push(a0.ref)
     }
-    return { itemId, group: GROUP_OF[itemId] || 'Setting and grout', raw: a.raw, need, have, onSite: Math.min(onSite, have), toOrder: Math.max(0, need - have), uses: a.uses, refs }
+    return { itemId, group: GROUP_OF[itemId] || 'Setting and grout', raw: a.raw, need, have, onSite: Math.min(onSite, have), toOrder: Math.max(0, need - have), uses: a.uses, refs, manual: manual.has(itemId) || undefined, edited: ed.qty?.[itemId] != null ? worked : undefined }
   })
   const order = (id: string) => Object.keys(GROUP_OF).indexOf(id)
   lines.sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || order(a.itemId) - order(b.itemId))
-  return { lines, skipped, sf, counted, total, rules: R }
+  return { lines, skipped, sf, counted, total, rules: R, off }
 }
 
 /** "102 bags", "1 box", "15 sheets" */

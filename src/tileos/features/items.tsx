@@ -3,7 +3,7 @@
  * Products come in from QuickBooks or a supplier's price list; prices are samples. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { RefreshCw, Plus, Upload, Package, Hammer, Truck, Check, FileSpreadsheet, Sparkles, Camera, Layers, Grid3x3, Droplets, ScrollText, PanelTop, Shovel, Ruler, Wrench, SprayCan, CircleDollarSign, HardHat, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Plus, Upload, Package, Hammer, Truck, Check, FileSpreadsheet, Sparkles, Camera, Layers, Grid3x3, Droplets, ScrollText, PanelTop, Shovel, Ruler, Wrench, SprayCan, CircleDollarSign, HardHat, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { Button, Chip, TextInput, Field, OptionCard } from '@/tileos/components/ui/core'
 import { Modal, Tip } from '@/tileos/components/ui/overlay'
@@ -71,7 +71,10 @@ export function ItemsPage() {
     <Page
       title="Items"
       sub={ours.length ? <>Your products and services from QuickBooks — what estimates are priced with — and the setting materials the takeoff orders from.</> : `The materials the takeoff orders from, and our labor rates.${smp(' Sample prices.')}`}
-      actions={<Button variant="primary" icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}>Import from QuickBooks</Button>}
+      actions={<div className="flex items-center gap-2">
+        {canChangeItems(s.role) && <Button icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
+        <Button variant="primary" icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}>Import from QuickBooks</Button>
+      </div>}
       top={
         <Bubbles
           items={[
@@ -199,14 +202,36 @@ function MatCard({ i }: { i: Item }) {
 export function ItemModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const i = s.items.find((x) => x.id === id)
+  const [editing, setEditing] = React.useState(false)
+  const [sure, setSure] = React.useState(false)
   if (!i) return null
+  if (editing && i.type === 'material') return <Modal level={level} size="lg" onClose={s.close} title={`Change ${i.name}`} sub="Everything about it — the projects’ material lists and new POs use it right away"><MaterialForm item={i} onDone={() => setEditing(false)} /></Modal>
+  const can = canChangeItems(s.role)
+  /* the takeoff's own materials (thinset, grout, board…) can be changed, not deleted — ones you added can */
+  const usedByTakeoff = !!i.usedFor || (i.id.startsWith('m-') && !i.id.startsWith('m-own-'))
+  const footer = can && i.type === 'material' ? (
+    sure ? (
+      <>
+        <span className="text-[0.84375rem] font-medium text-bad-700">Delete {i.name}? It comes off the catalog — POs already sent keep it.</span>
+        <Button className="ml-auto" variant="ghost" onClick={() => setSure(false)}>Keep it</Button>
+        <Button variant="danger" onClick={() => { s.commit((st) => { st.items = st.items.filter((x) => x.id !== i.id) }, `${i.name} deleted`); s.close() }}>Yes, delete it</Button>
+      </>
+    ) : (
+      <>
+        {usedByTakeoff
+          ? <span className="text-[0.78125rem] text-muted">The takeoff works this one out — change it, it can’t be deleted</span>
+          : <Button variant="ghost" icon={<Trash2 />} onClick={() => setSure(true)}>Delete</Button>}
+        <Button className="ml-auto" icon={<Pencil />} onClick={() => setEditing(true)}>Change it</Button>
+      </>
+    )
+  ) : undefined
   const paid = s.pos.flatMap((p) => p.lines.filter((l) => l.itemId === id && l.price).map((l) => ({ po: p, l })))
   const inst = s.ipos.flatMap((p) => p.lines.filter((l) => l.itemId === id && l.rate).map((l) => ({ po: p, l })))
   const onEst = s.estimates.filter((e) => e.revs.some((r) => r.lines.some((l) => l.itemId === id)))
   const mat = i.type === 'material'
   const cat = MAT_CAT[i.cat || 'supplies']
   return (
-    <Modal level={level} size="lg" onClose={s.close} title={mat ? `${i.brand || ''} ${i.product || ''}`.trim() || i.name : i.name} sub={mat ? `${i.name} · ${i.pack || i.unit}` : `${ITEM_TYPE_LABEL[i.type]} · per ${i.unit} · QuickBooks ${i.qb}`}>
+    <Modal level={level} size="lg" onClose={s.close} footer={footer} title={mat ? `${i.brand || ''} ${i.product || ''}`.trim() || i.name : i.name} sub={mat ? `${i.name} · ${i.pack || i.unit}` : `${ITEM_TYPE_LABEL[i.type]} · per ${i.unit} · QuickBooks ${i.qb}`}>
       <div className={cn('flex gap-6 border-b border-line pb-5 max-sm:flex-col', !mat && 'block')}>
         {mat && (
           <div className="flex shrink-0 flex-col items-center gap-2 max-sm:self-start">
@@ -250,6 +275,93 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
     </Modal>
   )
 }
+/** the office, the owner, the estimator and whoever orders can add, change and delete materials */
+export const canChangeItems = (role: string) => ['owner', 'pm', 'office', 'estimator', 'materials'].includes(role)
+const MAT_UNITS = ['bag', 'pail', 'box', 'roll', 'sheet', 'pc', 'tube', 'gal', 'lb', 'SF', 'LF', 'EA']
+
+/** a material: what it's called, who makes it, how it comes, what we pay and charge, its picture */
+function MaterialForm({ item, onDone }: { item?: Item; onDone: (id?: string) => void }) {
+  const s = useStore()
+  const [f, setF] = React.useState(() => ({
+    name: item?.name || '', brand: item?.brand || '', product: item?.product || '', cat: (item?.cat || 'supplies') as MatCat, pack: item?.pack || '', unit: item?.unit || 'bag',
+    vendor: item?.vendor || '', cost: item?.cost ? String(item.cost) : '', price: item?.price ? String(item.price) : '', photo: item?.photo || '',
+  }))
+  const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }))
+  const num = (v: string) => Math.round((Number(v.replace(/[^0-9.]/g, '')) || 0) * 100) / 100
+  const vendors = Array.from(new Set([...s.suppliers.map((x) => x.name), ...s.items.map((x) => x.vendor).filter(Boolean) as string[]]))
+  const pickPhoto = (file?: File) => {
+    if (!file) return
+    const r = new FileReader()
+    r.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const k = Math.min(1, 480 / Math.max(img.width, img.height))
+        const cv = document.createElement('canvas')
+        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k)
+        cv.getContext('2d')?.drawImage(img, 0, 0, cv.width, cv.height)
+        set({ photo: cv.toDataURL('image/jpeg', 0.86) })
+      }
+      img.src = String(r.result)
+    }
+    r.readAsDataURL(file)
+  }
+  const ok = !!f.name.trim()
+  const save = () => {
+    if (!ok) return
+    const patch: Partial<Item> = { name: f.name.trim(), brand: f.brand.trim() || undefined, product: f.product.trim() || undefined, cat: f.cat, pack: f.pack.trim() || undefined, unit: f.unit, vendor: f.vendor.trim() || undefined, cost: num(f.cost), price: num(f.price), photo: f.photo || undefined }
+    if (item) {
+      s.commit((st) => { const it = st.items.find((x) => x.id === item.id); if (it) Object.assign(it, patch) }, `${patch.name} saved`)
+      onDone(item.id)
+    } else {
+      const id = 'm-own-' + Date.now().toString(36)
+      s.commit((st) => { st.items.push({ id, type: 'material', qb: patch.name!, pic: 'box', ...patch } as Item) }, `${patch.name} added to Items`, { sub: 'It’s on the list for the projects’ materials and POs.' })
+      onDone(id)
+    }
+  }
+  const cat = MAT_CAT[f.cat]
+  return (
+    <div>
+      <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-6 max-sm:grid-cols-1">
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center justify-center rounded-2xl" style={{ background: `${cat.color}14` }}>
+            <ProductPic kind={item?.pic || 'box'} color={item?.tint || cat.color} label={f.product || f.name.split(' ')[0] || 'New'} sub={f.pack} photo={f.photo || undefined} size={140} bg={false} />
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash">
+            <Camera className="h-3.5 w-3.5" />{f.photo ? 'Change the photo' : 'Add a photo'}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
+          </label>
+          {f.photo && <button type="button" onClick={() => set({ photo: '' })} className="text-[0.75rem] font-semibold text-muted hover:text-bad-600">Remove the photo</button>}
+        </div>
+        <div className="grid min-w-0 grid-cols-2 gap-3 max-sm:grid-cols-1">
+          <Field label="Name" className="col-span-2 max-sm:col-span-1"><TextInput data-autofocus aria-label="Material name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. LFT thinset · 50 lb" className="h-10" /></Field>
+          <Field label="Brand"><TextInput aria-label="Brand" value={f.brand} onChange={(e) => set({ brand: e.target.value })} placeholder="e.g. Mapei" className="h-10" /></Field>
+          <Field label="Product"><TextInput aria-label="Product" value={f.product} onChange={(e) => set({ product: e.target.value })} placeholder="e.g. Ultraflex LFT" className="h-10" /></Field>
+          <Field label="Kind"><SearchSelect label="Kind" value={f.cat} onChange={(v) => set({ cat: v as MatCat })} options={(Object.keys(MAT_CAT) as MatCat[]).map((c) => ({ key: c, label: MAT_CAT[c].label }))} search={false} width={240} /></Field>
+          <Field label="How it comes"><TextInput aria-label="How it comes" value={f.pack} onChange={(e) => set({ pack: e.target.value })} placeholder="e.g. 50 lb bag" className="h-10" /></Field>
+          <Field label="Counted by"><SearchSelect label="Unit" value={f.unit} onChange={(v) => set({ unit: v })} options={MAT_UNITS.map((u) => ({ key: u, label: u }))} search={false} width={160} /></Field>
+          <Field label="Supplier"><SearchSelect label="Supplier" value={f.vendor} onChange={(v) => set({ vendor: v })} options={vendors.map((v) => ({ key: v, label: v }))} placeholder="Pick or type" onCreate={(v) => set({ vendor: v })} createLabel={(q) => `Use “${q}”`} search width={260} /></Field>
+          <Field label="We pay" hint={`per ${f.unit}`}><TextInput aria-label="We pay" inputMode="decimal" value={f.cost} onChange={(e) => setF((v) => ({ ...v, cost: e.target.value }))} placeholder="$0.00" className="h-10 tnum" /></Field>
+          <Field label="We charge" hint={`per ${f.unit}`}><TextInput aria-label="We charge" inputMode="decimal" value={f.price} onChange={(e) => setF((v) => ({ ...v, price: e.target.value }))} placeholder="$0.00" className="h-10 tnum" /></Field>
+        </div>
+      </div>
+      <div className="mt-5 flex justify-end gap-2 border-t border-line-2 pt-4">
+        <Button variant="ghost" onClick={() => onDone(item?.id)}>Cancel</Button>
+        <Button variant="primary" disabled={!ok} onClick={save}>{item ? 'Save' : 'Add the material'}</Button>
+      </div>
+    </div>
+  )
+}
+
+/** a new material, by hand */
+export function NewItemModal({ level }: { level: number }) {
+  const s = useStore()
+  return (
+    <Modal level={level} size="lg" onClose={s.close} title="Add a material" sub="It joins the catalog — the projects’ material lists and POs can use it">
+      <MaterialForm onDone={(id) => { s.close(); if (id) setTimeout(() => s.open({ t: 'item', id }), 80) }} />
+    </Modal>
+  )
+}
+
 /** the numbers anyone with the admin login can fix: the unit, what we charge, what we pay the installer */
 function ItemEdit({ i }: { i: Item }) {
   const s = useStore()

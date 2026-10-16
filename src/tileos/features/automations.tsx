@@ -122,6 +122,17 @@ export function AutomationsTab() {
   )
 }
 
+/** the reminders a tile company usually sets — one tap fills it in */
+const TYPICAL_REMINDERS: { t: string; who: Role; repeat: NonNullable<Task['repeat']>; at: string }[] = [
+  { t: 'Send me how many people are on each job', who: 'site', repeat: 'weekdays', at: '4 PM' },
+  { t: 'Check next week’s starts — tile, materials and installer all set?', who: 'owner', repeat: 'weekly', at: '8 AM' },
+  { t: 'Order the setting materials for next week’s starts', who: 'materials', repeat: 'weekly', at: '8 AM' },
+  { t: 'Walk every job with a crew on it', who: 'site', repeat: 'weekdays', at: '8 AM' },
+  { t: 'Send the GC this week’s progress photos', who: 'site', repeat: 'weekly', at: '4 PM' },
+  { t: 'Go over open invoices and call who’s late', who: 'accounting', repeat: 'weekly', at: 'Noon' },
+  { t: 'Check the tile deliveries coming this week', who: 'office', repeat: 'weekly', at: '8 AM' },
+]
+
 /* ================= a new automation: what, who, how often ================= */
 export function NewAutomationModal({ level, who: who0 }: { level: number; who?: PersonKey }) {
   const s = useStore()
@@ -133,6 +144,7 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
   const [at, setAt] = React.useState('4 PM')
   const [job, setJob] = React.useState('')
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(j.stage))
+  const holderOf = (r: Role): PersonKey => (r === 'site' ? siteMgr(s) : r === 'accounting' ? books(s) : r === 'owner' ? boss(s) : roleHolder(s, r) || meOf(r) || boss(s))
   const add = () => {
     if (!title.trim()) return
     s.addTask({ jobId: job, title: title.trim(), type: 'Field', owner, due: 'Today', for: roleOf(s, owner), state: 'now', tone: 'info', repeat, repeatAt: at, where: `${REPEAT_LABEL[repeat]} at ${at}`, watch: owner === meOf(s.role) ? [] : [s.role] })
@@ -156,6 +168,14 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
     >
       <div className="flex flex-col gap-4">
         <TextInput mic data-autofocus aria-label="What should happen" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} placeholder="The reminder — e.g. Send me how many people are on each job" className="h-12 rounded-[0.6875rem] text-[0.9375rem]" />
+        {!title.trim() && (
+          <div className="-mt-1">
+            <div className="mb-1.5 text-[0.75rem] font-semibold text-muted">Typical — tap one</div>
+            <div className="flex flex-wrap gap-1.5">
+              {TYPICAL_REMINDERS.map((x) => <button key={x.t} type="button" onClick={() => { setTitle(x.t); setOwner(holderOf(x.who)); setRepeat(x.repeat); setAt(x.at) }} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-200 hover:bg-brand-50/50 hover:text-ink">{x.t}</button>)}
+            </div>
+          </div>
+        )}
         {built && <div className="-mt-2 rounded-lg bg-brand-50 px-3 py-2 text-[0.8125rem] text-brand-800">The system already does this by itself: <b className="font-semibold">{built.what}</b> — {PEOPLE[built.who(s)]?.short}, {built.when(s).toLowerCase()}. It’s on the list behind this window.</div>}
         <div>
           <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who gets it</div>
