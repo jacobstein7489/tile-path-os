@@ -4,7 +4,7 @@ import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { Mail, Plus, Send, Truck, Check, Trash2, FilePen, Hourglass, AlarmClock, PackageCheck, Layers, Package, HardHat, Building2, ArrowLeft, MapPin, CalendarCheck, Calculator } from 'lucide-react'
-import { useStore } from '@/tileos/store'
+import { useStore, meOf, addHist, NOW } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow, Status, Path, Bubbles, Row, Col, Meta, IconTile, EmptyState } from '@/tileos/components/ui/page'
@@ -22,6 +22,7 @@ import { METHODS } from '@/tileos/data/takeoff'
 import { crewFree } from './upcoming'
 import { ActivityRow } from './activity'
 import { ItemPicker } from './estimates'
+import { allowedFor } from './newpicker'
 import { ItemThumb } from './items'
 import { CalcHow } from './calc'
 import { PAY_WEEKS, PAY_STATE, PAID_EARLIER, payRow } from './pay'
@@ -170,6 +171,26 @@ export function POsPage() {
 }
 
 /* ================= a material PO ================= */
+/** "16 bags", "2 rolls", "40 SF" — a quantity said the way the supplier reads it */
+const qtyText = (n: number, unit?: string) => (!unit ? String(n) : /^(SF|LF|EA|SY|gal|lb|pc)$/i.test(unit) || n === 1 ? `${n} ${unit}` : `${n} ${unit.endsWith('s') ? unit : unit + 's'}`)
+/** change a PO that's already out: the new lines go to the supplier, who confirms it again */
+function changePO(id: string, lines: POLine[]) {
+  const s = useStore.getState()
+  s.commit((st) => {
+    const p = st.pos.find((x) => x.id === id)
+    if (!p) return
+    const before = p.amount
+    p.lines = lines.map((l) => ({ ...l, qty: l.n != null ? qtyText(l.n, st.items.find((i) => i.id === l.itemId)?.unit) : l.qty }))
+    p.amount = Math.round(p.lines.reduce((n, l) => n + (l.price || 0) * (l.n || 0), 0) * 100) / 100
+    if (p.step === 2) p.step = 1
+    p.late = false
+    p.note = `Changed ${NOW} · waiting for ${p.supplier} to confirm`
+    const me = meOf(st.role)
+    p.log.push({ date: NOW, who: me, text: `Changed — ${fmtMoney(before)} → ${fmtMoney(p.amount)} · sent to ${p.supplier}` })
+    addHist(st, p.jobId, { who: me, kind: 'material', title: `${p.id} changed — sent to ${p.supplier}`, detail: p.lines.map((l) => `${l.item} ${l.qty}`).join(' · '), ref: { t: 'po', id: p.id } })
+  }, 'PO changed', { sub: 'The change went to the supplier — it waits for them to confirm again.' })
+}
+
 export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const p = s.pos.find((x) => x.id === id)
@@ -177,7 +198,11 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   const [said, setSaid] = React.useState('')
   const [back, setBack] = React.useState('Tomorrow')
   const [fu, setFu] = React.useState(false)
+  /* changing it after it went out: the lines are worked on here, then the change goes to the supplier */
+  const [edit, setEdit] = React.useState<POLine[] | null>(null)
   if (!p) return null
+  const canChange = (p.step === 1 || p.step === 2) && allowedFor(s.role, 'po')
+  const editTotal = edit ? edit.reduce((n, l) => n + (l.price || 0) * (l.n || 0), 0) : 0
   const job = s.jobs[p.jobId]
   const cancelled = /cancelled/i.test(p.note)
   const steps = ['Sent', 'Confirmed', 'Delivered', 'Bill in', 'Paid'].map((label, i) => {
@@ -203,8 +228,15 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       {cancelled ? <div className="mt-4 rounded-lg bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">{p.note}</div> : <Path className="mt-4" steps={steps} />}
     </div>
   )
-  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Replaced — kept for the record.</span> : (
+  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Replaced — kept for the record.</span> : edit ? (
     <>
+      <Button variant="ghost" onClick={() => setEdit(null)}>Cancel</Button>
+      <span className="ml-auto text-[0.84375rem] text-muted">{fmtMoney(p.amount)} → <b className="font-semibold text-ink">{fmtMoney(editTotal)}</b></span>
+      <Button variant="primary" icon={<Send />} disabled={!edit.length} onClick={() => { changePO(p.id, edit); setEdit(null) }}>Send the change to {p.supplier}</Button>
+    </>
+  ) : (
+    <>
+      {canChange && <Button variant="ghost" icon={<FilePen />} onClick={() => setEdit(p.lines.map((l) => ({ ...l, n: l.n ?? (Number(String(l.qty).match(/\d+/)?.[0]) || 1) })))}>Change it</Button>}
       {p.step === 1 && (
         <>
           <span className="text-[0.84375rem] text-muted">They confirmed — arriving</span>
@@ -232,11 +264,39 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
-      <POLines lines={p.lines} total={p.amount} />
+      {edit ? <POLinesEdit lines={edit} onChange={setEdit} /> : <POLines lines={p.lines} total={p.amount} />}
       <div className="mt-3 flex items-center gap-2 text-[0.84375rem] text-muted"><Truck className="h-4 w-4" />Deliver to {job?.address}</div>
       <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
       <div className="-mx-2 mt-1">{[...p.log].reverse().map((l, i) => <ActivityRow key={i} compact jobId={p.jobId} e={{ date: l.date, who: l.who, kind: 'material', title: l.text, ref: { t: 'po', id: p.id } }} />)}</div>
     </Modal>
+  )
+}
+
+/** the lines, while you change them: how many, the price, take one off, add an item */
+function POLinesEdit({ lines, onChange }: { lines: POLine[]; onChange: (ls: POLine[]) => void }) {
+  const s = useStore()
+  const set = (i: number, patch: Partial<POLine>) => onChange(lines.map((l, k) => (k === i ? { ...l, ...patch } : l)))
+  const num = (v: string) => Math.max(0, Number(v.replace(/[^0-9.]/g, '')) || 0)
+  return (
+    <div>
+      <div className="mb-2 text-[0.8125rem] text-muted">Change how many, the price, take a line off or add one — the change goes to the supplier.</div>
+      <div className="grid grid-cols-[minmax(0,1fr)_6rem_6.5rem_6.5rem_2rem] gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_5rem_2rem]">
+        <span>Item</span><span className="text-right">How many</span><span className="text-right max-sm:hidden">Price</span><span className="text-right max-sm:hidden">Amount</span><span />
+      </div>
+      {lines.map((l, i) => {
+        const it = s.items.find((x) => x.id === l.itemId)
+        return (
+          <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem_6.5rem_6.5rem_2rem] items-center gap-2 border-b border-line-2 py-2 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_5rem_2rem]">
+            <span className="flex min-w-0 items-center gap-2.5">{it && <ItemThumb item={it} size={30} />}<span className="truncate text-ink">{l.item}</span></span>
+            <input aria-label={`How many ${l.item}`} inputMode="decimal" value={l.n ?? ''} onChange={(e) => set(i, { n: num(e.target.value) })} className="h-9 w-full rounded-[0.5rem] border border-line bg-white px-2 text-right text-[0.875rem] tnum focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50" />
+            <input aria-label={`Price of ${l.item}`} inputMode="decimal" value={l.price ?? ''} onChange={(e) => set(i, { price: num(e.target.value) })} className="h-9 w-full rounded-[0.5rem] border border-line bg-white px-2 text-right text-[0.875rem] tnum focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50 max-sm:hidden" />
+            <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney((l.price || 0) * (l.n || 0))}</span>
+            <button aria-label={`Take ${l.item} off`} onClick={() => onChange(lines.filter((_, k) => k !== i))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        )
+      })}
+      <div className="mt-2"><ItemPicker types={['material']} label="Add an item" onPick={(it) => onChange([...lines, { item: it.name, itemId: it.id, n: 1, price: it.cost, qty: `1 ${it.unit}` }])} /></div>
+    </div>
   )
 }
 

@@ -7,7 +7,7 @@
  *   At a glance — the five facts, each in the same shape. Scope of work — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
 import { useStore, meOf, historyOf, type Store } from '@/tileos/store'
 import { Button, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -190,7 +190,24 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
     const k = key === 'daily' || key === 'punch' || key.startsWith('held:') ? site : key.startsWith('sh:') ? matBy(s) : key === 'ret' ? holder('owner') : bills.has(key) ? holder('accounting') || holder('owner') : undefined
     return k ? realOwner(s, k) : undefined
   }
+  /* the touch-ups: one line for the whole list (it opens the list — every touch-up its own line) */
+  const pun = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified')
+  if (pun.length) {
+    const doing = pun.filter((p) => p.status !== 'verify')
+    const listTask = s.tasks.find((t) => t.jobId === job.id && t.action?.kind === 'tab:touchups' && t.state !== 'done')
+    const who = realOwner(s, (doing.length ? doing[0].owner : listTask?.owner || site || 'ys') as PersonKey)
+    const waits = doing.filter((p) => /^waiting/i.test(p.note || '')).length
+    const iso = isoFromLabel(listTask?.due)
+    const w = iso ? dueWords(iso) : { when: '—', late: false }
+    rows.push({
+      key: 'touchups', group: turn(who, false, false), mark: { kind: 'task', waiting: false },
+      title: `Touch-ups · ${doing.length ? `${doing.length} to do` : `${pun.length} to check`}`,
+      note: [doing.slice(0, 2).map((p) => p.text).join(' · ') + (doing.length > 2 ? ' …' : ''), pun.length > doing.length && doing.length ? `${pun.length - doing.length} to check` : '', waits ? `${waits} waiting` : ''].filter(Boolean).join(' · '),
+      who, when: w.when, late: w.late, run: () => s.open({ t: 'touchups', jobId: job.id }),
+    })
+  }
   lines.forEach((l) => {
+    if (l.it?.key === 'punch' || l.task?.action?.kind === 'tab:touchups') return
     if (l.it) {
       const it = l.it
       const who = l.owner ? realOwner(s, l.owner.owner) : ownerOfItem(it.key)
@@ -306,6 +323,8 @@ function AddToProject({ job }: { job: Job }) {
       <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
         <MenuLabel>Add to {job.name}</MenuLabel>
         <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
+        <MenuItem icon={<Wrench className="h-4 w-4" />} onSelect={() => s.open({ t: 'punchnew', jobId: job.id })} hint="The whole list at once — one per line">Touch-ups</MenuItem>
+        <MenuItem icon={<StickyNote className="h-4 w-4" />} onSelect={() => s.open({ t: 'note', jobId: job.id })} hint="With photos or videos">A note</MenuItem>
         {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>}
         {allowedFor(s.role, 'meeting') && <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>}
         {canStep && <MenuItem icon={<ClipboardList className="h-4 w-4" />} onSelect={() => setStep(true)}>A step just for this project</MenuItem>}

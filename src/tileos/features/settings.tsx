@@ -1,9 +1,9 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight } from 'lucide-react'
+import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, Send } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs } from '@/tileos/store'
-import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, Field, UnderlineTabs } from '@/tileos/components/ui/core'
+import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { DEPOSIT_WAY, type DepositWay } from './progressbill'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Page, Card } from '@/tileos/components/ui/page'
@@ -62,7 +62,7 @@ function TeamTab() {
     <div className="flex max-w-[56rem] flex-col gap-4">
       {REAL.people && REAL.admin && <WaitingToJoin />}
       <Card pad={false}>
-        <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The team" sub="Everyone in the office and the field signs in with their own email and sees only their part." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
+        <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The team" sub="Everyone signs in with their own email and password, and sees only their part. Invite them — they make their own password." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
         <div className="border-t border-line-2">
           {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
@@ -111,10 +111,23 @@ function WaitingToJoin() {
               <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.name}</span>
               <span className="block truncate text-[0.78125rem] text-muted">{p.email}{p.since ? ` · signed up ${new Date(p.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
             </span>
-            <Menu align="end" width={300} trigger={<Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid}>{busy === p.uid ? 'Letting in…' : 'Let in as…'}</Button>}>
-              <MenuLabel>Login type — decides what they see</MenuLabel>
-              {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
-            </Menu>
+            {(() => {
+              const inv = s.team.find((m) => !m.uid && m.email && m.email.toLowerCase() === p.email.toLowerCase())
+              return inv ? (
+                <>
+                  <Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid} onClick={() => void letIn(p, inv.role)}>{busy === p.uid ? 'Letting in…' : `Let in as ${short(inv.role)}`}</Button>
+                  <Menu align="end" width={300} trigger={<Button size="sm" variant="ghost" aria-label="Let in as something else">Other</Button>}>
+                    <MenuLabel>Login type — decides what they see</MenuLabel>
+                    {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
+                  </Menu>
+                </>
+              ) : (
+                <Menu align="end" width={300} trigger={<Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid}>{busy === p.uid ? 'Letting in…' : 'Let in as…'}</Button>}>
+                  <MenuLabel>Login type — decides what they see</MenuLabel>
+                  {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
+                </Menu>
+              )
+            })()}
           </div>
         ))}
         {problem && <div className="px-6 py-2.5 text-[0.8125rem] font-medium text-bad-700 max-sm:px-4">{problem}</div>}
@@ -162,15 +175,64 @@ function MemberRow({ k }: { k: PersonKey }) {
               {LOGINS.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} checked={m.role === r.key} hint={r.sees} onSelect={() => updateMember(k, { role: r.key }, `${PEOPLE[k].name} is now ${short(r.key)}`)}>{short(r.key)}</MenuItem>)}
             </Menu>
           )}
-          <span className="w-[4.75rem] text-right max-sm:hidden">{m.status === 'invited' ? <Pill tone="warn" size="sm">Invited</Pill> : <Pill tone="ok" size="sm">Active</Pill>}</span>
+          {!admin && !m.uid && m.role !== 'client'
+            ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} onClick={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invited' : 'Invite'}</Button>
+            : <span className="w-[4.75rem] text-right max-sm:hidden"><Pill tone="ok" size="sm">{m.uid ? 'Signs in' : 'Active'}</Pill></span>}
           <Menu align="end" width={220} trigger={<button aria-label={`More for ${PEOPLE[k].name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2">⋯</button>}>
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>
+            {!admin && !m.uid && <MenuItem icon={<Send className="h-4 w-4" />} onSelect={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invite again' : 'Invite them'}</MenuItem>}
             <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => setEdit(true)}>Rename</MenuItem>
             {!admin && <MenuItem danger onSelect={() => removeMember(k)} hint="Their login stops working">Remove from the team</MenuItem>}
           </Menu>
         </>
       )}
     </div>
+  )
+}
+
+/** invite someone to sign in: their email and what they'll see, and a message with the link — sent from your own email
+ *  or phone. They make their own password when they sign up; you let them in with one tap (Waiting to join). */
+const APP_LINK = () => (REAL.cloud && typeof location !== 'undefined' ? location.origin : 'https://tile-path-os.lovable.app')
+export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
+  const s = useStore()
+  const m = s.team.find((x) => x.key === k)
+  const [email, setEmail] = React.useState(m?.email || '')
+  const [role, setRole] = React.useState<Role>(m?.role || 'office')
+  const me = PEOPLE[REAL.me || 'ys']?.short || 'Yaakov'
+  const msg0 = (e: string) => [`Hi ${m?.first || ''},`, '', 'You’re invited to Cobblestone Tile OS — it’s where we run our projects.', '', `1. Open ${APP_LINK()}`, `2. Sign up with this email: ${e || 'your email'}`, '3. Make your own password', '', 'I’ll let you in right away.', '', `— ${me}`].join('\n')
+  const [msg, setMsg] = React.useState(() => msg0(m?.email || ''))
+  const [touched, setTouched] = React.useState(false)
+  if (!m) return null
+  const ok = /\S+@\S+\.\S+/.test(email)
+  const mark = () => updateMember(k, { email: email.trim(), role, status: 'invited', invited: TODAY }, `${m.first} is invited`)
+  const subject = 'You’re invited to Cobblestone Tile OS'
+  const copy = async () => { try { await navigator.clipboard.writeText(msg) } catch { /* no clipboard */ } mark(); toast('Copied — paste it in a text or an email', { description: `When ${m.first} signs up, let them in from Settings → Team.` }) }
+  return (
+    <Modal
+      level={level}
+      size="md"
+      onClose={s.close}
+      title={`Invite ${PEOPLE[k]?.name || m.first}`}
+      sub="They make their own password when they sign up — you let them in with one tap."
+      footer={
+        <>
+          <Button variant="ghost" disabled={!ok} onClick={copy}>Copy</Button>
+          {m.phone && <Button disabled={!ok} onClick={() => { mark(); window.open(`sms:${m.phone}?&body=${encodeURIComponent(msg)}`) }}>Text it</Button>}
+          <Button className="ml-auto" variant="primary" icon={<Send />} disabled={!ok} onClick={() => { mark(); window.open(`mailto:${email.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`); s.close() }}>Email the invite</Button>
+        </>
+      }
+    >
+      <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3 max-sm:grid-cols-1">
+        <Field label="Their email — they sign up with it"><TextInput data-autofocus aria-label="Their email" value={email} onChange={(e) => { setEmail(e.target.value); if (!touched) setMsg(msg0(e.target.value.trim())) }} placeholder="name@cobblestonenj.com" className="h-10" /></Field>
+        <Field label="What they’ll see">
+          <Menu align="end" width={300} trigger={<button className="flex h-10 w-full items-center justify-between rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink hover:border-[#cdc7bc]">{short(role)}<ChevronRight className="h-4 w-4 rotate-90 text-faint" /></button>}>
+            <MenuLabel>Login type — decides what they see</MenuLabel>
+            {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} checked={role === r.key} hint={r.sees} onSelect={() => setRole(r.key)}>{short(r.key)}</MenuItem>)}
+          </Menu>
+        </Field>
+      </div>
+      <Field label="The message" className="mt-3"><TextArea rows={9} aria-label="The message" value={msg} onChange={(e) => { setMsg(e.target.value); setTouched(true) }} /></Field>
+    </Modal>
   )
 }
 

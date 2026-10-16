@@ -44,6 +44,8 @@ export function runTaskAction(t: Task) {
   if (kind.startsWith('ipoaccept:')) return acceptIPO(kind.slice(10), t.id)
   if (kind.startsWith('walk-done:')) return walkDone(kind.slice(10), t.id)
   if (kind === 'gc-confirm') return gcConfirmed(t.id)
+  /* the touch-ups open as their own list, every touch-up its own line */
+  if (kind === 'tab:touchups') return s.open({ t: 'touchups', jobId: t.jobId })
   if (kind.startsWith('tab:')) return s.open({ t: 'job', id: t.jobId, tab: kind.slice(4) })
   switch (kind) {
     case 'open-job': return s.open({ t: 'job', id: t.jobId })

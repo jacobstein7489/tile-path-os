@@ -491,7 +491,7 @@ export const READY0: ReadyItem[] = [
 
 /* ================= punch ================= */
 export type PunchStatus = 'open' | 'working' | 'verify' | 'verified'
-export interface PunchItem { id: string; jobId: string; text: string; where: string; owner: PersonKey; status: PunchStatus; note?: string; taskId?: string }
+export interface PunchItem { id: string; jobId: string; text: string; where: string; owner: PersonKey; status: PunchStatus; note?: string; taskId?: string; /** photos and videos of it (kept with the project's files) */ media?: string[] }
 export const PUNCH0: PunchItem[] = [
   { id: 'pu1', jobId: '828', text: 'Lobby grout cleanup', where: 'Lobby · floor', owner: 'philip', status: 'verify', note: 'Before/after photos attached', taskId: 't-grout828' },
   { id: 'pu2', jobId: '828', text: 'Replace 2 cracked lobby tiles', where: 'Lobby · floor', owner: 'philip', status: 'open', note: 'Waiting on the thinset' },

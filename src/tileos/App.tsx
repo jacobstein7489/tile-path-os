@@ -38,12 +38,13 @@ import { MoneyPage, MoneyModal } from '@/tileos/features/money'
 import { FollowUpModal, AwardModal } from '@/tileos/features/pricing'
 import { RecordModal } from '@/tileos/features/record'
 import { ProblemModal } from '@/tileos/features/problem'
+import { TouchupsModal, NoteModal } from '@/tileos/features/touchups'
 import { DailyModal, MediaModal, SiteChangeModal, ChangeApproveModal, MeetingModal } from '@/tileos/features/field'
 import { HeightsModal } from '@/tileos/features/heights'
 import { UpcomingPage } from '@/tileos/features/upcoming'
 import { DrainModal, CO004Modal, ThinsetModal, QtyModal, ReceiveModal, ReceiveTileModal, VerifyModal, RolesModal } from '@/tileos/features/resolve'
 import { FlowPage } from '@/tileos/features/flow-map'
-import { SettingsPage, AddPersonModal } from '@/tileos/features/settings'
+import { SettingsPage, AddPersonModal, InviteModal } from '@/tileos/features/settings'
 import { CrewView } from '@/tileos/features/crew'
 import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
@@ -85,6 +86,9 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newauto': return <NewAutomationModal who={m.who} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
+    case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />
+    case 'note': return <NoteModal jobId={m.jobId} level={level} />
+    case 'invite': return <InviteModal k={m.key} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {

@@ -158,7 +158,7 @@ export const ACCESS_PAGES: { key: string; label: string; group: string }[] = [
   { key: 'suppliers', label: 'Suppliers', group: 'People' },
 ]
 /** the people who sign in — the admin adds them, names them and picks their login */
-export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string; /** installers: what they do and where they work */ trade?: string; region?: string }
+export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string; /** installers: what they do and where they work */ trade?: string; region?: string; /** the day the admin sent them the invite */ invited?: string }
 export const TEAM0: Member[] = [
   { key: 'ys', first: 'Yaakov', last: 'Stein', role: 'owner', status: 'active' },
   { key: 'yakov', first: 'Yakov', role: 'site', status: 'active' },
