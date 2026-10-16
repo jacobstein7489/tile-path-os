@@ -107,7 +107,7 @@ export function WeekPicker({ weeks, value, onChange }: { weeks: Pick<WeekTile, '
         onOpenChange={setOpen}
         width={340}
         trigger={
-          <button aria-label="Pick a week" className="inline-flex h-9 min-w-[14.375rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-3 pr-2.5 text-left text-[0.875rem] shadow-xs transition hover:border-[#cbd1d9]">
+          <button aria-label="Pick a week" className="inline-flex h-9 min-w-[14.375rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-3 pr-2.5 text-left text-[0.875rem] shadow-xs transition hover:border-[#cdc7bc]">
             <CalendarDays className="h-4 w-4 shrink-0 text-faint" />
             <span className="min-w-0 flex-1 truncate font-semibold text-ink">{cur.label}{cur.tag ? <span className="font-normal text-muted"> · {cur.tag}</span> : null}</span>
             <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
@@ -140,7 +140,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
   const st = PAY_STATE[r.state]
   const open = () => s.open({ t: 'pay', crew: r.crew, week: weekKey })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f8fa] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -155,7 +155,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
         {r.bill ? (
           <span className="block leading-tight">
             <span className={cn('block text-[0.84375rem] font-semibold tnum', r.state === 'check' || r.state === 'asked' ? 'text-bad-600' : 'text-ink')}>{fmtMoney(r.bill.amount)}</span>
-            <span className={cn('block text-[0.75rem] font-medium', Math.abs(r.diff) > 25 ? 'text-bad-600' : 'text-ok-700')}>{Math.abs(r.diff) > 25 ? `${r.diff > 0 ? '+' : '−'}${fmtMoney(Math.abs(r.diff))}` : 'Matches'}</span>
+            {Math.abs(r.diff) > 25 && <span className="block text-[0.75rem] font-medium text-bad-600">{`${r.diff > 0 ? '+' : '−'}${fmtMoney(Math.abs(r.diff))}`}</span>}
           </span>
         ) : <span className="text-[0.8125rem] text-faint">No bill yet</span>}
       </span>
@@ -175,7 +175,7 @@ function PaidLine({ r }: { r: PaidRow }) {
   const s = useStore()
   const open = () => s.open({ t: 'ipo', id: r.jobs[0].ipo })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f8fa] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -203,7 +203,7 @@ export function PayWeekModal({ level }: { level: number }) {
         {rows.map((r) => {
           const st = PAY_STATE[r.state]
           return (
-            <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f7f8fa]">
+            <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f7f5f0]">
               <Avatar who={r.crew} size={34} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{PEOPLE[r.crew].name}</span>

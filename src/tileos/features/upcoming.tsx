@@ -252,7 +252,7 @@ export function StepDot({ cell, label, caption = true }: { cell: Cell; label: st
             cell.state === 'bad' && 'bg-bad-500 text-white shadow-[0_0.1875rem_0.5rem_-0.125rem_rgba(240,68,56,.55)]',
             cell.state === 'wait' && 'bg-brand-50 text-brand-600 ring-2 ring-inset ring-brand-200',
             cell.state === 'part' && 'bg-warn-50 text-warn-700 ring-2 ring-inset ring-warn-300',
-            cell.state === 'no' && 'border-2 border-dashed border-[#d6dae0] bg-white group-hover/dot:border-brand-400',
+            cell.state === 'no' && 'border-2 border-dashed border-[#d9d3c9] bg-white group-hover/dot:border-brand-400',
             cell.state === 'na' && 'text-faint',
           )}
         >
@@ -284,7 +284,7 @@ function PlanRow({ r }: { r: Row }) {
           : target.replace(/\s+—\s+[A-Z][a-z]{2} \d{1,2}$/, '')
   const openIt = () => s.open({ t: r.pending ? 'estimate' : 'job', id: r.pending || j.id })
   return (
-    <div className={cn('border-t border-line-2 py-3.5 transition-colors hover:bg-[#f7f8fa]', COLS, PX)}>
+    <div className={cn('border-t border-line-2 py-3.5 transition-colors hover:bg-[#f7f5f0]', COLS, PX)}>
       <div className="flex min-w-0 items-center gap-3">
         <button onClick={openIt} className="shrink-0" aria-label={`Open ${j.name}`}><StartTile r={r} /></button>
         <div className="min-w-0 flex-1">

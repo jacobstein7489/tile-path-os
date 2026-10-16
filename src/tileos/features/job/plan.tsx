@@ -7,9 +7,9 @@
  *   At a glance — the five facts, each in the same shape. Scope of work — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, Clock3, ListPlus, HardHat, Grid2x2, Package, Wallet, Ruler, UserRound, Users } from 'lucide-react'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
-import { Button, Avatar, TextInput, Field } from '@/tileos/components/ui/core'
+import { Button, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Status, Path } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -21,7 +21,7 @@ import { curRev, revTotal, type Estimate } from '@/tileos/data/estimates'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel, md } from '@/tileos/lib/today'
 import { isGettingReady, stepsFor, stepCounts, takesTile, realOwner, type StepView } from '../steps'
-import { StepIcon, AddStep } from '../steps-ui'
+import { StepIcon } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
 import { installerOf } from '../upcoming'
 import { matBy } from '../flows'
@@ -207,59 +207,37 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
 
 function RowMark({ m, size = 24 }: { m: Mark; size?: number }) {
   if (m.kind === 'step') return <StepIcon state={m.state} size={size} />
-  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-[#eceef1] text-ink-2"><CalendarDays className="h-3 w-3" /></span>
+  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-[#ece8e1] text-ink-2"><CalendarDays className="h-3 w-3" /></span>
   if (m.kind === 'task') return <StepIcon state={m.waiting ? 'wait' : 'now'} size={size} />
   const st = m.status
   return <StepIcon state={st === 'bad' ? 'bad' : st === 'wait' ? 'wait' : st === 'done' ? 'done' : 'now'} size={size} />
 }
-function TodoLine({ r }: { r: TodoRow }) {
+/** one line of the to-do. The whole line opens it. Only the very first thing that's yours gets the blue "Start" —
+ *  one obvious action, not a column of buttons. `noWho` when the list already says whose it is. */
+function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?: boolean }) {
   const me = meOf(useStore((s) => s.role))
-  const mine = r.group === 'mine'
+  /* on a phone the who and when move under the title */
+  const lead = [!noWho && r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')
   return (
-    <div className={ROW} data-todo={r.key}>
+    <button onClick={r.run} disabled={!r.run} className={cn(ROW, noWho && 'grid-cols-[1.75rem_minmax(0,1fr)_7.25rem_5.75rem]', 'w-full text-left transition-colors hover:bg-[#f8f6f2] disabled:cursor-default disabled:hover:bg-transparent max-md:grid-cols-[1.75rem_minmax(0,1fr)_auto]')} data-todo={r.key}>
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
-      <button onClick={r.run} disabled={!r.run} className="min-w-0 text-left disabled:cursor-default">
+      <span className="min-w-0">
         <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.title}</span>
         <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>
-          <span className="md:hidden">{[r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')}{r.note ? ' · ' : ''}</span>{r.note || <span className="max-md:hidden">&nbsp;</span>}
+          <span className="md:hidden">{lead}{lead && r.note ? ' · ' : ''}</span>{r.note || <span className="max-md:hidden">&nbsp;</span>}
         </span>
-      </button>
-      <Who who={r.who} className="max-md:hidden" />
+      </span>
+      {!noWho && <Who who={r.who} className="max-md:hidden" />}
       <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', r.late ? 'font-semibold text-bad-600' : 'text-ink-2')}>{r.when === '—' ? '' : r.when}</span>
-      <span>{r.run && <Button size="sm" variant={mine ? 'primary' : 'secondary'} className="w-full" onClick={r.run}>{mine ? 'Start' : 'Open'}</Button>}</span>
-    </div>
+      <span className="flex justify-end">{r.run && (primary
+        ? <span className="inline-flex h-8 w-full items-center justify-center rounded-[0.5625rem] bg-brand-600 text-[0.8125rem] font-semibold text-white shadow-btn max-md:w-auto max-md:px-4">Start</span>
+        : <ChevronRight className="h-4 w-4 text-faint" />)}</span>
+    </button>
   )
 }
 
 /* ================= the overview: Next up, then who's on what ================= */
 const isProblem = (r: TodoRow) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')
-/** what needs you, or is stuck — the first thing on the project, with its one button */
-export function NextUp({ job, setTab }: { job: Job; setTab: SetTab }) {
-  const s = useStore()
-  const rows = todoRows(s, job, setTab)
-  const top = rows.filter((r) => isProblem(r) || r.group === 'mine')
-  const stuck = top.filter(isProblem).length
-  const mine = top.filter((r) => r.group === 'mine').length
-  const nextOther = rows.find((r) => r.group === 'others')
-  return (
-    <Section
-      title="Next up"
-      right={top.length ? [mine ? `${mine} for you` : '', stuck ? `${stuck} stuck` : ''].filter(Boolean).join(' · ') : undefined}
-    >
-      {top.map((r) => <TodoLine key={r.key} r={r} />)}
-      {!top.length && (
-        <div className="flex flex-wrap items-center gap-3 px-5 py-3 max-sm:px-4">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[0.90625rem] font-semibold text-ink">Nothing needs you here right now</span>
-            <span className="block truncate text-[0.78125rem] text-muted">{nextOther ? <>Next: {firstName(nextOther.who) || 'someone'} — {nextOther.title.charAt(0).toLowerCase() + nextOther.title.slice(1)}</> : 'Nothing stuck, nothing late.'}</span>
-          </span>
-        </div>
-      )}
-    </Section>
-  )
-}
-
 /** the project's to-do, one list — Mine (what's mine here) or Everyone (the whole project, person by person). Both use
  *  the same rows. The switch sits in the header and never moves; the choice is remembered on this computer. */
 export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
@@ -271,16 +249,15 @@ export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
   const first: 'mine' | 'all' = s.role === 'owner' || s.role === 'pm' ? 'all' : 'mine'
   const [scope, setScope0] = React.useState<'mine' | 'all'>(() => { try { const v = localStorage.getItem(key); return v === 'all' || v === 'mine' ? v : first } catch { return first } })
   const setScope = (k: 'mine' | 'all') => { setScope0(k); try { localStorage.setItem(key, k) } catch { /* private window */ } }
-  const [adding, setAdding] = React.useState(false)
-  const steps = isGettingReady(job) ? stepsFor(s, job) : []
   const isMine = (r: TodoRow) => r.who === me || !!r.people?.includes(me)
   const order = (r: TodoRow) => (isProblem(r) ? 0 : r.late ? 1 : r.group === 'mine' || r.group === 'others' ? 2 : r.group === 'wait' ? 3 : 4)
   const mine = rows.filter(isMine).sort((a, b) => order(a) - order(b))
+  const first1 = mine.find((r) => r.group === 'mine' && r.run)?.key
   const work = rows.filter((r) => r.group !== 'coming')
   const coming = rows.filter((r) => r.group === 'coming')
   const people = Array.from(new Set(work.map((r) => r.who || ''))).map((who) => ({ who: (who || undefined) as PersonKey | undefined, items: work.filter((r) => (r.who || '') === who).sort((a, b) => order(a) - order(b)) }))
   people.sort((a, b) => Number(b.who === me) - Number(a.who === me) || Number(b.items.some(isProblem)) - Number(a.items.some(isProblem)) || b.items.length - a.items.length)
-  const canAdd = s.role !== 'accounting'
+  const nameOf = (who?: PersonKey) => (!who ? 'Nobody yet' : who === me ? 'You' : firstName(who) || PEOPLE[who]?.name || '')
   return (
     <Section
       title="To do"
@@ -288,7 +265,7 @@ export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
     >
       {scope === 'mine' && (
         <>
-          {mine.map((r) => <TodoLine key={r.key} r={r} />)}
+          {mine.map((r) => <TodoLine key={r.key} r={r} primary={r.key === first1} noWho={r.group !== 'coming'} />)}
           {!mine.length && (
             <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
@@ -303,12 +280,15 @@ export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
       )}
       {scope === 'all' && (
         <>
-          {people.map((p) => (
-            <div key={p.who || 'nobody'}>
-              <Group label={!p.who ? 'Nobody yet' : p.who === me ? 'You' : firstName(p.who) || PEOPLE[p.who]?.name} count={p.items.length} right={p.who && p.who !== me && PEOPLE[p.who]?.roleLabel ? <span className="font-semibold normal-case tracking-normal text-muted">{PEOPLE[p.who]?.roleLabel}</span> : undefined} />
-              {p.items.map((r) => <TodoLine key={r.key} r={r} />)}
-            </div>
-          ))}
+          {people.map((p) => {
+            const role = p.who && p.who !== me ? PEOPLE[p.who]?.roleLabel : undefined
+            return (
+              <div key={p.who || 'nobody'}>
+                <Group label={nameOf(p.who)} count={p.items.length} right={role && role !== nameOf(p.who) ? <span className="font-semibold normal-case tracking-normal text-muted">{role}</span> : undefined} />
+                {p.items.map((r) => <TodoLine key={r.key} r={r} primary={r.key === first1} noWho />)}
+              </div>
+            )
+          })}
           {coming.length > 0 && (
             <div>
               <Group label="Coming up" count={coming.length} />
@@ -318,70 +298,10 @@ export function ProjectTodo({ job, setTab }: { job: Job; setTab: SetTab }) {
           {!rows.length && <Empty className="py-5">Nothing open on this project.</Empty>}
         </>
       )}
-      {canAdd && (adding && steps.length ? <AddStep job={job} steps={steps} onDone={() => setAdding(false)} compact /> : (
-        <div className="flex flex-wrap items-center gap-1 border-t border-line-2 px-3 py-1.5">
-          <FootLink icon={<Plus />} onClick={() => s.open({ t: 'newtask', jobId: job.id })}>Add a task</FootLink>
-          <FootLink icon={<CalendarDays />} onClick={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>Add a meeting or walkthrough</FootLink>
-          {steps.length > 0 && s.role !== 'site' && <FootLink icon={<ListPlus />} onClick={() => setAdding(true)}>Add a step for this project</FootLink>}
-        </div>
-      ))}
     </Section>
   )
 }
 
-/** everyone else's part, person by person — what each one has open here, and when it's due */
-export function WhosOnWhat({ job, setTab }: { job: Job; setTab: SetTab }) {
-  const s = useStore()
-  const rows = todoRows(s, job, setTab).filter((r) => !isProblem(r) && r.group !== 'mine')
-  const me = meOf(s.role)
-  const [adding, setAdding] = React.useState(false)
-  const steps = isGettingReady(job) ? stepsFor(s, job) : []
-  const work = rows.filter((r) => r.group !== 'coming')
-  const coming = rows.filter((r) => r.group === 'coming')
-  const people = Array.from(new Set(work.map((r) => r.who || ''))).map((who) => ({ who: (who || undefined) as PersonKey | undefined, items: work.filter((r) => (r.who || '') === who) }))
-  people.sort((a, b) => Number(b.items.some((r) => r.late)) - Number(a.items.some((r) => r.late)) || b.items.length - a.items.length)
-  return (
-    <Section title="Who’s on what" count={work.length} right={work.length ? 'By person' : undefined}>
-      {people.map((p) => (
-        <div key={p.who || 'nobody'}>
-          <div className="flex items-center gap-2.5 bg-[#eef0ee] px-5 py-1.5 max-sm:px-4">
-            {p.who && PEOPLE[p.who] ? <Avatar who={p.who} size={22} plain className="bg-white" /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] rounded-full border border-dashed border-[#c6ccd4]" />}
-            <span className="min-w-0 flex-1 truncate text-[0.84375rem] font-bold text-ink">{!p.who ? 'Nobody yet' : p.who === me ? 'You' : firstName(p.who) || PEOPLE[p.who]?.name}{p.who && p.who !== me && PEOPLE[p.who]?.roleLabel ? <span className="ml-2 text-[0.75rem] font-medium text-muted">{PEOPLE[p.who]?.roleLabel}</span> : null}</span>
-            <span className="shrink-0 text-[0.75rem] font-bold tnum text-ink">{p.items.length} open</span>
-          </div>
-          <div className="py-1">{p.items.map((r) => <PersonLine key={r.key} r={r} />)}</div>
-        </div>
-      ))}
-      {coming.length > 0 && (
-        <div>
-          <Group label="Coming up" count={coming.length} />
-          <div className="py-1">{coming.map((r) => <PersonLine key={r.key} r={r} />)}</div>
-        </div>
-      )}
-      {!work.length && !coming.length && <Empty className="py-5">Nobody else has anything open here.</Empty>}
-      {adding && steps.length ? <AddStep job={job} steps={steps} onDone={() => setAdding(false)} compact /> : (
-        <div className="flex flex-wrap items-center gap-1 border-t border-line-2 px-3 py-1.5">
-          <FootLink icon={<Plus />} onClick={() => s.open({ t: 'newtask', jobId: job.id })}>Add a task</FootLink>
-          <FootLink icon={<CalendarDays />} onClick={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>Add a meeting</FootLink>
-          {steps.length > 0 && <FootLink icon={<ListPlus />} onClick={() => setAdding(true)}>Add a step for this project</FootLink>}
-        </div>
-      )}
-    </Section>
-  )
-}
-const FootLink = ({ icon, onClick, children }: { icon: React.ReactNode; onClick: () => void; children: React.ReactNode }) => (
-  <button onClick={onClick} className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink [&_svg]:h-4 [&_svg]:w-4">{icon}{children}</button>
-)
-/** one line under a person: the mark, what it is (and a word on where it stands), when */
-function PersonLine({ r }: { r: TodoRow }) {
-  return (
-    <button onClick={r.run} disabled={!r.run} className="group grid w-full grid-cols-[1.125rem_minmax(0,1fr)_6.5rem] items-center gap-2.5 py-1.5 pl-[3.5rem] pr-5 text-left transition hover:bg-[#f8f9fb] disabled:cursor-default max-sm:pl-12 max-sm:pr-4">
-      <span className="flex justify-center"><RowMark m={r.mark} size={18} /></span>
-      <span className="min-w-0 truncate text-[0.875rem] text-ink"><span className="font-medium group-hover:underline">{r.title}</span>{r.note ? <span className="ml-1.5 text-muted">· {r.note}</span> : null}</span>
-      <span className={cn('truncate text-right text-[0.8125rem] tnum', r.late ? 'font-semibold text-bad-600' : 'text-ink-2')}>{r.when === '—' ? '' : r.when}</span>
-    </button>
-  )
-}
 /* ================= the facts ================= */
 /* No colored dots to decode: every fact is a plain line. Only a problem turns red — and then it says what, in words.
  * Something someone has to do is said in plain darker words. */
@@ -444,7 +364,7 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
   return (
     <Section title="At a glance">
       {shownFacts.map((x) => (
-        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
+        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
           <span className="mt-0.5 inline-flex text-faint transition group-hover:text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{x.icon}</span>
           <span className="pt-px text-[0.8125rem] font-medium text-muted">{x.label}</span>
           <span className="min-w-0">
@@ -496,7 +416,7 @@ export function TilingCard({ job, setTab }: { job: Job; setTab: SetTab }) {
             const rsf = r.surfaces.reduce((n, x) => n + (takesTile(x.name) ? x.sf || 0 : 0), 0)
             const pct = r.pct ?? roomPct(r)
             return (
-              <button key={r.name} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name })} className="grid w-full grid-cols-[minmax(0,1fr)_3.5rem_4rem] items-center gap-2.5 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
+              <button key={r.name} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name })} className="grid w-full grid-cols-[minmax(0,1fr)_3.5rem_4rem] items-center gap-2.5 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
                 <span className="min-w-0">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.name}</span>
                   <span className="block truncate text-[0.78125rem] text-muted">{r.surfaces.filter((x) => takesTile(x.name)).map((x) => x.name.toLowerCase()).join(', ') || 'No walls or floors yet'}</span>
@@ -515,48 +435,34 @@ export function TilingCard({ job, setTab }: { job: Job; setTab: SetTab }) {
   )
 }
 
-/* ================= the project's estimate ================= */
-export function EstimateTab({ job }: { job: Job }) {
+/* ================= the project's estimate and its changes (on the Money tab) ================= */
+export function EstimateAndChanges({ job }: { job: Job }) {
   const s = useStore()
   const ests = s.estimates.filter((e) => e.jobId === job.id)
   const cos = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
-  const main = ests.find((e) => e.status === 'approved') || ests[0]
-  const total = main ? revTotal(curRev(main)) : 0
-  /* the same numbers as Billing: changes approved before Tile OS count too */
-  const pic = billingOf(job)
-  const yes = cos.filter((m) => m.step >= 0 && m.amount)
-  const waiting = cos.filter((m) => m.step < 0)
   const before = job.before?.changes || 0
+  const canChange = s.role !== 'accounting'
   return (
-    <div className="flex flex-col gap-4">
-      <Strip stats={[
-        { label: 'Estimate', value: total ? fmtMoney(total) : '—', sub: main ? `${main.id}${main.approvedOn ? ` · approved ${main.approvedOn}` : ''}` : 'Priced before Tile OS' },
-        { label: 'Approved changes', value: `+${fmtMoney(pic.changes)}`, sub: `${yes.length + (before ? 1 : 0)} change${yes.length + (before ? 1 : 0) === 1 ? '' : 's'}` },
-        { label: 'Waiting for a yes', value: fmtMoney(pic.pending), sub: waiting.length ? `${waiting.length} change order${waiting.length === 1 ? '' : 's'}` : 'None waiting' },
-        { label: 'Contract now', value: fmtMoney((pic.contract || total) + pic.changes), sub: 'The contract and approved changes' },
-      ]} />
-      <Section title="The estimate" count={ests.length}>
-        {ests.map((e) => <EstRow key={e.id} e={e} />)}
-        {!ests.length && <Empty>No estimate in the system for this project — it was priced before Tile OS. The contract is on Billing.</Empty>}
-      </Section>
-      <Section title="Change orders" count={cos.length + (before ? 1 : 0)} action={<Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button>}>
-        {cos.map((m) => (
-          <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left first:border-t-0 hover:bg-[#f8f9fb] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
-            <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
-            <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>
-            <span className="flex justify-end"><Word tone={m.state === 'paid' ? 'ok' : m.step < 0 ? undefined : 'ok'}>{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for a yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</Word></span>
-          </button>
-        ))}
-        {before > 0 && (
-          <div className="grid min-h-[3rem] grid-cols-[minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
-            <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">Approved before Tile OS</span><span className="block truncate text-[0.78125rem] text-muted">Put in with what was already billed</span></span>
-            <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(before)}</span>
-            <span className="flex justify-end"><Word tone="ok">Approved</Word></span>
-          </div>
-        )}
-        {!cos.length && !before && <Empty>No changes from the estimate.</Empty>}
-      </Section>
-    </div>
+    <Section title="Estimate and changes" count={ests.length + cos.length + (before ? 1 : 0)} action={canChange ? <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button> : undefined}>
+      {ests.map((e) => <EstRow key={e.id} e={e} />)}
+      {!ests.length && <Empty>No estimate in the system for this project — it was priced before Tile OS.</Empty>}
+      {cos.map((m) => (
+        <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-wash-2 text-ink-2 max-sm:hidden"><Pencil className="h-4 w-4" /></span>
+          <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
+          <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>
+          <span className="flex justify-end"><Word tone={m.state === 'paid' ? 'ok' : m.step < 0 ? undefined : 'ok'}>{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for a yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</Word></span>
+        </button>
+      ))}
+      {before > 0 && (
+        <div className="grid min-h-[3rem] grid-cols-[2.25rem_minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-wash-2 text-ink-2 max-sm:hidden"><Check className="h-4 w-4" /></span>
+          <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">Changes approved before Tile OS</span><span className="block truncate text-[0.78125rem] text-muted">Put in with what was already billed</span></span>
+          <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(before)}</span>
+          <span className="flex justify-end"><Word tone="ok">Approved</Word></span>
+        </div>
+      )}
+    </Section>
   )
 }
 function EstRow({ e }: { e: Estimate }) {
@@ -572,10 +478,7 @@ function EstRow({ e }: { e: Estimate }) {
       </span>
       <span className="flex justify-end max-md:hidden"><Word tone={c.tone}>{c.label}</Word></span>
       <span className="text-right text-[0.9375rem] font-semibold tnum text-ink max-md:hidden">{fmtMoney(revTotal(r))}</span>
-      <span className="flex justify-end gap-1.5">
-        <Button size="sm" onClick={() => s.open({ t: 'sow', jobId: e.jobId, estId: e.id })}>Scope of work</Button>
-        <Button size="sm" variant="primary" onClick={() => s.open({ t: 'estimate', id: e.id })}>Open</Button>
-      </span>
+      <span className="flex justify-end"><Button size="sm" onClick={() => s.open({ t: 'estimate', id: e.id })}>Open the estimate</Button></span>
     </div>
   )
 }

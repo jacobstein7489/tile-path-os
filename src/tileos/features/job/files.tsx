@@ -51,7 +51,7 @@ export function FilesTab({ job }: { job: Job }) {
       onDrop={(e) => { e.preventDefault(); setOver(false); const l = Array.from(e.dataTransfer.files || []); const ph = l.filter((f) => kindOfFile(f) === 'photo'); const rest = l.filter((f) => kindOfFile(f) !== 'photo'); void add(ph, 'photo').then(() => add(rest, 'other')) }}
     >
       <input ref={input} type="file" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; void add(l, kind) }} />
-      <div className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}>
+      <div className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}>
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[0.90625rem] font-semibold text-ink">{busy ? `Adding ${KIND_LABEL[busy].toLowerCase()}…` : 'Add files and photos'}</span>

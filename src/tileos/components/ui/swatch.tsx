@@ -297,7 +297,7 @@ function BuildingArt({ kind, id }: { kind: BuildingKind; id: string }) {
               <stop offset="1" stopColor="#7F98B5" />
             </linearGradient>
           </defs>
-          <rect x="8" y="50" width="38" height="54" fill="#D3D8DF" />
+          <rect x="8" y="50" width="38" height="54" fill="#d6d0c6" />
           {[0, 1, 2, 3].map((r) => <rect key={r} x="12" y={56 + r * 11} width="30" height="5" fill="#9AAAC0" opacity=".7" />)}
           <rect x="116" y="58" width="38" height="46" fill="#CDD3DB" />
           {[0, 1, 2].map((r) => <rect key={r} x="120" y={64 + r * 12} width="30" height="5" fill="#9AAAC0" opacity=".7" />)}

@@ -88,7 +88,7 @@ export function InstallerTab({ job }: { job: Job }) {
             const pics = e.rooms.reduce((n, r) => n + r.media.length, 0)
             const note = e.note || e.rooms.find((r) => r.note)?.note
             return (
-              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[2.875rem] w-full items-center gap-3 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4">
+              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[2.875rem] w-full items-center gap-3 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4">
                 <span className="w-[3.5rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
                 <Avatar who={e.who} size={22} plain />
                 <span className="min-w-0 flex-1">

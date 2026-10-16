@@ -151,7 +151,7 @@ export function LateModal({ level }: { level: number }) {
       )}
       {team.length > 0 && (
         <section className={cn('overflow-hidden rounded-xl border border-line', n > 0 && 'mt-4')}>
-          <header className="flex items-center gap-2 border-b border-line-2 bg-[#fafbfc] px-4 py-2 text-[0.8125rem] font-bold text-ink">Late on the team<span className="font-medium text-muted">· {others}</span></header>
+          <header className="flex items-center gap-2 border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">Late on the team<span className="font-medium text-muted">· {others}</span></header>
           {team.map((g) => {
             const sent = g.items.every((x) => remindedToday(s, x))
             return (

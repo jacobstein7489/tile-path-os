@@ -40,7 +40,7 @@ export function Section({ title, count, sub, right, action, children, className,
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
 /** a grey band inside a sheet — a room, a person, a group */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn('flex items-center gap-2 bg-[#f4f5f7] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.05em] max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>
+  <div className={cn('flex items-center gap-2 bg-[#f1eee8] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.05em] max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>
     <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-semibold text-muted">{count}</span>}
     {right != null && <span className="ml-auto shrink-0 tnum">{right}</span>}
   </div>
@@ -60,7 +60,7 @@ export function Strip({ stats, footer }: { stats: Stat[]; footer?: React.ReactNo
           </div>
         ))}
       </div>
-      {footer && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-2 bg-[#fafbfa] px-5 py-2.5 max-sm:px-4">{footer}</div>}
+      {footer && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 max-sm:px-4">{footer}</div>}
     </section>
   )
 }

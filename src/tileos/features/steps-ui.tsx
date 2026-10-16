@@ -23,10 +23,10 @@ export function StepIcon({ state, size = 26 }: { state: StepState; size?: number
   const ic = size >= 26 ? 'h-3.5 w-3.5' : size > 16 ? 'h-3 w-3' : 'h-2.5 w-2.5'
   if (state === 'done') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className={ic} strokeWidth={3.2} /></span>
   if (state === 'bad') return <span style={{ ...box, fontSize: Math.round(size * 0.58) }} className="inline-flex shrink-0 items-center justify-center rounded-full bg-bad-500 font-black leading-none text-white">!</span>
-  if (state === 'wait') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white text-[#7a8494] ring-[0.09375rem] ring-inset ring-[#c3c9d2]"><Clock3 className={ic} strokeWidth={2.4} /></span>
+  if (state === 'wait') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white text-[#7a8494] ring-[0.09375rem] ring-inset ring-[#c6bfb4]"><Clock3 className={ic} strokeWidth={2.4} /></span>
   if (state === 'now') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-inset ring-ink"><span className={cn('rounded-full bg-ink', size > 16 ? 'h-2 w-2' : 'h-1.5 w-1.5')} /></span>
   if (state === 'na') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><Minus className={ic} strokeWidth={2.4} /></span>
-  return <span style={box} className="inline-flex shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#c6ccd4] bg-white" />
+  return <span style={box} className="inline-flex shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#c9c2b7] bg-white" />
 }
 
 const STATE_WORD: Record<StepState, string> = { done: 'Done', now: 'To do', wait: 'Waiting', later: 'Not yet', bad: 'Problem', na: 'Not needed' }
@@ -37,7 +37,7 @@ export function StepButton({ job, v, size = 'sm' }: { job: Job; v: StepView; siz
   if (!v.action && v.state === 'done') return null
   const primary = v.state === 'now' || v.state === 'bad'
   return (
-    <Button size={size} variant={primary ? 'secondary' : 'ghost'} className={cn(primary && 'border-[#c6ccd4] text-ink')} onClick={(e) => { e.stopPropagation(); s.open({ t: 'step', jobId: job.id, k: v.key }) }}>
+    <Button size={size} variant={primary ? 'secondary' : 'ghost'} className={cn(primary && 'border-[#c9c2b7] text-ink')} onClick={(e) => { e.stopPropagation(); s.open({ t: 'step', jobId: job.id, k: v.key }) }}>
       {v.action?.label || 'Open'}
     </Button>
   )
@@ -195,7 +195,7 @@ export function AddStep({ job, steps, onDone, compact }: { job: Job; steps: Step
 }
 
 /* ---------------- compact: one strip per project in the list ---------------- */
-const SEG: Record<StepState, string> = { done: 'bg-ok-500', now: 'bg-brand-500', wait: 'bg-warn-500', bad: 'bg-bad-500', later: 'bg-[#dfe3e8]', na: 'bg-transparent' }
+const SEG: Record<StepState, string> = { done: 'bg-ok-500', now: 'bg-brand-500', wait: 'bg-warn-500', bad: 'bg-bad-500', later: 'bg-[#e1dcd2]', na: 'bg-transparent' }
 export function StepBar({ steps, w = 140 }: { steps: StepView[]; w?: number }) {
   const shown = steps.filter((x) => x.state !== 'na')
   return (
@@ -264,7 +264,7 @@ function SideStep({ job, v }: { job: Job; v: StepView }) {
   return (
     <li>
       <Pop open={open} onOpenChange={setOpen} side="left" align="start" width={340} trigger={
-        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition hover:bg-[#f7f8fa]', open && 'bg-[#f3f5f8]')}>
+        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition hover:bg-[#f7f5f0]', open && 'bg-[#f3f5f8]')}>
           <StepIcon state={v.state} size={20} />
           <span className="min-w-0 flex-1">
             <span className={cn('block truncate text-[0.84375rem] font-semibold leading-5', quiet ? 'text-muted' : v.state === 'later' ? 'text-ink-2' : 'text-ink')}>{v.short}</span>

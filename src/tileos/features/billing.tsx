@@ -1,5 +1,5 @@
 /* Billing — money coming in: deposits, progress bills, change orders, final bills and retainage.
- * Invoices go out from here; QuickBooks gets a copy. Every row opens its record. */
+ * Bills are made here and go out from QuickBooks. Every row opens its record. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
 import { RefreshCw, Send, Hourglass, CalendarClock, CircleCheckBig, Building2, Layers, TrendingUp } from 'lucide-react'
@@ -44,7 +44,7 @@ export function BillingPage() {
   const list = tab === 'jobs' || tab === 'progress' ? [] : by(tab)
   const jobs = Array.from(new Set(s.money.map((m) => m.jobId))).filter((id) => s.jobs[id])
   const sub: Record<BTab, string> = {
-    progress: 'What got installed each week, from the daily updates — and what to bill for it',
+    progress: 'What got installed each week, and what to bill for it',
     todo: `${fmtMoney(open(by('todo')))} ready to bill`,
     waiting: `${fmtMoney(open(by('waiting')))} we’re waiting on`,
     upcoming: 'Opens by itself when the work or approval is in',
@@ -54,7 +54,7 @@ export function BillingPage() {
   return (
     <Page
       title="Billing"
-      sub={<>Invoices go out from here and sync to QuickBooks. {sub[tab]}{smp(' · sample amounts')}</>}
+      sub={<>{sub[tab]} — bills go out from QuickBooks.{smp(' Sample amounts.')}</>}
       actions={<Button icon={<RefreshCw />} onClick={() => setSynced('just now')}>QuickBooks synced {synced}</Button>}
       top={
         <Bubbles

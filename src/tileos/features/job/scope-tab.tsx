@@ -165,7 +165,7 @@ function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
         const st = tileStatus(s, job.id, t.tag)
         const grout = t.grout || uses.find((u) => u.x.grout)?.x.grout
         return (
-          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[3.25rem] w-full grid-cols-[2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-4 border-t border-line-2 px-5 py-2 text-left transition first:border-t-0 hover:bg-[#f8f9fb] max-md:grid-cols-[2.5rem_minmax(0,1fr)_4rem] max-sm:px-4">
+          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[3.25rem] w-full grid-cols-[2.5rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-4 border-t border-line-2 px-5 py-2 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-md:grid-cols-[2.5rem_minmax(0,1fr)_4rem] max-sm:px-4">
             <TileImg tile={t} size={38} radius={8} />
             <span className="min-w-0">
               <span className="block truncate text-[0.90625rem] font-semibold text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
@@ -203,7 +203,7 @@ function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
             const rsf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
             return (
               <div key={r.name}>
-                <div className="flex items-center gap-3 bg-[#eef0ee] px-5 py-1.5 max-sm:px-4">
+                <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1.5 max-sm:px-4">
                   <span className="min-w-0 truncate text-[0.75rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}{r.note && <span className="font-medium normal-case tracking-normal text-ink-2"> | {r.note}</span>}</span>
                   {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
                   <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
@@ -228,10 +228,10 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
   const pct = surfacePct(x)
   const details = [x.grout ? `${GROUTS[x.grout]?.name} grout` : '', lay.pattern, METHODS[m.key]?.short ? `${METHODS[m.key].short}${m.auto ? ' (suggested)' : ''}` : '', x.height || ''].filter(Boolean)
   return (
-    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.875rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f8f9fb] max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
+    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.875rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
       <span className="min-w-0 text-[0.875rem] font-semibold text-ink max-sm:col-span-1">{x.name}</span>
       <span className="flex min-w-0 items-center gap-2.5 max-sm:col-span-2 max-sm:row-start-2">
-        {t ? <TileImg tile={t} size={26} radius={6} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] shrink-0 rounded-md border border-dashed border-[#cfd4db]" />}
+        {t ? <TileImg tile={t} size={26} radius={6} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] shrink-0 rounded-md border border-dashed border-[#d1cbc0]" />}
         <span className="min-w-0">
           <span className="block truncate text-[0.84375rem] text-ink-2">{t ? <><b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? <span className="text-muted">No tile yet</span> : <span className="text-muted">Not tiled — goes under the tile</span>}</span>
           {problem
@@ -492,7 +492,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
         <div className="flex flex-col items-center gap-2">
           <button onClick={() => fileRef.current?.click()} aria-label="Add a photo" className="group relative overflow-hidden rounded-[1rem]">
             {t.photo || t.swatch ? <TileImg tile={t} size={168} radius={16} /> : (
-              <span className="flex h-[10.5rem] w-[10.5rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-dashed border-[#cfd4db] bg-wash text-center transition group-hover:border-brand-300 group-hover:bg-brand-50/40">
+              <span className="flex h-[10.5rem] w-[10.5rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-dashed border-[#d1cbc0] bg-wash text-center transition group-hover:border-brand-300 group-hover:bg-brand-50/40">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-600 shadow-card"><ImagePlus className="h-5 w-5" /></span>
                 <span className="text-[0.84375rem] font-semibold text-ink">{busy ? 'Reading…' : 'Add a photo'}</span>
                 <span className="px-3 text-[0.75rem] leading-snug text-muted">The sample, the box or the store’s picture</span>

@@ -124,7 +124,7 @@ export function ChipTabs<T extends string>({ value, onChange, items }: { value: 
             onClick={() => onChange(it.key)}
             className={cn(
               'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[0.5625rem] border px-3.5 text-[0.84375rem] font-semibold transition-colors',
-              on ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#cfd4db] hover:text-ink',
+              on ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:text-ink',
             )}
           >
             {it.label}
@@ -161,7 +161,7 @@ export function Filter<T extends string>({
           aria-label={`${label}: ${cur?.label || allLabel}`}
           className={cn(
             'inline-flex h-9 max-w-[17.5rem] items-center gap-1.5 rounded-[0.625rem] border px-3 text-[0.84375rem] transition-colors [&_svg]:h-4 [&_svg]:w-4',
-            set ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#d6dae0] bg-white text-ink-2 shadow-xs hover:bg-wash',
+            set ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash',
           )}
         >
           {icon && <span className={cn('shrink-0', set ? 'text-brand-600' : 'text-faint')}>{icon}</span>}
@@ -201,7 +201,7 @@ export function ClearFilters({ show, onClear }: { show: boolean; onClear: () => 
 }
 
 export function ToolbarSearch({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  return <SearchField value={value} onChange={onChange} placeholder={placeholder} className="ml-auto h-9 w-[15rem] rounded-[0.625rem] border-[#d6dae0] shadow-xs max-md:ml-0 max-md:w-full [&_input]:text-[0.84375rem]" />
+  return <SearchField value={value} onChange={onChange} placeholder={placeholder} className="ml-auto h-9 w-[15rem] rounded-[0.625rem] border-[#d9d3c9] shadow-xs max-md:ml-0 max-md:w-full [&_input]:text-[0.84375rem]" />
 }
 
 /* ================= the list inside a card ================= */
@@ -245,7 +245,7 @@ export function Row({ lead, title, meta, children, onClick, className, dim, leav
       className={cn(
         'group/row relative flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 py-2 transition-colors',
         PX,
-        onClick && 'cursor-pointer hover:bg-[#f7f8fa] focus-visible:bg-[#f7f8fa] focus-visible:outline-none',
+        onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none',
         dim && 'opacity-70',
         leaving && 'row-out',
         className,
@@ -400,10 +400,12 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   red: { tint: '#fbecea', solid: '#c03a2d' },
   rose: { tint: '#fbecf1', solid: '#b83a5e' },
   teal: { tint: '#e7f4f2', solid: '#1a8073' },
-  slate: { tint: '#edeff2', solid: '#4a5464' },
+  slate: { tint: '#eeeae3', solid: '#4a5464' },
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
+/* the one that's picked is the same calm dark on every page — color stays in the small icons, not in big blocks */
+const ON_BG = '#2a2824'
 export type Bubble = { key: string; label: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boolean; wrap?: boolean }) {
   return (
@@ -420,9 +422,9 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               disabled={!b.onClick}
               className={cn(
                 'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
-                b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cbd1d9]',
+                b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
-              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
+              style={b.on ? { background: ON_BG, boxShadow: '0 10px 22px -16px rgba(28,27,24,.7)' } : undefined}
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
@@ -468,7 +470,7 @@ export function FlowStrip({ groups }: { groups: { label: string; color: string; 
                       st.on ? 'border-brand-600 bg-brand-50 shadow-[0_0_0_0.1875rem_rgba(38,80,207,.12)]' : 'border-line bg-white enabled:hover:-translate-y-px enabled:hover:border-brand-300 enabled:hover:shadow-lift',
                     )}
                   >
-                    <span className={cn('display-num text-[1.375rem] font-semibold leading-7', st.count ? (st.tone === 'bad' ? 'text-bad-600' : st.on ? 'text-brand-700' : 'text-ink') : 'text-[#d6dae0]')}>{st.count || '–'}</span>
+                    <span className={cn('display-num text-[1.375rem] font-semibold leading-7', st.count ? (st.tone === 'bad' ? 'text-bad-600' : st.on ? 'text-brand-700' : 'text-ink') : 'text-[#d9d3c9]')}>{st.count || '–'}</span>
                     <span className={cn('truncate text-[0.78125rem] font-semibold', st.on ? 'text-brand-700' : 'text-muted')}>{st.label}</span>
                     {st.sub && <span className="truncate text-[0.71875rem] text-faint">{st.sub}</span>}
                   </button>
@@ -506,7 +508,7 @@ export function Tr({ children, onClick, className, dim }: { children: React.Reac
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       tabIndex={onClick ? 0 : undefined}
-      className={cn('group transition-colors [&>td]:border-b [&>td]:border-line-2', onClick && 'cursor-pointer hover:bg-[#f7f8fa] focus-visible:bg-[#f7f8fa] focus-visible:outline-none', dim && 'text-muted', className)}
+      className={cn('group transition-colors [&>td]:border-b [&>td]:border-line-2', onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', dim && 'text-muted', className)}
     >
       {children}
     </tr>
@@ -573,7 +575,7 @@ export function Status({ tone = 'neutral', children, className, plain }: { tone?
  * it appears or changes width when you switch. */
 export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
   return (
-    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] border border-[#d3d8df] bg-white p-[0.1875rem] shadow-xs', className)}>
+    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] border border-[#d6d0c6] bg-white p-[0.1875rem] shadow-xs', className)}>
       {items.map((it) => {
         const on = it.key === value
         return (
@@ -602,7 +604,7 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
         const on = at === st.key
         return (
           <li key={st.key} className="relative flex min-w-[5.75rem] flex-1 flex-col items-center text-center">
-            {i > 0 && <span className={cn('absolute top-[0.9375rem] h-[0.125rem] rounded-full', prevDone && st.state !== 'future' ? 'bg-ok-500' : prevDone ? 'bg-gradient-to-r from-ok-500 to-[#e2e5e9]' : 'bg-[#e2e5e9]')} style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
+            {i > 0 && <span className={cn('absolute top-[0.9375rem] h-[0.125rem] rounded-full', prevDone && st.state !== 'future' ? 'bg-ok-500' : prevDone ? 'bg-gradient-to-r from-ok-500 to-[#e5e0d7]' : 'bg-[#e5e0d7]')} style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
             <button
               onClick={st.onClick}
               disabled={!st.onClick}
@@ -616,7 +618,7 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
                   st.state === 'done' && 'bg-ok-500 text-white shadow-[0_0.125rem_0.375rem_-0.0625rem_rgba(18,183,106,.45)]',
                   st.state === 'current' && 'bg-white text-brand-600 ring-[0.1875rem] ring-brand-600 shadow-[0_0_0_0.3125rem_rgba(38,80,207,.12)]',
                   st.state === 'blocked' && 'bg-bad-500 text-white shadow-[0_0.125rem_0.375rem_-0.0625rem_rgba(240,68,56,.45)]',
-                  st.state === 'future' && 'bg-white text-faint ring-2 ring-[#e2e5e9]',
+                  st.state === 'future' && 'bg-white text-faint ring-2 ring-[#e5e0d7]',
                   st.onClick && 'group-hover:scale-105',
                 )}
               >

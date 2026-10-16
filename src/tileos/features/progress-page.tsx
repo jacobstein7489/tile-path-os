@@ -93,7 +93,7 @@ export function ProgressList({ week }: { week: string }) {
         <span>Status</span>
         <span className="max-xl:hidden" />
       </div>
-      {rows.map((r) => <BillLine key={r.jobId} r={r} />)}
+      {rows.map((r) => <BillLine key={r.jobId} r={r} only={rows.filter((x) => x.state === 'tobill').length === 1} />)}
       {!rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.current ? 'No daily updates yet this week — it fills in as the site manager sends them.' : 'No work logged that week.'}</div>}
       <div className={cn('flex items-start gap-2 border-t border-line-2 bg-wash/60 py-3 text-[0.78125rem] leading-snug text-muted', PX)}>
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -105,7 +105,8 @@ export function ProgressList({ week }: { week: string }) {
   )
 }
 
-function BillLine({ r }: { r: WeekBill }) {
+/** one project's week. "Make the bill" is blue only when it's the only one — with more, "Make all" up top is the blue one */
+function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
   const s = useStore()
   const job = s.jobs[r.jobId]
   if (!job) return null
@@ -116,7 +117,7 @@ function BillLine({ r }: { r: WeekBill }) {
   const rooms = new Set(r.lines.map((l) => l.room)).size
   const billedPct = r.contract ? Math.min(100, Math.round((r.before / r.contract) * 100)) : 0
   return (
-    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3.5rem] cursor-pointer border-t border-line-2 bg-white py-2.5 transition-colors first:border-t-0 hover:bg-[#f7f8fa]', PX)}>
+    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3.5rem] cursor-pointer border-t border-line-2 bg-white py-2.5 transition-colors first:border-t-0 hover:bg-[#f7f5f0]', PX)}>
       <span className="min-w-0">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{job.name}</span>
         <span className="block truncate text-[0.78125rem] text-muted">
@@ -149,7 +150,7 @@ function BillLine({ r }: { r: WeekBill }) {
       </span>
       <span className="max-lg:hidden"><Status tone={st.tone}>{st.label}</Status></span>
       <span className="flex justify-end max-xl:hidden" onClick={(e) => e.stopPropagation()}>
-        {r.state === 'tobill' ? <Button size="sm" variant="primary" icon={<Receipt />} onClick={() => makeBill(r.jobId, r.week.key)}>Make the bill</Button>
+        {r.state === 'tobill' ? <Button size="sm" variant={only ? 'primary' : undefined} icon={<Receipt />} onClick={() => makeBill(r.jobId, r.week.key)}>Make the bill</Button>
           : r.bill && (r.state === 'billed' || r.state === 'later') ? <Button size="sm" variant="ghost" icon={<FileText />} onClick={() => s.open({ t: 'money', id: r.bill!.id })}>Open the bill</Button>
             : <Button size="sm" variant="ghost" onClick={open}>See the week</Button>}
       </span>

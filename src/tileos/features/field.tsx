@@ -369,7 +369,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                   <span className="min-w-0 flex-1">
                     <span className={cn('block truncate text-[0.875rem] font-semibold', on ? 'text-brand-700' : 'text-ink')}>{rm.name}</span>
                     <span className="mt-1 flex items-center gap-2 max-md:hidden">
-                      <span className="h-1.5 w-[5.25rem] overflow-hidden rounded-full bg-[#e2e5e9]"><span className={cn('block h-full rounded-full', rm.pct >= 100 ? 'bg-ok-500' : 'bg-brand-500')} style={{ width: `${rm.pct}%` }} /></span>
+                      <span className="h-1.5 w-[5.25rem] overflow-hidden rounded-full bg-[#e5e0d7]"><span className={cn('block h-full rounded-full', rm.pct >= 100 ? 'bg-ok-500' : 'bg-brand-500')} style={{ width: `${rm.pct}%` }} /></span>
                       <span className="text-[0.75rem] font-semibold tnum text-muted">{rm.pct}%</span>
                     </span>
                   </span>

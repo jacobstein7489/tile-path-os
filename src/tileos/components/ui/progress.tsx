@@ -54,7 +54,7 @@ export function StageTrack({ stage, className, blocked }: { stage: Stage; classN
                   'h-[0.4375rem] w-[0.5625rem] rounded-[0.1875rem] transition-colors',
                   done && 'bg-brand-500',
                   isCur && (blocked ? 'bg-bad-500 ring-2 ring-bad-100' : 'bg-brand-600 ring-2 ring-brand-100'),
-                  !done && !isCur && 'bg-[#E3E8EF]',
+                  !done && !isCur && 'bg-[#e6e1d8]',
                 )}
               />
             )
@@ -128,7 +128,7 @@ export function StepSummary({ nodes, onOpen, className }: { nodes: StepNode[]; o
       </span>
       <span className="mt-2.5 flex gap-1">
         {nodes.map((n) => (
-          <span key={n.key} className={cn('h-1.5 flex-1 rounded-full', n.state === 'done' ? 'bg-ok-500' : n.state === 'current' ? 'bg-brand-600' : n.state === 'blocked' ? 'bg-bad-500' : 'bg-[#E3E8EF]')} />
+          <span key={n.key} className={cn('h-1.5 flex-1 rounded-full', n.state === 'done' ? 'bg-ok-500' : n.state === 'current' ? 'bg-brand-600' : n.state === 'blocked' ? 'bg-bad-500' : 'bg-[#e6e1d8]')} />
         ))}
       </span>
     </Tag>
@@ -148,10 +148,10 @@ export function MiniSteps({ steps, at, tone = 'info', className, showLabels = tr
               <span
                 className={cn(
                   'relative inline-flex h-[0.625rem] w-[0.625rem] shrink-0 rounded-full',
-                  done ? 'bg-[#2c4a3e]' : cur ? (late ? 'bg-bad-500 ring-4 ring-bad-100' : 'bg-ink ring-4 ring-[#e6e8ec]') : 'border-2 border-[#D5DBE4] bg-white',
+                  done ? 'bg-[#2c4a3e]' : cur ? (late ? 'bg-bad-500 ring-4 ring-bad-100' : 'bg-ink ring-4 ring-[#e8e3da]') : 'border-2 border-[#D5DBE4] bg-white',
                 )}
               />
-              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-[#2c4a3e]' : 'bg-[#E3E8EF]')} />}
+              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-[#2c4a3e]' : 'bg-[#e6e1d8]')} />}
             </React.Fragment>
           )
         })}

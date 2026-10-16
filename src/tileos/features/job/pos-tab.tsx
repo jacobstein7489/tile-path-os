@@ -30,7 +30,7 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const ipo = currentIPO(s, job.id)
   const b = budgetOf(s, job)
   const Row = ({ onClick, icon, title, sub, amount, status }: { onClick: () => void; icon: React.ReactNode; title: string; sub: React.ReactNode; amount: number; status: React.ReactNode }) => (
-    <button onClick={onClick} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
+    <button onClick={onClick} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
       <span className="min-w-0">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{title}</span>
@@ -141,7 +141,7 @@ function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
       ]} />
       <Section title="On the way" count={coming.length}>
         {coming.map((p) => (
-          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4')}>
+          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4')}>
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4"><Package /></span>
             <span className="min-w-0">
               <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.what}</span>

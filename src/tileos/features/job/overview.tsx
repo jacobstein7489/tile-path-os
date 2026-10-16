@@ -534,7 +534,7 @@ export function CloseOverview({ job, setTab, simple }: { job: Job; setTab: (t: J
             <div key={c.t} className="flex min-h-[2.75rem] items-center gap-3 border-t border-line-2 px-5 py-2 odd:border-r md:[&:nth-child(-n+2)]:border-t-0 max-md:odd:border-r-0 max-md:first:border-t-0 max-sm:px-4">
               {c.ok
                 ? <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>
-                : <span className="h-5 w-5 shrink-0 rounded-full border-[0.09375rem] border-[#cdd2d9]" />}
+                : <span className="h-5 w-5 shrink-0 rounded-full border-[0.09375rem] border-[#cfc9be]" />}
               <span className="min-w-0 flex-1">
                 <span className={cn('block truncate text-[0.84375rem] font-semibold', c.ok ? 'text-ink-2' : 'text-ink')}>{c.t}</span>
                 <span className="block truncate text-[0.75rem] text-muted">{c.d}</span>

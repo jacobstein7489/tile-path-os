@@ -11,7 +11,7 @@ import { floorRank, sortAreas } from '@/tileos/data/areas'
 import { TODAY } from '@/tileos/lib/today'
 
 const GREEN = '#2c4a3e'
-const GRAY = '#eef0ee'
+const GRAY = '#efece5'
 
 /** "Floor tile 24X48 (T-03 Porcelain)", "Tile niche", or the item's own name */
 export function paperText(l: EstLine, itemName?: string, jobId?: string) {

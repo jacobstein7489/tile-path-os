@@ -2,11 +2,12 @@
  * manager's daily updates, the pay week, estimate follow-ups, invoice reminders…) and the repeating tasks the admin
  * sets for anyone ("send me how many people are on each job, every weekday at 4"). Each can be turned off. */
 import * as React from 'react'
-import { Repeat, AlarmClock, ClipboardList, HandCoins, BadgeCheck, PhoneCall, ListChecks, Receipt, Mail, Truck, Plus, Trash2, Building2 } from 'lucide-react'
+import { Repeat, AlarmClock, ClipboardList, HandCoins, BadgeCheck, PhoneCall, ListChecks, Receipt, Mail, Truck, Plus, Trash2, Building2, ChevronDown, Clock3 } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
-import { Avatar, Button, CardHeader, IconCircle, Chip, TextInput } from '@/tileos/components/ui/core'
+import { Avatar, Button, CardHeader, IconCircle } from '@/tileos/components/ui/core'
 import { Card } from '@/tileos/components/ui/page'
-import { Modal } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
+import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
@@ -122,15 +123,16 @@ export function AutomationsTab() {
   )
 }
 
-/** the reminders a tile company usually sets — one tap fills it in */
-const TYPICAL_REMINDERS: { t: string; who: Role; repeat: NonNullable<Task['repeat']>; at: string }[] = [
-  { t: 'Send me how many people are on each job', who: 'site', repeat: 'weekdays', at: '4 PM' },
-  { t: 'Check next week’s starts — tile, materials and installer all set?', who: 'owner', repeat: 'weekly', at: '8 AM' },
-  { t: 'Order the setting materials for next week’s starts', who: 'materials', repeat: 'weekly', at: '8 AM' },
-  { t: 'Walk every job with a crew on it', who: 'site', repeat: 'weekdays', at: '8 AM' },
-  { t: 'Send the GC this week’s progress photos', who: 'site', repeat: 'weekly', at: '4 PM' },
-  { t: 'Go over open invoices and call who’s late', who: 'accounting', repeat: 'weekly', at: 'Noon' },
-  { t: 'Check the tile deliveries coming this week', who: 'office', repeat: 'weekly', at: '8 AM' },
+/** the reminders a tile company usually sets — they show under the box as you type (or under "Common"). Picking one
+ *  fills in the words and how often; who gets it stays who you picked. */
+const COMMON_REMINDERS: { t: string; repeat: NonNullable<Task['repeat']>; at: string }[] = [
+  { t: 'Send me how many people are on each job', repeat: 'weekdays', at: '4 PM' },
+  { t: 'Check next week’s starts — tile, materials and installer all set?', repeat: 'weekly', at: '8 AM' },
+  { t: 'Order the setting materials for next week’s starts', repeat: 'weekly', at: '8 AM' },
+  { t: 'Walk every job with a crew on it', repeat: 'weekdays', at: '8 AM' },
+  { t: 'Send the GC this week’s progress photos', repeat: 'weekly', at: '4 PM' },
+  { t: 'Go over open invoices and call who’s late', repeat: 'weekly', at: 'Noon' },
+  { t: 'Check the tile deliveries coming this week', repeat: 'weekly', at: '8 AM' },
 ]
 
 /* ================= a new automation: what, who, how often ================= */
@@ -144,20 +146,19 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
   const [at, setAt] = React.useState('4 PM')
   const [job, setJob] = React.useState('')
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(j.stage))
-  const holderOf = (r: Role): PersonKey => (r === 'site' ? siteMgr(s) : r === 'accounting' ? books(s) : r === 'owner' ? boss(s) : roleHolder(s, r) || meOf(r) || boss(s))
   const add = () => {
     if (!title.trim()) return
     s.addTask({ jobId: job, title: title.trim(), type: 'Field', owner, due: 'Today', for: roleOf(s, owner), state: 'now', tone: 'info', repeat, repeatAt: at, where: `${REPEAT_LABEL[repeat]} at ${at}`, watch: owner === meOf(s.role) ? [] : [s.role] })
     s.close()
   }
-  const chip = 'h-8 px-2.5 text-[0.8125rem]'
+  const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[#d9d3c9] bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#c6bfb4] hover:text-ink data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
       title="A reminder that repeats"
-      sub="It lands on their Today on schedule, in your words, and comes back when it’s done. It’s a reminder — it doesn’t do the work by itself."
+      sub="It lands on their Today on schedule. It’s a reminder — it doesn’t do the work by itself."
       footer={
         <>
           <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{PEOPLE[owner]?.short} · {REPEAT_LABEL[repeat].toLowerCase()} at {at}</span>
@@ -166,33 +167,30 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <TextInput mic data-autofocus aria-label="What should happen" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} placeholder="The reminder — e.g. Send me how many people are on each job" className="h-12 rounded-[0.6875rem] text-[0.9375rem]" />
-        {!title.trim() && (
-          <div className="-mt-1">
-            <div className="mb-1.5 text-[0.75rem] font-semibold text-muted">Typical — tap one</div>
-            <div className="flex flex-wrap gap-1.5">
-              {TYPICAL_REMINDERS.map((x) => <button key={x.t} type="button" onClick={() => { setTitle(x.t); setOwner(holderOf(x.who)); setRepeat(x.repeat); setAt(x.at) }} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-200 hover:bg-brand-50/50 hover:text-ink">{x.t}</button>)}
-            </div>
-          </div>
-        )}
-        {built && <div className="-mt-2 rounded-lg bg-brand-50 px-3 py-2 text-[0.8125rem] text-brand-800">The system already does this by itself: <b className="font-semibold">{built.what}</b> — {PEOPLE[built.who(s)]?.short}, {built.when(s).toLowerCase()}. It’s on the list behind this window.</div>}
-        <div>
-          <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who gets it</div>
-          <div className="flex flex-wrap gap-1.5">{peopleOf(s).map((p) => <Chip key={p} on={owner === p} onClick={() => setOwner(p)} className={chip} icon={<Avatar who={p} size={18} />}>{PEOPLE[p]?.short}</Chip>)}</div>
-        </div>
-        <div>
-          <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">How often</div>
-          <div className="flex flex-wrap gap-1.5">{(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <Chip key={r} on={repeat === r} onClick={() => setRepeat(r)} className={chip}>{REPEAT_LABEL[r]}</Chip>)}</div>
-        </div>
-        <div>
-          <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">At</div>
-          <div className="flex flex-wrap gap-1.5">{['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <Chip key={x} on={at === x} onClick={() => setAt(x)} className={chip}>{x}</Chip>)}</div>
-        </div>
-        <div>
-          <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">For one project <span className="font-normal">(optional)</span></div>
-          <SearchSelect value={job} onChange={setJob} emptyLabel="Company — not one project" placeholder="Project" icon={<Building2 />} options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} className="h-9" />
-        </div>
+      <SuggestInput
+        value={title}
+        onChange={setTitle}
+        onPick={(t) => { const x = COMMON_REMINDERS.find((r) => r.t === t); setTitle(t); if (x) { setRepeat(x.repeat); setAt(x.at) } }}
+        onEnter={add}
+        suggestions={COMMON_REMINDERS.map((x) => x.t)}
+        label="What should happen"
+        placeholder="The reminder, in your words"
+        listLabel="Common reminders"
+      />
+      {built && <div className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-[0.8125rem] text-brand-800">The system already does this by itself: <b className="font-semibold">{built.what}</b> — {PEOPLE[built.who(s)]?.short}, {built.when(s).toLowerCase()}. It’s on the list behind this window.</div>}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Menu align="start" width={260} trigger={<button type="button" aria-label="Who gets it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{PEOPLE[owner]?.short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+          <MenuLabel>Who gets it</MenuLabel>
+          {peopleOf(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p]?.roleLabel}>{PEOPLE[p]?.name}</MenuItem>)}
+        </Menu>
+        <Menu align="start" width={220} trigger={<button type="button" aria-label="How often" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted"><Repeat className="h-4 w-4" /></span><span className="truncate">{REPEAT_LABEL[repeat]}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+          <MenuLabel>How often</MenuLabel>
+          {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
+        </Menu>
+        <Menu align="start" width={180} trigger={<button type="button" aria-label="At" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted"><Clock3 className="h-4 w-4" /></span>at {at}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+          {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
+        </Menu>
+        <SearchSelect value={job} onChange={setJob} emptyLabel="Company — not one project" placeholder="Project" icon={<Building2 />} width={340} label="For one project" className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
       </div>
     </Modal>
   )

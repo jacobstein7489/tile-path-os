@@ -200,7 +200,7 @@ function WhereThingsLive() {
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-muted shadow-xs"><ArrowRight className="h-4 w-4" /></span>
               </div>
             )}
-            <button onClick={() => go(m.page)} className={cn('group flex flex-col rounded-[0.875rem] border p-6 text-left transition duration-150 hover:border-[#cbd1d9] max-sm:p-5', m.tint)}>
+            <button onClick={() => go(m.page)} className={cn('group flex flex-col rounded-[0.875rem] border p-6 text-left transition duration-150 hover:border-[#cdc7bc] max-sm:p-5', m.tint)}>
               <div className="flex items-center gap-3.5">
                 <span className={cn('inline-flex h-12 w-12 items-center justify-center rounded-[0.75rem]', m.grad)}><m.icon className="h-6 w-6" /></span>
                 <div className="min-w-0 flex-1">

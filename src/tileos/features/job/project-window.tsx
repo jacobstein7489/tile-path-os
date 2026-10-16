@@ -11,12 +11,12 @@
 import * as React from 'react'
 import {
   Building2, MapPin, CalendarDays, Maximize2, ListPlus, Lock, Check, X, Clock3, Contrast, Plus, ChevronDown, ChevronRight,
-  Printer, HardHat, Send, Play, ClipboardList, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight } from 'lucide-react'
+  Printer, HardHat, Send, Play, ClipboardList, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight, MoreHorizontal, Pencil } from 'lucide-react'
 import { useStore, historyOf, type Store } from '@/tileos/store'
 import type { Task } from '@/tileos/data/work'
 import type { CalEvent } from '@/tileos/data/calendar'
 import { Button, Avatar, IconButton, UnderlineTabs } from '@/tileos/components/ui/core'
-import { Modal, Tip } from '@/tileos/components/ui/overlay'
+import { Modal, Tip, Menu, MenuItem, MenuLabel, MenuSep } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -42,9 +42,9 @@ import { heightStatus } from '../heights'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
-import { StepIcon, StepButton } from '../steps-ui'
+import { StepIcon, StepButton, AddStep } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, ProjectTodo, AtAGlance, EstimateTab, EditButton } from './plan'
+import { projectPath, nextOn, PhaseBar, ProjectTodo, AtAGlance } from './plan'
 import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
@@ -55,7 +55,8 @@ export type PTab = 'overview' | 'scope' | 'orders' | 'estimate' | 'installer' | 
 
 /** old links into the window (tab names from earlier versions) land on the right tab */
 const tabFrom = (initial: string | undefined): PTab =>
-  (['overview', 'scope', 'orders', 'estimate', 'installer', 'money'] as PTab[]).includes(initial as PTab)
+  initial === 'estimate' ? 'money'
+  : (['overview', 'scope', 'orders', 'installer', 'money'] as PTab[]).includes(initial as PTab)
     ? (initial as PTab)
     : initial === 'rooms' || initial === 'setup' ? 'scope'
       : initial === 'materials' || initial === 'pos' ? 'orders'
@@ -71,7 +72,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   const [tab, setTab] = React.useState<PTab>(initial ? tabFrom(initial) : role === 'accounting' ? 'money' : 'overview')
   if (!job) return null
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass={pricing ? 'p-0' : 'bg-[#f6f7f9] p-0'}>
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass={pricing ? 'p-0' : 'bg-[#f4f1eb] p-0'}>
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : <ProjectBody job={job} tab={tab} setTab={setTab} />}
     </Modal>
   )
@@ -83,7 +84,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
       <ProjectHeader job={job} mode="page" tab={tab} setTab={setTab} />
-      <div className="min-h-[35rem] bg-[#f6f7f9]"><ProjectBody job={job} tab={tab} setTab={setTab} /></div>
+      <div className="min-h-[35rem] bg-[#f4f1eb]"><ProjectBody job={job} tab={tab} setTab={setTab} /></div>
     </div>
   )
 }
@@ -99,15 +100,15 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
   closeout: { label: 'Final invoice', icon: <Receipt /> },
 }
 
-/** the tabs, the same on every project — no numbers on them (the To do and the bar on top have the counts) */
+/** the tabs, the same on every project — five, no numbers on them (the to-do and the path on top have the counts).
+ *  Money is the estimate, its changes and the bills together; the site manager doesn't have it. */
 function tabsFor(s: Store): { key: PTab; label: string }[] {
   return [
     { key: 'overview', label: 'Overview' },
     { key: 'scope', label: 'Scope of work' },
     { key: 'orders', label: s.role === 'site' ? 'Deliveries' : 'POs' },
-    ...(s.role !== 'site' ? [{ key: 'estimate' as PTab, label: 'Estimate' }] : []),
     { key: 'installer', label: 'Installer' },
-    ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Billing' }] : []),
+    ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Money' }] : []),
   ]
 }
 
@@ -160,14 +161,39 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
       ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
       : null
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
+  const canBook = ['owner', 'pm', 'office'].includes(role)
+  const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
+  const [adding, setAdding] = React.useState(false)
+  const stepsHere = isGettingReady(job) ? stepsFor(s, job) : []
+  /* everything you can do on the project, in one place */
+  const more = (
+    <Menu align="end" width={290} trigger={<Button aria-label="More for this project" icon={<MoreHorizontal />}><span className="max-sm:hidden">More</span></Button>}>
+      {role !== 'accounting' && (
+        <>
+          <MenuLabel>Add to {job.name}</MenuLabel>
+          <MenuItem icon={<ListPlus className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id })} hint="A site issue, a delivery, a decision, a call…">Log what happened</MenuItem>
+          <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>
+          <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>
+          {stepsHere.length > 0 && canEdit && <MenuItem icon={<ClipboardList className="h-4 w-4" />} onSelect={() => setAdding(true)}>A step just for this project</MenuItem>}
+          <MenuSep />
+        </>
+      )}
+      <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })} hint={files ? `${files}` : undefined}>Files and photos</MenuItem>
+      <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })} hint={unread ? `${unread} new` : undefined}>Messages</MenuItem>
+      <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>History — everything that happened</MenuItem>
+      {(canEdit || (canBook && !crew) || mode === 'modal') && <MenuSep />}
+      {canBook && !crew && !['closeout', 'complete'].includes(job.stage) && <MenuItem icon={<HardHat className="h-4 w-4" />} onSelect={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</MenuItem>}
+      {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
+      {mode === 'modal' && <MenuItem icon={<Maximize2 className="h-4 w-4" />} onSelect={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}>Open as a full page</MenuItem>}
+    </Menu>
+  )
   return (
-    <div className="border-b border-line bg-white">
-      <div className={cn('px-7 pt-4 max-sm:px-4 max-sm:pt-3.5', mode === 'modal' && 'pr-16 max-sm:pr-14', pricing && 'pb-4')}>
+    <div className="relative border-b border-line bg-white">
+      <div className={cn('px-7 pt-4 max-sm:px-4 max-sm:pt-3.5', mode === 'modal' && 'pr-16 max-sm:pr-14', !main && !pricing && (mode === 'modal' ? 'max-sm:pr-24' : 'max-sm:pr-14'), pricing && 'pb-4')}>
         <div className="flex items-start gap-4 max-lg:flex-wrap max-sm:gap-2.5">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="font-display min-w-0 truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.25rem]">{job.name}</h1>
-              {!pricing && ['owner', 'pm', 'office', 'estimator'].includes(role) && <EditButton label="Change the project’s details" onClick={() => s.open({ t: 'editproject', id: job.id })} />}
               {!pricing && (status.onClick
                 ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
                 : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
@@ -177,16 +203,15 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
               {!pricing && (crew
                 ? <button onClick={() => setTab('installer')} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
-                : !['closeout', 'complete'].includes(job.stage) && (['owner', 'pm', 'office'].includes(role)
-                  ? <button onClick={() => s.open({ t: 'book', jobId: job.id })} className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline"><HardHat className="h-4 w-4" />Book an installer</button>
-                  : <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>))}
+                : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>)}
             </div>
           </div>
-          {!pricing && role !== 'accounting' && (
-            <div className={cn('flex shrink-0 items-center gap-2 max-lg:w-full', !main && 'max-sm:hidden')}>
+          {!pricing && (
+            <div className={cn('flex shrink-0 items-center gap-2', main ? 'max-lg:w-full' : cn('max-sm:absolute max-sm:top-3', mode === 'modal' ? 'max-sm:right-14' : 'max-sm:right-4'))}>
+              {/* with nothing to start, the "…" sits up by the title on a phone instead of on a row of its own */}
               <span className="max-lg:flex-1 max-sm:hidden" />
-              <span className="max-sm:hidden"><Button icon={<ListPlus />} aria-label="Log what happened" onClick={() => s.open({ t: 'record', jobId: job.id })}>Log</Button></span>
               {main}
+              {more}
             </div>
           )}
         </div>
@@ -197,24 +222,14 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
         </div>
       )}
       {tab && (
-        <div className="mt-0.5 flex items-center gap-3 px-7 max-sm:px-4">
-          <UnderlineTabs className="min-w-0 flex-1 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
-          <div className="flex shrink-0 items-center gap-0.5 max-sm:hidden">
-            <HeadIcon label={`Files and photos${files ? ` · ${files}` : ''}`} count={files} onClick={() => s.open({ t: 'files', jobId: job.id })}><Paperclip className="h-4 w-4" /></HeadIcon>
-            <HeadIcon label="Messages — the team, the crew and the GC" count={unread} hot onClick={() => s.open({ t: 'chat', jobId: job.id })}><MessageCircle className="h-4 w-4" /></HeadIcon>
-            <HeadIcon label="Everything that happened" onClick={() => s.open({ t: 'history', jobId: job.id })}><History className="h-4 w-4" /></HeadIcon>
-            {mode === 'modal' && <HeadIcon label="Open as a full page" onClick={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}><Maximize2 className="h-4 w-4" /></HeadIcon>}
-          </div>
+        <div className="mt-0.5 px-7 max-sm:px-4">
+          <UnderlineTabs className="min-w-0 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
         </div>
       )}
-      {/* on a phone the small buttons sit under the tabs */}
-      {tab && (
-        <div className="flex items-center gap-1 border-t border-line-2 px-3 py-1.5 sm:hidden">
-          <button onClick={() => s.open({ t: 'files', jobId: job.id })} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-muted"><Paperclip className="h-3.5 w-3.5" />Files{files ? ` ${files}` : ''}</button>
-          <button onClick={() => s.open({ t: 'chat', jobId: job.id })} className={cn('inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold', unread ? 'text-brand-700' : 'text-muted')}><MessageCircle className="h-3.5 w-3.5" />Messages{unread ? ` ${unread}` : ''}</button>
-          <button onClick={() => s.open({ t: 'history', jobId: job.id })} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-muted"><History className="h-3.5 w-3.5" />History</button>
-          {role !== 'accounting' && <button onClick={() => s.open({ t: 'record', jobId: job.id })} aria-label="Log what happened" className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.78125rem] font-semibold text-ink-2"><ListPlus className="h-3.5 w-3.5" />Log</button>}
-        </div>
+      {adding && stepsHere.length > 0 && (
+        <Modal level={8} size="sm" onClose={() => setAdding(false)} title="A step just for this project" sub={job.name}>
+          <AddStep job={job} steps={stepsHere} onDone={() => setAdding(false)} />
+        </Modal>
       )}
     </div>
   )
@@ -237,7 +252,7 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
       {tab === 'overview' && <OverviewTab job={job} setTab={setTab} />}
       {tab === 'scope' && <ScopeTab job={job} />}
       {tab === 'orders' && <POsTab job={job} onScope={() => setTab('scope')} />}
-      {tab === 'estimate' && <EstimateTab job={job} />}
+      {tab === 'estimate' && <MoneyTab job={job} />}
       {tab === 'installer' && <InstallerTab job={job} />}
       {tab === 'money' && <MoneyTab job={job} />}
     </div>
@@ -328,7 +343,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
               </div>
               {g.rooms.map((r) => (
                 <div key={r.name}>
-                  <div className="mt-1 bg-[#eef0ee] px-2 py-1.5 text-[0.71875rem] font-bold uppercase">{r.name}{r.note ? <span className="normal-case"> | {r.note}</span> : null}</div>
+                  <div className="mt-1 bg-[#efece5] px-2 py-1.5 text-[0.71875rem] font-bold uppercase">{r.name}{r.note ? <span className="normal-case"> | {r.note}</span> : null}</div>
                   {r.surfaces.map((x) => {
                     const t = tileOf(jobId, x.tile)
                     const what = /floor/i.test(x.name) ? 'Floor tile' : /wall|splash|wainscot/i.test(x.name) ? 'Wall tile' : x.name

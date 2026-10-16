@@ -4,7 +4,7 @@
  * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
  * Back / Next walk through that part's steps. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight, Lock } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight, Lock, MoreHorizontal } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -163,6 +163,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
           {dated && v.state !== 'done' && v.state !== 'na' && (viewer
             ? (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null)
             : <When job={job} v={v} />)}
+          {!viewer && <StepMore job={job} v={v} />}
         </div>
         {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
         {viewOnly && <div className="mt-4 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2">It’s {PEOPLE[v.owner]?.short || 'someone else'}’s step — you can see where it is; {PEOPLE[v.owner]?.short || 'they'} changes it.</div>}
@@ -176,7 +177,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
  *  blue ring where it's going on, red for a problem, and who has it. The step you're on is underlined. */
 function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
   return (
-    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#fafbfc] px-4 max-sm:px-1">
+    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 max-sm:px-1">
       <Path
         at={at}
         className="pb-2 pt-2.5"
@@ -198,7 +199,7 @@ function Rail({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: Ste
   const ref = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { ref.current?.querySelector('[aria-current="step"]')?.scrollIntoView({ block: 'nearest' }) }, [at])
   return (
-    <nav ref={ref} aria-label="Steps" className="scroll-soft flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r border-line bg-[#fafbfc] max-md:hidden">
+    <nav ref={ref} aria-label="Steps" className="scroll-soft flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r border-line bg-[#faf8f5] max-md:hidden">
       <div className="flex-1 py-2">
         {PHASES.map((ph) => {
           const items = list.filter((x) => x.phase === ph.key)
@@ -261,7 +262,7 @@ function PhonePicker({ list, at, go }: { list: StepView[]; at: number; go: (x?: 
   )
 }
 
-const PILL = 'inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white text-[0.84375rem] font-semibold transition hover:border-[#cbd1d9] hover:bg-wash'
+const PILL = 'inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white text-[0.84375rem] font-semibold transition hover:border-[#cdc7bc] hover:bg-wash'
 function Who({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   return (
@@ -291,16 +292,26 @@ function When({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
-function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?: StepView; next?: StepView; go: (x?: StepView) => void; viewer?: boolean }) {
+/** the rare things to do with a step — in one small menu, not as buttons */
+function StepMore({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rec = s.stepRecs[job.id]?.[v.key]
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
+  const items: { label: string; run: () => void }[] = v.state === 'na' ? [{ label: 'Needed after all', run: () => skipStep(job.id, v.key, false) }]
+    : v.state === 'done' ? (reopenable && rec?.done ? [{ label: 'Not done after all', run: () => reopenStep(job.id, v.key) }] : [])
+      : [...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []), { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true) }]
+  if (!items.length) return null
+  return (
+    <Menu align="start" width={240} trigger={<button aria-label="More for this step" className={cn(PILL, 'w-9 justify-center px-0 text-muted')}><MoreHorizontal className="h-4 w-4" /></button>}>
+      {items.map((x) => <MenuItem key={x.label} onSelect={x.run}>{x.label}</MenuItem>)}
+    </Menu>
+  )
+}
+
+function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?: StepView; next?: StepView; go: (x?: StepView) => void; viewer?: boolean }) {
+  const s = useStore()
   return (
     <>
-      {viewer ? null : v.state === 'na' ? <Button variant="ghost" onClick={() => skipStep(job.id, v.key, false)}>Needed after all</Button>
-        : v.state === 'done' ? (reopenable && rec?.done ? <Button variant="ghost" onClick={() => reopenStep(job.id, v.key)}>Not done after all</Button> : null)
-          : rec?.wait ? <Button variant="ghost" onClick={() => stopWaiting(job.id, v.key)}>Not waiting any more</Button>
-            : <Button variant="ghost" onClick={() => skipStep(job.id, v.key, true)}>Not needed on this project</Button>}
       <span className="ml-auto" />
       {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => go(prev)}>Back</Button>}
       {next ? <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {next.short}</span></Button> : <Button onClick={s.close}>Close</Button>}
@@ -312,7 +323,7 @@ function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?
 function Block({ title, right, children, className }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={cn('overflow-hidden rounded-xl border border-line', className)}>
-      <header className="flex min-h-10 items-center gap-3 border-b border-line-2 bg-[#fafbfc] px-4 py-2">
+      <header className="flex min-h-10 items-center gap-3 border-b border-line-2 bg-[#faf8f5] px-4 py-2">
         <h4 className="text-[0.8125rem] font-bold text-ink">{title}</h4>
         {right && <span className="ml-auto flex min-w-0 items-center gap-2 text-[0.78125rem] text-muted">{right}</span>}
       </header>
@@ -411,7 +422,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
         onDragOver={(e) => { e.preventDefault(); setOver(true) }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); void up(Array.from(e.dataTransfer.files || [])) }}
-        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-4 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}
+        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-4 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
       >
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
@@ -588,7 +599,7 @@ function RevisedQty({ job, rows, onCancel }: { job: Job; rows: QtyRow[]; onCance
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <span className="ml-auto" />
         <Button icon={<Copy />} onClick={copy}>Copy</Button>
-        <a href={href} target="_blank" rel="noreferrer" onClick={() => setTimeout(sent, 50)} className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d6dae0] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink shadow-xs hover:border-brand-300 hover:text-brand-700"><Mail className="h-4 w-4" />Email it</a>
+        <a href={href} target="_blank" rel="noreferrer" onClick={() => setTimeout(sent, 50)} className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d9d3c9] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink shadow-xs hover:border-brand-300 hover:text-brand-700"><Mail className="h-4 w-4" />Email it</a>
         <Button variant="primary" icon={<Check />} onClick={sent}>Mark it sent</Button>
       </div>
     </section>
@@ -708,7 +719,7 @@ function Meeting({ job, v }: { job: Job; v: StepView }) {
       <Field label="What day"><DatePresets value={day} onPick={setDay} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
       <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-3 max-sm:grid-cols-1">
         <Field label="What time">
-          <Menu align="start" width={180} trigger={<button className="inline-flex h-10 w-full items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] font-medium text-ink hover:border-[#cbd1d9]"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4 text-faint" />{timeLabel(time)}</span><ChevronDown className="h-4 w-4 text-faint" /></button>}>
+          <Menu align="start" width={180} trigger={<button className="inline-flex h-10 w-full items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] font-medium text-ink hover:border-[#cdc7bc]"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4 text-faint" />{timeLabel(time)}</span><ChevronDown className="h-4 w-4 text-faint" /></button>}>
             {TIMES.map((m) => <MenuItem key={m} checked={m === time} onSelect={() => setTime(m)}>{timeLabel(m)}</MenuItem>)}
           </Menu>
         </Field>
@@ -770,11 +781,11 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
         <div className={cn('px-4 py-3', items.length > 0 && 'border-t border-line-2')}>
           <div className="grid grid-cols-[minmax(0,1fr)_12rem_12rem] gap-2 max-md:grid-cols-2 max-sm:grid-cols-1">
             <TextInput mic value={what} onChange={(e) => setWhat(e.target.value)} placeholder="What changed — say it, or pick one" aria-label="What changed" className="h-10 max-md:col-span-2 max-sm:col-span-1" />
-            <Menu align="end" width={300} trigger={<button aria-label="Pick a common change" className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cbd1d9]"><span className="truncate">The usual ones</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+            <Menu align="end" width={300} trigger={<button aria-label="Pick a common change" className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cdc7bc]"><span className="truncate">The usual ones</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
               <MenuLabel>What changed</MenuLabel>
               {CHANGE_KINDS.map((k) => <MenuItem key={k} checked={what === k} onSelect={() => setWhat(k)}>{k}</MenuItem>)}
             </Menu>
-            <Menu align="end" width={260} trigger={<button className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cbd1d9]"><span className="truncate">{where || 'Where'}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+            <Menu align="end" width={260} trigger={<button className="inline-flex h-10 items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink-2 hover:border-[#cdc7bc]"><span className="truncate">{where || 'Where'}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
               <MenuLabel>Where</MenuLabel>
               {['Whole project', ...rooms.map((r) => r.name)].map((r) => <MenuItem key={r} checked={where === r} onSelect={() => setWhere(r)}>{r}</MenuItem>)}
             </Menu>
@@ -797,7 +808,7 @@ function Confirmed({ job, v }: { job: Job; v: StepView }) {
   if (ipo.status === 'Rejected') return <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else on “Installer PO”.</div>
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cbd1d9] hover:bg-wash/50">
+      <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
         <Avatar who={ipo.crew} size={38} />
         <span className="min-w-0 flex-1">
           <span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew].name}</span>
@@ -879,7 +890,7 @@ function Installer({ job }: { job: Job }) {
     const said = ipo.status === 'Draft' ? 'Not sent yet' : ipo.status === 'Sent' ? 'Sent — waiting for him to accept' : `Accepted ${ipo.date}`
     return (
       <div className="flex flex-col gap-3">
-        <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cbd1d9] hover:bg-wash/50">
+        <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
           <Avatar who={ipo.crew} size={38} />
           <span className="min-w-0 flex-1">
             <span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew].name}</span>
@@ -900,7 +911,7 @@ function Installer({ job }: { job: Job }) {
       {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
       <Field label="Who installs it">
         <Menu align="start" width={330} trigger={
-          <button className="flex h-12 w-full items-center gap-3 rounded-[0.625rem] border border-line bg-white px-3 text-left transition hover:border-[#cbd1d9]" aria-label="Pick the installer">
+          <button className="flex h-12 w-full items-center gap-3 rounded-[0.625rem] border border-line bg-white px-3 text-left transition hover:border-[#cdc7bc]" aria-label="Pick the installer">
             {pick ? <><Avatar who={pick} size={30} /><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[pick].name} <span className="font-normal text-muted">· {freeWord(free.find((f) => f.crew === pick)?.iso)}</span></span></> : <span className="flex-1 text-[0.9375rem] text-faint">Pick the installer</span>}
             <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
           </button>
@@ -1003,7 +1014,7 @@ function Deposit({ job }: { job: Job }) {
   const paid = dep.state === 'paid'
   return (
     <div>
-      <button onClick={() => s.open({ t: 'money', id: dep.id })} className="flex w-full items-center gap-4 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cbd1d9] hover:bg-wash/50">
+      <button onClick={() => s.open({ t: 'money', id: dep.id })} className="flex w-full items-center gap-4 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
         <span className="min-w-0 flex-1">
           <span className="block text-[1.25rem] font-semibold tnum text-ink">{fmtMoney(dep.amount || 0)}</span>
           <span className="block text-[0.8125rem] text-muted">{paid ? `Paid${dep.date ? ` ${dep.date}` : ''}` : dep.step >= 1 ? `Invoice ${dep.ref || ''} sent · ${fmtMoney(left)} open`.replace('  ', ' ') : 'Not invoiced yet'}</span>
@@ -1163,7 +1174,7 @@ export function GamePlan({ job }: { job: Job }) {
         const d = items.filter((v) => v.state === 'done' || v.state === 'na').length
         return (
           <div key={ph.key}>
-            <div className="flex items-center gap-2 border-t border-line-2 bg-[#f8f9fb] px-5 py-1.5 first:border-t-0 max-sm:px-4">
+            <div className="flex items-center gap-2 border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 first:border-t-0 max-sm:px-4">
               <span className="text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">{ph.label}</span>
               <span className={cn('text-[0.71875rem] font-semibold', d === items.length ? 'text-ok-700' : 'text-faint')}>{d === items.length ? 'all done' : `${d} of ${items.length}`}</span>
             </div>
@@ -1173,7 +1184,7 @@ export function GamePlan({ job }: { job: Job }) {
       })}
       {(tasks.length > 0 || meets.length > 0) && (
         <>
-          <div className="border-t border-line-2 bg-[#f8f9fb] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:px-4">Also on this project</div>
+          <div className="border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:px-4">Also on this project</div>
           {tasks.map((t) => <NextRow key={t.id} dot={t.state === 'waiting' ? 'wait' : 'task'} title={t.title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')} sub={t.state === 'waiting' ? `Waiting on ${t.waitingOn}${t.followUp ? ` · back ${t.followUp}` : ''}` : undefined} who={t.owner} mine={t.owner === me} when={t.state === 'waiting' ? 'Waiting' : t.due || ''} onClick={() => s.open({ t: 'task', id: t.id })} />)}
           {meets.map((e) => <NextRow key={e.id} dot="ev" title={e.title} sub={e.with ? `With ${e.with}` : undefined} who={e.people[0]} mine={e.people.includes(me)} when={`${labelFromIso(e.date)} ${timeLabel(e.start)}`} onClick={() => s.open({ t: 'event', id: e.id })} />)}
         </>
@@ -1191,7 +1202,7 @@ function PlanRow({ job, v, me }: { job: Job; v: StepView; me: PersonKey }) {
   const when = v.state === 'done' ? (v.doneOn ? `Done ${v.doneOn}` : 'Done') : v.state === 'na' || v.state === 'later' ? '' : v.due ? (v.state === 'wait' ? labelFromIso(v.due) : `Due ${labelFromIso(v.due)}`) : v.state === 'wait' ? 'Waiting' : ''
   const late = !!v.due && v.due < TODAY && (v.state === 'now' || v.state === 'bad')
   return (
-    <button onClick={() => openStep(job.id, v.key)} className={cn('group flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition hover:bg-[#f8f9fb] max-sm:px-4', v.state === 'later' && 'bg-[#fcfcfd]')}>
+    <button onClick={() => openStep(job.id, v.key)} className={cn('group flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition hover:bg-[#f8f6f2] max-sm:px-4', v.state === 'later' && 'bg-[#fcfcfd]')}>
       <StepIcon state={v.state} size={22} />
       <span className="min-w-0 flex-1">
         <span className={cn('block truncate text-[0.875rem] font-semibold max-sm:whitespace-normal max-sm:leading-snug', quiet ? 'text-muted' : v.state === 'later' ? 'text-ink-2' : 'text-ink')}>
@@ -1210,7 +1221,7 @@ function PlanRow({ job, v, me }: { job: Job; v: StepView; me: PersonKey }) {
 }
 function NextRow({ dot, title, sub, bad, who, mine, when, late, onClick }: { dot: string; title: string; sub?: string; bad?: boolean; who?: PersonKey; mine?: boolean; when?: string; late?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="group flex w-full items-center gap-3 border-t border-line-2 px-5 py-3 text-left transition first:border-t-0 hover:bg-[#f8f9fb] max-sm:px-4">
+    <button onClick={onClick} className="group flex w-full items-center gap-3 border-t border-line-2 px-5 py-3 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
       <span className="inline-flex w-[1.375rem] shrink-0 justify-center"><span className={cn('h-2.5 w-2.5 rounded-full', DOT[dot])} /></span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[0.875rem] font-semibold text-ink max-sm:whitespace-normal max-sm:leading-snug">{title}</span>

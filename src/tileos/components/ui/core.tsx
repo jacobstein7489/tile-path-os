@@ -17,12 +17,12 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 const BTN_V: Record<BtnVariant, string> = {
   primary: 'bg-brand-600 text-white shadow-btn hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-200 disabled:shadow-none',
-  secondary: 'bg-white text-ink-2 border border-[#d6dae0] shadow-xs hover:border-[#c6ccd4] hover:bg-wash hover:text-ink disabled:text-faint disabled:hover:bg-white',
+  secondary: 'bg-white text-ink-2 border border-[#d9d3c9] shadow-xs hover:border-[#c9c2b7] hover:bg-wash hover:text-ink disabled:text-faint disabled:hover:bg-white',
   ghost: 'text-ink-2 hover:bg-wash-2 disabled:text-faint',
   danger: 'bg-white text-bad-600 border border-bad-100 hover:bg-bad-50',
   success: 'bg-ok-600 text-white shadow-btn hover:bg-ok-700',
   soft: 'bg-brand-50 text-brand-700 hover:bg-brand-100',
-  outline: 'bg-white text-ink border border-[#d6dae0] shadow-xs hover:border-brand-300 hover:text-brand-700 disabled:text-faint disabled:border-line',
+  outline: 'bg-white text-ink border border-[#d9d3c9] shadow-xs hover:border-brand-300 hover:text-brand-700 disabled:text-faint disabled:border-line',
   link: 'text-brand-600 hover:text-brand-700 px-0 h-auto',
 }
 const BTN_S: Record<BtnSize, string> = {
@@ -118,7 +118,7 @@ export function Avatar({ who, size = 32, className, ring, plain }: { who: Person
   return (
     <span
       title={p.name}
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', plain ? 'bg-[#eceef1] text-[#4a5361]' : [p.bg, p.fg], ring && 'ring-2 ring-white', className)}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', plain ? 'bg-[#ece8e1] text-[#4a5361]' : [p.bg, p.fg], ring && 'ring-2 ring-white', className)}
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * (p.initials.length > 1 ? 0.36 : 0.42))) }}
     >
       {p.initials}
@@ -245,7 +245,7 @@ export function Segmented<T extends string>({ value, onChange, items, className 
 /* ---------------- Search field ---------------- */
 export function SearchField({ value, onChange, placeholder, className, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string; autoFocus?: boolean }) {
   return (
-    <label className={cn('relative flex h-9 items-center rounded-[0.5625rem] border border-[#d6dae0] bg-white transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-100', className)}>
+    <label className={cn('relative flex h-9 items-center rounded-[0.5625rem] border border-[#d9d3c9] bg-white transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-100', className)}>
       <Search className="pointer-events-none absolute left-3 h-4 w-4 text-faint" />
       <input
         autoFocus={autoFocus}
@@ -271,7 +271,7 @@ export function Chip({ on, onClick, children, className, tone, icon }: { on?: bo
       onClick={onClick}
       className={cn(
         'inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-[0.5rem] border px-2.5 text-[0.84375rem] font-medium transition',
-        on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#cfd4db] hover:bg-wash',
+        on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:bg-wash',
         tone && !on && TONE[tone].text,
         className,
       )}
@@ -362,7 +362,7 @@ export function KpiTile({ icon, tone, label, value, sub, onClick, valueTone }: {
   return (
     <button
       onClick={onClick}
-      className="group relative flex w-full items-start gap-4 rounded-[0.875rem] border border-line bg-white p-5 text-left transition hover:border-[#cfd4db] max-sm:gap-3 max-sm:p-4"
+      className="group relative flex w-full items-start gap-4 rounded-[0.875rem] border border-line bg-white p-5 text-left transition hover:border-[#d1cbc0] max-sm:gap-3 max-sm:p-4"
     >
       <span className="min-w-0 flex-1">
         <span className="block text-[0.875rem] font-medium text-ink-2 max-sm:text-[0.8125rem]">{label}</span>

@@ -17,7 +17,8 @@ import { MAT_CAT, ITEM_TYPE_LABEL, type Item, type MatCat, type PicKind } from '
 
 /** the picture for any item — materials by their package, labor by a hammer */
 export function ItemThumb({ item, size = 44, className }: { item?: Item; size?: number; className?: string }) {
-  if (!item || item.type !== 'material') return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-xl bg-wash-2 text-muted', className)} style={{ width: size, height: size }}><Hammer className="h-4 w-4" /></span>
+  if (item?.photo && item.type !== 'material') return <img src={item.photo} alt={item.name} width={size} height={size} className={cn('shrink-0 rounded-xl border border-line-2 bg-white object-cover', className)} style={{ width: size, height: size }} />
+  if (!item || item.type !== 'material') return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-xl bg-wash-2 text-faint', className)} style={{ width: size, height: size }}>{item?.type === 'labor' ? <Hammer className="h-4 w-4" /> : <Package className="h-4 w-4" />}</span>
   const cat = MAT_CAT[item.cat || 'supplies']
   return <ProductPic kind={item.pic || 'box'} color={item.tint || cat.color} label={item.product || item.name.split(' ')[0]} sub={item.pack} photo={item.photo} size={size} className={cn('shrink-0', className)} />
 }
@@ -70,10 +71,10 @@ export function ItemsPage() {
   return (
     <Page
       title="Items"
-      sub={ours.length ? <>Your products and services from QuickBooks — what estimates are priced with — and the setting materials the takeoff orders from.</> : `The materials the takeoff orders from, and our labor rates.${smp(' Sample prices.')}`}
+      sub={ours.length ? 'Your QuickBooks products and services, and the setting materials the takeoff orders.' : `The materials the takeoff orders, and our labor rates.${smp(' Sample prices.')}`}
       actions={<div className="flex items-center gap-2">
-        {canChangeItems(s.role) && <Button icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
-        <Button variant="primary" icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}>Import from QuickBooks</Button>
+        <Button icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}><span className="max-sm:hidden">Import from QuickBooks</span><span className="sm:hidden">Import</span></Button>
+        {canChangeItems(s.role) && <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
       </div>}
       top={
         <Bubbles
@@ -81,8 +82,8 @@ export function ItemsPage() {
             ...(ours.length ? [{ key: 'ours', label: 'Your items', count: ours.length, sub: 'from QuickBooks', icon: <FileSpreadsheet />, color: 'blue' as BubbleColor, on: tab === 'ours' && need === 'all', onClick: () => { setTab('ours'); setNeed('all') } }] : []),
             ...(ours.length ? [{ key: 'price', label: 'No price yet', count: noPrice.length, icon: <CircleDollarSign />, color: 'amber' as BubbleColor, on: tab === 'ours' && need === 'price', onClick: () => { setTab('ours'); setNeed(need === 'price' ? 'all' : 'price') } }] : []),
             ...(ours.length ? [{ key: 'rate', label: 'No installer rate', count: noRate.length, icon: <HardHat />, color: 'orange' as BubbleColor, on: tab === 'ours' && need === 'rate', onClick: () => { setTab('ours'); setNeed(need === 'rate' ? 'all' : 'rate') } }] : []),
-            { key: 'material', label: 'Setting materials', count: mats.length, icon: <Package />, color: 'teal', on: tab === 'material', onClick: () => { setTab('material'); setCat('all') }, gapBefore: ours.length > 0 },
-            ...(!ours.length ? [{ key: 'labor', label: 'Labor rates', count: labor.length, icon: <Hammer />, color: 'orange' as BubbleColor, on: tab === 'labor', onClick: () => setTab('labor') }] : []),
+            { key: 'material', label: 'Setting materials', count: mats.length, icon: <Package />, color: ours.length ? 'slate' : 'blue', on: tab === 'material', onClick: () => { setTab('material'); setCat('all') }, gapBefore: ours.length > 0 },
+            ...(!ours.length ? [{ key: 'labor', label: 'Labor rates', count: labor.length, icon: <Hammer />, color: 'blue' as BubbleColor, on: tab === 'labor', onClick: () => setTab('labor') }] : []),
           ]}
         />
       }
@@ -120,8 +121,13 @@ export function ItemsPage() {
                   {rows.map((i) => (
                     <Tr key={i.id} onClick={() => s.open({ t: 'item', id: i.id })}>
                       <Td>
-                        <div className="truncate text-[0.875rem] font-semibold text-ink">{i.name}</div>
-                        <div className="truncate text-[0.78125rem] text-muted">{i.desc || ITEM_TYPE_LABEL[i.type]}</div>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ItemThumb item={i} size={40} />
+                          <div className="min-w-0">
+                            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.name}</div>
+                            <div className="truncate text-[0.78125rem] text-muted">{i.desc || ITEM_TYPE_LABEL[i.type]}</div>
+                          </div>
+                        </div>
                       </Td>
                       <Td className="text-[0.84375rem] text-ink-2">{i.unit}</Td>
                       <Td right className={cn('tnum', i.price ? 'text-ink' : 'text-warn-700')}>{i.price ? price(i.price) : 'Priced per job'}</Td>
@@ -137,10 +143,29 @@ export function ItemsPage() {
         </Table>
       )}
       {tab === 'material' && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(13.75rem,1fr))] gap-3 p-5 max-sm:grid-cols-2 max-sm:gap-2 max-sm:p-3">
-          {shownMats.map((i) => <MatCard key={i.id} i={i} />)}
-          {!shownMats.length && <div className="col-span-full"><EmptyState title="No materials match" sub="Try another kind or clear the search." /></div>}
-        </div>
+        <Table minWidth={760}>
+          <thead>
+            <tr>
+              <Th>Material</Th>
+              <Th w={170} className="max-md:hidden">Supplier</Th>
+              <Th w={130} right>We pay</Th>
+              <Th w={130} right className="max-lg:hidden">We charge</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {(cat === 'all' && !q && vendor === 'all' ? cats : ['_' as const]).map((c) => {
+              const rows = c === '_' ? shownMats : shownMats.filter((i) => (i.cat || 'supplies') === c)
+              if (!rows.length) return null
+              return (
+                <React.Fragment key={c}>
+                  {c !== '_' && <GroupRow label={MAT_CAT[c].label} count={rows.length} colSpan={4} tone="neutral" />}
+                  {rows.map((i) => <MatRow key={i.id} i={i} />)}
+                </React.Fragment>
+              )
+            })}
+            {!shownMats.length && <EmptyRow colSpan={4} title="No materials match" sub="Try another kind or clear the search." />}
+          </tbody>
+        </Table>
       )}
       {tab === 'labor' && (
         <Table minWidth={760}>
@@ -174,27 +199,25 @@ export function ItemsPage() {
   )
 }
 
-function MatCard({ i }: { i: Item }) {
+/** one material on the list — its picture right there, so you see it as you scroll */
+function MatRow({ i }: { i: Item }) {
   const s = useStore()
-  const cat = MAT_CAT[i.cat || 'supplies']
+  const how = [i.pack || i.unit, i.usedFor ? 'the takeoff orders it' : i.id.startsWith('m-own-') ? 'added by hand' : ''].filter(Boolean).join(' · ')
   return (
-    <button onClick={() => s.open({ t: 'item', id: i.id })} className="group flex min-w-0 flex-col rounded-2xl border border-line bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift">
-      <div className="relative flex items-center justify-center rounded-xl" style={{ background: `${cat.color}12` }}>
-        <ProductPic kind={i.pic || 'box'} color={i.tint || cat.color} label={i.product} sub={i.pack} photo={i.photo} size={132} bg={false} className="max-sm:h-[6.5rem] max-sm:w-[6.5rem]" />
-        {i.usedFor && (
-          <Tip label={`The takeoff orders it: ${i.usedFor.toLowerCase()}`}>
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[0.6875rem] font-semibold text-ok-700 shadow-xs"><Sparkles className="h-3 w-3" />Takeoff</span>
-          </Tip>
-        )}
-      </div>
-      <div className="mt-2.5 truncate text-[0.75rem] font-semibold uppercase tracking-[0.04em] text-muted">{i.brand}</div>
-      <div className="truncate text-[0.9375rem] font-bold leading-snug text-ink">{i.product || i.name}</div>
-      <div className="truncate text-[0.78125rem] text-muted">{i.pack || i.unit}</div>
-      <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-line-2 pt-2">
-        <span className="text-[0.875rem] font-bold tnum text-ink">{price(i.cost)}<span className="text-[0.75rem] font-medium text-muted"> / {i.unit}</span></span>
-        <span className="truncate text-[0.75rem] text-muted">{i.vendor}</span>
-      </div>
-    </button>
+    <Tr onClick={() => s.open({ t: 'item', id: i.id })}>
+      <Td className="py-1.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <ItemThumb item={i} size={52} />
+          <div className="min-w-0">
+            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.product || i.name}{i.brand && <span className="ml-1.5 font-normal text-muted">{i.brand}</span>}</div>
+            <div className="truncate text-[0.78125rem] text-muted">{how}<span className="md:hidden">{i.vendor ? ` · ${i.vendor}` : ''}</span></div>
+          </div>
+        </div>
+      </Td>
+      <Td className="truncate text-ink-2 max-md:hidden">{i.vendor || '—'}</Td>
+      <Td right className="tnum text-ink">{price(i.cost)}<span className="text-[0.75rem] text-muted"> / {i.unit}</span></Td>
+      <Td right className="tnum text-ink-2 max-lg:hidden">{i.price ? price(i.price) : '—'}</Td>
+    </Tr>
   )
 }
 
@@ -232,16 +255,17 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
   const cat = MAT_CAT[i.cat || 'supplies']
   return (
     <Modal level={level} size="lg" onClose={s.close} footer={footer} title={mat ? `${i.brand || ''} ${i.product || ''}`.trim() || i.name : i.name} sub={mat ? `${i.name} · ${i.pack || i.unit}` : `${ITEM_TYPE_LABEL[i.type]} · per ${i.unit} · QuickBooks ${i.qb}`}>
-      <div className={cn('flex gap-6 border-b border-line pb-5 max-sm:flex-col', !mat && 'block')}>
-        {mat && (
+      <div className={cn('flex gap-6 border-b border-line pb-5 max-sm:flex-col', !mat && !i.photo && 'block')}>
+        {(mat || i.photo) && (
           <div className="flex shrink-0 flex-col items-center gap-2 max-sm:self-start">
-            <div className="flex items-center justify-center rounded-2xl" style={{ background: `${cat.color}14` }}>
-              <ProductPic kind={i.pic || 'box'} color={i.tint || cat.color} label={i.product} sub={i.pack} photo={i.photo} size={168} bg={false} />
-            </div>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash">
-              <Camera className="h-3.5 w-3.5" />{i.photo ? 'Change the photo' : 'Add the real photo'}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setItemPhoto(i.id, f) }} />
-            </label>
+            {mat ? (
+              <div className="flex items-center justify-center rounded-2xl" style={{ background: `${cat.color}14` }}>
+                <ProductPic kind={i.pic || 'box'} color={i.tint || cat.color} label={i.product} sub={i.pack} photo={i.photo} size={168} bg={false} />
+              </div>
+            ) : (
+              <img src={i.photo} alt={i.name} className="h-[7.5rem] w-[7.5rem] rounded-2xl border border-line-2 bg-white object-cover" />
+            )}
+            {can && <PhotoButton i={i} />}
           </div>
         )}
         <div className="min-w-0 flex-1">
@@ -259,6 +283,7 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
               <div><div className="text-[0.8125rem] text-muted">QuickBooks item</div><div className="mt-1 truncate text-[0.875rem] font-medium text-ink">{i.qb}</div></div>
             </div>
           ) : <ItemEdit i={i} />}
+          {!mat && !i.photo && can && <div className="mt-3"><PhotoButton i={i} /></div>}
         </div>
       </div>
       <div className="mb-1.5 mt-6 text-[0.8125rem] font-medium text-muted">{i.type === 'labor' ? 'On installer POs' : 'What we paid, PO by PO'}</div>
@@ -273,6 +298,15 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
         </>
       )}
     </Modal>
+  )
+}
+/** add or change an item's picture — it shows on the list, on POs and in the supplier's email */
+function PhotoButton({ i }: { i: Item }) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash">
+      <Camera className="h-3.5 w-3.5" />{i.photo ? 'Change the photo' : i.type === 'material' ? 'Add the real photo' : 'Add a photo'}
+      <input type="file" accept="image/*" aria-label={`Photo of ${i.name}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setItemPhoto(i.id, f); e.target.value = '' }} />
+    </label>
   )
 }
 /** the office, the owner, the estimator and whoever orders can add, change and delete materials */
@@ -503,7 +537,7 @@ export function ImportItemsModal({ level }: { level: number }) {
                 const on = take.includes(r.item.id)
                 return (
                   <button key={r.item.id} onClick={() => setTake(on ? take.filter((k) => k !== r.item.id) : [...take, r.item.id])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 hover:bg-wash">
-                    <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c6ccd4]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
+                    <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.item.name}</span>
                       <span className="block truncate text-[0.78125rem] text-muted">{r.status === 'new' ? `New · ${r.item.group} · per ${r.item.unit}` : `Was ${r.was?.price ? price(r.was.price) : 'no price'}`}{r.item.desc ? ` · ${r.item.desc}` : ''}</span>
@@ -528,7 +562,7 @@ export function ImportItemsModal({ level }: { level: number }) {
                 const on = pick.includes(p.sku)
                 return (
                   <button key={p.sku} onClick={() => setPick(on ? pick.filter((k) => k !== p.sku) : [...pick, p.sku])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 hover:bg-wash">
-                    <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c6ccd4]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
+                    <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
                     <ProductPic kind={p.pic as PicKind} color={p.tint || MAT_CAT[p.cat as MatCat].color} label={p.product} sub={p.pack} size={44} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.brand} {p.product}</span>

@@ -89,7 +89,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
         <div className="min-w-0 border-r border-line px-6 py-5 max-lg:border-r-0 max-sm:px-4">
           {rooms.map((r) => (
             <section key={r.name} className="mb-4 overflow-hidden rounded-xl border border-line">
-              <div className="bg-[#f3f4f6] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}</div>
+              <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}</div>
               {r.surfaces.map((x) => {
                 const k = keyOf(r.name, x.name)
                 const sug = suggestMethod(r.name, x)
@@ -117,7 +117,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
           ))}
           <div className="flex items-center gap-1.5 text-[0.78125rem] text-muted"><Sparkles className="h-3.5 w-3.5 text-brand-500" />Suggested from the surface — change it if it’s set differently.</div>
         </div>
-        <aside className="bg-[#fafbfc] px-5 py-5 max-sm:px-4">
+        <aside className="bg-[#faf8f5] px-5 py-5 max-sm:px-4">
           <div className="flex items-center gap-2 text-[0.875rem] font-bold text-ink"><Layers className="h-4 w-4 text-muted" />What it takes</div>
           <div className="mb-3 text-[0.78125rem] text-muted">From {t.sf.toLocaleString('en-US')} SF · {s.rules.mat.waste}% extra · updates as you pick</div>
           <div className="flex flex-col gap-1.5">

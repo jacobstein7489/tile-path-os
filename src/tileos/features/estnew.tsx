@@ -27,7 +27,7 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
         const p = team[k]
         const on = now === k
         const body = (
-          <span className={cn('flex w-full items-center gap-2.5 rounded-[0.6875rem] border px-2.5 py-2 text-left transition', on ? 'border-brand-300 bg-brand-50' : 'border-line bg-white', onChange && 'hover:border-[#c3c9d2]')}>
+          <span className={cn('flex w-full items-center gap-2.5 rounded-[0.6875rem] border px-2.5 py-2 text-left transition', on ? 'border-brand-300 bg-brand-50' : 'border-line bg-white', onChange && 'hover:border-[#c6bfb4]')}>
             <Avatar who={p} size={28} />
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block text-[0.71875rem] font-semibold text-muted">{i + 1}. {TEAM_LABEL[k]}{on && <span className="ml-1.5 text-brand-700">· now</span>}</span>
@@ -59,7 +59,7 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces' }: { have
   /* the checklist opens right under the room — one scroll for the whole window, nothing floating on top */
   return (
     <>
-      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c3c9d2] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
+      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c6bfb4] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
       {open && (
         <div className="order-last mt-1 basis-full rounded-xl border border-brand-100 bg-white p-3 shadow-xs">
           <div className="flex items-baseline justify-between gap-2">
@@ -115,7 +115,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="mr-1 text-[0.78125rem] font-semibold text-muted">Floor</span>
         {[...FLOORS, ''].map((f) => (
-          <button key={f || 'none'} type="button" aria-pressed={floor === f} onClick={() => setFloor(f)} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', floor === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c3c9d2]')}>{f || 'No floor'}</button>
+          <button key={f || 'none'} type="button" aria-pressed={floor === f} onClick={() => setFloor(f)} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', floor === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c6bfb4]')}>{f || 'No floor'}</button>
         ))}
       </div>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -138,7 +138,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
         <div className="mt-4 overflow-hidden rounded-[0.75rem] border border-line">
           {groups.map((g) => (
             <div key={g.floor || 'none'}>
-              <div className="border-b border-line-2 bg-[#f7f8fa] px-3 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">{g.floor || 'No floor'}</div>
+              <div className="border-b border-line-2 bg-[#f7f5f0] px-3 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">{g.floor || 'No floor'}</div>
               {g.list.map((a) => (
                 <div key={a.name + (a.floor || '')} className="flex items-start gap-3 border-b border-line-2 px-3 py-2.5 last:border-b-0">
                   <div className="w-[10.625rem] shrink-0 pt-0.5 max-sm:w-[7.5rem]">
@@ -258,7 +258,7 @@ export function NewEstimateModal({ level }: { level: number }) {
             onDragOver={(e) => { e.preventDefault(); setOver(true) }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false) }}
             onDrop={(e) => { e.preventDefault(); setOver(false); addFiles(Array.from(e.dataTransfer.files || [])) }}
-            className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}
+            className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
           >
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1">

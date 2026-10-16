@@ -153,7 +153,7 @@ export function MaterialsNeed({ job, onScope, simple }: { job: Job; onScope: () 
         </div>
       )}
       {t.skipped.length > 0 && t.counted > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#fafbfa] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-4">
           <span className="font-semibold text-ink">Not counted yet</span>
           <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
           <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
@@ -180,7 +180,7 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
   const colors = l.itemId === 'm-grout' ? Array.from(new Set(l.uses.map((u) => s.rooms[jobId]?.find((r) => r.name === u.room)?.surfaces.find((x) => x.name === u.surface)?.grout).filter(Boolean) as string[])).map((g) => GROUTS[g]?.name || g) : []
   return (
     <div className="border-t border-line-2">
-      <div className={cn(QGRID, 'min-h-[3.25rem] w-full px-5 py-1.5 transition-colors hover:bg-[#f7f8fa] max-sm:px-4')}>
+      <div className={cn(QGRID, 'min-h-[3.25rem] w-full px-5 py-1.5 transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
         <button onClick={onToggle} className="flex min-w-0 items-center gap-3 text-left" aria-expanded={open}>
           <ItemThumb item={it} size={38} />
           <span className="min-w-0">

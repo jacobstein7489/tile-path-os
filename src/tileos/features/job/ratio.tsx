@@ -94,7 +94,7 @@ export function InstallerVsEstimate({ job }: { job: Job }) {
               <span className="text-right text-faint">—</span>
             </div>
           ))}
-          <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem_5.5rem] items-center gap-3 border-t border-line bg-[#fafbfc] px-5 py-2.5 max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:px-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem_5.5rem] items-center gap-3 border-t border-line bg-[#faf8f5] px-5 py-2.5 max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:px-4">
             <span className="text-[0.875rem] font-semibold text-ink">Total</span>
             <span className="text-right text-[0.875rem] font-semibold tnum text-ink-2 max-sm:hidden">{r.sold ? fmtMoney(r.sold) : '—'}</span>
             <span className="text-right text-[0.9375rem] font-bold tnum text-ink">{fmtMoney(r.total)}</span>

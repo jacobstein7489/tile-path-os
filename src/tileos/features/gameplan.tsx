@@ -164,7 +164,7 @@ function CrewRows({ days, items, clashes, focus = 'all' }: { days: string[]; ite
     <div className="scroll-soft overflow-x-auto [--crew:12.5rem] max-sm:[--crew:6.75rem]">
       <div style={{ minWidth: `calc(var(--crew) + ${cols * (cols > 5 ? 84 : 112)}px)` }}>
         <div className="grid border-b border-line bg-wash/60" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
-          <div className="sticky left-0 z-[3] flex items-end bg-[#fafbfc] px-5 pb-2.5 pt-3 text-[0.78125rem] font-semibold text-muted max-sm:px-3">Crew</div>
+          <div className="sticky left-0 z-[3] flex items-end bg-[#faf8f5] px-5 pb-2.5 pt-3 text-[0.78125rem] font-semibold text-muted max-sm:px-3">Crew</div>
           {days.map((d, i) => (
             <div key={d} className={cn('min-w-0 border-l py-2 text-center', dow(d) === 1 && i > 0 ? 'border-l-line' : 'border-l-line-2')}>
               <div className="truncate text-[0.71875rem] font-semibold text-muted">{fmt(d, { weekday: 'short' })}{i === 0 || dow(d) === 1 ? ` · ${fmt(d, { month: 'short' })}` : ''}</div>
@@ -182,7 +182,7 @@ function CrewRows({ days, items, clashes, focus = 'all' }: { days: string[]; ite
           const laneH = 54
           const h = Math.max(1, lanes.length) * laneH + 12
           return (
-            <div key={row.key} className={cn('grid border-b border-line-2 last:border-0', !crew && 'bg-[#fafbfc]')} style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
+            <div key={row.key} className={cn('grid border-b border-line-2 last:border-0', !crew && 'bg-[#faf8f5]')} style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
               {crew ? (
                 <button onClick={() => s.open({ t: 'sub', id: crew })} className="sticky left-0 z-[3] flex items-center gap-3 bg-white px-5 py-2 text-left hover:bg-wash max-sm:gap-2 max-sm:px-3 max-sm:shadow-[0.0625rem_0_0_var(--color-line-2)]">
                   <Avatar who={crew} size={30} className="max-sm:hidden" />
@@ -193,7 +193,7 @@ function CrewRows({ days, items, clashes, focus = 'all' }: { days: string[]; ite
                   </span>
                 </button>
               ) : (
-                <div className="sticky left-0 z-[3] flex items-center gap-3 bg-[#fafbfc] px-5 py-2 max-sm:px-3">
+                <div className="sticky left-0 z-[3] flex items-center gap-3 bg-[#faf8f5] px-5 py-2 max-sm:px-3">
                   <span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#bcc3cc] text-muted max-sm:hidden"><Plus className="h-4 w-4" /></span>
                   <span className="min-w-0 leading-tight">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">Ready to book</span>

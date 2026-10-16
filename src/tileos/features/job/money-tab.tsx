@@ -11,6 +11,7 @@ import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileo
 import { pictureOf, LAST_WEEK } from '../progressbill'
 import { InstallerPOCard } from '../field'
 import { Section, Empty, Strip } from './kit'
+import { EstimateAndChanges } from './plan'
 
 /** a project's money in one place: contract (with approved changes), invoiced and paid so far */
 export function jobMoney(job: Job) {
@@ -67,6 +68,7 @@ export function MoneyTab({ job }: { job: Job }) {
   const under = Math.max(0, b.installedPct - b.billedPct)
 
   const unpaid = Math.max(0, b.billedPct - b.paidPct)
+  const est = s.estimates.find((e) => e.jobId === job.id && e.status === 'approved') || s.estimates.find((e) => e.jobId === job.id)
   const parts = [
     { pct: b.paidPct, color: '#2c4a3e', label: 'Paid' },
     { pct: unpaid, color: '#7f9c8f', label: 'Billed, not paid' },
@@ -76,8 +78,8 @@ export function MoneyTab({ job }: { job: Job }) {
     <div className="flex flex-col gap-4">
       <Strip
         stats={[
-          { label: 'Contract', value: fmtMoney(b.contract), sub: smp('Sample amounts') || 'The approved estimate' },
-          { label: 'Approved changes', value: `+${fmtMoney(b.changes)}`, sub: b.pending ? `${fmtMoney(b.pending)} still pending` : 'Nothing pending' },
+          { label: 'Contract now', value: fmtMoney(b.contract + b.changes), sub: est ? `Estimate ${fmtMoney(b.contract)} · ${est.id}` : smp('Sample amounts') || 'The approved estimate and its changes' },
+          { label: 'Approved changes', value: `+${fmtMoney(b.changes)}`, sub: b.pending ? `${fmtMoney(b.pending)} waiting for a yes` : 'Nothing waiting' },
           { label: 'Billed to date', value: fmtMoney(billed), sub: `${b.billedPct}% · ${fmtMoney(paid)} paid` },
           { label: 'Retainage held', value: fmtMoney(b.retainage), sub: `${s.rules.retainage}% · released at closeout` },
         ]}
@@ -88,12 +90,12 @@ export function MoneyTab({ job }: { job: Job }) {
       />
       <Section title="Where the money is" right={`${b.installedPct}% installed`}>
         <div className="px-5 py-4 max-sm:px-4">
-          <div className="flex h-3 overflow-hidden rounded-full bg-[#eceef1]">
+          <div className="flex h-3 overflow-hidden rounded-full bg-[#ece8e1]">
             {parts.map((x) => x.pct > 0 && <span key={x.label} style={{ width: `${x.pct}%`, background: x.color }} />)}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[0.8125rem] text-ink-2">
             {parts.map((x) => <span key={x.label} className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: x.color }} />{x.label} <b className="font-semibold tnum text-ink">{x.pct}%</b></span>)}
-            <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#eceef1]" />Not installed yet</span>
+            <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#ece8e1]" />Not installed yet</span>
           </div>
         </div>
         {b.toBill > 0 && (
@@ -103,12 +105,13 @@ export function MoneyTab({ job }: { job: Job }) {
           </div>
         )}
       </Section>
-      <Section title="Bills" count={items.length} right="They go out from QuickBooks">
+      <Section title="Bills" count={items.filter((m) => m.kind !== 'change').length} right="They go out from QuickBooks">
         <div>
-          {items.map((m) => <MoneyRow key={m.id} m={m} />)}
-          {!items.length && <Empty>Nothing billed on this project yet.</Empty>}
+          {items.filter((m) => m.kind !== 'change').map((m) => <MoneyRow key={m.id} m={m} />)}
+          {!items.filter((m) => m.kind !== 'change').length && <Empty>Nothing billed on this project yet.</Empty>}
         </div>
       </Section>
+      <EstimateAndChanges job={job} />
     </div>
   )
 }

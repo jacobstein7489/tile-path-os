@@ -52,7 +52,7 @@ export function SearchSelect({
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cbd1d9]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {cur?.lead && <span className="inline-flex shrink-0">{cur.lead}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !cur && !(emptyLabel && value === '') && 'text-faint')}>
@@ -151,7 +151,7 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cbd1d9]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !picked.length && 'text-faint')}>{picked.length ? (summary ? summary(picked) : picked.map((o) => o.label).join(', ')) : placeholder}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />

@@ -179,7 +179,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
       bodyClass="p-0"
     >
       <div className="grid min-h-full grid-cols-[minmax(0,1fr)_20rem] max-lg:grid-cols-1">
-        <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f6f7f9] px-6 py-6">
+        <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f4f1eb] px-6 py-6">
           <div className="flex max-w-full items-end gap-3">
             {/* height label */}
             <div className="flex flex-col items-center justify-center text-[0.75rem] font-semibold tnum text-muted max-sm:hidden" style={{ height: ph }}>

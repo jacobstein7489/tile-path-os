@@ -27,7 +27,7 @@ import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
 import { REAL } from '@/tileos/lib/save'
-import { Mic, canListen, addSaid } from '@/tileos/components/ui/mic'
+import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
 
 const TODAY_ISO = TODAY
@@ -109,7 +109,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
-      className={cn('group/row min-h-[3.5rem] border-t border-line-2 py-2.5 transition-colors', GRID, PX, onClick && 'cursor-pointer hover:bg-[#f7f8fa]', leaving && 'row-out')}
+      className={cn('group/row min-h-[3.5rem] border-t border-line-2 py-2.5 transition-colors', GRID, PX, onClick && 'cursor-pointer hover:bg-[#f7f5f0]', leaving && 'row-out')}
     >
       <span className={cn('truncate text-[0.84375rem] tnum', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when}</span>
       <span className="flex min-w-0 items-center gap-3">
@@ -396,7 +396,7 @@ export function MyTasksPage() {
       const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
       return (
         <section key={id || 'none'} aria-label={j ? j.name : 'Not on a project'}>
-          <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f8fa] py-2 first:border-t-0', PX)}>
+          <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f5f0] py-2 first:border-t-0', PX)}>
             {j ? (
               <button onClick={() => s.open({ t: 'job', id })} className="group min-w-0 flex-1 text-left">
                 <span className="block truncate text-[0.90625rem] font-bold text-ink group-hover:text-brand-700">{j.name}</span>
@@ -647,7 +647,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {t.owner !== me && !followersOf(t).includes(me) && <button onClick={() => toggleFollow(t.id, me)} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.78125rem] font-semibold text-vio-600 hover:bg-vio-50"><Eye className="h-3.5 w-3.5" />Follow</button>}
         <button onClick={() => setEveryone(t.id, !t.everyone)} className="ml-auto inline-flex items-center gap-2 text-[0.78125rem] font-semibold text-ink-2" aria-pressed={!!t.everyone}>
           <Megaphone className={cn('h-3.5 w-3.5', t.everyone ? 'text-warn-600' : 'text-faint')} />On everyone’s Today
-          <span className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition', t.everyone ? 'bg-warn-500' : 'bg-[#d6dae0]')}><span className={cn('absolute h-4 w-4 rounded-full bg-white shadow transition', t.everyone ? 'left-[1.125rem]' : 'left-0.5')} /></span>
+          <span className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition', t.everyone ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute h-4 w-4 rounded-full bg-white shadow transition', t.everyone ? 'left-[1.125rem]' : 'left-0.5')} /></span>
         </button>
       </div>
       <div className="mt-6 flex items-center justify-between">
@@ -689,26 +689,27 @@ function guessType(title: string): TaskType {
   if (/\b(site|crew|install|punch|touch-?ups?|walkthrough|measure)\b/.test(w)) return 'Field'
   return 'Setup'
 }
-/** the tasks a tile company makes over and over — one tap fills the task in, with who usually does it */
-const TYPICAL: { t: string; who: Role; due: string; for: Role[] }[] = [
-  { t: 'Call the GC for the client PO', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office'] },
-  { t: 'Get the tile delivery date from the store', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'materials'] },
-  { t: 'Confirm the installer for the start date', who: 'owner', due: 'Tomorrow', for: ['owner', 'pm', 'office'] },
-  { t: 'Ask the designer for the grout color', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
-  { t: 'Follow up on the change order with the GC', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
-  { t: 'Order the setting materials', who: 'materials', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'materials'] },
-  { t: 'Check the wall heights on site', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'site'] },
-  { t: 'Walk the job with the installer', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
-  { t: 'Count the tile boxes when they come', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site', 'materials'] },
-  { t: 'Check the drains are set before tile', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
-  { t: 'Take progress photos', who: 'site', due: 'Today', for: ['owner', 'pm', 'site'] },
-  { t: 'Punch walk with the GC', who: 'site', due: 'Tomorrow', for: ['owner', 'pm', 'site'] },
-  { t: 'Make sure the floors are protected', who: 'site', due: 'Today', for: ['site'] },
-  { t: 'Do the takeoff from the plans', who: 'takeoff', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
-  { t: 'Price the change order', who: 'estimator', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'estimator'] },
-  { t: 'Ask the GC for the finish schedule', who: 'office', due: 'Tomorrow', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
-  { t: 'Send the deposit invoice', who: 'accounting', due: 'Today', for: ['owner', 'office', 'accounting'] },
-  { t: 'Call the client about the open invoice', who: 'accounting', due: 'Tomorrow', for: ['owner', 'office', 'accounting'] },
+/** the tasks a tile company makes over and over — they show under the box as you type (or under "Common"). Picking one
+ *  only fills in the words: who does it and when stay what you set. Each one shows only to the jobs it fits. */
+const COMMON_TASKS: { t: string; for: Role[] }[] = [
+  { t: 'Call the GC for the client PO', for: ['owner', 'pm', 'office'] },
+  { t: 'Get the tile delivery date from the store', for: ['owner', 'pm', 'office', 'materials'] },
+  { t: 'Confirm the installer for the start date', for: ['owner', 'pm', 'office'] },
+  { t: 'Ask the designer for the grout color', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Follow up on the change order with the GC', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Order the setting materials', for: ['owner', 'pm', 'office', 'materials'] },
+  { t: 'Check the wall heights on site', for: ['owner', 'pm', 'office', 'site'] },
+  { t: 'Walk the job with the installer', for: ['owner', 'pm', 'site'] },
+  { t: 'Count the tile boxes when they come', for: ['owner', 'pm', 'site', 'materials'] },
+  { t: 'Check the drains are set before tile', for: ['owner', 'pm', 'site'] },
+  { t: 'Take progress photos', for: ['owner', 'pm', 'site'] },
+  { t: 'Punch walk with the GC', for: ['owner', 'pm', 'site'] },
+  { t: 'Make sure the floors are protected', for: ['site'] },
+  { t: 'Do the takeoff from the plans', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
+  { t: 'Price the change order', for: ['owner', 'pm', 'office', 'estimator'] },
+  { t: 'Ask the GC for the finish schedule', for: ['owner', 'pm', 'office', 'takeoff', 'estimator'] },
+  { t: 'Send the deposit invoice', for: ['owner', 'office', 'accounting'] },
+  { t: 'Call the client about the open invoice', for: ['owner', 'office', 'accounting'] },
 ]
 export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }) {
   const s = useStore()
@@ -727,10 +728,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
   const [jobPicked, setJobPicked] = React.useState(!!jobId)
   const [heard, setHeard] = React.useState('')
   const people = insidePeople(s)
-  /* who usually does a typical task: whoever has that job on the team */
-  const holderOf = (r: Role): PersonKey => (s.team.find((m) => m.role === r && m.status !== 'off')?.key as PersonKey | undefined) || meOf(r) || me
-  const typical = TYPICAL.filter((x) => x.for.includes(s.role)).slice(0, 10)
-  const pickTypical = (x: (typeof TYPICAL)[number]) => { setTitle(x.t); setOwner(holderOf(x.who)); setDue(x.due); setPicked(true) }
+  const common = COMMON_TASKS.filter((x) => x.for.includes(s.role)).map((x) => x.t)
   /* "call the GC tomorrow" sets the day, and "828 Clyde — …" the project, by themselves — until you pick one */
   const onTitle = (v: string) => {
     setTitle(v)
@@ -750,7 +748,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
     s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
     s.close()
   }
-  const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[#d6dae0] bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#c3c9d2] hover:text-ink data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
+  const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[#d9d3c9] bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#c6bfb4] hover:text-ink data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
   const whenLabel = repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : WHEN.find(([k]) => k === due)?.[1] || due
   return (
     <Modal
@@ -766,27 +764,8 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         </>
       }
     >
-      <span className="relative block">
-        <input
-          data-autofocus
-          aria-label="What needs to be done?"
-          value={title}
-          onChange={(e) => onTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') add() }}
-          placeholder="What needs to be done? Say the project and it’s picked"
-          className={cn('h-12 w-full rounded-[0.6875rem] border border-[#d6dae0] bg-white px-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', canListen() && 'pr-14')}
-        />
-        <Mic onText={(t) => onTitle(addSaid(title, t))} className="absolute right-2 top-1/2 -translate-y-1/2" size="sm" />
-      </span>
+      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="Common tasks" />
       {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
-      {!title.trim() && typical.length > 0 && (
-        <div className="mt-3">
-          <div className="mb-1.5 text-[0.75rem] font-semibold text-muted">Typical — tap one</div>
-          <div className="flex flex-wrap gap-1.5">
-            {typical.map((x) => <button key={x.t} type="button" onClick={() => pickTypical(x)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-200 hover:bg-brand-50/50 hover:text-ink">{x.t}</button>)}
-          </div>
-        </div>
-      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{owner === me ? 'Me' : PEOPLE[owner].short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Who does it</MenuLabel>
@@ -805,9 +784,9 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           </Menu>
         )}
         {!jobId && (
-          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d6dae0] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
+          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
         )}
-        {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d6dae0] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
+        {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d9d3c9] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
       </div>
       {!more ? (
         <button type="button" onClick={() => setMore(true)} className="mt-4 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:text-brand-800">
@@ -824,7 +803,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           <button type="button" onClick={() => setAll(!all)} className={cn('flex items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', all ? 'border-warn-300 bg-warn-50' : 'border-line hover:bg-wash')}>
             <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', all ? 'bg-warn-500 text-white' : 'bg-wash-2 text-muted')}><Megaphone className="h-3.5 w-3.5" /></span>
             <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Show it on everyone’s Today</span><span className="block text-[0.75rem] text-muted">For the big ones — pinned for the whole team until it’s done</span></span>
-            <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', all ? 'bg-warn-500' : 'bg-[#d6dae0]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', all ? 'left-[1.125rem]' : 'left-0.5')} /></span>
+            <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', all ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', all ? 'left-[1.125rem]' : 'left-0.5')} /></span>
           </button>
         </div>
       )}

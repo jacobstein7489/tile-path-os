@@ -116,7 +116,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
     const shown = cur === 'matBy' ? matBy(s) : cur
     return (
       <Menu align="end" width={290} trigger={
-        <button aria-label={`${label} — ${PEOPLE[shown]?.name || 'nobody'}`} className={cn('inline-flex h-9 min-w-[12.5rem] items-center gap-2 rounded-full border bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink transition hover:border-[#cbd1d9] max-sm:min-w-0', start.filled.has(k) ? 'border-brand-300' : 'border-line')}>
+        <button aria-label={`${label} — ${PEOPLE[shown]?.name || 'nobody'}`} className={cn('inline-flex h-9 min-w-[12.5rem] items-center gap-2 rounded-full border bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink transition hover:border-[#cdc7bc] max-sm:min-w-0', start.filled.has(k) ? 'border-brand-300' : 'border-line')}>
           <Avatar who={shown} size={26} /><span className="min-w-0 flex-1 truncate text-left">{PEOPLE[shown]?.name || 'Pick someone'}{cur === 'matBy' ? <span className="font-normal text-muted"> · whoever orders</span> : null}</span>
           {start.filled.has(k) && <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-500" />}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
@@ -153,7 +153,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
         ? <>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> had nobody. The office reviewer sets the design meeting (you and the site manager get it on your calendar) and handles what comes out of it and the store; you check the estimate after the meeting; the site manager shows the installer the job; the deposit goes to whoever does the books. Nothing changes until you save.</>
         : <>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> are filled in from how you said it works. Nothing changes until you save.</>}</span></div>}
       <section className="overflow-hidden rounded-xl border border-line">
-        <header className="border-b border-line-2 bg-[#fafbfc] px-4 py-2 text-[0.8125rem] font-bold text-ink">Estimates</header>
+        <header className="border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">Estimates</header>
         {TEAM_KEYS.map((k) => row(TEAM_WORDS[k].split(' — ')[0], TEAM_WORDS[k].split(' — ')[1], pick(team[k], (p) => setTeam({ ...team, [k]: p as PersonKey }), TEAM_WORDS[k], 'est:' + k), 'est' + k))}
       </section>
       {PHASES.map((ph) => {
@@ -161,7 +161,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
         if (!items.length) return null
         return (
           <section key={ph.key} className="mt-3 overflow-hidden rounded-xl border border-line">
-            <header className="border-b border-line-2 bg-[#fafbfc] px-4 py-2 text-[0.8125rem] font-bold text-ink">{ph.key === 'paper' ? 'Getting a project ready · ' : ''}{ph.label}</header>
+            <header className="border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">{ph.key === 'paper' ? 'Getting a project ready · ' : ''}{ph.label}</header>
             {items.map((d) => row(d.label, undefined, pick(owners[d.key] || d.owner, (p) => setOwners({ ...owners, [d.key]: p }), d.label, d.key, d.key === 'materials' || d.key === 'matin'), d.key))}
           </section>
         )

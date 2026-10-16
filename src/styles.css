@@ -4,8 +4,8 @@
 
 
 /*
- * Cobblestone Tile OS — design tokens (v16, "porcelain & cobalt")
- * A porcelain-gray ground, white sheets with thin grout-gray borders, slate ink, one cobalt-glaze blue
+ * Cobblestone Tile OS — design tokens (v17, "limestone & cobalt")
+ * A warm limestone ground (easy on the eye), white sheets with thin warm-grout borders, warm ink, one cobalt-glaze blue
  * for what you can do and what's selected. Status colors are muted and only ever mean something:
  * red = a problem, amber = needs attention, green = done. Headlines and big numbers are set in Archivo,
  * a sturdy grotesk with a little width — the lettering of a drawing's title block; everything else is Inter.
@@ -14,17 +14,17 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-canvas: #f1f2f4;
+  --color-canvas: #f4f1eb;
   --color-surface: #ffffff;
-  --color-side: #f1f2f4;
-  --color-ink: #141a24;
-  --color-ink-2: #394150;
-  --color-muted: #66707f;
-  --color-faint: #9aa1ad;
-  --color-line: #e2e5e9;
-  --color-line-2: #edeff2;
-  --color-wash: #f7f8f9;
-  --color-wash-2: #eff1f3;
+  --color-side: #faf8f4;
+  --color-ink: #1c1b18;
+  --color-ink-2: #3e3b35;
+  --color-muted: #6d6961;
+  --color-faint: #a09b92;
+  --color-line: #e5e0d7;
+  --color-line-2: #eeeae3;
+  --color-wash: #f8f6f2;
+  --color-wash-2: #f0ece5;
 
   /* cobalt glaze */
   --color-brand-50: #eef2fc;
@@ -162,9 +162,9 @@ button:disabled { cursor: not-allowed; }
 .display-num { font-family: var(--font-display); font-stretch: 104%; font-variant-numeric: tabular-nums; font-feature-settings: normal; }
 .h-tight { letter-spacing: -0.016em; }
 /* calm scrollbars */
-.scroll-soft { scrollbar-width: thin; scrollbar-color: #cdd2d9 transparent; }
+.scroll-soft { scrollbar-width: thin; scrollbar-color: #cfc9be transparent; }
 .scroll-soft::-webkit-scrollbar { width: 10px; height: 10px; }
-.scroll-soft::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+.scroll-soft::-webkit-scrollbar-thumb { background: #d2ccc1; border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
 .scroll-soft::-webkit-scrollbar-track { background: transparent; }
 .focus-ring:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; }
 .check-pop { animation: check-pop 260ms cubic-bezier(0.16, 1, 0.3, 1); }

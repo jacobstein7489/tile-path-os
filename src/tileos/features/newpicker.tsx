@@ -21,7 +21,7 @@ export const TILE_COLORS = {
   orange: { solid: '#d9631e', tint: '#fdf2eb', line: '#f5dac8' },
   red: { solid: '#cf3d2e', tint: '#fdf0ee', line: '#f4d3ce' },
   green: { solid: '#22894f', tint: '#edf7f1', line: '#cde9d8' },
-  slate: { solid: '#5b6575', tint: '#f3f4f6', line: '#dfe2e7' },
+  slate: { solid: '#5b6575', tint: '#f1eee8', line: '#dfe2e7' },
 } as const
 export type TileColor = keyof typeof TILE_COLORS
 

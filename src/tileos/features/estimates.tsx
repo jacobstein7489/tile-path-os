@@ -193,7 +193,7 @@ function EstRow({ e }: { e: Estimate }) {
       tabIndex={0}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[3.75rem] cursor-pointer border-b border-line-2 py-2.5 transition-colors hover:bg-[#f7f8fa] focus-visible:bg-[#f7f8fa] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
+      className={cn('min-h-[3.75rem] cursor-pointer border-b border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
     >
       <div className="min-w-0">
         <div className="truncate text-[0.90625rem] font-semibold text-ink">{j.name}</div>
@@ -474,7 +474,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
                   const pinned = notes.filter((n) => n.area === a)
                   return (
                     <section key={a}>
-                      <div className="group/area flex items-center justify-between gap-3 border-b border-line-2 bg-[#fafbfc] px-3 py-2">
+                      <div className="group/area flex items-center justify-between gap-3 border-b border-line-2 bg-[#faf8f5] px-3 py-2">
                         <span className="flex min-w-0 items-center gap-2">
                           {metaOf(a)?.floor && <span className="shrink-0 rounded-md bg-ink px-1.5 py-[0.0625rem] text-[0.6875rem] font-semibold text-white">{metaOf(a)!.floor}</span>}
                           <span className={cn('truncate text-[0.84375rem] font-semibold', !ls.length && gone.length ? 'text-bad-700 line-through' : 'text-ink')}>{a}</span>
@@ -566,7 +566,7 @@ function AreaMenu({ e, area }: { e: Estimate; area: string }) {
     <Pop open={open} onOpenChange={setOpen} width={310} trigger={<button type="button" aria-label={`${area} — floor and details`} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
       <div className="text-[0.78125rem] font-semibold text-muted">Floor</div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {['', ...FLOORS].map((f) => <button key={f || 'none'} type="button" onClick={() => estSetArea(e.id, area, { floor: f || null })} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold', (meta?.floor || '') === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c3c9d2]')}>{f || 'No floor'}</button>)}
+        {['', ...FLOORS].map((f) => <button key={f || 'none'} type="button" onClick={() => estSetArea(e.id, area, { floor: f || null })} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold', (meta?.floor || '') === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c6bfb4]')}>{f || 'No floor'}</button>)}
       </div>
       <div className="mt-3 text-[0.78125rem] font-semibold text-muted">Next to the room on the paper</div>
       <form className="mt-1.5 flex gap-2" onSubmit={(x) => { x.preventDefault(); estSetArea(e.id, area, { note }); setOpen(false) }}>
@@ -604,7 +604,7 @@ function NoteRow({ e, n }: { e: Estimate; n: EstNote }) {
       <button
         aria-label={n.done ? 'Mark not done' : 'Check it off'}
         onClick={() => estToggleNote(e.id, n.id)}
-        className={cn('mt-[0.0625rem] inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border-2 transition', n.done ? 'border-ok-500 bg-ok-500 text-white' : 'border-[#c6ccd4] bg-white text-transparent hover:border-ok-500 hover:text-ok-500')}
+        className={cn('mt-[0.0625rem] inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border-2 transition', n.done ? 'border-ok-500 bg-ok-500 text-white' : 'border-[#c9c2b7] bg-white text-transparent hover:border-ok-500 hover:text-ok-500')}
       >
         <Check className="h-3 w-3" strokeWidth={3.4} />
       </button>
@@ -739,7 +739,7 @@ export function AiPlansModal({ estId, level }: { estId: string; level: number })
           <div className="mt-4 overflow-hidden rounded-xl border border-line">
             {rooms.map((room, ri) => (
               <section key={room} className={cn(ri > 0 && 'border-t border-line')}>
-                <div className="bg-[#f3f4f6] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
+                <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
                 {d.rows.filter((r) => r.room === room).map((r) => {
                   const t = tileOf(e.jobId, r.tile)
                   return (

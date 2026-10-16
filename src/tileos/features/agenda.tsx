@@ -21,7 +21,7 @@ const EV: Record<EvKind, { card: string; icon: React.ElementType; label: string 
   report: { card: 'border-vio-500 bg-vio-50 hover:bg-vio-100/70', icon: Repeat, label: 'Report' },
   delivery: { card: 'border-[#0e7490] bg-[#ecfeff] hover:bg-[#cffafe]', icon: Truck, label: 'Delivery' },
   follow: { card: 'border-warn-500 bg-warn-50 hover:bg-warn-100/70', icon: BellRing, label: 'Comes back' },
-  due: { card: 'border-[#d6dae0] bg-wash hover:bg-wash-2', icon: Flag, label: 'Due' },
+  due: { card: 'border-[#d9d3c9] bg-wash hover:bg-wash-2', icon: Flag, label: 'Due' },
   start: { card: 'border-ok-500 bg-ok-50 hover:bg-ok-100/70', icon: Play, label: 'Starts' },
 }
 const isMineT = (t: Store['tasks'][number], person: PersonKey) => t.owner === person
@@ -179,7 +179,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           </div>
           <div>
             <div className="mb-2 text-[0.8125rem] font-semibold text-ink-2">What time</div>
-            <Menu align="start" width={180} trigger={<button className="inline-flex h-10 w-[11rem] items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] font-medium text-ink hover:border-[#cbd1d9]"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4 text-faint" />{timeLabel(time)}</span></button>}>
+            <Menu align="start" width={180} trigger={<button className="inline-flex h-10 w-[11rem] items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] font-medium text-ink hover:border-[#cdc7bc]"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4 text-faint" />{timeLabel(time)}</span></button>}>
               {EV_TIMES.map((m) => <MenuItem key={m} checked={m === time} onSelect={() => setTime(m)}>{timeLabel(m)}</MenuItem>)}
             </Menu>
           </div>

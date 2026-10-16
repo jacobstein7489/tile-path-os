@@ -16,6 +16,7 @@ import { stepsFor, stepCounts, isGettingReady } from './steps'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
+import { allowedFor } from './newpicker'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 export type ProjType = 'hold' | 'coming' | 'progress' | 'touchups' | 'repairs' | 'done'
@@ -79,7 +80,7 @@ export function ProjectsPage() {
     <Page
       title="Projects"
       sub="Every won project — what’s done, what’s open, and who has it."
-      actions={<><Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newproject' })}>New project</Button></>}
+      actions={allowedFor(s.role, 'newproject') ? <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newproject' })}>New project</Button> : undefined}
       top={
         <Bubbles
           items={[
@@ -120,7 +121,7 @@ export function ProjectsPage() {
               )
             })
           : list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
-        {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs land here — start one with New repair.' : 'Try another filter.'} action={view === 'repairs' ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
+        {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
   )
@@ -240,7 +241,7 @@ function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
       tabIndex={0}
       onClick={() => s.open({ t: 'job', id: j.id })}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) s.open({ t: 'job', id: j.id }) }}
-      className={cn('min-h-[3.5rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f8fa] max-md:gap-1.5', COLS, PX)}
+      className={cn('min-h-[3.5rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] max-md:gap-1.5', COLS, PX)}
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="min-w-0">

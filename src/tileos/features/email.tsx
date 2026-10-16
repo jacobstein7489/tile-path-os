@@ -35,7 +35,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     buttons = (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Confirm the order</span>
-        <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d6dae0] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Can’t make the date</span>
+        <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d9d3c9] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Can’t make the date</span>
       </>
     )
     doc = (
@@ -102,7 +102,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     buttons = (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Approve</span>
-        <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d6dae0] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Ask for changes</span>
+        <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d9d3c9] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Ask for changes</span>
       </>
     )
     doc = (
@@ -120,7 +120,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
   return (
     <Modal level={level} size="lg" onClose={s.close} title="What they get" sub="Sent from your connected Gmail. Their click comes back here by itself.">
       <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-xs">
-        <div className="flex items-center gap-2 border-b border-line-2 bg-[#f8f9fb] px-4 py-2">
+        <div className="flex items-center gap-2 border-b border-line-2 bg-[#f8f6f2] px-4 py-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#fda29b]" /><span className="h-2.5 w-2.5 rounded-full bg-[#fedf89]" /><span className="h-2.5 w-2.5 rounded-full bg-[#a6f4c5]" />
           <span className="ml-2 inline-flex items-center gap-1.5 text-[0.78125rem] font-semibold text-muted"><Mail className="h-3.5 w-3.5" />Inbox</span>
         </div>
@@ -131,7 +131,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
             <span className="text-muted">To</span><span className="truncate text-ink-2">{to}</span>
           </div>
         </div>
-        <div className="bg-[#f4f5f7] px-5 py-5 max-sm:px-3">
+        <div className="bg-[#f1eee8] px-5 py-5 max-sm:px-3">
           <div className="mx-auto max-w-[35rem] rounded-xl bg-white p-6 shadow-[0_0.0625rem_0.1875rem_rgba(16,24,40,.08)] max-sm:p-4">
             <div className="flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#101828] text-[0.8125rem] font-black text-white">C</span>

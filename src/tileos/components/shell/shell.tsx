@@ -106,13 +106,13 @@ export function Sidebar() {
       >
         <Icon className={cn('h-4 w-4 shrink-0', on ? 'text-brand-600' : 'text-[#7b8492] group-hover:text-ink-2')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
-        {!!n && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1.5 text-[0.71875rem] font-semibold tnum text-white">{n}</span>}
+        {!!n && <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-brand-700' : 'text-muted')}>{n}</span>}
       </button>
     )
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col border-r border-line bg-white shadow-[0.0625rem_0_0.25rem_rgba(20,26,36,.03)] max-lg:hidden">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col border-r border-line bg-side max-lg:hidden">
       <button onClick={() => go(homeOf(role))} className="flex shrink-0 items-center gap-2.5 px-4 pb-3.5 pt-4 text-left">
         <Logo size={28} />
         <span className="min-w-0 leading-[1.1]">
@@ -144,16 +144,6 @@ export function Sidebar() {
           )
         })}
       </nav>
-      <div className="shrink-0 border-t border-line-2 px-3 pb-3 pt-3 [@media(max-height:47.5rem)]:hidden">
-        <button onClick={() => go({ page: 'flow' })} className="group flex w-full items-center gap-2.5 rounded-[0.6875rem] border border-line bg-white p-2 text-left transition hover:border-[#cbd1d9]">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] bg-brand-50 text-brand-600"><Workflow className="h-4 w-4" /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.84375rem] font-semibold text-ink">How it all flows</span>
-            <span className="block truncate text-[0.75rem] text-muted">Who does what</span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
-        </button>
-      </div>
     </aside>
   )
 }
@@ -165,7 +155,7 @@ export function DesktopTopBar() {
   const me = meOf(role)
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-4 bg-canvas/90 px-7 backdrop-blur-md max-xl:px-6 max-lg:hidden">
-      <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cbd1d9] hover:text-muted">
+      <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
         <Search className="h-4 w-4" />
         <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>
         <Kbd>⌘K</Kbd>
@@ -176,7 +166,7 @@ export function DesktopTopBar() {
           align="end"
           width={270}
           trigger={
-            <button className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cbd1d9]">
+            <button className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cdc7bc]">
               <Avatar who={me} size={28} />
               <span className="min-w-0 text-left leading-tight">
                 <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[me].name}</span>
@@ -350,7 +340,7 @@ function Notifications({ dark, big }: { dark?: boolean; big?: boolean }) {
   return (
     <Dialog.Root open={on} onOpenChange={setOn}>
       <Dialog.Trigger asChild>
-        <button aria-label="Notifications" className={cn('relative inline-flex shrink-0 items-center justify-center', big ? 'h-9 w-9 rounded-[0.5625rem] border border-line bg-white text-ink-2 shadow-xs hover:border-[#cbd1d9]' : 'h-9 w-9 rounded-[0.625rem] text-muted hover:bg-wash-2 hover:text-ink', dark && 'text-white/60 hover:bg-white/[0.06] hover:text-white')}>
+        <button aria-label="Notifications" className={cn('relative inline-flex shrink-0 items-center justify-center', big ? 'h-9 w-9 rounded-[0.5625rem] border border-line bg-white text-ink-2 shadow-xs hover:border-[#cdc7bc]' : 'h-9 w-9 rounded-[0.625rem] text-muted hover:bg-wash-2 hover:text-ink', dark && 'text-white/60 hover:bg-white/[0.06] hover:text-white')}>
           <Bell className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.8} />
           {unread > 0 && (big ? <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-canvas">{unread}</span> : <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-bad-500 ring-2 ring-white" />)}
         </button>

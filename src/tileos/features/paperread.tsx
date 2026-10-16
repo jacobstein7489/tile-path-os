@@ -57,7 +57,7 @@ export function PaperRead({ job }: { job: Job }) {
         onDragOver={(e) => { e.preventDefault(); setOver(true) }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); if (st.k !== 'reading') void go(Array.from(e.dataTransfer.files || [])) }}
-        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-3.5 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}
+        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-3.5 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
       >
         <span className={cn('inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', st.k === 'reading' ? 'bg-brand-50 text-brand-600' : 'bg-white text-brand-600 shadow-xs')}>
           {st.k === 'reading' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}

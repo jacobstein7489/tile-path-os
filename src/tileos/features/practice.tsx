@@ -161,7 +161,7 @@ export function PracticeTab() {
         <div className="flex flex-wrap items-center gap-3 border-t border-line-2 px-5 py-4 max-sm:px-4">
           <span className="text-[0.875rem] text-ink-2">Who’s installing it?</span>
           <Menu align="start" width={240} trigger={
-            <button className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink hover:border-[#cbd1d9]"><Avatar who={crew} size={26} />{PEOPLE[crew]?.name}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>
+            <button className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink hover:border-[#cdc7bc]"><Avatar who={crew} size={26} />{PEOPLE[crew]?.name}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>
           }>
             <MenuLabel>The installer on the practice project</MenuLabel>
             {crews.map((c) => <MenuItem key={c} icon={<Avatar who={c} size={20} />} checked={crew === c} onSelect={() => setCrew(c)}>{PEOPLE[c]?.name}</MenuItem>)}

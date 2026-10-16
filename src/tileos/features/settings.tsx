@@ -31,27 +31,29 @@ const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0
 export function SettingsPage() {
   const s = useStore()
   /* the real app has no test data — the company's data is the real thing */
-  const [tab, setTab] = React.useState<Tab>(((s.route.tab === 'testdata' && REAL.cloud ? 'team' : s.route.tab) as Tab) || 'team')
+  /* six tabs, not ten: the smaller parts sit under the tab they belong with (what each login sees under Team,
+   * statuses under Checklists, material numbers under Company rules, test data under Practice) — old links still land */
+  const [tab, setTab] = React.useState<Group>(() => GROUP_OF[(s.route.tab as Tab) || 'team'] || 'team')
+  const below = (k: Tab) => { if (s.route.tab !== k) return; window.setTimeout(() => document.getElementById(`settings-${k}`)?.scrollIntoView({ block: 'start' }), 60) }
+  React.useEffect(() => { below(s.route.tab as Tab) }, [])
   return (
     <Page
       title="Settings"
-      sub="You’re the admin — the team, what each login sees, and the rules the system runs on."
+      sub="The team, what each login sees, and the rules the system runs on."
       bare
-      top={<UnderlineTabs value={tab} onChange={setTab} items={[{ key: 'team', label: 'Team', count: s.team.filter((m) => m.status !== 'off').length }, { key: 'access', label: 'What each login sees' }, { key: 'checklist', label: 'Checklists' }, { key: 'autos', label: 'Automations' }, { key: 'statuses', label: 'Statuses' }, { key: 'rules', label: 'Company rules' }, { key: 'numbers', label: 'Material numbers' }, { key: 'connections', label: 'Connections' }, { key: 'practice', label: 'Practice project' }, ...(REAL.cloud ? [] : [{ key: 'testdata' as Tab, label: 'Test data' }])]} />}
+      top={<UnderlineTabs value={tab} onChange={setTab} items={[{ key: 'team', label: 'Team', count: s.team.filter((m) => m.status !== 'off').length }, { key: 'checklist', label: 'Checklists' }, { key: 'autos', label: 'Automations' }, { key: 'rules', label: 'Company rules' }, { key: 'connections', label: 'Connections' }, { key: 'practice', label: 'Practice project' }]} />}
     >
-      {tab === 'team' && <TeamTab />}
-      {tab === 'access' && <AccessTab />}
-      {tab === 'checklist' && <ChecklistTab />}
+      {tab === 'team' && <div className="flex flex-col gap-10"><TeamTab /><div id="settings-access"><AccessTab /></div></div>}
+      {tab === 'checklist' && <div className="flex flex-col gap-10"><ChecklistTab /><div id="settings-statuses"><StatusesTab /></div></div>}
       {tab === 'autos' && <AutomationsTab />}
-      {tab === 'statuses' && <StatusesTab />}
-      {tab === 'rules' && <RulesTab />}
-      {tab === 'numbers' && <NumbersTab />}
+      {tab === 'rules' && <div className="flex flex-col gap-10"><RulesTab /><div id="settings-numbers"><NumbersTab /></div></div>}
       {tab === 'connections' && <ConnectionsTab />}
-      {tab === 'practice' && <PracticeTab />}
-      {tab === 'testdata' && !REAL.cloud && <TestDataTab />}
+      {tab === 'practice' && <div className="flex flex-col gap-10"><PracticeTab />{!REAL.cloud && <div id="settings-testdata"><TestDataTab /></div>}</div>}
     </Page>
   )
 }
+type Group = 'team' | 'checklist' | 'autos' | 'rules' | 'connections' | 'practice'
+const GROUP_OF: Record<Tab, Group> = { team: 'team', access: 'team', checklist: 'checklist', statuses: 'checklist', autos: 'autos', rules: 'rules', numbers: 'rules', connections: 'connections', practice: 'practice', testdata: 'practice' }
 
 /* ================= the team ================= */
 function TeamTab() {
@@ -65,7 +67,7 @@ function TeamTab() {
           {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
       </Card>
-      <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#cfd4db] hover:text-ink">
+      <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#d1cbc0] hover:text-ink">
         <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page — <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
       </button>
     </div>
@@ -413,7 +415,7 @@ function AccessTab() {
                           aria-pressed={on || locked}
                           disabled={locked}
                           onClick={() => setAccess(r.key, p.key, !on)}
-                          className={cn('inline-flex h-7 w-7 items-center justify-center rounded-lg border-2 transition', on || locked ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#d6dae0] bg-white text-transparent hover:border-brand-400', locked && 'cursor-default opacity-60')}
+                          className={cn('inline-flex h-7 w-7 items-center justify-center rounded-lg border-2 transition', on || locked ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#d9d3c9] bg-white text-transparent hover:border-brand-400', locked && 'cursor-default opacity-60')}
                         >
                           <Check className="h-4 w-4" strokeWidth={3} />
                         </button>
