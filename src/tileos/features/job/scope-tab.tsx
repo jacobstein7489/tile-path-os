@@ -1,4 +1,4 @@
-/* What we're tiling — two cards, the same as every other tab:
+/* Scope of work — two cards, the same as every other tab:
  *   Tiles           — the project's tiles, one chip each (picture, tag, name, is it here)
  *   Walls and floors — every wall and floor, room by room (or tile by tile), one row each on the same columns:
  *                      the wall or floor · the tile · the grout · how it's set · SF · where it's at
@@ -78,7 +78,7 @@ export function ScopeTab({ job }: { job: Job }) {
   const rooms = s.rooms[job.id] || []
   if (!rooms.length)
     return (
-      <Section title="What we’re tiling">
+      <Section title="Scope of work">
         <div className="flex flex-col items-center px-5 py-12 text-center">
           <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><Building2 className="h-6 w-6" /></span>
           <div className="text-[1rem] font-semibold text-ink">No rooms yet</div>

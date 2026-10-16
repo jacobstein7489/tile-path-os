@@ -175,6 +175,8 @@ export function scopeLock(s: Store, jobId: string): { owner: PersonKey; done: bo
   const rec = s.stepRecs[jobId]?.rooms
   const owner = realOwner(s, (rec?.owner || (def ? (def.owner === 'matBy' ? matBy(s) : def.owner) : 'takeoff')) as PersonKey)
   const me = meOf(s.role)
+  /* the site manager, the books, the crew and the client see the scope — they don't change it */
+  if (['site', 'accounting', 'crew', 'client', 'materials'].includes(s.role)) return { owner, done: !!rec?.done, canEdit: false }
   if (!j || ['request', 'estimating', 'proposal', 'followup'].includes(j.stage)) return { owner, done: false, canEdit: true }
   const tiled = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
   const done = !!rec?.done || !['awarded', 'setup'].includes(j.stage) || (tiled.length > 0 && tiled.every((x) => x.tile))

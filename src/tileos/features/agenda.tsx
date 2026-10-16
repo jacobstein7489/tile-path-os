@@ -1,7 +1,7 @@
 /* The agenda — meetings, walkthroughs, deliveries and what comes back, with their times.
  * For me, for anyone in the company, or for everyone at once. One click adds a meeting; clashes are caught there. */
 import * as React from 'react'
-import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, Trash2, Building2, Clock3, Users } from 'lucide-react'
+import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, Trash2, Building2, Clock3, Users, MapPin } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented, Button, IconButton } from '@/tileos/components/ui/core'
 import { Modal, Tip, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
@@ -197,6 +197,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
         <dl className="flex flex-col gap-4 text-[0.875rem]">
           <Row icon={<Clock3 />} label="When">{dayLabel(e.date)} · {rangeLabel(e.start, e.dur)}</Row>
           {job && <Row icon={<Building2 />} label="Project">{job.name} · <span className="text-muted">{job.address}</span></Row>}
+          {e.where && e.where !== job?.address && <Row icon={<MapPin />} label="Where">{e.where}</Row>}
           <Row icon={<Users />} label="Who">
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               {e.people.map((p) => <span key={p} className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{PEOPLE[p]?.short}</span>)}

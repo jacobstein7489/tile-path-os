@@ -20,6 +20,8 @@ export interface CalEvent {
   people: PersonKey[]
   /** who else — the installer, the designer, the GC super… */
   with?: string
+  /** where it is — the project's address for a walkthrough, or the office */
+  where?: string
   note?: string
   /** made from the project's "next meeting" on the Game plan */
   plan?: boolean

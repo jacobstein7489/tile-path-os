@@ -24,6 +24,7 @@ const poWord = (step: number, eta?: string) =>
 const COLS = 'grid grid-cols-[2rem_minmax(0,1fr)_7rem_11.5rem] items-center gap-4 max-sm:grid-cols-[2rem_minmax(0,1fr)_auto] max-sm:gap-3'
 export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
+  if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} />
   const ipos = s.ipos.filter((p) => p.jobId === job.id)
   const pos = s.pos.filter((p) => p.jobId === job.id)
   const ipo = currentIPO(s, job.id)
@@ -118,5 +119,42 @@ function POStrip({ job }: { job: Job }) {
       { label: 'Tile on site', value: tags.length ? `${here} of ${tags.length}` : '—', sub: short ? `${short} short — settle it` : notOrdered ? `${notOrdered} not ordered yet` : tags.length && here < tags.length ? `${tags.length - here} coming` : tags.length ? 'All here' : 'No tiles yet', tone: short ? 'bad' : undefined },
       { label: 'Still to order', value: String(toOrder), sub: toOrder ? [matMiss ? `${matMiss} material${matMiss === 1 ? '' : 's'}` : '', notOrdered ? `${notOrdered} tile${notOrdered === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') : t.counted || tags.length ? 'Everything’s ordered' : 'Nothing worked out yet' },
     ]} />
+  )
+}
+
+/** the site manager's version: what's coming and what's here — no prices, no POs to make, no installer PO */
+function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
+  const s = useStore()
+  const pos = s.pos.filter((p) => p.jobId === job.id && !/cancelled/i.test(p.note))
+  const coming = pos.filter((p) => p.step < 3)
+  const late = coming.filter((p) => p.late).length
+  const tags = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...s.checks.filter((c) => c.jobId === job.id).map((c) => c.tag)]))
+  const sts = tags.map((tag) => tileStatus(s, job.id, tag))
+  const here = sts.filter((x) => x.label === 'On site').length
+  const short = sts.filter((x) => x.tone === 'bad').length
+  return (
+    <div className="flex flex-col gap-4">
+      <Strip stats={[
+        { label: 'Tile on site', value: tags.length ? `${here} of ${tags.length}` : '—', sub: short ? `${short} short — the office is on it` : tags.length && here < tags.length ? `${tags.length - here} coming` : tags.length ? 'All here' : 'No tiles yet', tone: short ? 'bad' : undefined },
+        { label: 'Materials coming', value: String(coming.length), sub: coming.length ? `${coming.length} order${coming.length === 1 ? '' : 's'} not in yet` : 'Nothing on the way' },
+        { label: 'Late', value: String(late), sub: late ? 'Past their date' : 'Nothing late', tone: late ? 'bad' : undefined },
+      ]} />
+      <Section title="On the way" count={coming.length}>
+        {coming.map((p) => (
+          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f8fa] max-sm:px-4')}>
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4"><Package /></span>
+            <span className="min-w-0">
+              <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.what}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{p.supplier} · {p.lines.length} line{p.lines.length === 1 ? '' : 's'}</span>
+            </span>
+            <span className="max-sm:hidden" />
+            <span className="justify-self-end"><Word tone={p.late ? 'bad' : undefined}>{p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word></span>
+          </button>
+        ))}
+        {!coming.length && <Empty>Nothing on the way to this project.</Empty>}
+      </Section>
+      <TileOrders job={job} onScope={onScope} simple />
+      <MaterialsNeed job={job} onScope={onScope} simple />
+    </div>
   )
 }

@@ -19,7 +19,7 @@ import { fmtMoney, PEOPLE, CREWS, type Job, type PersonKey } from '@/tileos/data
 import { dayLabel, timeLabel, rangeLabel, parseTime, workDays } from '@/tileos/data/calendar'
 import { busyFor, clashesWith, nextFree, addEvent } from './calendar'
 import { recordEvent, recordPayment, receivePO, receiveTile } from './flows'
-import { ColorTile, TILE_COLORS } from './newpicker'
+import { ColorTile, TILE_COLORS, allowedFor } from './newpicker'
 
 type Color = 'amber' | 'violet' | 'red' | 'teal' | 'indigo' | 'cyan' | 'blue' | 'green' | 'orange'
 
@@ -109,6 +109,10 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [dur, setDur] = React.useState(60)
   const [title, setTitle] = React.useState(initialTitle || '')
   const job = s.jobs[jobId]
+  /* where the meeting is: a walkthrough is at the project's address unless you say otherwise */
+  const [whereAt, setWhereAt] = React.useState('')
+  const [whereTouched, setWhereTouched] = React.useState(false)
+  React.useEffect(() => { if (!whereTouched) setWhereAt(meetKind === 'walkthrough' && job ? job.address : '') }, [meetKind, jobId])
   const tpl = TPL.find((t) => t.key === type)
   const rooms = s.rooms[jobId] || []
   const inv = s.money.find((m) => m.id === invoice)
@@ -150,7 +154,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const free = date && clash.length ? nextFree(s, date, start, dur, people) : null
   const saveMeeting = () => {
     if (!ready) return
-    addEvent({ jobId: jobId || undefined, kind: meetKind, title: title.trim() || autoTitle, date, start, dur, people, with: withText || undefined, note: note.trim() || undefined })
+    addEvent({ jobId: jobId || undefined, kind: meetKind, title: title.trim() || autoTitle, date, start, dur, people, with: withText || undefined, where: whereAt.trim() || undefined, note: note.trim() || undefined })
     s.closeAll()
   }
   const savePayment = () => {
@@ -219,7 +223,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
       <div key={type || 'type'} className="animate-fade-up">
         {!type && (
           <div className="grid grid-cols-3 gap-2.5 max-sm:grid-cols-2 max-sm:gap-2">
-            {TPL.map((t) => (
+            {TPL.filter((t) => allowedFor(s.role, t.key)).map((t) => (
               <ColorTile key={t.key} label={t.label} hint={t.hint} icon={t.icon} color={t.color} selected={false} onClick={() => { setType(t.key); setKind(''); setDelivery(''); setInvoice('') }} />
             ))}
           </div>
@@ -244,6 +248,9 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                   {free != null && <Button size="xs" variant="primary" onClick={() => setStart(free)}>Move to {timeLabel(free)}</Button>}
                 </div>
               )}
+            </FormRow>
+            <FormRow label="Where" hint={meetKind === 'walkthrough' && job && whereAt === job.address ? 'The project’s address — change it if you meet somewhere else' : undefined}>
+              <TextInput aria-label="Where" value={whereAt} onChange={(e) => { setWhereAt(e.target.value); setWhereTouched(true) }} placeholder={meetKind === 'walkthrough' ? 'The address on site' : 'The office, the showroom, an address…'} />
             </FormRow>
             <FormRow label="From Cobblestone">
               <MultiSelect

@@ -1,7 +1,7 @@
-/* A new estimate: the project, the areas (tap Kitchen, Master bathroom… each comes with its usual surfaces), and who
- * does each step. It goes straight to the takeoff person's Today; every step after that hands it to the next person. */
+/* Pricing a new project: the project and its plans — it goes straight to the takeoff person's Today; every step after
+ * that hands it to the next person. (The area picker below is what the estimate window uses to add rooms.) */
 import * as React from 'react'
-import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight } from 'lucide-react'
+import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -174,10 +174,11 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
   )
 }
 
-const STEPS = ['The project', 'Areas', 'What came in'] as const
+/* Price a new project: the project, the client, the bid date — and the plans. That's all it takes: it goes straight to
+ * whoever does the takeoff (Malisa, unless Settings says otherwise), with the plans on the project, and lands on her
+ * Today. She builds the rooms and the takeoff from the plans — nobody has to set up the estimate first. */
 export function NewEstimateModal({ level }: { level: number }) {
   const s = useStore()
-  const [step, setStep] = React.useState(0)
   const [name, setName] = React.useState('')
   const [address, setAddress] = React.useState('')
   const [cq, setCq] = React.useState('')
@@ -185,109 +186,138 @@ export function NewEstimateModal({ level }: { level: number }) {
   /* an estimate is due right away unless you say otherwise */
   const [due, setDue] = React.useState(md(TODAY))
   const [scope, setScope] = React.useState('')
-  const [docs, setDocs] = React.useState<string[]>(['Plans'])
+  const [docs, setDocs] = React.useState<string[]>([])
+  const [files, setFiles] = React.useState<File[]>([])
+  const [over, setOver] = React.useState(false)
   const [team, setTeam] = React.useState<EstTeam>(() => companyTeam(s))
-  const [areas, setAreas] = React.useState<PickedArea[]>([])
   const [who, setWho] = React.useState(false)
+  /* the rooms are the takeoff person's job — but if you already know them, you can put them in */
+  const [areas, setAreas] = React.useState<PickedArea[]>([])
+  const [rooms, setRooms] = React.useState(false)
+  const input = React.useRef<HTMLInputElement>(null)
   const custs = Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id) && (!cq || c.name.toLowerCase().includes(cq.toLowerCase()))).slice(0, 5)
   const ok = !!name.trim() && !!(client || cq.trim())
   const me = meOf(s.role)
-  const create = () => newEstimate({ name: name.trim(), address: address.trim(), clientId: client?.id || 'new', client: client?.name || cq.trim(), due, scope: scope.trim() || areas.map((a) => a.name).join(', ') || 'Scope to confirm', docs, team, areas })
-  const surfaces = areas.reduce((n, a) => n + a.surfaces.length, 0)
+  const people = insidePeople(s)
+  const addFiles = (l: File[]) => { const ok2 = l.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic|dwg)$/i.test(f.name)); if (!ok2.length) return; setFiles((p) => [...p, ...ok2]); setDocs((d) => (d.includes('Plans') ? d : [...d, 'Plans'])) }
+  const shownDocs = Array.from(new Set([...(files.length ? ['Plans'] : []), ...docs]))
+  const create = () => newEstimate({ name: name.trim(), address: address.trim(), clientId: client?.id || 'new', client: client?.name || cq.trim(), due, scope: scope.trim() || 'Scope to confirm from the plans', docs: shownDocs, team, areas, files })
+  const tk = PEOPLE[team.takeoff]
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
-      title="New estimate"
-      sub={`It goes straight to ${PEOPLE[team.takeoff].name} for the takeoff — then each step hands it on`}
+      title="Price a new project"
+      sub={`Upload the plans — it goes straight to ${team.takeoff === me ? 'you' : tk.short} for the takeoff`}
       footer={
         <>
           <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted max-sm:hidden">
-            <Avatar who={team.takeoff} size={22} />
-            <span className="truncate">{team.takeoff === me ? 'Lands on your Today' : `Lands on ${PEOPLE[team.takeoff].short}’s Today`}{areas.length ? ` · ${areas.length} ${areas.length === 1 ? 'area' : 'areas'}, ${surfaces} surfaces` : ''}</span>
+            <Avatar who={team.takeoff} size={22} plain />
+            <span className="truncate">{team.takeoff === me ? 'Lands on your Today' : `Lands on ${tk.short}’s Today`}{files.length ? ` · ${files.length} file${files.length === 1 ? '' : 's'}` : ''}</span>
           </span>
-          {step > 0 ? <Button className="ml-auto" variant="ghost" onClick={() => setStep(step - 1)}>Back</Button> : <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>}
-          {step < 2
-            ? <Button variant="primary" iconRight={<ArrowRight />} disabled={step === 0 && !ok} onClick={() => setStep(step + 1)}>{step === 1 && !areas.length ? 'Skip for now' : 'Next'}</Button>
-            : <Button variant="primary" icon={<ArrowRight />} disabled={!ok} onClick={create}>Create estimate</Button>}
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <Button variant="primary" icon={<ArrowRight />} disabled={!ok} onClick={create}>{team.takeoff === me ? 'Start the takeoff' : `Send to ${tk.short} for the takeoff`}</Button>
         </>
       }
     >
-      <ol className="mb-5 flex items-center gap-2" aria-label="Steps">
-        {STEPS.map((label, i) => (
-          <li key={label} className="flex min-w-0 items-center gap-2">
-            {i > 0 && <span className={cn('h-px w-6 shrink-0 max-sm:w-3', i <= step ? 'bg-brand-300' : 'bg-line')} />}
-            <button type="button" disabled={i > step && !(i === 1 && ok) && !(i === 2 && ok)} onClick={() => setStep(i)} aria-current={i === step ? 'step' : undefined} className={cn('inline-flex h-8 min-w-0 items-center gap-2 rounded-full pl-1 pr-3 text-[0.8125rem] font-semibold transition disabled:cursor-default', i === step ? 'bg-brand-50 text-brand-800' : i < step ? 'text-ink-2 hover:bg-wash' : 'text-faint')}>
-              <span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.75rem] font-bold', i < step ? 'bg-ok-500 text-white' : i === step ? 'bg-brand-600 text-white' : 'bg-wash-2 text-muted')}>{i < step ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}</span>
-              <span className="truncate max-sm:hidden">{label}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
-
-      {step === 0 && (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-            <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Project name</span><TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Leeds Residence" className="h-10" /></label>
-            <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Address</span><TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" className="h-10" /></label>
-          </div>
-          <div>
-            <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Client or GC</div>
-            {client ? (
-              <div className="flex h-10 items-center justify-between rounded-[0.5625rem] border border-line bg-wash px-3">
-                <span className="flex items-center gap-2 text-[0.875rem] font-semibold text-ink"><Building2 className="h-4 w-4 text-muted" />{client.name}{client.id === 'new' && <span className="text-[0.75rem] font-medium text-muted">· new client</span>}</span>
-                <button type="button" onClick={() => setClient(null)} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change</button>
-              </div>
-            ) : (
-              <>
-                <TextInput aria-label="Client" value={cq} onChange={(e) => setCq(e.target.value)} placeholder="Type to search, or a new name" className="h-10" />
-                {(custs.length > 0 || cq.trim()) && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {custs.map((c) => <Chip key={c.id} onClick={() => setClient({ id: c.id, name: c.name })} className="h-8 px-2.5 text-[0.8125rem]" icon={<Building2 className="h-3.5 w-3.5 text-muted" />}>{c.name}</Chip>)}
-                    {cq.trim() && !custs.some((c) => c.name.toLowerCase() === cq.trim().toLowerCase()) && <Chip onClick={() => setClient({ id: 'new', name: cq.trim() })} className="h-8 px-2.5 text-[0.8125rem]" icon={<UserPlus className="h-3.5 w-3.5" />}>Add “{cq.trim()}”</Chip>}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div>
-            <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Bid due</div>
-            <DatePresets value={due} onPick={setDue} presets={[md(TODAY), md(workday(addDays(TODAY, 1))), ...[3, 5, 10].map((n) => md(workday(addDays(TODAY, n))))]} />
-          </div>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Project name</span><TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Leeds Residence" className="h-10" /></label>
+          <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Address</span><TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" className="h-10" /></label>
         </div>
-      )}
+        <div>
+          <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Client or GC</div>
+          {client ? (
+            <div className="flex h-10 items-center justify-between rounded-[0.5625rem] border border-line bg-wash px-3">
+              <span className="flex items-center gap-2 text-[0.875rem] font-semibold text-ink"><Building2 className="h-4 w-4 text-muted" />{client.name}{client.id === 'new' && <span className="text-[0.75rem] font-medium text-muted">· new client</span>}</span>
+              <button type="button" onClick={() => setClient(null)} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change</button>
+            </div>
+          ) : (
+            <>
+              <TextInput aria-label="Client" value={cq} onChange={(e) => setCq(e.target.value)} placeholder="Type to search, or a new name" className="h-10" />
+              {(custs.length > 0 || cq.trim()) && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {custs.map((c) => <Chip key={c.id} onClick={() => setClient({ id: c.id, name: c.name })} className="h-8 px-2.5 text-[0.8125rem]" icon={<Building2 className="h-3.5 w-3.5 text-muted" />}>{c.name}</Chip>)}
+                  {cq.trim() && !custs.some((c) => c.name.toLowerCase() === cq.trim().toLowerCase()) && <Chip onClick={() => setClient({ id: 'new', name: cq.trim() })} className="h-8 px-2.5 text-[0.8125rem]" icon={<UserPlus className="h-3.5 w-3.5" />}>Add “{cq.trim()}”</Chip>}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div>
+          <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Bid due</div>
+          <DatePresets value={due} onPick={setDue} presets={[md(TODAY), md(workday(addDays(TODAY, 1))), ...[3, 5, 10].map((n) => md(workday(addDays(TODAY, n))))]} />
+        </div>
 
-      {step === 1 && <AreaBuilder areas={areas} onChange={setAreas} />}
-
-      {step === 2 && (
-        <div className="flex flex-col gap-5">
-          <div>
-            <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">What came in with it</div>
-            <div className="flex flex-wrap gap-1.5">
-              {['Plans', 'Spec book', 'Finish schedule', 'Photos'].map((d) => (
-                <Chip key={d} on={docs.includes(d)} onClick={() => setDocs((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]))} className="h-9 px-3 text-[0.84375rem]">{d}</Chip>
+        {/* the plans */}
+        <div>
+          <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">The plans</div>
+          <input ref={input} type="file" multiple accept="application/pdf,image/*,.dwg" className="hidden" aria-label="Upload the plans" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; addFiles(l) }} />
+          <div
+            onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+            onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false) }}
+            onDrop={(e) => { e.preventDefault(); setOver(false); addFiles(Array.from(e.dataTransfer.files || [])) }}
+            className={cn('flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d5dbe3] bg-[#fafbfc]')}
+          >
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.90625rem] font-semibold text-ink">{files.length ? `${files.length} file${files.length === 1 ? '' : 's'} ready` : 'Drop the plans here'}</span>
+              <span className="block text-[0.8125rem] text-muted">PDFs or pictures — the plans, the spec book, the finish schedule. {tk.short} works from them.</span>
+            </span>
+            <Button size="sm" icon={<Upload />} onClick={() => input.current?.click()}>{files.length ? 'Add more' : 'Upload'}</Button>
+          </div>
+          {files.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2.5 rounded-lg bg-wash px-3 py-1.5 text-[0.8125rem]">
+                  <FileText className="h-4 w-4 shrink-0 text-muted" />
+                  <span className="min-w-0 flex-1 truncate font-medium text-ink">{f.name}</span>
+                  <span className="shrink-0 tnum text-muted">{f.size > 1_000_000 ? `${(f.size / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(f.size / 1000))} KB`}</span>
+                  <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((p) => p.filter((_, k) => k !== i))} className="inline-flex h-6 w-6 items-center justify-center rounded-md text-faint hover:bg-white hover:text-bad-600"><X className="h-3.5 w-3.5" /></button>
+                </div>
               ))}
             </div>
-            {['Plans', 'Spec book', 'Finish schedule'].some((d) => !docs.includes(d)) && <div className="mt-1.5 text-[0.78125rem] text-muted">Whatever’s missing, the office asks the GC for — it comes back with a date.</div>}
+          )}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[0.78125rem] text-muted">What came in:</span>
+            {['Plans', 'Spec book', 'Finish schedule', 'Photos'].map((d) => (
+              <Chip key={d} on={shownDocs.includes(d)} onClick={() => { if (d === 'Plans' && files.length) return; setDocs((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d])) }} className="h-8 px-2.5 text-[0.8125rem]">{d}</Chip>
+            ))}
           </div>
-          <label className="block">
-            <span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Anything else to know</span>
-            <TextArea aria-label="Anything else to know" value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Upgrades, who supplies the tile, deadlines" className="min-h-[4.5rem]" />
-          </label>
-          <div className="rounded-[0.75rem] border border-line">
-            <button type="button" onClick={() => setWho((v) => !v)} className="flex w-full items-center gap-3 px-3.5 py-3 text-left">
-              <Users className="h-4 w-4 shrink-0 text-muted" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.84375rem] font-semibold text-ink">Who does what</span>
-                <span className="block truncate text-[0.78125rem] text-muted">{TEAM_KEYS.map((k) => PEOPLE[team[k]].short).join(' → ')} · from Settings</span>
-              </span>
-              <span className="text-[0.8125rem] font-semibold text-brand-700">{who ? 'Done' : 'Change'}</span>
-            </button>
-            {who && <div className="border-t border-line-2 p-3"><TeamSlots team={team} onChange={(k, p) => setTeam({ ...team, [k]: p })} /></div>}
-          </div>
+          {['Plans', 'Spec book', 'Finish schedule'].some((d) => !shownDocs.includes(d)) && <div className="mt-1.5 text-[0.78125rem] text-muted">Whatever’s missing, the office asks the GC for — it comes back with a date.</div>}
         </div>
-      )}
+
+        <label className="block">
+          <span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Anything else to know</span>
+          <TextArea aria-label="Anything else to know" value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Which floors, upgrades, who supplies the tile, deadlines" className="min-h-[4rem]" />
+        </label>
+
+        <div className="rounded-[0.75rem] border border-line">
+          <button type="button" onClick={() => setRooms((v) => !v)} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left">
+            <Building2 className="h-4 w-4 shrink-0 text-muted" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.84375rem] font-semibold text-ink">The rooms {areas.length ? `· ${areas.length}` : <span className="font-normal text-muted">— optional</span>}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{areas.length ? areas.map((a) => a.name).join(', ') : `${tk.short} puts them in from the plans — add them now only if you already know them`}</span>
+            </span>
+            <span className="text-[0.8125rem] font-semibold text-muted">{rooms ? 'Done' : areas.length ? 'Change' : 'Add rooms'}</span>
+          </button>
+          {rooms && <div className="border-t border-line-2 p-3"><AreaBuilder areas={areas} onChange={setAreas} /></div>}
+        </div>
+
+        <div className="rounded-[0.75rem] border border-line">
+          <div className="flex flex-wrap items-center gap-3 px-3.5 py-2.5">
+            <Users className="h-4 w-4 shrink-0 text-muted" />
+            <span className="text-[0.84375rem] font-semibold text-ink">The takeoff</span>
+            <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-8 items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 text-[0.8125rem] font-semibold text-ink hover:bg-wash"><Avatar who={team.takeoff} size={22} plain />{tk.name}</button>}>
+              <MenuLabel>Who does the takeoff?</MenuLabel>
+              {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={x === team.takeoff} hint={PEOPLE[x]?.roleLabel} onSelect={() => setTeam({ ...team, takeoff: x })}>{PEOPLE[x]?.name}</MenuItem>)}
+            </Menu>
+            <button type="button" onClick={() => setWho((v) => !v)} className="ml-auto text-[0.8125rem] font-semibold text-muted hover:text-ink">{who ? 'Done' : 'Who does the rest'}</button>
+          </div>
+          {who && <div className="border-t border-line-2 p-3"><TeamSlots team={team} onChange={(k, p) => setTeam({ ...team, [k]: p })} /></div>}
+        </div>
+      </div>
     </Modal>
   )
 }

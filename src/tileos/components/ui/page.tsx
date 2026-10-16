@@ -568,20 +568,47 @@ export function Status({ tone = 'neutral', children, className, plain }: { tone?
   )
 }
 
-/* ---------------- where something stands: step circles joined by a line ---------------- */
-export function Path({ steps, className }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; onClick?: () => void }[]; className?: string }) {
+/* ---------------- a switch between ways of seeing a list ----------------
+ * Mine / Everyone, By time / By project: easy to see (the one you're on is dark), and it never moves — nothing next to
+ * it appears or changes width when you switch. */
+export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
   return (
-    <ol className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
+    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] border border-[#d3d8df] bg-white p-[0.1875rem] shadow-xs', className)}>
+      {items.map((it) => {
+        const on = it.key === value
+        return (
+          <button
+            key={String(it.key)}
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(it.key)}
+            className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:shrink-0 max-sm:[&_svg]:hidden', on ? 'bg-ink text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.2)]' : 'text-ink-2 hover:bg-wash hover:text-ink')}
+          >
+            {it.icon}{it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-white/70' : 'text-muted')}>{it.count}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------------- where something stands: step circles joined by a line ---------------- */
+export function Path({ steps, className, at, label }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
+  return (
+    <ol aria-label={label} className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
       {steps.map((st, i) => {
         const prevDone = i > 0 && (steps[i - 1].state === 'done')
         const n = i + 1
+        const on = at === st.key
         return (
           <li key={st.key} className="relative flex min-w-[5.75rem] flex-1 flex-col items-center text-center">
             {i > 0 && <span className={cn('absolute top-[0.9375rem] h-[0.125rem] rounded-full', prevDone && st.state !== 'future' ? 'bg-ok-500' : prevDone ? 'bg-gradient-to-r from-ok-500 to-[#e2e5e9]' : 'bg-[#e2e5e9]')} style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
             <button
               onClick={st.onClick}
               disabled={!st.onClick}
-              className="group relative z-[1] flex flex-col items-center disabled:cursor-default"
+              aria-label={st.aria}
+              aria-current={on ? 'step' : undefined}
+              className={cn('group relative z-[1] flex flex-col items-center rounded-xl px-2 pb-1 disabled:cursor-default', on && 'bg-white')}
             >
               <span
                 className={cn(
@@ -595,7 +622,7 @@ export function Path({ steps, className }: { steps: { key: string; label: string
               >
                 {st.state === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : st.state === 'current' ? <span className="h-2.5 w-2.5 rounded-full bg-brand-600" /> : st.state === 'blocked' ? '!' : n}
               </span>
-              <span className={cn('mt-2 max-w-[7.5rem] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink')}>{st.label}</span>
+              <span className={cn('mt-2 max-w-[7.5rem] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink', on && 'underline decoration-2 underline-offset-[0.3125rem]')}>{st.label}</span>
               {st.sub && (
                 <span className={cn('mt-1 max-w-[7.5rem] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
               )}

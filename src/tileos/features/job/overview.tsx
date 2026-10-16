@@ -456,7 +456,7 @@ function ReadyOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void 
 /* ---------------- punch / closeout ---------------- */
 const PUNCH_STEPS = ['Open', 'Working', 'Ready to verify', 'Verified']
 const PUNCH_IDX = { open: 0, working: 1, verify: 2, verified: 3 }
-export function CloseOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void }) {
+export function CloseOverview({ job, setTab, simple }: { job: Job; setTab: (t: JobTab) => void; simple?: boolean }) {
   const s = useStore()
   const items = s.punch.filter((p) => p.jobId === job.id)
   const left = items.filter((p) => p.status !== 'verified')
@@ -514,7 +514,7 @@ export function CloseOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) =
         ))}
         {!items.length && <KitEmpty>No touch-ups. Add them when the GC or the client finds something.</KitEmpty>}
       </Section>
-      <Section
+      {!simple && <Section
         title="Closing out"
         right={`${done} of ${checks.length} done`}
         action={
@@ -542,7 +542,7 @@ export function CloseOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) =
             </div>
           ))}
         </div>
-      </Section>
+      </Section>}
     </>
   )
 }

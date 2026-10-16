@@ -38,15 +38,17 @@ export function InstallerTab({ job }: { job: Job }) {
   const sample = save.mode === 'sample' ? ' · sample amounts' : ''
   const r = ipo && ipo.status !== 'Rejected' ? poRatio(s, ipo) : undefined
   const days = bookings.length ? `${md(bookings[0].start)} – ${md(bookings[bookings.length - 1].end)}` : job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : '—'
+  /* the site manager's version is simple: who, when, the daily updates, the touch-ups — no PO, no money, no booking */
+  const simple = s.role === 'site'
   return (
     <div className="flex flex-col gap-4">
     <Strip stats={[
-      { label: 'Installer', value: crew ? PEOPLE[crew].short : 'Not picked', sub: crew ? (bookings[0]?.workers ? `${bookings[0].workers} people` : 'His crew') : 'Book an installer' },
+      { label: 'Installer', value: crew ? PEOPLE[crew].short : 'Not picked', sub: crew ? (bookings[0]?.workers ? `${bookings[0].workers} people` : 'His crew') : simple ? 'The office picks him' : 'Book an installer' },
       { label: 'On the calendar', value: days, sub: bookings.length ? `${bookings.length} booking${bookings.length === 1 ? '' : 's'}` : 'No days yet' },
-      { label: 'His PO', value: r && r.sold && r.total ? `${r.pct}%` : ipo ? fmtMoney(total) : '—', sub: r && r.sold && r.total ? `of our estimate · ${fmtMoney(total)}` : ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : 'No PO yet', tone: r?.over ? 'bad' : undefined },
+      ...(simple ? [] : [{ label: 'His PO', value: r && r.sold && r.total ? `${r.pct}%` : ipo ? fmtMoney(total) : '—', sub: r && r.sold && r.total ? `of our estimate · ${fmtMoney(total)}` : ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : 'No PO yet', tone: r?.over ? 'bad' as const : undefined }]),
       { label: 'Daily updates', value: String(diary.length), sub: diary[0] ? `Last one ${diary[0].date}` : inField ? 'None yet' : 'From the first day on site' },
     ]} />
-    <div className="grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
+    <div className={cn('grid items-start gap-4 max-[68rem]:grid-cols-1', simple ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_21rem]')}>
       <div className="flex min-w-0 flex-col gap-4">
         {/* who */}
         <Section title="The installer">
@@ -60,10 +62,12 @@ export function InstallerTab({ job }: { job: Job }) {
                   {bookings[0]?.workers ? <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{bookings[0].workers} {bookings[0].workers === 1 ? 'person' : 'people'}</span> : null}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2 max-sm:w-full">
-                <Button size="sm" onClick={() => s.open({ t: 'sub', id: crew })}>His profile</Button>
-                <Button size="sm" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: job.id, crew })}>{bookings.length ? 'Change the days' : 'Put him on the calendar'}</Button>
-              </div>
+              {!simple && (
+                <div className="flex shrink-0 gap-2 max-sm:w-full">
+                  <Button size="sm" onClick={() => s.open({ t: 'sub', id: crew })}>His profile</Button>
+                  <Button size="sm" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: job.id, crew })}>{bookings.length ? 'Change the days' : 'Put him on the calendar'}</Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-4 px-5 py-3.5 max-sm:px-4">
@@ -72,7 +76,7 @@ export function InstallerTab({ job }: { job: Job }) {
                 <div className="text-[1rem] font-semibold text-ink">No installer yet</div>
                 <div className="text-[0.84375rem] text-muted">Pick who installs it — his PO goes out with his rates for every line on the scope.</div>
               </div>
-              <Button variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</Button>
+              {!simple && <Button variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</Button>}
             </div>
           )}
         </Section>
@@ -99,11 +103,11 @@ export function InstallerTab({ job }: { job: Job }) {
           {!diary.length && <Empty>{inField ? 'No daily update yet today.' : 'They start the first day on site.'}</Empty>}
         </Section>
 
-        {showPunch && <CloseOverview job={job} setTab={() => {}} />}
+        {showPunch && <CloseOverview job={job} setTab={() => {}} simple={simple} />}
       </div>
 
       {/* his PO */}
-      <aside className="flex min-w-0 flex-col gap-4">
+      {!simple && <aside className="flex min-w-0 flex-col gap-4">
         <Section title="His PO" right={ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : undefined}>
           {ipo ? (
             <>
@@ -132,7 +136,7 @@ export function InstallerTab({ job }: { job: Job }) {
             <Empty>{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</Empty>
           )}
         </Section>
-      </aside>
+      </aside>}
     </div>
     </div>
   )

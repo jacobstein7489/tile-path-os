@@ -37,7 +37,7 @@ function Heads({ first }: { first: string }) {
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
 /* ---------------- tile ---------------- */
-export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) {
+export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const checks = s.checks.filter((c) => c.jobId === job.id)
@@ -57,9 +57,10 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
           const short = c ? Math.max(0, need - c.ordered) : 0
           const who = t?.suppliedBy === 'Us' ? 'We' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'}`
           const boxes = t?.boxSF && unit === 'SF' ? Math.ceil(need / t.boxSF) : 0
+          /* the site manager only checks deliveries in — ordering and settling quantities are the office's */
           const action = !c
-            ? sf > 0 ? { label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) } : null
-            : short ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
+            ? sf > 0 && !simple ? { label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) } : null
+            : short && !simple ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
             <div key={tag} className={cn(QGRID, 'min-h-[3rem] border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4')}>
@@ -86,7 +87,7 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
         {!tags.length && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
             <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered.</span>
-            <Button size="sm" icon={<Ruler />} onClick={onScope}>What we’re tiling</Button>
+            <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         )}
       </div>
@@ -95,7 +96,7 @@ export function TileOrders({ job, onScope }: { job: Job; onScope: () => void }) 
 }
 
 /* ---------------- our materials ---------------- */
-export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void }) {
+export function MaterialsNeed({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
   const s = useStore()
   const save = useSaveStatus()
   const t = takeoff(s, job.id)
@@ -107,7 +108,7 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
       title="Setting materials"
       count={t.counted ? t.lines.length : undefined}
       right={t.counted ? <span className="max-md:hidden">From {t.counted} walls and floors · {t.sf.toLocaleString('en-US')} SF{save.mode === 'sample' ? ' · sample' : ''}</span> : undefined}
-      action={<>
+      action={simple ? undefined : <>
         {s.role === 'owner' && <Button size="sm" variant="ghost" icon={<SlidersHorizontal />} onClick={() => { s.closeAll(); s.go({ page: 'settings' }) }}><span className="max-sm:hidden">The numbers</span></Button>}
         {miss.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>}
       </>}
@@ -115,7 +116,7 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
       {!t.counted ? (
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
           <span className="min-w-0 flex-1">{t.total ? 'Each wall and floor needs its square feet and its tile — then the materials work themselves out.' : 'No rooms yet — they come over from the estimate.'}</span>
-          <Button size="sm" icon={<Ruler />} onClick={onScope}>What we’re tiling</Button>
+          <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
         </div>
       ) : (
         <div>
@@ -136,7 +137,7 @@ export function MaterialsNeed({ job, onScope }: { job: Job; onScope: () => void 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#fafbfa] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-4">
           <span className="font-semibold text-ink">Not counted yet</span>
           <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
-          <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">What we’re tiling</button>
+          <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
         </div>
       )}
     </Section>

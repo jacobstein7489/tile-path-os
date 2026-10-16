@@ -3,7 +3,7 @@
  *           when there's something for you here. Then the bar of where it's at — paperwork, design meeting, site,
  *           installer, deliveries, installing, touch-ups, closed — each part the same size: how far it is, who has it.
  *   tabs:   Overview          — To do (your turn, others, waiting, coming up); at a glance; what we're tiling
- *           What we're tiling — every room, wall and floor: the tile, how it's set, the square feet, where it's at
+ *           Scope of work — every room, wall and floor: the tile, how it's set, the square feet, where it's at
  *           POs               — the installer's PO (against the estimate) and every materials PO, then the tile
  *           Estimate          — the estimate it came from, and the change orders
  *           Installer, Billing
@@ -44,7 +44,7 @@ import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, NextUp, WhosOnWhat, AtAGlance, EstimateTab, EditButton } from './plan'
+import { projectPath, nextOn, PhaseBar, ProjectTodo, AtAGlance, EstimateTab, EditButton } from './plan'
 import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
@@ -103,8 +103,8 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
 function tabsFor(s: Store): { key: PTab; label: string }[] {
   return [
     { key: 'overview', label: 'Overview' },
-    { key: 'scope', label: 'What we’re tiling' },
-    { key: 'orders', label: 'POs' },
+    { key: 'scope', label: 'Scope of work' },
+    { key: 'orders', label: s.role === 'site' ? 'Deliveries' : 'POs' },
     ...(s.role !== 'site' ? [{ key: 'estimate' as PTab, label: 'Estimate' }] : []),
     { key: 'installer', label: 'Installer' },
     ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Billing' }] : []),
@@ -115,8 +115,16 @@ function tabsFor(s: Store): { key: PTab; label: string }[] {
 function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: () => void } {
   const st = projectStatus(s, job)
   if (st.key === 'hold') return { tone: 'bad', label: `On hold · ${(job.hold?.reason || '').replace(/^Waiting for /, 'waiting for ')}`, onClick: job.hold?.shortage ? () => s.open({ t: 'short', id: job.hold!.shortage! }) : undefined }
-  /* how far it is shows in the bar under it — the bubble just says where it stands */
-  return { tone: st.tone, label: st.key === 'progress' ? 'In progress' : st.label }
+  if (isGettingReady(job)) {
+    const c = stepCounts(stepsFor(s, job))
+    return { tone: st.tone, label: `${st.label} · ${c.done} of ${c.total} steps done` }
+  }
+  if (st.key === 'progress') return { tone: st.tone, label: `In progress · ${job.pct ?? 0}% installed` }
+  if (st.key === 'touchups') {
+    const n = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified').length
+    return { tone: st.tone, label: n ? `Touch-ups · ${n} open` : 'Touch-ups' }
+  }
+  return { tone: st.tone, label: st.label }
 }
 
 export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'modal' | 'page'; tab?: PTab; setTab: (t: PTab) => void }) {
@@ -159,7 +167,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="font-display min-w-0 truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.25rem]">{job.name}</h1>
-              {!pricing && role !== 'crew' && role !== 'client' && <EditButton label="Change the project’s details" onClick={() => s.open({ t: 'editproject', id: job.id })} />}
+              {!pricing && ['owner', 'pm', 'office', 'estimator'].includes(role) && <EditButton label="Change the project’s details" onClick={() => s.open({ t: 'editproject', id: job.id })} />}
               {!pricing && (status.onClick
                 ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
                 : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
@@ -169,7 +177,9 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
               {!pricing && (crew
                 ? <button onClick={() => setTab('installer')} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
-                : !['closeout', 'complete'].includes(job.stage) && <button onClick={() => s.open({ t: 'book', jobId: job.id })} className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline"><HardHat className="h-4 w-4" />Book an installer</button>)}
+                : !['closeout', 'complete'].includes(job.stage) && (['owner', 'pm', 'office'].includes(role)
+                  ? <button onClick={() => s.open({ t: 'book', jobId: job.id })} className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline"><HardHat className="h-4 w-4" />Book an installer</button>
+                  : <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>))}
             </div>
           </div>
           {!pricing && role !== 'accounting' && (
@@ -182,7 +192,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
         </div>
       </div>
       {tab && (
-        <div className="px-7 pt-3 max-sm:px-4 max-sm:pt-2.5">
+        <div className="px-6 pt-2 max-sm:px-2">
           <PhaseBar cells={path} />
         </div>
       )}
@@ -236,14 +246,12 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
 
 /* ================= Overview ================= */
 function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  /* three questions, in order: what needs me (or is stuck)? who has everything else? where does it stand? */
+  const role = useStore((s) => s.role)
+  /* the to-do (mine, or everyone's) and where it stands */
   return (
-    <div className="flex w-full flex-col gap-4">
-      <NextUp job={job} setTab={setTab} />
-      <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
-        <div className="min-w-0"><WhosOnWhat job={job} setTab={setTab} /></div>
-        <div className="min-w-0"><AtAGlance job={job} setTab={setTab} /></div>
-      </div>
+    <div className="grid w-full grid-cols-[minmax(0,1fr)_21rem] items-start gap-4 max-[68rem]:grid-cols-1">
+      <div className="min-w-0"><ProjectTodo key={role} job={job} setTab={setTab} /></div>
+      <div className="min-w-0"><AtAGlance job={job} setTab={setTab} /></div>
     </div>
   )
 }

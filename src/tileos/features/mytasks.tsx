@@ -7,7 +7,7 @@ import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, B
 import { useStore, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX } from '@/tileos/components/ui/page'
+import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -416,12 +416,14 @@ export function MyTasksPage() {
   const shownToday = today.filter(pick)
   const shownTomorrow = tomorrow.filter(pick)
   const shownLater = later.filter(pick)
-  const laterDays = Array.from(new Set(shownLater.filter((x) => x.b !== 'aside' && x.iso).map((x) => x.iso!))).sort()
+  /* due "this week" with no day of its own: its own group on top — not under a day it isn't on */
+  const anyDay = shownLater.filter((x) => x.b === 'week' && x.iso && x.iso <= TOMORROW)
+  const laterDays = Array.from(new Set(shownLater.filter((x) => x.b !== 'aside' && x.iso && !anyDay.includes(x)).map((x) => x.iso!))).sort()
+  const nextLater = later.filter((x) => x.b !== 'aside' && x.iso && x.iso > TOMORROW).map((x) => x.iso!).sort()[0]
   const noDate = shownLater.filter((x) => x.b !== 'aside' && !x.iso)
   const aside = shownLater.filter((x) => x.b === 'aside')
   const shownWaiting = waiting.filter((t) => (job === 'all' || t.jobId === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(t) : t.owner === who)))
   const shownDone = done.filter((t) => (job === 'all' || t.jobId === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(t) : t.owner === who)))
-  const title = view === 'today' ? (all ? 'Everyone’s day' : 'Your day') : view === 'tomorrow' ? (all ? 'Everyone tomorrow' : 'Tomorrow') : view === 'later' ? 'Later' : view === 'waiting' ? 'Waiting on others' : 'Done'
 
   return (
     <Page
@@ -433,34 +435,20 @@ export function MyTasksPage() {
           items={[
             { key: 'today', label: 'Today', count: today.length, sub: late.length ? `${late.length} overdue` : meetingsToday ? `${meetingsToday} ${meetingsToday === 1 ? 'meeting' : 'meetings'}` : undefined, subBad: late.length > 0, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length, sub: dayShort(TOMORROW).split(', ')[0], icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
-            { key: 'later', label: 'Later', count: later.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
+            { key: 'later', label: 'Later', count: later.length, sub: nextLater ? `next ${dayShort(nextLater).split(', ')[0]}` : undefined, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
             { key: 'waiting', label: 'Waiting on others', count: waiting.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+            { key: 'done', label: 'Done', count: done.length, sub: doneToday ? `${doneToday} today` : undefined, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
           ]}
         />
       }
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
-          <span className="mr-auto text-[0.9375rem] font-semibold text-ink">{title}</span>
-          {inside && (
-            <div role="tablist" aria-label="Whose list" className="inline-flex h-9 items-center rounded-[0.625rem] bg-wash-2 p-0.5">
-              {(['mine', 'all'] as const).map((k) => (
-                <button key={k} role="tab" aria-selected={scope === k} onClick={() => { setScope(k); setWho('all') }} className={cn('h-8 rounded-[0.5rem] px-3 text-[0.8125rem] font-semibold transition', scope === k ? 'bg-white text-ink shadow-xs' : 'text-muted hover:text-ink')}>{k === 'mine' ? 'Mine' : 'Everyone'}</button>
-              ))}
-            </div>
-          )}
-          {view !== 'done' && (
-            <div role="tablist" aria-label="How it's grouped" className="inline-flex h-9 items-center rounded-[0.625rem] bg-wash-2 p-0.5">
-              {([false, true] as const).map((k) => (
-                <button key={String(k)} role="tab" aria-selected={byJob === k} onClick={() => groupBy(k)} className={cn('h-8 rounded-[0.5rem] px-3 text-[0.8125rem] font-semibold transition', byJob === k ? 'bg-white text-ink shadow-xs' : 'text-muted hover:text-ink')}>{k ? 'By project' : 'By time'}</button>
-              ))}
-            </div>
-          )}
+          {inside && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
+          {view !== 'done' && <ViewSwitch label="How it's grouped" value={byJob} onChange={groupBy} items={[{ key: false, label: 'By time', icon: <Clock3 /> }, { key: true, label: 'By project', icon: <Building2 /> }]} />}
+          <span className="flex-1 max-md:hidden" />
           {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => setWho(v as string)} />}
           <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
           <ClearFilters show={job !== 'all' || who !== 'all'} onClear={() => { setJob('all'); setWho('all') }} />
-          <button onClick={() => setView(view === 'done' ? 'today' : 'done')} className={cn('inline-flex h-9 items-center gap-1.5 rounded-[0.5625rem] border px-3 text-[0.8125rem] font-semibold transition', view === 'done' ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#d6dae0] bg-white text-ink-2 hover:border-[#c3c9d2]')}>
-            <CircleCheckBig className="h-4 w-4" />Done{doneToday ? <span className="text-[0.75rem] font-semibold opacity-70">{doneToday} today</span> : null}
-          </button>
         </div>
       }
     >
@@ -492,7 +480,13 @@ export function MyTasksPage() {
         {view === 'tomorrow' && (shownTomorrow.length ? (byJob ? byProject(shownTomorrow) : dayBlock(TOMORROW, shownTomorrow)) : <EmptyState icon={<Check />} title="Nothing for tomorrow yet" sub="Anything due tomorrow, and tomorrow’s meetings, show here." />)}
 
         {view === 'later' && byJob && byProject(shownLater)}
-        {view === 'later' && !byJob && laterDays.map((d) => dayBlock(d, shownLater.filter((x) => x.iso === d && x.b !== 'aside')))}
+        {view === 'later' && !byJob && anyDay.length > 0 && (
+          <section>
+            <Group label="This week" count={anyDay.length} tone="info" hint="any day this week" />
+            {anyDay.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+          </section>
+        )}
+        {view === 'later' && !byJob && laterDays.map((d) => dayBlock(d, shownLater.filter((x) => x.iso === d && x.b !== 'aside' && !anyDay.includes(x))))}
         {view === 'later' && !byJob && noDate.length > 0 && (
           <section>
             <Group label="No date" count={noDate.length} tone="neutral" />
@@ -527,7 +521,7 @@ function CleanSlate() {
   const s = useStore()
   const ours = s.items.filter((i) => i.id.startsWith('qb-')).length
   const steps: { n: number; title: string; sub: string; btn: React.ReactNode }[] = [
-    { n: 1, title: 'Start an estimate', sub: 'Pick the rooms — each one brings its surfaces and your prices. It goes straight to the takeoff.', btn: <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New estimate</Button> },
+    { n: 1, title: 'Price a new project', sub: 'Upload the plans — it goes straight to the takeoff, and the estimate is built from there.', btn: <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button> },
     { n: 2, title: ours ? `Your ${ours} QuickBooks items are in` : 'Bring in your QuickBooks items', sub: ours ? 'Check the units and add what you pay the installer — his PO and weekly pay come from it.' : 'Export Products and Services from QuickBooks and import the file.', btn: <Button onClick={() => s.go({ page: 'items' })}>Open Items</Button> },
     REAL.cloud
       ? { n: 3, title: 'Let your team in', sub: 'Everyone signs up with their own email. You let them in from Settings → Team and pick what they do.', btn: <Button onClick={() => s.go({ page: 'settings', tab: 'team' } as any)}>Open Team</Button> }

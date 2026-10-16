@@ -97,7 +97,7 @@ export function EstimatesPage() {
     <Page
       title="Estimates"
       sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> pending approval{smp(' · sample amounts')}</>}
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New estimate</Button>}
+      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
       top={
         <Bubbles
           arrows
@@ -155,7 +155,7 @@ export function EstimatesPage() {
         ))}
         {!shown.length && !lostOld.length && (list.length
           ? <EmptyState title="No estimates here" sub="Try another filter." />
-          : <EmptyState icon={<FileText />} title="No estimates yet" sub="A new estimate goes straight to whoever does the takeoff — areas, surfaces and your prices fill in by themselves." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New estimate</Button>} />)}
+          : <EmptyState icon={<FileText />} title="No estimates yet" sub="Upload the plans — it goes straight to whoever does the takeoff, and the estimate is built from there." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>} />)}
       </div>
     </Page>
   )

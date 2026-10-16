@@ -2,6 +2,7 @@
  * Handing it on gives the next person a task on their Today and closes yours. Nobody's ownership changes —
  * the estimate knows whose turn it is. Review notes are pinned to a room or line and go back as a checklist. */
 import { useStore, addHist, newTask, closeTasks, meOf, NOW, type Store } from '@/tileos/store'
+import { keepFiles } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type PersonKey, type Role } from '@/tileos/data/model'
 import { curRev, revTotal, teamOf, openNotes, bucketOf, EST_STEP, EST_TEAM0, type Estimate, type EstStep, type EstLine, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { AREA_PRESETS, SURFACES, customSurface, uniqueArea, sortAreas, type AreaPreset, type SurfaceDef } from '@/tileos/data/areas'
@@ -307,7 +308,7 @@ export function linesForArea(s: Pick<Store, 'rules' | 'items'>, area: string, ke
   })
 }
 
-export interface NewEstimate { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; team: EstTeam; areas: { name: string; floor?: string; surfaces: string[] }[] }
+export interface NewEstimate { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; team: EstTeam; areas: { name: string; floor?: string; surfaces: string[] }[]; files?: File[] }
 /** a new estimate goes straight to whoever does the takeoff — no waiting for someone to assign it */
 export function newEstimate(d: NewEstimate) {
   const s0 = S()
@@ -349,8 +350,12 @@ export function newEstimate(d: NewEstimate) {
       flow: [{ who: me(), label: 'Started', state: 'done' }, { who: t.takeoff, label: 'Takeoff', state: 'now' }, { who: t.review, label: 'Office review', state: 'next' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }],
     },
   )
+  /* the plans go onto the project, so the takeoff starts from them */
+  if (d.files?.length) void keepFiles(id, d.files, 'plans', { quiet: true })
   S().closeAll()
-  setTimeout(() => S().open({ t: 'estimate', id: estId }), 60)
+  /* whoever does the takeoff lands in it; anyone else just sends it on — it's on the takeoff person's Today */
+  if (t.takeoff === me()) setTimeout(() => S().open({ t: 'estimate', id: estId }), 60)
+  return { jobId: id, estId }
 }
 
 /** put someone else on a step; if the estimate is on that step right now, it moves to them with its task */

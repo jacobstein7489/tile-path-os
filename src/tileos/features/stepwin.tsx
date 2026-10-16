@@ -8,7 +8,7 @@ import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Came
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
-import { Status } from '@/tileos/components/ui/page'
+import { Status, Path } from '@/tileos/components/ui/page'
 import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -64,8 +64,8 @@ export const TODO: Record<string, string> = {
   change: 'Did the meeting change the estimate?',
   tile: 'Pick the grout and pictures',
   layouts: 'Draw the layouts',
-  heights: 'Site check — heights, water, electrical, plumbing',
-  setup: 'Decide the underlayment and setup',
+  heights: 'Site check',
+  setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
   walk: 'Show the installer the job',
   confirmed: 'Get the installer’s yes',
@@ -131,6 +131,9 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   const word = stateWords(v, me)
   const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
   const part = PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
+  /* the site manager (and the books) can see every step; they change only their own — not who does it, not the date */
+  const viewer = ['site', 'accounting', 'crew', 'client'].includes(s.role)
+  const viewOnly = viewer && v.owner !== me
   return (
     <Modal
       level={level}
@@ -140,7 +143,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       title={part}
       sub={`${job.name} · ${c.done === c.total ? 'all done' : `${c.done} of ${c.total} done`}${c.bad ? ` · ${c.bad} with a problem` : ''}`}
       bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
-      footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} />}
+      footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} viewer={viewer} />}
     >
       {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} />}
       <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
@@ -154,52 +157,39 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
           </div>
         </div>
         <div className="mt-3.5 flex flex-wrap items-center gap-2">
-          <Who job={job} v={v} />
-          {dated && v.state !== 'done' && v.state !== 'na' && <When job={job} v={v} />}
+          {viewer
+            ? <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{v.owner === me ? 'You' : PEOPLE[v.owner]?.short || 'Someone'}</span>
+            : <Who job={job} v={v} />}
+          {dated && v.state !== 'done' && v.state !== 'na' && (viewer
+            ? (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null)
+            : <When job={job} v={v} />)}
         </div>
         {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
-        <div className="mt-5"><Body job={job} v={v} /></div>
+        {viewOnly && <div className="mt-4 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2">It’s {PEOPLE[v.owner]?.short || 'someone else'}’s step — you can see where it is; {PEOPLE[v.owner]?.short || 'they'} changes it.</div>}
+        <fieldset disabled={viewOnly} className="m-0 mt-5 min-w-0 border-0 p-0"><Body job={job} v={v} /></fieldset>
       </div>
     </Modal>
   )
 }
 
-/** this part's steps, numbered 1, 2, 3 across the top: a done one gets a check, the one you're on is dark, a line joins
- *  them (green up to where it's done). Under each, who has it — or Done, Waiting, Problem, Not yet. On a phone the
- *  number sits over the name. */
+/** this part's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done, a
+ *  blue ring where it's going on, red for a problem, and who has it. The step you're on is underlined. */
 function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
   return (
-    <nav aria-label="Steps" className="no-scrollbar flex shrink-0 items-start overflow-x-auto border-b border-line bg-[#fafbfc] px-5 py-2.5 max-sm:px-2 sm:items-center">
-      {list.map((x, i) => {
-        const on = x.key === at
-        const sub = x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'bad' ? 'Problem' : x.state === 'wait' ? 'Waiting' : x.state === 'later' ? 'Not yet' : x.owner === me ? 'You' : PEOPLE[x.owner]?.short || ''
-        const prevDone = i > 0 && (list[i - 1].state === 'done' || list[i - 1].state === 'na')
-        return (
-          <React.Fragment key={x.key}>
-            {i > 0 && <span aria-hidden className={cn('mx-1.5 h-[0.125rem] min-w-[0.75rem] flex-1 rounded-full max-sm:mx-0 max-sm:mt-[1.125rem]', prevDone ? 'bg-[#2c4a3e]' : 'bg-[#dfe3e8]')} />}
-            <button
-              aria-current={on ? 'step' : undefined}
-              onClick={() => go(x)}
-              className={cn('flex shrink-0 items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-3 text-left transition max-sm:w-[4.875rem] max-sm:flex-col max-sm:gap-1 max-sm:px-0.5 max-sm:text-center', on ? 'bg-white shadow-[0_0_0_0.0625rem_#e1e5ea,0_0.0625rem_0.125rem_rgba(16,24,40,.05)]' : 'hover:bg-white')}
-            >
-              <StepNum n={i + 1} state={x.state} on={on} />
-              <span className="min-w-0 max-sm:w-full">
-                <span className={cn('block max-w-[13rem] truncate text-[0.84375rem] font-semibold max-sm:line-clamp-2 max-sm:max-w-none max-sm:whitespace-normal max-sm:text-[0.71875rem] max-sm:leading-[1.2]', on ? 'text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')}>{x.short}</span>
-                <span className={cn('block truncate text-[0.71875rem] max-sm:hidden', x.state === 'bad' ? 'font-semibold text-bad-700' : x.state === 'done' ? 'font-medium text-[#2c4a3e]' : sub === 'You' ? 'font-semibold text-ink' : 'text-muted')}>{sub}</span>
-              </span>
-            </button>
-          </React.Fragment>
-        )
-      })}
+    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#fafbfc] px-4 max-sm:px-1">
+      <Path
+        at={at}
+        className="pb-2 pt-2.5"
+        steps={list.map((x) => ({
+          key: x.key,
+          label: x.short,
+          state: x.state === 'done' ? 'done' as const : x.state === 'bad' ? 'blocked' as const : x.state === 'now' || x.state === 'wait' ? 'current' as const : 'future' as const,
+          sub: x.state === 'done' || x.state === 'na' ? undefined : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
+          date: x.state === 'done' ? 'Done' : x.state === 'wait' ? 'Waiting' : x.state === 'na' ? 'Not needed' : x.state === 'later' ? 'Not yet' : x.state === 'bad' ? 'Problem' : undefined,
+          onClick: () => go(x),
+        }))}
+      />
     </nav>
-  )
-}
-/** a step's number in a circle — a check once it's done, dark for the one you're on, red when there's a problem */
-function StepNum({ n, state, on }: { n: number; state: StepView['state']; on: boolean }) {
-  if (state === 'done') return <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2c4a3e] text-white"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
-  return (
-    <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-bold tnum',
-      state === 'bad' ? 'bg-bad-500 text-white' : on ? 'bg-ink text-white' : state === 'na' ? 'border border-dashed border-[#c6ccd4] text-faint' : 'border-[0.09375rem] border-[#cdd2d9] bg-white text-ink-2')}>{n}</span>
   )
 }
 
@@ -301,13 +291,13 @@ function When({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
-function Foot({ job, v, prev, next, go }: { job: Job; v: StepView; prev?: StepView; next?: StepView; go: (x?: StepView) => void }) {
+function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?: StepView; next?: StepView; go: (x?: StepView) => void; viewer?: boolean }) {
   const s = useStore()
   const rec = s.stepRecs[job.id]?.[v.key]
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
   return (
     <>
-      {v.state === 'na' ? <Button variant="ghost" onClick={() => skipStep(job.id, v.key, false)}>Needed after all</Button>
+      {viewer ? null : v.state === 'na' ? <Button variant="ghost" onClick={() => skipStep(job.id, v.key, false)}>Needed after all</Button>
         : v.state === 'done' ? (reopenable && rec?.done ? <Button variant="ghost" onClick={() => reopenStep(job.id, v.key)}>Not done after all</Button> : null)
           : rec?.wait ? <Button variant="ghost" onClick={() => stopWaiting(job.id, v.key)}>Not waiting any more</Button>
             : <Button variant="ghost" onClick={() => skipStep(job.id, v.key, true)}>Not needed on this project</Button>}
@@ -447,7 +437,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const rooms = s.rooms[job.id] || []
   if (!rooms.length) return (
     <div className="flex flex-col gap-4">
-      <Block title="What we’re tiling" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet — they come from the estimate. Add them here, one room at a time.</Quiet></Block>
+      <Block title="Scope of work" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet — they come from the estimate. Add them here, one room at a time.</Quiet></Block>
     </div>
   )
   const tiles = Object.values(s.tiles[job.id] || {}).sort(byTag)
@@ -479,7 +469,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
         </Block>
       )}
       {!missing.length && tiled.length > 0 && tiles.length > 0 && <Good>Every wall and floor has its tile.</Good>}
-      <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF — the rooms, walls and square feet are on <b className="font-semibold text-ink-2">What we’re tiling</b>.</div>
+      <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF — the rooms, walls and square feet are on <b className="font-semibold text-ink-2">Scope of work</b>.</div>
       {v.state !== 'done' && tiles.length > 0 && missing.length > 0 && (
         <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered — ${missing.length} without a tile on this paperwork`, { close: true })}>Entered — the rest isn’t on this paperwork</Button></Actions>
       )}
