@@ -143,7 +143,8 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const stepTask = !!t.step && !t.step.startsWith('*:') && !!s.jobs[t.step.split(':')[0]]
   const act = !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
   const Ic = TYPE_ICON[t.type] || ListTodo
-  const last = t.log[t.log.length - 1]
+  const log = t.log || []
+  const last = log[log.length - 1]
   const detail0 = t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
   const w = when || (t.state === 'waiting' ? { text: `Back ${t.followUp}`, tone: (isoFromLabel(t.followUp) || '9') <= TODAY ? 'warn' as const : undefined } : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
@@ -415,6 +416,8 @@ export function MyTasksPage() {
   }
 
   const shownToday = today.filter(pick)
+  /* a task with no day on it still shows up — under today's, as "No day set" — so nothing gets lost */
+  const undated = plate.filter((x) => x.kind === 'task' && x.t && x.t.state === 'now' && !taskIso(x.t) && !/this week/i.test(x.t.due || '')).filter(pick)
   const shownTomorrow = tomorrow.filter(pick)
   const shownLater = later.filter(pick)
   /* due "this week" with no day of its own: its own group on top — not under a day it isn't on */
@@ -473,6 +476,12 @@ export function MyTasksPage() {
 
         {view === 'today' && !Object.keys(s.jobs).length && !s.tasks.length && role === 'owner' && <CleanSlate />}
         {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? (byJob ? byProject(shownToday) : dayBlock(TODAY, shownToday, true)) : <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && undated.length > 0 && (
+          <section>
+            <Group label="No day set" count={undated.length} tone="neutral" hint="still yours — give it a day, or do it when you can" />
+            {undated.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+          </section>
+        )}
         {view === 'today' && shownToday.length > 0 && tomorrow.length > 0 && (
           <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted hover:bg-wash hover:text-ink', PX)}>
             <CalendarDays className="h-4 w-4" />{tomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
@@ -637,9 +646,9 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
 
   return (
     <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 py-5 max-sm:px-4">
-      {(t.detail || !t.log.length) && <p className="text-[0.9375rem] leading-relaxed text-ink">{t.detail || t.title}</p>}
+      {(t.detail || !(t.log || []).length) && <p className="text-[0.9375rem] leading-relaxed text-ink">{t.detail || t.title}</p>}
       {/* who else sees it */}
-      <div className={cn('flex flex-wrap items-center gap-2 rounded-[0.75rem] border border-line px-3 py-2', (t.detail || !t.log.length) && 'mt-4')}>
+      <div className={cn('flex flex-wrap items-center gap-2 rounded-[0.75rem] border border-line px-3 py-2', (t.detail || !(t.log || []).length) && 'mt-4')}>
         <span className="text-[0.78125rem] font-semibold text-muted">Following</span>
         <span className="flex -space-x-1.5">{followersOf(t).map((p) => <Avatar key={p} who={p} size={24} ring />)}</span>
         <Menu align="start" width={260} trigger={<button className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.78125rem] font-semibold text-brand-600 hover:bg-brand-50"><UserPlus className="h-3.5 w-3.5" />{followersOf(t).length ? 'Change' : 'Add people'}</button>}>
@@ -657,8 +666,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {job && <button onClick={() => s.open({ t: 'job', id: job.id })} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Open {job.name}</button>}
       </div>
       <div className="mt-1.5 -mx-2">
-        {[...t.log].reverse().map((l, i) => <ActivityRow key={i} jobId={t.jobId || undefined} e={{ date: l.date, who: l.who, kind: 'system', title: l.text }} compact />)}
-        {!t.log.length && <div className="px-2 text-[0.84375rem] text-muted">Nothing yet.</div>}
+        {[...(t.log || [])].reverse().map((l, i) => <ActivityRow key={i} jobId={t.jobId || undefined} e={{ date: l.date, who: l.who, kind: 'system', title: l.text }} compact />)}
+        {!(t.log || []).length && <div className="px-2 text-[0.84375rem] text-muted">Nothing yet.</div>}
       </div>
       {t.state !== 'done' && (
         <div className="mt-3 flex items-center gap-2">

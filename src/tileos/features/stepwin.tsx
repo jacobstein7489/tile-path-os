@@ -1100,13 +1100,13 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
   return (
     <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
       <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted"><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden"><Ic className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1 max-sm:basis-full">
           <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
           <span className="block text-[0.78125rem] text-muted">{c.sub}{heights ? ` · ${heights.measured} of ${heights.total} walls measured` : ''}</span>
         </span>
         {heights && <Button size="sm" variant="ghost" icon={<Ruler />} onClick={() => s.open({ t: 'heights', jobId: job.id })}>Enter heights</Button>}
-        <span className="flex shrink-0 gap-1.5">
+        <span className="flex shrink-0 gap-1.5 max-sm:ml-auto">
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === true ? null : true)} className={chip(a?.ok === true, 'ok')}><Check className="h-3.5 w-3.5" strokeWidth={3} />Good</button>
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === false ? null : false, note.trim() || undefined)} className={chip(a?.ok === false, 'bad')}><X className="h-3.5 w-3.5" strokeWidth={3} />Problem</button>
         </span>
@@ -1134,8 +1134,8 @@ function LevelRow({ job, c, a }: { job: Job; c: { k: string; label: string; sub:
   return (
     <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
       <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', a?.ok === false ? 'bg-bad-50 text-bad-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1">
+        <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:hidden', a?.ok === false ? 'bg-bad-50 text-bad-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1 max-sm:basis-full">
           <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
           <span className={cn('block text-[0.78125rem]', a?.ok === false ? 'font-medium text-bad-600' : a?.note ? 'font-medium text-warn-700' : 'text-muted')}>{a?.note || (rooms.length ? `${measured} of ${rooms.length} floors measured` : 'No floors on this project')}</span>
         </span>

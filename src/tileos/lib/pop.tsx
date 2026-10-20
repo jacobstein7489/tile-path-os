@@ -8,7 +8,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 export type FlowStep = { who?: PersonKey; label: string; state: 'done' | 'now' | 'next'; outside?: string }
-export type PopData = { id: number; title: string; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; undo?: () => void; tone?: 'ok' | 'warn' }
+export type PopData = { id: number; title: string; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; undo?: () => void; tone?: 'ok' | 'warn' | 'done' }
 type PopStore = { pop: PopData | null; show: (p: Omit<PopData, 'id'>) => void; hide: () => void }
 let pid = 0
 export const usePop = create<PopStore>((set) => ({
@@ -57,10 +57,24 @@ export function CenterPop() {
         className={cn('pointer-events-auto relative w-full overflow-hidden rounded-[1.375rem] bg-white text-center shadow-[0_1.5rem_4.375rem_-1.125rem_rgba(16,24,40,.45),0_0_0_0.0625rem_rgba(16,24,40,.06)] animate-modal-in', long ? 'max-w-[30rem]' : 'max-w-[23.75rem]')}
       >
         <div className="px-7 pb-5 pt-6">
-          <span className={cn('mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full', pop.tone === 'warn' ? 'bg-warn-50 text-warn-600' : 'bg-ok-50 text-ok-600')}>
-            <Check className="h-6 w-6" strokeWidth={3} />
-          </span>
-          <div className="mt-3 text-[1.0625rem] font-bold leading-snug tracking-[-0.01em] text-ink">{pop.title}</div>
+          {pop.tone === 'done' ? (
+            /* something got finished: the check lands with a bounce, a ring spreads, a few sparks fly */
+            <span className="relative mx-auto block h-16 w-16">
+              <span className="cheer-ring absolute inset-0 rounded-full bg-ok-500/30" />
+              <span className="cheer-ring absolute inset-0 rounded-full bg-ok-500/20" style={{ animationDelay: '120ms' }} />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span key={i} className="cheer-spark absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full" style={{ ['--a' as any]: `${i * 45}deg`, background: ['#12b76a', '#2650cf', '#f0b429', '#e05d4b'][i % 4] }} />
+              ))}
+              <span className="cheer-check absolute inset-0 inline-flex items-center justify-center rounded-full bg-ok-500 text-white shadow-[0_0.5rem_1.25rem_-0.375rem_rgba(18,183,106,.6)]">
+                <Check className="h-8 w-8" strokeWidth={3.5} />
+              </span>
+            </span>
+          ) : (
+            <span className={cn('mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full', pop.tone === 'warn' ? 'bg-warn-50 text-warn-600' : 'bg-ok-50 text-ok-600')}>
+              <Check className="h-6 w-6" strokeWidth={3} />
+            </span>
+          )}
+          <div className={cn('mt-3 font-bold leading-snug tracking-[-0.01em] text-ink', pop.tone === 'done' ? 'text-[1.375rem]' : 'text-[1.0625rem]')}>{pop.title}</div>
           {pop.sub && <div className="mx-auto mt-1 max-w-[23.75rem] text-[0.875rem] leading-snug text-muted">{pop.sub}</div>}
           {pop.flow && (
             <div className="mt-5 flex items-start justify-center">

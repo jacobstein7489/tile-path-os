@@ -1,4 +1,5 @@
 import * as React from 'react'
+import markUrl from '@/tileos/assets/mark.svg'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
@@ -28,15 +29,8 @@ const paletteFilter = (value: string, search: string) => {
 }
 
 export function Logo({ size = 34 }: { size?: number; dark?: boolean }) {
-  /* four tiles set on the diagonal, like a laid floor */
-  return (
-    <svg width={size} height={size} viewBox="0 0 34 34" aria-hidden>
-      <rect x="11" y="1.5" width="11" height="11" rx="1.8" transform="rotate(45 16.5 7)" fill="#2650CF" />
-      <rect x="4.5" y="9.5" width="10" height="10" rx="1.8" transform="rotate(45 9.5 14.5)" fill="#152A66" />
-      <rect x="19.5" y="9.5" width="10" height="10" rx="1.8" transform="rotate(45 24.5 14.5)" fill="#6E8FE6" />
-      <rect x="12" y="17" width="10" height="10" rx="1.8" transform="rotate(45 17 22)" fill="#2650CF" />
-    </svg>
-  )
+  /* Cobblestone's stone */
+  return <img src={markUrl} width={size} height={size} alt="" aria-hidden style={{ width: size, height: size, objectFit: 'contain' }} />
 }
 
 /** + New: one window of colored tiles — start something, or log something that happened */

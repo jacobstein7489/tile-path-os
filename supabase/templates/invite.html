@@ -1,0 +1,31 @@
+<!-- The invite email. Paste it in Lovable → Cloud → Auth → Email templates → "Invite user".
+     Supabase fills {{ .ConfirmationURL }} and {{ .SiteURL }}. The logo is served by the app itself. -->
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f1eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:16px;border:1px solid #ebe6dd;">
+          <tr><td align="center" style="padding:36px 32px 8px;">
+            <img src="{{ .SiteURL }}/logo-email.png" width="220" alt="Cobblestone Tile Installation" style="display:block;width:220px;max-width:100%;height:auto;">
+          </td></tr>
+          <tr><td style="padding:16px 32px 0;font-size:22px;font-weight:700;line-height:1.3;text-align:center;">You’re invited to Tile OS</td></tr>
+          <tr><td style="padding:12px 32px 0;font-size:16px;line-height:1.55;color:#4a4740;text-align:center;">
+            It’s where Cobblestone runs its projects — what’s next on every job, who has it, and what came in.
+            Pick a password and you’re in.
+          </td></tr>
+          <tr><td align="center" style="padding:28px 32px 8px;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2650cf;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 28px;border-radius:12px;">Set my password and open Tile OS</a>
+          </td></tr>
+          <tr><td style="padding:12px 32px 0;font-size:13px;line-height:1.5;color:#8a857b;text-align:center;">
+            On a phone, open it in Safari or Chrome and choose “Add to Home Screen” so it works like an app.
+          </td></tr>
+          <tr><td style="padding:28px 32px 32px;font-size:12px;line-height:1.5;color:#a5a095;text-align:center;border-top:1px solid #f1ede7;">
+            If you weren’t expecting this, you can ignore it. The link works once.<br>
+            Cobblestone Tile Installation
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

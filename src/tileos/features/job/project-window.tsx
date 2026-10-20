@@ -177,13 +177,13 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="font-display min-w-0 truncate text-[1.625rem] font-semibold leading-tight tracking-[-0.015em] text-ink max-sm:text-[1.3125rem]">{job.name}</h1>
+              {/* on a phone the bar under it says where it is — the word is extra */}
               {!pricing && (status.onClick
-                ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
-                : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
-              {!pricing && <OpenChip job={job} />}
+                ? <button onClick={status.onClick} className="min-w-0 max-w-full max-sm:hidden"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+                : <Status tone={status.tone} plain={status.tone !== 'bad'} className={cn('shrink-0', status.tone !== 'bad' && 'max-sm:hidden')}>{status.label}</Status>)}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted">
-              <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 text-faint" />{job.client}</button>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted max-sm:gap-x-2.5">
+              <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex min-w-0 items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.client}</span></button>
               <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
               {!pricing && (crew
                 ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2 underline decoration-line underline-offset-[0.1875rem]">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
@@ -195,6 +195,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               {/* with nothing to start, the "…" sits up by the title on a phone instead of on a row of its own */}
               <span className="max-lg:flex-1 max-sm:hidden" />
               {main}
+              {!pricing && <OpenChip job={job} />}
               {!['accounting', 'client'].includes(role) && <AddToProject job={job} />}
               {more}
             </div>
@@ -241,7 +242,7 @@ function OpenChip({ job }: { job: Job }) {
   const bad = rows.filter((r) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')).length
   if (!rows.length) return null
   return (
-    <button onClick={() => s.open({ t: 'whatsopen', jobId: job.id })} className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', bad ? 'border-bad-200 bg-bad-50 text-bad-700 hover:bg-bad-100' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
+    <button onClick={() => s.open({ t: 'whatsopen', jobId: job.id })} aria-label="Everything open on this project" className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', bad ? 'border-bad-200 bg-bad-50 text-bad-700 hover:bg-bad-100' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
       <ListTodo className="h-3.5 w-3.5" />{rows.length} open{bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}
     </button>
   )

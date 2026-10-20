@@ -131,7 +131,7 @@ interface Actions {
   undo: () => void
   /** swap in a whole set of data — a saved test, a fresh start or the sample — without an undo step */
   replaceData: (d: Data) => void
-  commit: (fn: (s: Store) => void, msg?: string, opts?: { undo?: boolean; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; close?: boolean }) => void
+  commit: (fn: (s: Store) => void, msg?: string, opts?: { undo?: boolean; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; close?: boolean; tone?: 'ok' | 'warn' | 'done' }) => void
   log: (jobId: string, e: Omit<HistEntry, 'date'> & { date?: string }) => void
   /* tasks */
   completeTask: (id: string, result?: string) => void
@@ -409,7 +409,7 @@ export const useStore = create<Store>()(
       })
       /* hand-offs close their window; the pop-up in the middle says where it went */
       if (opts.close) set({ modals: get().modals.slice(0, -1) } as any)
-      if (msg) showPop({ title: msg, sub: opts.sub, flow: opts.flow, to: opts.to, undo: opts.undo === false ? undefined : () => get().undo() })
+      if (msg) showPop({ title: msg, sub: opts.sub, flow: opts.flow, to: opts.to, tone: opts.tone, undo: opts.undo === false ? undefined : () => get().undo() })
     },
     log: (jobId, e) =>
       set((s) => {
@@ -424,10 +424,10 @@ export const useStore = create<Store>()(
         t.state = 'done'
         t.doneAt = 'Just now'
         if (result) t.result = result
-        t.log.push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
         if (t.repeat) repeatTask(s, t)
-      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : 'Marked done'),
+      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),
     waitTask: (id, on, back) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
@@ -435,7 +435,7 @@ export const useStore = create<Store>()(
         t.state = 'waiting'
         t.waitingOn = on
         t.followUp = back
-        t.log.push({ date: NOW, who: meOf(s.role), text: `Waiting on ${on} · back ${back}` })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Waiting on ${on} · back ${back}` })
       }, `Waiting on ${on} — it comes back ${back.toLowerCase().startsWith('tomorrow') || back === 'Today' ? back.toLowerCase() : 'on ' + back}`),
     laterTask: (id, until) =>
       get().commit((s) => {
@@ -443,7 +443,7 @@ export const useStore = create<Store>()(
         if (!t) return
         t.state = 'later'
         t.laterUntil = until
-        t.log.push({ date: NOW, who: meOf(s.role), text: `Moved to later · back ${until}` })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Moved to later · back ${until}` })
       }, `Out of the way until ${until}`),
     reopenTask: (id) =>
       get().commit((s) => {
@@ -453,14 +453,14 @@ export const useStore = create<Store>()(
         t.waitingOn = undefined
         t.followUp = undefined
         t.laterUntil = undefined
-        t.log.push({ date: NOW, who: meOf(s.role), text: 'Back to needs action' })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: 'Back to needs action' })
       }, 'Back in needs action'),
     reassignTask: (id, owner) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
         t.owner = owner
-        t.log.push({ date: NOW, who: meOf(s.role), text: `Handed to ${PEOPLE[owner].name}` })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Handed to ${PEOPLE[owner].name}` })
       }, `Handed to ${PEOPLE[owner].name}`),
     setTaskDue: (id, due) =>
       get().commit((s) => {
@@ -468,7 +468,7 @@ export const useStore = create<Store>()(
         if (!t) return
         t.due = due
         t.dueTone = due === 'Today' ? 'warn' : 'neutral'
-        t.log.push({ date: NOW, who: meOf(s.role), text: `Due ${due}` })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Due ${due}` })
       }, `Due ${due}`),
     noteTask: (id, text, as) =>
       get().commit((s) => {
@@ -476,7 +476,7 @@ export const useStore = create<Store>()(
         if (!t) return
         const me = meOf(s.role)
         /* the admin can write it for someone who didn't — and it says so */
-        t.log.push({ date: NOW, who: as || me, text: as && as !== me ? `${text} — written by ${PEOPLE[me].short}` : text })
+        ;(t.log ||= []).push({ date: NOW, who: as || me, text: as && as !== me ? `${text} — written by ${PEOPLE[me].short}` : text })
       }, as && as !== meOf(get().role) ? `Note added for ${PEOPLE[as].name}` : 'Note added', { undo: false }),
     addTask: (p) =>
       get().commit((s) => {
@@ -510,7 +510,7 @@ export function closeTasks(s: Data, ids: string[], text = 'Done') {
     if (ids.includes(t.id) && t.state !== 'done') {
       t.state = 'done'
       t.doneAt = 'Just now'
-      t.log.push({ date: NOW, who: 'system', text })
+      ;(t.log ||= []).push({ date: NOW, who: 'system', text })
     }
   })
 }

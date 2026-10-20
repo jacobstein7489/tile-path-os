@@ -487,7 +487,7 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
     /* the step's own task is done too */
     st.tasks.forEach((x) => { if (x.step === `${jobId}:${key}` && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'Done' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: done`, detail: note } as any)
-  }, `${def.short} — done`, { sub: to.length ? 'The next steps are on their lists now.' : 'Checked off on the project.', to: to.length ? to : undefined, close: !!o.close })
+  }, `${def.short} — done!`, { tone: 'done', sub: to.length ? 'The next steps are on their lists now.' : 'Checked off on the project.', to: to.length ? to : undefined, close: !!o.close })
 }
 
 /** the paperwork's quantities are off: they went back with the right numbers — the step waits for the new paperwork */

@@ -40,7 +40,7 @@ export function messageToTask(jobId: string, id: string) {
 /** messages from someone else today — the dot on the project */
 export const unreadOf = (s: { messages: Record<string, Msg[]>; role: Role }, jobId: string) => (s.messages[jobId] || []).filter((m) => m.date === NOW && m.who !== meOf(s.role)).length
 
-export function Thread({ jobId, outside }: { jobId: string; outside?: boolean }) {
+export function Thread({ jobId, outside, top }: { jobId: string; outside?: boolean; top?: React.ReactNode }) {
   const s = useStore()
   const me = meOf(s.role)
   const list = (s.messages[jobId] || []).filter((m) => !outside || !m.internal)
@@ -59,6 +59,7 @@ export function Thread({ jobId, outside }: { jobId: string; outside?: boolean })
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-5 py-4 max-sm:px-3">
+        {top}
         {list.map((m) => {
           const mine = m.who === me
           const ext = m.who === 'gcpp'

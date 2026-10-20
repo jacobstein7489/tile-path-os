@@ -978,7 +978,7 @@ export function setPunch(id: string, status: 'open' | 'working' | 'verify' | 've
       newTask(s, { jobId: p.jobId, title: `Check the touch-ups at ${s.jobs[p.jobId]?.name || 'the project'}`, type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: `${PEOPLE[p.owner]?.short || 'The crew'} marked “${p.text}” done`, action: { label: 'Check them', kind: 'tab:touchups' } })
     }
     addHist(s, p.jobId, { who: me(), kind: 'field', title: `Punch · ${p.text} — ${({ open: 'reopened', working: 'crew working', verify: 'ready to verify', verified: 'verified' } as any)[status]}` })
-  }, status === 'verified' ? 'Verified' : status === 'verify' ? 'Marked done — the site manager checks it' : 'Updated')
+  }, status === 'verified' ? 'Checked!' : status === 'verify' ? 'Done!' : 'Updated', status === 'verified' || status === 'verify' ? { tone: 'done', sub: status === 'verify' ? 'The site manager checks it next.' : undefined } : undefined)
 }
 export function addPunch(jobId: string, text: string, where: string) {
   S().commit((s) => {

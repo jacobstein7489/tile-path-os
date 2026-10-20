@@ -5,7 +5,7 @@
  * Whose scope it is (and that it's locked) is said once, in the card's header. Tap a wall or floor to change it
  * (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
-import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid } from 'lucide-react'
+import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea, SearchField } from '@/tileos/components/ui/core'
 import { Modal, Pop, Tip } from '@/tileos/components/ui/overlay'
@@ -191,12 +191,14 @@ export function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
 }
 
 /* ---------------- the scope: every floor, its rooms, every wall and floor ---------------- */
-export function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
+export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; compact?: boolean }) {
   const s = useStore()
   const all = s.rooms[job.id] || []
   const rooms = hits ? all.map((r) => ({ ...r, surfaces: r.surfaces.filter((x) => hits.lines.has(`${r.name}|${x.name}`)) })).filter((r) => r.surfaces.length) : all
   const inField = IN_FIELD_.includes(job.stage)
   const groups = floorsOf(rooms)
+  /* compact: every room is one line — tap it for its walls and floors */
+  const [openRooms, setOpenRooms] = React.useState<Record<string, boolean>>({})
   return (
     <section className={SHEET}>
       {groups.map((g) => (
@@ -205,14 +207,29 @@ export function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
           {g.rooms.map((r) => {
             const pct = roomPct(r)
             const rsf = r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)
+            const shown = !compact || !!openRooms[r.name]
+            const problems = r.surfaces.filter((x) => ['blocked', 'waitmat', 'hold'].includes(x.state)).length
             return (
               <div key={r.name}>
-                <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
-                  <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
-                  {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
-                  <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
-                </div>
-                {r.surfaces.map((x) => <ScopeLine key={x.name} job={job} room={r} x={x} inField={inField} />)}
+                {compact ? (
+                  <button onClick={() => setOpenRooms((o) => ({ ...o, [r.name]: !o[r.name] }))} aria-expanded={shown} aria-label={`Room ${r.name}`} className={cn('flex min-h-[3rem] w-full items-center gap-3 px-5 text-left transition hover:bg-[#f8f6f2] max-sm:px-4', shown ? 'bg-[#f4f1eb]' : 'border-t border-line-2')}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[0.9375rem] font-semibold text-ink">{r.name}</span>
+                      <span className={cn('block truncate text-[0.78125rem]', problems ? 'font-medium text-bad-600' : 'text-muted')}>{problems ? `${problems} ${problems === 1 ? 'wall or floor is' : 'walls or floors are'} waiting` : `${r.surfaces.length} ${r.surfaces.length === 1 ? 'wall or floor' : 'walls and floors'}${r.note ? ` · ${r.note}` : ''}`}</span>
+                    </span>
+                    {inField && <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-12"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-[#2c4a3e]' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></span>}
+                    <span className={cn('w-[3.5rem] shrink-0 text-right text-[0.9375rem] font-semibold tnum', inField && pct >= 100 ? 'text-[#2c4a3e]' : 'text-ink')}>{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')}` : '—'}</span>
+                    {shown ? <ChevronDown className="h-4 w-4 shrink-0 text-faint" /> : <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
+                    <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
+                    {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
+                    <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
+                  </div>
+                )}
+                {shown && r.surfaces.map((x) => <ScopeLine key={x.name} job={job} room={r} x={x} inField={inField} />)}
+                {shown && compact && !hits && <div className="border-t border-line-2 bg-[#faf8f5] px-5 py-1.5 max-sm:px-4"><AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" /></div>}
               </div>
             )
           })}
