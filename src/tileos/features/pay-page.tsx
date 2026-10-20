@@ -53,7 +53,7 @@ export function PayPage() {
   return (
     <Page
       title="Installer pay"
-      sub="Daily updates × the rates on each installer’s PO = what he earns. Approve the week and it’s paid Friday"
+      sub="What each installer earned, from the daily updates and his PO rates. Approve the week — it’s paid Friday"
       toolbar={
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
           <WeekPicker weeks={tiles} value={w.key} onChange={setSel} />

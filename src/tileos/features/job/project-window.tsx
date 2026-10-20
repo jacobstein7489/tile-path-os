@@ -51,17 +51,16 @@ import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
 
 export { floorsOf }
-export type PTab = 'overview' | 'scope' | 'orders' | 'estimate' | 'installer' | 'money'
+export type PTab = 'overview' | 'scope' | 'orders' | 'estimate' | 'money'
 
 /** old links into the window (tab names from earlier versions) land on the right tab */
 const tabFrom = (initial: string | undefined): PTab =>
   initial === 'estimate' ? 'money'
-  : (['overview', 'scope', 'orders', 'installer', 'money'] as PTab[]).includes(initial as PTab)
+  : (['overview', 'scope', 'orders', 'money'] as PTab[]).includes(initial as PTab)
     ? (initial as PTab)
     : initial === 'rooms' || initial === 'setup' ? 'scope'
-      : initial === 'materials' || initial === 'pos' ? 'orders'
-        : initial === 'touchups' || initial === 'punch' || initial === 'crew' ? 'installer'
-          : initial === 'billing' ? 'money' : 'overview'
+      : initial === 'materials' || initial === 'pos' || initial === 'installer' || initial === 'crew' ? 'orders'
+        : initial === 'billing' ? 'money' : 'overview'
 
 /* ================= the window ================= */
 export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: string; level: number }) {
@@ -100,22 +99,24 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
   closeout: { label: 'Final invoice', icon: <Receipt /> },
 }
 
-/** the tabs, the same on every project — five, no numbers on them (the to-do and the path on top have the counts).
- *  Money is the estimate, its changes and the bills together; the site manager doesn't have it. */
+/** the tabs, the same on every project — four: what's happening, what we're tiling, what's ordered (the installer's PO,
+ *  the tile, the materials), and the money. The installer himself opens from the header. The site manager has
+ *  Deliveries for Orders, and no Money. */
 function tabsFor(s: Store): { key: PTab; label: string }[] {
   return [
     { key: 'overview', label: 'Overview' },
     { key: 'scope', label: 'Scope of work' },
-    { key: 'orders', label: s.role === 'site' ? 'Deliveries' : 'POs' },
-    { key: 'installer', label: 'Installer' },
+    { key: 'orders', label: s.role === 'site' ? 'Deliveries' : 'Orders' },
     ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Money' }] : []),
   ]
 }
 
-/** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list */
-function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: () => void } {
+/** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list.
+ *  With the four-part bar under it, the bubble is just the word: the bar already says how far along it is. */
+function headStatus(s: Store, job: Job, withBar = false): { tone: Tone; label: string; onClick?: () => void } {
   const st = projectStatus(s, job)
   if (st.key === 'hold') return { tone: 'bad', label: `On hold · ${(job.hold?.reason || '').replace(/^Waiting for /, 'waiting for ')}`, onClick: job.hold?.shortage ? () => s.open({ t: 'short', id: job.hold!.shortage! }) : undefined }
+  if (withBar) return { tone: st.tone, label: st.label }
   if (isGettingReady(job)) {
     const c = stepCounts(stepsFor(s, job))
     return { tone: st.tone, label: `${st.label} · ${c.done} of ${c.total} steps done` }
@@ -131,7 +132,7 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
 export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'modal' | 'page'; tab?: PTab; setTab: (t: PTab) => void }) {
   const s = useStore()
   const role = s.role
-  const status = headStatus(s, job)
+  const status = headStatus(s, job, !!tab)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const prim = PRIMARY[job.stage]
   const blockers = nowItems(s, job, setTab).items.filter((i) => i.status === 'bad').length
@@ -180,7 +181,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
         <div className="flex items-start gap-4 max-lg:flex-wrap max-sm:gap-2.5">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-              <h1 className="font-display min-w-0 truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.25rem]">{job.name}</h1>
+              <h1 className="font-display min-w-0 truncate text-[1.625rem] font-semibold leading-tight tracking-[-0.015em] text-ink max-sm:text-[1.3125rem]">{job.name}</h1>
               {!pricing && (status.onClick
                 ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
                 : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
@@ -189,7 +190,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 text-faint" />{job.client}</button>
               <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
               {!pricing && (crew
-                ? <button onClick={() => setTab('installer')} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
+                ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2 underline decoration-line underline-offset-[0.1875rem]">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
                 : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>)}
             </div>
           </div>
@@ -235,7 +236,6 @@ export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab:
       {tab === 'scope' && <ScopeTab job={job} />}
       {tab === 'orders' && <POsTab job={job} onScope={() => setTab('scope')} />}
       {tab === 'estimate' && <MoneyTab job={job} />}
-      {tab === 'installer' && <InstallerTab job={job} />}
       {tab === 'money' && <MoneyTab job={job} />}
     </div>
   )

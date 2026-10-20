@@ -89,7 +89,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
         <div className="min-w-0 border-r border-line px-6 py-5 max-lg:border-r-0 max-sm:px-4">
           {rooms.map((r) => (
             <section key={r.name} className="mb-4 overflow-hidden rounded-xl border border-line">
-              <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}</div>
+              <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-semibold text-ink">{r.name}</div>
               {r.surfaces.map((x) => {
                 const k = keyOf(r.name, x.name)
                 const sug = suggestMethod(r.name, x)

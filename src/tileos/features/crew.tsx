@@ -172,7 +172,7 @@ export function CrewView() {
         </div>
       </div>
       <div className="max-w-[26.25rem] max-lg:max-w-[17.5rem] max-md:hidden">
-        <div className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-brand-600">Crew phone view</div>
+        <div className="text-[0.8125rem] font-semibold text-brand-600">Crew phone view</div>
         <h1 className="h-display mt-2 text-[2.125rem] font-bold leading-tight text-ink">What {PEOPLE[me].short} sees{job ? ` at ${job.name}` : ' today'}</h1>
         <p className="mt-3 text-[1rem] leading-relaxed text-ink-2">No office workflow — just where to work, the approved details, what not to start, and what changed. Reporting a shortage, a problem or extra work takes a few taps, and it goes straight to the right person.</p>
         <div className="mt-6 flex flex-col gap-3">

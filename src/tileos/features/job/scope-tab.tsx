@@ -139,8 +139,8 @@ function ScopeNumbers({ job }: { job: Job }) {
       {inField && <> · <b className="font-semibold tnum text-ink">{job.pct ?? 0}%</b> installed</>}
       {noTile > 0 && <span className="font-semibold text-warn-700">· {noTile} without a tile</span>}
       {noSF > 0 && <span className="font-semibold text-warn-700">· {noSF} without square feet</span>}
-      <span className="inline-flex items-center gap-1 text-muted" title={lock.done ? 'Locked once the tile paperwork is entered — only its owner changes it' : 'It locks once the tile paperwork is entered'}>
-        · {lock.done ? <Lock className="h-3.5 w-3.5 shrink-0" /> : <Unlock className="h-3.5 w-3.5 shrink-0" />}{lock.done ? `Locked — ${whose}` : `${whose.charAt(0).toUpperCase() + whose.slice(1)} until the paperwork is in`}
+      <span className="inline-flex items-center gap-1 text-muted" title={lock.done ? `Only ${whose === 'yours' ? 'you' : PEOPLE[lock.owner]?.short || 'its owner'} can change it` : 'It locks once the tile paperwork is entered'}>
+        · {lock.done ? <Lock className="h-3.5 w-3.5 shrink-0" /> : <Unlock className="h-3.5 w-3.5 shrink-0" />}{lock.done ? (whose === 'yours' ? 'Locked · yours' : 'Locked') : 'Not locked yet'}
       </span>
     </span>
   )
@@ -153,7 +153,7 @@ export function ScopeLockBar({ job }: { job: Job }) {
 }
 
 /* ---------------- the tile schedule ---------------- */
-const BAND = 'flex items-center justify-between gap-3 px-5 py-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-white max-sm:px-4'
+const BAND = 'flex items-center justify-between gap-3 px-5 py-1.5 text-[0.8125rem] font-semibold text-white max-sm:px-4'
 function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
@@ -161,7 +161,7 @@ function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
   const lock = scopeLock(s, job.id)
   return (
     <section className={SHEET}>
-      <div className={BAND} style={{ background: GREEN }}><span>Tile schedule</span><span>SF</span></div>
+      <div className={BAND} style={{ background: GREEN }}><span>Tile schedule</span><span>Square feet</span></div>
       {tiles.map((t) => {
         const uses = usesOf(rooms, t.tag)
         const sf = uses.reduce((n, u) => n + (u.x.sf || 0), 0)
@@ -207,7 +207,7 @@ function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
             return (
               <div key={r.name}>
                 <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
-                  <span className="min-w-0 truncate text-[0.75rem] font-bold uppercase tracking-[0.04em] text-ink">{r.name}{r.note && <span className="font-medium normal-case tracking-normal text-ink-2"> | {r.note}</span>}</span>
+                  <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
                   {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
                   <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
                 </div>

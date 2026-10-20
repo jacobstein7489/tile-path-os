@@ -148,7 +148,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} />}
       <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
         <div className="min-w-0">
-          {list.length > 1 && <div className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">Step {i + 1} of {list.length}</div>}
+          {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
           <div className="min-w-0">
             <h3 className="font-display mt-0.5 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
             <div className={cn('mt-1 text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')}>
@@ -206,7 +206,7 @@ function Rail({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: Ste
           if (!items.length) return null
           return (
             <div key={ph.key} className="pb-1.5">
-              <div className="px-4 pb-1 pt-2.5 text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted">{ph.label}</div>
+              <div className="px-4 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{ph.label}</div>
               {items.map((x) => (
                 <button
                   key={x.key}
@@ -944,7 +944,7 @@ function Setup({ job, v }: { job: Job; v: StepView }) {
       <Block title="What each floor and wall is set on" right={<span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-brand-500" />suggested</span>}>
         {rooms.map((r) => (
           <div key={r.name} className="border-t border-line-2 first:border-t-0">
-            <div className="px-4 pt-2.5 text-[0.75rem] font-bold uppercase tracking-[0.05em] text-muted">{r.name}</div>
+            <div className="px-4 pt-2.5 text-[0.75rem] font-semibold text-muted">{r.name}</div>
             {r.surfaces.map((x) => {
               const k = `${r.name}|${x.name}`
               const sug = suggestMethod(r.name, x)
@@ -1178,7 +1178,7 @@ export function GamePlan({ job }: { job: Job }) {
         return (
           <div key={ph.key}>
             <div className="flex items-center gap-2 border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 first:border-t-0 max-sm:px-4">
-              <span className="text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">{ph.label}</span>
+              <span className="text-[0.71875rem] font-semibold text-muted">{ph.label}</span>
               <span className={cn('text-[0.71875rem] font-semibold', d === items.length ? 'text-ok-700' : 'text-faint')}>{d === items.length ? 'all done' : `${d} of ${items.length}`}</span>
             </div>
             {items.map((v) => <PlanRow key={v.key} job={job} v={v} me={me} />)}
@@ -1187,7 +1187,7 @@ export function GamePlan({ job }: { job: Job }) {
       })}
       {(tasks.length > 0 || meets.length > 0) && (
         <>
-          <div className="border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:px-4">Also on this project</div>
+          <div className="border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:px-4">Also on this project</div>
           {tasks.map((t) => <NextRow key={t.id} dot={t.state === 'waiting' ? 'wait' : 'task'} title={t.title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')} sub={t.state === 'waiting' ? `Waiting on ${t.waitingOn}${t.followUp ? ` · back ${t.followUp}` : ''}` : undefined} who={t.owner} mine={t.owner === me} when={t.state === 'waiting' ? 'Waiting' : t.due || ''} onClick={() => s.open({ t: 'task', id: t.id })} />)}
           {meets.map((e) => <NextRow key={e.id} dot="ev" title={e.title} sub={e.with ? `With ${e.with}` : undefined} who={e.people[0]} mine={e.people.includes(me)} when={`${labelFromIso(e.date)} ${timeLabel(e.start)}`} onClick={() => s.open({ t: 'event', id: e.id })} />)}
         </>

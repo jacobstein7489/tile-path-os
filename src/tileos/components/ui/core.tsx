@@ -141,7 +141,7 @@ export function PersonLine({ who, sub, size = 32 }: { who: PersonKey; sub?: Reac
 /* ---------------- Card ---------------- */
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-[0.875rem] border border-line bg-white shadow-card', className)} {...rest}>
+    <div className={cn('rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card', className)} {...rest}>
       {children}
     </div>
   )

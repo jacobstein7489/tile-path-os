@@ -44,64 +44,52 @@ type SetTab = (t: any) => void
 
 /* ================= the bar on top ================= */
 export type PhaseState = 'done' | 'active' | 'wait' | 'bad' | 'todo'
-export type PhaseCell = { key: string; label: string; state: PhaseState; frac: number; who?: PersonKey; line: string; onClick?: () => void }
-const PARTS: { key: string; label: string }[] = [
-  { key: 'paper', label: 'Paperwork' },
-  { key: 'meet', label: 'Design meeting' },
-  { key: 'site', label: 'Site' },
-  { key: 'installer', label: 'Installer' },
-  { key: 'deliver', label: 'Deliveries' },
-]
+export type PhaseCell = { key: string; label: string; state: PhaseState; frac: number; who?: PersonKey; line: string; lineTone?: 'bad'; said?: string; onClick?: () => void }
 export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
+  /* four parts, left to right: getting it ready (the whole checklist behind it), installing, touch-ups, billed */
   const ready = isGettingReady(job)
   const past = !ready && !PRICING.includes(job.stage)
-  const steps = ready ? stepsFor(s, job) : []
-  const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const parts: PhaseCell[] = PARTS.map((ph) => {
-    if (!ready) return { key: ph.key, label: ph.label, state: past ? 'done' : 'todo', frac: past ? 1 : 0, line: past ? 'Done' : '' }
-    const items = steps.filter((v) => v.phase === ph.key && v.state !== 'na')
-    const done = items.filter((v) => v.state === 'done').length
-    const bad = items.find((v) => v.state === 'bad')
-    const now = items.find((v) => v.state === 'now')
-    const wait = items.find((v) => v.state === 'wait')
-    const all = !items.length || done === items.length
-    const first = bad || now || wait || items.find((v) => v.state === 'later') || items[0]
-    return {
-      key: ph.key,
-      label: ph.label,
-      state: all ? 'done' : bad ? 'bad' : now ? 'active' : wait ? 'wait' : 'todo',
-      frac: items.length ? done / items.length : 1,
-      who: all ? undefined : first?.owner,
-      line: all ? 'Done' : bad ? 'Problem' : `${done} of ${items.length} done`,
-      onClick: first ? () => openStep(job.id, first.key) : undefined,
-    }
-  })
+  const steps = ready ? stepsFor(s, job).filter((v) => v.state !== 'na') : []
+  const done = steps.filter((v) => v.state === 'done').length
+  const nBad = steps.filter((v) => v.state === 'bad').length
+  const bad = nBad > 0
   const st = job.stage
   const b = s.bookings.find((x) => x.jobId === job.id)
   const start = job.dates?.start || (b ? md(b.start) : s.prep[job.id]?.targetISO ? labelFromIso(s.prep[job.id]!.targetISO!) : undefined)
+  /* the day it was meant to start has gone by and nobody's tiling yet — say so, in red */
+  const startIso = b?.start || s.prep[job.id]?.targetISO
+  const lateStart = !!startIso && startIso < TODAY && !IN_FIELD.includes(st) && !PRICING.includes(st)
   const punch = s.punch.filter((p) => p.jobId === job.id)
   const punchOpen = punch.filter((p) => p.status !== 'verified').length
   const money = s.role !== 'site'
   const billed = money ? billingOf(job).billedPct : 0
+  const fieldDone = ['punch', 'closeout', 'complete'].includes(st)
   return [
-    ...parts,
+    {
+      key: 'ready', label: 'Getting ready',
+      state: past ? 'done' : !ready ? 'todo' : bad ? 'bad' : 'active',
+      frac: past ? 1 : steps.length ? done / steps.length : 0,
+      line: past ? 'Done' : ready ? (bad ? `${nBad} problem${nBad === 1 ? '' : 's'}` : `${done} of ${steps.length} done`) : '',
+      said: ready ? `${done} of ${steps.length} done${bad ? `, ${nBad} problem${nBad === 1 ? '' : 's'}` : ''}` : undefined,
+      onClick: () => s.open({ t: 'checklist', jobId: job.id }),
+    },
     {
       key: 'install', label: 'Installing',
-      state: st === 'installation' ? 'active' : ['punch', 'closeout', 'complete'].includes(st) ? 'done' : 'todo',
-      frac: st === 'installation' ? (job.pct ?? 0) / 100 : ['punch', 'closeout', 'complete'].includes(st) ? 1 : 0,
-      who: ['punch', 'closeout', 'complete'].includes(st) ? undefined : crew,
-      line: st === 'installation' ? `${job.pct ?? 0}% installed` : ['punch', 'closeout', 'complete'].includes(st) ? 'Done' : start ? `Starts ${start}` : crew ? 'No dates yet' : 'No installer yet',
-      onClick: setTab ? () => setTab('installer') : undefined,
+      state: st === 'installation' ? 'active' : fieldDone ? 'done' : 'todo',
+      frac: st === 'installation' ? (job.pct ?? 0) / 100 : fieldDone ? 1 : 0,
+      line: st === 'installation' ? `${job.pct ?? 0}% installed` : fieldDone ? 'Done' : start ? (lateStart ? `Late · ${start}` : `Starts ${start}`) : '',
+      lineTone: lateStart && st !== 'installation' && !fieldDone ? 'bad' : undefined,
+      onClick: setTab ? () => setTab('scope') : undefined,
     },
     {
       key: 'punch', label: 'Touch-ups',
-      state: st === 'punch' ? (punchOpen ? 'active' : 'done') : ['closeout', 'complete'].includes(st) ? 'done' : 'todo',
-      frac: ['closeout', 'complete'].includes(st) ? 1 : punch.length ? (punch.length - punchOpen) / punch.length : 0,
-      line: st === 'punch' ? (punchOpen ? `${punchOpen} open` : 'All fixed') : ['closeout', 'complete'].includes(st) ? 'Done' : '',
-      onClick: setTab ? () => setTab('installer') : undefined,
+      state: punchOpen ? 'active' : st === 'punch' || ['closeout', 'complete'].includes(st) ? 'done' : 'todo',
+      frac: punch.length ? (punch.length - punchOpen) / punch.length : ['closeout', 'complete'].includes(st) ? 1 : 0,
+      line: punchOpen ? `${punchOpen} open` : st === 'punch' ? 'All fixed' : ['closeout', 'complete'].includes(st) ? 'Done' : '',
+      onClick: () => s.open({ t: 'touchups', jobId: job.id }),
     },
     {
-      key: 'close', label: 'Billed and closed',
+      key: 'close', label: money ? 'Billed and paid' : 'Closed',
       state: st === 'complete' ? 'done' : st === 'closeout' ? 'active' : 'todo',
       frac: st === 'complete' ? 1 : billed / 100,
       line: st === 'complete' ? 'Done' : money && billed ? `${billed}% billed` : '',
@@ -128,8 +116,9 @@ export function PhaseBar({ cells }: { cells: PhaseCell[] }) {
           label: c.label,
           state: c.state === 'done' ? 'done' as const : c.state === 'bad' ? 'blocked' as const : c.state === 'active' || c.state === 'wait' ? 'current' as const : 'future' as const,
           date: c.line || undefined,
+          dateTone: c.lineTone,
           onClick: c.onClick,
-          aria: `${c.label} — ${c.state === 'done' ? 'done' : [c.line, who].filter(Boolean).join(', ') || 'not started'}`,
+          aria: `${c.label} — ${c.state === 'done' ? 'done' : [c.said || c.line, who].filter(Boolean).join(', ') || 'not started'}`,
         }
       })}
     />
@@ -249,7 +238,7 @@ function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?
     <button onClick={r.run} disabled={!r.run} className={cn(ROW, noWho && 'grid-cols-[1.75rem_minmax(0,1fr)_7.25rem_5.75rem]', 'w-full text-left transition-colors hover:bg-[#f8f6f2] disabled:cursor-default disabled:hover:bg-transparent max-md:grid-cols-[1.75rem_minmax(0,1fr)_auto]')} data-todo={r.key}>
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
       <span className="min-w-0">
-        <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.title}</span>
+        <span className="block text-[0.90625rem] font-semibold text-ink max-md:line-clamp-2 md:truncate">{r.title}</span>
         <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>
           <span className="md:hidden">{lead}{lead && r.note ? ' · ' : ''}</span>{r.note || <span className="max-md:hidden">&nbsp;</span>}
         </span>
@@ -284,14 +273,11 @@ export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
   const mine = rows.filter(isMine)
   const list = [...(scope === 'mine' ? mine : rows)].sort((a, b) => order(a) - order(b))
   const first1 = list.find((r) => r.group === 'mine' && r.run)?.key
-  const problems = list.filter(isProblem).length
   return (
     <Section
       title="What’s open"
-      count={list.length}
-      right={problems ? <span className="font-semibold text-bad-600 max-sm:hidden">{problems} {problems === 1 ? 'problem' : 'problems'}</span> : undefined}
       action={<>
-        <ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', icon: <Users />, count: rows.length }]} />
+        <ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', short: 'All', icon: <Users />, count: rows.length }]} />
         <AddToProject job={job} />
       </>}
     >

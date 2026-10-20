@@ -56,7 +56,7 @@ export function Page({
       <div className="mx-auto w-full max-w-[92.5rem]">
         <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5', PAGE_PX)}>
           <div className="min-w-0">
-            <h1 className="font-display text-[1.5rem] font-semibold leading-[1.15] tracking-[-0.01em] text-ink max-sm:text-[1.3125rem]">{title}</h1>
+            <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:text-[1.375rem]">{title}</h1>
             {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:text-[0.8125rem]">{sub}</div>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
@@ -88,7 +88,7 @@ export function Page({
 /** a white card with an optional bold title */
 export function Card({ title, count, right, sub, children, className, pad = true, id }: { title?: React.ReactNode; count?: number | string; right?: React.ReactNode; sub?: React.ReactNode; children?: React.ReactNode; className?: string; pad?: boolean; id?: string }) {
   return (
-    <section id={id} className={cn('min-w-0 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-card', className)}>
+    <section id={id} className={cn('min-w-0 overflow-clip rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card', className)}>
       {title && (
         <div className={cn('flex items-start justify-between gap-3 pb-3 pt-4', PX)}>
           <div className="min-w-0">
@@ -571,7 +571,7 @@ export function Status({ tone = 'neutral', children, className, plain }: { tone?
 /* ---------------- a switch between ways of seeing a list ----------------
  * Mine / Everyone, By time / By project: easy to see (the one you're on is dark), and it never moves — nothing next to
  * it appears or changes width when you switch. */
-export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
+export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; short?: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
   return (
     <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] border border-[#d6d0c6] bg-white p-[0.1875rem] shadow-xs', className)}>
       {items.map((it) => {
@@ -584,7 +584,7 @@ export function ViewSwitch<K extends string | boolean>({ value, onChange, items,
             onClick={() => onChange(it.key)}
             className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:shrink-0 max-sm:[&_svg]:hidden', on ? 'bg-ink text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.2)]' : 'text-ink-2 hover:bg-wash hover:text-ink')}
           >
-            {it.icon}{it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-white/70' : 'text-muted')}>{it.count}</span>}
+            {it.icon}{it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-white/70' : 'text-muted')}>{it.count}</span>}
           </button>
         )
       })}
@@ -593,7 +593,7 @@ export function ViewSwitch<K extends string | boolean>({ value, onChange, items,
 }
 
 /* ---------------- where something stands: step circles joined by a line ---------------- */
-export function Path({ steps, className, at, label }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
+export function Path({ steps, className, at, label }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad'; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
   return (
     <ol aria-label={label} className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
       {steps.map((st, i) => {
@@ -626,7 +626,7 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
               {st.sub && (
                 <span className={cn('mt-1 max-w-[7.5rem] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
               )}
-              {st.date && <span className={cn('mt-0.5 text-[0.71875rem] font-medium tnum', st.state === 'done' ? 'text-ok-700' : 'text-muted')}>{st.date}</span>}
+              {st.date && <span className={cn('mt-0.5 text-[0.71875rem] font-medium tnum', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'done' ? 'text-ok-700' : 'text-muted')}>{st.date}</span>}
             </button>
           </li>
         )

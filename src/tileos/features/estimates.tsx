@@ -739,7 +739,7 @@ export function AiPlansModal({ estId, level }: { estId: string; level: number })
           <div className="mt-4 overflow-hidden rounded-xl border border-line">
             {rooms.map((room, ri) => (
               <section key={room} className={cn(ri > 0 && 'border-t border-line')}>
-                <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-bold uppercase tracking-[0.04em] text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
+                <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-semibold text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
                 {d.rows.filter((r) => r.room === room).map((r) => {
                   const t = tileOf(e.jobId, r.tile)
                   return (

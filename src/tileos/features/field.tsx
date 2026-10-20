@@ -489,7 +489,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
           <section className="overflow-hidden rounded-2xl border border-line">
             <div className="flex items-center gap-4 bg-wash px-5 py-4">
               <div className="min-w-0 flex-1">
-                <div className="text-[0.78125rem] font-semibold uppercase tracking-[0.05em] text-muted">{job.name} · today</div>
+                <div className="text-[0.78125rem] font-semibold text-muted">{job.name} · today</div>
                 <div className="mt-1.5 flex items-center gap-3">
                   <Bar pct={projected} className="flex-1" h={8} />
                   <span className="shrink-0 text-[0.9375rem] font-bold tnum text-ink">{projected}%{projected !== before ? <span className="ml-1.5 text-[0.8125rem] font-medium text-muted">was {before}%</span> : null}</span>
@@ -499,7 +499,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
             {lines.length ? (
               lines.map((l) => (
                 <div key={l.k} className="flex items-center gap-4 border-t border-line-2 px-5 py-3">
-                  <span className="w-[9.375rem] shrink-0 truncate text-[0.8125rem] font-semibold uppercase tracking-[0.03em] text-muted max-sm:w-[6rem]">{l.room}</span>
+                  <span className="w-[9.375rem] shrink-0 truncate text-[0.8125rem] font-semibold text-muted max-sm:w-[6rem]">{l.room}</span>
                   <span className="min-w-0 flex-1 truncate text-[0.90625rem] font-medium text-ink">{l.surface}</span>
                   <span className={cn('inline-flex h-7 items-center rounded-full px-2.5 text-[0.78125rem] font-semibold tnum', l.to >= 100 ? 'bg-ok-50 text-ok-700' : 'bg-brand-50 text-brand-700')}>{l.from}% → {l.to >= 100 ? 'done' : `${l.to}%`}</span>
                 </div>
@@ -531,7 +531,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
               </div>
               {gc && (
                 <div className="mt-4 rounded-xl border border-line bg-white p-5">
-                  <div className="text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-muted">Progress report · {dayShort(TODAY)}</div>
+                  <div className="text-[0.75rem] font-semibold text-muted">Progress report · {dayShort(TODAY)}</div>
                   <div className="mt-1 text-[1.125rem] font-bold tracking-[-0.01em] text-ink">{job.name}</div>
                   <div className="mt-3 flex items-center gap-3">
                     <Bar pct={projected} className="flex-1" h={8} />

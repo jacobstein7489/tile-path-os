@@ -549,7 +549,7 @@ function CleanSlate() {
 function NowLine({ min }: { min: number }) {
   return (
     <div className={cn('relative flex items-center gap-2 border-t border-line-2 py-1', PX)} aria-label="Now">
-      <span className="text-[0.71875rem] font-bold uppercase tracking-wide text-bad-600 tnum">Now · {timeLabel(min - (min % 5))}</span>
+      <span className="text-[0.71875rem] font-semibold text-bad-600 tnum">Now · {timeLabel(min - (min % 5))}</span>
       <span className="h-px flex-1 bg-bad-300" />
     </div>
   )

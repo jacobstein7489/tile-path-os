@@ -106,7 +106,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
     const booking = s.bookings.find((b) => b.jobId === job.id)
     const hold = s.ready.find((r) => r.jobId === job.id && r.kind === 'hold')
     const items: NowItem[] = [
-      { key: 'punch', title: 'Touch-ups', status: left.length ? 'todo' : 'done', note: left.length ? `${left.length} still open` : 'All verified', action: left.length ? { label: 'Open list', run: () => setTab('installer') } : undefined },
+      { key: 'punch', title: 'Touch-ups', status: left.length ? 'todo' : 'done', note: left.length ? `${left.length} still open` : 'All verified', action: left.length ? { label: 'Open list', run: () => s.open({ t: 'touchups', jobId: job.id }) } : undefined },
       hold
         ? { key: 'ret', title: 'Return visit', status: 'bad', note: hold.warn || 'On hold', action: job.id === '828' ? { label: 'Chase or reorder', run: () => s.open({ t: 'thinset' }) } : undefined }
         : { key: 'ret', title: 'Return visit', status: booking ? 'done' : 'todo', note: booking ? `${PEOPLE[booking.crew as PersonKey].short} · ${booking.start.slice(5).replace('-', '/')}` : 'Not booked yet', action: booking ? undefined : { label: 'Book it', run: () => s.open({ t: 'assign', jobId: job.id }) } },

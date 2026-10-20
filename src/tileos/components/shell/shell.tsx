@@ -136,7 +136,7 @@ export function Sidebar() {
           if (!keys.length) return null
           return (
             <div key={g.label || 'top'} className={cn(g.label && 'mt-2.5 border-t border-line-2 pt-2.5 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')}>
-              {g.label && <div className="px-2.5 pb-1 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-faint">{g.label}</div>}
+              {g.label && <div className="px-2.5 pb-1 text-[0.75rem] font-semibold text-faint">{g.label}</div>}
               <div className="flex flex-col gap-[0.125rem]">
                 {keys.map((k) => <Item key={k} k={k as Page} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
               </div>

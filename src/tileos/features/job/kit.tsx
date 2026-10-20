@@ -14,7 +14,7 @@ import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 /** Cobblestone's green — the bands on the scope of work */
 export const GREEN = '#2c4a3e'
-export const SHEET = 'overflow-hidden rounded-2xl border border-line bg-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.04)]'
+export const SHEET = 'overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card'
 /** a person's first name — "Mordcha", not "Mordcha Shapiro" */
 export const firstName = (p?: PersonKey) => (p ? PEOPLE[p]?.short || PEOPLE[p]?.name || '' : '')
 
@@ -23,9 +23,9 @@ export function Section({ title, count, sub, right, action, children, className,
     <section id={id} className={cn(SHEET, className)}>
       {title && (
         <>
-          <header className="flex min-h-[3rem] items-center gap-2.5 border-b border-line-2 px-5 py-2 max-sm:px-4">
-            <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink">{title}</h3>
-            {count != null && <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-semibold tnum text-ink-2">{count}</span>}
+          <header className="flex min-h-[3.25rem] items-center gap-2 border-b border-[#f1ede7] px-5 py-2 max-sm:px-4">
+            <h3 className="min-w-0 truncate text-[1rem] font-semibold tracking-[-0.005em] text-ink">{title}</h3>
+            {count != null && <span className="shrink-0 text-[0.875rem] font-medium tnum text-faint">{count}</span>}
             <span className="flex-1" />
             {right && <span className="min-w-0 shrink truncate text-[0.8125rem] text-muted">{right}</span>}
             {action && <div className="flex shrink-0 items-center gap-1.5">{action}</div>}
@@ -40,7 +40,7 @@ export function Section({ title, count, sub, right, action, children, className,
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
 /** a grey band inside a sheet — a room, a person, a group */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn('flex items-center gap-2 bg-[#f1eee8] px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.05em] max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>
+  <div className={cn('flex items-center gap-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.78125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>
     <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-semibold text-muted">{count}</span>}
     {right != null && <span className="ml-auto shrink-0 tnum">{right}</span>}
   </div>
@@ -54,9 +54,9 @@ export function Strip({ stats, footer }: { stats: Stat[]; footer?: React.ReactNo
       <div className={cn('grid', four ? 'grid-cols-4 max-md:grid-cols-2' : 'grid-cols-3 max-sm:grid-cols-1')}>
         {stats.map((x, i) => (
           <div key={x.label} className={cn('min-w-0 border-line-2 px-5 py-3 max-sm:px-4', i > 0 && 'border-l', four && 'max-md:[&:nth-child(3)]:border-l-0 max-md:[&:nth-child(n+3)]:border-t', !four && 'max-sm:border-l-0 max-sm:[&:nth-child(n+2)]:border-t')}>
-            <div className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-muted">{x.label}</div>
+            <div className="text-[0.78125rem] font-medium text-muted">{x.label}</div>
             <div className={cn('mt-0.5 truncate text-[1.375rem] font-semibold leading-tight tnum max-sm:text-[1.1875rem]', x.tone === 'bad' ? 'text-bad-700' : 'text-ink')}>{x.value}</div>
-            {x.sub && <div className={cn('truncate text-[0.78125rem]', x.tone === 'bad' ? 'font-semibold text-bad-600' : x.tone === 'warn' ? 'font-semibold text-ink-2' : 'text-muted')}>{x.sub}</div>}
+            {x.sub && <div className={cn('text-[0.78125rem] sm:truncate', x.tone === 'bad' ? 'font-semibold text-bad-600' : x.tone === 'warn' ? 'font-semibold text-ink-2' : 'text-muted')}>{x.sub}</div>}
           </div>
         ))}
       </div>

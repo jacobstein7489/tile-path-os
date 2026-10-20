@@ -24,13 +24,64 @@ const poWord = (step: number, eta?: string) =>
 const COLS = 'grid grid-cols-[2rem_minmax(0,1fr)_7rem_11.5rem] items-center gap-4 max-sm:grid-cols-[2rem_minmax(0,1fr)_auto] max-sm:gap-3'
 export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
+  const [vs, setVs] = React.useState(false)
   if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} />
   const ipos = s.ipos.filter((p) => p.jobId === job.id)
   const pos = s.pos.filter((p) => p.jobId === job.id)
   const ipo = currentIPO(s, job.id)
   const b = budgetOf(s, job)
-  const Row = ({ onClick, icon, title, sub, amount, status }: { onClick: () => void; icon: React.ReactNode; title: string; sub: React.ReactNode; amount: number; status: React.ReactNode }) => (
-    <button onClick={onClick} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
+  const r = ipo ? poRatio(s, ipo) : undefined
+  /* three parts: the installer's PO, the tile, our materials (with their POs) — each says where it stands */
+  return (
+    <div className="flex flex-col gap-4">
+      <Section
+        title="The installer"
+        right={r && r.sold && r.total ? <span className={cn(r.over && 'font-semibold text-bad-600')}>{r.pct}% of our estimate{r.over ? ' — over the line' : ''}</span> : b.sold ? `Keep it under ${fmtMoney(b.cap)}` : undefined}
+        action={ipo ? <Button size="sm" variant="ghost" onClick={() => setVs(!vs)}>{vs ? 'Hide the lines' : 'Line by line'}</Button> : undefined}
+      >
+        {ipos.map((p) => {
+          const pr = poRatio(s, p)
+          return (
+            <PORow
+              key={p.id}
+              onClick={() => s.open({ t: 'ipo', id: p.id })}
+              icon={<HardHat />}
+              title={`${PEOPLE[p.crew].name} · ${p.id}`}
+              sub={<>{pr.sold && pr.total ? <span className={cn(pr.over ? 'font-semibold text-bad-600' : 'text-ink-2')}>{pr.pct}% of our estimate</span> : 'No prices on it yet'} · {p.lines.length} line{p.lines.length === 1 ? '' : 's'}{p.changes.length ? ` · ${p.changes.length} change${p.changes.length > 1 ? 's' : ''}` : ''}</>}
+              amount={pr.total || p.lines.reduce((n, l) => n + l.amount, 0)}
+              status={<Word tone={p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'bad' : undefined}>{p.status === 'Draft' ? 'Draft — not sent' : p.status === 'Sent' ? `Waiting for ${PEOPLE[p.crew].short}` : p.status === 'Rejected' ? 'Turned down' : 'Accepted'}</Word>}
+            />
+          )
+        })}
+        {!ipo && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">
+            <span className="min-w-0 flex-1">No installer PO yet{b.sold ? <> — keep it under <b className="font-semibold text-ink">{fmtMoney(b.cap)}</b>, {b.line}% of our {fmtMoney(b.sold)}</> : null}.</span>
+            <Button size="sm" variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book the installer</Button>
+          </div>
+        )}
+      </Section>
+      {ipo && vs && <InstallerVsEstimate job={job} />}
+      <TileOrders job={job} onScope={onScope} />
+      <MaterialsNeed job={job} onScope={onScope} orders={
+        pos.length ? pos.map((p) => (
+          <PORow
+            key={p.id}
+            onClick={() => s.open({ t: 'po', id: p.id })}
+            icon={<Package />}
+            title={`${p.supplier} · ${p.id}`}
+            sub={`${p.what} · ${p.lines.length} line${p.lines.length === 1 ? '' : 's'}`}
+            amount={p.amount}
+            status={<Word tone={/cancelled/i.test(p.note) ? undefined : p.late ? 'bad' : p.step >= 3 ? 'ok' : undefined}>{/cancelled/i.test(p.note) ? 'Cancelled' : p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word>}
+          />
+        )) : undefined
+      } />
+    </div>
+  )
+}
+/** one PO on a project: what, how much, where it's at */
+function PORow({ onClick, icon, title, sub, amount, status }: { onClick: () => void; icon: React.ReactNode; title: string; sub: React.ReactNode; amount: number; status: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4')}>
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
       <span className="min-w-0">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{title}</span>
@@ -42,56 +93,6 @@ export function POsTab({ job, onScope }: { job: Job; onScope: () => void }) {
         {status}
       </span>
     </button>
-  )
-  return (
-    <div className="flex flex-col gap-4">
-      <POStrip job={job} />
-      <Section title="Purchase orders" count={ipos.length + pos.length} action={<Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newpo', jobId: job.id })}>New PO</Button>}>
-        <div className={cn(COLS, 'border-b border-line-2 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:hidden')}>
-          <span />
-          <span>PO</span>
-          <span className="text-right">Amount</span>
-          <span className="text-right">Where it’s at</span>
-        </div>
-        <Group label="Installer" right={b.sold ? <span className="font-semibold normal-case tracking-normal text-muted">Stays under {b.line}% of our estimate</span> : undefined} />
-        {ipos.map((p) => {
-          const r = poRatio(s, p)
-          return (
-            <Row
-              key={p.id}
-              onClick={() => s.open({ t: 'ipo', id: p.id })}
-              icon={<HardHat />}
-              title={`${p.id} · ${PEOPLE[p.crew].name}`}
-              sub={<>{r.sold && r.total ? <span className={cn(r.over ? 'font-semibold text-bad-600' : 'font-medium text-ink-2')}>{r.pct}% of our estimate{r.over ? ' — over the line' : ''}</span> : 'No prices on it yet'} · {p.lines.length} line{p.lines.length === 1 ? '' : 's'}{p.changes.length ? ` · ${p.changes.length} change${p.changes.length > 1 ? 's' : ''}` : ''}</>}
-              amount={r.total || p.lines.reduce((n, l) => n + l.amount, 0)}
-              status={<Word tone={p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'bad' : undefined}>{p.status === 'Draft' ? 'Draft — not sent' : p.status === 'Sent' ? `Waiting for ${PEOPLE[p.crew].short}` : p.status === 'Rejected' ? 'Turned down' : 'Accepted'}</Word>}
-            />
-          )
-        })}
-        {!ipo && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-2 px-5 py-2.5 text-[0.84375rem] text-muted max-sm:px-4">
-            <span className="min-w-0 flex-1">No installer PO yet{b.sold ? <> — keep it under <b className="font-semibold text-ink">{fmtMoney(b.cap)}</b>, {b.line}% of our {fmtMoney(b.sold)}</> : null}.</span>
-            <Button size="sm" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book the installer</Button>
-          </div>
-        )}
-        <Group label="Materials" count={pos.length || undefined} />
-        {pos.map((p) => (
-          <Row
-            key={p.id}
-            onClick={() => s.open({ t: 'po', id: p.id })}
-            icon={<Package />}
-            title={`${p.id} · ${p.supplier}`}
-            sub={`${p.what} · ${p.lines.length} line${p.lines.length === 1 ? '' : 's'}`}
-            amount={p.amount}
-            status={<Word tone={/cancelled/i.test(p.note) ? undefined : p.late ? 'bad' : p.step >= 3 ? 'ok' : undefined}>{/cancelled/i.test(p.note) ? 'Cancelled' : p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word>}
-          />
-        ))}
-        {!pos.length && <Empty className="border-t border-line-2">No materials POs yet — order what’s missing from Setting materials below.</Empty>}
-      </Section>
-      {ipo && <InstallerVsEstimate job={job} />}
-      <TileOrders job={job} onScope={onScope} />
-      <MaterialsNeed job={job} onScope={onScope} />
-    </div>
   )
 }
 
@@ -134,12 +135,7 @@ function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const short = sts.filter((x) => x.tone === 'bad').length
   return (
     <div className="flex flex-col gap-4">
-      <Strip stats={[
-        { label: 'Tile on site', value: tags.length ? `${here} of ${tags.length}` : '—', sub: short ? `${short} short — the office is on it` : tags.length && here < tags.length ? `${tags.length - here} coming` : tags.length ? 'All here' : 'No tiles yet', tone: short ? 'bad' : undefined },
-        { label: 'Materials coming', value: String(coming.length), sub: coming.length ? `${coming.length} order${coming.length === 1 ? '' : 's'} not in yet` : 'Nothing on the way' },
-        { label: 'Late', value: String(late), sub: late ? 'Past their date' : 'Nothing late', tone: late ? 'bad' : undefined },
-      ]} />
-      <Section title="On the way" count={coming.length}>
+      <Section title="On the way" count={coming.length} right={late ? <span className="font-semibold text-bad-600">{late} late</span> : tags.length ? `Tile: ${here} of ${tags.length} here${short ? ` · ${short} short` : ''}` : undefined}>
         {coming.map((p) => (
           <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4')}>
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4"><Package /></span>

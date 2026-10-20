@@ -71,7 +71,7 @@ export function Thread({ jobId, outside }: { jobId: string; outside?: boolean })
                 <div className={cn('max-w-[72%] min-w-0', mine && 'items-end text-right')}>
                   {!mine && <div className="mb-0.5 text-[0.75rem] font-semibold text-muted">{PEOPLE[m.who]?.name}{ext ? ' · GC' : ''}{m.wa ? ' · via WhatsApp' : ''}</div>}
                   <div className={cn('inline-block rounded-2xl px-3.5 py-2 text-left text-[0.875rem] leading-snug', mine ? 'rounded-br-md bg-brand-600 text-white' : m.internal ? 'rounded-bl-md bg-warn-50 text-ink ring-1 ring-warn-100' : 'rounded-bl-md bg-wash-2 text-ink')}>
-                    {m.internal && <div className={cn('mb-0.5 inline-flex items-center gap-1 text-[0.6875rem] font-bold uppercase tracking-[0.05em]', mine ? 'text-white/80' : 'text-warn-700')}><Lock className="h-3 w-3" />Team only</div>}
+                    {m.internal && <div className={cn('mb-0.5 inline-flex items-center gap-1 text-[0.75rem] font-semibold', mine ? 'text-white/80' : 'text-warn-700')}><Lock className="h-3 w-3" />Team only</div>}
                     <div>{m.text}</div>
                     {m.photos && (
                       <div className="mt-2 flex gap-1.5">

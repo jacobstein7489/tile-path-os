@@ -30,10 +30,10 @@ export function MoneyRow({ m, showJob }: { m: MoneyItem; showJob?: boolean }) {
   const at = m.state === 'paid' ? steps.length - 1 : m.step
   return (
     <button onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_7.5rem_11rem] items-center gap-6 border-b border-line-2 px-5 py-3 text-left transition-colors last:border-0 hover:bg-wash md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
-      <div className="min-w-0 md:max-xl:row-span-2 md:max-xl:self-center">
-        <div className="flex items-center gap-2">
-          <span className="text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted">{MONEY_KIND_LABEL[m.kind]}</span>
-          <span className={cn('text-[0.78125rem] font-semibold', m.ref ? 'text-ink-2' : 'text-faint')}>{m.ref ? `Invoice ${m.ref}` : m.state === 'upcoming' ? 'Later' : 'Not invoiced yet'}</span>
+ <div className="min-w-0 md:max-xl:row-span-2 md:max-xl:self-center">
+ <div className="flex items-center gap-2">
+ <span className="text-[0.78125rem] font-medium text-muted">{MONEY_KIND_LABEL[m.kind]}</span>
+ <span className={cn('text-[0.78125rem] font-semibold', m.ref ? 'text-ink-2' : 'text-faint')}>{m.ref ? `Invoice ${m.ref}` : m.state === 'upcoming' ? 'Later' : 'Not invoiced yet'}</span>
         </div>
         <div className="mt-1 truncate text-[0.90625rem] font-semibold text-ink">{showJob && job ? `${job.name} · ` : ''}{m.title}</div>
         <div className="truncate text-[0.78125rem] text-muted">{m.note}</div>
@@ -83,28 +83,20 @@ export function MoneyTab({ job }: { job: Job }) {
           { label: 'Billed to date', value: fmtMoney(billed), sub: `${b.billedPct}% · ${fmtMoney(paid)} paid` },
           { label: 'Retainage held', value: fmtMoney(b.retainage), sub: `${s.rules.retainage}% · released at closeout` },
         ]}
-        footer={<>
-          <span className="min-w-0 flex-1 text-[0.8125rem] text-ink-2">{job.before?.billed || job.before?.paid ? <>Before Tile OS: <b className="font-semibold tnum">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum">{fmtMoney(job.before.paid)}</b> paid — counted in.</> : 'Started before Tile OS? Put in what was already billed, so nothing is billed twice.'}</span>
-          <Button size="sm" onClick={() => s.open({ t: 'billedbefore', jobId: job.id })}>{job.before?.billed || job.before?.paid ? 'Change it' : 'Already billed'}</Button>
-        </>}
+        footer={
+          <div className="w-full">
+            {/* where the money is, in one bar: paid, billed, installed but not billed yet */}
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-[#ece8e1]" title={`${b.installedPct}% installed`}>
+              {parts.map((x) => x.pct > 0 && <span key={x.label} style={{ width: `${x.pct}%`, background: x.color }} />)}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.78125rem] text-ink-2">
+              {parts.map((x) => <span key={x.label} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: x.color }} />{x.label} <b className="font-semibold tnum text-ink">{x.pct}%</b></span>)}
+              <span className="text-muted">{b.installedPct}% installed</span>
+              {b.toBill > 0 && <Button size="sm" variant="primary" className="ml-auto max-sm:ml-0" onClick={() => s.open({ t: 'progress', jobId: job.id, week: LAST_WEEK.key })}>Bill {fmtMoney(b.toBill)} now</Button>}
+            </div>
+          </div>
+        }
       />
-      <Section title="Where the money is" right={`${b.installedPct}% installed`}>
-        <div className="px-5 py-4 max-sm:px-4">
-          <div className="flex h-3 overflow-hidden rounded-full bg-[#ece8e1]">
-            {parts.map((x) => x.pct > 0 && <span key={x.label} style={{ width: `${x.pct}%`, background: x.color }} />)}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[0.8125rem] text-ink-2">
-            {parts.map((x) => <span key={x.label} className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: x.color }} />{x.label} <b className="font-semibold tnum text-ink">{x.pct}%</b></span>)}
-            <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#ece8e1]" />Not installed yet</span>
-          </div>
-        </div>
-        {b.toBill > 0 && (
-          <div className="flex flex-wrap items-center gap-3 border-t border-line-2 px-5 py-3 max-sm:px-4">
-            <span className="min-w-0 flex-1 text-[0.875rem] text-ink-2"><b className="font-semibold text-ink">{fmtMoney(b.toBill)} can go on a progress bill now</b> — the daily updates say {b.installedPct}% is in, {b.billedPct}% is billed.</span>
-            <Button size="sm" variant="primary" onClick={() => s.open({ t: 'progress', jobId: job.id, week: LAST_WEEK.key })}>See what to bill</Button>
-          </div>
-        )}
-      </Section>
       <Section title="Bills" count={items.filter((m) => m.kind !== 'change').length} right="They go out from QuickBooks">
         <div>
           {items.filter((m) => m.kind !== 'change').map((m) => <MoneyRow key={m.id} m={m} />)}
@@ -112,6 +104,12 @@ export function MoneyTab({ job }: { job: Job }) {
         </div>
       </Section>
       <EstimateAndChanges job={job} />
+      <div className="flex flex-wrap items-center gap-2 px-1 text-[0.8125rem] text-muted">
+        {job.before?.billed || job.before?.paid
+          ? <>Before Tile OS: <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.paid)}</b> paid — counted in.</>
+          : 'Started before Tile OS?'}
+        <button onClick={() => s.open({ t: 'billedbefore', jobId: job.id })} className="font-semibold text-brand-700 hover:underline">{job.before?.billed || job.before?.paid ? 'Change it' : 'Put in what was already billed'}</button>
+      </div>
     </div>
   )
 }

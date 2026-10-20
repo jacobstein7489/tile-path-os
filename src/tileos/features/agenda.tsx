@@ -75,10 +75,10 @@ export function Agenda({ who }: { who: 'me' | 'all' | PersonKey }) {
             const crewPeople = onSite.reduce((n, b) => n + (b.workers || 2), 0)
             return (
               <section key={iso} className={cn(!single && 'border-b border-line-2 pb-3 pt-3 first:pt-0 last:border-0 last:pb-0')}>
-                {!single && <div className="mb-2 text-[0.78125rem] font-bold uppercase tracking-[0.05em] text-muted">{dayLabel(iso)} <span className="font-semibold normal-case tracking-normal text-faint">· {new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></div>}
+                {!single && <div className="mb-2 text-[0.78125rem] font-semibold text-muted">{dayLabel(iso)} <span className="font-semibold normal-case tracking-normal text-faint">· {new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></div>}
                 {onSite.length > 0 && (
                   <div className="mb-3 rounded-xl bg-wash px-3 pb-3 pt-2.5">
-                    <div className="flex items-center justify-between text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-faint">
+                    <div className="flex items-center justify-between text-[0.75rem] font-semibold text-faint">
                       <span>On site</span>
                       <span className="tnum">{onSite.length} crews · {crewPeople} people</span>
                     </div>

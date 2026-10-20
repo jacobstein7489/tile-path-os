@@ -42,16 +42,10 @@ export function InstallerTab({ job }: { job: Job }) {
   const simple = s.role === 'site'
   return (
     <div className="flex flex-col gap-4">
-    <Strip stats={[
-      { label: 'Installer', value: crew ? PEOPLE[crew].short : 'Not picked', sub: crew ? (bookings[0]?.workers ? `${bookings[0].workers} people` : 'His crew') : simple ? 'The office picks him' : 'Book an installer' },
-      { label: 'On the calendar', value: days, sub: bookings.length ? `${bookings.length} booking${bookings.length === 1 ? '' : 's'}` : 'No days yet' },
-      ...(simple ? [] : [{ label: 'His PO', value: r && r.sold && r.total ? `${r.pct}%` : ipo ? fmtMoney(total) : '—', sub: r && r.sold && r.total ? `of our estimate · ${fmtMoney(total)}` : ipo ? IPO_STATUS[ipo.status].label(PEOPLE[ipo.crew].short) : 'No PO yet', tone: r?.over ? 'bad' as const : undefined }]),
-      { label: 'Daily updates', value: String(diary.length), sub: diary[0] ? `Last one ${diary[0].date}` : inField ? 'None yet' : 'From the first day on site' },
-    ]} />
     <div className={cn('grid items-start gap-4 max-[68rem]:grid-cols-1', simple ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_21rem]')}>
       <div className="flex min-w-0 flex-col gap-4">
         {/* who */}
-        <Section title="The installer">
+        <Section title={crew ? PEOPLE[crew].name : 'The installer'} right={crew && diary[0] ? `Last update ${diary[0].date}` : undefined}>
           {crew ? (
             <div className="flex flex-wrap items-center gap-4 px-5 py-3 max-sm:px-4">
               <Avatar who={crew} size={40} plain />

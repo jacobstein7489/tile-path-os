@@ -55,8 +55,8 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
   return (
     <div ref={innerRef} className="mx-auto w-full max-w-[48.75rem] bg-white px-10 py-9 font-[Helvetica,Arial,sans-serif] text-[#222] shadow-card max-sm:px-4 max-sm:py-6">
       <div className="flex items-baseline justify-between gap-4">
-        <div className="text-[1.75rem] font-bold tracking-[0.01em] max-sm:text-[1.375rem]" style={{ color: GREEN }}>COBBLESTONE</div>
-        <div className="text-[0.8125rem] font-bold tracking-[0.04em]" style={{ color: GREEN }}>{prices ? 'ESTIMATE' : 'SCOPE OF WORK'}</div>
+        <div className="text-[1.75rem] font-bold max-sm:text-[1.375rem]" style={{ color: GREEN }}>COBBLESTONE</div>
+        <div className="text-[0.8125rem] font-bold" style={{ color: GREEN }}>{prices ? 'ESTIMATE' : 'SCOPE OF WORK'}</div>
       </div>
       <div className="mt-4 text-[0.875rem] font-bold">{j.name} | {j.address}</div>
       <div className="mt-0.5 flex flex-wrap justify-between gap-x-4 text-[0.75rem] text-[#444]">
@@ -67,13 +67,13 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
       <div className="mt-6">
         {groups.map((g) => (
           <section key={g.floor} className="mb-5">
-            <div className="flex items-center justify-between gap-3 px-2 py-2 text-[0.75rem] font-bold uppercase text-white" style={{ background: GREEN }}>
+            <div className="flex items-center justify-between gap-3 px-2 py-2 text-[0.75rem] font-semibold text-white" style={{ background: GREEN }}>
               <span>{g.floor}</span>
               <span className="flex gap-3"><span className="w-[5.25rem] text-right">Quantity</span>{prices && <span className="w-[5.75rem] text-right">Amount</span>}</span>
             </div>
             {g.areas.map((a) => (
               <div key={a.name} className="break-inside-avoid">
-                <div className="mt-1 px-2 py-1.5 text-[0.71875rem] font-bold uppercase" style={{ background: GRAY }}>
+                <div className="mt-1 px-2 py-1.5 text-[0.71875rem] font-semibold" style={{ background: GRAY }}>
                   {a.name}{a.note ? <span className="normal-case"> | {a.note}</span> : null}
                 </div>
                 {!a.lines.length && <div className="px-2 py-[0.1875rem] text-[0.71875rem]">No tile installation</div>}
@@ -101,12 +101,12 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
 
       {prices && (
         <div className="mt-2 break-inside-avoid">
-          <div className="ml-auto flex w-full max-w-[20rem] items-center justify-between px-2 py-2 text-[0.8125rem] font-bold uppercase text-white" style={{ background: GREEN }}>
+          <div className="ml-auto flex w-full max-w-[20rem] items-center justify-between px-2 py-2 text-[0.8125rem] font-semibold text-white" style={{ background: GREEN }}>
             <span>Total</span><span className="tnum">{fmtMoney(total)}</span>
           </div>
           {toMeasure > 0 && <div className="mt-1 text-right text-[0.6875rem] font-semibold text-[#b06a0c]">{toMeasure} {toMeasure === 1 ? 'line' : 'lines'} still to measure — not in the total yet</div>}
           <div className="mt-6 text-[0.71875rem] leading-relaxed text-[#444]">
-            <div className="mb-1 text-[0.71875rem] font-bold uppercase" style={{ color: GREEN }}>Terms</div>
+            <div className="mb-1 text-[0.71875rem] font-semibold" style={{ color: GREEN }}>Terms</div>
             Labor and setting materials included; finish tile supplied by others unless listed above.
             {s.rules.depositPct ? ` ${s.rules.depositPct}% deposit to schedule the work.` : ''} Progress billing monthly{s.rules.retainage ? `, ${s.rules.retainage}% retainage released at completion` : ''}. Prices good for 30 days.
           </div>

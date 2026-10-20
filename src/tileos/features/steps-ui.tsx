@@ -125,7 +125,7 @@ export function StepsList({ job }: { job: Job }) {
 }
 
 function GroupHead({ label, count }: { label: string; count: number }) {
-  return <div className="border-t border-line-2 bg-wash/60 px-5 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted first:border-t-0 max-sm:px-4">{label} <span className="font-semibold text-faint">{count}</span></div>
+  return <div className="border-t border-line-2 bg-wash/60 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted first:border-t-0 max-sm:px-4">{label} <span className="font-semibold text-faint">{count}</span></div>
 }
 
 function StepRow({ job, v }: { job: Job; v: StepView }) {

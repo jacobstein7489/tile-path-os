@@ -138,7 +138,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
         <div className="mt-4 overflow-hidden rounded-[0.75rem] border border-line">
           {groups.map((g) => (
             <div key={g.floor || 'none'}>
-              <div className="border-b border-line-2 bg-[#f7f5f0] px-3 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-muted">{g.floor || 'No floor'}</div>
+              <div className="border-b border-line-2 bg-[#f7f5f0] px-3 py-1.5 text-[0.71875rem] font-semibold text-muted">{g.floor || 'No floor'}</div>
               {g.list.map((a) => (
                 <div key={a.name + (a.floor || '')} className="flex items-start gap-3 border-b border-line-2 px-3 py-2.5 last:border-b-0">
                   <div className="w-[10.625rem] shrink-0 pt-0.5 max-sm:w-[7.5rem]">

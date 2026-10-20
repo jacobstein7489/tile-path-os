@@ -157,7 +157,7 @@ function Doc({ title, refNo, rows, children }: { title: string; refNo: string; r
   return (
     <div className="rounded-xl border border-[#e8eaee] p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-[#66707f]">{title}</span>
+        <span className="text-[0.75rem] font-semibold text-[#66707f]">{title}</span>
         <span className="text-[0.875rem] font-bold tnum text-[#101828]">{refNo}</span>
       </div>
       <div className="mb-3 mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.78125rem] max-sm:grid-cols-1">

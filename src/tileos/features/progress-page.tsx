@@ -98,7 +98,7 @@ export function ProgressList({ week }: { week: string }) {
       <div className={cn('flex items-start gap-2 border-t border-line-2 bg-wash/60 py-3 text-[0.78125rem] leading-snug text-muted', PX)}>
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
-          How it’s worked out: the daily updates say how far each wall and floor moved; each one is worth its share of the approved estimate. Installed to date, less {s.rules.retainage}% retainage and what’s already billed, is what to bill. The deposit comes off {DEPOSIT_WAY[s.rules.depositOff || 'first'].label.toLowerCase()} — Settings → Company rules.{smp(' Sample amounts.')}
+          What got installed (from the daily updates), less {s.rules.retainage}% retainage and what’s already billed. The deposit comes off {DEPOSIT_WAY[s.rules.depositOff || 'first'].label.toLowerCase()}.{smp(' Sample amounts.')}
         </span>
       </div>
     </div>

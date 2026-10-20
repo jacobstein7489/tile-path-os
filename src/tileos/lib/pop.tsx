@@ -73,7 +73,7 @@ export function CenterPop() {
                       {f.state === 'done' && <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-ok-500 text-white ring-2 ring-white"><Check className="h-2.5 w-2.5" strokeWidth={3.4} /></span>}
                     </span>
                     <span className={cn('text-[0.75rem] font-semibold leading-tight', f.state === 'now' ? 'text-brand-700' : f.state === 'done' ? 'text-ink-2' : 'text-faint')}>{f.label}</span>
-                    {f.state === 'now' && <span className="text-[0.65625rem] font-bold uppercase tracking-[0.05em] text-brand-600">Now</span>}
+                    {f.state === 'now' && <span className="text-[0.71875rem] font-semibold text-brand-600">Now</span>}
                   </span>
                 </React.Fragment>
               ))}

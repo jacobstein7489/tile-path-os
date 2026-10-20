@@ -39,6 +39,7 @@ import { FollowUpModal, AwardModal } from '@/tileos/features/pricing'
 import { RecordModal } from '@/tileos/features/record'
 import { ProblemModal } from '@/tileos/features/problem'
 import { TouchupsModal, NoteModal } from '@/tileos/features/touchups'
+import { ChecklistModal, InstallerModal } from '@/tileos/features/job/checklist'
 import { DailyModal, MediaModal, SiteChangeModal, ChangeApproveModal, MeetingModal } from '@/tileos/features/field'
 import { HeightsModal } from '@/tileos/features/heights'
 import { UpcomingPage } from '@/tileos/features/upcoming'
@@ -89,6 +90,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />
     case 'note': return <NoteModal jobId={m.jobId} level={level} />
     case 'invite': return <InviteModal k={m.key} level={level} />
+    case 'checklist': return <ChecklistModal jobId={m.jobId} level={level} />
+    case 'installerwin': return <InstallerModal jobId={m.jobId} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {

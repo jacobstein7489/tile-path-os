@@ -128,7 +128,7 @@ export function ProjectsPage() {
 }
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
-const GROUP_HINT: Partial<Record<ProjType, string>> = { coming: 'Won, not started — each step with the person who has it', progress: 'Crews on site', touchups: 'Punch lists and return visits', hold: 'Work stopped until something comes in' }
+const GROUP_HINT: Partial<Record<ProjType, string>> = { coming: 'Won, not started yet', progress: 'Crews on site', touchups: 'Punch lists and return visits', hold: 'Stopped until something comes in' }
 
 /* Project · Status · Where it stands · Installer · Dates · Contract */
 const COLS = 'grid grid-cols-[minmax(0,1.15fr)_9.375rem_minmax(0,1.5fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_9.375rem_minmax(0,1.5fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_8.75rem_minmax(0,1.4fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'

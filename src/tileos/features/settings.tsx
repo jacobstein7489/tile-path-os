@@ -463,7 +463,7 @@ function AccessTab() {
             {ACCESS_PAGES.map((p, i) => (
               <React.Fragment key={p.key}>
                 {p.group && p.group !== ACCESS_PAGES[i - 1]?.group && (
-                  <tr><td colSpan={cols.length + 1} className="bg-white px-6 pb-1 pt-4 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-faint">{p.group}</td></tr>
+                  <tr><td colSpan={cols.length + 1} className="bg-white px-6 pb-1 pt-4 text-[0.75rem] font-semibold text-faint">{p.group}</td></tr>
                 )}
                 <tr className="border-t border-line-2">
                   <td className="sticky left-0 z-[1] bg-white px-6 py-2.5 font-medium text-ink">{p.label}</td>
@@ -554,7 +554,7 @@ function NumbersTab() {
       <div className="grid grid-cols-2 gap-x-10 gap-y-5 border-t border-line-2 px-6 pb-6 pt-4 max-md:grid-cols-1 max-sm:px-4">
         {MAT_RULE_ROWS.map((g) => (
           <div key={g.group} className="min-w-0">
-            <div className="mb-1 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted">{g.group}</div>
+            <div className="mb-1 text-[0.75rem] font-semibold text-muted">{g.group}</div>
             {g.rows.map((row) => (
               <div key={row.key} className="flex items-center justify-between gap-3 border-b border-line-2 py-2.5 last:border-0">
                 <div className="min-w-0">

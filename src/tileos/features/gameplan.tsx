@@ -348,7 +348,7 @@ export function ReadyToBookModal({ level }: { level: number }) {
           return (
             <div key={x.id} className="flex items-center gap-3 px-4 py-3">
               <span className="flex w-[3.375rem] shrink-0 flex-col items-center rounded-lg bg-wash py-1 leading-tight">
-                <span className="text-[0.65625rem] font-bold uppercase text-muted">{x.when ? fmt(x.when, { month: 'short' }) : 'Date'}</span>
+                <span className="text-[0.71875rem] font-semibold text-muted">{x.when ? fmt(x.when, { month: 'short' }) : 'Date'}</span>
                 <span className="text-[0.9375rem] font-bold tnum text-ink">{x.when ? Number(x.when.slice(8)) : 'TBD'}</span>
               </span>
               <button onClick={() => s.open({ t: 'job', id: x.id })} className="min-w-0 flex-1 text-left">

@@ -100,7 +100,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
 }
 
 /* ---------------- our materials ---------------- */
-export function MaterialsNeed({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
+export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode }) {
   const s = useStore()
   const save = useSaveStatus()
   const t = takeoff(s, job.id)
@@ -116,11 +116,13 @@ export function MaterialsNeed({ job, onScope, simple }: { job: Job; onScope: () 
       count={t.counted || shownCount ? shownCount : undefined}
       right={t.counted ? <span className="max-md:hidden">From {t.counted} walls and floors · {t.sf.toLocaleString('en-US')} SF{save.mode === 'sample' ? ' · sample' : ''}</span> : undefined}
       action={simple ? undefined : <>
-        {s.role === 'owner' && <Button size="sm" variant="ghost" icon={<SlidersHorizontal />} onClick={() => { s.closeAll(); s.go({ page: 'settings' }) }}><span className="max-sm:hidden">The numbers</span></Button>}
         {canEdit && <AddMaterial jobId={job.id} />}
-        {miss.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>}
+        {miss.length > 0
+          ? <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
+          : canEdit && <Button size="sm" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id })}>New PO</Button>}
       </>}
     >
+      {orders && <div className="border-b border-line-2">{orders}</div>}
       {!t.counted && !shownCount ? (
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
           <span className="min-w-0 flex-1">{t.total ? 'Each wall and floor needs its square feet and its tile — then the materials work themselves out.' : 'No rooms yet — they come over from the estimate.'}</span>

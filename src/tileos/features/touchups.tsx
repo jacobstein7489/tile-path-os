@@ -76,7 +76,7 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
 function Part({ label, n, children }: { label: string; n: number; children: React.ReactNode }) {
   return (
     <div className="mb-4 last:mb-0">
-      <div className="mb-1.5 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.05em] text-ink-2">{label}<span className="font-semibold text-muted">{n}</span></div>
+      <div className="mb-1.5 flex items-center gap-2 text-[0.75rem] font-semibold text-ink-2">{label}<span className="font-semibold text-muted">{n}</span></div>
       <div className="overflow-hidden rounded-[0.75rem] border border-line">{children}</div>
     </div>
   )
