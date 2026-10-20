@@ -2,7 +2,7 @@
 import * as React from 'react'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
-  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, Search, ChevronRight, ChevronLeft,
+  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, ChevronRight, ChevronLeft, StickyNote, TriangleAlert,
 } from 'lucide-react'
 import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -60,6 +60,7 @@ const FOR: Record<string, Role[]> = {
   delivery: ['owner', 'pm', 'office', 'site', 'materials'],
   decision: ['owner', 'pm', 'office', 'site', 'estimator', 'takeoff'],
   call: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'site', 'materials', 'accounting'],
+  problem: ['owner', 'pm', 'office', 'site', 'materials', 'estimator'],
   payment: ['owner', 'office', 'accounting'],
   newreq: ['owner', 'pm', 'office', 'takeoff', 'estimator'],
   newproject: ['owner', 'pm', 'office'],
@@ -68,7 +69,7 @@ const FOR: Record<string, Role[]> = {
 }
 export const allowedFor = (role: Role, key: string) => !FOR[key] || FOR[key].includes(role)
 
-type Pick = { k: string; l: string; h: string; i: React.ElementType; m: (jobId?: string) => M }
+type Pick = { k: string; l: string; h: string; i: React.ElementType; m: (jobId?: string) => M; job?: boolean }
 
 /** the project a window is open on, or the project page — "New" starts on it */
 function projectInView(s: ReturnType<typeof useStore.getState>) {
@@ -77,79 +78,106 @@ function projectInView(s: ReturnType<typeof useStore.getState>) {
 }
 const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled: 1, punch: 2, ready: 3, verification: 4, setup: 5, awarded: 6, proposal: 7, followup: 7, estimating: 8, request: 9, closeout: 10, complete: 11 }
 
-/* + New — what you want to add first (a task is the first thing), with the project on top: the one you're in, or pick
- * one, or none for the company. Only what fits your login. Pricing a new project, a project, a repair or a client start
- * here too. */
+/* + New — short: the few things your login adds most, one line each, and the rest under More. The project is on top
+ * (the one you're in, or pick one). Starting something new — pricing, a project, a repair, a client — sits at the bottom. */
+const ADD: Pick[] = [
+  { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, m: (j) => ({ t: 'newtask', jobId: j }) },
+  { k: 'note', l: 'Note', h: 'A call, a decision — anything to remember', i: StickyNote, job: true, m: (j) => ({ t: 'note', jobId: j! }) },
+  { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready', i: TriangleAlert, job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
+  { k: 'punch', l: 'Touch-ups', h: 'A list for the crew, with photos', i: Sparkles, m: (j) => ({ t: 'punchnew', jobId: j }) },
+  { k: 'meeting', l: 'Meeting or walkthrough', h: 'A day, a time, who’s in it', i: CalendarPlus, m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
+  { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: PackageCheck, m: (j) => ({ t: 'newpo', jobId: j }) },
+  { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
+  { k: 'delivery', l: 'Delivery arrived', h: 'Tile or materials landed on site', i: Truck, m: (j) => ({ t: 'record', type: 'delivery', jobId: j }) },
+  { k: 'payment', l: 'Payment received', h: 'A check or transfer came in', i: Wallet, m: (j) => ({ t: 'record', type: 'payment', jobId: j }) },
+  { k: 'change', l: 'Client asked for a change', h: 'Height, tile, layout or extra work', i: ArrowLeftRight, m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
+  { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
+  { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
+  { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
+  { k: 'shortage', l: 'Short on metal or materials', h: 'Thinset, grout, trim — the crew can’t finish', i: PackageX, m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
+]
+/** the few each login adds most — the rest are under More */
+const TOP: Partial<Record<Role, string[]>> = {
+  owner: ['task', 'note', 'problem', 'punch', 'meeting', 'po'],
+  pm: ['task', 'note', 'problem', 'punch', 'meeting', 'po'],
+  office: ['task', 'note', 'problem', 'meeting', 'po', 'delivery'],
+  site: ['daily', 'problem', 'punch', 'delivery', 'note', 'task'],
+  materials: ['po', 'delivery', 'problem', 'task', 'note'],
+  accounting: ['payment', 'task', 'note'],
+  estimator: ['task', 'note', 'meeting', 'decision'],
+  takeoff: ['task', 'note', 'meeting'],
+}
+const STARTS: Pick[] = [
+  { k: 'newreq', l: 'Price a new project', h: 'Upload the plans', i: FileText, m: () => ({ t: 'newreq' }) },
+  { k: 'newproject', l: 'New project', h: 'Won already', i: Building2, m: () => ({ t: 'newproject' }) },
+  { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, m: () => ({ t: 'newrepair' }) },
+  { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, m: () => ({ t: 'newclient' }) },
+]
+
 export function NewPickerModal({ level, jobId: given }: { level: number; jobId?: string }) {
   const s = useStore()
   const role = s.role
   const here = given || projectInView(useStore.getState())
   const [jobId, setJobId] = React.useState<string>(here && s.jobs[here] ? here : '')
+  const [more, setMore] = React.useState(false)
+  const [needJob, setNeedJob] = React.useState('')
   const job = jobId ? s.jobs[jobId] : undefined
-  const go = (m: M) => s.swap(m)
   const ok = (x: { k: string }) => allowedFor(role, x.k)
-  const add: Pick[] = [
-    { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, m: (j) => ({ t: 'newtask', jobId: j }) },
-    { k: 'meeting', l: 'Meeting or walkthrough', h: 'A day, a time and who’s in it', i: CalendarPlus, m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
-    { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: PackageCheck, m: (j) => ({ t: 'newpo', jobId: j }) },
-    { k: 'punch', l: 'Touch-ups', h: 'A punch list for a crew', i: Sparkles, m: (j) => ({ t: 'punchnew', jobId: j }) },
-  ].filter(ok)
-  const log: Pick[] = [
-    { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
-    { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
-    { k: 'change', l: 'Client asked for a change', h: 'Height, tile, layout or extra work', i: ArrowLeftRight, m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
-    { k: 'shortage', l: 'Short, wrong or damaged', h: 'The crew can’t finish with what’s there', i: PackageX, m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
-    { k: 'delivery', l: 'Delivery arrived', h: 'Tile or materials landed on site', i: Truck, m: (j) => ({ t: 'record', type: 'delivery', jobId: j }) },
-    { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
-    { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
-    { k: 'payment', l: 'Payment received', h: 'A check or transfer came in', i: Wallet, m: (j) => ({ t: 'record', type: 'payment', jobId: j }) },
-  ].filter(ok)
-  const starts: Pick[] = [
-    { k: 'newreq', l: 'Price a new project', h: 'Upload the plans — it goes to the takeoff', i: FileText, m: () => ({ t: 'newreq' }) },
-    { k: 'newproject', l: 'New project', h: 'Won already, or priced outside', i: Building2, m: () => ({ t: 'newproject' }) },
-    { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, m: () => ({ t: 'newrepair' }) },
-    { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, m: () => ({ t: 'newclient' }) },
-  ].filter(ok)
+  const top = (TOP[role] || TOP.owner!).map((k) => ADD.find((x) => x.k === k)!).filter((x) => x && ok(x))
+  const rest = ADD.filter((x) => ok(x) && !top.includes(x))
+  const starts = STARTS.filter(ok)
+  const go = (x: Pick) => {
+    /* a note or a problem goes on a project — pick it first */
+    if (x.job && !jobId) { setNeedJob(x.l); return }
+    s.swap(x.m(jobId || undefined))
+  }
   const projects = Object.values(s.jobs).filter((j) => j.stage !== 'complete').sort((a, b) => (STAGE_RANK[a.stage] ?? 12) - (STAGE_RANK[b.stage] ?? 12) || a.name.localeCompare(b.name))
   const Row = ({ x }: { x: Pick }) => (
-    <button onClick={() => go(x.m(jobId || undefined))} className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-brand-200 hover:bg-brand-50/40">
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash-2 text-ink-2 transition group-hover:bg-white group-hover:text-brand-600 [&_svg]:h-[1.125rem] [&_svg]:w-[1.125rem]"><x.i /></span>
-      <span className="min-w-0">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.l}</span>
-        <span className="block truncate text-[0.75rem] text-muted">{x.h}</span>
+    <button onClick={() => go(x)} className="group flex w-full items-center gap-3.5 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] bg-wash-2 text-ink-2 transition group-hover:bg-white group-hover:text-brand-600 [&_svg]:h-[1.0625rem] [&_svg]:w-[1.0625rem]"><x.i /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[0.90625rem] font-semibold text-ink">{x.l}</span>
+        <span className="block truncate text-[0.78125rem] text-muted">{x.h}</span>
       </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-ink-2" />
     </button>
   )
-  const Group = ({ label, items }: { label: string; items: Pick[] }) =>
-    items.length ? (
-      <section>
-        <div className="mb-2 text-[0.78125rem] font-semibold text-muted">{label}</div>
-        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">{items.map((x) => <Row key={x.k} x={x} />)}</div>
-      </section>
-    ) : null
   return (
-    <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name} · ${job.client}` : 'Pick what to add — it goes on the project you pick'}>
-      <div className="mb-5 flex items-center gap-3 rounded-xl bg-wash px-3 py-2.5 max-sm:flex-col max-sm:items-stretch max-sm:gap-1.5">
-        <span className="shrink-0 text-[0.8125rem] font-semibold text-ink-2">For which project</span>
-        <SearchSelect
-          label="Project"
-          value={jobId}
-          onChange={setJobId}
-          options={projects.map((j) => ({ key: j.id, label: j.name, hint: [j.client, STAGE_LABEL[j.stage]].filter(Boolean).join(' · ') }))}
-          emptyLabel="No project — for the company"
-          placeholder="Pick a project"
-          searchPlaceholder="Type a project, address or client…"
-          search
-          width={420}
-          icon={<Building2 />}
-          className="min-w-0 flex-1 bg-white"
-        />
+    <Modal level={level} size="sm" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick a project, or leave it for the company'}>
+      <SearchSelect
+        label="Project"
+        value={jobId}
+        onChange={(k) => { setJobId(k); setNeedJob('') }}
+        options={projects.map((j) => ({ key: j.id, label: j.name, hint: [j.client, STAGE_LABEL[j.stage]].filter(Boolean).join(' · ') }))}
+        emptyLabel="No project — for the company"
+        placeholder="Pick a project"
+        searchPlaceholder="Type a project, address or client…"
+        search
+        width={420}
+        icon={<Building2 />}
+        className={cn('w-full', needJob && 'ring-2 ring-bad-200')}
+        plain
+      />
+      {needJob && <div className="mt-1.5 text-[0.8125rem] font-medium text-bad-600">Pick the project for the {needJob.toLowerCase()} first.</div>}
+      <div className="mt-4 overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        {top.map((x) => <Row key={x.k} x={x} />)}
+        {more && rest.map((x) => <Row key={x.k} x={x} />)}
       </div>
-      <div className="flex flex-col gap-5">
-        <Group label="Add" items={add} />
-        <Group label="Log what happened" items={log} />
-        <Group label="Start something new" items={starts} />
-      </div>
+      {rest.length > 0 && (
+        <button onClick={() => setMore((v) => !v)} aria-expanded={more} className="mt-2 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
+          {more ? <><ChevronLeft className="h-4 w-4 rotate-90" />Less</> : <><ChevronLeft className="h-4 w-4 -rotate-90" />More — {rest.length} other things</>}
+        </button>
+      )}
+      {starts.length > 0 && (
+        <div className="mt-5 border-t border-line-2 pt-4">
+          <div className="mb-2 text-[0.78125rem] font-semibold text-muted">Start something new</div>
+          <div className="grid grid-cols-2 gap-2">
+            {starts.map((x) => (
+              <button key={x.k} onClick={() => go(x)} title={x.h} className="inline-flex h-10 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 transition hover:border-[#c9c2b7] hover:text-ink [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-muted"><x.i /><span className="truncate">{x.l}</span></button>
+            ))}
+          </div>
+        </div>
+      )}
     </Modal>
   )
 }

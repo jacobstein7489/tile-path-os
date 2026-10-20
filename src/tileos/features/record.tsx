@@ -4,7 +4,7 @@
 import * as React from 'react'
 import {
   ArrowLeftRight, MessageCircleQuestion, Truck, PackageX, Gavel, Phone, ClipboardList, Wallet, ArrowLeft, Camera, Check, ChevronRight, Search,
-  Building2, FileText, Package, CircleDollarSign, CalendarPlus, AlertTriangle, CalendarDays, Clock3, HardHat,
+  Building2, FileText, Package, CircleDollarSign, CalendarPlus, AlertTriangle, CalendarDays, Clock3, HardHat, Plus,
 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles } from '@/tileos/lib/files'
@@ -100,6 +100,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [note, setNote] = React.useState('')
   const me = meOf(s.role)
   const [meetKind, setMeetKind] = React.useState<'meeting' | 'walkthrough'>(initialKind || 'meeting')
+  const [meetMore, setMeetMore] = React.useState(false)
   const [people, setPeople] = React.useState<PersonKey[]>([me])
   const [others, setOthers] = React.useState<string[]>([])
   const [installer, setInstaller] = React.useState<PersonKey | ''>('')
@@ -235,11 +236,10 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
             <FormRow label="What">
               <Segmented value={meetKind} onChange={setMeetKind} items={[{ key: 'meeting', label: 'Meeting' }, { key: 'walkthrough', label: 'Walkthrough on site' }]} />
             </FormRow>
-            <FormRow label="When" hint={clash.length ? undefined : busy.length ? `${busy.length} other ${busy.length === 1 ? 'thing' : 'things'} that day for ${people.length === 1 && people[0] === me ? 'you' : 'them'} — the busy times say so in the list.` : undefined}>
-              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 max-sm:grid-cols-2">
-                <SearchSelect label="Day" value={date} onChange={setDate} options={dayOpts} width={280} search={false} icon={<CalendarDays />} className="max-sm:col-span-2" />
+            <FormRow label="When" hint={clash.length ? undefined : busy.length ? 'Busy times are marked in the list' : undefined}>
+              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2">
+                <SearchSelect label="Day" value={date} onChange={setDate} options={dayOpts} width={280} search={false} icon={<CalendarDays />} />
                 <SearchSelect label="Time" value={String(start)} onChange={(k) => setStart(Number(k))} options={timeOpts} width={300} search={false} icon={<Clock3 />} />
-                <SearchSelect label="How long" value={String(dur)} onChange={(k) => setDur(Number(k))} options={DURS.map(([m, l]) => ({ key: String(m), label: l }))} width={200} search={false} />
               </div>
               {clash.length > 0 && (
                 <div className="mt-2 flex flex-wrap items-center gap-2.5 rounded-[0.625rem] border border-bad-100 bg-bad-50 px-3 py-2 text-[0.8125rem] text-bad-700">
@@ -249,33 +249,47 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                 </div>
               )}
             </FormRow>
-            <FormRow label="Where" hint={meetKind === 'walkthrough' && job && whereAt === job.address ? 'The project’s address — change it if you meet somewhere else' : undefined}>
-              <TextInput aria-label="Where" value={whereAt} onChange={(e) => { setWhereAt(e.target.value); setWhereTouched(true) }} placeholder={meetKind === 'walkthrough' ? 'The address on site' : 'The office, the showroom, an address…'} />
-            </FormRow>
-            <FormRow label="From Cobblestone">
+            <FormRow label="Who’s in it">
               <MultiSelect
-                label="From Cobblestone"
-                values={people}
-                onChange={(v) => setPeople(v as PersonKey[])}
-                options={OUR_PEOPLE.filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> }))}
-                placeholder="Who from our side"
-                summary={(xs) => <span className="flex items-center gap-2"><AvatarStack who={xs.map((x) => x.key as PersonKey)} size={22} max={4} /><span className="truncate">{xs.map((x) => (x.key === me ? 'You' : PEOPLE[x.key as PersonKey].short)).join(', ')}</span></span>}
+                label="Who’s in it"
+                values={[...people, ...others.map((o) => 'x:' + o)]}
+                onChange={(v) => { setPeople(v.filter((k) => !k.startsWith('x:')) as PersonKey[]); setOthers(v.filter((k) => k.startsWith('x:')).map((k) => k.slice(2))) }}
+                options={[
+                  ...OUR_PEOPLE.filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> })),
+                  ...OTHERS.map((o) => ({ key: 'x:' + o, label: o, hint: 'Not from Cobblestone' })),
+                ]}
+                placeholder="Who’s in it"
+                summary={(xs) => {
+                  const ours = xs.filter((x) => !x.key.startsWith('x:')).map((x) => x.key as PersonKey)
+                  const outside = xs.filter((x) => x.key.startsWith('x:')).map((x) => x.key.slice(2))
+                  return <span className="flex min-w-0 items-center gap-2">{ours.length > 0 && <AvatarStack who={ours} size={22} max={4} />}<span className="truncate">{[...ours.map((k) => (k === me ? 'You' : PEOPLE[k].short)), ...outside].join(', ')}</span></span>
+                }}
               />
-            </FormRow>
-            <FormRow label="Who else">
-              <MultiSelect label="Who else" values={others} onChange={setOthers} options={OTHERS.map((o) => ({ key: o, label: o }))} placeholder="Nobody else" />
               {others.includes('Installer') && (
                 <div className="mt-2">
                   <SearchSelect label="Which installer" value={installer} onChange={(k) => setInstaller(k as PersonKey)} options={CREWS.filter((c) => !(s.inactive || []).includes('crew:' + c)).map((c) => ({ key: c, label: PEOPLE[c].name }))} placeholder="Which installer?" width={280} search={false} icon={<HardHat />} />
                 </div>
               )}
             </FormRow>
-            <FormRow label="Name it">
-              <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={autoTitle} />
-            </FormRow>
-            <FormRow label="Note">
-              <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s about — e.g. go over the tiles we saw today (optional)" />
-            </FormRow>
+            {!meetMore && (
+              <button onClick={() => setMeetMore(true)} className="mt-1 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
+                <Plus className="h-4 w-4" />Where, how long, a note
+              </button>
+            )}
+            {meetMore && <>
+              <FormRow label="Where" hint={meetKind === 'walkthrough' && job && whereAt === job.address ? 'The project’s address — change it if you meet somewhere else' : undefined}>
+                <TextInput aria-label="Where" value={whereAt} onChange={(e) => { setWhereAt(e.target.value); setWhereTouched(true) }} placeholder={meetKind === 'walkthrough' ? 'The address on site' : 'The office, the showroom, an address…'} />
+              </FormRow>
+              <FormRow label="How long">
+                <div className="max-w-[13.75rem]"><SearchSelect label="How long" value={String(dur)} onChange={(k) => setDur(Number(k))} options={DURS.map(([m, l]) => ({ key: String(m), label: l }))} width={200} search={false} /></div>
+              </FormRow>
+              <FormRow label="Name it">
+                <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={autoTitle} />
+              </FormRow>
+              <FormRow label="Note">
+                <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s about — e.g. go over the tiles we saw today (optional)" />
+              </FormRow>
+            </>}
           </div>
         )}
 

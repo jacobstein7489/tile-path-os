@@ -1,7 +1,7 @@
 /* Touch-ups and punch lists: log a whole list at once, say who does it and by when.
  * The installer crew (or one of us) gets it; the site manager gets a task to check each item once it's fixed. */
 import * as React from 'react'
-import { Sparkles, HardHat } from 'lucide-react'
+import { Sparkles, HardHat, Building2, CalendarDays, CheckCheck } from 'lucide-react'
 import { useStore, meOf, NOW, newTask, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, DatePresets } from '@/tileos/components/ui/overlay'
@@ -10,6 +10,8 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, type PersonKey } from '@/tileos/data/model'
 import { isOff } from './active'
 
+/** a small rounded picker — the same as on a new task */
+const CHIP = 'h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial'
 /** "Master bath — caulk the tub" → where + what; plain lines go to "To place" */
 const split = (line: string) => {
   const m = line.match(/^\s*([^—:\-]{2,40})\s*[—:\-]\s*(.+)$/)
@@ -55,39 +57,29 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       level={level}
       size="md"
       onClose={s.close}
-      title={job ? `Touch-ups · ${job.name}` : 'Touch-ups or a punch list'}
-      sub="Type the whole list — one item per line. “Master bath — caulk the tub” puts it in the right room."
+      title={job ? `Touch-ups · ${job.name}` : 'Touch-ups'}
+      sub="One per line. Start with the room: “Master bath — caulk the tub”."
       footer={
         <>
-          <span className="text-[0.8125rem] text-muted">{lines.length ? `${lines.length} item${lines.length > 1 ? 's' : ''}` : 'Nothing yet'}</span>
+          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{who && PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : lines.length ? `${lines.length} item${lines.length > 1 ? 's' : ''}` : ''}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" icon={<Sparkles />} disabled={!jobId || !lines.length || !who} onClick={save}>Log {lines.length || ''} touch-up{lines.length === 1 ? '' : 's'}</Button>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        {!jobId0 && (
-          <Field label="Project">
-            <SearchSelect value={jobId} onChange={setJobId} placeholder="Type a project name" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
-          </Field>
-        )}
-        <Field label="What needs fixing">
-          <TextArea data-autofocus value={text} onChange={(e) => setText(e.target.value)} className="min-h-[8.25rem]" placeholder={'Master bath — caulk around the tub\nHall bath — replace 2 chipped floor tiles\nKitchen — grout haze on the backsplash'} />
-        </Field>
-        <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-          <Field label="Who does them">
-            <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'On this job' : 'Installer' })), ...(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))]} placeholder="Pick who" search={false} width={280} />
-          </Field>
-          <Field label="Done by">
-            <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: d }))} search={false} width={220} />
-          </Field>
-          {who && PEOPLE[who]?.crew ? (
-            <Field label="Who checks them">
-              <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))} search={false} width={260} />
-            </Field>
-          ) : <span />}
+      {!jobId0 && (
+        <div className="mb-3">
+          <SearchSelect label="Project" value={jobId} onChange={setJobId} placeholder="Which project" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} icon={<Building2 />} />
         </div>
-        {who && PEOPLE[who]?.crew && <div className="flex items-start gap-2 rounded-[0.625rem] bg-wash px-3 py-2.5 text-[0.8125rem] text-ink-2"><HardHat className="mt-0.5 h-4 w-4 shrink-0 text-muted" />{PEOPLE[who].name}’s crew sees the list on their phone. {PEOPLE[checker].short} gets a task to check each item once it’s fixed.</div>}
+      )}
+      <TextArea data-autofocus aria-label="What needs fixing" value={text} onChange={(e) => setText(e.target.value)} className="min-h-[8.25rem]" placeholder={'Master bath — caulk around the tub\nHall bath — replace 2 chipped floor tiles\nKitchen — grout haze on the backsplash'} />
+      {/* who, by when, who checks — small, with good guesses already in */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'On this job' : 'Installer' })), ...(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))]} placeholder="Who does them" width={280} icon={<HardHat />} className={CHIP} plain />
+        <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={200} icon={<CalendarDays />} className={CHIP} />
+        {who && PEOPLE[who]?.crew && (
+          <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: `${PEOPLE[p].short} checks`, hint: PEOPLE[p].roleLabel }))} search={false} width={240} icon={<CheckCheck />} className={CHIP} plain />
+        )}
       </div>
     </Modal>
   )

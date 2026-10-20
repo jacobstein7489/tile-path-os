@@ -85,16 +85,17 @@ export function ProblemModal({ jobId, level }: { jobId: string; level: number })
         </>
       }
     >
-      <div className="text-[0.8125rem] font-semibold text-ink-2">What’s wrong?</div>
-      <div role="radiogroup" aria-label="What’s wrong" className="mt-2 overflow-hidden rounded-[0.75rem] border border-line">
-        {KINDS.map((x) => (
-          <button key={x.k} type="button" role="radio" aria-checked={kind === x.k} onClick={() => choose(x.k)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0', kind === x.k ? 'bg-brand-50/70' : 'hover:bg-wash')}>
+      {!kind && <div className="text-[0.8125rem] font-semibold text-ink-2">What’s wrong?</div>}
+      {/* one thing at a time: once you pick what's wrong, the other choices fold away (Change brings them back) */}
+      <div role="radiogroup" aria-label="What’s wrong" className={cn('overflow-hidden rounded-[0.75rem] border border-line', !kind && 'mt-2')}>
+        {KINDS.filter((x) => !kind || kind === x.k).map((x) => (
+          <button key={x.k} type="button" role="radio" aria-checked={kind === x.k} onClick={() => (kind === x.k ? setKind(undefined) : choose(x.k))} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0', kind === x.k ? 'bg-brand-50/70' : 'hover:bg-wash')}>
             <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem]', kind === x.k ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-[0.875rem] font-semibold text-ink">{x.label}</span>
               <span className="block truncate text-[0.78125rem] text-muted">{x.sub}</span>
             </span>
-            {kind === x.k && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
+            {kind === x.k && <span className="shrink-0 text-[0.8125rem] font-semibold text-brand-700">Change</span>}
           </button>
         ))}
       </div>

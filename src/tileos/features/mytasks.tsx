@@ -404,7 +404,7 @@ export function MyTasksPage() {
               </button>
             ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Not on a project</span>}
             <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
-            {j && <Button size="xs" icon={<ListPlus />} onClick={() => s.open({ t: 'record', jobId: id })}>Log</Button>}
+            {j && <Button size="xs" icon={<ListPlus />} onClick={() => s.open({ t: 'new', jobId: id })}>Log</Button>}
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
@@ -784,7 +784,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           </Menu>
         )}
         {!jobId && (
-          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
+          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} plain />
         )}
         {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d9d3c9] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
       </div>

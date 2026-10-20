@@ -442,7 +442,7 @@ export function CommandPalette() {
                 </Command.Group>
                 <Command.Group heading="Actions">
                   {[
-                    { l: 'Log what happened', k: 'record log update event site issue', f: () => open({ t: 'record' }) },
+                    { l: 'Log what happened', k: 'record log update event site issue', f: () => open({ t: 'new' }) },
                     ...(role !== 'accounting' ? [{ l: 'New project', k: 'new project create job won', f: () => open({ t: 'newproject' }) }, { l: 'Touch-ups or punch list', k: 'punch touch up list repair', f: () => open({ t: 'punchnew' }) }] : []),
                     ...(role !== 'accounting' ? [{ l: 'New price request', k: 'new request bid', f: () => open({ t: 'newreq' }) }] : []),
                     { l: 'Go to Billing', k: 'billing money invoice payment deposit', f: () => go({ page: 'money' }) },

@@ -338,15 +338,19 @@ export function NewProjectModal({ level }: { level: number }) {
   const [contract, setContract] = React.useState('')
   const [start, setStart] = React.useState('')
   const [pm, setPm] = React.useState<PersonKey>('ys')
+  /* two questions — who it's for and where. The rest (a name, the contract, when, who runs it) can wait */
+  const [more, setMore] = React.useState(false)
   const client = CUSTOMERS[clientId]
   const amount = Number(contract.replace(/[^0-9.]/g, '')) || 0
+  /* most projects go by their street address — "42 Orchard St" */
+  const finalName = name.trim() || address.split(',')[0].trim()
   const create = () => {
     const id = 'p' + Date.now().toString(36)
     const iso = start ? isoFromLabel(start) : undefined
     const pct = s.rules.depositPct
     s.commit((st) => {
       st.jobs[id] = {
-        id, name: name.trim(), client: client.name, clientId, address: address.trim() || client.address, stage: 'setup', kind: 'install',
+        id, name: finalName, client: client.name, clientId, address: address.trim() || client.address, stage: 'setup', kind: 'install',
         status: 'info', headline: 'New project · setup starts', issues: [{ tone: 'warn', text: 'Setup not started' }], pm, site: 'yakov',
         next: { text: 'Build the rooms and surfaces', owner: 'office', due: 'Wed' }, keyDate: { label: 'Won', value: NOW },
         swatch: 'bianco', building: 'house', contract: amount || undefined, stageDates: { won: NOW, setup: NOW },
@@ -358,7 +362,7 @@ export function NewProjectModal({ level }: { level: number }) {
         st.money.unshift({ id: 'dep-' + id, jobId: id, kind: 'deposit', title: `Deposit ${pct}%`, amount: amt, step: 0, state: 'todo', due: 'Today', dueTone: 'warn', note: 'Created with the project.', log: [{ date: NOW, who: 'system', text: 'Deposit required — created with the project' }], action: 'Create invoice' } as any)
       }
       addHist(st, id, { who: meOf(st.role), kind: 'pricing', title: 'Project created', detail: amount ? `Contract ${fmtMoney(amount)}` : undefined })
-    }, `${name.trim()} is set up`, { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${name.trim()}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] })
+    }, `${finalName} is set up`, { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] })
     s.close()
     setTimeout(() => s.open({ t: 'job', id }), 60)
   }
@@ -368,32 +372,41 @@ export function NewProjectModal({ level }: { level: number }) {
       size="md"
       onClose={s.close}
       title="New project"
-      sub="For work that’s already won. A new price request starts in Estimates instead."
+      sub="Won already. To price one, use Estimates."
       footer={
         <>
           <Button variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button className="ml-auto" variant="primary" disabled={!clientId || !name.trim()} onClick={create}>Create project</Button>
+          <Button className="ml-auto" variant="primary" disabled={!clientId || !finalName} onClick={create}>Create project</Button>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <Field label="Client">
           <div className="flex gap-2">
-            <div className="min-w-0 flex-1"><SearchSelect value={clientId} onChange={(id) => { setClientId(id); if (!address) setAddress(CUSTOMERS[id]?.address || '') }} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} /></div>
-            <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New client</Button>
+            <div className="min-w-0 flex-1"><SearchSelect value={clientId} onChange={setClientId} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} /></div>
+            <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
           </div>
         </Field>
-        <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-          <Field label="Project name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 42 Orchard St" /></Field>
-          <Field label="Contract" hint="Optional — the deposit invoice is created from it"><TextInput inputMode="decimal" value={contract} onChange={(e) => setContract(e.target.value)} placeholder="$0" /></Field>
-        </div>
-        <Field label="Address"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" /></Field>
-        <Field label="When can we start?"><DatePresets value={start} onPick={setStart} presets={['Next Mon', 'In 2 weeks']} /></Field>
-        <Field label="Project manager">
-          <div className="flex flex-wrap gap-2">
-            {(['ys', 'office'] as PersonKey[]).map((p) => <Chip key={p} on={pm === p} onClick={() => setPm(p)} icon={<Avatar who={p} size={20} />}>{PEOPLE[p].name}</Chip>)}
+        <Field label="Address"><TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 42 Orchard St, Brooklyn" /></Field>
+        {!more && (
+          <button onClick={() => setMore(true)} className="inline-flex items-center gap-1.5 self-start text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
+            <Plus className="h-4 w-4" />A different name, the contract, when we start
+          </button>
+        )}
+        {more && (
+          <div className="flex flex-col gap-4 rounded-[0.875rem] bg-wash px-4 py-4">
+            <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+              <Field label="Name" hint="It goes by the street if you leave it"><TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'e.g. Green Tree'} /></Field>
+              <Field label="Contract" hint="The deposit invoice is made from it"><TextInput aria-label="Contract" inputMode="decimal" value={contract} onChange={(e) => setContract(e.target.value)} placeholder="$0" /></Field>
+            </div>
+            <Field label="When can we start?"><DatePresets value={start} onPick={setStart} presets={['Next Mon', 'In 2 weeks']} /></Field>
+            <Field label="Project manager">
+              <div className="flex flex-wrap gap-2">
+                {(['ys', 'office'] as PersonKey[]).map((p) => <Chip key={p} on={pm === p} onClick={() => setPm(p)} icon={<Avatar who={p} size={20} />}>{PEOPLE[p].name}</Chip>)}
+              </div>
+            </Field>
           </div>
-        </Field>
+        )}
       </div>
     </Modal>
   )

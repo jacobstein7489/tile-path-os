@@ -8,7 +8,7 @@ import { cn } from '@/tileos/lib/utils'
 export type SelectOption = { key: string; label: string; hint?: string; group?: string; lead?: React.ReactNode }
 
 export function SearchSelect({
-  value, options, onChange, placeholder = 'Pick one', searchPlaceholder = 'Type to search…', className, width = 360, autoOpen, emptyLabel, icon, search, label, onCreate, createLabel, footer,
+  value, options, onChange, placeholder = 'Pick one', searchPlaceholder = 'Type to search…', className, width = 360, autoOpen, emptyLabel, icon, search, label, onCreate, createLabel, footer, plain,
 }: {
   value: string
   options: SelectOption[]
@@ -30,6 +30,8 @@ export function SearchSelect({
   createLabel?: (text: string) => string
   /** one more thing at the bottom of the list, always there — "Add a new tile" */
   footer?: { label: string; onClick: () => void }
+  /** the closed field shows just the name, not its hint — for small rounded pickers */
+  plain?: boolean
 }) {
   const searchable = search ?? options.length > 8
   const [open, setOpen] = React.useState(!!autoOpen)
@@ -56,7 +58,7 @@ export function SearchSelect({
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {cur?.lead && <span className="inline-flex shrink-0">{cur.lead}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !cur && !(emptyLabel && value === '') && 'text-faint')}>
-            {cur ? <>{cur.label}{cur.hint && <span className="ml-2 text-[0.78125rem] text-muted">{cur.hint}</span>}</> : emptyLabel && value === '' ? emptyLabel : placeholder}
+            {cur ? <>{cur.label}{cur.hint && !plain && <span className="ml-2 text-[0.78125rem] text-muted">{cur.hint}</span>}</> : emptyLabel && value === '' ? emptyLabel : placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
         </button>
