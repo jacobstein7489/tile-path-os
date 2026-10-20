@@ -415,9 +415,7 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
     <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5')} role="tablist">
       {items.map((b, i) => {
         const c = BC[b.color]
-        /* an empty one ("0 Repairs") is just more to read — it shows up once there's something in it. A step in a
-           flow (with arrows) stays, even at 0, so the flow reads the same every day. */
-        if (!arrows && i > 0 && b.count === 0 && !b.on) return null
+        /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
         return (
           <React.Fragment key={b.key}>
             {i > 0 && !wrap && (b.gapBefore ? <span className="mx-1 w-px shrink-0 self-stretch bg-line" /> : arrows && !b.plainBefore ? <ChevronRight className="-mx-1.5 h-4 w-4 shrink-0 self-center text-[#c3c9d1]" /> : null)}
