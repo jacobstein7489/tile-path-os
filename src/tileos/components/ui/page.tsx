@@ -588,7 +588,7 @@ export function ViewSwitch<K extends string | boolean>({ value, onChange, items,
             role="tab"
             aria-selected={on}
             onClick={() => onChange(it.key)}
-            className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:shrink-0 max-sm:[&_svg]:hidden', on ? 'bg-ink text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.2)]' : 'text-ink-2 hover:bg-wash hover:text-ink')}
+            className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:shrink-0 max-sm:[&_svg]:hidden', on ? 'bg-brand-600 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.2)]' : 'text-ink-2 hover:bg-wash hover:text-ink')}
           >
             {it.icon}{it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-white/70' : 'text-muted')}>{it.count}</span>}
           </button>

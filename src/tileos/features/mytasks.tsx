@@ -2,6 +2,7 @@
  * then what can be done any time. Tomorrow and Later are the same, a day at a time. Every row: when · what ·
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
+import { InboxStrip } from './inbox'
 import * as React from 'react'
 import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus } from 'lucide-react'
 import { useStore, meOf, NOW, type Store } from '@/tileos/store'
@@ -430,7 +431,8 @@ export function MyTasksPage() {
       title={`${greeting()}, ${PEOPLE[me].short}`}
       sub={<>{TODAY_LABEL}<span className="mx-2 text-faint">·</span>{today.length ? `${today.length} to do today` : 'Nothing due today'}{late.length ? <><span className="mx-2 text-faint">·</span><button onClick={() => s.open({ t: 'late' })} className="font-semibold text-bad-600 underline decoration-bad-200 underline-offset-2 hover:decoration-bad-500">{late.length} overdue</button></> : null}{meetingsToday ? <><span className="mx-2 text-faint">·</span>{meetingsToday} {meetingsToday === 1 ? 'meeting' : 'meetings'}</> : null}</>}
       actions={<Button icon={<Plus />} onClick={() => s.open({ t: 'newtask' })}>New task</Button>}
-      top={
+      top={<>
+        <InboxStrip />
         <Bubbles
           items={[
             { key: 'today', label: 'Today', count: today.length, sub: late.length ? `${late.length} overdue` : meetingsToday ? `${meetingsToday} ${meetingsToday === 1 ? 'meeting' : 'meetings'}` : undefined, subBad: late.length > 0, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
@@ -440,7 +442,7 @@ export function MyTasksPage() {
             { key: 'done', label: 'Done', count: done.length, sub: doneToday ? `${doneToday} today` : undefined, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
           ]}
         />
-      }
+      </>}
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
           {inside && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}

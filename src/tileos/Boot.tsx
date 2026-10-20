@@ -4,7 +4,7 @@ import * as React from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import App from './App'
-import { REAL, wantsSampleLook, setSaveStatus } from './lib/save'
+import { REAL, wantsSampleLook, declinedSample, setSaveStatus } from './lib/save'
 import { useStore, initialData } from './store'
 import { startCloud, stopCloud, type CloudProblem } from './lib/cloud'
 import { SignIn, WaitingRoom, Splash, SetupNeeded } from './features/signin'
@@ -44,8 +44,14 @@ export default function Boot() {
     const appRoles: string[] = (roles || []).map((r: any) => r.role)
     const name = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
     if (!appRoles.length) { setPhase({ k: 'waiting', email: user.email || '', name }); return }
-    /* the admin asked for a look at the sample: the app opens on the made-up projects, nothing goes to the database */
-    if (appRoles.includes('admin') && wantsSampleLook()) {
+    /* the admin asked for a look at the sample — or the company has no projects yet, so every page would be empty:
+       the app opens on the made-up projects, nothing goes to the database, one tap starts their own */
+    let sample = appRoles.includes('admin') && wantsSampleLook()
+    if (!sample && appRoles.includes('admin') && !declinedSample()) {
+      const { count, error } = await sb.from('tileos_records').select('id', { count: 'exact', head: true }).eq('collection', 'jobs')
+      if (!error && count === 0) sample = true
+    }
+    if (sample) {
       REAL.sampleView = true
       useStore.getState().replaceData(initialData())
       REAL.email = user.email || undefined

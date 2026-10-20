@@ -2,12 +2,13 @@ import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
-import { CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
+import { Inbox, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, lookAtSample, leaveSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
 import { payOpen } from '@/tileos/features/pay'
+import { inboxUnread } from '@/tileos/features/inbox'
 import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
@@ -47,6 +48,7 @@ export function NewMenu({ trigger }: { trigger: React.ReactElement; align?: 'sta
 export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   today: { label: 'Today', icon: CalendarCheck },
   tasks: { label: 'Today', icon: CalendarCheck },
+  inbox: { label: 'Inbox', icon: Inbox },
   projects: { label: 'Projects', icon: Building2 },
   upcoming: { label: 'Schedule', icon: CalendarDays },
   schedule: { label: 'Schedule', icon: CalendarDays },
@@ -63,10 +65,11 @@ export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
 }
 /** what a role sees in the menu, in menu order */
 export function navKeys(nav: string[]) {
-  return nav.filter((k) => k !== 'directory')
+  /* the inbox comes with Today — every login that has a Today has an inbox */
+  return nav.filter((k) => k !== 'directory').flatMap((k) => (k === 'today' ? ['today', 'inbox'] : [k]))
 }
 const GROUPS: { label: string; keys: string[] }[] = [
-  { label: '', keys: ['today'] },
+  { label: '', keys: ['today', 'inbox'] },
   { label: 'Work', keys: ['estimates', 'projects', 'upcoming'] },
   { label: 'Money', keys: ['pos', 'pay', 'money', 'items'] },
   { label: 'People', keys: ['clients', 'designers', 'subs', 'suppliers'] },
@@ -80,7 +83,8 @@ function useBadges() {
   const todayN = todayCount(s, role)
   const moneyTodo = s.money.filter((m) => m.state === 'todo').length + (role === 'accounting' && billingOn(s) ? billsToMake(s).length : 0)
   const payOpenN = ['owner', 'accounting'].includes(role) ? payOpen(s).length : 0
-  return (k: string) => (k === 'today' ? todayN : k === 'money' && role === 'accounting' ? moneyTodo : k === 'pay' ? payOpenN : 0)
+  const inboxN = inboxUnread(s)
+  return (k: string) => (k === 'today' ? todayN : k === 'inbox' ? inboxN : k === 'money' && role === 'accounting' ? moneyTodo : k === 'pay' ? payOpenN : 0)
 }
 
 export function Sidebar() {
@@ -207,7 +211,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       <MenuItem icon={<Workflow className="h-4 w-4" />} onSelect={() => go({ page: 'flow' })} hint="The whole process, start to finish">How it works</MenuItem>
       {role === 'owner' && !REAL.cloud && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
       {REAL.cloud && REAL.admin && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={lookAtSample} hint="Every page with something on it">Look at the sample</MenuItem>}
-      {REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={leaveSample}>Back to your company</MenuItem>}
+      {REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={leaveSample}>Start with my own projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
     </>
@@ -316,56 +320,16 @@ export function TopBar() {
   )
 }
 
-/** the bell opens a panel down the right side: what's new on top, then earlier */
+/** the bell: how many new things are in the inbox — tap it and the inbox opens (one place for everything, not a side panel) */
 function Notifications({ dark, big }: { dark?: boolean; big?: boolean }) {
-  const notices = useStore((s) => s.notices)
-  const commit = useStore((s) => s.commit)
-  const open = useStore((s) => s.open)
-  const role = useStore((s) => s.role)
-  const [on, setOn] = React.useState(false)
-  const list = role === 'accounting' ? notices.filter((n) => n.kind === 'money') : notices
-  const unread = list.filter((n) => n.unread).length
-  const icon = (k: string) => ({ material: Package, pricing: FileText, money: Receipt, field: HardHat, change: Repeat } as any)[k] || Bell
-  const item = (n: (typeof list)[number]) => {
-    const Ic = icon(n.kind)
-    return (
-      <button key={n.id} onClick={() => { commit((s) => { const x = s.notices.find((y) => y.id === n.id); if (x) x.unread = false }); setOn(false); if (n.jobId) open({ t: 'job', id: n.jobId }) }} className="flex w-full items-start gap-3 rounded-[0.75rem] px-3 py-2.5 text-left transition hover:bg-wash">
-        <span className={cn('mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem]', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash-2 text-muted')}><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1">
-          <span className={cn('block text-[0.84375rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
-          <span className="mt-0.5 block text-[0.75rem] text-muted">{n.when}</span>
-        </span>
-        {n.unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-bad-500" />}
-      </button>
-    )
-  }
+  const s = useStore()
+  const unread = inboxUnread(s)
+  const on = activeNav(s.route.page) === 'inbox'
   return (
-    <Dialog.Root open={on} onOpenChange={setOn}>
-      <Dialog.Trigger asChild>
-        <button aria-label="Notifications" className={cn('relative inline-flex shrink-0 items-center justify-center', big ? 'h-9 w-9 rounded-[0.5625rem] border border-line bg-white text-ink-2 shadow-xs hover:border-[#cdc7bc]' : 'h-9 w-9 rounded-[0.625rem] text-muted hover:bg-wash-2 hover:text-ink', dark && 'text-white/60 hover:bg-white/[0.06] hover:text-white')}>
-          <Bell className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.8} />
-          {unread > 0 && (big ? <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-canvas">{unread}</span> : <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-bad-500 ring-2 ring-white" />)}
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[260] bg-[rgba(20,26,36,.28)] animate-fade-in" />
-        <Dialog.Content aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()} className="fixed inset-y-0 right-0 z-[270] flex w-[26.25rem] max-w-full flex-col bg-white shadow-modal outline-none animate-sheet-in">
-          <div className="flex items-center gap-3 border-b border-line px-5 py-4">
-            <Dialog.Title className="font-display text-[1.125rem] font-semibold text-ink">Notifications</Dialog.Title>
-            {unread > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1.5 text-[0.71875rem] font-semibold text-white">{unread}</span>}
-            <button className="ml-auto text-[0.8125rem] font-semibold text-brand-700 hover:underline disabled:text-faint disabled:no-underline" disabled={!unread} onClick={() => commit((s) => s.notices.forEach((n) => (n.unread = false)))}>Mark all read</button>
-            <Dialog.Close aria-label="Close" className="inline-flex h-8 w-8 items-center justify-center rounded-[0.5rem] text-muted hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></Dialog.Close>
-          </div>
-          <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-2 py-3">
-            {unread > 0 && <div className="px-3 pb-1 text-[0.75rem] font-semibold text-muted">New</div>}
-            {list.filter((n) => n.unread).map(item)}
-            {list.some((n) => !n.unread) && <div className="px-3 pb-1 pt-3 text-[0.75rem] font-semibold text-muted">Earlier</div>}
-            {list.filter((n) => !n.unread).map(item)}
-            {!list.length && <div className="px-3 py-10 text-center text-[0.84375rem] text-muted">Nothing new.</div>}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <button aria-label={unread ? `Inbox — ${unread} new` : 'Inbox'} onClick={() => s.go({ page: 'inbox' })} className={cn('relative inline-flex shrink-0 items-center justify-center', big ? 'h-9 w-9 rounded-[0.5625rem] border border-line bg-white text-ink-2 shadow-xs hover:border-[#cdc7bc]' : 'h-9 w-9 rounded-lg hover:bg-wash-2', dark ? 'text-white/80' : 'text-ink-2', on && 'text-brand-600')}>
+      <Bell className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.8} />
+      {unread > 0 && (big ? <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-canvas">{unread}</span> : <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-bad-500 ring-2 ring-white" />)}
+    </button>
   )
 }
 

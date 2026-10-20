@@ -339,5 +339,7 @@ export function bringBackSample() {
 const SAMPLE_FLAG = 'tileos-sample-look'
 /** the admin asked to see the app full of sample projects (the real app) — it opens without the company's data */
 export const wantsSampleLook = () => { try { return sessionStorage.getItem(SAMPLE_FLAG) === '1' } catch { return false } }
+/** the admin chose "start with my own projects" — the sample stops opening on its own while the company is empty */
+export const declinedSample = () => { try { return localStorage.getItem(SAMPLE_FLAG) === '0' } catch { return false } }
 export function lookAtSample() { try { sessionStorage.setItem(SAMPLE_FLAG, '1') } catch { /* no storage */ } location.hash = '#/today'; location.reload() }
-export function leaveSample() { try { sessionStorage.removeItem(SAMPLE_FLAG) } catch { /* no storage */ } location.hash = '#/today'; location.reload() }
+export function leaveSample() { try { sessionStorage.removeItem(SAMPLE_FLAG); localStorage.setItem(SAMPLE_FLAG, '0') } catch { /* no storage */ } location.hash = '#/today'; location.reload() }

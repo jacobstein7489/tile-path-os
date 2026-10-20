@@ -301,13 +301,29 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
     </Modal>
   )
 }
-/** add or change an item's picture — it shows on the list, on POs and in the supplier's email */
+/** add or change an item's picture — a photo from the phone, or a picture link from the supplier's site.
+ *  It shows on the list, on POs and in the supplier's email. */
 function PhotoButton({ i }: { i: Item }) {
+  const [link, setLink] = React.useState<string | null>(null)
+  const saveLink = () => {
+    const url = (link || '').trim()
+    if (!/^https?:\/\/\S+/i.test(url)) return
+    useStore.getState().commit((s) => { const it = s.items.find((x) => x.id === i.id); if (it) it.photo = url }, 'Picture added', { undo: false, sub: 'From the link — if it ever stops loading, the drawn package shows instead.' })
+    setLink(null)
+  }
   return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash">
-      <Camera className="h-3.5 w-3.5" />{i.photo ? 'Change the photo' : i.type === 'material' ? 'Add the real photo' : 'Add a photo'}
-      <input type="file" accept="image/*" aria-label={`Photo of ${i.name}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setItemPhoto(i.id, f); e.target.value = '' }} />
-    </label>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash">
+        <Camera className="h-3.5 w-3.5" />{i.photo ? 'Change the photo' : i.type === 'material' ? 'Add the real photo' : 'Add a photo'}
+        <input type="file" accept="image/*" aria-label={`Photo of ${i.name}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setItemPhoto(i.id, f); e.target.value = '' }} />
+      </label>
+      {link === null
+        ? <button type="button" onClick={() => setLink('')} className="text-[0.78125rem] font-semibold text-brand-700 hover:underline">Paste a picture link</button>
+        : <span className="inline-flex items-center gap-1.5">
+            <input autoFocus aria-label="Picture link" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveLink(); if (e.key === 'Escape') setLink(null) }} placeholder="https://… .jpg" className="h-8 w-[15rem] rounded-lg border border-line px-2.5 text-[0.8125rem] text-ink outline-none focus:border-brand-400 max-sm:w-[11rem]" />
+            <Button size="sm" variant="primary" disabled={!/^https?:\/\/\S+/i.test(link)} onClick={saveLink}>Use it</Button>
+          </span>}
+    </span>
   )
 }
 /** the office, the owner, the estimator and whoever orders can add, change and delete materials */

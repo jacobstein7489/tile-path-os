@@ -14,7 +14,9 @@ const shade = (hex: string, k: number) => {
 
 export function ProductPic({ kind, color, label, size = 96, className, bg = true, photo, sub }: { kind: PicKind; color: string; label?: string; size?: number; className?: string; bg?: boolean; photo?: string; sub?: string }) {
   const raw = React.useId().replace(/:/g, '')
-  if (photo) return <img src={photo} alt={label || ''} width={size} height={size} className={className} style={{ width: size, height: size, objectFit: 'contain', borderRadius: bg ? 14 : 0, background: bg ? '#fff' : undefined }} />
+  /* a photo that won't load (a link that went dead) falls back to the drawn package */
+  const [broken, setBroken] = React.useState<string | null>(null)
+  if (photo && broken !== photo) return <img src={photo} alt={label || ''} width={size} height={size} className={className} onError={() => setBroken(photo)} style={{ width: size, height: size, objectFit: 'contain', borderRadius: bg ? 14 : 0, background: bg ? '#fff' : undefined }} />
   const id = (k: string) => `${k}${raw}`
   const c = color
   const d1 = shade(c, -0.18)

@@ -143,13 +143,13 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
     </button>
   )
   return (
-    <Modal level={level} size="sm" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick a project, or leave it for the company'}>
+    <Modal level={level} size="sm" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Which project is it for?'}>
       <SearchSelect
         label="Project"
         value={jobId}
         onChange={(k) => { setJobId(k); setNeedJob('') }}
         options={projects.map((j) => ({ key: j.id, label: j.name, hint: [j.client, STAGE_LABEL[j.stage]].filter(Boolean).join(' · ') }))}
-        emptyLabel="No project — for the company"
+        emptyLabel="Not for a project — company-wide"
         placeholder="Pick a project"
         searchPlaceholder="Type a project, address or client…"
         search
@@ -170,7 +170,7 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       )}
       {starts.length > 0 && (
         <div className="mt-5 border-t border-line-2 pt-4">
-          <div className="mb-2 text-[0.78125rem] font-semibold text-muted">Start something new</div>
+          <div className="mb-2 text-[0.78125rem] font-semibold text-muted">Or start something new</div>
           <div className="grid grid-cols-2 gap-2">
             {starts.map((x) => (
               <button key={x.k} onClick={() => go(x)} title={x.h} className="inline-flex h-10 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 transition hover:border-[#c9c2b7] hover:text-ink [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-muted"><x.i /><span className="truncate">{x.l}</span></button>

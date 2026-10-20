@@ -8,6 +8,7 @@ import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal } from '@/tileos/features/mytasks'
+import { InboxPage } from '@/tileos/features/inbox'
 import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
 import { EstimatesPage, EstimateModal, AiPlansModal, EstSendModal, EstChangesModal, EstFollowModal, EstLostModal } from '@/tileos/features/estimates'
@@ -201,13 +202,14 @@ export default function App() {
   const route = useStore((s) => s.route)
   const away = useStore((s) => awayFromMe(s))
   const navList = roleDef(role).nav
-  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
+  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
 
   let body: React.ReactNode = null
   switch (page) {
     case 'today':
     case 'tasks': body = <MyTasksPage key={role} />; break
+    case 'inbox': body = <InboxPage />; break
     case 'upcoming': body = <GamePlanPage />; break
     case 'estimates': body = <EstimatesPage />; break
     case 'pos': body = <POsPage />; break
@@ -261,8 +263,8 @@ export default function App() {
 function SampleBar() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-[#2c4a3e] px-4 py-2 text-[0.8125rem] text-white/90">
-      <span><b className="font-semibold text-white">Sample projects</b> — a look around with made-up jobs. Nothing you do here is saved.</span>
-      <button onClick={leaveSample} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to your company</button>
+      <span><b className="font-semibold text-white">Sample projects</b> — made-up jobs, so every page has something on it. Nothing you do here is saved.</span>
+      <button onClick={leaveSample} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Start with my own projects</button>
     </div>
   )
 }
