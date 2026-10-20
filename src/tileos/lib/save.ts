@@ -31,7 +31,11 @@ export const REAL: {
   cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void
   /** who's signed in (the real app) — "Back to me" comes back to this person */
   me?: PersonKey
+  /** the real app, looking at the sample projects for a walk around — nothing is saved, one tap goes back */
+  sampleView?: boolean
   people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
+  /** the real app sends the invite email itself (the admin only): 'sent', or 'already' when they'd signed up before */
+  invite?: (p: { email: string; name: string; role: Role }) => Promise<'sent' | 'already'>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */
@@ -330,3 +334,10 @@ export function bringBackSample() {
   restart(initialData(), 'sample')
   showPop({ title: 'The sample is back', sub: 'Every sample project, estimate and task, as they were.' })
 }
+
+/* ---------------- the real app: a look at the sample ---------------- */
+const SAMPLE_FLAG = 'tileos-sample-look'
+/** the admin asked to see the app full of sample projects (the real app) — it opens without the company's data */
+export const wantsSampleLook = () => { try { return sessionStorage.getItem(SAMPLE_FLAG) === '1' } catch { return false } }
+export function lookAtSample() { try { sessionStorage.setItem(SAMPLE_FLAG, '1') } catch { /* no storage */ } location.hash = '#/today'; location.reload() }
+export function leaveSample() { try { sessionStorage.removeItem(SAMPLE_FLAG) } catch { /* no storage */ } location.hash = '#/today'; location.reload() }

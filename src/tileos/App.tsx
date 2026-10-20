@@ -3,7 +3,7 @@ import { cn } from '@/tileos/lib/utils'
 import { CenterPop } from '@/tileos/lib/pop'
 import { useStore, homeOf, meOf, type Page } from '@/tileos/store'
 import { ROLES, PEOPLE } from '@/tileos/data/model'
-import { REAL, awayFromMe, backToMe } from '@/tileos/lib/save'
+import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
@@ -236,6 +236,7 @@ export default function App() {
         <div className="min-h-screen bg-canvas">
           <Sidebar />
           <div className="lg:pl-[14rem]">
+            {REAL.sampleView && <SampleBar />}
             {away && <PreviewBar />}
             <TopBar />
             <DesktopTopBar />
@@ -256,6 +257,15 @@ export default function App() {
   )
 }
 
+/** the real app, full of sample projects for a look around: say so, and one tap back to the company's own data */
+function SampleBar() {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-[#2c4a3e] px-4 py-2 text-[0.8125rem] text-white/90">
+      <span><b className="font-semibold text-white">Sample projects</b> — a look around with made-up jobs. Nothing you do here is saved.</span>
+      <button onClick={leaveSample} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to your company</button>
+    </div>
+  )
+}
 /** while the admin tries another login: say so, and one tap back */
 function PreviewBar() {
   const role = useStore((s) => s.role)

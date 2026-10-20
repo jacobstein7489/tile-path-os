@@ -4,7 +4,8 @@ import * as React from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import App from './App'
-import { REAL } from './lib/save'
+import { REAL, wantsSampleLook, setSaveStatus } from './lib/save'
+import { useStore, initialData } from './store'
 import { startCloud, stopCloud, type CloudProblem } from './lib/cloud'
 import { SignIn, WaitingRoom, Splash, SetupNeeded } from './features/signin'
 
@@ -43,6 +44,16 @@ export default function Boot() {
     const appRoles: string[] = (roles || []).map((r: any) => r.role)
     const name = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
     if (!appRoles.length) { setPhase({ k: 'waiting', email: user.email || '', name }); return }
+    /* the admin asked for a look at the sample: the app opens on the made-up projects, nothing goes to the database */
+    if (appRoles.includes('admin') && wantsSampleLook()) {
+      REAL.sampleView = true
+      useStore.getState().replaceData(initialData())
+      REAL.email = user.email || undefined
+      REAL.signOut = () => void signOut()
+      setSaveStatus({ where: 'none', mode: 'sample' })
+      setPhase({ k: 'ready' })
+      return
+    }
     const res = await startCloud(user, { admin: appRoles.includes('admin'), name, appRoles })
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()

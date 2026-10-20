@@ -17,6 +17,7 @@ import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
+import { sendInvite } from '@/lib/invite'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -314,6 +315,8 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.email = user.email || undefined
   /* the admin lets people in from Settings → Team */
   REAL.people = opts.admin ? { waiting: waitingPeople, letIn } : undefined
+  /* the admin invites people by email — the app sends it, they pick a password, and they're in with that login */
+  REAL.invite = opts.admin ? async (p) => { const r = await sendInvite({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return r.already ? 'already' : 'sent' } : undefined
   /* the company's AI reads paperwork; files go to the company's storage */
   REAL.ai = askAI
   REAL.files = files

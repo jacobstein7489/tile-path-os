@@ -202,14 +202,15 @@ export function ItemsPage() {
 /** one material on the list — its picture right there, so you see it as you scroll */
 function MatRow({ i }: { i: Item }) {
   const s = useStore()
-  const how = [i.pack || i.unit, i.usedFor ? 'the takeoff orders it' : i.id.startsWith('m-own-') ? 'added by hand' : ''].filter(Boolean).join(' · ')
+  /* what it is in plain words on top; the brand and product under it, with how it comes */
+  const how = [[i.brand, i.product].filter(Boolean).join(' '), i.pack || i.unit, i.usedFor ? 'the takeoff orders it' : i.id.startsWith('m-own-') ? 'added by hand' : ''].filter(Boolean).join(' · ')
   return (
     <Tr onClick={() => s.open({ t: 'item', id: i.id })}>
       <Td className="py-1.5">
         <div className="flex min-w-0 items-center gap-3">
           <ItemThumb item={i} size={52} />
           <div className="min-w-0">
-            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.product || i.name}{i.brand && <span className="ml-1.5 font-normal text-muted">{i.brand}</span>}</div>
+            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.name}</div>
             <div className="truncate text-[0.78125rem] text-muted">{how}<span className="md:hidden">{i.vendor ? ` · ${i.vendor}` : ''}</span></div>
           </div>
         </div>
@@ -438,11 +439,11 @@ function Line({ title, sub, right, onClick }: { title: string; sub?: string; rig
 type NewProd = Omit<Item, 'id' | 'type' | 'qb'> & { sku: string }
 const PRICE_LIST: NewProd[] = [
   { sku: 'INF-2210', name: 'Rapid-set thinset · 50 lb', brand: 'Mapei', product: 'Ultraflex RS', cat: 'mortar', pic: 'bag', tint: '#5f6670', pack: '50 lb bag', unit: 'bag', price: 64, cost: 47, vendor: 'Infinity' },
-  { sku: 'INF-3104', name: 'Urethane grout · 1 gal', brand: 'Custom Building Products', product: 'Fusion Pro', cat: 'grout', pic: 'pail', tint: '#9b8471', pack: '1 gal', unit: 'pail', price: 118, cost: 86, vendor: 'Infinity' },
-  { sku: 'INF-4420', name: 'Crack isolation · 1 gal', brand: 'Laticrete', product: 'Blue 92', cat: 'waterproofing', pic: 'jug', tint: '#4569c9', pack: '1 gal', unit: 'gal', price: 74, cost: 52, vendor: 'Infinity' },
-  { sku: 'INF-5012', name: 'Shower niche 12 × 24', brand: 'Schluter', product: 'KERDI-BOARD-SN', cat: 'board', pic: 'box', tint: '#e08a2a', pack: '12 × 24 in', unit: 'pc', price: 96, cost: 70, vendor: 'Infinity' },
-  { sku: 'MW-0880', name: 'Stair nosing · 8 ft', brand: 'Schluter', product: 'TREP-FL', cat: 'trim', pic: 'trim', tint: '#a4abb3', pack: '8 ft · aluminum', unit: 'pc', price: 68, cost: 50, vendor: 'Metal Works Inc.' },
-  { sku: 'INF-6100', name: 'Penetrating sealer · gallon', brand: 'Aqua Mix', product: 'Enrich ‘N’ Seal', cat: 'care', pic: 'jug', tint: '#3e9a68', pack: '1 gal', unit: 'gal', price: 129, cost: 92, vendor: 'Infinity' },
+  { sku: 'INF-3104', name: 'Epoxy grout · mini unit', brand: 'Laticrete', product: 'SpectraLOCK Pro Mini', cat: 'grout', pic: 'kit', tint: '#7d6b5a', pack: 'Mini unit', unit: 'kit', price: 68, cost: 50, vendor: 'Infinity' },
+  { sku: 'INF-4420', name: 'Sound mat · roll', brand: 'Laticrete', product: '125 Sound & Crack', cat: 'membrane', pic: 'roll', tint: '#4569c9', pack: '100 SF roll', unit: 'roll', price: 210, cost: 155, vendor: 'Infinity' },
+  { sku: 'INF-5012', name: 'Shower niche 12 × 12', brand: 'Schluter', product: 'KERDI-BOARD-SN', cat: 'board', pic: 'box', tint: '#e08a2a', pack: '12 × 12 in', unit: 'pc', price: 72, cost: 52, vendor: 'Infinity' },
+  { sku: 'MW-0880', name: 'Outside corner · brushed brass', brand: 'Schluter', product: 'RONDEC corner', cat: 'trim', pic: 'trim', tint: '#c9a24a', pack: 'Each · 3/8 in', unit: 'pc', price: 14, cost: 10, vendor: 'Metal Works Inc.' },
+  { sku: 'INF-6100', name: 'Grout colorant · 8 oz', brand: 'Aqua Mix', product: 'Grout Colorant', cat: 'care', pic: 'tube', tint: '#3e9a68', pack: '8 oz', unit: 'ea', price: 24, cost: 17, vendor: 'Infinity' },
 ]
 export function ImportItemsModal({ level }: { level: number }) {
   const s = useStore()

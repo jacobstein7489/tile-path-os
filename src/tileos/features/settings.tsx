@@ -20,7 +20,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
-import { REAL, type WaitingPerson } from '@/tileos/lib/save'
+import { REAL, lookAtSample, type WaitingPerson } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
@@ -48,7 +48,7 @@ export function SettingsPage() {
       {tab === 'autos' && <AutomationsTab />}
       {tab === 'rules' && <div className="flex flex-col gap-10"><RulesTab /><div id="settings-numbers"><NumbersTab /></div></div>}
       {tab === 'connections' && <ConnectionsTab />}
-      {tab === 'practice' && <div className="flex flex-col gap-10"><PracticeTab />{!REAL.cloud && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+      {tab === 'practice' && <div className="flex flex-col gap-10">{REAL.cloud && REAL.admin && <SampleLookCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
     </Page>
   )
 }
@@ -202,9 +202,22 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
   const msg0 = (e: string) => [`Hi ${m?.first || ''},`, '', 'You’re invited to Cobblestone Tile OS — it’s where we run our projects.', '', `1. Open ${APP_LINK()}`, `2. Sign up with this email: ${e || 'your email'}`, '3. Make your own password', '', 'I’ll let you in right away.', '', `— ${me}`].join('\n')
   const [msg, setMsg] = React.useState(() => msg0(m?.email || ''))
   const [touched, setTouched] = React.useState(false)
+  const [sending, setSending] = React.useState(false)
+  const [failed, setFailed] = React.useState('')
   if (!m) return null
   const ok = /\S+@\S+\.\S+/.test(email)
   const mark = () => updateMember(k, { email: email.trim(), role, status: 'invited', invited: TODAY }, `${m.first} is invited`)
+  /* the real app sends the email itself; the preview hands you the message to send */
+  const send = async () => {
+    if (!REAL.invite || sending) return
+    setSending(true); setFailed('')
+    try {
+      const r = await REAL.invite({ email: email.trim(), name: `${m.first} ${m.last || ''}`.trim(), role })
+      mark()
+      toast(r === 'already' ? `${m.first} can sign in now` : `Invite sent to ${email.trim()}`, { description: r === 'already' ? `They’d signed up already — they’re in as ${short(role)}.` : `They pick a password from the email and they’re in as ${short(role)}. No letting in needed.` })
+      s.close()
+    } catch (e: any) { setFailed(e?.message || 'Couldn’t send it') } finally { setSending(false) }
+  }
   const subject = 'You’re invited to Cobblestone Tile OS'
   const copy = async () => { try { await navigator.clipboard.writeText(msg) } catch { /* no clipboard */ } mark(); toast('Copied — paste it in a text or an email', { description: `When ${m.first} signs up, let them in from Settings → Team.` }) }
   return (
@@ -213,14 +226,19 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
       size="md"
       onClose={s.close}
       title={`Invite ${PEOPLE[k]?.name || m.first}`}
-      sub="They make their own password when they sign up — you let them in with one tap."
-      footer={
+      sub={REAL.invite ? 'They get an email from Tile OS, pick a password, and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
+      footer={REAL.invite ? (
+        <>
+          {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
+          <Button className="ml-auto" variant="primary" icon={<Send />} disabled={!ok || sending} onClick={send}>{sending ? 'Sending…' : 'Send the invite'}</Button>
+        </>
+      ) : (
         <>
           <Button variant="ghost" disabled={!ok} onClick={copy}>Copy</Button>
           {m.phone && <Button disabled={!ok} onClick={() => { mark(); window.open(`sms:${m.phone}?&body=${encodeURIComponent(msg)}`) }}>Text it</Button>}
           <Button className="ml-auto" variant="primary" icon={<Send />} disabled={!ok} onClick={() => { mark(); window.open(`mailto:${email.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`); s.close() }}>Email the invite</Button>
         </>
-      }
+      )}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3 max-sm:grid-cols-1">
         <Field label="Their email — they sign up with it"><TextInput data-autofocus aria-label="Their email" value={email} onChange={(e) => { setEmail(e.target.value); if (!touched) setMsg(msg0(e.target.value.trim())) }} placeholder="name@cobblestonenj.com" className="h-10" /></Field>
@@ -231,7 +249,7 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
           </Menu>
         </Field>
       </div>
-      <Field label="The message" className="mt-3"><TextArea rows={9} aria-label="The message" value={msg} onChange={(e) => { setMsg(e.target.value); setTouched(true) }} /></Field>
+      {!REAL.invite && <Field label="The message" className="mt-3"><TextArea rows={9} aria-label="The message" value={msg} onChange={(e) => { setMsg(e.target.value); setTouched(true) }} /></Field>}
     </Modal>
   )
 }
@@ -245,6 +263,18 @@ export function AddPersonModal({ level }: { level: number }) {
   const [role, setRole] = React.useState<Role>('office')
   const [client, setClient] = React.useState('')
   const ok = first.trim() && /\S+@\S+\.\S+/.test(email) && (role !== 'client' || !!client)
+  const [busy, setBusy] = React.useState(false)
+  const [failed, setFailed] = React.useState('')
+  /* the real app emails the invite right away; the preview just adds them to the team */
+  const add = async () => {
+    if (!ok || busy) return
+    setBusy(true); setFailed('')
+    try {
+      if (REAL.invite && role !== 'client') await REAL.invite({ email: email.trim(), name: `${first.trim()} ${last.trim()}`.trim(), role })
+      addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, clientId: role === 'client' ? client : undefined, ...(REAL.invite && role !== 'client' ? { invited: TODAY } : {}) })
+      s.close()
+    } catch (e: any) { setFailed(e?.message || 'Couldn’t send it') } finally { setBusy(false) }
+  }
   return (
     <Modal
       level={level}
@@ -255,8 +285,9 @@ export function AddPersonModal({ level }: { level: number }) {
       footer={
         <>
           <Button variant="ghost" icon={<Eye />} onClick={() => s.setRole(role)}>See what a {short(role)} login sees</Button>
+          {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" icon={<Mail />} disabled={!ok} onClick={() => { addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, clientId: role === 'client' ? client : undefined }); s.close() }}>Send the invite</Button>
+          <Button variant="primary" icon={<Mail />} disabled={!ok || busy} onClick={add}>{busy ? 'Sending…' : REAL.invite ? 'Send the invite' : 'Add them'}</Button>
         </>
       }
     >
@@ -631,5 +662,20 @@ function DecStepper({ value, step, min, max, onChange }: { value: number; step: 
       <span className="min-w-[3rem] text-center text-[0.875rem] font-semibold tnum text-ink">{r(value)}</span>
       <button aria-label="More" className="h-full w-9 rounded-r-lg text-[1rem] text-ink-2 hover:bg-wash disabled:opacity-40" disabled={value >= max} onClick={() => onChange(Math.min(max, r(value + step)))}>+</button>
     </div>
+  )
+}
+
+/** the real app: see the whole app full of sample projects — every page with something on it — then come back */
+function SampleLookCard() {
+  return (
+    <Card pad={false}>
+      <div className="flex flex-wrap items-center gap-4 px-6 py-5 max-sm:px-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-semibold text-ink">See it full of sample projects</div>
+          <div className="text-[0.84375rem] text-muted">Every page with something on it — 13 projects, estimates, orders, pay, billing. A look around; nothing you do there is saved, and your own data isn’t touched.</div>
+        </div>
+        <Button variant="primary" onClick={lookAtSample}>Look at the sample</Button>
+      </div>
+    </Card>
   )
 }

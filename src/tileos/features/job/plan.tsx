@@ -266,18 +266,20 @@ export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
   const key = `tileos-project-todo:${s.role}`
   /* the owner looks after the whole project, so his starts on Everyone; everyone else starts on their own */
   const first: 'mine' | 'all' = s.role === 'owner' || s.role === 'pm' ? 'all' : 'mine'
-  const [scope, setScope0] = React.useState<'mine' | 'all'>(() => { try { const v = localStorage.getItem(key); return v === 'all' || v === 'mine' ? v : first } catch { return first } })
-  const setScope = (k: 'mine' | 'all') => { setScope0(k); try { localStorage.setItem(key, k) } catch { /* private window */ } }
+  const [scope, setScope0] = React.useState<'mine' | 'all' | 'done'>(() => { try { const v = localStorage.getItem(key); return v === 'all' || v === 'mine' ? v : first } catch { return first } })
+  /* Done isn't remembered — next time it opens on what's open */
+  const setScope = (k: 'mine' | 'all' | 'done') => { setScope0(k); if (k !== 'done') try { localStorage.setItem(key, k) } catch { /* private window */ } }
+  const done = doneRows(s, job)
   const isMine = (r: TodoRow) => r.who === me || !!r.people?.includes(me)
   const order = (r: TodoRow) => (isProblem(r) ? 0 : r.late ? 1 : r.group === 'mine' ? 2 : r.group === 'others' ? 3 : r.group === 'wait' ? 4 : 5)
   const mine = rows.filter(isMine)
-  const list = [...(scope === 'mine' ? mine : rows)].sort((a, b) => order(a) - order(b))
+  const list = scope === 'done' ? done : [...(scope === 'mine' ? mine : rows)].sort((a, b) => order(a) - order(b))
   const first1 = list.find((r) => r.group === 'mine' && r.run)?.key
   return (
     <Section
-      title="What’s open"
+      title={scope === 'done' ? 'Done' : 'What’s open'}
       action={<>
-        <ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', short: 'All', icon: <Users />, count: rows.length }]} />
+        <ViewSwitch label="Whose to-do" value={scope} onChange={setScope} items={[{ key: 'mine', label: 'Mine', icon: <UserRound />, count: mine.length }, { key: 'all', label: 'Everyone', short: 'All', icon: <Users />, count: rows.length }, { key: 'done', label: 'Done', icon: <Check />, count: done.length }]} />
         <AddToProject job={job} />
       </>}
     >
@@ -286,14 +288,23 @@ export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 max-sm:px-4">
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[0.90625rem] font-semibold text-ink">{scope === 'mine' ? 'Nothing for you on this project' : 'Nothing open on this project'}</span>
-            <span className="block text-[0.78125rem] text-muted">{scope === 'mine' && rows.length ? `${rows.length} open for the others.` : 'All caught up.'}</span>
+            <span className="block text-[0.90625rem] font-semibold text-ink">{scope === 'done' ? 'Nothing finished yet' : scope === 'mine' ? 'Nothing for you on this project' : 'Nothing open on this project'}</span>
+            <span className="block text-[0.78125rem] text-muted">{scope === 'done' ? 'Finished steps, tasks and touch-ups show up here.' : scope === 'mine' && rows.length ? `${rows.length} open for the others.` : 'All caught up.'}</span>
           </span>
           {scope === 'mine' && rows.length > 0 && <Button size="sm" onClick={() => setScope('all')}>See everyone’s</Button>}
         </div>
       )}
     </Section>
   )
+}
+
+/** what's done on the project — every finished step, task and touch-up, newest first, so nothing disappears */
+export function doneRows(s: Store, job: Job): TodoRow[] {
+  const rows: TodoRow[] = []
+  if (isGettingReady(job)) for (const v of stepsFor(s, job)) if (v.state === 'done') rows.push({ key: 'ds:' + v.key, group: 'coming', mark: { kind: 'step', state: 'done' }, title: v.label, note: v.note, who: v.doneBy || v.owner, when: v.doneOn || '—', run: () => openStep(job.id, v.key) })
+  for (const t of s.tasks) if (t.jobId === job.id && t.state === 'done') rows.push({ key: 'dt:' + t.id, group: 'coming', mark: { kind: 'step', state: 'done' }, title: t.title, note: t.result || t.where, who: t.owner, when: t.doneAt || '—', run: () => s.open({ t: 'task', id: t.id }) })
+  for (const p of s.punch) if (p.jobId === job.id && p.status === 'verified') rows.push({ key: 'dp:' + p.id, group: 'coming', mark: { kind: 'item', status: 'done' }, title: p.text, note: p.where, who: p.owner, when: '—', run: () => s.open({ t: 'touchups', jobId: job.id }) })
+  return rows.reverse()
 }
 
 /** + Add — the few things you put on a project: a problem (tile came wrong, broken or short; the site isn't ready),
