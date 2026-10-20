@@ -89,7 +89,10 @@ export function InboxPage() {
   const list = conversations(s)
   const [q, setQ] = React.useState('')
   const [picked, setPicked] = React.useState<string | null>(null)
-  const shown = q.trim() ? list.filter((c) => `${c.name} ${c.sub || ''} ${c.preview}`.toLowerCase().includes(q.trim().toLowerCase())) : list
+  /* New: conversations with something you haven't seen. All: every conversation — they stay; nothing to file away */
+  const [onlyNew, setOnlyNew] = React.useState(false)
+  const unreadN = list.reduce((n, c) => n + c.unread, 0)
+  const shown = list.filter((c) => !onlyNew || c.unread > 0).filter((c) => !q.trim() || `${c.name} ${c.sub || ''} ${c.preview}`.toLowerCase().includes(q.trim().toLowerCase()))
   const cur = list.find((c) => c.key === picked) || null
   /* opening a conversation marks its news as seen */
   const openConvo = (c: Convo) => {
@@ -108,6 +111,13 @@ export function InboxPage() {
               <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-faint" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search the inbox" className="h-9 w-full rounded-full border border-line bg-wash pl-8 pr-3 text-[0.875rem] text-ink outline-none placeholder:text-faint focus:border-brand-300 focus:bg-white" />
             </label>
+          </div>
+          <div className="flex items-center gap-1.5 border-b border-line-2 px-3 py-2">
+            {([['all', 'All'], ['new', 'New']] as const).map(([k, label]) => {
+              const on = (k === 'new') === onlyNew
+              return <button key={k} onClick={() => setOnlyNew(k === 'new')} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{k === 'new' && unreadN > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : 'bg-brand-600 text-white')}>{unreadN}</span>}</button>
+            })}
+            <span className="ml-auto text-[0.75rem] text-faint">{list.length} {list.length === 1 ? 'conversation' : 'conversations'}</span>
           </div>
           <div className="scroll-soft min-h-0 flex-1 overflow-y-auto">
             {shown.map((c) => {
@@ -128,7 +138,7 @@ export function InboxPage() {
                 </button>
               )
             })}
-            {!shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : 'Nothing here yet — when someone writes on a project, or something moves, it lands here.'}</div>}
+            {!shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : onlyNew ? 'Nothing new. You’ve seen it all.' : 'Nothing here yet — when someone writes on a project, or something moves, it lands here.'}</div>}
           </div>
         </div>
         {/* the conversation */}
@@ -152,7 +162,7 @@ export function InboxPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
               <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-wash text-muted"><Bell className="h-6 w-6" /></span>
               <div className="text-[1rem] font-semibold text-ink">Pick a conversation</div>
-              <div className="max-w-sm text-[0.875rem] text-muted">Every project is one conversation: the GC, the crew, our team — and what the app noticed, in the same place.</div>
+              <div className="max-w-sm text-[0.875rem] text-muted">Every project is one conversation: the GC, the crew, our team — and what the app noticed, in the same place. Five messages on a job are one conversation with “5 new”. Open it and the count clears. Conversations stay; there’s nothing to file away. If a message needs doing, “Make it a task” puts it on someone’s Today.</div>
             </div>
           )}
         </div>

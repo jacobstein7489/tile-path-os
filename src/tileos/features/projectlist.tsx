@@ -129,12 +129,13 @@ export function ProjectsPage() {
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
 /* Project · Where it stands · Installer · Dates · Contract — no status column: the group it's under already says it */
-const COLS = 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1.6fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
+const COLS = 'grid grid-cols-[minmax(0,1.15fr)_8.75rem_minmax(0,1.5fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_8.75rem_minmax(0,1.5fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_8.25rem_minmax(0,1.4fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
 
 function ListHead() {
   return (
     <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX, STICKY_HEAD)}>
       <span>Project</span>
+      <span className="max-lg:hidden">Status</span>
       <span>Where it stands</span>
       <span className="max-xl:hidden">Installer</span>
       <span className="max-lg:hidden">Dates</span>
@@ -234,6 +235,8 @@ function DatesCell({ j }: { j: Job }) {
 function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
   const t = typeOf(j)
+  const status = j.hold ? 'On hold' : t === 'coming' ? (flowOf(j) === 'setup' ? 'Setup' : 'Ready to start') : STAGE_LABEL[j.stage]
+  const tone = j.hold ? 'bad' : t === 'coming' ? (flowOf(j) === 'setup' ? 'vio' : 'info') : TYPE_TONE[t]
   return (
     <div
       role="button"
@@ -248,6 +251,7 @@ function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
           <div className="truncate text-[0.78125rem] text-muted">{j.client}</div>
         </div>
       </div>
+      <div className="min-w-0 max-lg:hidden"><Status tone={tone}>{status}</Status></div>
       <div className="min-w-0"><StandsCell j={j} /></div>
       <div className="min-w-0 max-xl:hidden">
         {crew ? <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] font-medium text-ink-2"><Avatar who={crew} size={24} /><span className="truncate">{PEOPLE[crew].short}</span></span> : <span className="text-[0.8125rem] text-faint">{t === 'done' ? '—' : 'Not booked'}</span>}

@@ -4,7 +4,7 @@
  * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
  * Back / Next walk through that part's steps. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, ArrowRight, Lock, MoreHorizontal } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, Lock, MoreHorizontal } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -15,11 +15,11 @@ import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { GROUTS, JOINTS, byTag, type Tile, type Surface, type Room } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, setCompanyStepOwner, companySteps, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView, levelWord, setFloorLevel, fracIn, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView, setFloorLevel, fracIn, parseIn, floorRooms, isFloor, sendFloorProblems, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, AddStep, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
@@ -32,7 +32,7 @@ import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
 import { PaperRead } from './paperread'
-import { SFChip, AddSurfaceButton, AddRoomButton } from './roomedit'
+import { AddRoomButton } from './roomedit'
 import { LayoutsList, fillSuggestions } from './layout'
 
 /* ---------------- words ---------------- */
@@ -66,6 +66,7 @@ export const TODO: Record<string, string> = {
   tile: 'Pick the grout and pictures',
   layouts: 'Set the layouts',
   heights: 'Site check',
+  level: 'Measure the floors — high and low',
   setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
   walk: 'Show the installer the job',
@@ -85,7 +86,8 @@ const WHAT: Record<string, string> = {
   change: 'Send the designer and the GC what was decided at the meeting or the walkthrough. Anything that changes the price — LED channels, a pattern, a bigger tile, an extra niche — goes to the estimator.',
   tile: 'A grout and a picture for every tile — the installer’s sheet shows them.',
   layouts: 'The system suggests each one from the tile — the pattern, and where to start so there are no thin cuts. Tap one to see it drawn, change it or send it to the designer.',
-  heights: 'Look at the site before we order: heights, water, electrical, plumbing.',
+  heights: 'Look at the site before we order: wall heights, water, electrical, plumbing.',
+  level: 'Every floor we tile: the high point and the low point off one laser line. The system says flat, self-leveler, or the GC’s to fix. A mud bed levels itself.',
   setup: 'What every floor and wall is set on — underlayment, membrane, mud. Our materials are worked out from it.',
   installer: 'Pick who installs it and send him his PO — the meter shows it against the estimate.',
   walk: 'Show the installer the job before he starts. Not every job needs it.',
@@ -231,70 +233,12 @@ function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?:
   )
 }
 
-/** every step down the side, by name — same size whichever one you're on */
-function Rail({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
-  const ref = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { ref.current?.querySelector('[aria-current="step"]')?.scrollIntoView({ block: 'nearest' }) }, [at])
-  return (
-    <nav ref={ref} aria-label="Steps" className="scroll-soft flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r border-line bg-[#faf8f5] max-md:hidden">
-      <div className="flex-1 py-2">
-        {PHASES.map((ph) => {
-          const items = list.filter((x) => x.phase === ph.key)
-          if (!items.length) return null
-          return (
-            <div key={ph.key} className="pb-1.5">
-              <div className="px-4 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{ph.label}</div>
-              {items.map((x) => (
-                <button
-                  key={x.key}
-                  aria-current={x.key === at ? 'step' : undefined}
-                  onClick={() => go(x)}
-                  className={cn('flex h-10 w-full items-center gap-2.5 px-4 text-left transition', x.key === at ? 'bg-white shadow-[inset_0.1875rem_0_0_#2650cf]' : 'hover:bg-white/70')}
-                >
-                  <StepIcon state={x.state} size={20} />
-                  <span className={cn('min-w-0 flex-1 truncate text-[0.84375rem] font-semibold', x.key === at ? 'text-ink' : x.state === 'done' || x.state === 'na' || x.state === 'later' ? 'text-muted' : 'text-ink-2')}>{x.short}</span>
-                  <Tip label={`${x.owner === me ? 'You' : PEOPLE[x.owner]?.name}`}><span><Avatar who={x.owner} size={20} /></span></Tip>
-                </button>
-              ))}
-            </div>
-          )
-        })}
-      </div>
-      <Legend className="border-t border-line-2 px-4 py-2.5" />
-    </nav>
-  )
-}
 /** what the marks mean — the same everywhere */
 export function Legend({ className }: { className?: string }) {
   const items: [StepView['state'], string][] = [['done', 'Done'], ['now', 'To do'], ['wait', 'Waiting'], ['bad', 'Problem'], ['later', 'Not yet']]
   return (
     <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.71875rem] font-medium text-muted', className)}>
       {items.map(([st, l]) => <span key={st} className="inline-flex items-center gap-1.5"><StepIcon state={st} size={14} />{l}</span>)}
-    </div>
-  )
-}
-/** on a phone: which step, and the list to jump to another */
-function PhonePicker({ list, at, go }: { list: StepView[]; at: number; go: (x?: StepView) => void }) {
-  return (
-    <div className="mb-4 md:hidden">
-      <Menu align="start" width={320} trigger={
-        <button className="flex h-11 w-full items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left">
-          <StepIcon state={list[at].state} size={20} />
-          <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">Step {at + 1} of {list.length} · {list[at].short}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
-        </button>
-      }>
-        {PHASES.map((ph) => {
-          const items = list.filter((x) => x.phase === ph.key)
-          if (!items.length) return null
-          return (
-            <React.Fragment key={ph.key}>
-              <MenuLabel>{ph.label}</MenuLabel>
-              {items.map((x) => <MenuItem key={x.key} icon={<StepIcon state={x.state} size={18} />} checked={x.key === list[at].key} hint={PEOPLE[x.owner]?.short} onSelect={() => go(x)}>{x.short}</MenuItem>)}
-            </React.Fragment>
-          )
-        })}
-      </Menu>
     </div>
   )
 }
@@ -308,15 +252,6 @@ function Who({ job, v }: { job: Job; v: StepView }) {
       {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={v.owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
     </Menu>
   )
-}
-/** the person changed on this project — offer to make them the one on every project */
-function UsualOwner({ v }: { v: StepView }) {
-  const s = useStore()
-  const def = companySteps(s).find((d) => d.key === v.key)
-  if (!def || v.only) return null
-  const usual = def.owner === 'matBy' ? matBy(s) : def.owner
-  if (usual === v.owner) return null
-  return <button onClick={() => setCompanyStepOwner(v.key, v.owner)} className="mt-2 text-left text-[0.8125rem] font-semibold text-brand-600 hover:underline">Make {PEOPLE[v.owner]?.short} the one for “{v.short.toLowerCase()}” on every project</button>
 }
 function When({ job, v }: { job: Job; v: StepView }) {
   const [open, setOpen] = React.useState(false)
@@ -403,6 +338,7 @@ function Body({ job, v }: { job: Job; v: StepView }) {
     case 'order': return <Order job={job} v={v} />
     case 'deposit': return <Deposit job={job} />
     case 'heights': return <SiteCheck job={job} v={v} />
+    case 'level': return <FloorLevels job={job} v={v} />
     case 'materials': return <Materials job={job} />
     case 'matin': return <MaterialsIn job={job} v={v} />
     case 'delivered': return <Delivered job={job} v={v} />
@@ -1081,7 +1017,7 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   return (
     <div>
       <Block title="On site" right={`${answered} of ${SITE_CHECKS.length} checked`}>
-        {SITE_CHECKS.map((c) => c.k === 'level' ? <LevelRow key={c.k} job={job} c={c} a={answers[c.k]} /> : <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} heights={c.k === 'heights' && hs.total ? hs : undefined} />)}
+        {SITE_CHECKS.map((c) => <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} heights={c.k === 'heights' && hs.total ? hs : undefined} />)}
       </Block>
       {!done && (
         <Actions>
@@ -1099,14 +1035,14 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
   const chip = (on: boolean, tone: 'ok' | 'bad') => cn('inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[0.8125rem] font-semibold transition', on ? (tone === 'ok' ? 'border-ok-500 bg-ok-500 text-white' : 'border-bad-500 bg-bad-500 text-white') : 'border-line bg-white text-ink-2 hover:bg-wash')
   return (
     <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
-      <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden"><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1 max-sm:basis-full">
+      <div className="flex items-center gap-3 max-sm:flex-wrap @max-lg:flex-wrap">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden @max-lg:hidden"><Ic className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1 max-sm:basis-full @max-lg:basis-full">
           <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
           <span className="block text-[0.78125rem] text-muted">{c.sub}{heights ? ` · ${heights.measured} of ${heights.total} walls measured` : ''}</span>
         </span>
         {heights && <Button size="sm" variant="ghost" icon={<Ruler />} onClick={() => s.open({ t: 'heights', jobId: job.id })}>Enter heights</Button>}
-        <span className="flex shrink-0 gap-1.5 max-sm:ml-auto">
+        <span className="flex shrink-0 gap-1.5 max-sm:ml-auto @max-lg:ml-auto">
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === true ? null : true)} className={chip(a?.ok === true, 'ok')}><Check className="h-3.5 w-3.5" strokeWidth={3} />Good</button>
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === false ? null : false, note.trim() || undefined)} className={chip(a?.ok === false, 'bad')}><X className="h-3.5 w-3.5" strokeWidth={3} />Problem</button>
         </span>
@@ -1116,59 +1052,89 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
   )
 }
 
-/** the floors: the high and the low point of each room, in inches — the system says flat, self-leveler, or the GC's to fix */
-function LevelRow({ job, c, a }: { job: Job; c: { k: string; label: string; sub: string }; a?: { ok: boolean; note?: string } }) {
+/* ================= 8b · the floors: the high and the low point of every one ================= */
+const FRACS = ['⅛', '¼', '⅜', '½', '⅝', '¾', '⅞']
+/** every floor we tile, one line each: type the high and the low point (36 3/4, 36¾ or 36.75 — all the same), and the
+ *  line says flat, self-leveler, or the GC's to fix. A mud bed levels itself, so it needs no numbers. */
+function FloorLevels({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
-  const rooms = (s.rooms[job.id] || []).filter((r) => r.surfaces.some((x) => /floor/i.test(x.name) && !/shower/i.test(x.name)))
-  const [open, setOpen] = React.useState(false)
-  const [vals, setVals] = React.useState<Record<string, { high: string; low: string }>>({})
-  const measured = rooms.filter((r) => r.level).length
-  const worst = rooms.map(levelWord).filter(Boolean).sort((x, y) => y!.diff - x!.diff)[0]
-  const Ic = CHECK_ICON[c.k] || Check
-  const v = (r: Room, k: 'high' | 'low') => vals[r.name]?.[k] ?? (r.level ? String(r.level[k]) : '')
-  const save = (r: Room) => {
-    const high = Number(vals[r.name]?.high ?? r.level?.high), low = Number(vals[r.name]?.low ?? r.level?.low)
-    if (!Number.isFinite(high) || !Number.isFinite(low) || (!vals[r.name]?.high && !r.level) || (!vals[r.name]?.low && !r.level)) return
-    setFloorLevel(job.id, r.name, high, low)
+  const rooms = floorRooms(s.rooms[job.id] || [])
+  const toDo = rooms.filter((f) => !f.mud)
+  const measured = toDo.filter((f) => f.word)
+  const bad = measured.filter((f) => f.word!.tone === 'bad')
+  const [text, setText] = React.useState<Record<string, string>>({})
+  const [on, setOn] = React.useState<string | null>(null)
+  const shown = (f: typeof rooms[number], k: 'high' | 'low') => text[`${f.room.name}|${k}`] ?? (f.room.level ? fracIn(f.room.level[k]) : '')
+  const edit = (f: typeof rooms[number], k: 'high' | 'low', t: string) => setText((p) => ({ ...p, [`${f.room.name}|${k}`]: t }))
+  const save = (f: typeof rooms[number]) => {
+    const high = parseIn(text[`${f.room.name}|high`] ?? (f.room.level ? String(f.room.level.high) : ''))
+    const low = parseIn(text[`${f.room.name}|low`] ?? (f.room.level ? String(f.room.level.low) : ''))
+    if (high == null || low == null) return
+    if (f.room.level && f.room.level.high === high && f.room.level.low === low) return
+    setFloorLevel(job.id, f.room.name, high, low)
+    setText((p) => { const n = { ...p }; delete n[`${f.room.name}|high`]; delete n[`${f.room.name}|low`]; return n })
   }
+  /* the fraction buttons under the line you're typing on: ¾ makes 36 into 36¾ */
+  const frac = (f: typeof rooms[number], k: 'high' | 'low', c: string) => {
+    const cur = parseIn(shown(f, k)) ?? 0
+    edit(f, k, `${Math.floor(cur) ? Math.floor(cur) : ''}${c}`)
+  }
+  if (!rooms.length) return <div className="rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-muted">No floors on this project — nothing to measure.</div>
   return (
-    <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
-      <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:hidden', a?.ok === false ? 'bg-bad-50 text-bad-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1 max-sm:basis-full">
-          <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
-          <span className={cn('block text-[0.78125rem]', a?.ok === false ? 'font-medium text-bad-600' : a?.note ? 'font-medium text-warn-700' : 'text-muted')}>{a?.note || (rooms.length ? `${measured} of ${rooms.length} floors measured` : 'No floors on this project')}</span>
-        </span>
-        {rooms.length > 0 && <Button size="sm" variant={measured === rooms.length ? 'ghost' : 'secondary'} icon={<Ruler />} onClick={() => setOpen((o) => !o)}>{measured === rooms.length ? (open ? 'Hide' : 'See them') : 'Enter high and low'}</Button>}
-        {!!worst && !open && <Status tone={worst.tone === 'ok' ? 'ok' : worst.tone === 'warn' ? 'warn' : 'bad'}>{worst.tone === 'ok' ? 'All flat' : worst.label}</Status>}
-      </div>
-      {open && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-line">
-          <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_minmax(0,1.1fr)] items-center gap-2 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted max-sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem]">
-            <span>Floor</span><span className="text-right">High point</span><span className="text-right">Low point</span><span className="max-sm:hidden">What it means</span>
-          </div>
-          {rooms.map((r) => {
-            const w = levelWord(r)
-            return (
-              <div key={r.name} className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_minmax(0,1.1fr)] items-center gap-2 border-b border-line-2 px-3 py-2 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem]">
-                <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{r.name}</span>{w && <span className={cn('block truncate text-[0.75rem] sm:hidden', w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'text-bad-600')}>{w.label}</span>}</span>
-                {(['high', 'low'] as const).map((k) => (
-                  <span key={k} className="inline-flex h-8 items-center gap-1 rounded-lg border border-line bg-white pr-2">
-                    <input aria-label={`${r.name} floor ${k} point in inches`} inputMode="decimal" value={v(r, k)} onChange={(e) => setVals((p) => ({ ...p, [r.name]: { high: p[r.name]?.high ?? (r.level ? String(r.level.high) : ''), low: p[r.name]?.low ?? (r.level ? String(r.level.low) : ''), [k]: e.target.value } }))} onBlur={() => save(r)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="0" className="h-full w-full min-w-0 bg-transparent px-2 text-right text-[0.875rem] tnum text-ink outline-none" />
-                    <span className="text-[0.75rem] text-muted">in</span>
-                  </span>
-                ))}
-                <span className={cn('truncate text-[0.8125rem] font-medium max-sm:hidden', !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'text-bad-600')}>{w ? w.label : 'Measure from the same line'}</span>
-              </div>
-            )
-          })}
-          <div className="bg-wash px-3 py-2 text-[0.75rem] text-muted">Up to {fracIn(LEVEL_OK)} off is fine. Up to {fracIn(LEVEL_PREP)} gets self-leveler (the materials follow). More than that, the GC fixes the floor before we start.</div>
+    <div>
+      <div className="overflow-hidden rounded-xl border border-line">
+        <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-center gap-2 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted">
+          <span>Floor</span><span className="text-center">High point</span><span className="text-center">Low point</span>
         </div>
+        {rooms.map((f) => {
+          const w = f.word
+          const here = on?.startsWith(f.room.name + '|')
+          const method = f.room.surfaces.find((x) => isFloor(x.name))?.method
+          return (
+            <div key={f.room.name} className="border-b border-line-2 last:border-b-0">
+              <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-center gap-2 px-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{f.room.name}</span>
+                  <span className={cn('block truncate text-[0.75rem]', f.mud ? 'text-muted' : !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'font-semibold text-bad-600')}>
+                    {f.mud ? 'Mud bed — it levels itself' : w ? w.label : method === 'slu' ? 'Self-leveler planned — measure it anyway' : 'Off one laser line, in inches'}
+                  </span>
+                </span>
+                {f.mud
+                  ? <span className="col-span-2 text-center text-[0.8125rem] text-faint">no numbers needed</span>
+                  : (['high', 'low'] as const).map((k) => (
+                    <input
+                      key={k}
+                      aria-label={`${f.room.name} floor ${k} point in inches`}
+                      inputMode="decimal"
+                      value={shown(f, k)}
+                      placeholder={k === 'high' ? '36¾' : '37'}
+                      onFocus={(e) => { setOn(`${f.room.name}|${k}`); e.target.select() }}
+                      onBlur={() => { setOn((o) => (o === `${f.room.name}|${k}` ? null : o)); save(f) }}
+                      onChange={(e) => edit(f, k, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                      className={cn('h-9 w-full min-w-0 rounded-lg border bg-white px-2 text-center text-[0.9375rem] tnum text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100', w?.tone === 'bad' ? 'border-bad-300' : 'border-line')}
+                    />
+                  ))}
+              </div>
+              {here && (
+                <div className="flex gap-1 px-3 pb-2">
+                  {FRACS.map((c) => <button key={c} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => frac(f, on!.split('|')[1] as 'high' | 'low', c)} className="h-8 flex-1 rounded-lg border border-line bg-white text-[0.9375rem] font-semibold text-ink-2 hover:bg-wash">{c}</button>)}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-2 text-[0.75rem] leading-snug text-muted">Up to {fracIn(LEVEL_OK)} out is fine. Up to {fracIn(LEVEL_PREP)} gets self-leveler, and the materials follow. More than that, the GC fixes the floor before we start.</div>
+      {v.state !== 'done' && (
+        <Actions>
+          {bad.length > 0 && <Button variant="primary" icon={<Send />} onClick={() => sendFloorProblems(job.id)}>Tell the office — {bad.length === 1 ? `${bad[0].room.name} is ${fracIn(bad[0].word!.diff)} out` : `${bad.length} floors are out`}</Button>}
+          {!bad.length && measured.length > 0 && measured.length < toDo.length && <span className="text-[0.8125rem] text-muted">{toDo.length - measured.length} more to measure — it’s done when every floor has its numbers.</span>}
+        </Actions>
       )}
     </div>
   )
 }
-
 /* ================= 9 · our materials ================= */
 function Materials({ job }: { job: Job }) {
   const s = useStore()

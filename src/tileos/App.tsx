@@ -25,13 +25,14 @@ import { BillingPage } from '@/tileos/features/billing'
 import { ProjectsPage, NewRepairModal, NewProjectModal } from '@/tileos/features/projectlist'
 import { NewPickerModal } from '@/tileos/features/newpicker'
 import { FreshModal } from './features/testdata'
+import { DeleteModal } from '@/tileos/features/cleanup-ui'
 import { NewEstimateModal } from '@/tileos/features/estnew'
 import { NewAutomationModal } from '@/tileos/features/automations'
 import { PunchNewModal } from '@/tileos/features/punch'
 import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } from '@/tileos/features/pos'
 import { JobPage } from '@/tileos/features/job/workspace'
 import { SurfaceModal, TileModal } from '@/tileos/features/job/scope-tab'
-import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal, WhatsOpenModal, ScopeWinModal, OrdersWinModal } from '@/tileos/features/job/project-window'
+import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal, WhatsOpenModal, ScopeWinModal, OrdersWinModal, MoneyWinModal } from '@/tileos/features/job/project-window'
 import { StageModal } from '@/tileos/features/job/stage'
 import { BuildRoomsModal } from '@/tileos/features/job/overview'
 import { SchedulePage, AssignModal, BookingModal } from '@/tileos/features/schedule'
@@ -85,6 +86,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'step': return <StepModal jobId={m.jobId} k={m.k} level={level} />
     case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
     case 'fresh': return <FreshModal mode={m.mode} level={level} />
+    case 'delete': return <DeleteModal kind={m.kind} id={m.id} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
@@ -96,6 +98,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'whatsopen': return <WhatsOpenModal jobId={m.jobId} level={level} />
     case 'scopewin': return <ScopeWinModal jobId={m.jobId} level={level} />
     case 'orderswin': return <OrdersWinModal jobId={m.jobId} level={level} />
+    case 'moneywin': return <MoneyWinModal jobId={m.jobId} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {

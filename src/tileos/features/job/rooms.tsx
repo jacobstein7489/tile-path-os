@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Plus, CheckCircle2, Circle, Ban, Clock3, PauseCircle, HelpCircle, AlertTriangle, Package, Check, FileText, Layers3, LayoutGrid, Printer, ArrowLeftRight, ClipboardList, ArrowRight, Ruler } from 'lucide-react'
+import { CheckCircle2, Circle, Ban, Clock3, PauseCircle, HelpCircle, AlertTriangle, Package, Check, FileText, Layers3, LayoutGrid, Printer, ArrowLeftRight, ClipboardList, ArrowRight, Ruler } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
 import { Card, Button, Pill, Empty, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -49,7 +49,7 @@ function roomTone(r: Room): Tone {
 export type RoomView = 'surfaces' | 'log' | 'photos'
 const attention = (r: Room) => Math.max(0, r.surfaces.findIndex((x) => ['blocked', 'hold', 'waitmat', 'unknown', 'working'].includes(x.state)))
 
-export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; room?: string; view?: RoomView; surface?: string }) {
+export function RoomsTab({ job, room: r0, view: v0, surface: s0, noRail }: { job: Job; room?: string; view?: RoomView; surface?: string; noRail?: boolean }) {
   const rooms = useStore((s) => s.rooms[job.id]) || []
   const diary = useStore((s) => s.diary[job.id])
   const open = useStore((s) => s.open)
@@ -69,6 +69,8 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
     }
     if (room) setSi(attention(room))
   }, [ri])
+  /* beside the board, the room comes from the list on the left */
+  React.useEffect(() => { const i = rooms.findIndex((r) => r.name === r0); if (i >= 0 && i !== ri) setRi(i) }, [r0]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!rooms.length)
     return (
       <Card>
@@ -85,9 +87,9 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
   const pickRoom = (i: number) => setRi(i)
 
   return (
-    <Card className="grid min-h-[40rem] grid-cols-[16.25rem_minmax(0,1fr)] overflow-hidden max-xl:min-h-0 max-xl:grid-cols-1">
+    <Card className={cn('grid overflow-hidden', noRail ? 'min-h-0 grid-cols-1 rounded-[0.875rem] border-[#ebe6dd] shadow-none' : 'min-h-[40rem] grid-cols-[16.25rem_minmax(0,1fr)] max-xl:min-h-0 max-xl:grid-cols-1')}>
       {/* rooms rail (wide screens) */}
-      <div className="flex min-w-0 flex-col border-r border-line max-xl:hidden">
+      {!noRail && <div className="flex min-w-0 flex-col border-r border-line max-xl:hidden">
         <div className="flex items-center justify-between px-5 pb-3 pt-5">
           <div className="text-[1.0625rem] font-semibold text-ink">Rooms</div>
           <AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} label="Add room" />
@@ -116,11 +118,11 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
             )
           })}
         </div>
-      </div>
+      </div>}
 
       <div className="flex min-w-0 flex-col">
         {/* rooms as a sideways row (tablets and phones) */}
-        <div className="border-b border-line px-5 pb-3.5 pt-4 xl:hidden max-sm:px-4">
+        {!noRail && <div className="border-b border-line px-5 pb-3.5 pt-4 xl:hidden max-sm:px-4">
           <div className="flex items-center justify-between gap-3 text-[0.8125rem] font-semibold text-ink-2">
             <span>Rooms · {doneRooms} of {rooms.length} complete</span>
             <span className="tnum">{totalPct}% installed</span>
@@ -135,7 +137,7 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* the room: name, how far, and its three views */}
         <div className="border-b border-line px-6 pt-5 max-sm:px-4 max-sm:pt-4">
@@ -147,7 +149,7 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0 }: { job: Job; r
                 {entries[0] ? ` · last update ${entries[0].day}` : ''}
               </div>
             </div>
-            {inField && (
+            {inField && !noRail && (
               <Button size="sm" variant="primary" className="max-sm:w-full" icon={<ClipboardList className="h-4 w-4" />} onClick={() => open({ t: 'daily', jobId: job.id, room: room.name })}>
                 Today’s update
               </Button>

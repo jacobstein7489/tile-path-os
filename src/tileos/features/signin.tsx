@@ -1,6 +1,6 @@
 /* The screens before the app: sign in (or make an account), waiting to be let in, and the one-time setup note. */
 import * as React from 'react'
-import { ArrowRight, Hourglass, Database, RefreshCw, LogOut } from 'lucide-react'
+import { ArrowRight, Hourglass, Database, RefreshCw, LogOut, KeyRound } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { lovable } from '@/integrations/lovable'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -70,6 +70,16 @@ export function SignIn() {
     setBusy(true)
     try { await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin }) } catch (err: any) { setMsg({ bad: true, text: err?.message || 'Google sign-in didn’t work' }); setBusy(false) }
   }
+  /* forgot it: an email with a link that opens the app and asks for a new one */
+  const forgot = async () => {
+    if (!/\S+@\S+\.\S+/.test(email.trim())) { setMsg({ bad: true, text: 'Type your email first, then tap “Forgot your password?”' }); return }
+    setBusy(true); setMsg(null)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
+      if (error) throw error
+      setMsg({ text: `Check ${email.trim()} for a link — it opens Tile OS and asks for a new password.` })
+    } catch (err: any) { setMsg({ bad: true, text: err?.message || 'That didn’t work — try again.' }) } finally { setBusy(false) }
+  }
   return (
     <Sheet>
       <h1 className="font-display text-[21px] font-semibold tracking-[-0.01em] text-ink">{mode === 'in' ? 'Sign in' : 'Make your account'}</h1>
@@ -79,7 +89,7 @@ export function SignIn() {
           <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Your name</span><TextInput value={name} onChange={(e) => setName(e.target.value)} required placeholder="First and last name" className="h-10" autoComplete="name" /></label>
         )}
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Email</span><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" className="h-10" autoComplete="email" /></label>
-        <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder={mode === 'up' ? 'At least 8 characters' : '••••••••'} className="h-10" autoComplete={mode === 'in' ? 'current-password' : 'new-password'} /></label>
+        <label className="block"><span className="mb-1.5 flex items-center justify-between text-[13px] font-medium text-ink-2">Password{mode === 'in' && <button type="button" onClick={forgot} disabled={busy} className="font-semibold text-brand-700 hover:underline">Forgot your password?</button>}</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder={mode === 'up' ? 'At least 8 characters' : '••••••••'} className="h-10" autoComplete={mode === 'in' ? 'current-password' : 'new-password'} /></label>
         {msg && <div className={msg.bad ? 'rounded-[10px] bg-bad-50 px-3 py-2 text-[13px] font-medium text-bad-700' : 'rounded-[10px] bg-ok-50 px-3 py-2 text-[13px] font-medium text-ok-700'}>{msg.text}</div>}
         <Button type="submit" variant="primary" className="mt-1 h-10 w-full justify-center" disabled={busy} iconRight={<ArrowRight />}>{mode === 'in' ? 'Sign in' : 'Make my account'}</Button>
       </form>
@@ -91,6 +101,40 @@ export function SignIn() {
       <div className="mt-5 text-center text-[13px] text-muted">
         {mode === 'in' ? <>New here? <button type="button" onClick={() => { setMode('up'); setMsg(null) }} className="font-semibold text-brand-700 hover:underline">Make an account</button></> : <>Have an account? <button type="button" onClick={() => { setMode('in'); setMsg(null) }} className="font-semibold text-brand-700 hover:underline">Sign in</button></>}
       </div>
+    </Sheet>
+  )
+}
+
+/** you came in from an invite or a password link: pick a password, and the app opens */
+export function SetPassword({ email, name, why, onDone, onSkip }: { email: string; name: string; why: 'invite' | 'recovery' | 'magiclink'; onDone: () => void; onSkip?: () => void }) {
+  const [password, setPassword] = React.useState('')
+  const [again, setAgain] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [msg, setMsg] = React.useState<string | null>(null)
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (password.length < 8) { setMsg('At least 8 characters.'); return }
+    if (password !== again) { setMsg('The two don’t match.'); return }
+    setBusy(true); setMsg(null)
+    try {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
+      onDone()
+    } catch (err: any) { setMsg(err?.message || 'That didn’t work — try again.'); setBusy(false) }
+  }
+  return (
+    <Sheet>
+      <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600"><KeyRound className="h-5 w-5" /></span>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'recovery' ? 'Pick a new password' : `Welcome${name ? `, ${name.split(' ')[0]}` : ''} — pick a password`}</h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'recovery' ? 'Then you’re back in.' : 'You sign in with it from now on, on your phone and your computer.'}</p>
+      <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">For <b className="font-semibold text-ink-2">{email}</b></div>
+      <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
+        <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="At least 8 characters" className="h-10" autoComplete="new-password" autoFocus /></label>
+        <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Once more</span><TextInput type="password" value={again} onChange={(e) => setAgain(e.target.value)} required minLength={8} placeholder="The same again" className="h-10" autoComplete="new-password" /></label>
+        {msg && <div className="rounded-[10px] bg-bad-50 px-3 py-2 text-[13px] font-medium text-bad-700">{msg}</div>}
+        <Button type="submit" variant="primary" className="mt-1 h-10 w-full justify-center" disabled={busy} iconRight={<ArrowRight />}>{busy ? 'Saving…' : 'Save it and open Tile OS'}</Button>
+        {onSkip && <button type="button" onClick={onSkip} className="text-center text-[13px] font-semibold text-muted hover:text-ink">Keep the password I have</button>}
+      </form>
     </Sheet>
   )
 }

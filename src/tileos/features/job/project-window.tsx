@@ -1,51 +1,35 @@
-/* The project window — opens nearly full screen, and reads like the estimate:
- *   header: the project and where it stands, the client and the address, the installer, and the one button when
- *           there's something for you here. "N open" opens everything open on the project (Mine · Everyone · Done).
- *   the bar: Getting ready → Installing → Touch-ups → Billed and paid — the four parts of every project, and the
- *           only navigation: tap one and the page shows that section. No tabs, no window inside a window.
- * Every section is built from the same pieces (job/kit): the same sheets, rows, people and dates. */
+/* The project window — the job like the estimate (job/board): a track of its four parts on top, each a ring that
+ * says how far it is, and under it the part you're on: the flow numbered step by step with its status and whose it
+ * is, the rooms, the touch-ups, the money. Tap a step and it opens beside the list — never a window inside a window.
+ *   header: the project, the client and the address, the installer, and three buttons at most: the one thing to do
+ *           now (start the job, the daily update…), + Add, and ··· for the rest. */
 import * as React from 'react'
-import {
-  Building2, MapPin, CalendarDays, Maximize2, ListPlus, Lock, Check, X, Clock3, Contrast, Plus, ChevronDown, ChevronRight,
-  Printer, HardHat, Send, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight, MoreHorizontal, Pencil } from 'lucide-react'
+import { Building2, MapPin, CalendarDays, Maximize2, Check, Printer, HardHat, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, ArrowRight, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useStore, historyOf, type Store } from '@/tileos/store'
-import type { Task } from '@/tileos/data/work'
-import type { CalEvent } from '@/tileos/data/calendar'
-import { Button, Avatar, IconButton } from '@/tileos/components/ui/core'
-import { Modal, Tip, Menu, MenuItem, MenuLabel, MenuSep } from '@/tileos/components/ui/overlay'
+import { Button } from '@/tileos/components/ui/core'
+import { Modal, Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
-import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { EstimatePaper } from '../estpaper'
 import { printNode } from '@/tileos/lib/print'
-import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { roomPct, filesFor, tilesOf, tileOf, floorsOf } from '@/tileos/data/jobs'
-import { needWithWaste } from '@/tileos/data/work'
-import { sendToSite, verificationDone, startProject } from '../flows'
-import { materialStatus } from '../takeoff'
-import { CAL_TODAY, dayLabel, timeLabel } from '@/tileos/data/calendar'
-import { planCells, CELLS, installerOf } from '../upcoming'
-import { surfaceFix } from './overview'
-import { MoneyTab, billingOf } from './money-tab'
+import { PEOPLE, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
+import { filesFor, tileOf, floorsOf } from '@/tileos/data/jobs'
+import { verificationDone, startProject } from '../flows'
+import { installerOf } from '../upcoming'
+import { MoneyTab } from './money-tab'
 import { FilesTab, HistoryTab } from './files'
 import { POsTab } from './pos-tab'
 import { PricingWorkspace } from '../pricing'
 import { RoomsTab } from './rooms'
-import { ScopeTab, tileStatus } from './scope-tab'
-import { InstallerTab } from './crew-tab'
-import { settingStatus } from '../setting'
-import { heightStatus } from '../heights'
+import { ScopeTab } from './scope-tab'
 import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
-import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
-import { StepIcon, StepButton, AddStep } from '../steps-ui'
+import { isGettingReady, stepsFor, stepCounts } from '../steps'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, WhatsOpen, todoRows, AddToProject } from './plan'
-import { ReadySection, InstallSection, PunchSection, MoneySection } from './sections'
-import { nowItems, todoCount } from './todo'
+import { nextOn, WhatsOpen, AddToProject } from './plan'
+import { ProjectBoard } from './board'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
-import { NOW } from '@/tileos/lib/today'
 
 export { floorsOf }
 export type PTab = 'ready' | 'install' | 'punch' | 'money'
@@ -127,13 +111,11 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   const status = headStatus(s, job, !!tab)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const prim = PRIMARY[job.stage]
-  const blockers = nowItems(s, job, setTab).items.filter((i) => i.status === 'bad').length
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
   const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
   const locked = left.length > 0
   /* the one thing to press: my next step here — or whose turn it is */
   const next = nextOn(s, job)
-  const path = projectPath(s, job, setTab)
   const save = useSaveStatus()
   const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
   const unread = unreadOf(s, job.id)
@@ -154,11 +136,11 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
       ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
       : null
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
-  const canBook = ['owner', 'pm', 'office'].includes(role)
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
   /* the rest, in one short menu — adding things is on the Overview's list (+ Add) */
   const more = (
     <Menu align="end" width={270} trigger={<Button aria-label="More for this project" icon={<MoreHorizontal />} />}>
+      <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'whatsopen', jobId: job.id })}>Everything open — mine, everyone’s, done</MenuItem>
       <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>Everything that happened</MenuItem>
       <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })} hint={files ? `${files}` : undefined}>Files and photos</MenuItem>
       <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })} hint={unread ? `${unread} new` : undefined}>Messages</MenuItem>
@@ -168,6 +150,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
       {(canEdit || mode === 'modal') && <MenuSep />}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {mode === 'modal' && <MenuItem icon={<Maximize2 className="h-4 w-4" />} onSelect={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}>Open as a full page</MenuItem>}
+      {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
   )
   return (
@@ -195,57 +178,30 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               {/* with nothing to start, the "…" sits up by the title on a phone instead of on a row of its own */}
               <span className="max-lg:flex-1 max-sm:hidden" />
               {main}
-              {!pricing && <OpenChip job={job} />}
               {!['accounting', 'client'].includes(role) && <AddToProject job={job} />}
               {more}
             </div>
           )}
         </div>
       </div>
-      {tab && (
-        <div className="px-6 pb-1 pt-2 max-sm:px-2">
-          <PhaseBar cells={path} at={tab} />
-        </div>
-      )}
+
     </div>
   )
 }
-function HeadIcon({ label, count, hot, onClick, children }: { label: string; count?: number; hot?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <Tip label={label}>
-      <span className="relative">
-        <IconButton label={label.split(' — ')[0].split(' · ')[0]} size="sm" onClick={onClick}>{children}</IconButton>
-        {!!count && <span className={cn('pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full px-1 text-[0.625rem] font-bold tnum text-white ring-2 ring-white', hot ? 'bg-brand-600' : 'bg-ink')}>{count}</span>}
-      </span>
-    </Tip>
-  )
-}
-
 /* ---------------- the body: just the tab you're on ---------------- */
-export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab: (t: PTab) => void }) {
-  const role = useStore((s) => s.role)
-  const money = role !== 'site'
+export function ProjectBody({ job, tab }: { job: Job; tab?: PTab; setTab?: (t: PTab) => void }) {
   return (
-    <div key={tab} className="animate-fade-up px-7 py-5 max-sm:px-3 max-sm:py-3.5">
-      {tab === 'ready' && <ReadySection job={job} onInstall={() => setTab('install')} />}
-      {tab === 'install' && <InstallSection job={job} />}
-      {tab === 'punch' && <PunchSection job={job} />}
-      {tab === 'money' && (money ? <MoneySection job={job} /> : <InstallSection job={job} />)}
+    <div className="animate-fade-up px-5 py-3 max-sm:px-3 max-sm:py-3">
+      <ProjectBoard job={job} part0={tab} />
     </div>
   )
 }
-
-/** "7 open · 2 problems" by the project's name — tap it for everything open on the project (Mine · Everyone · Done) */
-function OpenChip({ job }: { job: Job }) {
+/** the money, in its own window (from the board's Billed and paid) */
+export function MoneyWinModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
-  const rows = todoRows(s, job, () => {})
-  const bad = rows.filter((r) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')).length
-  if (!rows.length) return null
-  return (
-    <button onClick={() => s.open({ t: 'whatsopen', jobId: job.id })} aria-label="Everything open on this project" className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', bad ? 'border-bad-200 bg-bad-50 text-bad-700 hover:bg-bad-100' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
-      <ListTodo className="h-3.5 w-3.5" />{rows.length} open{bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}
-    </button>
-  )
+  const job = s.jobs[jobId]
+  if (!job) return null
+  return <Modal level={level} size="xl" tall onClose={s.close} title="Billed and paid" sub={job.name} bodyClass="bg-canvas p-5 max-sm:p-3"><MoneyTab job={job} /></Modal>
 }
 
 /** everything open on the project in its own window — Mine · Everyone · Done */
@@ -305,7 +261,6 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
   const est = estId ? s.estimates.find((e) => e.id === estId) : s.estimates.find((e) => e.jobId === jobId && e.status === 'approved')
   if (!job) return null
   const fromEst = !rooms.length && est ? (est.revs.find((r) => r.status === 'draft') || est.revs[est.revs.length - 1]) : undefined
-  const estAreas = fromEst ? Array.from(new Set(fromEst.lines.map((l) => l.area))) : []
   const GREEN = '#2c4a3e'
   return (
     <Modal

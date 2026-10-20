@@ -36,6 +36,8 @@ export const REAL: {
   people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
   /** the real app sends the invite email itself (the admin only): 'sent', or 'already' when they'd signed up before */
   invite?: (p: { email: string; name: string; role: Role }) => Promise<'sent' | 'already'>
+  /** a one-time link to text them instead (the real app, the admin only): it signs them in and asks for a password */
+  inviteLink?: (p: { email: string; name: string; role: Role }) => Promise<string>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */

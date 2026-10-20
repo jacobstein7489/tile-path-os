@@ -1,6 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, Send } from 'lucide-react'
+import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, Send, Copy, Link2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -48,7 +48,7 @@ export function SettingsPage() {
       {tab === 'autos' && <AutomationsTab />}
       {tab === 'rules' && <div className="flex flex-col gap-10"><RulesTab /><div id="settings-numbers"><NumbersTab /></div></div>}
       {tab === 'connections' && <ConnectionsTab />}
-      {tab === 'practice' && <div className="flex flex-col gap-10">{REAL.cloud && REAL.admin && <SampleLookCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+      {tab === 'practice' && <div className="flex flex-col gap-10">{REAL.cloud && REAL.admin && <SampleLookCard />}{REAL.cloud && REAL.admin && <StartOverCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
     </Page>
   )
 }
@@ -250,7 +250,43 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
         </Field>
       </div>
       {!REAL.invite && <Field label="The message" className="mt-3"><TextArea rows={9} aria-label="The message" value={msg} onChange={(e) => { setMsg(e.target.value); setTouched(true) }} /></Field>}
+      {REAL.invite && <InviteLinkBox email={email} name={`${m.first} ${m.last || ''}`.trim()} role={role} phone={m.phone} first={m.first} ok={ok} onGot={mark} />}
     </Modal>
+  )
+}
+
+/** when the email doesn't land (spam, a typo, the mail service): a one-time link the admin texts them — it signs
+ *  them in and asks for a password. The real app only; the admin only. */
+function InviteLinkBox({ email, name, role, phone, first, ok, onGot }: { email: string; name: string; role: Role; phone?: string; first: string; ok: boolean; onGot?: () => void }) {
+  const [link, setLink] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [err, setErr] = React.useState('')
+  if (!REAL.inviteLink) return null
+  const get = async () => {
+    setBusy(true); setErr('')
+    try { setLink(await REAL.inviteLink!({ email: email.trim(), name, role })); onGot?.() } catch (e: any) { setErr(e?.message || 'Couldn’t make the link') } finally { setBusy(false) }
+  }
+  const text = `Hi ${first}, here’s your link to Cobblestone Tile OS — open it, pick a password, and you’re in: ${link}`
+  const copy = async () => { try { await navigator.clipboard.writeText(link) } catch { /* no clipboard */ } toast('Link copied — paste it in a text', { description: 'It works once. They open it, pick a password, and they’re in.' }) }
+  return (
+    <div className="mt-3 rounded-xl border border-line bg-wash px-4 py-3">
+      {!link ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <span className="text-[0.84375rem] text-ink-2">Email not landing? Text them a link instead.</span>
+          <Button size="sm" icon={<Link2 />} disabled={!ok || busy} onClick={get}>{busy ? 'Making the link…' : 'Get a link to text'}</Button>
+        </div>
+      ) : (
+        <>
+          <div className="text-[0.8125rem] font-semibold text-ink">Their link — it works once, and asks them for a password</div>
+          <input readOnly aria-label="Invite link" value={link} onFocus={(e) => e.target.select()} className="mt-1.5 h-9 w-full rounded-lg border border-line bg-white px-2.5 text-[0.8125rem] text-ink-2 outline-none" />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button size="sm" icon={<Copy />} onClick={copy}>Copy</Button>
+            {phone && <Button size="sm" icon={<Smartphone />} onClick={() => window.open(`sms:${phone}?&body=${encodeURIComponent(text)}`)}>Text it to {phone}</Button>}
+          </div>
+        </>
+      )}
+      {err && <div className="mt-2 text-[0.8125rem] font-medium text-bad-600">{err}</div>}
+    </div>
   )
 }
 
@@ -325,6 +361,7 @@ export function AddPersonModal({ level }: { level: number }) {
         <div className="mt-2 text-[0.75rem] text-muted">Change it any time under What each login sees.</div>
       </div>
       )}
+      {failed && role !== 'client' && <InviteLinkBox email={email} name={`${first.trim()} ${last.trim()}`.trim()} role={role} phone={phone.trim() || undefined} first={first.trim()} ok={!!ok} onGot={() => { addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, invited: TODAY }); setFailed('') }} />}
     </Modal>
   )
 }
@@ -666,6 +703,24 @@ function DecStepper({ value, step, min, max, onChange }: { value: number; step: 
 }
 
 /** the real app: see the whole app full of sample projects — every page with something on it — then come back */
+/** the real app, the admin: everything out, to start the company's data over (the team, items and settings stay) */
+function StartOverCard() {
+  const s = useStore()
+  const n = Object.keys(s.jobs).length + s.estimates.length + Object.keys(s.clients).length
+  return (
+    <Card>
+      <div className="flex items-start gap-4">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><Trash2 className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-semibold text-ink">Start over</div>
+          <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">Delete every project, estimate, client and task — {n ? `${n} in all right now` : 'nothing here yet'}. Your team, logins, items, checklists and settings stay. One project, estimate or client at a time: open it and use its ··· menu.</div>
+          <Button className="mt-4" variant="danger" icon={<Trash2 />} disabled={!n} onClick={() => s.open({ t: 'delete', kind: 'all' })}>Start over…</Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 function SampleLookCard() {
   return (
     <Card pad={false}>

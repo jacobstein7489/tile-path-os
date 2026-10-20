@@ -2,7 +2,7 @@
  * what's open with them right now, then everything we've ever done together, a tab at a time. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { Phone, Mail, MapPin, ChevronRight, CalendarDays, FileText, Building2, HardHat, Hourglass, Check, ShieldCheck, Truck, Package, Receipt, Footprints, Pencil } from 'lucide-react'
+import { Phone, Mail, MapPin, ChevronRight, CalendarDays, FileText, Building2, HardHat, Hourglass, Check, ShieldCheck, Truck, Package, Receipt, Footprints, Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, type Store } from '@/tileos/store'
 import { Avatar, Button, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -213,6 +213,7 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
       tabs={tabs}
       tab={tab}
       setTab={setTab}
+      footer={['owner', 'pm'].includes(s.role) ? <Button variant="ghost" className="text-bad-600" icon={<Trash2 />} onClick={() => s.open({ t: 'delete', kind: 'client', id })}>Delete this client…</Button> : undefined}
     >
       {tab === 'overview' && (
         <div className="grid grid-cols-[minmax(0,1fr)_18.75rem] gap-8 max-lg:grid-cols-1">

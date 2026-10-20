@@ -11,6 +11,7 @@
 import { useStore, meOf, newTask, NOW, type Store } from '@/tileos/store'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import { needWithWaste, type Task } from '@/tileos/data/work'
+import type { Room } from '@/tileos/data/jobs'
 import { teamOf, EST_TEAM0 } from '@/tileos/data/estimates'
 import { TODAY, addDays, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { settingStatus } from './setting'
@@ -68,7 +69,6 @@ export interface StepRec {
 /* what the site manager looks at on the site check */
 export const SITE_CHECKS: { k: string; label: string; sub: string }[] = [
   { k: 'heights', label: 'Wall heights', sub: 'Measured where the tile goes up' },
-  { k: 'level', label: 'Floors level', sub: 'High and low point of each floor — it says if it needs prep' },
   { k: 'electric', label: 'Electrical', sub: 'Boxes and wires where the layout needs them' },
   { k: 'plumbing', label: 'Plumbing', sub: 'Valves, drains and shower heads in place' },
   { k: 'water', label: 'Water on site', sub: 'Running water to mix and clean up' },
@@ -118,19 +118,20 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get the paperwork', owner: 'estimator' },
   { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter the paperwork', owner: 'takeoff', after: ['getpaper'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Quantities', owner: 'takeoff', after: ['rooms'] },
+  { key: 'setup', phase: 'site', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
   { key: 'change', phase: 'meet', label: 'What was decided at the meeting — confirmed', short: 'Confirm what was decided', owner: 'office', after: ['design'], custom: true },
   { key: 'tile', phase: 'meet', label: 'Grout and a picture for every tile', short: 'Grout and pictures', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'meet', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
-  { key: 'heights', phase: 'site', label: 'Site checked — heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
-  { key: 'setup', phase: 'site', label: 'Underlayment and setup decided', short: 'Setup', owner: 'yakov', after: ['rooms'] },
+  { key: 'level', phase: 'site', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
+  { key: 'heights', phase: 'site', label: 'Site checked — wall heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
   { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Installer PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Job shown to the installer', short: 'Show him the job', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer confirmed — he took the PO and the dates', short: 'Installer confirmed', owner: 'ys', after: ['installer'] },
-  { key: 'materials', phase: 'deliver', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
-  { key: 'matin', phase: 'deliver', label: 'Our materials delivered', short: 'Materials delivered', owner: 'matBy', after: ['materials'] },
   { key: 'order', phase: 'deliver', label: 'Tile delivery date from the store', short: 'Tile delivery date', owner: 'office', after: ['rooms'] },
   { key: 'delivered', phase: 'deliver', label: 'Tile delivered and counted', short: 'Tile delivered', owner: 'yakov', after: ['order'] },
+  { key: 'materials', phase: 'deliver', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
+  { key: 'matin', phase: 'deliver', label: 'Our materials delivered', short: 'Materials delivered', owner: 'matBy', after: ['materials'] },
   { key: 'deposit', phase: 'money', label: 'Deposit invoiced and paid', short: 'Deposit', owner: 'accounting' },
 ]
 /** the built-in steps before the paperwork was split (a company's saved list from then still has these) */
@@ -143,15 +144,20 @@ export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.in
 /** the company's checklist: ours, in our order, with whoever the company put on each step — plus its own steps.
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
 const OLD_OWNER: Record<string, string> = { rooms: 'estimator', tile: 'estimator', design: 'office', installer: 'ys', setup: 'office', order: 'office', deposit: 'accounting', heights: 'yakov', materials: 'matBy', delivered: 'yakov', walk: 'yakov' }
-export const STEPS_V = 2
+export const STEPS_V = 3
+/** built-in steps added after a version — a company list saved before that gets them */
+const ADDED: Record<number, string[]> = { 3: ['level'] }
+const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
 const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS
-  const fresh = (s.rules.stepsV || 1) >= STEPS_V
+  const v = s.rules.stepsV || 1
+  const fresh = v >= 2
   const had = new Set(saved.map((d) => d.key))
-  const ours = STEP_DEFAULTS.filter((d) => had.has(d.key) || (!fresh && !OLD_KEYS.has(d.key))).map((d) => {
+  const extra = addedAfter(v)
+  const ours = STEP_DEFAULTS.filter((d) => had.has(d.key) || extra.has(d.key) || (!fresh && !OLD_KEYS.has(d.key))).map((d) => {
     const x = saved.find((y) => y.key === d.key)
     if (!x) return d
     if (fresh) return { ...d, owner: x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short }
@@ -289,6 +295,21 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !n && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
       return { state: 'now', note: n ? `${n} of ${SITE_CHECKS.length} checked` : hs.total ? `Heights ${hs.measured} of ${hs.total} walls · electrical, plumbing, water` : 'Electrical, plumbing, water — and heights where the layout needs them', action: { label: 'Do the site check' } }
+    }
+    case 'level': {
+      const fl = floorRooms(rooms)
+      if (rec.done) return { state: 'done', note: rec.note || 'Measured' }
+      if (!fl.length) return { state: 'na', note: 'No floors on this project' }
+      const toDo = fl.filter((f) => !f.mud)
+      if (!toDo.length) return { state: 'done', note: 'Mud beds — they level themselves' }
+      const measured = toDo.filter((f) => f.word)
+      const bad = measured.filter((f) => f.word!.tone === 'bad')
+      const prep = measured.filter((f) => f.word!.tone === 'warn')
+      if (bad.length) return { state: 'bad', note: bad.map((f) => `${f.room.name} is ${fracIn(f.word!.diff)} out — the GC has to fix it`).join(' · '), action: { label: 'Tell the office', run: () => sendFloorProblems(j.id) } }
+      /* projects past the site check had their floors looked at before this step existed */
+      if (['ready', 'scheduled'].includes(j.stage) && !measured.length) return { state: 'done', note: 'Looked at on the site visit' }
+      if (measured.length < toDo.length) return { state: 'now', note: measured.length ? `${measured.length} of ${toDo.length} floors measured` : `${toDo.length} floor${toDo.length === 1 ? '' : 's'} to measure — the high and the low point of each`, action: { label: 'Enter the high and low' } }
+      return { state: 'done', note: prep.length ? `${prep.map((f) => f.room.name).join(', ')} get${prep.length === 1 ? 's' : ''} self-leveler first — the materials follow` : 'Every floor is flat enough to tile' }
     }
     case 'materials': {
       const ms = materialStatus(s, j.id)
@@ -686,10 +707,19 @@ export const LEVEL_PREP = 0.75
 export type LevelWord = { tone: 'ok' | 'warn' | 'bad'; label: string; diff: number }
 export function levelWord(r: { level?: { high: number; low: number } }): LevelWord | null {
   if (!r.level) return null
-  const diff = Math.round(Math.abs(r.level.high - r.level.low) * 100) / 100
+  const diff = Math.round(Math.abs(r.level.high - r.level.low) * 1000) / 1000
   if (diff <= LEVEL_OK) return { tone: 'ok', label: 'Flat — good to tile', diff }
-  if (diff <= LEVEL_PREP) return { tone: 'warn', label: `${fracIn(diff)} off — needs self-leveler`, diff }
-  return { tone: 'bad', label: `${fracIn(diff)} off — the GC has to fix it`, diff }
+  if (diff <= LEVEL_PREP) return { tone: 'warn', label: `${fracIn(diff)} out — self-leveler first`, diff }
+  return { tone: 'bad', label: `${fracIn(diff)} out — the GC has to fix it`, diff }
+}
+/** a floor that gets tile (not a shower floor — that's a mud pan, sloped on purpose) */
+export const isFloor = (name: string) => /floor/i.test(name) && !/shower/i.test(name)
+export type FloorRoom = { room: Room; mud: boolean; word: LevelWord | null }
+/** the rooms with a floor to measure — a floor on a mud bed levels itself, so it only needs a look */
+export function floorRooms(rooms: Room[]): FloorRoom[] {
+  return rooms
+    .filter((r) => r.surfaces.some((x) => isFloor(x.name)))
+    .map((r) => ({ room: r, mud: r.surfaces.filter((x) => isFloor(x.name)).every((x) => x.method === 'mud'), word: levelWord(r) }))
 }
 /** inches as a tile man says them: 0.75 → ¾″, 1.25 → 1¼″ */
 export function fracIn(n: number) {
@@ -697,21 +727,37 @@ export function fracIn(n: number) {
   const f = rest >= 0.875 ? '⅞' : rest >= 0.75 ? '¾' : rest >= 0.625 ? '⅝' : rest >= 0.5 ? '½' : rest >= 0.375 ? '⅜' : rest >= 0.25 ? '¼' : rest >= 0.125 ? '⅛' : ''
   return `${whole || (f ? '' : '0')}${f}″`
 }
-/** write the high and low point of a room's floor; the site check row follows (bad when a floor needs the GC) */
+const FRAC: Record<string, string> = { '⅛': '1/8', '¼': '1/4', '⅜': '3/8', '½': '1/2', '⅝': '5/8', '¾': '3/4', '⅞': '7/8' }
+/** inches as typed on a phone: 36 3/4, 36¾, 36.75, 3/4, 1-1/4 — all the same number */
+export function parseIn(text: string): number | null {
+  const t = text.trim().replace(/[″"”]/g, '').replace(/[⅛¼⅜½⅝¾⅞]/g, (c) => ' ' + FRAC[c]).trim()
+  const m = t.match(/^(\d+(?:\.\d+)?)?\s*(?:[- ]\s*)?(?:(\d+)\s*\/\s*(\d+))?$/)
+  if (!m || (!m[1] && !m[2])) return null
+  const whole = m[1] ? Number(m[1]) : 0
+  const frac = m[2] && m[3] && Number(m[3]) ? Number(m[2]) / Number(m[3]) : 0
+  return Math.round((whole + frac) * 1000) / 1000
+}
+/** write the high and low point of a room's floor; a floor that needs leveler is set on self-leveler */
 export function setFloorLevel(jobId: string, room: string, high: number, low: number) {
   S().commit((st) => {
     const r = st.rooms[jobId]?.find((x) => x.name === room)
     if (!r) return
     r.level = { high, low, date: TODAY }
-    const words = (st.rooms[jobId] || []).map((x) => ({ x, w: levelWord(x) })).filter((y) => y.w)
-    const bad = words.filter((y) => y.w!.tone === 'bad')
-    const prep = words.filter((y) => y.w!.tone === 'warn')
-    const rec = ((st.stepRecs[jobId] ||= {}).heights ||= {})
-    const c = (rec.checks ||= {})
-    if (bad.length) c.level = { ok: false, note: `${bad.map((y) => y.x.name).join(', ')} — more than ${fracIn(LEVEL_PREP)} off, the GC has to fix it` }
-    else if (prep.length) c.level = { ok: true, note: `${prep.map((y) => y.x.name).join(', ')} — self-leveler first` }
-    else c.level = { ok: true }
-    /* the floor prep follows: a floor that needs leveler is set on self-leveler */
-    prep.forEach((y) => y.x.surfaces.filter((sf) => /floor/i.test(sf.name) && !/shower/i.test(sf.name)).forEach((sf) => { if (!sf.method || sf.method === 'slab') sf.method = 'slu' }))
-  }, 'Floor level saved')
+    const w = levelWord(r)
+    if (w?.tone === 'warn') r.surfaces.filter((sf) => isFloor(sf.name)).forEach((sf) => { if (!sf.method || sf.method === 'slab') sf.method = 'slu' })
+    const rec = (st.stepRecs[jobId] ||= {}).level
+    if (rec?.done) { delete rec.done; delete rec.by }
+  }, 'Floor saved')
+}
+/** a floor is too far out for us: the office hears it, with the numbers, to take up with the GC */
+export function sendFloorProblems(jobId: string) {
+  const s = S()
+  const j = s.jobs[jobId]
+  const bad = floorRooms(s.rooms[jobId] || []).filter((f) => f.word?.tone === 'bad')
+  if (!j || !bad.length) return
+  const text = bad.map((f) => `${f.room.name}: high ${fracIn(f.room.level!.high)}, low ${fracIn(f.room.level!.low)} — ${fracIn(f.word!.diff)} out`).join(' · ')
+  s.commit((st) => {
+    newTask(st, { jobId, title: `${j.name}: ${bad.length === 1 ? `the ${bad[0].room.name} floor is` : `${bad.length} floors are`} too far out — the GC has to fix ${bad.length === 1 ? 'it' : 'them'}`, detail: text, type: 'Setup', owner: 'ys', for: ['owner', 'office'], state: 'now', due: 'Today', tone: 'warn', where: 'Floor heights', log: [{ date: NOW, who: me(), text: `Measured on site: ${text}` }] })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: 'Floor heights — a floor the GC has to fix', detail: text } as any)
+  }, 'Sent to the office', { sub: text, to: [{ who: 'ys', what: `Floor heights · ${j.name}` }], close: true })
 }

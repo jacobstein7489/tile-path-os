@@ -582,13 +582,13 @@ export const ROOMS: Record<string, Room[]> = {
     ] },
   ],
   '114': [
-    { name: 'Master Bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 95, layout: 'Offset 1/3', grout: 'silver', prep: 'Uncoupling membrane' }), S('Walls', 'T-04', 'unknown', { sf: 300, reason: 'Store ordered 500 SF · we need 560 SF with waste', layout: 'Offset 1/2 · to be confirmed on site' })] },
+    { name: 'Master Bath', pct: 0, level: { high: 36.25, low: 36.875, date: '2026-10-13' }, surfaces: [S('Floor', 'T-05', 'ready', { sf: 95, layout: 'Offset 1/3', grout: 'silver', prep: 'Uncoupling membrane' }), S('Walls', 'T-04', 'unknown', { sf: 300, reason: 'Store ordered 500 SF · we need 560 SF with waste', layout: 'Offset 1/2 · to be confirmed on site' })] },
     { name: 'Guest Bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 80, layout: 'Offset 1/3', prep: 'Uncoupling membrane' }), S('Shower walls', 'T-04', 'unknown', { sf: 200, reason: 'Niche size to verify on site' })] },
   ],
   '530': [
-    { name: 'Kitchen', pct: 0, surfaces: [S('Walls', 'T-04', 'ready', { sf: 90 }), S('Floor', 'T-05', 'blocked', { sf: 180, reason: 'Floor prep (Portland + sand) not ordered', prep: 'Mud bed' })] },
-    { name: 'Bath', pct: 0, surfaces: [S('Walls', 'T-04', 'ready', { sf: 130, prep: 'Cement board + waterproofing' }), S('Floor', 'T-05', 'blocked', { sf: 60, reason: 'Floor prep not ordered', prep: 'Mud bed' })] },
-    { name: 'Hallway', pct: 0, surfaces: [S('Floor', 'T-05', 'blocked', { sf: 170, reason: 'Floor prep not ordered', prep: 'Mud bed' })] },
+    { name: 'Kitchen', pct: 0, surfaces: [S('Walls', 'T-04', 'ready', { sf: 90 }), S('Floor', 'T-05', 'blocked', { sf: 180, reason: 'Floor prep (Portland + sand) not ordered', prep: 'Mud bed', method: 'mud' })] },
+    { name: 'Bath', pct: 0, surfaces: [S('Walls', 'T-04', 'ready', { sf: 130, prep: 'Cement board + waterproofing' }), S('Floor', 'T-05', 'blocked', { sf: 60, reason: 'Floor prep not ordered', prep: 'Mud bed', method: 'mud' })] },
+    { name: 'Hallway', pct: 0, surfaces: [S('Floor', 'T-05', 'blocked', { sf: 170, reason: 'Floor prep not ordered', prep: 'Mud bed', method: 'mud' })] },
   ],
   green: [
     { name: 'Lobby', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 820 }), S('Feature wall', 'T-07', 'ready', { sf: 60 })] },
