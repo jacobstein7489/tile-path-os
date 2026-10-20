@@ -119,7 +119,7 @@ export function EstimatesPage() {
               <button onClick={() => setView('open')} aria-label="Show open estimates" className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-brand-100">×</button>
             </span>
           ) : (
-            <span className="text-[0.9375rem] font-semibold text-ink">Open estimates <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{open.length}</span></span>
+            <span className="bar-title text-[0.9375rem] font-semibold text-ink">Open estimates <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{open.length}</span></span>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
@@ -147,8 +147,7 @@ export function EstimatesPage() {
         {lostOld.map((l) => (
           <div key={l.name} className={cn('min-h-[3.75rem] border-b border-line-2 py-2.5 opacity-70', EST_COLS, 'px-5 max-sm:px-4')}>
             <div className="min-w-0"><div className="truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div><div className="truncate text-[0.78125rem] text-muted">{l.client}</div></div>
-            <div><Status tone="neutral">Lost</Status></div>
-            <div className="min-w-0 max-lg:hidden"><span className="line-clamp-2 text-[0.8125rem] text-muted">{l.reason}</span></div>
+            <div className="min-w-0"><span className="line-clamp-2 text-[0.8125rem] text-muted">{l.reason}</span></div>
             <div className="text-[0.8125rem] text-ink-2 max-lg:hidden">Lost {l.date}</div>
             <div className="text-right text-faint max-xl:hidden">—</div>
           </div>
@@ -161,14 +160,14 @@ export function EstimatesPage() {
   )
 }
 
-/* Estimate · Status · Who has it · Date · Amount — the same columns, spacing and header as Projects */
-const EST_COLS = 'grid grid-cols-[minmax(0,1.25fr)_12.5rem_minmax(0,1.25fr)_8rem_7.5rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_11.875rem_minmax(0,1.2fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_11.25rem] max-md:grid-cols-1 max-md:gap-1.5'
+/* Estimate · Who has it · Date · Amount — the same columns, spacing and header as Projects. No status column: the
+   group it's under (or the bubble you picked) already says it; the step and the revision are words under the name. */
+const EST_COLS = 'grid grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_8rem_7.5rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] max-md:grid-cols-1 max-md:gap-1.5'
 function EstHead() {
   return (
     <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-md:hidden', EST_COLS, 'px-5 max-sm:px-4', STICKY_HEAD)}>
       <span>Estimate</span>
-      <span>Status</span>
-      <span className="max-lg:hidden">Who has it</span>
+      <span>Who has it</span>
       <span className="max-lg:hidden">Date</span>
       <span className="text-right max-xl:hidden">Amount</span>
     </div>
@@ -184,7 +183,6 @@ function EstRow({ e }: { e: Estimate }) {
   const nx = nextOf(s, e)
   const rev = curRev(e).n
   const c = catOf(e)
-  const step = b === 'takeoff' || b === 'review' || b === 'final' ? EST_STEP[b].label : ''
   const turn = holderOf(e)
   const date = whenOf(e)
   return (
@@ -197,16 +195,12 @@ function EstRow({ e }: { e: Estimate }) {
     >
       <div className="min-w-0">
         <div className="truncate text-[0.90625rem] font-semibold text-ink">{j.name}</div>
-        <div className="truncate text-[0.78125rem] text-muted"><span className="tnum">{e.id}</span> · {j.client}<span className="md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
+        <div className="truncate text-[0.78125rem] text-muted"><span className="tnum">{e.id}</span> · {j.client}{rev > 1 && OPEN_C.includes(c) && c !== 'request' ? ` · Revision ${rev}` : ''}{c === 'lost' ? ' · Lost' : ''}<span className="md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
       </div>
-      <div className="min-w-0 max-md:flex max-md:items-center max-md:gap-2">
-        <Status tone={CAT[c].tone}>{CAT[c].label}</Status>
-        {(step || (rev > 1 && OPEN_C.includes(c) && c !== 'request')) && <div className="mt-1 truncate pl-1 text-[0.75rem] font-medium text-muted max-md:mt-0">{[step, rev > 1 && OPEN_C.includes(c) && c !== 'request' ? `Revision ${rev}` : ''].filter(Boolean).join(' · ')}</div>}
-      </div>
-      <div className="min-w-0 max-lg:hidden">
+      <div className="min-w-0">
         {turn ? (
           <span className="flex min-w-0 items-center gap-2.5">
-            <Avatar who={turn} size={28} />
+            <span className="max-md:hidden"><Avatar who={turn} size={28} /></span>
             <span className="min-w-0 leading-tight">
               <span className="block truncate text-[0.84375rem] font-medium text-ink">{PEOPLE[turn].short}{e.since && (b === 'takeoff' || b === 'review' || b === 'final') && <span className="font-normal text-muted"> · since {e.since}</span>}</span>
               <span className={cn('block truncate text-[0.78125rem]', nx.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{nx.text}</span>

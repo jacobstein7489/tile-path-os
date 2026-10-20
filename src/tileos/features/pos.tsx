@@ -313,7 +313,8 @@ function POLines({ lines, total }: { lines: POLine[]; total: number }) {
           <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.875rem_6.25rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
             <span className="min-w-0">
               <span className="block truncate text-ink">{l.item}</span>
-              {it && <span className="block truncate text-[0.75rem] text-muted">QuickBooks · {it.qb}</span>}
+              {/* which QuickBooks item it books to — only accounting needs to see that */}
+              {it && s.role === 'accounting' && <span className="block truncate text-[0.75rem] text-muted">QuickBooks · {it.qb}</span>}
             </span>
             <span className="text-right tnum text-ink-2">{l.qty}</span>
             <span className="text-right tnum text-ink-2 max-sm:hidden">{l.price ? fmtMoney(l.price, { cents: l.price % 1 !== 0 }) : '—'}</span>
