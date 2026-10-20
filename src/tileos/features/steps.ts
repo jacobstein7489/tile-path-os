@@ -313,6 +313,9 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       return { state: 'now', note: 'After the order goes out' }
     }
     case 'delivered': {
+      /* tile that came broken, wrong or short (logged as a problem) — it isn't delivered until those are sorted */
+      const probs = s.tasks.filter((t) => t.jobId === j.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done')
+      if (probs.length) return { state: 'bad', note: probs.length === 1 ? probs[0].title : `${probs.length} problems — ${probs.map((t) => t.title.replace(/^(T-\d+): \d+ boxes? (came )?/, '$1 ')).join(' · ')}`, action: { label: probs.length === 1 ? 'Open it' : 'Open the first', run: () => s.open({ t: 'task', id: probs[0].id }) } }
       const checks = s.checks.filter((c) => c.jobId === j.id)
       if (checks.length) {
         if (checks.every((c) => c.received >= c.ordered)) return { state: 'done', note: 'All of it is on site' }

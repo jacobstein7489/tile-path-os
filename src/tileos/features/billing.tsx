@@ -54,7 +54,7 @@ export function BillingPage() {
   return (
     <Page
       title="Billing"
-      sub={<>{sub[tab]} — bills go out from QuickBooks.{smp(' Sample amounts.')}</>}
+      sub={tab === 'todo' || tab === 'waiting' ? <>{sub[tab]}{smp(' · sample amounts')}</> : smp('Sample amounts') || undefined}
       actions={<Button icon={<RefreshCw />} onClick={() => setSynced('just now')}>QuickBooks synced {synced}</Button>}
       top={
         <Bubbles
@@ -70,9 +70,9 @@ export function BillingPage() {
         />
       }
       toolbar={
-        tab === 'progress' ? <ProgressToolbar week={week} onWeek={setWeek} /> : tab === 'jobs' ? <span className="text-[0.9375rem] font-semibold text-ink">Installed, billed and paid — per project</span> : (
+        tab === 'progress' ? <ProgressToolbar week={week} onWeek={setWeek} /> : tab === 'jobs' ? <span className="bar-title text-[0.9375rem] font-semibold text-ink">Installed, billed and paid — per project</span> : (
           <>
-            <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ progress: '', todo: 'To invoice', waiting: 'Waiting for payment', upcoming: 'Coming up', paid: 'Paid', jobs: '' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+            <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ progress: '', todo: 'To invoice', waiting: 'Waiting for payment', upcoming: 'Coming up', paid: 'Paid', jobs: '' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
             <Filter icon={<Layers />} label="Type" value={kind} options={(Object.keys(MONEY_KIND_LABEL) as MoneyKind[]).map((k) => ({ key: k, label: MONEY_KIND_LABEL[k] }))} onChange={setKind} />
             <Filter icon={<Building2 />} label="Project" value={job} options={jobs.map((id) => ({ key: id, label: s.jobs[id].name }))} onChange={setJob} width={260} />
             <ClearFilters show={kind !== 'all' || job !== 'all' || !!q} onClear={() => { setKind('all'); setJob('all'); setQ('') }} />

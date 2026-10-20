@@ -363,13 +363,13 @@ export function MyTasksPage() {
       <React.Fragment key={iso}>
         {lateRows.length > 0 && (
           <section>
-            <Group label="Overdue" count={lateRows.length} tone="bad" hint="should have been done already" />
+            <Group label="Overdue" count={lateRows.length} tone="bad" />
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
         {(rows.length > 0 || !lateRows.length) && (
           <section>
-            <Group label={dayHead(iso)} count={rows.length} tone="info" hint={iso === TODAY || iso === TOMORROW ? dayLongFull(iso) : undefined} />
+            <Group label={dayHead(iso)} count={rows.length} tone="info" hint={iso === TOMORROW ? dayLongFull(iso) : undefined} />
             {timed.map((x, i) => (
               <React.Fragment key={x.key}>
                 {i === nowAt && <NowLine min={nowMin} />}

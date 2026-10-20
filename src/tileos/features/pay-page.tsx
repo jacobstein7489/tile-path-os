@@ -53,7 +53,6 @@ export function PayPage() {
   return (
     <Page
       title="Installer pay"
-      sub="What each installer earned, from the daily updates and his PO rates. Approve the week — it’s paid Friday"
       toolbar={
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
           <WeekPicker weeks={tiles} value={w.key} onChange={setSel} />
@@ -75,8 +74,8 @@ export function PayPage() {
         </div>
       ) : (
         <div>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
-            <span>Installer</span><span className="text-right">Days</span><span className="text-right">Work done</span><span className="text-right">From the updates</span><span className="text-right">His bill</span><span>Status</span><span />
+          <div className={cn('grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
+            <span>Installer</span><span className="text-right">Days</span><span className="text-right">Work done</span><span className="text-right">From the updates</span><span className="text-right">His bill</span><span />
           </div>
           {w.rows.map((r) => <PayLine key={r.crew} r={r} weekKey={w.key} />)}
           {!w.rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.kind === 'now' ? 'No daily updates yet this week — it fills in as the site manager sends them.' : 'Nobody worked that week.'}</div>}
@@ -140,7 +139,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
   const st = PAY_STATE[r.state]
   const open = () => s.open({ t: 'pay', crew: r.crew, week: weekKey })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_8.125rem_10.625rem_10rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -152,19 +151,21 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
       <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{r.calc.sf ? `${r.calc.sf} SF` : '—'}</span>
       <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span>
       <span className="text-right max-lg:hidden">
+        {/* his bill, and in a word whether it matches — no separate status column */}
         {r.bill ? (
           <span className="block leading-tight">
             <span className={cn('block text-[0.84375rem] font-semibold tnum', r.state === 'check' || r.state === 'asked' ? 'text-bad-600' : 'text-ink')}>{fmtMoney(r.bill.amount)}</span>
-            {Math.abs(r.diff) > 25 && <span className="block text-[0.75rem] font-medium text-bad-600">{`${r.diff > 0 ? '+' : '−'}${fmtMoney(Math.abs(r.diff))}`}</span>}
+            {Math.abs(r.diff) > 25
+              ? <span className="block text-[0.75rem] font-medium text-bad-600">{`${r.diff > 0 ? '+' : '−'}${fmtMoney(Math.abs(r.diff))}`}{r.state === 'asked' ? ' · asked him' : ''}</span>
+              : <span className="block text-[0.75rem] text-ok-700">Matches</span>}
           </span>
         ) : <span className="text-[0.8125rem] text-faint">No bill yet</span>}
       </span>
-      <span className="max-lg:hidden"><Status tone={st.tone}>{r.state === 'approved' || r.state === 'paid' ? `${st.label} ${r.rec?.date}` : st.label}</Status></span>
       <span className="flex justify-end max-lg:hidden" onClick={(e) => e.stopPropagation()}>
         {r.state === 'running' ? <span className="text-[0.8125rem] text-muted">Approve it Monday</span>
           : r.state === 'ready' || r.state === 'nobill' ? <Button size="sm" variant="primary" icon={<Check />} onClick={() => approvePay(r.crew, weekKey)}>Approve {fmtMoney(r.owe)}</Button>
             : r.state === 'check' || r.state === 'asked' ? <Button size="sm" onClick={open}>See the difference</Button>
-              : <span className="text-[0.8125rem] font-semibold tnum text-ok-700">{fmtMoney(r.owe)}</span>}
+              : <span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-ok-700"><Check className="h-4 w-4" />{st.label} {r.rec?.date}</span>}
       </span>
     </div>
   )

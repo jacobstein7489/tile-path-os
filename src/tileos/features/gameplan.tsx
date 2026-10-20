@@ -90,7 +90,6 @@ export function GamePlanPage() {
   return (
     <Page
       title="Schedule"
-      sub="Who’s working where, and what’s ready to book."
       bare
       top={
         <Bubbles

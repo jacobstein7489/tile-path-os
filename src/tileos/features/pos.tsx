@@ -78,7 +78,7 @@ export function POsPage() {
   return (
     <Page
       title="Purchase orders"
-      sub={tab === 'calc' ? `Materials each project still needs, worked out from its scope — ${fmtMoney(calcTotal)} to order${smp(' · sample prices')}` : `Materials from suppliers and work for our installers. ${fmtMoney(out)} in this view${smp(' · sample amounts')}`}
+      sub={tab === 'calc' ? `${fmtMoney(calcTotal)} to order${smp(' · sample prices')}` : smp('Sample amounts') || undefined}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newpo' })}>New PO</Button>}
       top={
         <Bubbles
@@ -95,7 +95,7 @@ export function POsPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ open: 'Open POs', all: 'All POs', calc: 'To order — worked out from each scope', draft: 'Draft', waiting: 'Sent — waiting to confirm', coming: 'Confirmed — on the way', late: 'Late', done: 'Received' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{tab === 'calc' ? calc.length : list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ open: 'Open POs', all: 'All POs', calc: 'To order — worked out from each scope', draft: 'Draft', waiting: 'Sent — waiting to confirm', coming: 'Confirmed — on the way', late: 'Late', done: 'Received' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{tab === 'calc' ? calc.length : list.length}</span></span>
           <Filter icon={<Layers />} label="Type" value={type} options={[{ key: 'material', label: 'Materials · suppliers' }, { key: 'installer', label: 'Installers · subs' }]} onChange={setType} />
           <Filter icon={<Package />} label="Vendor" value={vendor} options={vendors.map((v) => ({ key: v, label: v }))} onChange={setVendor} />
           <Filter icon={<Building2 />} label="Project" value={job} options={jobs.map((id) => ({ key: id, label: s.jobs[id].name }))} onChange={setJob} width={260} />

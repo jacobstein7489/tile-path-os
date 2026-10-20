@@ -78,7 +78,6 @@ export function ClientsPage() {
   return (
     <Page
       title="Clients"
-      sub={DIR_META.clients.sub}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button>}
       top={
         <Bubbles
@@ -93,7 +92,7 @@ export function ClientsPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All clients', active: 'With open work', estimates: 'Estimates with them', owe: 'Owe us money', off: 'Inactive clients' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All clients', active: 'With open work', estimates: 'Estimates with them', owe: 'Owe us money', off: 'Inactive clients' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <Filter label="Type" value={kind} options={kinds.map((k) => ({ key: k, label: k }))} onChange={setKind} />
           <ClearFilters show={kind !== 'all' || !!q} onClear={() => { setKind('all'); setQ('') }} />
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search clients" />
@@ -151,7 +150,6 @@ export function DesignersPage() {
   return (
     <Page
       title="Designers"
-      sub={DIR_META.designers.sub}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'designerform' })}>New designer</Button>}
       top={
         <Bubbles
@@ -165,7 +163,7 @@ export function DesignersPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All designers', waiting: 'Waiting on them', active: 'On open projects', off: 'Inactive designers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All designers', waiting: 'Waiting on them', active: 'On open projects', off: 'Inactive designers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search designers" />
         </>
       }
@@ -220,7 +218,6 @@ export function SubsPage() {
   return (
     <Page
       title="Installers"
-      sub={DIR_META.subs.sub}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'installerform' })}>New installer</Button>}
       top={
         <Bubbles
@@ -235,7 +232,7 @@ export function SubsPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All installers', working: 'Working now', free: 'Free this week', pay: 'Pay to approve', off: 'Inactive installers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All installers', working: 'Working now', free: 'Free this week', pay: 'Pay to approve', off: 'Inactive installers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search installers" />
         </>
       }
@@ -296,7 +293,6 @@ export function SuppliersPage() {
   return (
     <Page
       title="Suppliers"
-      sub={DIR_META.suppliers.sub}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'supplierform' })}>New supplier</Button>}
       top={
         <Bubbles
@@ -310,7 +306,7 @@ export function SuppliersPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All suppliers', open: 'Orders coming', late: 'Late', off: 'Inactive suppliers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All suppliers', open: 'Orders coming', late: 'Late', off: 'Inactive suppliers' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search suppliers" />
         </>
       }
@@ -386,7 +382,7 @@ export function ItemsPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All items', labor: 'Labor', material: 'Materials', other: 'Other' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All items', labor: 'Labor', material: 'Materials', other: 'Other' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <Filter icon={<Truck />} label="Vendor" value={vendor} options={vendors.map((v) => ({ key: v, label: v }))} onChange={setVendor} />
           <ClearFilters show={vendor !== 'all' || !!q} onClear={() => { setVendor('all'); setQ('') }} />
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search items" />

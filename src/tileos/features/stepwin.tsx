@@ -1106,17 +1106,44 @@ function Materials({ job }: { job: Job }) {
 }
 
 /* ================= 10 · the tile comes ================= */
+/** tile that came broken, wrong or short — each one is a problem on someone's desk until it's sorted */
+function TileProblems({ job }: { job: Job }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const probs = s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done')
+  if (!probs.length) return null
+  return (
+    <Block title={probs.length === 1 ? 'A problem' : `${probs.length} problems`}>
+      {probs.map((t) => (
+        <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+          <StepIcon state="bad" size={22} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.title}</span>
+            <span className="block truncate text-[0.78125rem] text-muted">{[t.owner === me ? 'You' : PEOPLE[t.owner]?.short, t.state === 'waiting' && t.waitingOn ? `waiting on ${t.waitingOn}` : t.due].filter(Boolean).join(' · ')}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+        </button>
+      ))}
+    </Block>
+  )
+}
+
 function Delivered({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const checks = s.checks.filter((c) => c.jobId === job.id)
+  /* a tile with a problem logged against it isn't "all here", even if the count matched */
+  const badTags = new Set(s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done').map((t) => (t.where || t.title).split(/[\s:·]/)[0]))
   if (checks.length)
     return (
-      <div>
+      <div className="space-y-4">
+        <TileProblems job={job} />
         <Block title="The delivery" right={checks[0].supplier}>
           {checks.map((c) => (
             <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
               <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span><span className="block text-[0.78125rem] text-muted">{c.received} of {c.ordered} {c.unit} here{c.eta && c.received < c.ordered ? ` · due ${c.eta}` : ''}</span></span>
-              <Status tone={c.received >= c.ordered ? 'ok' : c.received ? 'bad' : 'neutral'}>{c.received >= c.ordered ? 'All here' : c.received ? 'Part of it' : 'Not yet'}</Status>
+              {badTags.has(c.tag)
+                ? <Status tone="bad">Problem</Status>
+                : <Status tone={c.received >= c.ordered ? 'ok' : c.received ? 'bad' : 'neutral'}>{c.received >= c.ordered ? 'All here' : c.received ? 'Part of it' : 'Not yet'}</Status>}
             </div>
           ))}
         </Block>
@@ -1127,6 +1154,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
       </div>
     )
   if (v.state === 'done') return <Good>{v.note || 'On site'}</Good>
+  if (badTags.size) return <div className="space-y-4"><TileProblems job={job} /><Actions><Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Another problem</Button></Actions></div>
   return (
     <div>
       <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> — count the boxes against the order.</> : 'No delivery date yet — it’s set on the tile order step.'}</div>

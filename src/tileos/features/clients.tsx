@@ -36,7 +36,6 @@ export function ClientsPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Clients"
-        sub={`${rows.length} clients and the people we deal with there. Click one to see everything about them.`}
         actions={<Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => toast('Add a client — name, the people you deal with, and their billing terms')}>Add client</Button>}
       />
       <Card className="overflow-hidden">

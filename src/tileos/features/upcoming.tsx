@@ -168,7 +168,6 @@ export function UpcomingPage() {
   return (
     <Page
       title="Game plan"
-      sub="Won projects that haven’t started — what has to be ready before the crew starts."
       top={
         <Bubbles
           items={[
@@ -181,7 +180,7 @@ export function UpcomingPage() {
       }
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold text-ink">{BUCKET_LABEL[bucket]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{shown.length}</span></span>
+          <span className="bar-title text-[0.9375rem] font-semibold text-ink">{BUCKET_LABEL[bucket]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{shown.length}</span></span>
           <div className="ml-4 flex min-w-0 items-center gap-1.5 text-[0.84375rem] text-muted max-xl:hidden">
             <span className="mr-0.5 font-medium">Free now</span>
             {freeNow.length ? freeNow.map((f) => (

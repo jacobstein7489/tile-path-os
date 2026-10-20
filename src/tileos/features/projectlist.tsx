@@ -79,7 +79,6 @@ export function ProjectsPage() {
   return (
     <Page
       title="Projects"
-      sub="Every won project — what’s done, what’s open, and who has it."
       actions={allowedFor(s.role, 'newproject') ? <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newproject' })}>New project</Button> : undefined}
       top={
         <Bubbles
@@ -96,7 +95,7 @@ export function ProjectsPage() {
       }
       toolbar={
         <>
-          <span className="text-[0.9375rem] font-semibold text-ink">{VIEW_LABEL[view]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+          <span className="bar-title text-[0.9375rem] font-semibold text-ink">{VIEW_LABEL[view]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
             <Filter icon={<HardHat />} label="Installer" value={crew} options={CREWS.map((c) => ({ key: c, label: PEOPLE[c].name }))} onChange={setCrew} />
@@ -115,7 +114,7 @@ export function ProjectsPage() {
               if (!rows.length) return null
               return (
                 <section key={t.key}>
-                  <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} hint={GROUP_HINT[t.key]} />
+                  <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />
                   {rows.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
                 </section>
               )
@@ -128,16 +127,14 @@ export function ProjectsPage() {
 }
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
-const GROUP_HINT: Partial<Record<ProjType, string>> = { coming: 'Won, not started yet', progress: 'Crews on site', touchups: 'Punch lists and return visits', hold: 'Stopped until something comes in' }
 
-/* Project · Status · Where it stands · Installer · Dates · Contract */
-const COLS = 'grid grid-cols-[minmax(0,1.15fr)_9.375rem_minmax(0,1.5fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_9.375rem_minmax(0,1.5fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_8.75rem_minmax(0,1.4fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
+/* Project · Where it stands · Installer · Dates · Contract — no status column: the group it's under already says it */
+const COLS = 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1.6fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
 
 function ListHead() {
   return (
     <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX, STICKY_HEAD)}>
       <span>Project</span>
-      <span className="max-lg:hidden">Status</span>
       <span>Where it stands</span>
       <span className="max-xl:hidden">Installer</span>
       <span className="max-lg:hidden">Dates</span>
@@ -187,7 +184,7 @@ function StandsCell({ j }: { j: Job }) {
     const steps = stepsFor(s, j)
     const c = stepCounts(steps)
     const bad = steps.filter((x) => x.state === 'bad')
-    return <Progress pct={(c.done / Math.max(1, c.total)) * 100} tone="brand" label={c.done === c.total ? 'Ready — every step done' : `${c.done} of ${c.total} ready`} sub={bad.length ? `${bad[0].short} — needs a look` : undefined} subTone="bad" />
+    return <Progress pct={(c.done / Math.max(1, c.total)) * 100} tone="brand" label={c.done === c.total ? 'Ready — every step done' : `${c.done} of ${c.total} ready`} sub={bad.length ? `${bad[0].note || bad[0].short}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
   }
   if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">{j.hold?.reason}</span></span>
   const rooms = s.rooms[j.id] || []
@@ -219,7 +216,11 @@ function DatesCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   const iso = s.prep[j.id]?.targetISO
-  if (t === 'coming') return <span className="text-[0.8125rem] text-muted">{iso ? (iso <= TODAY ? <span className="font-medium text-ok-700">Site ready</span> : <>Start <span className="font-medium text-ink-2">{md(iso)}</span></>) : 'Start to set'}</span>
+  if (t === 'coming') {
+    /* the day's come: say the site's ready only if the site check says so — otherwise it's late, in red */
+    const siteBad = !!iso && iso <= TODAY && stepsFor(s, j).some((x) => x.key === 'heights' && x.state === 'bad')
+    return <span className="text-[0.8125rem] text-muted">{iso ? (iso <= TODAY ? (siteBad ? <span className="font-semibold text-bad-600">Late · was {md(iso)}</span> : <span className="font-medium text-ok-700">Site ready</span>) : <>Start <span className="font-medium text-ink-2">{md(iso)}</span></>) : 'Start to set'}</span>
+  }
   const start = j.dates?.start || s.prep[j.id]?.started
   return (
     <span className="block min-w-0 text-[0.8125rem] leading-tight text-muted">
@@ -233,8 +234,6 @@ function DatesCell({ j }: { j: Job }) {
 function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
   const t = typeOf(j)
-  const status = j.hold ? 'On hold' : t === 'coming' ? (flowOf(j) === 'setup' ? 'Setup' : 'Ready to start') : STAGE_LABEL[j.stage]
-  const tone = j.hold ? 'bad' : t === 'coming' ? (flowOf(j) === 'setup' ? 'vio' : 'info') : TYPE_TONE[t]
   return (
     <div
       role="button"
@@ -249,7 +248,6 @@ function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
           <div className="truncate text-[0.78125rem] text-muted">{j.client}</div>
         </div>
       </div>
-      <div className="min-w-0 max-lg:hidden"><Status tone={tone}>{status}</Status></div>
       <div className="min-w-0"><StandsCell j={j} /></div>
       <div className="min-w-0 max-xl:hidden">
         {crew ? <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] font-medium text-ink-2"><Avatar who={crew} size={24} /><span className="truncate">{PEOPLE[crew].short}</span></span> : <span className="text-[0.8125rem] text-faint">{t === 'done' ? '—' : 'Not booked'}</span>}

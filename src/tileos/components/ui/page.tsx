@@ -18,6 +18,9 @@ export const PX = 'px-5 max-sm:px-4'
 export const STICKY_HEAD = 'sticky top-[calc(var(--app-top,0px)+var(--bar,0px))] z-[5]'
 /** side padding of the page itself */
 export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
+/** a list's toolbar on a phone: one row you swipe sideways (the filters, the search), instead of four rows stacked.
+ *  Its name ("All open 13") goes — the colored bubble you picked already says it. */
+const PHONE_BAR = 'no-scrollbar max-md:flex-nowrap max-md:overflow-x-auto max-md:[&>*]:shrink-0 max-md:[&>div]:ml-0 max-md:[&>div]:w-auto max-md:[&>div]:flex-nowrap max-md:[&>div>*]:shrink-0 max-md:[&_.bar-title]:hidden'
 
 export function Page({
   title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare,
@@ -54,10 +57,12 @@ export function Page({
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
       <div className="mx-auto w-full max-w-[92.5rem]">
-        <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5', PAGE_PX)}>
-          <div className="min-w-0">
-            <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:text-[1.375rem]">{title}</h1>
-            {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:text-[0.8125rem]">{sub}</div>}
+        {/* on a phone the bar on top already says which page this is — so no title here, only the line under it (when
+            there is one: Today's "1 overdue" opens what's late) and the page's button */}
+        <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && 'max-sm:hidden', PAGE_PX)}>
+          <div className={cn('min-w-0', !sub && 'max-sm:hidden')}>
+            <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:hidden">{title}</h1>
+            {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
         </header>
@@ -69,7 +74,7 @@ export function Page({
             ) : (
               <section className="min-w-0 flex-1 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-sheet" style={{ '--bar': bar + 'px' } as React.CSSProperties}>
                 {(tabs || toolbar) && (
-                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX)}>
+                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX, PHONE_BAR)}>
                     {tabs && <ChipTabs value={tab as string} onChange={(k) => onTab?.(k)} items={tabs} />}
                     {toolbar}
                   </div>
@@ -201,7 +206,7 @@ export function ClearFilters({ show, onClear }: { show: boolean; onClear: () => 
 }
 
 export function ToolbarSearch({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  return <SearchField value={value} onChange={onChange} placeholder={placeholder} className="ml-auto h-9 w-[15rem] rounded-[0.625rem] border-[#d9d3c9] shadow-xs max-md:ml-0 max-md:w-full [&_input]:text-[0.84375rem]" />
+  return <SearchField value={value} onChange={onChange} placeholder={placeholder} className="ml-auto h-9 w-[15rem] rounded-[0.625rem] border-[#d9d3c9] shadow-xs max-md:ml-0 max-md:w-[12.5rem] [&_input]:text-[0.84375rem]" />
 }
 
 /* ================= the list inside a card ================= */
@@ -410,6 +415,9 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
     <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5')} role="tablist">
       {items.map((b, i) => {
         const c = BC[b.color]
+        /* an empty one ("0 Repairs") is just more to read — it shows up once there's something in it. A step in a
+           flow (with arrows) stays, even at 0, so the flow reads the same every day. */
+        if (!arrows && i > 0 && b.count === 0 && !b.on) return null
         return (
           <React.Fragment key={b.key}>
             {i > 0 && !wrap && (b.gapBefore ? <span className="mx-1 w-px shrink-0 self-stretch bg-line" /> : arrows && !b.plainBefore ? <ChevronRight className="-mx-1.5 h-4 w-4 shrink-0 self-center text-[#c3c9d1]" /> : null)}

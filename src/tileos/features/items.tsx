@@ -71,7 +71,7 @@ export function ItemsPage() {
   return (
     <Page
       title="Items"
-      sub={ours.length ? 'Your QuickBooks products and services, and the setting materials the takeoff orders.' : `The materials the takeoff orders, and our labor rates.${smp(' Sample prices.')}`}
+      sub={smp('Sample prices') || undefined}
       actions={<div className="flex items-center gap-2">
         <Button icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}><span className="max-sm:hidden">Import from QuickBooks</span><span className="sm:hidden">Import</span></Button>
         {canChangeItems(s.role) && <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
@@ -89,7 +89,7 @@ export function ItemsPage() {
       }
       toolbar={
         <>
-          <span className="mr-2 flex-1 text-[0.9375rem] font-semibold text-ink">{title} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{count}</span></span>
+          <span className="bar-title mr-2 flex-1 text-[0.9375rem] font-semibold text-ink">{title} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{count}</span></span>
           <div className="flex shrink-0 items-center gap-2 max-md:w-full max-md:flex-wrap">
             {tab === 'ours' && <Filter icon={<Layers />} label="Group" value={grp} options={groups.map((g) => ({ key: g, label: g }))} onChange={setGrp} />}
             {tab === 'material' && <Filter icon={<Layers />} label="Kind" value={cat} options={cats.map((c) => ({ key: c, label: MAT_CAT[c].label }))} onChange={(v) => setCat(v as MatCat | 'all')} />}

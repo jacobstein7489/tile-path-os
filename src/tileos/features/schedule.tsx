@@ -47,7 +47,6 @@ export function SchedulePage() {
   return (
     <Page
       title="Schedule"
-      sub="Who’s working where, day by day."
       actions={
           <>
             <div className="flex items-center rounded-lg border border-line bg-white">
