@@ -21,14 +21,15 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
   const who = teamOf(e)[step]
   const j = s.jobs[e.jobId]
   const rev = curRev(e)
-  const name = j?.name || e.id
   e.step = step
   e.since = NOW
   closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'estimate:' + e.id && t.state !== 'done').map((t) => t.id), 'Handed on')
+  /* the same shape every time: what to do, then the revision — the project is on the line already */
+  const revWord = rev.n > 1 ? ` · Revision ${rev.n}` : ''
   const title =
-    step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'note')} · ${name}` : `Takeoff · ${name}${rev.n > 1 ? ` · Revision ${rev.n}` : ''}`)
-    : step === 'review' ? `Review the takeoff · ${name}${rev.n > 1 ? ` · Revision ${rev.n}` : ''}`
-    : `Final review · ${name}${rev.n > 1 ? ` · Revision ${rev.n}` : ''}`
+    step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'note')} on the takeoff${revWord}` : `Do the takeoff${revWord}`)
+    : step === 'review' ? `Review the takeoff${revWord}`
+    : `Final review${revWord}`
   newTask(s, {
     jobId: e.jobId,
     title,

@@ -599,7 +599,7 @@ export function ViewSwitch<K extends string | boolean>({ value, onChange, items,
 }
 
 /* ---------------- where something stands: step circles joined by a line ---------------- */
-export function Path({ steps, className, at, label }: { steps: { key: string; label: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad'; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
+export function Path({ steps, className, at, label }: { steps: { key: string; label: string; short?: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad'; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
   return (
     <ol aria-label={label} className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
       {steps.map((st, i) => {
@@ -628,7 +628,7 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
               >
                 {st.state === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : st.state === 'current' ? <span className="h-2.5 w-2.5 rounded-full bg-brand-600" /> : st.state === 'blocked' ? '!' : n}
               </span>
-              <span className={cn('mt-2 max-w-[min(7.5rem,100%)] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink', on && 'underline decoration-2 underline-offset-[0.3125rem]')}>{st.label}</span>
+              <span className={cn('mt-2 max-w-[min(7.5rem,100%)] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink', on && 'underline decoration-2 underline-offset-[0.3125rem]')}>{st.short ? <><span className="max-sm:hidden">{st.label}</span><span className="sm:hidden">{st.short}</span></> : st.label}</span>
               {st.sub && (
                 <span className={cn('mt-1 max-w-[min(7.5rem,100%)] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
               )}

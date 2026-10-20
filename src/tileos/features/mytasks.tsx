@@ -766,7 +766,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         </>
       }
     >
-      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="Common tasks" />
+      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones — tap to pick" />
       {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{owner === me ? 'Me' : PEOPLE[owner].short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
@@ -786,7 +786,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           </Menu>
         )}
         {!jobId && (
-          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="No project" placeholder="Project" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} plain />
+          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="Which project?" placeholder="Which project?" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} plain />
         )}
         {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d9d3c9] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
       </div>

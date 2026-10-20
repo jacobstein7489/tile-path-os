@@ -120,7 +120,7 @@ function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {
 }
 
 /* ---------------- the numbers, and whose scope it is ---------------- */
-function ScopeNumbers({ job }: { job: Job }) {
+export function ScopeNumbers({ job }: { job: Job }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const flat = rooms.flatMap((r) => r.surfaces)
@@ -155,7 +155,7 @@ export function ScopeLockBar({ job }: { job: Job }) {
 
 /* ---------------- the tile schedule ---------------- */
 const BAND = 'flex items-center justify-between gap-3 px-5 py-1.5 text-[0.8125rem] font-semibold text-white max-sm:px-4'
-function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
+export function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const tiles = tilesOf(job.id).filter((t) => !hits || hits.tiles.has(t.tag))
@@ -191,7 +191,7 @@ function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
 }
 
 /* ---------------- the scope: every floor, its rooms, every wall and floor ---------------- */
-function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
+export function ScopeSheet({ job, hits }: { job: Job; hits?: Hits }) {
   const s = useStore()
   const all = s.rooms[job.id] || []
   const rooms = hits ? all.map((r) => ({ ...r, surfaces: r.surfaces.filter((x) => hits.lines.has(`${r.name}|${x.name}`)) })).filter((r) => r.surfaces.length) : all

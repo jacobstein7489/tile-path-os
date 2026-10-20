@@ -9,7 +9,7 @@ import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { keepFiles, openFile } from '@/tileos/lib/files'
-import { PEOPLE, CREWS, type PersonKey } from '@/tileos/data/model'
+import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
 import type { FileRec } from '@/tileos/data/jobs'
 import type { PunchItem } from '@/tileos/data/work'
 import { setPunch } from './flows'
@@ -28,12 +28,45 @@ async function addMedia(p: PunchItem, list: File[]) {
 }
 const isVideo = (f?: FileRec) => !!f && (/^video\//.test(f.type) || /\.(mov|mp4|m4v|webm|3gp)$/i.test(f.name))
 
+/** the list itself — to do, fixed-to-check, checked — the same on the project page and in its own window */
+export function TouchupsList({ job }: { job: Job }) {
+  const s = useStore()
+  const jobId = job.id
+  const [showDone, setShowDone] = React.useState(false)
+  const items = s.punch.filter((p) => p.jobId === jobId).sort((a, b) => ORDER[a.status] - ORDER[b.status])
+  const open = items.filter((p) => p.status === 'open' || p.status === 'working')
+  const check = items.filter((p) => p.status === 'verify')
+  const done = items.filter((p) => p.status === 'verified')
+  const canAdd = !['accounting', 'client'].includes(s.role)
+  const started = ['installation', 'punch', 'closeout', 'complete'].includes(job.stage) || job.kind === 'repair'
+  return (
+    <>
+      {!items.length && (
+        <div className="flex flex-col items-center px-4 py-12 text-center">
+          <div className="text-[1rem] font-semibold text-ink">{started ? `No touch-ups on ${job.name}` : 'Touch-ups come after the installing'}</div>
+          <div className="mt-1 max-w-sm text-[0.875rem] text-muted">{started ? 'Type the whole list at once — one per line. Each one gets its own line here, with its photos and videos.' : 'Once the crew is on site, the list goes here: one line per touch-up, with photos, done and checked one by one.'}</div>
+          {canAdd && <Button className="mt-4" variant={started ? 'primary' : undefined} icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>{started ? 'Add touch-ups' : 'Add touch-ups anyway'}</Button>}
+        </div>
+      )}
+      {open.length > 0 && <Part label="To do" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {done.length > 0 && (
+        <div className="mt-4">
+          <button onClick={() => setShowDone(!showDone)} className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-muted hover:text-ink">
+            {showDone ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}{done.length} checked
+          </button>
+          {showDone && <div className="mt-2 overflow-hidden rounded-[0.75rem] border border-line">{done.map((p) => <TouchupLine key={p.id} p={p} />)}</div>}
+        </div>
+      )}
+    </>
+  )
+}
+
 export function TouchupsModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
-  const [showDone, setShowDone] = React.useState(false)
   if (!job) return null
-  const items = s.punch.filter((p) => p.jobId === jobId).sort((a, b) => ORDER[a.status] - ORDER[b.status])
+  const items = s.punch.filter((p) => p.jobId === jobId)
   const open = items.filter((p) => p.status === 'open' || p.status === 'working')
   const check = items.filter((p) => p.status === 'verify')
   const done = items.filter((p) => p.status === 'verified')
@@ -53,23 +86,7 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
         </>
       }
     >
-      {!items.length && (
-        <div className="flex flex-col items-center px-4 py-12 text-center">
-          <div className="text-[1rem] font-semibold text-ink">No touch-ups on {job.name}</div>
-          <div className="mt-1 max-w-sm text-[0.875rem] text-muted">Type the whole list at once — one per line. Each one gets its own line here, with its photos and videos.</div>
-          {canAdd && <Button className="mt-4" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>Add touch-ups</Button>}
-        </div>
-      )}
-      {open.length > 0 && <Part label="To do" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
-      {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
-      {done.length > 0 && (
-        <div className="mt-4">
-          <button onClick={() => setShowDone(!showDone)} className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-muted hover:text-ink">
-            {showDone ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}{done.length} checked
-          </button>
-          {showDone && <div className="mt-2 overflow-hidden rounded-[0.75rem] border border-line">{done.map((p) => <TouchupLine key={p.id} p={p} />)}</div>}
-        </div>
-      )}
+      <TouchupsList job={job} />
     </Modal>
   )
 }
@@ -95,7 +112,7 @@ function TouchupLine({ p }: { p: PunchItem }) {
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c))
   const people: PersonKey[] = [...crews, ...(['yakov', 'ys'] as PersonKey[]).filter((k) => PEOPLE[k])]
   return (
-    <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
+    <div data-touchup={p.id} className="border-t border-line-2 px-4 py-3 first:border-t-0">
       <div className="flex items-start gap-3">
         <span className={cn('mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-ok-500 text-white' : p.status === 'verify' ? 'bg-brand-600 text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{(done || p.status === 'verify') && <Check className="h-3 w-3" strokeWidth={3} />}</span>
         <span className="min-w-0 flex-1">

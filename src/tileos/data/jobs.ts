@@ -462,7 +462,9 @@ export interface Surface {
   /** a change asked on site that is waiting for approval */
   pending?: { co: string; label: string; from: string; to: string }
 }
-export interface Room { name: string; pct: number; surfaces: Surface[]; floor?: string; note?: string }
+export interface Room { name: string; pct: number; surfaces: Surface[]; floor?: string; note?: string
+  /** the floor's high and low point, measured on site (in inches off the datum) — the difference says if it needs prep */
+  level?: { high: number; low: number; date: string } }
 /** rooms grouped by floor, in the same order as the estimate: 1st, 2nd, 3rd, attic, basement */
 const FLOOR_ORDER = (f: string) => (f === 'Rooms' ? 99 : floorRank(f))
 export function floorsOf(rooms: Room[]) {

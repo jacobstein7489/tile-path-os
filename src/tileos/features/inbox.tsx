@@ -21,7 +21,7 @@ export function inboxRows(s: ReturnType<typeof useStore.getState>): InboxRow[] {
   const notices = (s.role === 'accounting' ? s.notices.filter((n) => n.kind === 'money') : s.notices).map<InboxRow>((n) => ({
     id: n.id, kind: n.kind, text: n.text, sub: n.jobId && s.jobs[n.jobId] ? s.jobs[n.jobId].name : undefined, when: n.when, unread: n.unread, jobId: n.jobId,
     seen: () => s.commit((x) => { const y = x.notices.find((z) => z.id === n.id); if (y) y.unread = false }),
-    open: () => { if (n.jobId && s.jobs[n.jobId]) s.open({ t: 'job', id: n.jobId }) },
+    open: () => { if (n.open) s.open(n.open); else if (n.jobId && s.jobs[n.jobId]) s.open({ t: 'job', id: n.jobId }) },
   }))
   const msgs: InboxRow[] = Object.entries(s.messages).flatMap(([jobId, list]) => {
     const job = s.jobs[jobId]

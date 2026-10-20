@@ -68,6 +68,7 @@ export interface StepRec {
 /* what the site manager looks at on the site check */
 export const SITE_CHECKS: { k: string; label: string; sub: string }[] = [
   { k: 'heights', label: 'Wall heights', sub: 'Measured where the tile goes up' },
+  { k: 'level', label: 'Floors level', sub: 'High and low point of each floor — it says if it needs prep' },
   { k: 'electric', label: 'Electrical', sub: 'Boxes and wires where the layout needs them' },
   { k: 'plumbing', label: 'Plumbing', sub: 'Valves, drains and shower heads in place' },
   { k: 'water', label: 'Water on site', sub: 'Running water to mix and clean up' },
@@ -675,4 +676,42 @@ export function setCompanyStepOwner(key: string, owner: PersonKey | 'matBy') {
 }
 export function renameCompanyStep(key: string, label: string) {
   S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, label, short: d.custom ? label.split(/\s+/).slice(0, 3).join(' ') : d.short } : d))) }, 'Renamed')
+}
+
+/* ---------------- floors: the high and the low point, and what that means ---------------- */
+/** how far off a floor can be and still take tile straight: up to ¼″ is fine; up to ¾″ wants self-leveler;
+ *  more than that is the GC's to fix before we start */
+export const LEVEL_OK = 0.25
+export const LEVEL_PREP = 0.75
+export type LevelWord = { tone: 'ok' | 'warn' | 'bad'; label: string; diff: number }
+export function levelWord(r: { level?: { high: number; low: number } }): LevelWord | null {
+  if (!r.level) return null
+  const diff = Math.round(Math.abs(r.level.high - r.level.low) * 100) / 100
+  if (diff <= LEVEL_OK) return { tone: 'ok', label: 'Flat — good to tile', diff }
+  if (diff <= LEVEL_PREP) return { tone: 'warn', label: `${fracIn(diff)} off — needs self-leveler`, diff }
+  return { tone: 'bad', label: `${fracIn(diff)} off — the GC has to fix it`, diff }
+}
+/** inches as a tile man says them: 0.75 → ¾″, 1.25 → 1¼″ */
+export function fracIn(n: number) {
+  const whole = Math.floor(n), rest = n - whole
+  const f = rest >= 0.875 ? '⅞' : rest >= 0.75 ? '¾' : rest >= 0.625 ? '⅝' : rest >= 0.5 ? '½' : rest >= 0.375 ? '⅜' : rest >= 0.25 ? '¼' : rest >= 0.125 ? '⅛' : ''
+  return `${whole || (f ? '' : '0')}${f}″`
+}
+/** write the high and low point of a room's floor; the site check row follows (bad when a floor needs the GC) */
+export function setFloorLevel(jobId: string, room: string, high: number, low: number) {
+  S().commit((st) => {
+    const r = st.rooms[jobId]?.find((x) => x.name === room)
+    if (!r) return
+    r.level = { high, low, date: TODAY }
+    const words = (st.rooms[jobId] || []).map((x) => ({ x, w: levelWord(x) })).filter((y) => y.w)
+    const bad = words.filter((y) => y.w!.tone === 'bad')
+    const prep = words.filter((y) => y.w!.tone === 'warn')
+    const rec = ((st.stepRecs[jobId] ||= {}).heights ||= {})
+    const c = (rec.checks ||= {})
+    if (bad.length) c.level = { ok: false, note: `${bad.map((y) => y.x.name).join(', ')} — more than ${fracIn(LEVEL_PREP)} off, the GC has to fix it` }
+    else if (prep.length) c.level = { ok: true, note: `${prep.map((y) => y.x.name).join(', ')} — self-leveler first` }
+    else c.level = { ok: true }
+    /* the floor prep follows: a floor that needs leveler is set on self-leveler */
+    prep.forEach((y) => y.x.surfaces.filter((sf) => /floor/i.test(sf.name) && !/shower/i.test(sf.name)).forEach((sf) => { if (!sf.method || sf.method === 'slab') sf.method = 'slu' }))
+  }, 'Floor level saved')
 }

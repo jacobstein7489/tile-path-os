@@ -44,7 +44,7 @@ type SetTab = (t: any) => void
 
 /* ================= the bar on top ================= */
 export type PhaseState = 'done' | 'active' | 'wait' | 'bad' | 'todo'
-export type PhaseCell = { key: string; label: string; state: PhaseState; frac: number; who?: PersonKey; line: string; lineTone?: 'bad'; said?: string; onClick?: () => void }
+export type PhaseCell = { key: string; label: string; short?: string; state: PhaseState; frac: number; who?: PersonKey; line: string; lineTone?: 'bad'; said?: string; onClick?: () => void }
 export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
   /* four parts, left to right: getting it ready (the whole checklist behind it), installing, touch-ups, billed */
   const ready = isGettingReady(job)
@@ -66,12 +66,12 @@ export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
   const fieldDone = ['punch', 'closeout', 'complete'].includes(st)
   return [
     {
-      key: 'ready', label: 'Getting ready',
+      key: 'ready', label: 'Getting ready', short: 'Ready',
       state: past ? 'done' : !ready ? 'todo' : bad ? 'bad' : 'active',
       frac: past ? 1 : steps.length ? done / steps.length : 0,
       line: past ? 'Done' : ready ? (bad ? `${nBad} problem${nBad === 1 ? '' : 's'}` : `${done} of ${steps.length} done`) : '',
       said: ready ? `${done} of ${steps.length} done${bad ? `, ${nBad} problem${nBad === 1 ? '' : 's'}` : ''}` : undefined,
-      onClick: () => s.open({ t: 'checklist', jobId: job.id }),
+      onClick: setTab ? () => setTab('ready') : () => s.open({ t: 'checklist', jobId: job.id }),
     },
     {
       key: 'install', label: 'Installing',
@@ -79,17 +79,17 @@ export function projectPath(s: Store, job: Job, setTab?: SetTab): PhaseCell[] {
       frac: st === 'installation' ? (job.pct ?? 0) / 100 : fieldDone ? 1 : 0,
       line: st === 'installation' ? `${job.pct ?? 0}% installed` : fieldDone ? 'Done' : start ? (lateStart ? `Late · ${start}` : `Starts ${start}`) : '',
       lineTone: lateStart && st !== 'installation' && !fieldDone ? 'bad' : undefined,
-      onClick: setTab ? () => setTab('scope') : undefined,
+      onClick: setTab ? () => setTab('install') : undefined,
     },
     {
       key: 'punch', label: 'Touch-ups',
       state: punchOpen ? 'active' : st === 'punch' || ['closeout', 'complete'].includes(st) ? 'done' : 'todo',
       frac: punch.length ? (punch.length - punchOpen) / punch.length : ['closeout', 'complete'].includes(st) ? 1 : 0,
       line: punchOpen ? `${punchOpen} open` : st === 'punch' ? 'All fixed' : ['closeout', 'complete'].includes(st) ? 'Done' : '',
-      onClick: () => s.open({ t: 'touchups', jobId: job.id }),
+      onClick: setTab ? () => setTab('punch') : () => s.open({ t: 'touchups', jobId: job.id }),
     },
     {
-      key: 'close', label: money ? 'Billed and paid' : 'Closed',
+      key: 'close', label: money ? 'Billed and paid' : 'Closed', short: money ? 'Billed' : 'Closed',
       state: st === 'complete' ? 'done' : st === 'closeout' ? 'active' : 'todo',
       frac: st === 'complete' ? 1 : billed / 100,
       line: st === 'complete' ? 'Done' : money && billed ? `${billed}% billed` : '',
@@ -103,17 +103,19 @@ export const overallPct = (cells: PhaseCell[]) => Math.round((cells.reduce((n, c
 
 /** every part of the project, left to right — the same path as an estimate: a check once a part is done, a blue ring
  *  where work is going on, red for a problem, the name of who has it, and how far it is. Click a part to open its steps. */
-export function PhaseBar({ cells }: { cells: PhaseCell[] }) {
+export function PhaseBar({ cells, at }: { cells: PhaseCell[]; at?: string }) {
   const me = meOf(useStore((s) => s.role))
   return (
     <Path
       label="Where the project is"
+      at={at}
       className="pt-1"
       steps={cells.map((c) => {
         const who = c.state !== 'done' && c.who && PEOPLE[c.who] ? (c.who === me ? 'You' : firstName(c.who)) : undefined
         return {
           key: c.key,
           label: c.label,
+          short: c.short,
           state: c.state === 'done' ? 'done' as const : c.state === 'bad' ? 'blocked' as const : c.state === 'active' || c.state === 'wait' ? 'current' as const : 'future' as const,
           date: c.line || undefined,
           dateTone: c.lineTone,
@@ -138,7 +140,7 @@ export function nextOn(s: Store, job: Job): { v: StepView; mine: boolean } | nul
 /* ================= To do ================= */
 type Mark = { kind: 'step'; state: StepView['state'] } | { kind: 'item'; status: NowState } | { kind: 'task'; waiting: boolean } | { kind: 'meet' }
 type GroupKey = 'mine' | 'others' | 'wait' | 'coming'
-export type TodoRow = { key: string; group: GroupKey; mark: Mark; title: string; note?: string; noteTone?: 'bad' | 'warn'; who?: PersonKey; people?: PersonKey[]; when: string; late?: boolean; run?: () => void }
+export type TodoRow = { key: string; group: GroupKey; mark: Mark; title: string; note?: string; noteTone?: 'bad' | 'warn' | 'ok'; who?: PersonKey; people?: PersonKey[]; when: string; late?: boolean; run?: () => void }
 const GROUPS: { key: GroupKey; label: string }[] = [
   { key: 'mine', label: 'Your turn' },
   { key: 'others', label: 'Others' },
@@ -239,7 +241,7 @@ function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
       <span className="min-w-0">
         <span className="block text-[0.90625rem] font-semibold text-ink max-md:line-clamp-2 md:truncate">{r.title}</span>
-        <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>
+        <span className={cn('block truncate text-[0.78125rem]', r.noteTone === 'bad' ? 'font-medium text-bad-600' : r.noteTone === 'ok' ? 'font-medium text-[#2c4a3e]' : 'text-muted')}>
           <span className="md:hidden">{lead}{lead && r.note ? ' · ' : ''}</span>{r.note || <span className="max-md:hidden">&nbsp;</span>}
         </span>
       </span>
@@ -301,15 +303,16 @@ export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
 /** what's done on the project — every finished step, task and touch-up, newest first, so nothing disappears */
 export function doneRows(s: Store, job: Job): TodoRow[] {
   const rows: TodoRow[] = []
-  if (isGettingReady(job)) for (const v of stepsFor(s, job)) if (v.state === 'done') rows.push({ key: 'ds:' + v.key, group: 'coming', mark: { kind: 'step', state: 'done' }, title: v.label, note: v.note, who: v.doneBy || v.owner, when: v.doneOn || '—', run: () => openStep(job.id, v.key) })
-  for (const t of s.tasks) if (t.jobId === job.id && t.state === 'done') rows.push({ key: 'dt:' + t.id, group: 'coming', mark: { kind: 'step', state: 'done' }, title: t.title, note: t.result || t.where, who: t.owner, when: t.doneAt || '—', run: () => s.open({ t: 'task', id: t.id }) })
-  for (const p of s.punch) if (p.jobId === job.id && p.status === 'verified') rows.push({ key: 'dp:' + p.id, group: 'coming', mark: { kind: 'item', status: 'done' }, title: p.text, note: p.where, who: p.owner, when: '—', run: () => s.open({ t: 'touchups', jobId: job.id }) })
+  const doneNote = (what: string, when?: string, who?: PersonKey) => ['Done', when, who && PEOPLE[who] ? `by ${PEOPLE[who].short}` : '', what].filter(Boolean).join(' · ')
+  if (isGettingReady(job)) for (const v of stepsFor(s, job)) if (v.state === 'done') rows.push({ key: 'ds:' + v.key, group: 'coming', mark: { kind: 'step', state: 'done' }, title: v.label, note: doneNote(v.note || '', v.doneOn, v.doneBy), noteTone: 'ok', who: v.doneBy || v.owner, when: v.doneOn || '—', run: () => openStep(job.id, v.key) })
+  for (const t of s.tasks) if (t.jobId === job.id && t.state === 'done') rows.push({ key: 'dt:' + t.id, group: 'coming', mark: { kind: 'step', state: 'done' }, title: t.title, note: doneNote(t.result || '', t.doneAt, t.owner), noteTone: 'ok', who: t.owner, when: t.doneAt || '—', run: () => s.open({ t: 'task', id: t.id }) })
+  for (const p of s.punch) if (p.jobId === job.id && p.status === 'verified') rows.push({ key: 'dp:' + p.id, group: 'coming', mark: { kind: 'item', status: 'done' }, title: p.text, note: doneNote(`checked · ${p.where}`, undefined, p.owner), noteTone: 'ok', who: p.owner, when: '—', run: () => s.open({ t: 'touchups', jobId: job.id }) })
   return rows.reverse()
 }
 
 /** + Add — the few things you put on a project: a problem (tile came wrong, broken or short; the site isn't ready),
  *  a task, a meeting or walkthrough, a step just for this project */
-function AddToProject({ job }: { job: Job }) {
+export function AddToProject({ job }: { job: Job }) {
   const s = useStore()
   const [step, setStep] = React.useState(false)
   if (['accounting', 'client', 'crew'].includes(s.role)) return null

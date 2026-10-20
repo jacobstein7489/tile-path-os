@@ -146,7 +146,7 @@ export const TASKS0: Task[] = [
     log: [L('Sep 25', 'office', 'Tile store paperwork entered'), L('Sep 25', 'system', 'Quantity check failed · 60 SF short')],
   },
   {
-    id: 't-est-b2', jobId: 'b2', title: 'Start the takeoff · 115 Park lobby', type: 'Pricing', owner: 'office', for: ['office'],
+    id: 't-est-b2', jobId: 'b2', title: 'Start the takeoff', type: 'Pricing', owner: 'office', for: ['office'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'New request · all documents in',
     action: { label: 'Open estimate', kind: 'estimate:E-1047' }, log: [L('Sep 28', 'office', 'Request logged · all documents in')],
   },
@@ -203,24 +203,24 @@ export const TASKS0: Task[] = [
 
   /* ---- estimator ---- */
   {
-    id: 't-est-b3', jobId: 'b3', title: 'Takeoff · Green Tree Phase 2', type: 'Pricing', owner: 'takeoff', for: ['takeoff'], watch: ['owner'],
+    id: 't-est-b3', jobId: 'b3', title: 'Do the takeoff', type: 'Pricing', owner: 'takeoff', for: ['takeoff'], watch: ['owner'],
     state: 'now', due: 'Thu', dueTone: 'warn', tone: 'warn', where: 'Takeoff 60%',
     detail: '12 unit baths and the lobby. Unit baths 9–12 and the lobby feature wall still to measure.',
     action: { label: 'Open estimate', kind: 'estimate:E-1044' }, log: [L('Sep 16', 'office', 'Takeoff started')],
   },
   {
-    id: 't-r2-b6', jobId: 'b6', title: 'Final review · Mark Drive model unit · Revision 2', type: 'Pricing', owner: 'ys', for: ['owner'],
+    id: 't-r2-b6', jobId: 'b6', title: 'Final review · Revision 2', type: 'Pricing', owner: 'ys', for: ['owner'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'Basement bath removed · office review done',
     detail: 'The office checked it — 1 note, fixed. Approve and it goes to the client.', action: { label: 'Review', kind: 'estimate:E-1040' },
     log: [L('Sep 22', 'ys', 'Revision requested: remove the basement bath'), L('Sep 28', 'estimator', 'Office review done — to Yaakov')],
   },
   {
-    id: 't-rev-b8', jobId: 'b8', title: 'Review the takeoff · Park Ave Residences 7A', type: 'Pricing', owner: 'estimator', for: ['estimator'],
+    id: 't-rev-b8', jobId: 'b8', title: 'Review the takeoff', type: 'Pricing', owner: 'estimator', for: ['estimator'],
     state: 'now', due: 'Tomorrow', tone: 'info', where: 'Office review · ready from Takeoff',
     action: { label: 'Review', kind: 'estimate:E-1048' }, log: [L('Sep 28', 'takeoff', 'Ready for review')],
   },
   {
-    id: 't-takeoff-b4', jobId: 'b4', title: 'Takeoff · Fire Circle Lot 7', type: 'Pricing', owner: 'takeoff', for: ['takeoff'],
+    id: 't-takeoff-b4', jobId: 'b4', title: 'Do the takeoff', type: 'Pricing', owner: 'takeoff', for: ['takeoff'],
     state: 'now', due: 'Oct 5', tone: 'neutral', where: 'Finish schedule still missing', action: { label: 'Open estimate', kind: 'estimate:E-1045' }, log: [],
   },
   {
@@ -506,14 +506,16 @@ export const PUNCH0: PunchItem[] = [
 ]
 
 /* ================= notifications ================= */
-export interface Notice { id: string; jobId?: string; text: string; when: string; kind: 'material' | 'pricing' | 'money' | 'field' | 'change'; unread: boolean }
+export interface Notice { id: string; jobId?: string; text: string; when: string; kind: 'material' | 'pricing' | 'money' | 'field' | 'change'; unread: boolean
+  /** the exact thing it's about — the bill, the PO, the update — so the inbox opens that, not the whole project */
+  open?: { t: string; [k: string]: any } }
 export const NOTICES0: Notice[] = [
-  { id: 'n1', jobId: '119', text: 'Metal Works Inc.: 2 JOLLY profiles ship tomorrow', when: '1h ago', kind: 'material', unread: true },
-  { id: 'n2', jobId: '2385', text: 'CO-002 approved · ballroom epoxy upgrade', when: '10:05 AM', kind: 'change', unread: true },
-  { id: 'n3', jobId: 'b2', text: 'New price request · 115 Park lobby', when: '9:12 AM', kind: 'pricing', unread: true },
-  { id: 'n4', jobId: '530', text: 'Automatic reminder sent · 530 Mark deposit #1038', when: '8:00 AM', kind: 'money', unread: false },
-  { id: 'n5', jobId: '119', text: 'GC approved progress bill #1 · 119 Park Place', when: 'Sun', kind: 'money', unread: false },
-  { id: 'n6', jobId: '119', text: 'Philip sent Saturday’s update · guest bath walls 70%', when: 'Sat', kind: 'field', unread: false },
+  { id: 'n1', jobId: '119', text: 'Metal Works Inc.: 2 JOLLY profiles ship tomorrow', when: '1h ago', kind: 'material', unread: true, open: { t: 'po', id: 'PO-1041' } },
+  { id: 'n2', jobId: '2385', text: 'CO-002 approved · ballroom epoxy upgrade', when: '10:05 AM', kind: 'change', unread: true, open: { t: 'job', id: '2385', tab: 'money' } },
+  { id: 'n3', jobId: 'b2', text: 'New price request · 115 Park lobby', when: '9:12 AM', kind: 'pricing', unread: true, open: { t: 'estimate', id: 'E-1047' } },
+  { id: 'n4', jobId: '530', text: 'Automatic reminder sent · 530 Mark deposit #1038', when: '8:00 AM', kind: 'money', unread: false, open: { t: 'money', id: 'dep530' } },
+  { id: 'n5', jobId: '119', text: 'GC approved progress bill #1 · 119 Park Place', when: 'Sun', kind: 'money', unread: false, open: { t: 'money', id: 'req119' } },
+  { id: 'n6', jobId: '119', text: 'Philip sent Saturday’s update · guest bath walls 70%', when: 'Sat', kind: 'field', unread: false, open: { t: 'job', id: '119', tab: 'install' } },
 ]
 
 /* ================= follow-up outcomes ================= */

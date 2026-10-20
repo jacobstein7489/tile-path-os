@@ -15,11 +15,11 @@ import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, byTag, type Tile, type Surface, type Room } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, setCompanyStepOwner, companySteps, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, setCompanyStepOwner, companySteps, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView, levelWord, setFloorLevel, fracIn, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, AddStep, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
@@ -116,6 +116,42 @@ function stateWords(v: StepView, me: PersonKey): { text: string; tone: Tone } {
 }
 
 /* ================= the window ================= */
+/** where a step is shown: its own window (close = close it) or inline on the project page (close = fold it) */
+const StepHost = React.createContext<{ close: () => void } | null>(null)
+export const useStepHost = () => React.useContext(StepHost)
+
+/** one step, without any window around it — the project page shows it right in the list */
+export function StepInline({ job, v, onClose }: { job: Job; v: StepView; onClose?: () => void }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const word = stateWords(v, me)
+  const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
+  const viewer = ['site', 'accounting', 'crew', 'client'].includes(s.role)
+  const viewOnly = viewer && v.owner !== me
+  const host = React.useMemo(() => ({ close: () => onClose?.() }), [onClose])
+  return (
+    <StepHost.Provider value={host}>
+      <div className="min-w-0">
+        <div className={cn('text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')}>
+          {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          {viewer
+            ? <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{v.owner === me ? 'You' : PEOPLE[v.owner]?.short || 'Someone'}</span>
+            : <Who job={job} v={v} />}
+          {dated && v.state !== 'done' && v.state !== 'na' && (viewer
+            ? (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null)
+            : <When job={job} v={v} />)}
+          {!viewer && <StepMore job={job} v={v} />}
+        </div>
+        {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-3 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
+        {viewOnly && <div className="mt-3 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2">It’s {PEOPLE[v.owner]?.short || 'someone else'}’s step — you can see where it is; {PEOPLE[v.owner]?.short || 'they'} changes it.</div>}
+        <fieldset disabled={viewOnly} className="m-0 mt-4 min-w-0 border-0 p-0"><Body job={job} v={v} /></fieldset>
+      </div>
+    </StepHost.Provider>
+  )
+}
+
 export function StepModal({ jobId, k, level }: { jobId: string; k: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
@@ -972,6 +1008,7 @@ function Setup({ job, v }: { job: Job; v: StepView }) {
 /* ================= 6 · the tile order: when it comes, who checks it in ================= */
 function Order({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
+  const host = useStepHost()
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const people = insidePeople(s)
   const [when, setWhen] = React.useState('Thu')
@@ -1002,7 +1039,7 @@ function Order({ job, v }: { job: Job; v: StepView }) {
           ))}
         </div>
       </Field>
-      <Actions><Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when, who); s.close() }}>Save the delivery date</Button></Actions>
+      <Actions><Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when, who); (host || s).close() }}>Save the delivery date</Button></Actions>
     </div>
   )
 }
@@ -1033,7 +1070,7 @@ function Deposit({ job }: { job: Job }) {
 }
 
 /* ================= 8 · the site check ================= */
-const CHECK_ICON: Record<string, React.ElementType> = { heights: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, ready: HardHat }
+const CHECK_ICON: Record<string, React.ElementType> = { heights: Ruler, level: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, ready: HardHat }
 function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const answers = s.stepRecs[job.id]?.heights?.checks || {}
@@ -1044,7 +1081,7 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   return (
     <div>
       <Block title="On site" right={`${answered} of ${SITE_CHECKS.length} checked`}>
-        {SITE_CHECKS.map((c) => <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} heights={c.k === 'heights' && hs.total ? hs : undefined} />)}
+        {SITE_CHECKS.map((c) => c.k === 'level' ? <LevelRow key={c.k} job={job} c={c} a={answers[c.k]} /> : <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} heights={c.k === 'heights' && hs.total ? hs : undefined} />)}
       </Block>
       {!done && (
         <Actions>
@@ -1075,6 +1112,59 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
         </span>
       </div>
       {a?.ok === false && <TextInput autoFocus={!a.note} className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => note.trim() !== (a.note || '') && setSiteCheck(job.id, c.k, false, note.trim() || undefined)} placeholder="What’s wrong — e.g. no box for the vanity light" />}
+    </div>
+  )
+}
+
+/** the floors: the high and the low point of each room, in inches — the system says flat, self-leveler, or the GC's to fix */
+function LevelRow({ job, c, a }: { job: Job; c: { k: string; label: string; sub: string }; a?: { ok: boolean; note?: string } }) {
+  const s = useStore()
+  const rooms = (s.rooms[job.id] || []).filter((r) => r.surfaces.some((x) => /floor/i.test(x.name) && !/shower/i.test(x.name)))
+  const [open, setOpen] = React.useState(false)
+  const [vals, setVals] = React.useState<Record<string, { high: string; low: string }>>({})
+  const measured = rooms.filter((r) => r.level).length
+  const worst = rooms.map(levelWord).filter(Boolean).sort((x, y) => y!.diff - x!.diff)[0]
+  const Ic = CHECK_ICON[c.k] || Check
+  const v = (r: Room, k: 'high' | 'low') => vals[r.name]?.[k] ?? (r.level ? String(r.level[k]) : '')
+  const save = (r: Room) => {
+    const high = Number(vals[r.name]?.high ?? r.level?.high), low = Number(vals[r.name]?.low ?? r.level?.low)
+    if (!Number.isFinite(high) || !Number.isFinite(low) || (!vals[r.name]?.high && !r.level) || (!vals[r.name]?.low && !r.level)) return
+    setFloorLevel(job.id, r.name, high, low)
+  }
+  return (
+    <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
+      <div className="flex items-center gap-3 max-sm:flex-wrap">
+        <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', a?.ok === false ? 'bg-bad-50 text-bad-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
+          <span className={cn('block text-[0.78125rem]', a?.ok === false ? 'font-medium text-bad-600' : a?.note ? 'font-medium text-warn-700' : 'text-muted')}>{a?.note || (rooms.length ? `${measured} of ${rooms.length} floors measured` : 'No floors on this project')}</span>
+        </span>
+        {rooms.length > 0 && <Button size="sm" variant={measured === rooms.length ? 'ghost' : 'secondary'} icon={<Ruler />} onClick={() => setOpen((o) => !o)}>{measured === rooms.length ? (open ? 'Hide' : 'See them') : 'Enter high and low'}</Button>}
+        {!!worst && !open && <Status tone={worst.tone === 'ok' ? 'ok' : worst.tone === 'warn' ? 'warn' : 'bad'}>{worst.tone === 'ok' ? 'All flat' : worst.label}</Status>}
+      </div>
+      {open && (
+        <div className="mt-3 overflow-hidden rounded-xl border border-line">
+          <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_minmax(0,1.1fr)] items-center gap-2 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted max-sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem]">
+            <span>Floor</span><span className="text-right">High point</span><span className="text-right">Low point</span><span className="max-sm:hidden">What it means</span>
+          </div>
+          {rooms.map((r) => {
+            const w = levelWord(r)
+            return (
+              <div key={r.name} className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_minmax(0,1.1fr)] items-center gap-2 border-b border-line-2 px-3 py-2 last:border-b-0 max-sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem]">
+                <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{r.name}</span>{w && <span className={cn('block truncate text-[0.75rem] sm:hidden', w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'text-bad-600')}>{w.label}</span>}</span>
+                {(['high', 'low'] as const).map((k) => (
+                  <span key={k} className="inline-flex h-8 items-center gap-1 rounded-lg border border-line bg-white pr-2">
+                    <input aria-label={`${r.name} floor ${k} point in inches`} inputMode="decimal" value={v(r, k)} onChange={(e) => setVals((p) => ({ ...p, [r.name]: { high: p[r.name]?.high ?? (r.level ? String(r.level.high) : ''), low: p[r.name]?.low ?? (r.level ? String(r.level.low) : ''), [k]: e.target.value } }))} onBlur={() => save(r)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="0" className="h-full w-full min-w-0 bg-transparent px-2 text-right text-[0.875rem] tnum text-ink outline-none" />
+                    <span className="text-[0.75rem] text-muted">in</span>
+                  </span>
+                ))}
+                <span className={cn('truncate text-[0.8125rem] font-medium max-sm:hidden', !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'text-bad-600')}>{w ? w.label : 'Measure from the same line'}</span>
+              </div>
+            )
+          })}
+          <div className="bg-wash px-3 py-2 text-[0.75rem] text-muted">Up to {fracIn(LEVEL_OK)} off is fine. Up to {fracIn(LEVEL_PREP)} gets self-leveler (the materials follow). More than that, the GC fixes the floor before we start.</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1130,6 +1220,7 @@ function TileProblems({ job }: { job: Job }) {
 
 function Delivered({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
+  const host = useStepHost()
   const checks = s.checks.filter((c) => c.jobId === job.id)
   /* a tile with a problem logged against it isn't "all here", even if the count matched */
   const badTags = new Set(s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done').map((t) => (t.where || t.title).split(/[\s:·]/)[0]))
@@ -1160,7 +1251,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
       <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> — count the boxes against the order.</> : 'No delivery date yet — it’s set on the tile order step.'}</div>
       <Actions>
         <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
-        <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); s.close() }}>All of it is here</Button>
+        <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); (host || s).close() }}>All of it is here</Button>
       </Actions>
     </div>
   )

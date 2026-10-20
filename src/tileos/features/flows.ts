@@ -307,7 +307,7 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
       s.money.unshift({ id: 'cpo-' + jobId, jobId, kind: 'custpo', title: 'Client PO / contract', amount: null, step: 0, state: 'waiting', due: 'Requested today', note: 'Company rule: their PO before the first bill.', log: [L('office', 'Requested from the client')], action: 'Mark received' })
       newTask(s, { jobId, title: `Client PO for ${j.name}`, type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'], state: 'waiting', waitingOn: 'Client', followUp: 'Fri', tone: 'warn', where: 'Contract' })
     }
-    s.notices.unshift({ id: 'nw' + Date.now(), jobId, text: `Awarded · ${j.name} — every department notified`, when: 'Just now', kind: 'pricing', unread: true })
+    s.notices.unshift({ id: 'nw' + Date.now(), jobId, text: `Awarded · ${j.name} — every department notified`, when: 'Just now', kind: 'pricing', unread: true, open: { t: 'job', id: jobId, tab: 'ready' } })
     addHist(s, jobId, { who: me(), kind: 'pricing', title: `Awarded on ${o.rev} · ${fmtMoney(o.amount)}`, detail: `Start window ${o.start}. Deposit, setup, materials and scheduling notified.` })
   }, `${j0.name} is a project now`, {
     sub: 'Everyone got their part on their Today.',
@@ -339,7 +339,7 @@ export function newRequest(d: { name: string; address: string; clientId: string;
     }
     missing.forEach((m) => newTask(s, { jobId: id, title: `${m} from the GC`, type: 'Pricing', owner: 'office', for: ['office'], state: 'waiting', waitingOn: 'GC', followUp: 'Thu', tone: 'warn', where: 'Documents' }))
     const estId = 'E-' + (1 + Math.max(1000, ...s.estimates.map((e) => Number(e.id.slice(2)) || 0)))
-    newTask(s, { jobId: id, title: `Start the takeoff · ${d.name}`, type: 'Pricing', owner: 'office', for: ['office'], state: 'now', due: 'Today', tone: 'info', where: missing.length ? `${missing.join(' and ')} still missing` : 'All documents in', action: { label: 'Open estimate', kind: 'estimate:' + estId } })
+    newTask(s, { jobId: id, title: 'Start the takeoff', type: 'Pricing', owner: 'office', for: ['office'], state: 'now', due: 'Today', tone: 'info', where: missing.length ? `${missing.join(' and ')} still missing` : 'All documents in', action: { label: 'Open estimate', kind: 'estimate:' + estId } })
     s.estimates.unshift({ id: estId, jobId: id, status: 'request', estimator: d.estimator, due: d.due, revs: [{ n: 1, date: NOW, status: 'draft', what: 'Original scope', lines: [] }], log: [L(me(), `Price request received${missing.length ? ' — ' + missing.join(' and ') + ' missing' : ''}`)] })
     addHist(s, id, { who: me(), kind: 'pricing', title: `Price request received · ${estId}`, ref: { t: 'estimate', id: estId } })
   }, `${d.name} added to Estimates`)
@@ -535,7 +535,7 @@ export function approveCO004(o: { by: string; how: string }) {
     newTask(s, { jobId: '119', title: 'Bill CO-004 · boys bath full height', type: 'Money', owner: 'accounting', for: ['accounting'], state: 'now', due: 'With the October bill', tone: 'info', where: '$6,850', action: { label: 'Add to next bill', kind: 'money:co119' } })
     if (o.how === 'Verbal') newTask(s, { jobId: '119', title: 'Get CO-004 approval in writing', type: 'Changes', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Verbal approval on file' })
     addHist(s, '119', { who: me(), kind: 'change', title: `CO-004 approved by ${o.by} (${o.how.toLowerCase()})`, from: '3 ft', to: 'Full height', detail: 'Scope, tile, Philip’s PO, schedule, crew and billing updated together' })
-    s.notices.unshift({ id: 'nc' + Date.now(), jobId: '119', text: 'CO-004 approved · crew instruction changed to full height', when: 'Just now', kind: 'change', unread: true })
+    s.notices.unshift({ id: 'nc' + Date.now(), jobId: '119', text: 'CO-004 approved · crew instruction changed to full height', when: 'Just now', kind: 'change', unread: true, open: { t: 'job', id: '119', tab: 'money' } })
   }, 'CO-004 approved — 6 departments updated')
   S().close()
 }
@@ -675,7 +675,7 @@ export function sendDailyUpdate(jobId: string, d: DailyInput) {
     if (d.gc) addHist(s, jobId, { who: meOf(s.role), kind: 'field', title: 'Progress report sent to the GC', detail: `${j?.name} · ${j?.pct ?? 0}% installed · ${media} photos` })
     if (d.blocked) newTask(s, { jobId, title: 'Tomorrow is blocked — reported in the daily update', type: 'Field', owner: 'ys', for: ['site', 'pm'], state: 'now', due: 'Today', tone: 'bad', where: touched.join(', ') || undefined })
     if (d.shortage) newTask(s, { jobId, title: 'Material short — reported in the daily update', type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'warn' })
-    s.notices.unshift({ id: 'nd' + Date.now(), jobId, text: `${PEOPLE[d.who].name} sent today’s update · ${j?.name}${moved ? ` · ${moved} surfaces moved` : ''}`, when: 'Just now', kind: 'field', unread: true })
+    s.notices.unshift({ id: 'nd' + Date.now(), jobId, text: `${PEOPLE[d.who].name} sent today’s update · ${j?.name}${moved ? ` · ${moved} surfaces moved` : ''}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'job', id: jobId, tab: 'install' } })
   }, d.gc ? 'Update sent — the room diaries, the office and the GC have it' : 'Update sent — the room diaries and the office have it')
 }
 
@@ -688,7 +688,7 @@ export function dailyUpdate(jobId: string, d: { who: PersonKey; rooms: string[];
     if (d.blocked) newTask(s, { jobId, title: 'Tomorrow is blocked — reported in the daily update', type: 'Field', owner: 'ys', for: ['site', 'pm'], state: 'now', due: 'Today', tone: 'bad', where: d.rooms.join(', ') })
     if (d.shortage) newTask(s, { jobId, title: 'Material short — reported in the daily update', type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'warn' })
     if (d.change) newTask(s, { jobId, title: 'Possible change asked on site', type: 'Changes', owner: 'ys', for: ['pm'], state: 'now', due: 'Today', tone: 'warn', detail: 'Crew holds until it is reviewed and approved.' })
-    s.notices.unshift({ id: 'nd' + Date.now(), jobId, text: `${PEOPLE[d.who].name} sent the daily update · ${j.name}`, when: 'Just now', kind: 'field', unread: true })
+    s.notices.unshift({ id: 'nd' + Date.now(), jobId, text: `${PEOPLE[d.who].name} sent the daily update · ${j.name}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'job', id: jobId, tab: 'install' } })
   }, 'Daily update sent', { sub: 'Progress, billing and this week’s installer pay are updated from it.' })
   S().close()
 }
@@ -1131,7 +1131,7 @@ export function siteChange(o: SiteChangeInput) {
     }
     setIssues(s, o.jobId, (iss) => [...iss, { tone: 'warn', text: `${co} waiting on pricing and approval · ${o.room}` }])
     addHist(s, o.jobId, { who: me(), kind: 'change', title: `${co} asked on site · ${o.room} ${o.surface.toLowerCase()}`, from: o.from, to: o.to, detail: `Asked by the ${o.by.toLowerCase()}. The crew holds that surface; the price, the installer’s PO and the tile wait for approval.` })
-    s.notices.unshift({ id: 'nco' + Date.now(), jobId: o.jobId, text: `${co} asked on site · ${j?.name} · ${o.room}`, when: 'Just now', kind: 'change', unread: true })
+    s.notices.unshift({ id: 'nco' + Date.now(), jobId: o.jobId, text: `${co} asked on site · ${j?.name} · ${o.room}`, when: 'Just now', kind: 'change', unread: true, open: { t: 'job', id: o.jobId, tab: 'money' } })
   }, `${co} started — estimator, crew hold, installer PO and tile are all lined up`)
   return co
 }
@@ -1210,7 +1210,7 @@ export function approveChange(id: string, o: { by: string; how: string }) {
     newTask(s, { jobId: m.jobId, title: `Bill ${co} · ${x.room} ${x.surface.toLowerCase()}`, type: 'Money', owner: 'accounting', for: ['accounting'], state: 'now', due: 'With the next bill', tone: 'info', where: fmtMoney(amount), action: { label: 'Add to next bill', kind: 'money:' + id } })
     if (o.how === 'Verbal') newTask(s, { jobId: m.jobId, title: `Get ${co} approval in writing`, type: 'Changes', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Verbal approval on file' })
     addHist(s, m.jobId, { who: me(), kind: 'change', title: `${co} approved by ${o.by} (${o.how.toLowerCase()})`, from: x.from, to: x.to, detail: `Billable · crew instruction changed${ch ? ' · installer PO change sent' : ''}${tileLine ? ' · ' + tileLine + ' requested' : ''}` })
-    s.notices.unshift({ id: 'nca' + Date.now(), jobId: m.jobId, text: `${co} approved · crew instruction changed`, when: 'Just now', kind: 'change', unread: true })
+    s.notices.unshift({ id: 'nca' + Date.now(), jobId: m.jobId, text: `${co} approved · crew instruction changed`, when: 'Just now', kind: 'change', unread: true, open: { t: 'money', id: m.id } })
   }, 'Approved — billing, the crew, the installer PO and the tile are updated')
   S().close()
 }

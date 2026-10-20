@@ -9,7 +9,7 @@ import { cn } from '@/tileos/lib/utils'
 import { Mic, canListen, addSaid } from './mic'
 
 export function SuggestInput({
-  value, onChange, onPick, onEnter, suggestions, label, placeholder, listLabel = 'Common ones', max = 6, className, autoFocus = true,
+  value, onChange, onPick, onEnter, suggestions, label, placeholder, listLabel = 'The usual ones', max = 6, className, autoFocus = true,
 }: {
   value: string
   onChange: (v: string) => void
@@ -74,7 +74,7 @@ export function SuggestInput({
               <button type="button" aria-label="Clear it — pick another" title="Clear it — pick another" onClick={clear} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>
             ) : (
               <button type="button" aria-label={listLabel} aria-haspopup="listbox" onClick={() => { if (visible) { setOpen(false); setAll(false) } else { setAll(true); setOpen(true) } box.current?.focus() }} className={cn('inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash-2 hover:text-ink', visible && 'bg-wash-2 text-ink')}>
-                Common<ChevronDown className="h-3.5 w-3.5" />
+                Pick one<ChevronDown className="h-3.5 w-3.5" />
               </button>
             )}
             <Mic onText={(t) => onChange(addSaid(value, t))} size="sm" />

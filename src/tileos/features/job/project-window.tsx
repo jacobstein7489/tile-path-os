@@ -1,21 +1,17 @@
 /* The project window — opens nearly full screen, and reads like the estimate:
- *   header: the project and where it stands, the client and the address (the pencil changes them), and the one button
- *           when there's something for you here. Then the bar of where it's at — paperwork, design meeting, site,
- *           installer, deliveries, installing, touch-ups, closed — each part the same size: how far it is, who has it.
- *   tabs:   Overview          — To do (your turn, others, waiting, coming up); at a glance; what we're tiling
- *           Scope of work — every room, wall and floor: the tile, how it's set, the square feet, where it's at
- *           POs               — the installer's PO (against the estimate) and every materials PO, then the tile
- *           Estimate          — the estimate it came from, and the change orders
- *           Installer, Billing
- * Every tab is built from the same pieces (job/kit): the same cards, rows, people and dates. */
+ *   header: the project and where it stands, the client and the address, the installer, and the one button when
+ *           there's something for you here. "N open" opens everything open on the project (Mine · Everyone · Done).
+ *   the bar: Getting ready → Installing → Touch-ups → Billed and paid — the four parts of every project, and the
+ *           only navigation: tap one and the page shows that section. No tabs, no window inside a window.
+ * Every section is built from the same pieces (job/kit): the same sheets, rows, people and dates. */
 import * as React from 'react'
 import {
   Building2, MapPin, CalendarDays, Maximize2, ListPlus, Lock, Check, X, Clock3, Contrast, Plus, ChevronDown, ChevronRight,
-  Printer, HardHat, Send, Play, ClipboardList, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight, MoreHorizontal, Pencil } from 'lucide-react'
+  Printer, HardHat, Send, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, Wallet, TriangleAlert, ArrowRight, MoreHorizontal, Pencil } from 'lucide-react'
 import { useStore, historyOf, type Store } from '@/tileos/store'
 import type { Task } from '@/tileos/data/work'
 import type { CalEvent } from '@/tileos/data/calendar'
-import { Button, Avatar, IconButton, UnderlineTabs } from '@/tileos/components/ui/core'
+import { Button, Avatar, IconButton } from '@/tileos/components/ui/core'
 import { Modal, Tip, Menu, MenuItem, MenuLabel, MenuSep } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
 import { TileImg } from '@/tileos/components/ui/swatch'
@@ -44,23 +40,31 @@ import { projectStatus } from '../statuses'
 import { isGettingReady, stepsFor, stepCounts, takesTile, type StepView } from '../steps'
 import { StepIcon, StepButton, AddStep } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
-import { projectPath, nextOn, PhaseBar, WhatsOpen, Latest } from './plan'
+import { projectPath, nextOn, PhaseBar, WhatsOpen, todoRows, AddToProject } from './plan'
+import { ReadySection, InstallSection, PunchSection, MoneySection } from './sections'
 import { nowItems, todoCount } from './todo'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { md } from '@/tileos/lib/today'
 import { NOW } from '@/tileos/lib/today'
 
 export { floorsOf }
-export type PTab = 'overview' | 'scope' | 'orders' | 'estimate' | 'money'
+export type PTab = 'ready' | 'install' | 'punch' | 'money'
 
-/** old links into the window (tab names from earlier versions) land on the right tab */
-const tabFrom = (initial: string | undefined): PTab =>
-  initial === 'estimate' ? 'money'
-  : (['overview', 'scope', 'orders', 'money'] as PTab[]).includes(initial as PTab)
-    ? (initial as PTab)
-    : initial === 'rooms' || initial === 'setup' ? 'scope'
-      : initial === 'materials' || initial === 'pos' || initial === 'installer' || initial === 'crew' ? 'orders'
-        : initial === 'billing' ? 'money' : 'overview'
+/** where the project is — the section it opens on */
+export function sectionOf(job: Job): PTab {
+  if (['installation'].includes(job.stage)) return 'install'
+  if (job.stage === 'punch') return 'punch'
+  if (['closeout', 'complete'].includes(job.stage)) return 'money'
+  return 'ready'
+}
+/** links into the window (section names, and tab names from earlier versions) land on the right section */
+const tabFrom = (initial: string | undefined, job: Job): PTab =>
+  (['ready', 'install', 'punch', 'money'] as PTab[]).includes(initial as PTab) ? (initial as PTab)
+  : initial === 'estimate' || initial === 'billing' ? 'money'
+  : initial === 'scope' || initial === 'rooms' || initial === 'installer' || initial === 'crew' ? 'install'
+  : initial === 'touchups' ? 'punch'
+  : initial === 'orders' || initial === 'materials' || initial === 'pos' || initial === 'setup' || initial === 'checklist' ? 'ready'
+  : sectionOf(job)
 
 /* ================= the window ================= */
 export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: string; level: number }) {
@@ -68,7 +72,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   const role = useStore((s) => s.role)
   const close = useStore((s) => s.close)
   const pricing = job && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  const [tab, setTab] = React.useState<PTab>(initial ? tabFrom(initial) : role === 'accounting' ? 'money' : 'overview')
+  const [tab, setTab] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
   if (!job) return null
   return (
     <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass={pricing ? 'p-0' : 'bg-[#f4f1eb] p-0'}>
@@ -79,7 +83,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
 
 /** the same project as a page (Open full page) */
 export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
-  const [tab, setTab] = React.useState<PTab>(tabFrom(initial))
+  const [tab, setTab] = React.useState<PTab>(tabFrom(initial, job))
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
       <ProjectHeader job={job} mode="page" tab={tab} setTab={setTab} />
@@ -97,18 +101,6 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
   installation: { label: 'Daily update', icon: <ClipboardList /> },
   punch: { label: 'Book the return visit', icon: <CalendarDays /> },
   closeout: { label: 'Final invoice', icon: <Receipt /> },
-}
-
-/** the tabs, the same on every project — four: what's happening, what we're tiling, what's ordered (the installer's PO,
- *  the tile, the materials), and the money. The installer himself opens from the header. The site manager has
- *  Deliveries for Orders, and no Money. */
-function tabsFor(s: Store): { key: PTab; label: string }[] {
-  return [
-    { key: 'overview', label: 'Overview' },
-    { key: 'scope', label: 'Scope of work' },
-    { key: 'orders', label: s.role === 'site' ? 'Deliveries' : 'Orders' },
-    ...(s.role !== 'site' ? [{ key: 'money' as PTab, label: 'Money' }] : []),
-  ]
 }
 
 /** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list.
@@ -155,7 +147,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
   const pricing = !tab
   /* the one button: my next step here, or what this stage needs */
   const main = next && (locked || !prim)
-    ? (next.mine && tab !== 'overview'
+    ? (next.mine && tab !== 'ready'
       ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
       : null)
     : prim && !locked
@@ -170,6 +162,9 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
       <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>Everything that happened</MenuItem>
       <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })} hint={files ? `${files}` : undefined}>Files and photos</MenuItem>
       <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })} hint={unread ? `${unread} new` : undefined}>Messages</MenuItem>
+      <MenuSep />
+      <MenuItem icon={<Grid2x2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'scopewin', jobId: job.id })}>Scope of work — every wall and floor</MenuItem>
+      {role !== 'site' && <MenuItem icon={<Package className="h-4 w-4" />} onSelect={() => s.open({ t: 'orderswin', jobId: job.id })}>All the orders</MenuItem>}
       {(canEdit || mode === 'modal') && <MenuSep />}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {mode === 'modal' && <MenuItem icon={<Maximize2 className="h-4 w-4" />} onSelect={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}>Open as a full page</MenuItem>}
@@ -185,6 +180,7 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               {!pricing && (status.onClick
                 ? <button onClick={status.onClick} className="min-w-0 max-w-full"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
                 : <Status tone={status.tone} plain={status.tone !== 'bad'} className="shrink-0">{status.label}</Status>)}
+              {!pricing && <OpenChip job={job} />}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted">
               <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 text-faint" />{job.client}</button>
@@ -199,19 +195,15 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
               {/* with nothing to start, the "…" sits up by the title on a phone instead of on a row of its own */}
               <span className="max-lg:flex-1 max-sm:hidden" />
               {main}
+              {!['accounting', 'client'].includes(role) && <AddToProject job={job} />}
               {more}
             </div>
           )}
         </div>
       </div>
       {tab && (
-        <div className="px-6 pt-2 max-sm:px-2">
-          <PhaseBar cells={path} />
-        </div>
-      )}
-      {tab && (
-        <div className="mt-0.5 px-7 max-sm:px-4">
-          <UnderlineTabs className="min-w-0 border-b-0" value={tab} onChange={setTab} items={tabsFor(s)} />
+        <div className="px-6 pb-1 pt-2 max-sm:px-2">
+          <PhaseBar cells={path} at={tab} />
         </div>
       )}
     </div>
@@ -230,27 +222,50 @@ function HeadIcon({ label, count, hot, onClick, children }: { label: string; cou
 
 /* ---------------- the body: just the tab you're on ---------------- */
 export function ProjectBody({ job, tab, setTab }: { job: Job; tab: PTab; setTab: (t: PTab) => void }) {
+  const role = useStore((s) => s.role)
+  const money = role !== 'site'
   return (
     <div key={tab} className="animate-fade-up px-7 py-5 max-sm:px-3 max-sm:py-3.5">
-      {tab === 'overview' && <OverviewTab job={job} setTab={setTab} />}
-      {tab === 'scope' && <ScopeTab job={job} />}
-      {tab === 'orders' && <POsTab job={job} onScope={() => setTab('scope')} />}
-      {tab === 'estimate' && <MoneyTab job={job} />}
-      {tab === 'money' && <MoneyTab job={job} />}
+      {tab === 'ready' && <ReadySection job={job} onInstall={() => setTab('install')} />}
+      {tab === 'install' && <InstallSection job={job} />}
+      {tab === 'punch' && <PunchSection job={job} />}
+      {tab === 'money' && (money ? <MoneySection job={job} /> : <InstallSection job={job} />)}
     </div>
   )
 }
 
-/* ================= Overview ================= */
-function OverviewTab({ job, setTab }: { job: Job; setTab: (t: PTab) => void }) {
-  const role = useStore((s) => s.role)
-  /* what's open (and whose desk it's on), and what happened lately — that's the whole job at a glance */
+/** "7 open · 2 problems" by the project's name — tap it for everything open on the project (Mine · Everyone · Done) */
+function OpenChip({ job }: { job: Job }) {
+  const s = useStore()
+  const rows = todoRows(s, job, () => {})
+  const bad = rows.filter((r) => (r.mark.kind === 'step' && r.mark.state === 'bad') || (r.mark.kind === 'item' && r.mark.status === 'bad')).length
+  if (!rows.length) return null
   return (
-    <div className="grid w-full grid-cols-[minmax(0,1fr)_22.5rem] items-start gap-4 max-[68rem]:grid-cols-1">
-      <div className="min-w-0"><WhatsOpen key={role} job={job} setTab={setTab} /></div>
-      <div className="min-w-0"><Latest job={job} /></div>
-    </div>
+    <button onClick={() => s.open({ t: 'whatsopen', jobId: job.id })} className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', bad ? 'border-bad-200 bg-bad-50 text-bad-700 hover:bg-bad-100' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
+      <ListTodo className="h-3.5 w-3.5" />{rows.length} open{bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}
+    </button>
   )
+}
+
+/** everything open on the project in its own window — Mine · Everyone · Done */
+export function WhatsOpenModal({ jobId, level }: { jobId: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  return <Modal level={level} size="lg" tall onClose={s.close} title="Open on this project" sub={job.name} bodyClass="bg-canvas p-4 max-sm:p-2"><WhatsOpen job={job} setTab={() => s.close()} /></Modal>
+}
+/** the scope of work and all the orders, each in its own window (from the ··· menu) */
+export function ScopeWinModal({ jobId, level }: { jobId: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  return <Modal level={level} size="xl" tall onClose={s.close} title="Scope of work" sub={job.name} bodyClass="bg-canvas p-5 max-sm:p-3"><ScopeTab job={job} /></Modal>
+}
+export function OrdersWinModal({ jobId, level }: { jobId: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  return <Modal level={level} size="xl" tall onClose={s.close} title="All the orders" sub={job.name} bodyClass="bg-canvas p-5 max-sm:p-3"><POsTab job={job} onScope={() => { s.close(); s.open({ t: 'scopewin', jobId }) }} /></Modal>
 }
 
 /** files and history, each in its own window */

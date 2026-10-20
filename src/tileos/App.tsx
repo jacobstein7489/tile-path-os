@@ -31,7 +31,7 @@ import { PunchNewModal } from '@/tileos/features/punch'
 import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } from '@/tileos/features/pos'
 import { JobPage } from '@/tileos/features/job/workspace'
 import { SurfaceModal, TileModal } from '@/tileos/features/job/scope-tab'
-import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal } from '@/tileos/features/job/project-window'
+import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal, WhatsOpenModal, ScopeWinModal, OrdersWinModal } from '@/tileos/features/job/project-window'
 import { StageModal } from '@/tileos/features/job/stage'
 import { BuildRoomsModal } from '@/tileos/features/job/overview'
 import { SchedulePage, AssignModal, BookingModal } from '@/tileos/features/schedule'
@@ -93,6 +93,9 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'invite': return <InviteModal k={m.key} level={level} />
     case 'checklist': return <ChecklistModal jobId={m.jobId} level={level} />
     case 'installerwin': return <InstallerModal jobId={m.jobId} level={level} />
+    case 'whatsopen': return <WhatsOpenModal jobId={m.jobId} level={level} />
+    case 'scopewin': return <ScopeWinModal jobId={m.jobId} level={level} />
+    case 'orderswin': return <OrdersWinModal jobId={m.jobId} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {
