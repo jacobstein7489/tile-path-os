@@ -5,7 +5,7 @@
  * Whose scope it is (and that it's locked) is said once, in the card's header. Tap a wall or floor to change it
  * (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
-import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock } from 'lucide-react'
+import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea, SearchField } from '@/tileos/components/ui/core'
 import { Modal, Pop, Tip } from '@/tileos/components/ui/overlay'
@@ -105,6 +105,7 @@ function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {
           : <ScopeNumbers job={job} />}
         <span className="ml-auto flex shrink-0 items-center gap-2 max-md:ml-0">
           {lock.canEdit && <AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} />}
+          {rooms.some((r) => r.surfaces.some((x) => x.tile)) && <Button size="sm" icon={<LayoutGrid />} onClick={() => s.open({ t: 'layouts', jobId: job.id })}>Layouts</Button>}
           <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: job.id })}>Print the scope of work</Button>
         </span>
       </div>

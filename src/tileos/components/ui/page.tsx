@@ -608,7 +608,7 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
               disabled={!st.onClick}
               aria-label={st.aria}
               aria-current={on ? 'step' : undefined}
-              className={cn('group relative z-[1] flex flex-col items-center rounded-xl px-2 pb-1 disabled:cursor-default', on && 'bg-white')}
+              className={cn('group relative z-[1] flex max-w-full flex-col items-center rounded-xl px-2 pb-1 disabled:cursor-default', on && 'bg-white')}
             >
               <span
                 className={cn(
@@ -622,9 +622,9 @@ export function Path({ steps, className, at, label }: { steps: { key: string; la
               >
                 {st.state === 'done' ? <Check className="h-4 w-4" strokeWidth={3} /> : st.state === 'current' ? <span className="h-2.5 w-2.5 rounded-full bg-brand-600" /> : st.state === 'blocked' ? '!' : n}
               </span>
-              <span className={cn('mt-2 max-w-[7.5rem] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink', on && 'underline decoration-2 underline-offset-[0.3125rem]')}>{st.label}</span>
+              <span className={cn('mt-2 max-w-[min(7.5rem,100%)] truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-600' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink', on && 'underline decoration-2 underline-offset-[0.3125rem]')}>{st.label}</span>
               {st.sub && (
-                <span className={cn('mt-1 max-w-[7.5rem] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
+                <span className={cn('mt-1 max-w-[min(7.5rem,100%)] truncate rounded-md px-1.5 py-px text-[0.71875rem] font-semibold', st.state === 'done' ? 'bg-ok-50 text-ok-700' : st.state === 'current' ? 'bg-brand-50 text-brand-700' : st.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-muted')}>{st.sub}</span>
               )}
               {st.date && <span className={cn('mt-0.5 text-[0.71875rem] font-medium tnum', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'done' ? 'text-ok-700' : 'text-muted')}>{st.date}</span>}
             </button>

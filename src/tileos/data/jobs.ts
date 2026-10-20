@@ -564,19 +564,19 @@ export const ROOMS: Record<string, Room[]> = {
   ],
   '115': [
     { name: 'Master Bath', floor: '2nd floor', pct: 0, surfaces: [
-      S('Floor', 'T-01', 'ready', { sf: 85, layout: 'Straight lay · full tile at the door', grout: 'oyster', joint: '1/8″', edge: 'Marble saddle at the door' }),
-      S('Shower walls', 'T-03', 'ready', { sf: 210, layout: 'Vertical stack', grout: 'oyster', joint: '1/16″', height: 'To the ceiling', edge: 'Metal edge · brushed nickel' }),
-      S('Shower floor', 'T-02', 'ready', { sf: 18, layout: 'Pitched to the drain', grout: 'warmgray', joint: '1/16″' }),
-      S('Niche', 'T-03', 'ready', { sf: 6, layout: 'Mitered corners', grout: 'oyster', joint: '1/16″', edge: 'Mitered' }),
+      S('Floor', 'T-01', 'ready', { sf: 85, grout: 'oyster', joint: '1/8″', edge: 'Marble saddle at the door' }),
+      S('Shower walls', 'T-03', 'ready', { sf: 210, grout: 'oyster', joint: '1/16″', height: 'To the ceiling', edge: 'Metal edge · brushed nickel' }),
+      S('Shower floor', 'T-02', 'ready', { sf: 18, grout: 'warmgray', joint: '1/16″' }),
+      S('Niche', 'T-03', 'ready', { sf: 6, grout: 'oyster', joint: '1/16″', edge: 'Mitered' }),
     ] },
     { name: 'Guest Bath', floor: '2nd floor', pct: 0, surfaces: [
-      S('Floor', 'T-05', 'ready', { sf: 55, layout: 'Offset 1/3', grout: 'silver', joint: '1/8″' }),
-      S('Tub walls', 'T-04', 'ready', { sf: 95, layout: 'Offset 1/2 · centered on the tub', grout: 'white', joint: '1/16″', height: '84″ · metal edge on top', edge: 'Metal edge · brushed nickel' }),
+      S('Floor', 'T-05', 'ready', { sf: 55, grout: 'silver', joint: '1/8″' }),
+      S('Tub walls', 'T-04', 'ready', { sf: 95, grout: 'white', joint: '1/16″', height: '84″ · metal edge on top', edge: 'Metal edge · brushed nickel' }),
     ] },
-    { name: 'Kitchen', floor: '1st floor', pct: 0, surfaces: [S('Backsplash', 'T-04', 'ready', { sf: 40, layout: 'Offset 1/2 · centered on the range', grout: 'white', joint: '1/16″', height: '18″ to the cabinets' })] },
+    { name: 'Kitchen', floor: '1st floor', pct: 0, surfaces: [S('Backsplash', 'T-04', 'ready', { sf: 40, grout: 'white', joint: '1/16″', height: '18″ to the cabinets' })] },
     { name: 'Powder Room', floor: '1st floor', pct: 0, surfaces: [
-      S('Floor', 'T-02', 'ready', { sf: 30, layout: 'Straight', grout: 'warmgray', joint: '1/16″' }),
-      S('Wainscot', 'T-05', 'ready', { sf: 48, layout: 'Stacked', grout: 'silver', joint: '1/8″', height: '42″ with a cap' }),
+      S('Floor', 'T-02', 'ready', { sf: 30, grout: 'warmgray', joint: '1/16″' }),
+      S('Wainscot', 'T-05', 'ready', { sf: 48, grout: 'silver', joint: '1/8″', height: '42″ with a cap' }),
     ] },
   ],
   '114': [

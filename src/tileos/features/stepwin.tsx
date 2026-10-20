@@ -33,6 +33,7 @@ import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
 import { PaperRead } from './paperread'
 import { SFChip, AddSurfaceButton, AddRoomButton } from './roomedit'
+import { LayoutsList, fillSuggestions } from './layout'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -63,7 +64,7 @@ export const TODO: Record<string, string> = {
   design: 'Set up the design meeting',
   change: 'Confirm what was decided at the meeting',
   tile: 'Pick the grout and pictures',
-  layouts: 'Draw the layouts',
+  layouts: 'Set the layouts',
   heights: 'Site check',
   setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
@@ -83,7 +84,7 @@ const WHAT: Record<string, string> = {
   design: 'With the designer or the client — tile, layout, grout, patterns. Everyone who needs to be there gets it on their calendar.',
   change: 'Send the designer and the GC what was decided at the meeting or the walkthrough. Anything that changes the price — LED channels, a pattern, a bigger tile, an extra niche — goes to the estimator.',
   tile: 'A grout and a picture for every tile — the installer’s sheet shows them.',
-  layouts: 'Draw the layouts for what was picked at the meeting.',
+  layouts: 'The system suggests each one from the tile — the pattern, and where to start so there are no thin cuts. Tap one to see it drawn, change it or send it to the designer.',
   heights: 'Look at the site before we order: heights, water, electrical, plumbing.',
   setup: 'What every floor and wall is set on — underlayment, membrane, mud. Our materials are worked out from it.',
   installer: 'Pick who installs it and send him his PO — the meter shows it against the estimate.',
@@ -369,6 +370,7 @@ function Body({ job, v }: { job: Job; v: StepView }) {
     case 'materials': return <Materials job={job} />
     case 'matin': return <MaterialsIn job={job} v={v} />
     case 'delivered': return <Delivered job={job} v={v} />
+    case 'layouts': if (!v.only) return <Layouts job={job} v={v} />
   }
   return <Custom job={job} v={v} />
 }
@@ -1137,6 +1139,22 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
 }
 
 /* ================= a step of your own ================= */
+/* ================= the layouts: every wall and floor, with what the system suggests ================= */
+function Layouts({ job, v }: { job: Job; v: StepView }) {
+  const s = useStore()
+  const missing = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name) && !x.layout).length
+  return (
+    <div>
+      <LayoutsList job={job} action={missing > 0 ? <Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(job.id)}>Use the suggestions ({missing})</Button> : undefined} />
+      {v.state !== 'done' && missing === 0 && (
+        <Actions>
+          <Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, 'layouts', undefined, { close: true })}>Layouts are set</Button>
+        </Actions>
+      )}
+    </div>
+  )
+}
+
 function Custom({ job, v }: { job: Job; v: StepView }) {
   const [note, setNote] = React.useState('')
   if (v.state === 'done') return <Good>{v.note || 'Done'}</Good>

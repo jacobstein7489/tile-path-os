@@ -127,19 +127,20 @@ export function makePractice(crew: PersonKey, from: PracticeFrom = 'installing')
   }, 'Practice project made', { sub: `${PEOPLE[crew]?.short} is on it — ${PEOPLE[site]?.short || 'the site manager'} has today’s daily update.` })
 }
 
-/** the rooms, every wall and floor with its tile and square feet — nothing installed yet */
+/** the rooms, every wall and floor with its tile and square feet — nothing installed yet, and no layouts: those are
+ *  set after the design meeting, from what the system suggests */
 function practiceRooms(): Room[] {
   return [
     { name: 'Master Bath', floor: '2nd floor', pct: 0, surfaces: [
-      SURF('Floor', 'T-1', 60, { layout: 'Straight lay · full tile at the door', edge: 'Saddle at the door' }),
-      SURF('Shower walls', 'T-2', 110, { layout: 'Offset 1/3 · start from the top', height: 'To the ceiling', edge: 'Metal edge · brushed nickel' }),
-      SURF('Shower floor', 'T-3', 15, { layout: 'Pitched to the drain' }),
-      SURF('Niche', 'T-2', 6, { layout: 'Mitered edges', edge: 'Mitered' }),
+      SURF('Floor', 'T-1', 60, { edge: 'Saddle at the door' }),
+      SURF('Shower walls', 'T-2', 110, { height: 'To the ceiling', edge: 'Metal edge · brushed nickel' }),
+      SURF('Shower floor', 'T-3', 15),
+      SURF('Niche', 'T-2', 6, { edge: 'Mitered' }),
     ] },
-    { name: 'Kitchen', floor: '1st floor', pct: 0, surfaces: [SURF('Backsplash', 'T-4', 35, { layout: 'Offset 1/2 · centered on the range', height: '18″ to the cabinets' })] },
+    { name: 'Kitchen', floor: '1st floor', pct: 0, surfaces: [SURF('Backsplash', 'T-4', 35, { height: '18″ to the cabinets' })] },
     { name: 'Guest Bath', floor: '2nd floor', pct: 0, surfaces: [
-      SURF('Floor', 'T-1', 45, { layout: 'Straight lay · centered on the door', edge: 'Saddle at the door' }),
-      SURF('Tub walls', 'T-4', 80, { layout: 'Offset 1/2 · centered on the tub', height: '84″ · metal edge on top', edge: 'Metal edge · brushed nickel' }),
+      SURF('Floor', 'T-1', 45, { edge: 'Saddle at the door' }),
+      SURF('Tub walls', 'T-4', 80, { height: '84″ · metal edge on top', edge: 'Metal edge · brushed nickel' }),
     ] },
   ]
 }

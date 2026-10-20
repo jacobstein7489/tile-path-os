@@ -385,7 +385,12 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     /* the estimate check after the meeting, and the layouts: checked off — projects past setup had theirs before this list */
     if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
     if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) raw = { state: 'now', due: rec.due, note: 'Send the designer and the GC what was decided — anything extra goes to the estimator', action: { label: 'Confirm it' } }
-    if (!raw && !rec.done && !rec.na && d.key === 'layouts' && !d.only) raw = { state: 'now', due: rec.due, note: 'The layouts for what was picked at the meeting', action: { label: 'Mark done', pick: 'check' } }
+    if (!raw && !rec.done && !rec.na && d.key === 'layouts' && !d.only) {
+      /* how many walls and floors have their layout — the system suggests the rest */
+      const tiled = (s.rooms[j.id] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name))
+      const set = tiled.filter((x) => x.layout).length
+      raw = { state: 'now', due: rec.due, note: tiled.length ? `${set} of ${tiled.length} walls and floors set · the rest suggested` : 'The layouts for what was picked at the meeting', action: { label: 'Set the layouts' } }
+    }
     if (!raw) {
       raw = rec.done
         ? { state: 'done', note: rec.note }

@@ -2,13 +2,16 @@
  * It finds the start point that leaves no slivers, shows every cut, counts the tiles, and goes to the designer
  * for a yes. Saved, it becomes the surface's layout on the scope and the installer's sheet. */
 import * as React from 'react'
-import { Sparkles, Send, Check, Ruler, TriangleAlert, Printer } from 'lucide-react'
+import { Sparkles, Send, Check, Ruler, TriangleAlert, Printer, ChevronRight } from 'lucide-react'
 import { useStore, addHist, newTask, meOf, NOW } from '@/tileos/store'
 import { Button, Chip } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { GROUTS, type Surface, tileOf } from '@/tileos/data/jobs'
 import { kindOf } from './takeoff'
+import { takesTile } from './steps'
+import { TileImg } from '@/tileos/components/ui/swatch'
+import type { Job } from '@/tileos/data/model'
 import { printNode } from '@/tileos/lib/print'
 
 export type Pattern = 'stack' | 'half' | 'third' | 'vertical'
@@ -117,6 +120,110 @@ function sendLayout(jobId: string, room: string, surface: string, text: string) 
   }, 'Sent to the designer — it comes back Thursday if they haven’t answered')
 }
 
+/* ================= what the system suggests ================= */
+/** the pattern from the tile: mosaics and squares go straight; a small rectangle (subway) gets a ½ offset; anything
+ *  longer than 18″ gets no more than a ⅓ offset — past that, the bow every long tile has shows as lippage */
+export function suggestPattern(size?: string): { pattern: Pattern; why: string } {
+  const td = tileDims(size || '12 × 12')
+  const long = Math.max(td.a, td.b), short = Math.min(td.a, td.b)
+  if (td.mosaic) return { pattern: 'stack', why: 'Mosaic sheets go straight' }
+  if (long === short) return { pattern: 'stack', why: 'Square tile' }
+  if (long > 18) return { pattern: 'third', why: 'Longer than 18″ — at most a ⅓ offset, or the edges won’t sit flat' }
+  return { pattern: 'half', why: 'Small rectangle — a ½ offset' }
+}
+/** the whole suggestion for a wall or floor: that pattern, started where there are no thin cuts, in the same words a
+ *  drawn layout uses */
+export function suggestLayout(jobId: string, x: Surface): { pattern: Pattern; text: string; why: string; smallest: number | null; slivers: number } {
+  const tile = tileOf(jobId, x.tile)
+  const { pattern, why } = suggestPattern(tile?.size)
+  const td = tileDims(tile?.size || '12 × 12')
+  const tw = Math.max(td.a, td.b), th = Math.min(td.a, td.b)
+  const { w: W, h: H } = surfaceDims(x)
+  const j = parseJoint(x.joint)
+  const o = bestStart(W, H, tw, th, j, pattern)
+  const r = lay(W, H, tw, th, j, pattern, o.ox, o.oy)
+  const row = r.pieces.filter((p) => p.y === 0).sort((a, b) => a.x - b.x)
+  const left = row[0]?.cutW ? row[0].w : null
+  const right = row[row.length - 1]?.cutW ? row[row.length - 1].w : null
+  const label = PATTERNS.find((p) => p.key === pattern)!.label
+  /* a shower floor slopes to the drain — that's its layout whatever the tile */
+  const drain = /shower floor|shower pan/i.test(x.name) ? ' · pitched to the drain' : ''
+  const text = td.mosaic ? `${label} · sheets${drain}` : `${label} · best start${left && right ? ` · ${ftIn(left)} cuts both sides` : ''}${drain}`
+  return { pattern, text, why, smallest: r.smallest, slivers: r.slivers }
+}
+/** fill in the suggestion on every wall and floor that has a tile and no layout yet */
+export function fillSuggestions(jobId: string) {
+  const s = useStore.getState()
+  const todo = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.filter((x) => x.tile && takesTile(x.name) && !x.layout).map((x) => ({ room: r.name, name: x.name })))
+  if (!todo.length) return
+  s.commit((st) => {
+    todo.forEach(({ room, name }) => {
+      const x = st.rooms[jobId]?.find((r) => r.name === room)?.surfaces.find((y) => y.name === name)
+      if (!x) return
+      x.layout = suggestLayout(jobId, x).text
+      x.decided = [...(x.decided || []).filter((d) => !/^Layout /.test(d)), `Layout suggested — ${NOW}`]
+    })
+    addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `Layouts filled in · ${todo.length} wall${todo.length === 1 ? '' : 's'} and floors`, detail: 'From the tile sizes — no thin cuts' })
+  }, `${todo.length} layout${todo.length === 1 ? '' : 's'} filled in`, { sub: 'Tap any one to see it drawn to scale, change it, or send it to the designer.' })
+}
+
+/** every wall and floor with a tile, room by room: its layout — or what the system suggests — and whether it's been
+ *  drawn. Tap one to see it drawn to scale. */
+export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNode }) {
+  const s = useStore()
+  const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
+  const all = rooms.flatMap((r) => r.rows)
+  const set = all.filter((x) => x.layout).length
+  if (!all.length) return <div className="rounded-[0.75rem] bg-wash px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with a tile yet — they come from the tile paperwork.</div>
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[#ece8e1]"><span className="block h-full rounded-full bg-[#2c4a3e]" style={{ width: `${Math.round((set / all.length) * 100)}%` }} /></span>
+        <span className="text-[0.8125rem] tnum text-ink-2"><b className="font-semibold text-ink">{set} of {all.length}</b> set</span>
+        {action && <span className="ml-auto">{action}</span>}
+      </div>
+      {rooms.map((r) => (
+        <section key={r.name}>
+          <h4 className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">{r.name}</h4>
+          <div className="overflow-hidden rounded-[0.75rem] border border-line bg-white">
+            {r.rows.map((x) => {
+              const tile = tileOf(job.id, x.tile)
+              const sg = x.layout ? null : suggestLayout(job.id, x)
+              const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
+              return (
+                <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]" aria-label={`Layout — ${r.name} ${x.name}`}>
+                  {tile ? <TileImg tile={tile} size={30} /> : <span className="h-[30px] w-[30px] shrink-0 rounded-md bg-wash-2" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>
+                    {x.layout
+                      ? <span className="block text-[0.78125rem] text-ink-2 max-sm:line-clamp-2 sm:truncate">{x.layout}</span>
+                      : <span className="block text-[0.78125rem] text-muted max-sm:line-clamp-2 sm:truncate"><Sparkles className="mr-1 inline h-3 w-3 -translate-y-px text-vio-600" />Suggested: {sg!.text}</span>}
+                  </span>
+                  <span className={cn('shrink-0 text-[0.78125rem] font-semibold', x.layout ? 'text-[#2c4a3e]' : 'text-muted')}>{drawn ? 'Drawn' : x.layout ? 'Set' : 'To set'}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/** every layout on a project in one window — from the scope of work */
+export function LayoutsModal({ jobId, level }: { jobId: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  const missing = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name) && !x.layout).length
+  return (
+    <Modal level={level} size="lg" tall onClose={s.close} title="Layouts" sub={`${job.name} · the pattern, where to start, the cuts`}>
+      <LayoutsList job={job} action={missing > 0 ? <Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(jobId)}>Use the suggestions ({missing})</Button> : undefined} />
+    </Modal>
+  )
+}
+
 /* ================= the window ================= */
 export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jobId: string; room: string; surface: string; tile?: string; level: number }) {
   const s = useStore()
@@ -127,7 +234,9 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
   /* the surface window can pass the tile just picked there, before it's saved */
   const tile = x ? tileOf(jobId, tileTag || x.tile) : undefined
   const td = tileDims(tile?.size || '12 × 24')
-  const initial: Pattern = /vertical/i.test(x?.layout || '') ? 'vertical' : /1\/3|⅓|third/i.test(x?.layout || '') ? 'third' : /offset|brick|running/i.test(x?.layout || '') ? 'half' : td.mosaic ? 'stack' : td.b >= td.a * 2 ? 'third' : 'stack'
+  /* the pattern it has — or, with none yet, what the system suggests for this tile */
+  const had = x?.layout || ''
+  const initial: Pattern = /vertical/i.test(had) ? 'vertical' : /1\/3|⅓|third/i.test(had) ? 'third' : /1\/2|½|half|offset|brick|running/i.test(had) ? 'half' : /straight|stack/i.test(had) ? 'stack' : suggestPattern(tile?.size).pattern
   const [pattern, setPattern] = React.useState<Pattern>(initial)
   const [start, setStart] = React.useState<Start>('best')
   const [grout, setGrout] = React.useState(x?.grout || tile?.grout || 'warmgray')
