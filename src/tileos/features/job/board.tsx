@@ -4,20 +4,20 @@
  * you tap something: then the right side is that thing (a step with its lane's path on top, a room with its
  * surfaces). One shape for every part; nothing nested. On a phone the step opens over the list. */
 import * as React from 'react'
-import { X, Check, Plus, Grid2x2, Paperclip, MessageCircle, Package, History, ListTodo, ChevronRight, Building2, CalendarDays, HardHat, Receipt } from 'lucide-react'
+import { X, Check, Plus, Paperclip, MessageCircle, Package, History, ListTodo, Building2, CalendarDays, Receipt } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
-import { Button, Avatar } from '@/tileos/components/ui/core'
+import { Button } from '@/tileos/components/ui/core'
+import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
-import { roomPct, tilesOf } from '@/tileos/data/jobs'
+import { roomPct, tilesOf, tileOf, GROUTS } from '@/tileos/data/jobs'
 import { Ring } from '@/tileos/components/ui/progress'
-import { TODAY, labelFromIso, md } from '@/tileos/lib/today'
+import { TODAY, labelFromIso } from '@/tileos/lib/today'
 import { isGettingReady, stepsFor, stepCounts, lanesFor, type StepView, type LaneView } from '../steps'
 import { StepIcon } from '../steps-ui'
 import { StepInline, StepTabs, todoOf } from '../stepwin'
 import { unreadOf } from '../messages'
 import { pictureOf } from '../progressbill'
-import { installerOf } from '../upcoming'
 import { RoomsTab, RoomPanel } from './rooms'
 import { MoneyTab } from './money-tab'
 import { TouchupsList } from '../touchups'
@@ -96,7 +96,7 @@ export function useParts(job: Job): PartView[] {
 /* ---------------- one ring: how far a part is ---------------- */
 const RING: Record<PartState, string> = { done: '#2c8a5b', now: '#2650cf', later: '#c9c3b8', bad: '#d7342a' }
 function PartRing({ pct, state, size }: { pct: number; state: PartState; size: number }) {
-  const stroke = size >= 44 ? 4 : 3.5
+  const stroke = size >= 44 ? 4 : 3
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
   const fill = state === 'done' ? 100 : Math.max(0, Math.min(100, pct))
@@ -106,29 +106,30 @@ function PartRing({ pct, state, size }: { pct: number; state: PartState; size: n
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={state === 'bad' ? '#f3d3cf' : '#e9e4db'} strokeWidth={stroke} />
         {fill > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={RING[state]} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${(c * fill) / 100} ${c}`} className="transition-[stroke-dasharray] duration-500" />}
       </svg>
-      <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum', size >= 44 ? 'text-[0.75rem]' : 'text-[0.6875rem]', state === 'done' ? 'text-[#2c8a5b]' : state === 'bad' ? 'text-bad-600' : state === 'now' ? 'text-ink' : 'text-faint')}>
-        {state === 'done' ? <Check className={size >= 44 ? 'h-[1.125rem] w-[1.125rem]' : 'h-4 w-4'} strokeWidth={3} /> : state === 'later' && !pct ? '–' : `${Math.round(pct)}%`}
+      <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum', size >= 44 ? 'text-[0.75rem]' : 'text-[0.625rem]', state === 'done' ? 'text-[#2c8a5b]' : state === 'bad' ? 'text-bad-600' : state === 'now' ? 'text-ink' : 'text-faint')}>
+        {state === 'done' ? <Check className={size >= 44 ? 'h-[1.125rem] w-[1.125rem]' : 'h-3.5 w-3.5'} strokeWidth={3} /> : state === 'later' && !pct ? '–' : `${Math.round(pct)}%`}
       </span>
     </span>
   )
 }
 
-/** the track in the header: the four parts, joined by a line — the same place the estimate has its path */
+/** the track in the header: the four parts in one row, each a ring with its words beside it — the same place the
+ *  estimate has its path, and the same height */
 export function Track({ parts, at, onPick, className }: { parts: PartView[]; at: Part; onPick: (p: Part) => void; className?: string }) {
   return (
-    <ol aria-label="The project, part by part" className={cn('grid items-start', className)} style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}>
+    <ol aria-label="The project, part by part" className={cn('no-scrollbar flex items-stretch gap-1 overflow-x-auto', className)}>
       {parts.map((p, i) => {
         const on = p.key === at
-        const prevDone = i > 0 && parts[i - 1].state === 'done'
         return (
-          <li key={p.key} className="relative flex min-w-0 flex-col items-center">
-            {i > 0 && <span className={cn('absolute top-[1.3125rem] h-[0.125rem] rounded-full', prevDone ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} style={{ left: 'calc(-50% + 2.125rem)', right: 'calc(50% + 2.125rem)' }} />}
-            <button onClick={() => onPick(p.key)} aria-current={on ? 'step' : undefined} aria-label={`${p.label} — ${p.sub}`} className={cn('group relative z-[1] flex w-full max-w-[13rem] flex-col items-center rounded-xl px-2 pb-1.5 pt-1 text-center transition max-sm:px-0.5', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : 'hover:bg-[#f6f3ee]/70')}>
-              <span className="max-sm:hidden"><PartRing pct={p.pct} state={p.state} size={44} /></span>
-              <span className="sm:hidden"><PartRing pct={p.pct} state={p.state} size={40} /></span>
-              <span className={cn('mt-1 max-w-full truncate text-[0.84375rem] font-semibold max-sm:text-[0.75rem]', on ? 'text-ink' : p.state === 'later' ? 'text-muted' : 'text-ink-2')}><span className="max-sm:hidden">{p.label}</span><span className="sm:hidden">{p.short}</span></span>
-              <span className={cn('mt-0.5 max-w-full truncate text-[0.75rem] max-sm:text-[0.6875rem]', p.state === 'bad' ? 'font-semibold text-bad-600' : p.state === 'done' ? 'text-[#2c8a5b]' : p.state === 'now' ? 'text-ink-2' : 'text-faint')}><span className="max-sm:hidden">{p.sub}</span><span className="sm:hidden">{p.subShort}</span></span>
+          <li key={p.key} className="flex min-w-0 flex-1 items-center">
+            <button onClick={() => onPick(p.key)} aria-current={on ? 'step' : undefined} aria-label={`${p.label} — ${p.sub}`} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left transition', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : 'hover:bg-[#f6f3ee]/70')}>
+              <PartRing pct={p.pct} state={p.state} size={34} />
+              <span className="min-w-0 leading-tight">
+                <span className={cn('block truncate text-[0.8125rem] font-semibold', on ? 'text-ink' : p.state === 'later' ? 'text-muted' : 'text-ink-2')}><span className="max-sm:hidden">{p.label}</span><span className="sm:hidden">{p.short}</span></span>
+                <span className={cn('block truncate text-[0.71875rem]', p.state === 'bad' ? 'font-semibold text-bad-600' : p.state === 'done' ? 'text-[#2c8a5b]' : p.state === 'now' ? 'text-ink-2' : 'text-faint')}><span className="max-sm:hidden">{p.sub}</span><span className="sm:hidden">{p.subShort}</span></span>
+              </span>
             </button>
+            {i < parts.length - 1 && <span className={cn('mx-0.5 h-[0.125rem] w-3 shrink-0 rounded-full max-sm:hidden', p.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
           </li>
         )
       })}
@@ -178,7 +179,7 @@ function LaneLine({ n, lane, me, on, onClick, past }: { n: number; lane: LaneVie
   const note = past || state === 'done' || state === 'later' ? '' : [sub, at.note || ''].filter(Boolean).join(at.state === 'bad' || at.state === 'wait' ? ' — ' : ' · ')
   const muted = past || state === 'done'
   return (
-    <button data-lane={lane.key} data-step={at.key} data-has={lane.steps.map((x) => x.key).join(' ')} onClick={onClick} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-b border-line-2 border-l-[0.1875rem] px-3 py-2 text-left transition last:border-b-0', on ? 'border-l-brand-600 bg-brand-50/70' : 'border-l-transparent hover:bg-[#f6f3ee]')}>
+    <button data-lane={lane.key} data-step={at.key} data-has={lane.steps.map((x) => x.key).join(' ')} onClick={onClick} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-b border-line-2 border-l-[0.1875rem] px-3 py-2 text-left transition last:border-b-0 [@media(max-height:860px)]:py-[0.3125rem]', on ? 'border-l-brand-600 bg-brand-50/70' : 'border-l-transparent hover:bg-[#f6f3ee]')}>
       <NumMark n={n} state={state} />
       <span className="min-w-0 flex-1">
         <span className={cn('block truncate text-[0.875rem] leading-[1.25rem]', muted ? 'text-ink-2' : state === 'later' ? 'text-muted' : 'font-medium text-ink')}>{lane.label}{!past && <Dots steps={lane.steps} />}</span>
@@ -189,87 +190,86 @@ function LaneLine({ n, lane, me, on, onClick, past }: { n: number; lane: LaneVie
   )
 }
 
-/* ---------------- the right side: the project ---------------- */
-function SideRow({ icon, label, sub, on, hot }: { icon: React.ReactNode; label: string; sub?: string; on: () => void; hot?: boolean }) {
+/* ---------------- the right side: the scope of work ---------------- */
+function SideLink({ icon, label, n, hot, on }: { icon: React.ReactNode; label: string; n?: string; hot?: boolean; on: () => void }) {
   return (
-    <button onClick={on} className="flex w-full items-center gap-3 border-b border-line-2 py-2.5 text-left transition last:border-b-0 hover:bg-[#f6f3ee]">
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] bg-wash text-muted [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink">{label}</span>
-        {sub && <span className={cn('block truncate text-[0.78125rem]', hot ? 'font-semibold text-brand-700' : 'text-muted')}>{sub}</span>}
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+    <button onClick={on} className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-center transition hover:bg-[#f6f3ee]">
+      <span className={cn('relative inline-flex h-8 w-8 items-center justify-center rounded-[0.5625rem] bg-wash text-muted [&>svg]:h-4 [&>svg]:w-4', hot && 'bg-brand-50 text-brand-700')}>{icon}{hot && n && <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.625rem] font-bold text-white">{n}</span>}</span>
+      <span className="block w-full truncate text-[0.71875rem] font-semibold text-ink-2">{label}{n && !hot ? <span className="font-normal text-muted"> · {n}</span> : ''}</span>
     </button>
   )
 }
-function Prop({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 border-b border-line-2 py-2 last:border-b-0">
-      <dt className="w-[5.5rem] shrink-0 text-[0.8125rem] text-muted">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[0.84375rem] text-ink">{children}</dd>
-    </div>
-  )
-}
-/** who's on the project: the office, the site manager, the installer — like "Who does what" on an estimate */
-function OnIt({ job }: { job: Job }) {
-  const s = useStore()
-  const me = meOf(s.role)
-  const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const steps = isGettingReady(job) ? stepsFor(s, job) : []
-  const owners = Array.from(new Set(steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait').map((v) => v.owner)))
-  const slots: { label: string; who?: PersonKey; on?: () => void }[] = [
-    { label: 'Runs it', who: (job.pm as PersonKey) || 'ys' },
-    { label: 'Site manager', who: (job.site as PersonKey) || (s.team.find((m) => m.role === 'site' && m.status !== 'off')?.key as PersonKey | undefined) },
-    { label: 'Installer', who: crew, on: crew ? () => s.open({ t: 'installerwin', jobId: job.id }) : undefined },
-  ]
-  return (
-    <div className="grid gap-2">
-      {slots.map((x) => {
-        const body = (
-          <span className={cn('flex w-full items-center gap-2.5 rounded-[0.6875rem] border px-2.5 py-2 text-left', x.who && owners.includes(x.who) ? 'border-brand-300 bg-brand-50' : 'border-line bg-white')}>
-            {x.who ? <Avatar who={x.who} size={28} /> : <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-wash text-faint"><HardHat className="h-3.5 w-3.5" /></span>}
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[0.71875rem] font-semibold text-muted">{x.label}{x.who && owners.includes(x.who) && <span className="ml-1.5 text-brand-700">· has a step now</span>}</span>
-              <span className="block truncate text-[0.84375rem] font-semibold text-ink">{x.who ? (x.who === me ? `${PEOPLE[x.who]?.name} (you)` : PEOPLE[x.who]?.name) : 'Nobody yet'}</span>
-            </span>
-          </span>
-        )
-        return x.on ? <button key={x.label} onClick={x.on} className="block w-full">{body}</button> : <div key={x.label}>{body}</div>
-      })}
-    </div>
-  )
-}
-/** the project on the right side: who's on it, the client, the dates, the deposit — and everything else, one row each */
+/** the scope, always in view: every room with its walls and floors, the tile and the grout on each — and the tiles
+ *  themselves. Tap a surface or a tile and it opens. Files, messages, orders and the rest sit under it. */
 export function ProjectInfo({ job }: { job: Job }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const sf = rooms.flatMap((r) => r.surfaces).reduce((n, x) => n + (x.sf || 0), 0)
-  const tiles = tilesOf(job.id).length
+  const tiles = tilesOf(job.id)
   const files = s.files.filter((f) => f.jobId === job.id).length
   const unread = unreadOf(s, job.id)
   const orders = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
   const money = s.role !== 'site' && s.role !== 'crew'
-  const b = s.bookings.find((x) => x.jobId === job.id)
-  const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : b ? `${md(b.start)} – ${md(b.end)}` : s.prep[job.id]?.targetISO ? `Wants ${labelFromIso(s.prep[job.id].targetISO!)}` : 'No dates yet'
-  const dep = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')
   const open = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done').length
+  const groutOf = (x: { tile: string; grout?: string }) => { const g = x.grout || tileOf(job.id, x.tile)?.grout; return g ? GROUTS[g]?.name || g : '' }
   return (
-    <div className="px-6 py-5 max-sm:px-4">
-      <div className="mb-2 text-[0.8125rem] font-medium text-muted">Who’s on it</div>
-      <OnIt job={job} />
-      <dl className="mt-4">
-        <Prop label="Client"><button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="font-medium text-brand-700 hover:underline">{job.client}</button></Prop>
-        <Prop label="Address">{job.address}</Prop>
-        <Prop label="Dates">{dates}</Prop>
-        {money && dep && <Prop label="Deposit"><button onClick={() => s.open({ t: 'money', id: dep.id })} className={cn('font-medium hover:underline', dep.state === 'paid' ? 'text-[#2c8a5b]' : dep.step >= 1 ? 'text-warn-700' : 'text-ink-2')}>{fmtMoney(dep.amount || 0)} · {dep.state === 'paid' ? `paid${dep.date ? ' ' + dep.date : ''}` : dep.step >= 1 ? 'invoiced, not paid' : 'not invoiced'}</button></Prop>}
-      </dl>
-      <div className="mt-4 border-t border-line-2">
-        <SideRow icon={<Grid2x2 />} label="Scope of work" sub={rooms.length ? `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}${tiles ? ` · ${tiles} ${tiles === 1 ? 'tile' : 'tiles'} and their grout` : ''}` : 'Rooms, walls and floors, tiles and grout'} on={() => s.open({ t: 'scopewin', jobId: job.id })} />
-        <SideRow icon={<Paperclip />} label="Files and photos" sub={files ? `${files}` : 'Plans, paperwork, pictures'} on={() => s.open({ t: 'files', jobId: job.id })} />
-        <SideRow icon={<MessageCircle />} label="Messages" sub={unread ? `${unread} new` : 'With the team on this project'} hot={unread > 0} on={() => s.open({ t: 'chat', jobId: job.id })} />
-        {money && <SideRow icon={<Package />} label="Orders" sub={orders ? `${orders}` : 'Tile, materials, the installer’s PO'} on={() => s.open({ t: 'orderswin', jobId: job.id })} />}
-        <SideRow icon={<ListTodo />} label="Everything open" sub={open ? `${open} open — mine, everyone’s, done` : 'Mine, everyone’s, done'} on={() => s.open({ t: 'whatsopen', jobId: job.id })} />
-        <SideRow icon={<History />} label="What happened" sub="Every change, by whom, when" on={() => s.open({ t: 'history', jobId: job.id })} />
+    <div className="flex min-h-full flex-col">
+      <div className="sticky top-0 z-[1] flex shrink-0 items-center gap-2 border-b border-line bg-white py-2.5 pl-5 pr-3">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.9375rem] font-semibold text-ink">Scope of work</span>
+          <span className="block truncate text-[0.75rem] text-muted">{rooms.length ? `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}${tiles.length ? ` · ${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'}` : ''}` : 'Rooms, walls and floors, tile and grout'}</span>
+        </span>
+        <Button size="sm" onClick={() => s.open({ t: 'scopewin', jobId: job.id })}>Open</Button>
+      </div>
+      <div className="min-h-0 flex-1 px-3 py-2">
+        {rooms.length === 0 && <div className="rounded-xl bg-wash px-4 py-6 text-center text-[0.84375rem] text-muted">No rooms yet — they come in with the estimate, or from the tile paperwork.</div>}
+        {rooms.map((r) => (
+          <div key={r.name} className="mb-1.5">
+            <div className="flex items-baseline justify-between gap-2 px-2 pb-0.5 pt-1.5">
+              <span className="truncate text-[0.8125rem] font-semibold text-ink">{r.name}</span>
+              <span className="shrink-0 text-[0.71875rem] tnum text-muted">{r.surfaces.reduce((n, x) => n + (x.sf || 0), 0) ? `${r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)} SF` : ''}</span>
+            </div>
+            {r.surfaces.map((x) => {
+              const t = tileOf(job.id, x.tile)
+              const g = groutOf(x)
+              return (
+                <button key={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition hover:bg-[#f6f3ee]">
+                  <TileImg tile={t} size={26} radius={6} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-[0.8125rem] text-ink">{x.name}<span className="text-muted"> · {t ? `${x.tile} ${t.name}` : x.tile || 'no tile yet'}</span></span>
+                    <span className={cn('block truncate text-[0.71875rem]', g ? 'text-muted' : 'text-warn-700')}>{g ? `${g} grout` : t ? 'no grout yet' : ''}{x.layout ? ` · ${x.layout}` : ''}</span>
+                  </span>
+                  {x.sf ? <span className="shrink-0 text-[0.71875rem] tnum text-faint">{x.sf} SF</span> : null}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+        {tiles.length > 0 && (
+          <div className="mt-2 border-t border-line-2 pt-2">
+            <div className="px-2 pb-0.5 text-[0.71875rem] font-semibold text-muted">Tile and grout</div>
+            {tiles.map((t) => {
+              const on = rooms.flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
+              const g = t.grout ? GROUTS[t.grout]?.name || t.grout : ''
+              return (
+                <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition hover:bg-[#f6f3ee]">
+                  <TileImg tile={t} size={26} radius={6} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-[0.8125rem] text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
+                    <span className={cn('block truncate text-[0.71875rem]', g ? 'text-muted' : 'text-warn-700')}>{g ? `${g} grout` : 'no grout yet'}{on.length ? ` · ${on.length} ${on.length === 1 ? 'surface' : 'surfaces'}` : ''}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      <div className="sticky bottom-0 z-[1] flex shrink-0 items-stretch border-t border-line bg-white px-2 py-1">
+        <SideLink icon={<Paperclip />} label="Files" n={files ? `${files}` : undefined} on={() => s.open({ t: 'files', jobId: job.id })} />
+        <SideLink icon={<MessageCircle />} label="Messages" n={unread ? `${unread}` : undefined} hot={unread > 0} on={() => s.open({ t: 'chat', jobId: job.id })} />
+        {money && <SideLink icon={<Package />} label="Orders" n={orders ? `${orders}` : undefined} on={() => s.open({ t: 'orderswin', jobId: job.id })} />}
+        <SideLink icon={<ListTodo />} label="Open" n={open ? `${open}` : undefined} on={() => s.open({ t: 'whatsopen', jobId: job.id })} />
+        <SideLink icon={<History />} label="History" on={() => s.open({ t: 'history', jobId: job.id })} />
       </div>
     </div>
   )
@@ -317,10 +317,6 @@ export function ProjectBoard({ job, part }: { job: Job; part: Part }) {
           <div className="rounded-[0.875rem] border border-line bg-white px-4 py-8 text-center text-[0.875rem] text-muted">Paperwork, the design meeting, the site, the installer, deliveries, the deposit — the flow starts once the estimate is won.</div>
         ) : (
           <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-            <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-              <span className="text-[0.9375rem] font-semibold text-ink">The flow</span>
-              <span className={cn('text-[0.78125rem]', c.bad ? 'font-semibold text-bad-600' : 'text-muted')}>{past ? 'All done' : c.bad ? `${lDone} of ${lanes.length} done · ${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : `${lDone} of ${lanes.length} done`}</span>
-            </div>
             <div>
               {lanes.map((l, i) => <LaneLine key={l.key} n={i + 1} lane={l} me={me} past={past} on={wide && focusedLane?.key === l.key} onClick={() => open(l.at.key)} />)}
             </div>
@@ -411,9 +407,9 @@ export function ProjectBoard({ job, part }: { job: Job; part: Part }) {
   )
 
   return (
-    <div className="grid min-h-full grid-cols-[minmax(0,1fr)_26rem] max-lg:grid-cols-1">
-      <div className="min-w-0 border-r border-line px-6 py-5 max-lg:border-r-0 max-sm:px-4">{main}</div>
-      <aside className="min-w-0 max-lg:border-t max-lg:border-line lg:sticky lg:top-0 lg:self-start">{side}</aside>
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_26rem] max-lg:h-auto max-lg:grid-cols-1">
+      <div className="scroll-soft min-h-0 min-w-0 border-r border-line px-5 py-4 max-lg:border-r-0 max-sm:px-3 lg:overflow-y-auto">{main}</div>
+      <aside className="scroll-soft min-h-0 min-w-0 max-lg:border-t max-lg:border-line lg:overflow-y-auto">{side}</aside>
     </div>
   )
 }

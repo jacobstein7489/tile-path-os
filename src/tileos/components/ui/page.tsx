@@ -599,7 +599,30 @@ export function ViewSwitch<K extends string | boolean>({ value, onChange, items,
 }
 
 /* ---------------- where something stands: step circles joined by a line ---------------- */
-export function Path({ steps, className, at, label }: { steps: { key: string; label: string; short?: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad'; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string }) {
+export function Path({ steps, className, at, label, compact }: { steps: { key: string; label: string; short?: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad'; onClick?: () => void; aria?: string }[]; className?: string; at?: string; label?: string; compact?: boolean }) {
+  /* one row: the circle with the words beside it — fits in a window's header without pushing the work down */
+  if (compact) return (
+    <ol aria-label={label} className={cn('no-scrollbar flex items-stretch gap-1 overflow-x-auto', className)}>
+      {steps.map((st, i) => {
+        const n = i + 1
+        const on = at === st.key
+        return (
+          <li key={st.key} className="flex min-w-0 flex-1 items-center">
+            <button onClick={st.onClick} disabled={!st.onClick} aria-label={st.aria} aria-current={on ? 'step' : undefined} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left disabled:cursor-default', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : st.onClick && 'hover:bg-[#f6f3ee]/70')}>
+              <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.75rem] font-bold', st.state === 'done' && 'bg-ok-500 text-white', st.state === 'current' && 'bg-white text-brand-600 ring-[0.1875rem] ring-brand-600', st.state === 'blocked' && 'bg-bad-500 text-white', st.state === 'future' && 'bg-white text-faint ring-2 ring-[#e5e0d7]')}>
+                {st.state === 'done' ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : st.state === 'current' ? <span className="h-2 w-2 rounded-full bg-brand-600" /> : st.state === 'blocked' ? '!' : n}
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className={cn('block truncate text-[0.8125rem] font-semibold', st.state === 'current' ? 'text-brand-700' : st.state === 'future' ? 'text-muted' : st.state === 'blocked' ? 'text-bad-700' : 'text-ink')}>{st.short ? <><span className="max-sm:hidden">{st.label}</span><span className="sm:hidden">{st.short}</span></> : st.label}</span>
+                {(st.sub || st.date) && <span title={[st.sub, st.date].filter(Boolean).join(' · ')} className={cn('block truncate text-[0.71875rem]', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'done' ? 'text-ok-700' : st.state === 'current' ? 'text-brand-700' : st.state === 'blocked' ? 'text-bad-700' : 'text-faint')}>{st.state === 'done' ? (st.date ? `Done ${st.date.replace(/^Done\s*/, '')}` : st.sub) : st.sub || st.date}</span>}
+              </span>
+            </button>
+            {i < steps.length - 1 && <span className={cn('mx-0.5 h-[0.125rem] w-3 shrink-0 rounded-full max-sm:hidden', st.state === 'done' ? 'bg-ok-500' : 'bg-[#e5e0d7]')} />}
+          </li>
+        )
+      })}
+    </ol>
+  )
   return (
     <ol aria-label={label} className={cn('no-scrollbar flex items-start overflow-x-auto px-1.5 pb-1 pt-3', className)}>
       {steps.map((st, i) => {

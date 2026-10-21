@@ -125,8 +125,8 @@ export function SetPassword({ email, name, why, onDone, onSkip }: { email: strin
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600"><KeyRound className="h-5 w-5" /></span>
-      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'recovery' ? 'Pick a new password' : `Welcome${name ? `, ${name.split(' ')[0]}` : ''} — pick a password`}</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'recovery' ? 'Then you’re back in.' : 'You sign in with it from now on, on your phone and your computer.'}</p>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{`${name ? `${name.split(' ')[0]}, pick` : 'Pick'} your password`}</h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{'You sign in with it from now on — with your email, on your phone and your computer.'}</p>
       <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">For <b className="font-semibold text-ink-2">{email}</b></div>
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="At least 8 characters" className="h-10" autoComplete="new-password" autoFocus /></label>

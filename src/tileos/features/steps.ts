@@ -106,7 +106,7 @@ export const PHASES: { key: string; label: string }[] = [
   { key: 'paper', label: 'Tile paperwork' },
   { key: 'setup', label: 'Underlayment' },
   { key: 'meet', label: 'Design meeting' },
-  { key: 'grout', label: 'Grout and pictures' },
+  { key: 'grout', label: 'Tile and grout' },
   { key: 'layouts', label: 'Layouts' },
   { key: 'level', label: 'Floor heights' },
   { key: 'site', label: 'Site check' },
@@ -128,7 +128,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
   { key: 'change', phase: 'meet', label: 'What was decided at the meeting — confirmed', short: 'Confirm what was decided', owner: 'office', after: ['design'], custom: true },
-  { key: 'tile', phase: 'grout', label: 'Grout and a picture for every tile', short: 'Grout and pictures', owner: 'estimator', after: ['rooms'] },
+  { key: 'tile', phase: 'grout', label: 'Tile and grout picked — a picture and the grout for every tile', short: 'Tile and grout', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
   { key: 'level', phase: 'level', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
   { key: 'heights', phase: 'site', label: 'Site checked — wall heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
@@ -156,7 +156,7 @@ export const STEPS_V = 3
 const ADDED: Record<number, string[]> = { 3: ['level'] }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
-const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check'])
+const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS

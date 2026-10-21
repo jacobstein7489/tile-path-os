@@ -3,7 +3,7 @@
  * to the room they're about and go back as a checklist. Approved, it becomes a project. */
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
-import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers } from 'lucide-react'
+import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
@@ -294,43 +294,33 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   })
 
   const header = (
-    <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:pl-4 max-sm:pr-14">
-      <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-[0.8125rem] tnum text-muted">
-            <span>Estimate {e.id}{cur.n > 1 ? ` · Revision ${cur.n}${cur.what ? ` — ${cur.what}` : ''}` : ''}</span>
-            <Status tone={CAT[catOf(e)].tone}>{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
-          </div>
-          <h2 className="font-display mt-0.5 text-[1.5625rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.375rem]">{j.name}</h2>
-          <div className="mt-1 text-[0.875rem] text-muted">
-            <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="text-ink-2 hover:text-brand-700">{j.client}</button> · {j.address}
-          </div>
-        </div>
-        <div className="shrink-0 text-right max-md:text-left">
-          <div className="text-[0.8125rem] text-muted">{st === 'approved' ? 'Approved' : shown.status === 'draft' ? 'Draft total' : 'Total'}</div>
-          <div className="text-[1.625rem] font-semibold leading-tight tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</div>
-          {smp('x') && <div className="text-[0.75rem] text-faint">Sample amounts</div>}
-          {st === 'approved' && (() => {
-            const jm = jobMoney(j)
-            return (
-              <button onClick={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })} className="mt-2 block w-[13.75rem] rounded-xl border border-line px-3 py-2 text-left transition hover:border-brand-300">
-                <span className="flex items-baseline justify-between text-[0.75rem]"><span className="font-semibold text-ink">Invoiced</span><span className="tnum text-muted"><b className="text-ink">{fmtMoney(jm.invoiced)}</b> · {jm.billedPct}%</span></span>
-                <span className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-wash-2"><span className="h-full bg-ok-500" style={{ width: `${jm.paidPct}%` }} /><span className="h-full bg-brand-400" style={{ width: `${Math.max(0, jm.billedPct - jm.paidPct)}%` }} /></span>
-                <span className="mt-1 block text-[0.71875rem] text-muted">{fmtMoney(jm.paid)} paid · {fmtMoney(jm.contract - jm.invoiced)} left to invoice</span>
-              </button>
-            )
-          })()}
-          <div className="mt-2 flex items-center justify-end gap-2 max-md:justify-start">
-            {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: e.jobId, estId: e.id })}>Scope of work</Button>}
-            {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
-              <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
-                <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'estimate', id: e.id })}>Delete this estimate…</MenuItem>
-              </Menu>
-            )}
-          </div>
-        </div>
+    <div className="border-b border-line px-5 pb-2.5 pt-3 pr-14 max-sm:px-4 max-sm:pr-14">
+      {/* one line: what it is, where it stands — the total and the buttons on the right */}
+      <div className="flex items-center gap-2">
+        <span className="text-[0.8125rem] tnum text-muted">Estimate {e.id}{cur.n > 1 ? ` · Revision ${cur.n}` : ''}</span>
+        <Status tone={CAT[catOf(e)].tone} className="min-w-0">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft total' : 'total'}{smp('x') ? ' · sample' : ''}</span>
+          {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: e.jobId, estId: e.id })}><span className="max-sm:hidden">Scope of work</span></Button>}
+          {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
+            <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
+              {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
+              <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'estimate', id: e.id })}>Delete this estimate…</MenuItem>
+            </Menu>
+          )}
+        </span>
       </div>
-      <Path className="mt-4" steps={path} />
+      {/* the name, with the client and the address beside it */}
+      <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3">
+        <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{j.name}</h2>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted [&>*+*]:before:mr-1.5 [&>*+*]:before:content-['·']">
+          <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
+          <span className="truncate">{j.address}</span>
+          {cur.n > 1 && cur.what && <span className="truncate">Revision {cur.n} — {cur.what}</span>}
+          <span className="sm:hidden">{shown.lines.length ? fmtMoney(total) : ''}</span>
+        </span>
+      </div>
+      <Path compact className="mt-2" steps={path} />
     </div>
   )
 
@@ -413,10 +403,10 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const sfOf = (a: string) => shown.lines.filter((l) => l.area === a && (itemOf(l)?.unit || '').toUpperCase() === 'SF').reduce((n, l) => n + l.qty, 0)
   const [actOpen, setActOpen] = [showAct, setShowAct]
   return (
-    <Modal level={level} size="xl" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0">
-      <div className="grid min-h-full grid-cols-[1fr_18.75rem] max-lg:grid-cols-1">
+    <Modal level={level} size="xl" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
+      <div className="grid h-full min-h-0 grid-cols-[1fr_18.75rem] max-lg:h-auto max-lg:grid-cols-1">
         {/* the lines, with the review notes pinned to their rooms */}
-        <div className="min-w-0 border-r border-line px-6 py-5 max-lg:border-r-0 max-sm:px-4">
+        <div className="scroll-soft min-h-0 min-w-0 border-r border-line px-5 py-4 max-lg:border-r-0 max-sm:px-4 lg:overflow-y-auto">
           <UnderlineTabs size="sm" className="-mt-2 mb-4" value={view} onChange={setView} items={[{ key: 'lines' as const, label: e.revs.length > 1 ? `Lines · revision ${shown.n}` : 'Lines' }, { key: 'paper' as const, label: 'Estimate paper' }, ...(e.revs.length > 1 ? [{ key: 'revs' as const, label: 'Revisions', count: e.revs.length }] : [])]} />
           {view === 'paper' ? (
             <div className="-mx-6 -mb-5 bg-wash px-6 pb-6 pt-4 max-sm:-mx-4 max-sm:px-2">
@@ -525,17 +515,13 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           </>}
         </div>
         {/* who's on it, the notes, and what happened */}
-        <aside className="px-6 py-5 max-sm:px-4 lg:sticky lg:top-0 lg:self-start">
+        <aside className="scroll-soft min-h-0 px-5 py-4 max-sm:px-4 lg:overflow-y-auto">
           {notes.length > 0 && (
             <div className="mb-4 flex items-center gap-2 rounded-xl bg-wash px-3 py-2.5 text-[0.8125rem] text-ink-2">
               <StickyNote className="h-4 w-4 text-warn-600" />
               <span><b className="font-semibold text-ink">{notes.filter((n) => n.done).length} of {notes.length}</b> notes checked off</span>
             </div>
           )}
-          <div className="mb-4">
-            <div className="mb-2 flex items-baseline justify-between"><span className="text-[0.8125rem] font-medium text-muted">Who does what</span>{e.since && inside && <span className="text-[0.75rem] text-faint">this step since {e.since}</span>}</div>
-            <TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(ownerish(s) || s.role === 'office') && !['approved', 'lost'].includes(st) ? (k, p) => setEstTeam(e.id, k, p) : undefined} />
-          </div>
           <dl className="text-[0.84375rem]">
             <Prop label="Client"><button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="font-medium text-brand-700 hover:underline">{j.client}</button></Prop>
             {['request', 'estimating', 'revision'].includes(st) && <Prop label="Due"><DueEdit id={e.id} due={e.due} /></Prop>}
@@ -549,6 +535,10 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
               </Prop>
             )}
           </dl>
+          <div className="mt-4 border-t border-line-2 pt-3">
+            <div className="mb-2 flex items-baseline justify-between"><span className="text-[0.8125rem] font-medium text-muted">Who does what</span>{e.since && inside && <span className="text-[0.75rem] text-faint">this step since {e.since}</span>}</div>
+            <TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(ownerish(s) || s.role === 'office') && !['approved', 'lost'].includes(st) ? (k, p) => setEstTeam(e.id, k, p) : undefined} />
+          </div>
           <button onClick={() => setActOpen(!actOpen)} className="mt-5 flex w-full items-center justify-between border-t border-line-2 pt-3 text-[0.8125rem] font-medium text-muted hover:text-ink">
             <span>Activity <span className="text-faint">· {e.log.length}</span></span>
             <span className="text-[0.78125rem] font-semibold text-brand-600">{actOpen ? 'Hide' : 'Show'}</span>

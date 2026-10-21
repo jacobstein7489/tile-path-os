@@ -591,9 +591,9 @@ export const ROOMS: Record<string, Room[]> = {
     { name: 'Hallway', pct: 0, surfaces: [S('Floor', 'T-05', 'blocked', { sf: 170, reason: 'Floor prep not ordered', prep: 'Mud bed', method: 'mud' })] },
   ],
   green: [
-    { name: 'Lobby', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 820 }), S('Feature wall', 'T-07', 'ready', { sf: 60 })] },
-    { name: 'Unit 1A bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 60 }), S('Tub walls', 'T-04', 'ready', { sf: 260 })] },
-    { name: 'Unit 1B bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 60 }), S('Tub walls', 'T-04', 'ready', { sf: 260 })] },
+    { name: 'Lobby', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 820, grout: 'warmgray', joint: '1/8″', layout: 'Offset 1/3' }), S('Feature wall', 'T-07', 'ready', { sf: 60, grout: 'white', joint: '1/16″', layout: 'Straight lay' })] },
+    { name: 'Unit 1A bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 60, grout: 'warmgray', joint: '1/8″', layout: 'Offset 1/3' }), S('Tub walls', 'T-04', 'ready', { sf: 260, grout: 'white', joint: '1/16″', layout: 'Running bond' })] },
+    { name: 'Unit 1B bath', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 60, grout: 'warmgray', joint: '1/8″', layout: 'Offset 1/3' }), S('Tub walls', 'T-04', 'ready', { sf: 260, grout: 'white', joint: '1/16″', layout: 'Running bond' })] },
   ],
   mdrive: [
     { name: 'Main floor', pct: 0, surfaces: [S('Floor', 'T-05', 'ready', { sf: 250 })] },

@@ -16,9 +16,16 @@ export interface Msg {
   became?: string
   /** came in from WhatsApp */
   wa?: boolean
-  /** a voice note: the recording (a data URL) and how long it runs, in seconds */
+  /** a voice note: the recording (a data URL in the preview, a path in the company's storage in the real app), how
+   *  long it runs in seconds, and its shape for the bars */
   audio?: string
+  audioPath?: string
   dur?: number
+  wave?: number[]
+  /** photos sent in the conversation — kept with the project's files; a small picture rides along */
+  media?: { id: string; thumb?: string }[]
+  /** reactions: the emoji → who gave it */
+  reacts?: Record<string, PersonKey[]>
 }
 export const MESSAGES0: Record<string, Msg[]> = {
   '119': [
@@ -32,3 +39,6 @@ export const MESSAGES0: Record<string, Msg[]> = {
     { id: 'm6', who: 'gcpp', text: 'Walkthrough Wednesday 8 AM works. Bring the tile counts — the store says 500 SF of T-04.', date: 'Sep 28', time: '8:20 AM', wa: true },
   ],
 }
+
+/** the sample's read marks: how far each person has read each conversation ("119|yakov" → 5 messages) */
+export const SEEN0: Record<string, { n: number }> = { '119|yakov': { n: 5 }, '119|philip': { n: 4 }, '119|ys': { n: 4 }, '114|yakov': { n: 1 } }

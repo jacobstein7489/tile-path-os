@@ -41,34 +41,38 @@ const findUser = async (admin: any, email: string) => {
   return null;
 };
 
+/** make sure the account exists and can sign in, with the login type — never takes anything away */
+async function ready(admin: any, data: { email: string; name: string; role: string }) {
+  let u = await findUser(admin, data.email);
+  let fresh = false;
+  if (!u) {
+    const { data: made, error } = await admin.auth.admin.createUser({ email: data.email, email_confirm: true, user_metadata: { full_name: data.name } });
+    if (error && !already(error)) throw error;
+    u = made?.user || (await findUser(admin, data.email));
+    fresh = true;
+  } else if (!u.email_confirmed_at) {
+    await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
+  }
+  if (!u) throw new Error("Couldn’t make the account");
+  await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+  return { u, fresh };
+}
+
+/* The invite goes out as the "set your password" email — the same email as Forgot password, the one that's known to
+ * reach people from this app. They tap it, pick a password, and they're in with the login type. Someone who already
+ * signs in just gets the login type; nothing is sent. */
 export const sendInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(check)
   .handler(async ({ data, context }): Promise<Sent> => {
     if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
     const admin = supabaseAdmin as any;
-    const giveRole = (uid: string) => admin.from("user_roles").upsert({ user_id: uid, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
-    const invite = () => admin.auth.admin.inviteUserByEmail(data.email, { data: { full_name: data.name }, redirectTo: data.redirectTo });
     try {
-      const { data: res, error } = await invite();
-      if (!error) {
-        if (res?.user?.id) await giveRole(res.user.id);
-        return { ok: true, sentAt: res?.user?.invited_at || new Date().toISOString() };
-      }
-      if (!already(error)) return { ok: false, why: why(error) };
-      /* invited before. Signed in since: they're in — just make sure of the login type. Never opened it: start the
-         account over so a fresh invite email goes out (nothing of theirs exists yet). */
-      const u = await findUser(admin, data.email);
-      if (!u) return { ok: false, why: why(error) };
-      if (u.last_sign_in_at) { await giveRole(u.id); return { ok: true, already: true }; }
-      await admin.from("user_roles").delete().eq("user_id", u.id);
-      await admin.from("profiles").delete().eq("user_id", u.id);
-      const del = await admin.auth.admin.deleteUser(u.id);
-      if (del.error) return { ok: false, why: why(del.error) };
-      const r2 = await invite();
-      if (r2.error) return { ok: false, why: why(r2.error) };
-      if (r2.data?.user?.id) await giveRole(r2.data.user.id);
-      return { ok: true, resent: true, sentAt: r2.data?.user?.invited_at || new Date().toISOString() };
+      const { u, fresh } = await ready(admin, data);
+      if (u.last_sign_in_at) return { ok: true, already: true };
+      const { error } = await admin.auth.resetPasswordForEmail(data.email, { redirectTo: data.redirectTo });
+      if (error) return { ok: false, why: why(error) };
+      return { ok: true, resent: !fresh, sentAt: new Date().toISOString() };
     } catch (e) {
       return { ok: false, why: why(e) };
     }
@@ -81,18 +85,13 @@ export const inviteLink = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<Linked> => {
     if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
     const admin = supabaseAdmin as any;
-    const giveRole = (uid: string) => admin.from("user_roles").upsert({ user_id: uid, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
     try {
-      /* new to the app: an invite link (it makes the account). Already in: a sign-in link. */
-      let r = await admin.auth.admin.generateLink({ type: "invite", email: data.email, options: { data: { full_name: data.name }, redirectTo: data.redirectTo } });
-      let was = false;
-      if (r.error && already(r.error)) { was = true; r = await admin.auth.admin.generateLink({ type: "magiclink", email: data.email, options: { redirectTo: data.redirectTo } }); }
+      const { u } = await ready(admin, data);
+      const r = await admin.auth.admin.generateLink({ type: "recovery", email: data.email, options: { redirectTo: data.redirectTo } });
       if (r.error) return { ok: false, why: why(r.error) };
-      const uid = r.data?.user?.id;
-      if (uid) await giveRole(uid);
       const link = r.data?.properties?.action_link;
       if (!link) return { ok: false, why: "No link came back" };
-      return { ok: true, link, already: was };
+      return { ok: true, link, already: !!u.last_sign_in_at };
     } catch (e) {
       return { ok: false, why: why(e) };
     }
@@ -120,6 +119,41 @@ export const inviteStatus = createServerFn({ method: "POST" })
         if (!res?.users?.length || res.users.length < 200) break;
       }
       return { ok: true, users };
+    } catch (e) {
+      return { ok: false, why: why(e) };
+    }
+  });
+
+/** the login type for an email's account — made a moment ago by the sign-in link the app just sent, or long ago.
+ *  The email itself goes out from the browser (supabase.auth.signInWithOtp), the same way as a password link, so
+ *  it lands wherever those land. The admin only. */
+export type Granted = { ok: true; signedIn: boolean; again: boolean } | { ok: false; why: string }
+export const grantRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { email: string; name: string; role: string }) => {
+    const email = String(d?.email || "").trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("That email doesn’t look right");
+    if (!ROLES.has(d.role)) throw new Error("Pick a login type");
+    return { email, name: String(d.name || "").slice(0, 120), role: d.role };
+  })
+  .handler(async ({ data, context }): Promise<Granted> => {
+    if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
+    const admin = supabaseAdmin as any;
+    try {
+      let u: any = null;
+      for (let i = 0; i < 4 && !u; i++) {
+        u = await findUser(admin, data.email);
+        if (!u) await new Promise((r) => setTimeout(r, 700));
+      }
+      if (!u) return { ok: false, why: "The account wasn’t made — the sign-in link may not have gone out. Try again in a minute." };
+      await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      if (data.name) {
+        const { data: prof } = await admin.from("profiles").select("user_id, full_name").eq("user_id", u.id).maybeSingle();
+        if (prof && !prof.full_name) await admin.from("profiles").update({ full_name: data.name }).eq("user_id", u.id);
+        if (!u.user_metadata?.full_name) await admin.auth.admin.updateUserById(u.id, { user_metadata: { ...(u.user_metadata || {}), full_name: data.name } });
+      }
+      const madeNow = u.created_at && Date.now() - new Date(u.created_at).getTime() < 60_000;
+      return { ok: true, signedIn: !!u.last_sign_in_at, again: !madeNow };
     } catch (e) {
       return { ok: false, why: why(e) };
     }

@@ -65,7 +65,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
     )
   }
   return (
-    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} />} bodyClass="p-0">
+    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} />} bodyClass="p-0 lg:overflow-hidden">
       <ProjectBoard job={job} part={part} />
     </Modal>
   )
@@ -80,7 +80,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
       <ProjectHeader job={job} mode="page" part={pricing ? undefined : part} setPart={setPart} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <ProjectBoard job={job} part={part} />
+          <div className="h-[min(44rem,calc(100dvh-16rem))] min-h-[24rem]"><ProjectBoard job={job} part={part} /></div>
           <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} part={part} /></div>
         </>
       )}
@@ -134,44 +134,34 @@ export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'm
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
   )
+  const meta = [job.client, job.address].filter(Boolean)
   return (
-    <div className={cn('relative border-b border-line bg-white px-6 pb-4 pt-5 max-sm:px-4 max-sm:pb-3 max-sm:pt-4', mode === 'modal' && 'pr-16 max-sm:pr-14')}>
-      <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-3 max-sm:gap-1.5">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-[0.8125rem] text-muted">
-            <span>{job.kind === 'repair' ? 'Repair' : 'Project'}</span>
-            {status.onClick
-              ? <button onClick={status.onClick}><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
-              : <Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status>}
-          </div>
-          <h2 className="font-display mt-0.5 text-[1.5625rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.375rem]">{job.name}</h2>
-          {/* one line on a desktop, dots between; a line each on a phone */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.875rem] text-muted max-sm:text-[0.8125rem] [&>*+*]:sm:before:mr-1.5 [&>*+*]:sm:before:content-['·']">
-            <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="text-ink-2 hover:text-brand-700">{job.client}</button>
-            <span className="max-sm:basis-full">{job.address}</span>
-            {!pricing && (crew
-              ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink max-sm:basis-full"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
-              : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1 max-sm:basis-full"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>)}
-            {pic && pic.contract > 0 && <span className="sm:hidden max-sm:basis-full">Contract <b className="font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b>{pic.billed > 0 ? ` · ${fmtMoney(pic.paid)} paid` : ''}</span>}
-          </div>
-        </div>
-        <div className="shrink-0 text-right max-md:text-left max-sm:absolute max-sm:right-14 max-sm:top-3">
-          {pic && (
-            <div className="max-sm:hidden">
-              <div className="text-[0.8125rem] text-muted">{pic.contract ? 'Contract' : 'No contract amount yet'}</div>
-              {pic.contract > 0 && <div className="text-[1.625rem] font-semibold leading-tight tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</div>}
-              {pic.billed > 0 && <div className="text-[0.75rem] text-muted">{fmtMoney(pic.paid)} paid · {fmtMoney(pic.contract + pic.changes - pic.paid)} open</div>}
-            </div>
-          )}
-          {!pricing && (
-            <div className={cn('flex items-center justify-end gap-2 max-md:justify-start', pic ? 'mt-2 max-sm:mt-0' : '')}>
-              {!['accounting', 'client'].includes(role) && <AddToProject job={job} />}
-              {more}
-            </div>
-          )}
-        </div>
+    <div className={cn('relative border-b border-line bg-white px-5 pb-2.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
+      {/* one line: what it is, where it stands — and on the right the contract and the two buttons */}
+      <div className="flex items-center gap-2">
+        <span className="text-[0.8125rem] text-muted">{job.kind === 'repair' ? 'Repair' : 'Project'}</span>
+        {status.onClick
+          ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+          : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>}
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          {pic && pic.contract > 0 && <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</span>}
+          {!pricing && !['accounting', 'client'].includes(role) && <AddToProject job={job} />}
+          {!pricing && more}
+        </span>
       </div>
-      {!pricing && setPart && <Track className="mt-4 max-sm:mt-3" parts={parts} at={part} onPick={setPart} />}
+      {/* the name, with the client and the address beside it */}
+      <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0">
+        <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{job.name}</h2>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted [&>*+*]:before:mr-1.5 [&>*+*]:before:content-['·']">
+          <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
+          {meta[1] && <span className="truncate">{meta[1]}</span>}
+          {!pricing && (crew
+            ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
+            : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
+          {pic && pic.contract > 0 && <span className="sm:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
+        </span>
+      </div>
+      {!pricing && setPart && <Track className="mt-2" parts={parts} at={part} onPick={setPart} />}
     </div>
   )
 }

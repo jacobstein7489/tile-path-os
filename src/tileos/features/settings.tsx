@@ -265,7 +265,7 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
       size="md"
       onClose={s.close}
       title={`Invite ${PEOPLE[k]?.name || m.first}`}
-      sub={REAL.invite ? 'They get an email from Tile OS, pick a password, and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
+      sub={REAL.invite ? 'They get a “set your password” email, tap it, pick a password — and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
       footer={REAL.invite ? (
         <>
           {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
@@ -302,8 +302,8 @@ function SentPane({ r, email, first, role }: { r: SentResult; email: string; fir
   if (r.what === 'already') return <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] text-ink"><b className="font-semibold">{first} already signs in</b> — they’re in as {short(role)}. Nothing to send.</div>
   return (
     <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] leading-snug text-ink">
-      <div className="font-semibold">{r.what === 'resent' ? 'A fresh invite went out' : 'The invite went out'}{r.at ? ` at ${clock(r.at)}` : ''} to {email}</div>
-      <div className="mt-1 text-ink-2">The mail service took it. Not in their inbox in a few minutes? Have them check <b className="font-semibold">Spam or Junk</b>. Still nothing? The app’s emails aren’t set up yet — in Lovable: <b className="font-semibold">More → Cloud → Emails</b>. Either way, the link below gets them in by text.</div>
+      <div className="font-semibold">Sent{r.at ? ` at ${clock(r.at)}` : ''} to {email}</div>
+      <div className="mt-1 text-ink-2">It’s the same email as “Forgot password” — the one you got. {first} taps the link in it, picks a password, and is in as {short(role)}. Not there in a minute? Check Spam. Or text the link below.</div>
     </div>
   )
 }
@@ -330,7 +330,7 @@ function InviteLinkBox({ email, name, role, phone, first, ok, onGot }: { email: 
         </div>
       ) : (
         <>
-          <div className="text-[0.8125rem] font-semibold text-ink">Their link — it works once, and asks them for a password</div>
+          <div className="text-[0.8125rem] font-semibold text-ink">Their link — it works once, asks for a password, and replaces the one in the email</div>
           <input readOnly aria-label="Invite link" value={link} onFocus={(e) => e.target.select()} className="mt-1.5 h-9 w-full rounded-lg border border-line bg-white px-2.5 text-[0.8125rem] text-ink-2 outline-none" />
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" icon={<Copy />} onClick={copy}>Copy</Button>

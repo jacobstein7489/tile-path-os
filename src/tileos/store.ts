@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { SHORTAGES0, type Shortage } from '@/tileos/data/shortages'
-import { MESSAGES0, type Msg } from '@/tileos/data/messages'
+import { MESSAGES0, SEEN0, type Msg } from '@/tileos/data/messages'
 import { EVENTS0, type CalEvent } from '@/tileos/data/calendar'
 import { MAT_RULES0, type MatRules } from '@/tileos/data/takeoff'
 import { immer } from 'zustand/middleware/immer'
@@ -250,7 +250,7 @@ export function initialData(): Data {
     jobSteps: {},
     files: [],
     inactive: [],
-    seen: {},
+    seen: clone(SEEN0),
   } as Data)
   ensureTiles(d)
   /* 115 Park's tile paperwork is in: the store is sending enough of every tile (with the extra for cuts) */

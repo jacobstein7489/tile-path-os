@@ -55,7 +55,8 @@ export function conversations(s: St, withAway = false): Convo[] {
     const away = !!seen?.away && seen.away >= msgs.length && !fresh.length
     if (away && !withAway) return
     const newest = fresh[0]
-    const preview = newest ? newest.text : last ? `${last.who === me ? 'You' : PEOPLE[last.who]?.short || ''}: ${last.audio ? '🎤 Voice note' : last.text}` : news[0]?.text || ''
+    const said = last ? (last.audio || last.audioPath ? `🎤 Voice note${last.dur ? ` · ${Math.floor(last.dur / 60)}:${String(last.dur % 60).padStart(2, '0')}` : ''}` : last.media?.length || last.photos?.length ? `📷 ${last.text && !/^(Photo|\d+ photos)$/.test(last.text) ? last.text : last.media && last.media.length > 1 ? `${last.media.length} photos` : 'Photo'}` : last.text) : ''
+    const preview = newest ? newest.text : last ? `${last.who === me ? 'You' : PEOPLE[last.who]?.short || ''}: ${said}` : news[0]?.text || ''
     const when = newest ? newest.when : last ? (last.date === NOW ? last.time : last.date) : news[0]?.when || ''
     const rank = (fresh.length ? 1000 : 0) + (newMsgs ? 500 : 0) + (last?.date === NOW ? 100 : 0) - notices.findIndex((n) => n.jobId === jobId) * 0.001
     out.push({ key: jobId, jobId, name: job.name, sub: job.client, preview, when, unread, away, rank })
@@ -100,27 +101,26 @@ export function markUnread(key: string, jobId?: string) {
   const me = meOf(st.role)
   const k = seenKey(key, me)
   const n = jobId ? (st.messages[jobId] || []).length : 0
-  st.commit((x) => { x.seen ||= {}; x.seen[k] = { ...(x.seen[k] || { n }), unread: true, away: undefined } }, 'Marked unread')
+  st.commit((x) => { x.seen ||= {}; x.seen[k] = { ...(x.seen[k] || { n }), unread: true, away: undefined } })
 }
 
-/** the news in a conversation — what the app noticed on that project, as quiet lines */
+/** the company's news (not about one project) — what the app noticed, oldest first, newest at the bottom */
 function News({ jobId }: { jobId?: string }) {
   const s = useStore()
   const list = noticesFor(s, meOf(s.role)).filter((n) => (jobId ? n.jobId === jobId : !n.jobId))
-  if (!list.length) return null
+  if (!list.length) return <div className="py-16 text-center text-[0.875rem] text-muted">Nothing yet.</div>
   return (
-    <div className="mb-4">
-      <div className="mb-2 text-center text-[0.75rem] font-semibold text-faint">What happened</div>
-      <div className="flex flex-col items-center gap-1.5">
-        {[...list].reverse().map((n) => {
-          const Ic = ICON[n.kind]
-          return (
-            <button key={n.id} onClick={() => { if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('inline-flex max-w-[90%] items-center gap-2 rounded-full px-3 py-1.5 text-left text-[0.8125rem] leading-snug transition hover:bg-[#ebe7df]', n.unread ? 'bg-brand-50 font-semibold text-brand-800' : 'bg-wash text-ink-2')}>
-              <Ic className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0">{n.text}</span><span className="shrink-0 text-[0.71875rem] font-normal text-muted">{n.when}</span>
-            </button>
-          )
-        })}
-      </div>
+    <div className="flex flex-col items-center gap-2">
+      {[...list].reverse().map((n) => {
+        const Ic = ICON[n.kind]
+        return (
+          <button key={n.id} data-news={n.id} onClick={() => { if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className="group inline-flex max-w-[92%] items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[0.8125rem] leading-snug text-ink-2 shadow-sm ring-1 ring-black/[0.03] transition hover:bg-white">
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wash text-muted"><Ic className="h-3.5 w-3.5" /></span>
+            <span className="min-w-0">{n.text}</span>
+            <span className="shrink-0 text-[0.71875rem] text-faint">{n.when}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -130,8 +130,10 @@ function Face({ c }: { c: Convo }) {
   /* initials from the words, not the house number: "119 Park Place" → PP, "530 Mark" → M */
   const words = c.name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(Boolean)
   const ini = (words[0]?.[0] || '') + (words[1]?.[0] || '')
-  return <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#dde5f9] text-[0.9375rem] font-bold text-[#1f42ad]">{ini ? ini.toUpperCase() : <Building2 className="h-5 w-5" />}</span>
+  const [bg, fg] = FACES[[...c.key].reduce((n, ch) => n + ch.charCodeAt(0), 0) % FACES.length]
+  return <span className={cn('inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-bold', bg, fg)}>{ini ? ini.toUpperCase() : <Building2 className="h-5 w-5" />}</span>
 }
+const FACES: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#fde3d7]', 'text-[#a8431c]'], ['bg-[#d8f0e2]', 'text-[#1d6b43]'], ['bg-[#ece2fb]', 'text-[#6034a8]'], ['bg-[#fdf0c9]', 'text-[#8a5a00]'], ['bg-[#d6eef3]', 'text-[#0d6475]'], ['bg-[#fbdbe7]', 'text-[#9b2459]']]
 
 export function InboxPage() {
   const s = useStore()
@@ -143,12 +145,16 @@ export function InboxPage() {
   const list = all.filter((c) => !c.away)
   const unreadN = list.reduce((n, c) => n + c.unread, 0)
   const shown = (view === 'away' ? all.filter((c) => c.away) : view === 'new' ? list.filter((c) => c.unread > 0) : list).filter((c) => !q.trim() || `${c.name} ${c.sub || ''} ${c.preview}`.toLowerCase().includes(q.trim().toLowerCase()))
-  const cur = all.find((c) => c.key === picked) || null
-  /* opening a conversation reads it — for you */
-  const openConvo = (c: Convo) => { setPicked(c.key); markRead(c.key, c.jobId) }
-  /* while it's open, what lands in it is read too */
-  const curMsgs = cur?.jobId ? (s.messages[cur.jobId] || []).length : 0
-  React.useEffect(() => { if (cur) markRead(cur.key, cur.jobId) }, [cur?.key, curMsgs]) // eslint-disable-line react-hooks/exhaustive-deps
+  /* on a computer the newest conversation is open from the start, like WhatsApp; on a phone, the list */
+  const wide = typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches
+  const cur = all.find((c) => c.key === picked) || (wide && !picked && view === 'all' ? list[0] : null) || null
+  /* where you left off, taken before it's marked read — the "New" line goes there */
+  const [from, setFrom] = React.useState<Record<string, { n: number; news: string[] }>>({})
+  const me = meOf(s.role)
+  const snap = (c: Convo) => ({ n: c.jobId ? s.seen?.[`${c.jobId}|${me}`]?.n ?? 0 : 0, news: noticesFor(s, me).filter((x) => (c.jobId ? x.jobId === c.jobId : !x.jobId) && x.unread).map((x) => x.id) })
+  const openConvo = (c: Convo) => { setFrom((f) => ({ ...f, [c.key]: f[c.key] && picked === c.key ? f[c.key] : snap(c) })); setPicked(c.key); if (!c.jobId) markRead(c.key) }
+  /* the first one, opened by itself on a computer */
+  React.useEffect(() => { if (cur && !picked) openConvo(cur) }, [cur?.key]) // eslint-disable-line react-hooks/exhaustive-deps
   const team = (jobId: string) => { const j = s.jobs[jobId]; return j ? Array.from(new Set([j.pm || 'ys', 'yakov', ...(j.crew ? [j.crew] : [])])) as (keyof typeof PEOPLE)[] : [] }
   return (
     <div className="mx-auto flex w-full max-w-[86.25rem] min-h-0 flex-col px-7 pb-4 pt-5 max-xl:px-6 max-lg:px-0 max-lg:pb-0 max-lg:pt-0" style={{ height: 'calc(100dvh - var(--app-top, 0px) - var(--inbox-bottom, 0px))' }}>
@@ -175,7 +181,7 @@ export function InboxPage() {
             {shown.map((c) => {
               const on = cur?.key === c.key
               return (
-                <div key={c.key} className={cn('group relative border-b border-line-2 transition hover:bg-[#f8f6f2]', on && 'bg-brand-50/60 hover:bg-brand-50/60')}>
+                <div key={c.key} className={cn('group relative border-b border-line-2 transition hover:bg-[#f8f6f2]', on && 'bg-[#eef2fd] hover:bg-[#eef2fd]')}>
                   <button onClick={() => openConvo(c)} data-convo={c.key} className="flex w-full items-center gap-3 px-4 py-3 pr-11 text-left">
                     <Face c={c} />
                     <span className="min-w-0 flex-1">
@@ -215,9 +221,10 @@ export function InboxPage() {
                   <span className="block truncate text-[0.78125rem] text-muted">{cur.jobId ? `${team(cur.jobId).map((p) => PEOPLE[p]?.short).join(', ')} and the GC` : 'What the app noticed, company-wide'}</span>
                 </span>
                 {cur.jobId && <span className="flex -space-x-1.5 max-sm:hidden">{team(cur.jobId).map((p) => <Avatar key={p} who={p} size={26} ring />)}</span>}
+                {cur.jobId && <button onClick={() => s.open({ t: 'job', id: cur.jobId })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>}
               </div>
               <div className="flex min-h-0 flex-1 flex-col">
-                {cur.jobId ? <div className="min-h-0 flex-1"><Thread jobId={cur.jobId} top={<News jobId={cur.jobId} />} /></div> : <div className="scroll-soft min-h-0 flex-1 overflow-y-auto pb-6"><News /></div>}
+                {cur.jobId ? <div className="min-h-0 flex-1"><Thread key={cur.key} jobId={cur.jobId} newFrom={from[cur.key]} /></div> : <div className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f3efe8] px-4 py-5"><News /></div>}
               </div>
             </>
           ) : (
