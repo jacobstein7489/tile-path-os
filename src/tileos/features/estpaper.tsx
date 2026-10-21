@@ -17,7 +17,8 @@ const GRAY = '#efece5'
 export function paperText(l: EstLine, itemName?: string, jobId?: string) {
   if (l.desc) return l.desc
   const t = tileOf(jobId, l.tile)
-  const size = t ? ` ${t.size.replace(/\s/g, '').replace(/x/gi, 'X')}` : ''
+  /* "24 × 24" → "24×24"; "2″ hex" stays "2″ hex" */
+  const size = t ? ` ${t.size.replace(/\s*×\s*/g, '×').replace(/(\d[″"']?)\s*x\s*(\d)/gi, '$1×$2')}` : ''
   if (l.surface) {
     const what = /^floor$/i.test(l.surface) ? 'Floor tile' : /^walls?$/i.test(l.surface) ? 'Wall tile' : l.surface
     return `${what}${size}${t ? ` (${t.tag} ${t.name})` : ''}`

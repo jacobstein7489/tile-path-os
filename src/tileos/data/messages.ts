@@ -26,6 +26,12 @@ export interface Msg {
   media?: { id: string; thumb?: string }[]
   /** reactions: the emoji → who gave it */
   reacts?: Record<string, PersonKey[]>
+  /** an answer to an earlier message — who said it and a bit of what */
+  reply?: { id: string; who: PersonKey; text: string }
+  /** a document sent in the conversation (a PDF, a drawing) — kept with the project's files */
+  file?: { id: string; name: string; size: number }
+  /** taken back by whoever sent it */
+  deleted?: boolean
 }
 export const MESSAGES0: Record<string, Msg[]> = {
   '119': [
@@ -38,7 +44,16 @@ export const MESSAGES0: Record<string, Msg[]> = {
   '114': [
     { id: 'm6', who: 'gcpp', text: 'Walkthrough Wednesday 8 AM works. Bring the tile counts — the store says 500 SF of T-04.', date: 'Sep 28', time: '8:20 AM', wa: true },
   ],
+  '118': [
+    { id: 'm7', who: 'leo', text: 'Metal trim still not here. I can start the floor in the hall bath and leave the edges for later.', date: 'Sep 28', time: '7:20 AM' },
+    { id: 'm8', who: 'materials', text: 'The supplier says Thursday morning. It goes straight to the site.', date: 'Sep 28', time: '9:05 AM' },
+    { id: 'm9', who: 'leo', text: 'OK 👍 floors first then.', date: 'Sep 28', time: '9:12 AM', reacts: { '👍': ['materials'] } },
+  ],
+  '2385': [
+    { id: 'm10', who: 'alex', text: 'Pool house: 12 boxes of the wall tile still missing. Is the second delivery booked?', date: 'Sep 27', time: '3:40 PM' },
+    { id: 'm11', who: 'yakov', text: 'Booked for Monday. Do the shower walls with what’s there.', date: 'Sep 27', time: '4:05 PM' },
+  ],
 }
 
 /** the sample's read marks: how far each person has read each conversation ("119|yakov" → 5 messages) */
-export const SEEN0: Record<string, { n: number }> = { '119|yakov': { n: 5 }, '119|philip': { n: 4 }, '119|ys': { n: 4 }, '114|yakov': { n: 1 } }
+export const SEEN0: Record<string, { n: number }> = { '119|yakov': { n: 5 }, '119|philip': { n: 4 }, '119|ys': { n: 4 }, '114|yakov': { n: 1 }, '118|ys': { n: 1 }, '118|leo': { n: 3 }, '118|materials': { n: 3 }, '2385|ys': { n: 2 }, '2385|alex': { n: 2 }, '2385|yakov': { n: 2 } }

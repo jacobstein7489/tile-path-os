@@ -3,18 +3,17 @@
  * quiet line. Newest on top, a blue count for what's new; tap one and the conversation opens. On a phone the list
  * and the conversation are two screens; on a desktop they sit side by side. */
 import * as React from 'react'
-import { ChevronLeft, Building2, Package, FileText, Receipt, HardHat, Repeat, Bell, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive } from 'lucide-react'
+import { ChevronLeft, Building2, Bell, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { NOW } from '@/tileos/lib/today'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import type { Notice } from '@/tileos/data/work'
-import { Thread } from './messages'
+import { Thread, msgGist, lastAt } from './messages'
 import markUrl from '@/tileos/assets/mark.svg'
 
-const ICON: Record<Notice['kind'], React.ElementType> = { material: Package, pricing: FileText, money: Receipt, field: HardHat, change: Repeat }
 
 export type Convo = {
   key: string
@@ -35,39 +34,26 @@ type St = ReturnType<typeof useStore.getState>
 export const noticesFor = (s: St, me: PersonKey) => (s.role === 'accounting' ? s.notices.filter((n) => n.kind === 'money') : s.notices).filter((n) => !n.for || n.for.includes(me))
 const seenKey = (key: string, me: PersonKey) => `${key}|${me}`
 
-/** every conversation for this login: each project with messages or news, plus Tile OS for company-wide news.
- *  Read is per person: what you've opened is read for you, not for everyone. */
+/** every conversation for this login: one per project people have written on — only people talking (what the app
+ *  noticed is under the bell). Read is per person: what you've opened is read for you, not for everyone. */
 export function conversations(s: St, withAway = false): Convo[] {
   const me = meOf(s.role)
-  const notices = noticesFor(s, me)
+  const outside = s.role === 'client'
   const out: Convo[] = []
-  const jobIds = new Set<string>([...Object.keys(s.messages).filter((j) => (s.messages[j] || []).length), ...notices.filter((n) => n.jobId).map((n) => n.jobId!)])
-  jobIds.forEach((jobId) => {
+  Object.keys(s.messages).forEach((jobId) => {
     const job = s.jobs[jobId]
-    if (!job) return
-    const msgs = s.messages[jobId] || []
+    const msgs = (s.messages[jobId] || []).filter((m) => !outside || !m.internal)
+    if (!job || !msgs.length) return
     const last = msgs[msgs.length - 1]
-    const news = notices.filter((n) => n.jobId === jobId)
-    const fresh = news.filter((n) => n.unread)
     const seen = s.seen?.[seenKey(jobId, me)]
-    const newMsgs = msgs.slice(seen?.n || 0).filter((m) => m.who !== me).length
-    const unread = fresh.length + newMsgs + (seen?.unread && !newMsgs && !fresh.length ? 1 : 0)
-    const away = !!seen?.away && seen.away >= msgs.length && !fresh.length
+    const newMsgs = (s.messages[jobId] || []).slice(seen?.n || 0).filter((m) => m.who !== me && (!outside || !m.internal)).length
+    const unread = newMsgs + (seen?.unread && !newMsgs ? 1 : 0)
+    const away = !!seen?.away && seen.away >= (s.messages[jobId] || []).length
     if (away && !withAway) return
-    const newest = fresh[0]
-    const said = last ? (last.audio || last.audioPath ? `🎤 Voice note${last.dur ? ` · ${Math.floor(last.dur / 60)}:${String(last.dur % 60).padStart(2, '0')}` : ''}` : last.media?.length || last.photos?.length ? `📷 ${last.text && !/^(Photo|\d+ photos)$/.test(last.text) ? last.text : last.media && last.media.length > 1 ? `${last.media.length} photos` : 'Photo'}` : last.text) : ''
-    const preview = newest ? newest.text : last ? `${last.who === me ? 'You' : PEOPLE[last.who]?.short || ''}: ${said}` : news[0]?.text || ''
-    const when = newest ? newest.when : last ? (last.date === NOW ? last.time : last.date) : news[0]?.when || ''
-    const rank = (fresh.length ? 1000 : 0) + (newMsgs ? 500 : 0) + (last?.date === NOW ? 100 : 0) - notices.findIndex((n) => n.jobId === jobId) * 0.001
-    out.push({ key: jobId, jobId, name: job.name, sub: job.client, preview, when, unread, away, rank })
+    const preview = `${last.who === me ? 'You' : PEOPLE[last.who]?.short || ''}: ${msgGist(last)}`
+    const when = last.date === NOW ? last.time : last.date
+    out.push({ key: jobId, jobId, name: job.name, sub: job.client, preview, when, unread, away, rank: lastAt(last) })
   })
-  const company = notices.filter((n) => !n.jobId)
-  if (company.length) {
-    const seen = s.seen?.[seenKey('tileos', me)]
-    const fresh = company.filter((n) => n.unread).length
-    const away = !!seen?.away && !fresh
-    if (!away || withAway) out.push({ key: 'tileos', name: 'Tile OS', sub: 'The company', preview: company[0].text, when: company[0].when, unread: fresh + (seen?.unread && !fresh ? 1 : 0), away, rank: fresh ? 999 : -1 })
-  }
   return out.sort((a, b) => b.rank - a.rank)
 }
 export const inboxUnread = (s: St) => conversations(s).reduce((n, c) => n + c.unread, 0)
@@ -79,12 +65,10 @@ export function markRead(key: string, jobId?: string) {
   const k = seenKey(key, me)
   const n = jobId ? (st.messages[jobId] || []).length : 0
   const cur = st.seen?.[k]
-  const news = noticesFor(st, me).filter((x) => (jobId ? x.jobId === jobId : !x.jobId) && x.unread)
-  if (cur && cur.n === n && !cur.unread && !news.length) return
+  if (cur && cur.n === n && !cur.unread) return
   st.commit((x) => {
     x.seen ||= {}
     x.seen[k] = { n }
-    x.notices.forEach((y) => { if ((jobId ? y.jobId === jobId : !y.jobId) && y.unread) y.unread = false })
   })
 }
 /** put a conversation away (it comes back when something new lands), or bring it back */
@@ -104,27 +88,6 @@ export function markUnread(key: string, jobId?: string) {
   st.commit((x) => { x.seen ||= {}; x.seen[k] = { ...(x.seen[k] || { n }), unread: true, away: undefined } })
 }
 
-/** the company's news (not about one project) — what the app noticed, oldest first, newest at the bottom */
-function News({ jobId }: { jobId?: string }) {
-  const s = useStore()
-  const list = noticesFor(s, meOf(s.role)).filter((n) => (jobId ? n.jobId === jobId : !n.jobId))
-  if (!list.length) return <div className="py-16 text-center text-[0.875rem] text-muted">Nothing yet.</div>
-  return (
-    <div className="flex flex-col items-center gap-2">
-      {[...list].reverse().map((n) => {
-        const Ic = ICON[n.kind]
-        return (
-          <button key={n.id} data-news={n.id} onClick={() => { if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className="group inline-flex max-w-[92%] items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[0.8125rem] leading-snug text-ink-2 shadow-sm ring-1 ring-black/[0.03] transition hover:bg-white">
-            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wash text-muted"><Ic className="h-3.5 w-3.5" /></span>
-            <span className="min-w-0">{n.text}</span>
-            <span className="shrink-0 text-[0.71875rem] text-faint">{n.when}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 function Face({ c }: { c: Convo }) {
   if (!c.jobId) return <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#22372b]"><img src={markUrl} alt="" width={26} height={26} style={{ filter: 'brightness(0) invert(1)' }} /></span>
   /* initials from the words, not the house number: "119 Park Place" → PP, "530 Mark" → M */
@@ -139,22 +102,30 @@ export function InboxPage() {
   const s = useStore()
   const all = conversations(s, true)
   const [q, setQ] = React.useState('')
+  const me = meOf(s.role)
+  /* a search finds a project by its name, or by anything said in it — the line it found shows under the name */
+  const words = q.trim().toLowerCase()
+  const hit = (c: Convo) => {
+    if (!words) return { ok: true }
+    if (`${c.name} ${c.sub || ''}`.toLowerCase().includes(words)) return { ok: true }
+    const m = c.jobId ? [...(s.messages[c.jobId] || [])].reverse().find((x) => !x.deleted && x.text.toLowerCase().includes(words)) : undefined
+    return m ? { ok: true, said: `${m.who === me ? 'You' : PEOPLE[m.who]?.short || ''}: ${m.text}` } : { ok: false }
+  }
   const [picked, setPicked] = React.useState<string | null>(null)
   /* New: what you haven't seen. All: everything that isn't put away. Put away: what you filed — it comes back on its own */
   const [view, setView] = React.useState<'all' | 'new' | 'away'>('all')
   const list = all.filter((c) => !c.away)
   const unreadN = list.reduce((n, c) => n + c.unread, 0)
-  const shown = (view === 'away' ? all.filter((c) => c.away) : view === 'new' ? list.filter((c) => c.unread > 0) : list).filter((c) => !q.trim() || `${c.name} ${c.sub || ''} ${c.preview}`.toLowerCase().includes(q.trim().toLowerCase()))
-  /* on a computer the newest conversation is open from the start, like WhatsApp; on a phone, the list */
-  const wide = typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches
-  const cur = all.find((c) => c.key === picked) || (wide && !picked && view === 'all' ? list[0] : null) || null
+  const shown = (view === 'away' ? all.filter((c) => c.away) : view === 'new' ? list.filter((c) => c.unread > 0) : list).map((c) => ({ c, h: hit(c) })).filter((x) => x.h.ok).map((x) => (x.h.said ? { ...x.c, preview: x.h.said } : x.c))
+  /* a project nobody has written on yet opens empty, ready for the first message */
+  const fresh = (id: string): Convo | null => (s.jobs[id] ? { key: id, jobId: id, name: s.jobs[id].name, sub: s.jobs[id].client, preview: '', when: '', unread: 0, away: false, rank: 0 } : null)
+  /* nothing opens by itself — opening a conversation reads it, so you pick it (like WhatsApp on a computer) */
+  const cur = all.find((c) => c.key === picked) || (picked ? fresh(picked) : null) || null
+  const startable = Object.values(s.jobs).filter((j) => (j.stage as string) !== 'lost').sort((a, b) => a.name.localeCompare(b.name))
   /* where you left off, taken before it's marked read — the "New" line goes there */
-  const [from, setFrom] = React.useState<Record<string, { n: number; news: string[] }>>({})
-  const me = meOf(s.role)
-  const snap = (c: Convo) => ({ n: c.jobId ? s.seen?.[`${c.jobId}|${me}`]?.n ?? 0 : 0, news: noticesFor(s, me).filter((x) => (c.jobId ? x.jobId === c.jobId : !x.jobId) && x.unread).map((x) => x.id) })
-  const openConvo = (c: Convo) => { setFrom((f) => ({ ...f, [c.key]: f[c.key] && picked === c.key ? f[c.key] : snap(c) })); setPicked(c.key); if (!c.jobId) markRead(c.key) }
-  /* the first one, opened by itself on a computer */
-  React.useEffect(() => { if (cur && !picked) openConvo(cur) }, [cur?.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [from, setFrom] = React.useState<Record<string, { n: number }>>({})
+  const snap = (c: Convo) => ({ n: c.jobId ? s.seen?.[`${c.jobId}|${me}`]?.n ?? 0 : 0 })
+  const openConvo = (c: Convo) => { setFrom((f) => ({ ...f, [c.key]: f[c.key] && picked === c.key ? f[c.key] : snap(c) })); setPicked(c.key) }
   const team = (jobId: string) => { const j = s.jobs[jobId]; return j ? Array.from(new Set([j.pm || 'ys', 'yakov', ...(j.crew ? [j.crew] : [])])) as (keyof typeof PEOPLE)[] : [] }
   return (
     <div className="mx-auto flex w-full max-w-[86.25rem] min-h-0 flex-col px-7 pb-4 pt-5 max-xl:px-6 max-lg:px-0 max-lg:pb-0 max-lg:pt-0" style={{ height: 'calc(100dvh - var(--app-top, 0px) - var(--inbox-bottom, 0px))' }}>
@@ -163,10 +134,16 @@ export function InboxPage() {
         <div className={cn('flex min-h-0 min-w-0 flex-col border-r border-line-2 max-lg:border-r-0', cur && 'max-lg:hidden')}>
           <div className="flex items-center gap-2 border-b border-line-2 px-4 py-3">
             <h1 className="font-display text-[1.25rem] font-semibold text-ink max-lg:hidden">Inbox</h1>
-            <label className="relative ml-auto flex min-w-0 flex-1 items-center lg:max-w-[12rem]">
+            <label className="relative ml-auto flex min-w-0 flex-1 items-center lg:max-w-[11rem]">
               <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-faint" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search the inbox" className="h-9 w-full rounded-full border border-line bg-wash pl-8 pr-3 text-[0.875rem] text-ink outline-none placeholder:text-faint focus:border-brand-300 focus:bg-white" />
             </label>
+            <Menu align="end" width={300} trigger={<button aria-label="New conversation" title="New conversation" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn transition hover:bg-brand-700"><MessageSquarePlus className="h-[1.125rem] w-[1.125rem]" /></button>}>
+              <MenuLabel>Write on a project</MenuLabel>
+              <div className="max-h-[18rem] overflow-y-auto">
+                {startable.map((j) => <MenuItem key={j.id} icon={<Building2 className="h-4 w-4" />} hint={j.client} onSelect={() => { const c = all.find((x) => x.key === j.id) || fresh(j.id); if (c) openConvo(c) }}>{j.name}</MenuItem>)}
+              </div>
+            </Menu>
           </div>
           <div className="flex items-center gap-1.5 border-b border-line-2 px-3 py-2">
             {([['all', 'All'], ['new', 'New'], ['away', 'Put away']] as const).map(([k, label]) => {
@@ -206,7 +183,7 @@ export function InboxPage() {
                 </div>
               )
             })}
-            {!shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? 'Nothing put away.' : 'Nothing here yet — when someone writes on a project, or something moves, it lands here.'}</div>}
+            {!shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? 'Nothing put away.' : 'No conversations yet — tap the blue button to write on a project.'}</div>}
           </div>
         </div>
         {/* the conversation */}
@@ -224,14 +201,14 @@ export function InboxPage() {
                 {cur.jobId && <button onClick={() => s.open({ t: 'job', id: cur.jobId })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>}
               </div>
               <div className="flex min-h-0 flex-1 flex-col">
-                {cur.jobId ? <div className="min-h-0 flex-1"><Thread key={cur.key} jobId={cur.jobId} newFrom={from[cur.key]} /></div> : <div className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f3efe8] px-4 py-5"><News /></div>}
+                {cur.jobId && <div className="min-h-0 flex-1"><Thread key={cur.key} jobId={cur.jobId} newFrom={from[cur.key]} outside={s.role === 'client'} /></div>}
               </div>
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-              <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-wash text-muted"><Bell className="h-6 w-6" /></span>
-              <div className="text-[1rem] font-semibold text-ink">Pick a conversation</div>
-              <div className="max-w-sm text-[0.875rem] text-muted">Every project is one conversation: the GC, the crew, our team — and what the app noticed, in the same place. Five messages on a job are one conversation with a red 5. Open it and the count clears, for you. Done with it? Put it away — it comes back by itself when something new lands. If a message needs doing, “Make it a task” puts it on someone’s Today.</div>
+              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600"><MessageSquarePlus className="h-7 w-7" /></span>
+              <div className="text-[1.0625rem] font-semibold text-ink">Pick a conversation</div>
+              <div className="max-w-xs text-[0.875rem] text-muted">One per project — the team, the crew and the GC. Updates from the app are under the bell.</div>
             </div>
           )}
         </div>

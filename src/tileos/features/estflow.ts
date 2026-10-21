@@ -233,6 +233,27 @@ function genericDraft(jobId: string): AiDraft | undefined {
 }
 export const aiDraftFor = (jobId: string) => AI_DRAFTS[jobId] || genericDraft(jobId)
 /** the plans came in by upload: mark them in, so the draft can read them */
+/** one of the estimate's documents came in as a file: keep it with the project, tick it off, close the ask to the GC */
+export async function docUploaded(jobId: string, doc: string, list: File[]) {
+  if (!list.length) return
+  const kept = await keepFiles(jobId, list, 'plans', { quiet: true, doc })
+  if (!kept.recs.length) return
+  const name = kept.recs[0].name
+  S().commit((s) => {
+    const p = s.pricing[jobId]
+    if (p) {
+      const d = p.docs.find((x) => x.name === doc)
+      if (d) { d.status = 'in'; d.note = `${name} · ${NOW}` }
+      else p.docs.push({ name: doc, status: 'in', note: name })
+    }
+    const j = s.jobs[jobId]
+    if (j?.issues) j.issues = j.issues.filter((x) => x.text !== `${doc} missing`)
+    s.tasks.forEach((t) => { if (t.jobId === jobId && t.state !== 'done' && t.title === `${doc} from the GC`) { t.state = 'done'; t.doneAt = NOW } })
+    addHist(s, jobId, { who: me(), kind: 'pricing', title: `${doc} added · ${name}` })
+  }, kept.problem ? undefined : `${doc} added`)
+  return kept
+}
+
 export function plansUploaded(jobId: string, file: string) {
   S().commit((s) => {
     const p = s.pricing[jobId]
@@ -352,7 +373,7 @@ export function newEstimate(d: NewEstimate) {
     },
   )
   /* the plans go onto the project, so the takeoff starts from them */
-  if (d.files?.length) void keepFiles(id, d.files, 'plans', { quiet: true })
+  if (d.files?.length) void keepFiles(id, d.files, 'plans', { quiet: true, doc: 'Plans' })
   S().closeAll()
   /* whoever does the takeoff lands in it; anyone else just sends it on — it's on the takeoff person's Today */
   if (t.takeoff === me()) setTimeout(() => S().open({ t: 'estimate', id: estId }), 60)

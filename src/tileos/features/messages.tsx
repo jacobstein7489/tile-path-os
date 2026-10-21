@@ -3,10 +3,12 @@
  * Newest at the bottom; a "New" line where you left off; "Seen by" under what you sent; a reaction with one tap; any
  * message can become a task. "Team only" stays inside — the GC's login never shows it. */
 import * as React from 'react'
-import { Send, Camera, Lock, ListPlus, Mic, X, Play, Pause, CheckCheck, Check, SmilePlus, Package, FileText, Receipt, HardHat, Repeat, ArrowRight, Users } from 'lucide-react'
+import { Send, Camera, Lock, ListPlus, Mic, X, Play, Pause, CheckCheck, Check, SmilePlus, Package, FileText, Receipt, HardHat, Repeat, Users, Smile, Paperclip, Reply, Copy, Trash2, ChevronDown, Plus, Ban } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Modal, Tip, Pop } from '@/tileos/components/ui/overlay'
+import { Modal, Tip, Pop, Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { EmojiPicker, QUICK } from '@/tileos/components/ui/emoji'
+import { toast } from '@/tileos/lib/pop'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
@@ -15,12 +17,12 @@ import type { Msg } from '@/tileos/data/messages'
 import type { Notice } from '@/tileos/data/work'
 import { TODAY, isoFromLabel, addDays } from '@/tileos/lib/today'
 import { REAL } from '@/tileos/lib/save'
-import { keepFiles, fileUrl } from '@/tileos/lib/files'
+import { keepFiles, fileUrl, isImage, sizeLabel } from '@/tileos/lib/files'
 
 const S = () => useStore.getState()
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
-type Extra = { internal?: boolean; photos?: Msg['photos']; media?: Msg['media']; audio?: string; audioPath?: string; dur?: number; wave?: number[] }
+type Extra = { internal?: boolean; photos?: Msg['photos']; media?: Msg['media']; audio?: string; audioPath?: string; dur?: number; wave?: number[]; reply?: Msg['reply']; file?: Msg['file'] }
 export function postMessage(jobId: string, text: string, o: Extra = {}) {
   const me = meOf(S().role)
   S().commit((s) => {
@@ -72,12 +74,10 @@ export function readThread(jobId: string) {
   const me = meOf(st.role)
   const k = `${jobId}|${me}`
   const n = (st.messages[jobId] || []).length
-  const news = st.notices.some((x) => x.jobId === jobId && x.unread && (!x.for || x.for.includes(me)))
-  if (st.seen?.[k]?.n === n && !st.seen?.[k]?.unread && !news) return
+  if (st.seen?.[k]?.n === n && !st.seen?.[k]?.unread) return
   st.commit((x) => {
     x.seen ||= {}
     x.seen[k] = { n }
-    x.notices.forEach((y) => { if (y.jobId === jobId && y.unread && (!y.for || y.for.includes(me))) y.unread = false })
   })
 }
 
@@ -92,6 +92,8 @@ const clockMin = (t?: string) => {
 const dayMs = (iso: string) => Date.parse(iso + 'T00:00:00Z')
 const nowMs = () => { const d = new Date(); return dayMs(TODAY) + (d.getHours() * 60 + d.getMinutes()) * 60_000 }
 const msgTime = (m: Msg) => dayMs((m.date === NOW ? TODAY : isoFromLabel(m.date)) || TODAY) + clockMin(m.time) * 60_000
+/** when a message was sent, as a number — the inbox puts the newest conversation on top */
+export const lastAt = (m: Msg) => msgTime(m)
 const WEEK = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 /** when a notice happened, from its id (made with the clock) or its words ("1h ago", "10:05 AM", "Sun", "Oct 12") */
 function noticeTime(n: Notice, k: number): number {
@@ -260,7 +262,6 @@ function Photos({ m }: { m: Msg }) {
   )
 }
 
-const EMOJI = ['👍', '✅', '❤️', '😂', '🙏']
 /** under a bubble: the reactions, and who gave them */
 function Reacts({ m, jobId, mine }: { m: Msg; jobId: string; mine: boolean }) {
   const role = useStore((s) => s.role)
@@ -278,23 +279,69 @@ function Reacts({ m, jobId, mine }: { m: Msg; jobId: string; mine: boolean }) {
   )
 }
 
+/** what a message says, in a few words — for a reply's quote and the inbox */
+export const msgGist = (m: Pick<Msg, 'text' | 'audio' | 'audioPath' | 'dur' | 'media' | 'photos' | 'file' | 'deleted'>) =>
+  m.deleted ? 'Deleted message' : m.audio || m.audioPath ? `🎤 Voice note${m.dur ? ` · ${fmtDur(m.dur)}` : ''}` : m.file ? `📄 ${m.file.name}` : m.media?.length || m.photos?.length ? `📷 ${m.text && !/^(Photo|\d+ photos)$/.test(m.text) ? m.text : (m.media?.length || 0) > 1 ? `${m.media!.length} photos` : 'Photo'}` : m.text
+
+/** take a message back — it says it was deleted, for everyone */
+export function deleteMessage(jobId: string, id: string) {
+  S().commit((s) => {
+    const m = s.messages[jobId]?.find((x) => x.id === id)
+    if (!m) return
+    m.deleted = true
+    m.text = ''
+    delete m.media; delete m.photos; delete m.audio; delete m.audioPath; delete m.file; delete m.reacts; delete m.reply; delete m.dur; delete m.wave
+  }, 'Message deleted')
+}
+
+/** a document in a bubble: its name and size — tap it and it opens right here */
+function FileCard({ m, mine }: { m: Msg; mine: boolean }) {
+  const s = useStore()
+  const f = m.file!
+  return (
+    <button onClick={() => s.open({ t: 'file', id: f.id, back: 'Back to the conversation' })} className={cn('my-0.5 flex min-w-[13rem] max-w-[18rem] items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition', mine ? 'bg-white/15 hover:bg-white/25' : 'bg-wash hover:bg-wash-2')}>
+      <span className={cn('inline-flex h-10 w-9 shrink-0 items-center justify-center rounded-md text-[0.625rem] font-bold uppercase', mine ? 'bg-white text-brand-700' : 'bg-white text-bad-600 ring-1 ring-line')}>{(f.name.split('.').pop() || 'file').slice(0, 4)}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[0.84375rem] font-semibold">{f.name}</span>
+        <span className={cn('block text-[0.71875rem]', mine ? 'text-white/75' : 'text-muted')}>{sizeLabel(f.size)} · tap to open</span>
+      </span>
+    </button>
+  )
+}
+
+/** the quote on top of an answer — tap it to jump to what it answers */
+function Quote({ r, mine, onJump }: { r: NonNullable<Msg['reply']>; mine: boolean; onJump: () => void }) {
+  const me = meOf(useStore((s) => s.role))
+  return (
+    <button onClick={onJump} className={cn('mb-1 block w-full min-w-[10rem] rounded-lg border-l-[0.1875rem] px-2 py-1 text-left', mine ? 'border-white/80 bg-white/15' : 'border-brand-500 bg-black/[0.04]')}>
+      <span className={cn('block text-[0.71875rem] font-semibold', mine ? 'text-white' : toneOf(r.who))}>{r.who === me ? 'You' : PEOPLE[r.who]?.name || 'Someone'}</span>
+      <span className={cn('block truncate text-[0.78125rem]', mine ? 'text-white/85' : 'text-ink-2')}>{r.text}</span>
+    </button>
+  )
+}
+
 /* ---------------- the conversation ---------------- */
-export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: boolean; newFrom?: { n: number; news: string[] } }) {
+export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: boolean; newFrom?: { n: number; news?: string[] } }) {
   const s = useStore()
   const me = meOf(s.role)
   const all = s.messages[jobId] || []
   const list = all.filter((m) => !outside || !m.internal)
-  const news = outside ? [] : (s.role === 'accounting' ? s.notices.filter((n) => n.kind === 'money') : s.notices).filter((n) => n.jobId === jobId && (!n.for || n.for.includes(me)))
   /* where I left off — the "New" line goes there (taken when the conversation opened) */
-  const [from] = React.useState(() => newFrom || { n: s.seen?.[`${jobId}|${me}`]?.n ?? 0, news: news.filter((n) => n.unread).map((n) => n.id) })
-  const items = timeline(list, news)
-  const isNew = (x: Item) => (x.k === 'msg' ? all.indexOf(x.m) >= from.n && x.m.who !== me : from.news.includes(x.n.id))
+  const [from] = React.useState(() => newFrom || { n: s.seen?.[`${jobId}|${me}`]?.n ?? 0 })
+  /* only people talking — what the app noticed is under the bell, not in the middle of the conversation */
+  const items = timeline(list, [])
+  const isNew = (x: Item) => x.k === 'msg' && all.indexOf(x.m) >= from.n && x.m.who !== me
   const firstNew = items.findIndex(isNew)
   const newCount = items.filter(isNew).length
   const [text, setText] = React.useState('')
   const [internal, setInternal] = React.useState(false)
   const [busy, setBusy] = React.useState('')
+  const [replyTo, setReplyTo] = React.useState<Msg | null>(null)
+  const [flash, setFlash] = React.useState('')
+  const [emojiOpen, setEmojiOpen] = React.useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)
+  const docRef = React.useRef<HTMLInputElement>(null)
+  const box = React.useRef<HTMLTextAreaElement>(null)
   const newLine = React.useRef<HTMLDivElement>(null)
   const end = React.useRef<HTMLDivElement>(null)
   /* open on the "New" line when there is one, else at the bottom; then follow what comes in */
@@ -309,12 +356,24 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
   const job = s.jobs[jobId]
   const people = Array.from(new Set<PersonKey>([...(['ys', 'yakov'] as PersonKey[]), ...(job?.crew ? [job.crew as PersonKey] : []), ...s.team.filter((x) => x.status !== 'off' && x.role !== 'client').map((x) => x.key as PersonKey), 'gcpp'])).filter((p) => p !== me)
   /* my last message: who has seen it */
-  const lastMine = (() => { for (let i = all.length - 1; i >= 0; i--) if (all[i].who === me && (!outside || !all[i].internal)) return i; return -1 })()
+  const lastMine = (() => { for (let i = all.length - 1; i >= 0; i--) if (all[i].who === me && !all[i].deleted && (!outside || !all[i].internal)) return i; return -1 })()
   const seenBy = lastMine < 0 ? [] : people.filter((p) => (s.seen?.[`${jobId}|${p}`]?.n || 0) > lastMine)
+  const extra = (): Extra => ({ internal: (!outside && internal) || undefined, reply: replyTo ? { id: replyTo.id, who: replyTo.who, text: msgGist(replyTo).slice(0, 90) } : undefined })
   const send = () => {
     if (!text.trim()) return
-    postMessage(jobId, text.trim(), { internal: (!outside && internal) || undefined })
+    postMessage(jobId, text.trim(), extra())
     setText('')
+    setReplyTo(null)
+    setEmojiOpen(false)
+  }
+  /* an emoji goes where the cursor is, like typing it */
+  const insert = (e: string) => {
+    const el = box.current
+    const at = el ? el.selectionStart ?? text.length : text.length
+    const to = el ? el.selectionEnd ?? at : at
+    const next = text.slice(0, at) + e + text.slice(to)
+    setText(next)
+    requestAnimationFrame(() => { if (el) { el.focus(); el.setSelectionRange(at + e.length, at + e.length) } })
   }
   const mic = useRecorder(async (blob, dur) => {
     setBusy('Sending the voice note…')
@@ -324,47 +383,49 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
     if (REAL.files) {
       try { audioPath = await REAL.files.put(jobId, 'v' + Date.now().toString(36), blob, `voice-note.${/mp4/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : 'webm'}`) } catch { audio = await asDataUrl(blob) }
     } else audio = await asDataUrl(blob)
-    postMessage(jobId, `Voice note · ${fmtDur(dur)}`, { internal: (!outside && internal) || undefined, audio, audioPath, dur, wave })
+    postMessage(jobId, `Voice note · ${fmtDur(dur)}`, { ...extra(), audio, audioPath, dur, wave })
+    setReplyTo(null)
     setBusy('')
   })
   const addPhotos = async (files: File[]) => {
     if (!files.length) return
     setBusy(files.length === 1 ? 'Sending the photo…' : `Sending ${files.length} photos…`)
     const kept = await keepFiles(jobId, files, 'photo', { quiet: true })
-    if (kept.recs.length) postMessage(jobId, text.trim() || (kept.recs.length === 1 ? 'Photo' : `${kept.recs.length} photos`), { internal: (!outside && internal) || undefined, media: kept.recs.map((r) => ({ id: r.id, thumb: r.thumb })) })
+    if (kept.recs.length) postMessage(jobId, text.trim() || (kept.recs.length === 1 ? 'Photo' : `${kept.recs.length} photos`), { ...extra(), media: kept.recs.map((r) => ({ id: r.id, thumb: r.thumb })) })
     setText('')
+    setReplyTo(null)
     setBusy(kept.problem ? `The photo didn’t go up — ${kept.problem}` : '')
   }
+  /* a PDF, a drawing, a spreadsheet — kept with the project, sent as a card */
+  const addDocs = async (files: File[]) => {
+    if (!files.length) return
+    const pics = files.filter((f) => isImage(f))
+    const docs = files.filter((f) => !isImage(f))
+    if (pics.length) await addPhotos(pics)
+    if (!docs.length) return
+    setBusy(docs.length === 1 ? `Sending ${docs[0].name}…` : `Sending ${docs.length} files…`)
+    const kept = await keepFiles(jobId, docs, 'other', { quiet: true })
+    kept.recs.forEach((r, i) => postMessage(jobId, i === 0 && text.trim() ? text.trim() : r.name, { ...extra(), file: { id: r.id, name: r.name, size: r.size } }))
+    setText('')
+    setReplyTo(null)
+    setBusy(kept.problem ? `The file didn’t go up — ${kept.problem}` : '')
+  }
+  const jump = (id: string) => {
+    const el = document.querySelector(`[data-msg="${id}"]`)
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    setFlash(id)
+    setTimeout(() => setFlash(''), 1400)
+  }
+  const copy = async (m: Msg) => { try { await navigator.clipboard.writeText(m.text) } catch { /* no clipboard here */ } toast('Copied') }
   let lastDay = ''
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f3efe8] bg-[radial-gradient(#e2dbcf_0.0625rem,transparent_0.0625rem)] px-5 py-4 [background-size:1.125rem_1.125rem] max-sm:px-2.5">
         {items.map((x, idx) => {
+          if (x.k !== 'msg') return null
           const day = dayOfMs(x.t)
           const sep = day !== lastDay ? (lastDay = day) : ''
-          const head = (
-            <>
-              {sep && <div className="my-3 flex justify-center"><span className="rounded-full bg-white/90 px-3 py-1 text-[0.75rem] font-semibold text-muted shadow-sm">{dayWord(sep)}</span></div>}
-              {idx === firstNew && <div ref={newLine} data-new-line className="my-3 flex items-center gap-3"><span className="h-px flex-1 bg-bad-300" /><span className="rounded-full bg-bad-500 px-2.5 py-0.5 text-[0.71875rem] font-bold text-white">{newCount} new</span><span className="h-px flex-1 bg-bad-300" /></div>}
-            </>
-          )
-          if (x.k === 'news') {
-            const n = x.n
-            const Ic = NEWS_ICON[n.kind]
-            return (
-              <React.Fragment key={'n' + n.id}>
-                {head}
-                <div className="my-2 flex justify-center">
-                  <button data-news={n.id} onClick={() => { if (n.open) s.open(n.open); else s.open({ t: 'job', id: jobId }) }} className="group inline-flex max-w-[92%] items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-left text-[0.8125rem] leading-snug text-ink-2 shadow-sm ring-1 ring-black/[0.03] transition hover:bg-white">
-                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-wash text-muted"><Ic className="h-3.5 w-3.5" /></span>
-                    <span className="min-w-0">{n.text}</span>
-                    <span className="shrink-0 text-[0.71875rem] text-faint">{n.when}</span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-faint transition group-hover:text-brand-600" />
-                  </button>
-                </div>
-              </React.Fragment>
-            )
-          }
           const m = x.m
           const mine = m.who === me
           const ext = m.who === 'gcpp'
@@ -374,40 +435,59 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
           const media = !!(m.media?.length || m.photos?.length)
           return (
             <React.Fragment key={m.id}>
-              {head}
-              <div data-msg={m.id} className={cn('group flex items-end gap-2', mine && 'flex-row-reverse', sameAsBefore ? 'mt-0.5' : 'mt-2.5')}>
+              {sep && <div className="my-3 flex justify-center"><span className="rounded-full bg-white/90 px-3 py-1 text-[0.75rem] font-semibold text-muted shadow-sm">{dayWord(sep)}</span></div>}
+              {idx === firstNew && <div ref={newLine} data-new-line className="my-3 flex justify-center"><span className="rounded-full bg-white/95 px-3 py-1 text-[0.75rem] font-semibold text-brand-700 shadow-sm">{newCount === 1 ? '1 unread message' : `${newCount} unread messages`}</span></div>}
+              <div data-msg={m.id} className={cn('group flex items-end gap-2 rounded-xl transition-colors duration-700', mine && 'flex-row-reverse', sameAsBefore ? 'mt-0.5' : 'mt-2.5', flash === m.id && 'bg-brand-100/70')}>
                 {!mine && <span className="w-[1.875rem] shrink-0">{!sameAsBefore && <Avatar who={m.who} size={30} />}</span>}
                 <div className={cn('flex min-w-0 max-w-[78%] flex-col', mine ? 'items-end' : 'items-start')}>
-                  <div className={cn('relative rounded-2xl px-3 py-1.5 text-left text-[0.875rem] leading-snug shadow-[0_0.0625rem_0.0625rem_rgba(28,26,22,.08)]', mine ? 'rounded-br-md bg-brand-600 text-white' : m.internal ? 'rounded-bl-md bg-[#fff6e0] text-ink ring-1 ring-warn-100' : 'rounded-bl-md bg-white text-ink')}>
+                  <div className={cn('relative rounded-2xl px-3 py-1.5 text-left text-[0.9375rem] leading-snug shadow-[0_0.0625rem_0.0625rem_rgba(28,26,22,.08)]', mine ? 'rounded-br-md bg-brand-600 text-white' : m.internal ? 'rounded-bl-md bg-[#fff6e0] text-ink ring-1 ring-warn-100' : 'rounded-bl-md bg-white text-ink')}>
                     {!mine && !sameAsBefore && <div className={cn('mb-0.5 text-[0.75rem] font-semibold', toneOf(m.who))}>{PEOPLE[m.who]?.name || 'Someone'}{ext ? ' · GC' : ''}{m.wa ? <span className="font-normal text-muted"> · via WhatsApp</span> : ''}</div>}
-                    {m.internal && <div className={cn('mb-0.5 inline-flex items-center gap-1 text-[0.71875rem] font-semibold', mine ? 'text-white/80' : 'text-warn-700')}><Lock className="h-3 w-3" />Team only</div>}
-                    {m.audio || m.audioPath ? <Voice m={m} mine={mine} /> : media ? <Photos m={m} /> : <div className="whitespace-pre-wrap break-words">{m.text}</div>}
-                    {media && m.text && !/^(Photo|\d+ photos)$/.test(m.text) && <div className="mt-1 whitespace-pre-wrap break-words">{m.text}</div>}
+                    {m.internal && !m.deleted && <div className={cn('mb-0.5 inline-flex items-center gap-1 text-[0.71875rem] font-semibold', mine ? 'text-white/80' : 'text-warn-700')}><Lock className="h-3 w-3" />Team only</div>}
+                    {m.reply && !m.deleted && <Quote r={m.reply} mine={mine} onJump={() => jump(m.reply!.id)} />}
+                    {m.deleted ? (
+                      <div className={cn('flex items-center gap-1.5 italic', mine ? 'text-white/80' : 'text-muted')}><Ban className="h-3.5 w-3.5" />{mine ? 'You deleted this message' : 'This message was deleted'}</div>
+                    ) : m.audio || m.audioPath ? <Voice m={m} mine={mine} /> : m.file ? <FileCard m={m} mine={mine} /> : media ? <Photos m={m} /> : <div className="whitespace-pre-wrap break-words">{m.text}</div>}
+                    {!m.deleted && (media || m.file) && m.text && !/^(Photo|\d+ photos)$/.test(m.text) && m.text !== m.file?.name && <div className="mt-1 whitespace-pre-wrap break-words">{m.text}</div>}
                     <div className={cn('mt-0.5 flex items-center justify-end gap-1 text-[0.6875rem] tnum', mine ? 'text-white/75' : 'text-faint')}>
                       {m.became && <span className={cn('mr-1 font-semibold', mine ? 'text-white' : 'text-ok-700')}>made a task ·</span>}
                       {m.time}
-                      {mine && (isLastMine && seenBy.length ? <CheckCheck className="h-3.5 w-3.5 text-[#a9d8ff]" /> : <Check className="h-3.5 w-3.5" />)}
+                      {mine && !m.deleted && (isLastMine && seenBy.length ? <CheckCheck className="h-3.5 w-3.5 text-[#a9d8ff]" /> : <Check className="h-3.5 w-3.5" />)}
                     </div>
                   </div>
                   <Reacts m={m} jobId={jobId} mine={mine} />
                   {isLastMine && !outside && <div className="mt-0.5 pr-1 text-[0.6875rem] text-muted">{seenBy.length ? `Seen by ${seenBy.map((p) => PEOPLE[p]?.short || p).join(', ')}` : 'Sent'}</div>}
                 </div>
-                {/* react, or make it a task — on hover on a computer, always there on a phone */}
-                <span className="mb-1.5 shrink-0 opacity-45 transition focus-within:opacity-100 group-hover:opacity-100">
-                  <Pop width={250} side="top" align={mine ? 'end' : 'start'} trigger={<button aria-label="React" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm hover:text-ink"><SmilePlus className="h-4 w-4" /></button>}>
-                    <div className="flex justify-between">{EMOJI.map((e) => <button key={e} aria-label={`React ${e}`} onClick={() => reactTo(jobId, m.id, e)} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[1.25rem] transition hover:scale-110 hover:bg-wash">{e}</button>)}</div>
-                    {!outside && !m.became && <button onClick={() => messageToTask(jobId, m.id)} className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50"><ListPlus className="h-4 w-4" />Make it a task</button>}
-                  </Pop>
-                </span>
+                {/* react with any emoji, answer it, copy it, make it a task — on hover on a computer, always there on a phone */}
+                {!m.deleted && (
+                  <span className="mb-1.5 flex shrink-0 items-center gap-0.5 opacity-60 transition focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+                    <ReactPop m={m} jobId={jobId} mine={mine} />
+                    <Menu align={mine ? 'end' : 'start'} width={210} trigger={<button aria-label="Message options" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm transition hover:text-ink focus:opacity-100 data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"><ChevronDown className="h-4 w-4" /></button>}>
+                      <MenuItem icon={<Reply className="h-4 w-4" />} onSelect={() => { setReplyTo(m); requestAnimationFrame(() => box.current?.focus()) }}>Reply</MenuItem>
+                      {!!m.text && !m.audio && !m.audioPath && <MenuItem icon={<Copy className="h-4 w-4" />} onSelect={() => void copy(m)}>Copy the text</MenuItem>}
+                      {!outside && !m.became && <MenuItem icon={<ListPlus className="h-4 w-4" />} onSelect={() => messageToTask(jobId, m.id)}>Make it a task</MenuItem>}
+                      {mine && <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => deleteMessage(jobId, m.id)}>Delete for everyone</MenuItem>}
+                    </Menu>
+                  </span>
+                )}
               </div>
             </React.Fragment>
           )
         })}
-        {!items.length && <div className="py-16 text-center text-[0.875rem] text-muted">No messages yet — say something, send a photo, or a voice note.</div>}
+        {!items.length && <div className="py-16 text-center text-[0.875rem] text-muted">No messages yet — say something, send a photo, a file or a voice note.</div>}
         <div ref={end} />
       </div>
       <div className="shrink-0 border-t border-line-2 bg-white px-3 py-2.5 max-sm:px-2">
         {busy && <div className="mb-1.5 px-1 text-[0.78125rem] font-medium text-ink-2">{busy}</div>}
+        {replyTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-wash py-1.5 pl-3 pr-1.5" data-replying>
+            <Reply className="h-4 w-4 shrink-0 text-brand-600" />
+            <span className="min-w-0 flex-1 border-l-[0.1875rem] border-brand-500 pl-2">
+              <span className={cn('block text-[0.75rem] font-semibold', replyTo.who === me ? 'text-brand-700' : toneOf(replyTo.who))}>Replying to {replyTo.who === me ? 'yourself' : PEOPLE[replyTo.who]?.name || 'someone'}</span>
+              <span className="block truncate text-[0.8125rem] text-ink-2">{msgGist(replyTo)}</span>
+            </span>
+            <button onClick={() => setReplyTo(null)} aria-label="Don’t reply" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white hover:text-ink"><X className="h-4 w-4" /></button>
+          </div>
+        )}
         {mic.on ? (
           <div className="flex items-center gap-3 rounded-full border border-bad-200 bg-bad-50 py-1.5 pl-4 pr-1.5">
             <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-bad-500" />
@@ -419,9 +499,14 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
         ) : (
           <div className="flex items-end gap-2">
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" aria-label="Photos to send" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void addPhotos(f) }} />
-            <div className={cn('flex min-w-0 flex-1 items-end rounded-[1.375rem] border pl-1.5 transition focus-within:border-brand-300', internal ? 'border-warn-200 bg-[#fffaf0]' : 'border-line bg-white')}>
+            <input ref={docRef} type="file" multiple className="hidden" aria-label="Files to send" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void addDocs(f) }} />
+            <div className={cn('flex min-w-0 flex-1 items-end rounded-[1.375rem] border pl-1 transition focus-within:border-brand-300', internal ? 'border-warn-200 bg-[#fffaf0]' : 'border-line bg-white')}>
+              <Pop open={emojiOpen} onOpenChange={setEmojiOpen} side="top" align="start" width={360} trigger={<button aria-label="Emoji" className={cn('mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-wash hover:text-ink', emojiOpen ? 'text-brand-600' : 'text-muted')}><Smile className="h-5 w-5" /></button>}>
+                <EmojiPicker onPick={insert} />
+              </Pop>
+              <Tip label="Send a file — a PDF, a drawing"><button onClick={() => docRef.current?.click()} aria-label="Send a file" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Paperclip className="h-[1.0625rem] w-[1.0625rem]" /></button></Tip>
+              <textarea ref={box} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } if (e.key === 'Escape' && replyTo) setReplyTo(null) }} rows={1} aria-label="Message" placeholder={outside ? 'Message the Cobblestone team' : internal ? 'Team only — the GC won’t see this' : 'Message'} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[0.9375rem] leading-tight outline-none placeholder:text-faint" />
               <Tip label="Send a photo"><button onClick={() => fileRef.current?.click()} aria-label="Send a photo" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Camera className="h-[1.125rem] w-[1.125rem]" /></button></Tip>
-              <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} rows={1} aria-label="Message" placeholder={outside ? 'Message the Cobblestone team' : internal ? 'Team only — the GC won’t see this' : 'Message'} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-[0.9375rem] leading-tight outline-none placeholder:text-faint" />
               {!outside && <Tip label={internal ? 'Team only — tap to send to everyone' : 'Everyone sees it, the GC too — tap for team only'}><button onClick={() => setInternal(!internal)} aria-pressed={internal} aria-label="Team only" className={cn('mb-1 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[0.75rem] font-semibold transition', internal ? 'bg-warn-500 text-white' : 'text-muted hover:bg-wash')}>{internal ? <Lock className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}<span className="max-sm:hidden">{internal ? 'Team only' : 'Everyone'}</span></button></Tip>}
             </div>
             {text.trim()
@@ -432,6 +517,26 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
         {mic.err && <div className="mt-1.5 px-1 text-[0.78125rem] font-medium text-bad-600">{mic.err}</div>}
       </div>
     </div>
+  )
+}
+
+/** a reaction: the six quick ones in a row, and + for every emoji */
+function ReactPop({ m, jobId, mine }: { m: Msg; jobId: string; mine: boolean }) {
+  const [open, setOpen] = React.useState(false)
+  const [all, setAll] = React.useState(false)
+  const me = meOf(useStore((s) => s.role))
+  const pick = (e: string) => { reactTo(jobId, m.id, e); setOpen(false) }
+  return (
+    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setAll(false) }} width={all ? 360 : 292} side="top" align={mine ? 'end' : 'start'} trigger={<button aria-label="React" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm hover:text-ink"><SmilePlus className="h-4 w-4" /></button>}>
+      {all ? (
+        <EmojiPicker onPick={pick} autoFocus />
+      ) : (
+        <div className="flex items-center justify-between gap-0.5">
+          {QUICK.map((e) => <button key={e} aria-label={`React ${e}`} onClick={() => pick(e)} className={cn('inline-flex h-10 w-10 items-center justify-center rounded-full text-[1.5rem] transition hover:scale-110 hover:bg-wash', m.reacts?.[e]?.includes(me) && 'bg-brand-50')}>{e}</button>)}
+          <button aria-label="Every emoji" onClick={() => setAll(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wash text-ink-2 transition hover:bg-wash-2"><Plus className="h-5 w-5" /></button>
+        </div>
+      )}
+    </Pop>
   )
 }
 

@@ -45,6 +45,7 @@ import { ProblemModal } from '@/tileos/features/problem'
 import { TouchupsModal, NoteModal } from '@/tileos/features/touchups'
 import { ChecklistModal, InstallerModal } from '@/tileos/features/job/checklist'
 import { DailyModal, MediaModal, SiteChangeModal, ChangeApproveModal, MeetingModal } from '@/tileos/features/field'
+import { FileModal } from '@/tileos/features/docview'
 import { HeightsModal } from '@/tileos/features/heights'
 import { UpcomingPage } from '@/tileos/features/upcoming'
 import { DrainModal, CO004Modal, ThinsetModal, QtyModal, ReceiveModal, ReceiveTileModal, VerifyModal, RolesModal } from '@/tileos/features/resolve'
@@ -150,6 +151,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'tile': return <TileModal jobId={m.jobId} tag={m.tag} room={m.room} surface={m.surface} level={level} />
     case 'daily': return <DailyModal jobId={m.jobId} room={m.room} level={level} />
     case 'media': return <MediaModal items={m.items} index={m.index} level={level} />
+    case 'file': return <FileModal id={m.id} back={m.back} level={level} />
     case 'sitechange': return <SiteChangeModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
     case 'coapprove': return <ChangeApproveModal id={m.id} level={level} />
     case 'meeting': return <MeetingModal taskId={m.taskId} jobId={m.jobId} kind={m.kind} level={level} />

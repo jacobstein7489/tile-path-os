@@ -3,25 +3,25 @@
  * to the room they're about and go back as a checklist. Approved, it becomes a project. */
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
-import { FilesBox } from './job/board'
-import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt } from 'lucide-react'
+import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt, Users, History, GitCompareArrows, Loader2 } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
-import { Button, Avatar, TextInput, Chip, Field, UnderlineTabs } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Path, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, StepBar, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
 import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { FLOORS, sortAreas } from '@/tileos/data/areas'
 import { printNode } from '@/tileos/lib/print'
-import { EstimatePaper } from './estpaper'
+import { EstimatePaper, paperGroups, paperText } from './estpaper'
+import { DocPanel, PanelBar } from './docview'
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
+import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
 import { insidePeople } from './steps-ui'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
@@ -229,28 +229,91 @@ function EstRow({ e }: { e: Estimate }) {
 }
 
 /* ================= one estimate ================= */
+/* the estimate's documents, the client's copy, every revision, who does what and what happened open in the window
+ * itself, with "Back to the estimate" on top — never a window on a window */
+type EstPanel = null | { t: 'doc'; doc: string } | { t: 'paper'; prices?: boolean } | { t: 'revs' } | { t: 'team' } | { t: 'log' }
+const GREEN = '#2c4a3e'
+const GRAY = '#efece5'
+/** scope · qty · unit · rate · amount · (remove) — the same columns on the green bands, the rooms and every line */
+const SHEET_GRID = 'grid grid-cols-[minmax(0,1fr)_5.25rem_2.75rem_6.25rem_6.75rem_2.25rem] items-center'
+
+/** Plans · Spec book · Finish schedule — tap one and it opens right here; a missing one takes its file */
+function DocStrip({ e, onOpen }: { e: Estimate; onOpen: (doc: string) => void }) {
+  const s = useStore()
+  const docs = s.pricing[e.jobId]?.docs || []
+  const add = React.useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = React.useState<string | null>(null)
+  const target = React.useRef('')
+  const upload = async (doc: string, fl: File[]) => {
+    if (!fl.length || !doc) return
+    setBusy(doc)
+    await docUploaded(e.jobId, doc, fl)
+    setBusy(null)
+    onOpen(doc)
+  }
+  if (!docs.length) return null
+  return (
+    <div className="no-scrollbar flex min-w-0 flex-wrap items-center gap-2 max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-2 max-sm:[&>button]:shrink-0" aria-label="Documents">
+      <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
+      {docs.map((d) =>
+        d.status === 'missing' ? (
+          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-dashed border-warn-300 bg-[#fffaf0] px-3 text-[0.8125rem] font-semibold text-warn-800 transition hover:border-warn-500">
+            {busy === d.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {d.name}
+            <span className="font-normal text-warn-700">missing</span>
+          </button>
+        ) : (
+          <button key={d.name} data-doc={d.name} onClick={() => onOpen(d.name)} title={`Open the ${d.name.toLowerCase()}`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 shadow-xs transition hover:border-[#cdc7bc] hover:text-ink">
+            <FileText className="h-4 w-4 text-brand-600" />
+            {d.name}
+            <Check className="h-3.5 w-3.5 text-ok-600" strokeWidth={3} />
+          </button>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** "Revision 2 ▾" — every revision, and all of them side by side */
+function RevPick({ e, shown, onPick, onCompare }: { e: Estimate; shown: Estimate['revs'][number]; onPick: (n: number) => void; onCompare: () => void }) {
+  const cur = curRev(e)
+  return (
+    <Menu
+      align="start"
+      width={330}
+      trigger={
+        <button aria-label="Pick a revision" className={cn('inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[0.8125rem] font-semibold transition hover:bg-wash', shown === cur ? 'text-ink-2' : 'bg-warn-50 text-warn-700')}>
+          Revision {shown.n}{shown === cur ? '' : ' · older'}
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </button>
+      }
+    >
+      <MenuLabel>{e.revs.length} revisions</MenuLabel>
+      {[...e.revs].reverse().map((r) => (
+        <MenuItem key={r.n} checked={shown.n === r.n} hint={`${r.status === 'draft' ? 'Being priced' : r.status === 'approved' ? 'Approved' : r.status === 'sent' ? `Sent ${r.sentOn}` : `Sent ${r.sentOn || r.date} · replaced`} · ${fmtMoney(revTotal(r))}`} onSelect={() => onPick(r.n)}>
+          Revision {r.n}{r.what ? ` — ${r.what}` : ''}
+        </MenuItem>
+      ))}
+      <MenuSep />
+      <MenuItem icon={<GitCompareArrows className="h-4 w-4" />} onSelect={onCompare}>Every revision, side by side</MenuItem>
+    </Menu>
+  )
+}
+
 export function EstimateModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const e = s.estimates.find((x) => x.id === id)
   const [revN, setRevN] = React.useState<number | null>(null)
-  const [view, setView] = React.useState<'lines' | 'paper' | 'revs'>('lines')
+  const [panel, setPanel] = React.useState<EstPanel>(null)
   const paperRef = React.useRef<HTMLDivElement>(null)
-  const [newArea, setNewArea] = React.useState('')
   const [noteAt, setNoteAt] = React.useState<string | null>(null)
   const [takeoffBy, setTakeoffBy] = React.useState<PersonKey>(() => { const x = s.estimates.find((y) => y.id === id); return x ? teamOf(x).takeoff : 'takeoff' })
-  const [reviseOpen, setReviseOpen] = React.useState(false)
-  const [reviseWhat, setReviseWhat] = React.useState('')
-  const [lostOpen, setLostOpen] = React.useState(false)
-  const [fuOpen, setFuOpen] = React.useState(false)
-  const [showAct, setShowAct] = React.useState(false)
   if (!e) return null
   const j = s.jobs[e.jobId]
   if (!j) return null
   const cur = curRev(e)
   const shown = e.revs.find((r) => r.n === (revN ?? cur.n)) || cur
   const editable = shown === cur && cur.status === 'draft' && ['request', 'estimating', 'revision'].includes(e.status)
-  const areas = sortAreas(Array.from(new Set([...(shown.areas || []).map((a) => a.name), ...shown.lines.map((l) => l.area)])).map((n) => ({ name: n, floor: shown.areas?.find((x) => x.name === n)?.floor }))).map((a) => a.name)
-  const metaOf = (a: string) => shown.areas?.find((x) => x.name === a)
   const itemOf = (l: EstLine) => s.items.find((i) => i.id === l.itemId)
   const sum = (t: string) => shown.lines.filter((l) => (itemOf(l)?.type || 'other') === t).reduce((n, l) => n + l.qty * l.rate, 0)
   const total = revTotal(shown)
@@ -268,6 +331,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const me = meOf(s.role)
   /* everyone acts for themselves; the owner can act for anyone */
   const canAct = ownerish(s) || (b === 'request' ? s.role === 'office' : turn === me)
+  const canTeam = (ownerish(s) || s.role === 'office') && !['approved', 'lost'].includes(st)
+  const back = () => setPanel(null)
 
   const order: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent', 'approved']
   const at = b === 'lost' ? 5 : order.indexOf(b)
@@ -295,33 +360,39 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   })
 
   const header = (
-    <div className="border-b border-line px-5 pb-2.5 pt-3 pr-14 max-sm:px-4 max-sm:pr-14">
+    <div className="border-b border-line px-5 pb-3.5 pt-3 pr-14 max-sm:px-4 max-sm:pr-14">
       {/* one line: what it is, where it stands — the total and the buttons on the right */}
       <div className="flex items-center gap-2">
-        <span className="text-[0.8125rem] tnum text-muted">Estimate {e.id}{cur.n > 1 ? ` · Revision ${cur.n}` : ''}</span>
+        <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted">Estimate {e.id}</span>
+        {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
         <Status tone={CAT[catOf(e)].tone} className="min-w-0">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
         <span className="ml-auto flex shrink-0 items-center gap-2">
           <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft total' : 'total'}{smp('x') ? ' · sample' : ''}</span>
-          {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: e.jobId, estId: e.id })}><span className="max-sm:hidden">Scope of work</span></Button>}
+          {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} aria-pressed={panel?.t === 'paper'} onClick={() => setPanel(panel?.t === 'paper' ? null : { t: 'paper' })}><span className="max-sm:hidden">Scope of work</span></Button>}
           {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
-            <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
+            <Menu align="end" width={250} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
+              {canTeam && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => setPanel({ t: 'team' })}>Who does what</MenuItem>}
+              <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => setPanel({ t: 'log' })}>What happened</MenuItem>
               {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
+              <MenuSep />
               <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'estimate', id: e.id })}>Delete this estimate…</MenuItem>
             </Menu>
           )}
         </span>
       </div>
-      {/* the name, with the client and the address beside it */}
+      {/* the name, then who it's for, where, and when it's due */}
       <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3">
         <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{j.name}</h2>
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
           <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
           <span className="truncate">{j.address}</span>
-          {cur.n > 1 && cur.what && <span className="truncate">Revision {cur.n} — {cur.what}</span>}
+          {['request', 'estimating', 'revision'].includes(st) && <span className="inline-flex items-center gap-1">Due <DueEdit id={e.id} due={e.due} /></span>}
+          {st === 'sent' && sent && <span>Sent {sent.sentOn}</span>}
+          {st === 'approved' && e.approvedOn && <span>Approved {e.approvedOn}</span>}
           <span className="sm:hidden">{shown.lines.length ? fmtMoney(total) : ''}</span>
         </span>
       </div>
-      <Path compact className="mt-2" steps={path} />
+      <StepBar className="mt-3" steps={path} label="Where the estimate is" />
     </div>
   )
 
@@ -363,9 +434,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           {b === 'review' ? (
             <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>Looks good — to {PEOPLE[team.final].short}</Button>
           ) : (
-            <>
-              <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => s.open({ t: 'estsend', id: e.id })}>Preview and send</Button>
-            </>
+            <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => s.open({ t: 'estsend', id: e.id })}>Preview and send</Button>
           )}
         </>
       )}
@@ -399,160 +468,164 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const diffOf = (l: EstLine) => diffs.find((d) => d.b?.id === l.id && d.kind !== 'same')
   const removedIn = (a: string) => diffs.filter((d) => d.kind === 'removed' && d.area === a)
   const changes = diffs.filter((d) => d.kind !== 'same')
-  const areasShown = [...areas, ...Array.from(new Set(diffs.filter((d) => d.kind === 'removed' && !areas.includes(d.area)).map((d) => d.area)))]
+  /* the rooms laid out like the paper: by floor, each room in its band */
+  const groups = paperGroups(shown)
+  const goneAreas = Array.from(new Set(diffs.filter((d) => d.kind === 'removed' && !groups.some((g) => g.areas.some((a) => a.name === d.area))).map((d) => d.area)))
   /* square feet per room, to check the takeoff at a glance */
   const sfOf = (a: string) => shown.lines.filter((l) => l.area === a && (itemOf(l)?.unit || '').toUpperCase() === 'SF').reduce((n, l) => n + l.qty, 0)
-  const [actOpen, setActOpen] = [showAct, setShowAct]
+
+  const room = (a: string, note: string | undefined, ls: EstLine[]) => {
+    const gone = removedIn(a)
+    const sf = sfOf(a)
+    const pinned = notes.filter((n) => n.area === a)
+    return (
+      <div key={a} data-area={a}>
+        <div className={cn(SHEET_GRID, 'group/area px-5 py-2 max-sm:flex max-sm:gap-2 max-sm:px-3')} style={{ background: GRAY }}>
+          <span className="col-span-4 flex min-w-0 items-center gap-2 max-sm:flex-1">
+            <span className={cn('truncate text-[0.875rem] font-semibold', !ls.length && gone.length ? 'text-bad-700 line-through' : 'text-ink')}>{a}</span>
+            {sf > 0 && <span className="shrink-0 text-[0.78125rem] font-medium tnum text-muted">{sf.toLocaleString('en-US')} SF</span>}
+            {note && <span className="min-w-0 truncate text-[0.78125rem] text-muted">| {note}</span>}
+            {canNote && <button onClick={() => setNoteAt(a)} aria-label={`Add a note on ${a}`} className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.75rem] font-semibold text-warn-700 opacity-80 transition hover:bg-warn-50 hover:opacity-100 sm:opacity-0 sm:group-hover/area:opacity-100"><MessageSquarePlus className="h-3.5 w-3.5" />Note</button>}
+          </span>
+          <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(ls.reduce((n, l) => n + l.qty * l.rate, 0))}</span>
+          <span className="flex justify-end">{editable && <AreaMenu e={e} area={a} />}</span>
+        </div>
+        {pinned.map((n) => <NoteRow key={n.id} e={e} n={n} />)}
+        {noteAt === a && <AddNote e={e} area={a} onDone={() => setNoteAt(null)} />}
+        {ls.map((l) => <LineRow key={l.id} e={e} l={l} editable={editable} diff={diffOf(l)} />)}
+        {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
+        {!ls.length && !gone.length && <div className="px-5 py-2 text-[0.8125rem] text-muted max-sm:px-3">No tile here yet{editable ? ' — add a surface' : ''}</div>}
+        {editable && (
+          <div className="flex flex-wrap items-center gap-1.5 px-5 pb-2.5 pt-1 max-sm:px-3">
+            <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
+            <ItemPicker label="Item" onPick={(it) => estEditLines(e.id, (L) => [...L, newLine(a, it.id, it.unit === 'LS' ? 1 : 100, it.price)])} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  /* the estimate itself, laid out like the scope of work: green bands, grey rooms, plain lines — the numbers you can change look like numbers */
+  const sheet = (
+    <div className="overflow-clip rounded-[0.875rem] border border-[#e4ded3] bg-white shadow-card" data-sheet>
+      {groups.map((g) => (
+        <section key={g.floor}>
+          <div className={cn(SHEET_GRID, 'sticky top-0 z-[5] px-5 py-2 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-sm:flex max-sm:justify-between max-sm:px-3')} style={{ background: GREEN }}>
+            <span className="truncate">{g.floor}</span>
+            <span className="text-right max-sm:hidden">Qty</span>
+            <span className="pl-2 max-sm:hidden">Unit</span>
+            <span className="text-right max-sm:hidden">Rate</span>
+            <span className="text-right">Amount</span>
+            <span className="max-sm:hidden" />
+          </div>
+          {g.areas.map((a) => room(a.name, a.note, a.lines))}
+        </section>
+      ))}
+      {goneAreas.map((a) => room(a, undefined, []))}
+      {!groups.length && !goneAreas.length && <div className="px-5 py-8 text-center text-[0.875rem] text-muted">No rooms yet — add the first one below.</div>}
+      {shown.lines.length > 0 && (
+        <div className="border-t border-[#ebe6dd] px-5 pb-5 pt-3 max-sm:px-3">
+          <dl className="ml-auto w-full max-w-[19rem] text-[0.84375rem]">
+            {(['labor', 'material', 'other'] as const).map((t) => sum(t) ? (
+              <div key={t} className="flex justify-between py-0.5 text-ink-2"><dt>{t === 'other' ? 'Other' : ITEM_TYPE_LABEL[t]}</dt><dd className="tnum">{fmtMoney(sum(t))}</dd></div>
+            ) : null)}
+          </dl>
+          <div className="ml-auto mt-2 flex w-full max-w-[19rem] items-center justify-between rounded-md px-3 py-2 text-[0.9375rem] font-semibold text-white" style={{ background: GREEN }}><span>Total</span><span className="tnum">{fmtMoney(total)}</span></div>
+        </div>
+      )}
+    </div>
+  )
+
+  const desk = (
+    <div className="min-h-full bg-[#f3f0ea]" data-desk>
+      <div className="mx-auto w-full max-w-[60rem] px-6 pb-10 pt-4 max-sm:px-2 max-sm:pt-3">
+        {/* the documents on the left; the notes on the right */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <DocStrip e={e} onOpen={(doc) => setPanel({ t: 'doc', doc })} />
+          <span className="ml-auto flex items-center gap-3">
+            {notes.length > 0 && <span className="inline-flex items-center gap-1.5 text-[0.8125rem] text-ink-2"><StickyNote className="h-4 w-4 text-warn-600" /><b className="font-semibold text-ink">{notes.filter((n) => n.done).length} of {notes.length}</b> notes checked off</span>}
+            {canNote && noteAt !== '' && <button onClick={() => setNoteAt('')} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-warn-700 transition hover:bg-warn-50"><MessageSquarePlus className="h-4 w-4" />Add a note</button>}
+          </span>
+        </div>
+        {shown !== cur && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn-100 bg-warn-50 px-3.5 py-2.5 text-[0.8125rem] text-warn-800">
+            <span>You’re looking at revision {shown.n}{shown.what ? ` — ${shown.what}` : ''}. It’s kept as it was.</span>
+            <button onClick={() => setRevN(null)} className="ml-auto font-semibold text-brand-700 hover:underline">Back to revision {cur.n}</button>
+          </div>
+        )}
+        {ai && shown === cur && (st === 'request' || editable) && !shown.lines.some((l) => l.qty > 1) && <AiCard e={e} filled={shown.lines.length > 0} />}
+        {prevRev && (
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[0.8125rem] text-ink-2">
+            <span className="font-semibold text-ink">{changes.length ? `What changed from revision ${prevRev.n}` : `Same lines as revision ${prevRev.n}`}</span>
+            {changes.length > 0 && (
+              <>
+                {(['added', 'changed', 'removed'] as const).map((k) => {
+                  const n = changes.filter((d) => d.kind === k).length
+                  return n ? <span key={k} className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.75rem] font-semibold', k === 'added' ? 'bg-ok-50 text-ok-700' : k === 'changed' ? 'bg-warn-50 text-warn-700' : 'bg-bad-50 text-bad-700')}>{n} {k}</span> : null
+                })}
+                <span className={cn('ml-auto font-semibold tnum', revTotal(shown) - revTotal(prevRev) < 0 ? 'text-bad-600' : 'text-ok-700')}>{revTotal(shown) - revTotal(prevRev) < 0 ? '−' : '+'}{fmtMoney(Math.abs(revTotal(shown) - revTotal(prevRev)))}</span>
+              </>
+            )}
+          </div>
+        )}
+        {(general.length > 0 || (canNote && noteAt === '')) && (
+          <div className="mb-3 overflow-hidden rounded-xl border border-line bg-white">
+            {general.map((n) => <NoteRow key={n.id} e={e} n={n} />)}
+            {noteAt === '' && <AddNote e={e} onDone={() => setNoteAt(null)} />}
+          </div>
+        )}
+        {!shown.lines.length && !editable && <div className="rounded-xl bg-white py-10 text-center text-[0.875rem] text-muted">No lines on this revision.</div>}
+        {(shown.lines.length > 0 || (editable && !(ai && st === 'request'))) && sheet}
+        {editable && <AreaAdder e={e} />}
+      </div>
+    </div>
+  )
+
+  const body =
+    panel?.t === 'doc' ? (
+      <DocPanel jobId={e.jobId} doc={panel.doc} onBack={back} back="Back to the estimate" />
+    ) : panel?.t === 'paper' ? (
+      <div className="min-h-full bg-[#f3f0ea]" data-panel="paper">
+        <PanelBar
+          title={panel.prices ? 'The estimate the client gets' : 'Scope of work'}
+          sub={panel.prices ? 'with prices, ready to print or save as PDF' : 'what we install, room by room — no prices'}
+          onBack={back}
+          back="Back to the estimate"
+          right={
+            <>
+              <Segmented value={panel.prices ? 'p' : 's'} onChange={(v) => setPanel({ t: 'paper', prices: v === 'p' })} items={[{ key: 's', label: 'Scope of work' }, { key: 'p', label: 'With prices' }]} className="max-sm:hidden" />
+              <Button size="sm" variant="primary" icon={<Printer />} onClick={() => printNode(paperRef.current)}>Print or PDF</Button>
+            </>
+          }
+        />
+        {/* phones: the switch under the bar */}
+        <div className="px-3 pt-3 sm:hidden"><Segmented value={panel.prices ? 'p' : 's'} onChange={(v) => setPanel({ t: 'paper', prices: v === 'p' })} items={[{ key: 's', label: 'Scope of work' }, { key: 'p', label: 'With prices' }]} className="w-full [&>button]:flex-1" /></div>
+        <div className="px-6 py-6 max-sm:px-2"><EstimatePaper e={e} rev={shown} prices={!!panel.prices} innerRef={paperRef} /></div>
+      </div>
+    ) : panel?.t === 'revs' ? (
+      <div className="min-h-full" data-panel="revs">
+        <PanelBar title="Every revision" sub={`${e.revs.length} so far`} onBack={back} back="Back to the estimate" />
+        <div className="mx-auto max-w-[52rem] px-6 py-5 max-sm:px-3"><RevisionsPanel e={e} onShow={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} /></div>
+      </div>
+    ) : panel?.t === 'team' ? (
+      <div className="min-h-full" data-panel="team">
+        <PanelBar title="Who does what" sub="on this estimate" onBack={back} back="Back to the estimate" />
+        <div className="mx-auto max-w-[30rem] px-6 py-5 max-sm:px-3"><TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(k, p) => setEstTeam(e.id, k, p)} /></div>
+      </div>
+    ) : panel?.t === 'log' ? (
+      <div className="min-h-full" data-panel="log">
+        <PanelBar title="What happened" sub={plural(e.log.length, 'thing')} onBack={back} back="Back to the estimate" />
+        <div className="mx-auto max-w-[46rem] px-4 py-3">
+          {[...e.log].reverse().map((l, i) => <ActivityRow key={i} jobId={e.jobId} e={{ date: l.date, who: l.who, kind: 'pricing', title: l.text, ref: { t: 'estimate', id: e.id } }} />)}
+        </div>
+      </div>
+    ) : (
+      desk
+    )
+
   return (
     <Modal level={level} size="xl" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
-      <div className="grid h-full min-h-0 grid-cols-[1fr_18.75rem] max-lg:h-auto max-lg:grid-cols-1">
-        {/* the lines, with the review notes pinned to their rooms */}
-        <div className="scroll-soft min-h-0 min-w-0 border-r border-line px-5 py-4 max-lg:border-r-0 max-sm:px-4 lg:overflow-y-auto">
-          <UnderlineTabs size="sm" className="-mt-2 mb-4" value={view} onChange={setView} items={[{ key: 'lines' as const, label: e.revs.length > 1 ? `Lines · revision ${shown.n}` : 'Lines' }, { key: 'paper' as const, label: 'Estimate paper' }, ...(e.revs.length > 1 ? [{ key: 'revs' as const, label: 'Revisions', count: e.revs.length }] : [])]} />
-          {view === 'paper' ? (
-            <div className="-mx-6 -mb-5 bg-wash px-6 pb-6 pt-4 max-sm:-mx-4 max-sm:px-2">
-              <div className="mx-auto mb-3 flex max-w-[48.75rem] flex-wrap items-center gap-2">
-                <span className="text-[0.8125rem] text-muted">What {j.client} gets{e.revs.length > 1 ? ` · revision ${shown.n}` : ''} — laid out like our scope of work</span>
-                <Button size="sm" className="ml-auto" icon={<Printer />} onClick={() => printNode(paperRef.current)}>Print or save PDF</Button>
-              </div>
-              <EstimatePaper e={e} rev={shown} innerRef={paperRef} />
-            </div>
-          ) : view === 'revs' && e.revs.length > 1 ? <RevisionsPanel e={e} onShow={(n) => { setRevN(n); setView('lines') }} /> : <>
-          {e.revs.length > 1 && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              {e.revs.map((r) => (
-                <Chip key={r.n} on={shown.n === r.n} onClick={() => setRevN(r.n)} className="h-8 px-2.5 text-[0.8125rem]">
-                  {r.n} <span className="font-normal text-muted">· {r.status === 'draft' ? 'draft' : r.status === 'superseded' ? 'replaced' : r.status}</span>
-                </Chip>
-              ))}
-              <span className="min-w-0 truncate text-[0.8125rem] text-muted">{shown.what}</span>
-            </div>
-          )}
-          {ai && shown === cur && (st === 'request' || editable) && !shown.lines.some((l) => l.qty > 1) && <AiCard e={e} filled={shown.lines.length > 0} />}
-          {prevRev && (
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-line bg-wash px-3.5 py-2.5 text-[0.8125rem] text-ink-2">
-              <span className="font-semibold text-ink">{changes.length ? `What changed from revision ${prevRev.n}` : `Same lines as revision ${prevRev.n}`}</span>
-              {changes.length > 0 && (
-                <>
-                  {(['added', 'changed', 'removed'] as const).map((k) => {
-                    const n = changes.filter((d) => d.kind === k).length
-                    return n ? <span key={k} className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.75rem] font-semibold', k === 'added' ? 'bg-ok-50 text-ok-700' : k === 'changed' ? 'bg-warn-50 text-warn-700' : 'bg-bad-50 text-bad-700')}>{n} {k}</span> : null
-                  })}
-                  <span className={cn('ml-auto font-semibold tnum', revTotal(shown) - revTotal(prevRev) < 0 ? 'text-bad-600' : 'text-ok-700')}>{revTotal(shown) - revTotal(prevRev) < 0 ? '−' : '+'}{fmtMoney(Math.abs(revTotal(shown) - revTotal(prevRev)))}</span>
-                </>
-              )}
-            </div>
-          )}
-          {!shown.lines.length && !editable && <div className="py-10 text-center text-[0.875rem] text-muted">No lines on this revision.</div>}
-          {(general.length > 0 || (canNote && noteAt === '')) && (
-            <div className="mb-3 overflow-hidden rounded-xl border border-line">
-              {general.map((n) => <NoteRow key={n.id} e={e} n={n} />)}
-              {noteAt === '' && <AddNote e={e} onDone={() => setNoteAt(null)} />}
-            </div>
-          )}
-          {(shown.lines.length > 0 || (editable && !(ai && st === 'request'))) && (
-            <div>
-              {canNote && noteAt !== '' && (
-                <div className="mb-2 flex justify-end">
-                  <button onClick={() => setNoteAt('')} className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-warn-700 hover:text-ink"><MessageSquarePlus className="h-4 w-4" />Add a note</button>
-                </div>
-              )}
-              <div className="overflow-clip rounded-xl border border-line">
-                <div className={cn(LINE_GRID, 'h-10 border-b border-line bg-wash px-3 text-[0.75rem] font-semibold text-muted max-sm:hidden', STICKY_HEAD)}>
-                  <span>Scope · {shown.lines.length} lines</span>
-                  <span className="text-right">Qty</span>
-                  <span className="pl-2">Unit</span>
-                  <span className="text-right">Rate</span>
-                  <span className="text-right">Amount</span>
-                  <span />
-                </div>
-                {areasShown.map((a) => {
-                  const ls = shown.lines.filter((l) => l.area === a)
-                  const gone = removedIn(a)
-                  const sf = sfOf(a)
-                  const pinned = notes.filter((n) => n.area === a)
-                  return (
-                    <section key={a}>
-                      <div className="group/area flex items-center justify-between gap-3 border-b border-line-2 bg-[#faf8f5] px-3 py-2">
-                        <span className="flex min-w-0 items-center gap-2">
-                          {metaOf(a)?.floor && <span className="shrink-0 rounded-md bg-ink px-1.5 py-[0.0625rem] text-[0.6875rem] font-semibold text-white">{metaOf(a)!.floor}</span>}
-                          <span className={cn('truncate text-[0.84375rem] font-semibold', !ls.length && gone.length ? 'text-bad-700 line-through' : 'text-ink')}>{a}</span>
-                          {sf > 0 && <span className="shrink-0 rounded-md bg-white px-1.5 py-[0.0625rem] text-[0.71875rem] font-semibold tnum text-ink-2 ring-1 ring-line">{sf.toLocaleString('en-US')} SF</span>}
-                          {metaOf(a)?.note && <span className="truncate text-[0.78125rem] text-muted">| {metaOf(a)!.note}</span>}
-                          {editable && <AreaMenu e={e} area={a} />}
-                        </span>
-                        <span className="flex items-center gap-3">
-                          {canNote && <button onClick={() => setNoteAt(a)} aria-label={`Add a note on ${a}`} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.75rem] font-semibold text-warn-700 opacity-70 transition hover:bg-warn-50 hover:opacity-100 sm:opacity-0 sm:group-hover/area:opacity-100"><MessageSquarePlus className="h-3.5 w-3.5" />Note</button>}
-                          <span className={cn('text-[0.8125rem] font-semibold tnum text-ink-2', editable && 'sm:pr-9')}>{fmtMoney(ls.reduce((n, l) => n + l.qty * l.rate, 0))}</span>
-                        </span>
-                      </div>
-                      {pinned.map((n) => <NoteRow key={n.id} e={e} n={n} />)}
-                      {noteAt === a && <AddNote e={e} area={a} onDone={() => setNoteAt(null)} />}
-                      {ls.map((l) => <LineRow key={l.id} e={e} l={l} editable={editable} diff={diffOf(l)} />)}
-                      {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
-                      {!ls.length && !gone.length && <div className="border-b border-line-2 px-3 py-2 text-[0.8125rem] text-muted">No tile here yet — add a surface</div>}
-                      {editable && (
-                        <div className="flex flex-wrap items-center gap-1.5 border-b border-line-2 px-3 py-1.5">
-                          <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
-                          <ItemPicker label="Item" onPick={(it) => estEditLines(e.id, (L) => [...L, newLine(a, it.id, it.unit === 'LS' ? 1 : 100, it.price)])} />
-                        </div>
-                      )}
-                    </section>
-                  )
-                })}
-                {!areas.length && <div className="px-3 py-6 text-center text-[0.84375rem] text-muted">No areas yet — add the first room below.</div>}
-              </div>
-              {editable && <AreaAdder e={e} />}
-            </div>
-          )}
-          {shown.lines.length > 0 && (
-            <dl className="ml-auto mt-5 w-full max-w-[18.75rem] text-[0.875rem]">
-              {(['labor', 'material', 'other'] as const).map((t) => sum(t) ? (
-                <div key={t} className="flex justify-between py-1 text-ink-2"><dt>{t === 'other' ? 'Other' : ITEM_TYPE_LABEL[t]}</dt><dd className="tnum">{fmtMoney(sum(t))}</dd></div>
-              ) : null)}
-              <div className="mt-1 flex justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold text-ink"><dt>Total</dt><dd className="tnum">{fmtMoney(total)}</dd></div>
-            </dl>
-          )}
-          </>}
-        </div>
-        {/* who's on it, the notes, and what happened */}
-        <aside className="scroll-soft min-h-0 bg-white lg:overflow-y-auto">
-          {notes.length > 0 && (
-            <div className="mx-5 mt-4 flex items-center gap-2 rounded-xl bg-wash px-3 py-2.5 text-[0.8125rem] text-ink-2 max-sm:mx-4">
-              <StickyNote className="h-4 w-4 text-warn-600" />
-              <span><b className="font-semibold text-ink">{notes.filter((n) => n.done).length} of {notes.length}</b> notes checked off</span>
-            </div>
-          )}
-          <div className="px-5 pb-1 pt-3 max-sm:px-4">
-            <dl className="text-[0.9375rem]">
-              <Prop label="Client"><button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="font-semibold text-brand-700 hover:underline">{j.client}</button></Prop>
-              {['request', 'estimating', 'revision'].includes(st) && <Prop label="Due"><DueEdit id={e.id} due={e.due} /></Prop>}
-              {sent && <Prop label="Sent">{sent.sentOn} · revision {sent.n}</Prop>}
-              {st === 'sent' && <Prop label="Follow up"><span className={cn(e.followUp === 'Today' && 'font-semibold text-warn-700')}>{PEOPLE[team.follow].short} · {e.followUp || 'Thu'}</span></Prop>}
-            </dl>
-            {(ownerish(s) || s.role === 'office') && !['approved', 'lost'].includes(st) && (
-              <Pop width={330} align="end" trigger={<button className="mb-1 mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change who does what</button>}>
-                <div className="mb-2 text-[0.875rem] font-semibold text-ink">Who does what on this estimate</div>
-                <TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(k, p) => setEstTeam(e.id, k, p)} />
-              </Pop>
-            )}
-          </div>
-          <div className="border-t border-line">
-            <FilesBox jobId={e.jobId} title="Plans and documents" missing={(s.pricing[e.jobId]?.docs || []).filter((d) => d.status === 'missing').map((d) => d.name)} named={(s.pricing[e.jobId]?.docs || []).filter((d) => d.status !== 'missing').map((d) => d.name)} />
-          </div>
-          <div className="border-t border-line px-5 pb-4 max-sm:px-4">
-            <button onClick={() => setActOpen(!actOpen)} className="flex w-full items-center justify-between pt-3 text-[0.875rem] font-semibold text-ink hover:text-ink">
-              <span>Activity <span className="font-normal text-faint">· {e.log.length}</span></span>
-              <span className="text-[0.78125rem] font-semibold text-brand-600">{actOpen ? 'Hide' : 'Show'}</span>
-            </button>
-            {actOpen && (
-              <div className="-mx-2 mt-1">
-                {[...e.log].reverse().map((l, i) => <ActivityRow key={i} jobId={e.jobId} compact e={{ date: l.date, who: l.who, kind: 'pricing', title: l.text, ref: { t: 'estimate', id: e.id } }} />)}
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
+      <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
     </Modal>
   )
 }
@@ -582,7 +655,7 @@ function AreaAdder({ e }: { e: Estimate }) {
   const s = useStore()
   const [own, setOwn] = React.useState('')
   return (
-    <div className="mt-4 rounded-[0.75rem] border border-dashed border-[#d3d8de] px-3 py-3">
+    <div className="mt-4 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3">
       <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add an area<span className="font-normal text-muted">— it comes with its usual surfaces</span></div>
       <div className="flex flex-wrap gap-1.5">
         {companyAreas(s).map((p) => <button key={p.name} type="button" onClick={() => estAddArea(e.id, p.name, p.surfaces)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700"><Plus className="h-3.5 w-3.5" />{p.name}</button>)}
@@ -601,7 +674,7 @@ function NoteRow({ e, n }: { e: Estimate; n: EstNote }) {
   const isAi = n.step === 'ai'
   const mine = n.by === meOf(s.role)
   return (
-    <div className={cn('flex items-start gap-2.5 border-b border-line-2 px-3 py-2', n.done ? 'bg-white' : isAi ? 'bg-vio-50/70' : 'bg-warn-50/80')}>
+    <div className={cn('flex items-start gap-2.5 border-b border-line-2 px-5 py-2 max-sm:px-3', n.done ? 'bg-white' : isAi ? 'bg-vio-50/70' : 'bg-warn-50/80')}>
       <button
         aria-label={n.done ? 'Mark not done' : 'Check it off'}
         onClick={() => estToggleNote(e.id, n.id)}
@@ -631,7 +704,7 @@ function AddNote({ e, area, onDone }: { e: Estimate; area?: string; onDone: () =
         setT('')
         onDone()
       }}
-      className="flex items-center gap-2 border-b border-line-2 bg-warn-50/60 px-3 py-2"
+      className="flex items-center gap-2 border-b border-line-2 bg-warn-50/60 px-5 py-2 max-sm:px-3"
     >
       <StickyNote className="h-4 w-4 shrink-0 text-warn-600" />
       <TextInput autoFocus value={t} onChange={(x) => setT(x.target.value)} placeholder={area ? `Note on ${area} — e.g. add the niche` : 'A note for the takeoff'} className="h-8 flex-1 bg-white" />
@@ -783,28 +856,19 @@ function DueEdit({ id, due }: { id: string; due?: string }) {
   )
 }
 
-function Prop({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[5.25rem_1fr] items-baseline gap-3 border-b border-line-2 py-2.5 last:border-b-0">
-      <dt className="text-[0.8125rem] text-muted">{label}</dt>
-      <dd className="min-w-0 font-medium text-ink">{children}</dd>
-    </div>
-  )
-}
 
-const LINE_GRID = 'grid grid-cols-[minmax(0,1fr)_5.75rem_3.5rem_6rem_6.5rem_2.25rem] items-center gap-0'
 /** a line that was on the revision before and isn't on this one */
 function RemovedRow({ d }: { d: LineDiff }) {
   const a = d.a!
   return (
-    <div className="border-b border-line-2 bg-bad-50/40 px-3 py-1.5">
-      <div className={cn(LINE_GRID, 'max-sm:flex max-sm:items-center max-sm:justify-between')}>
+    <div className="border-b border-[#f1ede6] bg-bad-50/40 px-5 py-1.5 max-sm:px-3">
+      <div className={cn(SHEET_GRID, 'max-sm:flex max-sm:items-center max-sm:justify-between')}>
         <div className="min-w-0 pr-3">
           <div className="flex items-center gap-2"><span className="truncate text-[0.875rem] text-bad-700 line-through">{d.name}</span><span className="shrink-0 rounded-full bg-bad-50 px-1.5 text-[0.6875rem] font-semibold text-bad-700 ring-1 ring-bad-100">Removed</span></div>
         </div>
-        <span className="text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{a.qty.toLocaleString('en-US')}</span>
+        <span className="pr-1.5 text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{a.qty.toLocaleString('en-US')}</span>
         <span className="pl-2 text-[0.8125rem] text-muted max-sm:hidden">{d.unit}</span>
-        <span className="text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{fmtMoney(a.rate, { cents: a.rate % 1 !== 0 })}</span>
+        <span className="pr-1.5 text-right text-[0.875rem] tnum text-bad-600 line-through max-sm:hidden">{fmtMoney(a.rate, { cents: a.rate % 1 !== 0 })}</span>
         <span className="text-right text-[0.875rem] tnum text-bad-600 line-through">{fmtMoney(a.qty * a.rate)}</span>
         <span className="max-sm:hidden" />
       </div>
@@ -812,6 +876,7 @@ function RemovedRow({ d }: { d: LineDiff }) {
   )
 }
 
+/** one line of the estimate — the words the client reads, the item it's priced with beside them, then the numbers */
 function LineRow({ e, l, editable, diff }: { e: Estimate; l: EstLine; editable: boolean; diff?: LineDiff }) {
   const s = useStore()
   const it = s.items.find((i) => i.id === l.itemId)
@@ -822,41 +887,40 @@ function LineRow({ e, l, editable, diff }: { e: Estimate; l: EstLine; editable: 
       <Trash2 className="h-3.5 w-3.5" />
     </button>
   )
+  const main = paperText(l, it?.name, e.jobId)
+  const sub = it && it.name !== main ? it.name : it && it.type === 'material' && it.vendor ? it.vendor : ''
   const name = (
     <div className="min-w-0 pr-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-[0.875rem] text-ink">{l.desc || it?.name || l.itemId}</span>
-        {diff?.kind === 'added' && <span className="shrink-0 rounded-full bg-ok-50 px-1.5 text-[0.6875rem] font-semibold text-ok-700 ring-1 ring-ok-100">New</span>}
-        {was && <span className="shrink-0 rounded-full bg-warn-50 px-1.5 text-[0.6875rem] font-semibold text-warn-700 ring-1 ring-warn-100">Changed</span>}
+      <div className="flex min-w-0 items-baseline gap-2">
+        <span className="min-w-0 shrink-0 truncate text-[0.875rem] text-ink max-w-[72%]">{main}</span>
+        {sub && <span className="min-w-0 truncate text-[0.75rem] text-faint max-sm:hidden">{sub}</span>}
+        {diff?.kind === 'added' && <span className="shrink-0 self-center rounded-full bg-ok-50 px-1.5 text-[0.6875rem] font-semibold text-ok-700 ring-1 ring-ok-100">New</span>}
+        {was && <span className="shrink-0 self-center rounded-full bg-warn-50 px-1.5 text-[0.6875rem] font-semibold text-warn-700 ring-1 ring-warn-100">Changed</span>}
       </div>
       {was && <div className="truncate text-[0.75rem] font-medium text-warn-700">was {[was.qty !== l.qty ? `${was.qty.toLocaleString('en-US')} ${it?.unit || ''}`.trim() : '', was.rate !== l.rate ? `${fmtMoney(was.rate, { cents: was.rate % 1 !== 0 })}${was.qty !== 1 || was.qty !== l.qty ? (it?.unit && it.unit !== 'LS' ? `/${it.unit}` : '') : ''}` : '', was.qty !== 1 ? `= ${fmtMoney(was.qty * was.rate)}` : ''].filter(Boolean).join(' · ')}</div>}
-      {l.surface ? (
-        <div className="truncate text-[0.75rem] text-muted">{l.surface}{tileOf(e.jobId, l.tile) ? ` · ${tileLine(tileOf(e.jobId, l.tile))}` : ''}</div>
-      ) : it && it.type !== 'other' ? (
-        <div className="truncate text-[0.75rem] text-muted">{it.type === 'labor' ? 'Labor' : `Material · ${it.vendor}`}</div>
-      ) : null}
     </div>
   )
+  const unit = it?.unit === 'LS' ? 'EA' : it?.unit
   return (
-    <div className={cn('group border-b border-line-2 px-3 py-1.5 last:border-b-0', diff?.kind === 'added' && 'bg-ok-50/40', was && 'bg-warn-50/40')}>
-      {/* laptops: one row with columns */}
-      <div className={cn(LINE_GRID, 'max-sm:hidden')}>
+    <div className={cn('group border-b border-[#f1ede6] px-5 py-[0.3125rem] last:border-b-0 max-sm:px-3 max-sm:py-2', diff?.kind === 'added' && 'bg-ok-50/40', was && 'bg-warn-50/40')} data-line={l.id}>
+      {/* laptops: one row, the columns of the green band */}
+      <div className={cn(SHEET_GRID, 'max-sm:hidden')}>
         {name}
-        <span className="text-right">{editable ? <NumIn value={l.qty} onChange={(n) => set({ qty: n })} label={`Quantity · ${it?.name}`} /> : <span className="text-[0.875rem] tnum text-ink-2">{l.qty.toLocaleString('en-US')}</span>}</span>
-        <span className="pl-2 text-[0.8125rem] text-muted">{it?.unit}</span>
-        <span className="text-right">{editable ? <NumIn value={l.rate} onChange={(n) => set({ rate: n })} label={`Rate · ${it?.name}`} money /> : <span className="text-[0.875rem] tnum text-ink-2">{fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}</span>}</span>
-        <span className="text-right text-[0.875rem] tnum text-ink">{fmtMoney(l.qty * l.rate)}</span>
+        <span className="text-right">{editable ? <NumIn value={l.qty} onChange={(n) => set({ qty: n })} label={`Quantity · ${it?.name}`} /> : <span className="pr-1.5 text-[0.875rem] tnum text-ink-2">{l.qty.toLocaleString('en-US')}</span>}</span>
+        <span className="pl-2 text-[0.8125rem] text-muted">{unit}</span>
+        <span className="text-right">{editable ? <NumIn value={l.rate} onChange={(n) => set({ rate: n })} label={`Rate · ${it?.name}`} money /> : <span className="pr-1.5 text-[0.875rem] tnum text-ink-2">{fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}</span>}</span>
+        <span className="text-right text-[0.875rem] font-medium tnum text-ink">{fmtMoney(l.qty * l.rate)}</span>
         {remove || <span />}
       </div>
-      {/* phones: name and amount, then quantity × rate */}
+      {/* phones: the words and the amount, then quantity × rate */}
       <div className="sm:hidden">
         <div className="flex items-start justify-between gap-3">
           {name}
-          <span className="shrink-0 text-[0.875rem] tnum text-ink">{fmtMoney(l.qty * l.rate)}</span>
+          <span className="shrink-0 text-[0.875rem] font-medium tnum text-ink">{fmtMoney(l.qty * l.rate)}</span>
         </div>
-        <div className="mt-1.5 flex items-center gap-2 text-[0.8125rem] text-muted">
+        <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted">
           {editable ? <NumIn value={l.qty} onChange={(n) => set({ qty: n })} label={`Quantity · ${it?.name}`} /> : <span className="tnum">{l.qty.toLocaleString('en-US')}</span>}
-          <span>{it?.unit} ×</span>
+          <span>{unit} ×</span>
           {editable ? <NumIn value={l.rate} onChange={(n) => set({ rate: n })} label={`Rate · ${it?.name}`} money /> : <span className="tnum">{fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}</span>}
           <span className="ml-auto">{remove}</span>
         </div>
@@ -865,22 +929,23 @@ function LineRow({ e, l, editable, diff }: { e: Estimate; l: EstLine; editable: 
   )
 }
 
+/** a number you can change that reads like a number — no box until you point at it */
 function NumIn({ value, onChange, label, money }: { value: number; onChange: (n: number) => void; label: string; money?: boolean }) {
   const [v, setV] = React.useState(String(value))
-  React.useEffect(() => setV(String(value)), [value])
+  const [on, setOn] = React.useState(false)
+  const cancel = React.useRef(false)
+  const shown = on ? v : money ? fmtMoney(value, { cents: value % 1 !== 0 }) : value.toLocaleString('en-US')
   return (
-    <span className="relative inline-flex">
-      {money && <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[0.8125rem] text-faint">$</span>}
-      <input
-        aria-label={label}
-        inputMode="decimal"
-        value={v}
-        onChange={(x) => setV(x.target.value)}
-        onBlur={() => { const n = Number(v.replace(/[^0-9.]/g, '')); if (!isNaN(n) && n !== value) onChange(n); else setV(String(value)) }}
-        onKeyDown={(x) => { if (x.key === 'Enter') (x.target as HTMLInputElement).blur() }}
-        className={cn('h-8 w-[5.25rem] rounded-md border border-transparent bg-wash px-2 text-right text-[0.875rem] tnum text-ink hover:border-line focus:border-brand-300 focus:bg-white focus:outline-none max-sm:w-[4.75rem]', money && 'pl-5')}
-      />
-    </span>
+    <input
+      aria-label={label}
+      inputMode="decimal"
+      value={shown}
+      onFocus={(x) => { cancel.current = false; setV(String(value)); setOn(true); const el = x.currentTarget; requestAnimationFrame(() => el.select()) }}
+      onChange={(x) => setV(x.target.value)}
+      onBlur={() => { setOn(false); if (cancel.current) return; const n = Number(v.replace(/[^0-9.]/g, '')); if (v.trim() !== '' && !isNaN(n) && n !== value) onChange(n) }}
+      onKeyDown={(x) => { if (x.key === 'Enter') (x.target as HTMLInputElement).blur(); if (x.key === 'Escape') { cancel.current = true; (x.target as HTMLInputElement).blur() } }}
+      className="h-8 w-full max-w-[5.75rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-[0.875rem] tnum text-ink transition hover:border-[#e2dcd2] hover:bg-[#faf8f4] focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 max-sm:w-[4.75rem] max-sm:border-[#e2dcd2] max-sm:bg-[#faf8f4]"
+    />
   )
 }
 

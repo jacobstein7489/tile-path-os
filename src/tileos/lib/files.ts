@@ -34,7 +34,7 @@ const asDataUrl = (b: Blob) => new Promise<string>((res) => { const r = new File
 
 export type Kept = { recs: FileRec[]; problem?: string }
 /** keep files with a project; says so in its history. Storage that isn't set up yet doesn't stop the work. */
-export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind'], o: { quiet?: boolean } = {}): Promise<Kept> {
+export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind'], o: { quiet?: boolean; doc?: string } = {}): Promise<Kept> {
   const s = useStore.getState()
   const me = meOf(s.role)
   const recs: FileRec[] = []
@@ -55,7 +55,7 @@ export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind
     if (REAL.files) {
       try { path = await REAL.files.put(jobId, id, body, name) } catch (e: any) { problem = e?.message || 'Couldn’t keep the file' }
     } else LOCAL.set(id, URL.createObjectURL(body))
-    recs.push({ id, jobId, name, size: body.size, type: body.type || f.type || 'application/octet-stream', kind, ...(path ? { path } : {}), ...(thumb ? { thumb } : {}), by: me, at: NOW })
+    recs.push({ id, jobId, name, size: body.size, type: body.type || f.type || 'application/octet-stream', kind, ...(path ? { path } : {}), ...(thumb ? { thumb } : {}), ...(o.doc ? { doc: o.doc } : {}), by: me, at: NOW })
   }
   if (recs.length)
     s.commit((st) => {
@@ -106,6 +106,17 @@ export async function removeFile(rec: FileRec) {
     addHist(st, rec.jobId, { who: meOf(st.role), kind: 'setup', title: `${rec.kind === 'photo' ? 'Photo' : 'File'} removed · ${rec.name}` })
   }, `${rec.name} removed`)
 }
+
+/** the files that are one of the estimate's documents — tagged when they came in, or named like it */
+export function filesOfDoc(files: FileRec[], jobId: string, doc: string): FileRec[] {
+  const mine = files.filter((f) => f.jobId === jobId && f.kind !== 'photo')
+  const tagged = mine.filter((f) => f.doc === doc)
+  if (tagged.length) return tagged
+  const like = doc === 'Plans' ? /plan|drawing|arch|^A\d/i : doc === 'Spec book' ? /spec/i : doc === 'Finish schedule' ? /finish|schedule/i : null
+  return mine.filter((f) => !f.doc && (like ? like.test(f.name) || (doc === 'Plans' && f.kind === 'plans' && !/spec|finish|schedule/i.test(f.name)) : false))
+}
+export const isPdf = (f: { name: string; type?: string }) => /pdf/i.test(f.type || '') || /\.pdf$/i.test(f.name)
+export const isImage = (f: { name: string; type?: string }) => /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name)
 
 export const sizeLabel = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 export const KIND_LABEL: Record<FileRec['kind'], string> = { paperwork: 'Tile paperwork', plans: 'Plans and specs', photo: 'Photos', other: 'Other files' }

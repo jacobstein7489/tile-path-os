@@ -392,7 +392,7 @@ export interface Tile {
 }
 /** a file kept with a project — the tile paperwork, plans, a photo. In the real app it's in the company's storage
  *  (`path`); the preview keeps it only while the page is open. */
-export interface FileRec { id: string; jobId: string; name: string; size: number; type: string; kind: 'paperwork' | 'plans' | 'photo' | 'other'; path?: string; by: PersonKey; at: string; /** a small picture of a photo, kept with the record so lists load fast */ thumb?: string; /** what AI found when it read it */ read?: string }
+export interface FileRec { id: string; jobId: string; name: string; size: number; type: string; kind: 'paperwork' | 'plans' | 'photo' | 'other'; path?: string; by: PersonKey; at: string; /** a small picture of a photo, kept with the record so lists load fast */ thumb?: string; /** what AI found when it read it */ read?: string; /** which of the estimate's documents it is — "Plans", "Spec book", "Finish schedule" */ doc?: string }
 
 /** the sample projects' tiles. A real project's tiles live with the project (the store's tiles, by project) */
 export const TILES: Record<string, Tile> = {

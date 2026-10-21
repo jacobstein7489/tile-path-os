@@ -426,11 +426,11 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               disabled={!b.onClick}
               className={cn(
                 'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
-                b.on ? 'border-transparent text-white' : 'border-transparent enabled:hover:brightness-[0.97]',
+                b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
-              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : { background: c.tint }}
+              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: '#ffffff', color: c.solid }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               <span className="min-w-0 flex-1">
@@ -661,5 +661,38 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
         )
       })}
     </ol>
+  )
+}
+
+/* ================= the steps as one bar in pieces: done ones green, this one half full, the rest waiting ================= */
+export type StepBarStep = { key: string; label: string; short?: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad' }
+export function StepBar({ steps, className, label }: { steps: StepBarStep[]; className?: string; label?: string }) {
+  const at = steps.findIndex((x) => x.state === 'current' || x.state === 'blocked')
+  const now = steps[at]
+  const done = steps.filter((x) => x.state === 'done').length
+  return (
+    <div className={className} data-stepbar>
+      {/* phones: where it stands in words, over the bar */}
+      <div className="mb-1.5 flex items-baseline justify-between gap-2 sm:hidden">
+        <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{now ? now.label : done === steps.length ? 'All done' : steps[0]?.label}{now?.sub ? <span className="font-normal text-muted"> · {now.sub}</span> : null}</span>
+        <span className="shrink-0 text-[0.75rem] tnum text-muted">{now ? `Step ${at + 1} of ${steps.length}` : `${done} of ${steps.length}`}</span>
+      </div>
+      <ol aria-label={label} className="grid gap-x-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+        {steps.map((st) => (
+          <li key={st.key} aria-current={st.state === 'current' ? 'step' : undefined} data-state={st.state} className="min-w-0">
+            <span className="relative block h-1.5 overflow-hidden rounded-full bg-[#ebe6de]">
+              <span className={cn('absolute inset-y-0 left-0 rounded-full transition-[width] duration-500', st.state === 'done' ? 'w-full bg-ok-500' : st.state === 'current' ? 'w-1/2 bg-brand-600' : st.state === 'blocked' ? 'w-full bg-bad-500' : 'w-0')} />
+            </span>
+            <span className="mt-2 flex min-w-0 items-center gap-1 max-sm:hidden">
+              {st.state === 'done' && <Check className="h-3.5 w-3.5 shrink-0 text-ok-600" strokeWidth={3} />}
+              <span className={cn('truncate text-[0.8125rem] font-semibold leading-tight', st.state === 'current' ? 'text-ink' : st.state === 'done' ? 'text-ink-2' : st.state === 'blocked' ? 'text-bad-700' : 'text-muted')}>{st.label}</span>
+            </span>
+            <span className={cn('mt-0.5 block truncate text-[0.75rem] leading-tight max-sm:hidden', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'current' ? 'font-medium text-brand-700' : st.state === 'blocked' ? 'text-bad-700' : st.state === 'done' ? 'text-muted' : 'text-faint')}>
+              {st.state === 'done' ? (st.date ? `Done ${st.date.replace(/^Done\s*/, '')}` : st.sub || 'Done') : st.state === 'current' ? [st.sub, st.date].filter(Boolean).join(' · ') || 'Now' : st.sub || ' '}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }

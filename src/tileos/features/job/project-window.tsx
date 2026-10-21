@@ -26,7 +26,7 @@ import { projectStatus } from '../statuses'
 import { stepsFor } from '../steps'
 import { openStep, todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard, ProjectFoot, Track, useParts } from './board'
+import { ProjectBoard, ProjectFoot, Track, useParts, type BoardView } from './board'
 import { pictureOf } from '../progressbill'
 import { md } from '@/tileos/lib/today'
 
@@ -55,7 +55,10 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   const role = useStore((s) => s.role)
   const close = useStore((s) => s.close)
   const pricing = job && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  const [part, setPart] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
+  const [part, setPart0] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
+  /* a step, a room, the conversation or a file opened on the project — the part's own page when nothing is */
+  const [view, setView] = React.useState<BoardView>(null)
+  const setPart = (p: PTab) => { setPart0(p); setView(null) }
   if (!job) return null
   if (pricing) {
     return (
@@ -65,23 +68,25 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
     )
   }
   return (
-    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} />} bodyClass="p-0 lg:overflow-hidden">
-      <ProjectBoard job={job} part={part} />
+    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} onStep={(k) => { setPart0('ready'); setView({ t: 'step', k }) }} />} bodyClass="p-0 lg:overflow-hidden">
+      <ProjectBoard job={job} part={part} view={view} setView={setView} />
     </Modal>
   )
 }
 
 /** the same project as a page (Open full page) */
 export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
-  const [part, setPart] = React.useState<PTab>(tabFrom(initial, job))
+  const [part, setPart0] = React.useState<PTab>(tabFrom(initial, job))
+  const [view, setView] = React.useState<BoardView>(null)
+  const setPart = (p: PTab) => { setPart0(p); setView(null) }
   const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
       <ProjectHeader job={job} mode="page" part={pricing ? undefined : part} setPart={setPart} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(44rem,calc(100dvh-16rem))] min-h-[24rem]"><ProjectBoard job={job} part={part} /></div>
-          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} part={part} /></div>
+          <div className="h-[min(44rem,calc(100dvh-16rem))] min-h-[24rem]"><ProjectBoard job={job} part={part} view={view} setView={setView} /></div>
+          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} part={part} onStep={(k) => { setPart0('ready'); setView({ t: 'step', k }) }} /></div>
         </>
       )}
     </div>
@@ -119,21 +124,13 @@ export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'm
   const pic = money && !pricing ? pictureOf(s, job.id) : null
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
-  const more = (
-    <Menu align="end" width={270} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} />}>
-      <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'whatsopen', jobId: job.id })}>Everything open — mine, everyone’s, done</MenuItem>
-      <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>Everything that happened</MenuItem>
-      <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })}>Files and photos</MenuItem>
-      <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })}>Messages</MenuItem>
-      <MenuSep />
-      <MenuItem icon={<Grid2x2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'scopewin', jobId: job.id })}>Scope of work — every wall and floor</MenuItem>
-      {role !== 'site' && <MenuItem icon={<Package className="h-4 w-4" />} onSelect={() => s.open({ t: 'orderswin', jobId: job.id })}>All the orders</MenuItem>}
-      {(canEdit || mode === 'modal') && <MenuSep />}
+  /* ··· holds only what changes the project itself — everything else is on the project, one tap away */
+  const more = (canEdit || ['owner', 'pm'].includes(role)) ? (
+    <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} />}>
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
-      {mode === 'modal' && <MenuItem icon={<Maximize2 className="h-4 w-4" />} onSelect={() => { s.closeAll(); s.go({ page: 'job', id: job.id }) }}>Open as a full page</MenuItem>}
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
-  )
+  ) : null
   const meta = [job.client, job.address].filter(Boolean)
   return (
     <div className={cn('relative border-b border-line bg-white px-5 pb-2.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
@@ -167,7 +164,7 @@ export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'm
 }
 
 /* ---------------- footer: the one thing to do now ---------------- */
-function ProjectFooter({ job, part }: { job: Job; part: PTab }) {
+function ProjectFooter({ job, part, onStep }: { job: Job; part: PTab; onStep: (k: string) => void }) {
   const s = useStore()
   const prim = PRIMARY[job.stage]
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
@@ -185,7 +182,7 @@ function ProjectFooter({ job, part }: { job: Job; part: PTab }) {
   /* the one button: my next step here, or what this stage needs */
   const main = viewer ? null : next && (locked || !prim)
     ? (next.mine
-      ? <Button variant="primary" className="max-w-[26rem] max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button>
+      ? <Button variant="primary" className="max-w-[26rem] max-sm:max-w-none" icon={<ArrowRight />} onClick={() => onStep(next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button>
       : <span className="inline-flex items-center gap-2 text-[0.84375rem] text-muted"><Avatar who={next.v.owner} size={22} />{PEOPLE[next.v.owner]?.short}’s turn — {todoOf(next.v)}</span>)
     : prim && !locked
       ? <Button variant="primary" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button>
