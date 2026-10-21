@@ -33,6 +33,7 @@ import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } fr
 import { JobPage } from '@/tileos/features/job/workspace'
 import { SurfaceModal, TileModal } from '@/tileos/features/job/scope-tab'
 import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal, WhatsOpenModal, ScopeWinModal, OrdersWinModal, MoneyWinModal } from '@/tileos/features/job/project-window'
+import { InstallSurfaceModal } from '@/tileos/features/job/rooms'
 import { StageModal } from '@/tileos/features/job/stage'
 import { BuildRoomsModal } from '@/tileos/features/job/overview'
 import { SchedulePage, AssignModal, BookingModal } from '@/tileos/features/schedule'
@@ -73,6 +74,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'files': return <FilesModal jobId={m.jobId} level={level} />
     case 'history': return <HistoryModal jobId={m.jobId} level={level} />
     case 'room': return <RoomModal jobId={m.jobId} room={m.room} view={m.view} surface={m.surface} level={level} />
+    case 'install-surface': return <InstallSurfaceModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
     case 'sow': return <ScopeDocModal jobId={m.jobId} estId={m.estId} print={m.print} level={level} />
     case 'estimate': return <EstimateModal id={m.id} level={level} />
     case 'aiplans': return <AiPlansModal estId={m.estId} level={level} />

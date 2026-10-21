@@ -38,6 +38,10 @@ export const REAL: {
   invite?: (p: { email: string; name: string; role: Role }) => Promise<'sent' | 'already'>
   /** a one-time link to text them instead (the real app, the admin only): it signs them in and asks for a password */
   inviteLink?: (p: { email: string; name: string; role: Role }) => Promise<string>
+  /** where each invite stands, by email (lower-case): when it went out, when they last signed in — the admin only */
+  inviteStatus?: (emails: string[]) => Promise<Record<string, { invited?: string; signedIn?: string; confirmed?: string; made?: string }>>
+  /** the admin sends himself an email from the app, to see that emails land at all — resolves with the address */
+  testEmail?: () => Promise<string>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */

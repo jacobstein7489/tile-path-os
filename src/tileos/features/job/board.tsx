@@ -1,9 +1,11 @@
 /* The project, like the estimate: a track on top with its four parts as rings — how far each one is, in one look —
- * and under it the part you're on, in full. Getting ready is the flow, numbered 1, 2, 3…, every step with its status
- * and whose it is; tap one and it opens beside the list (on a desktop) or over it (on a phone). Installing is the
- * rooms, Touch-ups the list, Billed and paid the money. Nothing to click through, nothing to scroll for. */
+ * and under it the part you're on, in full. Getting ready is the flow, one line per lane (the paperwork, the
+ * underlayment, the meeting… the installer, the tile from the store, our materials, the deposit): each line says which
+ * step it's on and whose turn it is, and a lane with a few steps shows them as dots. Tap a line and the step opens
+ * beside the list (on a desktop) or over it (on a phone). Installing is the rooms, Touch-ups the list, Billed and
+ * paid the money. The scope, the files, the messages are one tap under the track. */
 import * as React from 'react'
-import { X, Check, Play, Plus } from 'lucide-react'
+import { X, Check, Play, Plus, Grid2x2, Paperclip, MessageCircle, Package, History } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
@@ -11,12 +13,14 @@ import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
 import { roomPct } from '@/tileos/data/jobs'
 import { Ring } from '@/tileos/components/ui/progress'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
-import { isGettingReady, stepsFor, stepCounts, type StepView } from '../steps'
+import { isGettingReady, stepsFor, stepCounts, lanesFor, type StepView, type LaneView } from '../steps'
 import { StepIcon } from '../steps-ui'
-import { StepInline, todoOf } from '../stepwin'
+import { StepInline, StepTabs, todoOf } from '../stepwin'
+import { unreadOf } from '../messages'
+import { tilesOf } from '@/tileos/data/jobs'
 import { pictureOf } from '../progressbill'
 import { startProject } from '../flows'
-import { RoomsTab } from './rooms'
+import { RoomsTab, RoomPanel } from './rooms'
 import { MoneyTab } from './money-tab'
 import { TouchupsList } from '../touchups'
 import { firstName } from './kit'
@@ -104,17 +108,58 @@ function NumMark({ n, state }: { n: number; state: StepView['state'] }) {
   return <span className={cn(box, 'bg-white text-faint ring-[0.09375rem] ring-inset ring-[#d9d3c9]')}>{n}</span>
 }
 
-/** one line of the flow: the number, the step, the word on the right — a problem or a wait gets its note under it */
-function StepLine({ n, v, word, tone, note, on, onClick, muted }: { n: number; v: StepView; word: string; tone: string; note?: string; on?: boolean; onClick: () => void; muted?: boolean }) {
+/** a lane's steps as dots: green done, blue where it's going on, red for a problem, amber waiting, hollow not yet */
+function Dots({ steps }: { steps: StepView[] }) {
+  if (steps.length < 2) return null
+  const tone = (st: StepView['state']) => st === 'done' || st === 'na' ? 'bg-[#2c8a5b]' : st === 'bad' ? 'bg-bad-500' : st === 'now' ? 'bg-white ring-[0.125rem] ring-inset ring-brand-600' : st === 'wait' ? 'bg-white ring-[0.125rem] ring-inset ring-warn-500' : 'bg-white ring-1 ring-inset ring-[#d2ccc1]'
+  return <span className="ml-1.5 inline-flex shrink-0 items-center gap-[0.1875rem] align-middle" aria-label={`${steps.filter((x) => x.state === 'done' || x.state === 'na').length} of ${steps.length} steps done`}>{steps.map((x) => <span key={x.key} className={cn('inline-block h-[0.4375rem] w-[0.4375rem] rounded-full', tone(x.state))} />)}</span>
+}
+
+/** one line of the flow: the number, the lane, the word on the right — and under it the step it's on, or the problem */
+function LaneLine({ n, lane, me, on, onClick, past }: { n: number; lane: LaneView; me: PersonKey; on?: boolean; onClick: () => void; past?: boolean }) {
+  const at = lane.at
+  const state = past ? 'done' : lane.state
+  const w = past ? { text: 'Done', tone: 'ok' } : lane.state === 'done' ? { text: at.doneOn ? `Done ${at.doneOn}` : 'Done', tone: 'ok' } : stepWord(at, me)
+  /* the step the lane is on, when it isn't the lane itself (the installer lane on "Show him the job") */
+  const sub = lane.steps.length > 1 && at.short.toLowerCase() !== lane.label.toLowerCase() ? at.short : ''
+  /* what's going on in the lane, in a few words: the problem, the wait, or the step it's on */
+  const note = past || state === 'done' || state === 'later' ? '' : [sub, at.note || ''].filter(Boolean).join(at.state === 'bad' || at.state === 'wait' ? ' — ' : ' · ')
+  const muted = past || state === 'done'
   return (
-    <button data-step={v.key} onClick={onClick} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-l-[0.1875rem] px-3 py-[0.25rem] text-left transition max-sm:py-2 [@media(max-height:900px)]:py-[0.1875rem]', on ? 'border-brand-600 bg-brand-50/70' : 'border-transparent hover:bg-[#f6f3ee]')}>
-      <NumMark n={n} state={v.state} />
+    <button data-lane={lane.key} data-step={at.key} data-has={lane.steps.map((x) => x.key).join(' ')} onClick={onClick} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-l-[0.1875rem] px-3 py-[0.3125rem] text-left transition max-sm:py-2 [@media(max-height:900px)]:py-[0.25rem]', on ? 'border-brand-600 bg-brand-50/70' : 'border-transparent hover:bg-[#f6f3ee]')}>
+      <NumMark n={n} state={state} />
       <span className="min-w-0 flex-1">
-        <span className={cn('block truncate text-[0.875rem] leading-[1.25rem]', muted ? 'text-ink-2' : v.state === 'later' ? 'text-muted' : 'font-medium text-ink')}>{v.short}</span>
-        {note && <span className={cn('block truncate text-[0.75rem] leading-[1rem]', tone === 'bad' ? 'text-bad-600' : 'text-muted')}>{note}</span>}
+        <span className={cn('block truncate text-[0.875rem] leading-[1.25rem]', muted ? 'text-ink-2' : state === 'later' ? 'text-muted' : 'font-medium text-ink')}>{lane.label}{!past && <Dots steps={lane.steps} />}</span>
+        {note && <span className={cn('block truncate text-[0.75rem] leading-[1rem]', w.tone === 'bad' ? 'text-bad-600' : 'text-muted')}>{note.replace(/ — $/, '')}</span>}
       </span>
-      <span className={cn('shrink-0 text-[0.78125rem] tnum', TONE[tone] || TONE.plain)}>{word}</span>
+      <span className={cn('shrink-0 text-[0.78125rem] tnum', TONE[w.tone] || TONE.plain)}>{w.text}</span>
     </button>
+  )
+}
+
+/** under the track: the scope, the files, the messages, the orders, everything that happened — one tap each */
+function Links({ job }: { job: Job }) {
+  const s = useStore()
+  const rooms = s.rooms[job.id] || []
+  const sf = rooms.flatMap((r) => r.surfaces).reduce((n, x) => n + (x.sf || 0), 0)
+  const tiles = tilesOf(job.id).length
+  const files = s.files.filter((f) => f.jobId === job.id).length
+  const unread = unreadOf(s, job.id)
+  const orders = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
+  const money = s.role !== 'site' && s.role !== 'crew'
+  const item = (icon: React.ReactNode, label: string, sub: string | undefined, on: () => void, hot?: boolean) => (
+    <button key={label} onClick={on} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] font-semibold text-ink-2 transition hover:bg-white hover:text-ink">
+      <span className="text-faint [&>svg]:h-[0.875rem] [&>svg]:w-[0.875rem]">{icon}</span>{label}{sub && <span className={cn('font-normal', hot ? 'font-semibold text-brand-700' : 'text-muted')}>{sub}</span>}
+    </button>
+  )
+  return (
+    <div className="no-scrollbar -mx-1 mt-1.5 flex items-center gap-x-2 overflow-x-auto px-1 max-sm:gap-x-1">
+      {item(<Grid2x2 />, 'Scope of work', rooms.length ? `· ${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}${tiles ? ` · ${tiles} ${tiles === 1 ? 'tile' : 'tiles'}` : ''}` : '· nothing yet', () => s.open({ t: 'scopewin', jobId: job.id }))}
+      {item(<Paperclip />, 'Files and photos', files ? `· ${files}` : undefined, () => s.open({ t: 'files', jobId: job.id }))}
+      {item(<MessageCircle />, 'Messages', unread ? `· ${unread} new` : undefined, () => s.open({ t: 'chat', jobId: job.id }), unread > 0)}
+      {money && item(<Package />, 'Orders', orders ? `· ${orders}` : undefined, () => s.open({ t: 'orderswin', jobId: job.id }))}
+      {item(<History />, 'What happened', undefined, () => s.open({ t: 'history', jobId: job.id }))}
+    </div>
   )
 }
 
@@ -130,6 +175,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
   const past = !ready && !pricing
   /* past getting ready the steps still show (all done): when each thing happened is part of the picture */
   const steps = pricing ? [] : stepsFor(s, job).filter((v) => v.state !== 'na')
+  const lanes = lanesFor(steps)
   const c = stepCounts(steps)
   const b = s.bookings.find((x) => x.jobId === job.id)
   const crew = (job.crew || b?.crew) as PersonKey | undefined
@@ -141,14 +187,15 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
   const pic = money ? pictureOf(s, job.id) : null
   const pct = job.pct ?? 0
   const allDone = c.total > 0 && c.done === c.total
+  const lDone = lanes.filter((l) => l.state === 'done').length
 
   const parts: PartView[] = [
     {
       key: 'ready', label: 'Getting ready', short: 'Ready',
       pct: pricing ? 0 : past ? 100 : c.total ? Math.round((c.done / c.total) * 100) : 0,
       state: past ? 'done' : pricing ? 'later' : c.bad ? 'bad' : 'now',
-      sub: past ? 'Done' : pricing ? 'Once the estimate is won' : c.bad ? `${c.done} of ${c.total} done · ${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : allDone ? `All ${c.total} done — ready to start` : `${c.done} of ${c.total} done`,
-      subShort: past ? 'Done' : pricing ? 'Not yet' : c.bad ? `${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : `${c.done} of ${c.total}`,
+      sub: past ? 'Done' : pricing ? 'Once the estimate is won' : c.bad ? `${lDone} of ${lanes.length} done · ${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : allDone ? `All ${lanes.length} done — ready to start` : `${lDone} of ${lanes.length} done`,
+      subShort: past ? 'Done' : pricing ? 'Not yet' : c.bad ? `${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : `${lDone} of ${lanes.length}`,
     },
     {
       key: 'install', label: 'Installing', short: 'Installing',
@@ -180,6 +227,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
   const [room, setRoom] = React.useState<string | undefined>(() => (rooms.find((r) => r.surfaces.some((x) => x.state === 'working')) || rooms.find((r) => roomPct(r) < 100) || rooms[0])?.name)
   const auto = steps.find((v) => (v.state === 'now' || v.state === 'bad') && v.owner === me) || steps.find((v) => v.state === 'now' || v.state === 'bad') || steps.find((v) => v.state === 'wait')
   const focused = (focus ? steps.find((v) => v.key === focus) : undefined) || (focus ? undefined : auto)
+  const focusedLane = focused ? lanes.find((l) => l.steps.some((x) => x.key === focused.key)) : undefined
   const open = (k: string) => { if (wide) setFocus(k); else s.open({ t: 'step', jobId: job.id, k }) }
   const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.title.startsWith('Touch-ups at') && !t.step)
   const canAdd = !['accounting', 'client', 'crew'].includes(s.role)
@@ -187,6 +235,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
   return (
     <div className="flex min-h-0 flex-col">
       <Track parts={parts} at={part} onPick={setPart} />
+      <Links job={job} />
 
       {/* ---- Getting ready: the flow, and the step you're on ---- */}
       {part === 'ready' && (
@@ -200,10 +249,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
                 <span className={cn('text-[0.78125rem]', c.bad ? 'font-semibold text-bad-600' : 'text-muted')}>{past ? 'All done' : parts[0].sub}</span>
               </div>
               <div className="py-1.5">
-                {steps.map((v, i) => {
-                  const w = stepWord(v, me)
-                  return <StepLine key={v.key} n={i + 1} v={past ? { ...v, state: 'done' } : v} word={past ? 'Done' : w.text} tone={past ? 'ok' : w.tone} note={!past && (v.state === 'bad' || v.state === 'wait') ? v.note : undefined} on={wide && focused?.key === v.key} onClick={() => open(v.key)} muted={past || isDone(v)} />
-                })}
+                {lanes.map((l, i) => <LaneLine key={l.key} n={i + 1} lane={l} me={me} past={past} on={wide && focusedLane?.key === l.key} onClick={() => open(l.at.key)} />)}
                 {tasks.length > 0 && (
                   <>
                     <div className="px-4 pb-0.5 pt-3 text-[0.71875rem] font-semibold text-faint">Also on this project</div>
@@ -229,6 +275,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
                       <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{isDone(focused) || past ? focused.label : todoOf(focused)}</span>
                       {focus && <button onClick={() => setFocus(null)} aria-label="Close the step" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash hover:text-ink"><X className="h-4 w-4" /></button>}
                     </div>
+                    {focusedLane && focusedLane.steps.length > 1 && <StepTabs list={focusedLane.steps} at={focused.key} go={(x) => x && setFocus(x.key)} me={me} />}
                     <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-3">
                       <StepInline key={focused.key} job={job} v={focused} onClose={() => setFocus(null)} />
                     </div>
@@ -256,7 +303,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
             </div>
           )}
           {rooms.length ? (
-            <div className={cn('grid min-h-0 gap-3', wide && 'grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]')}>
+            <div className={cn('grid min-h-0 gap-3', wide && 'grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
               <section className="min-w-0 self-start overflow-hidden rounded-[0.875rem] border border-[#ebe6dd] bg-white">
                 <div className="flex items-center justify-between gap-2 border-b border-line-2 px-4 py-2.5">
                   <span className="text-[0.9375rem] font-semibold text-ink">Rooms</span>
@@ -280,7 +327,7 @@ export function ProjectBoard({ job, part0 }: { job: Job; part0?: string }) {
                   })}
                 </div>
               </section>
-              {wide && <div data-panel className="min-w-0"><RoomsTab key={room} job={job} room={room} noRail /></div>}
+              {wide && <aside data-panel className="flex min-h-[24rem] min-w-0 flex-col overflow-hidden rounded-[0.875rem] border border-[#ebe6dd] bg-white"><RoomPanel key={room} job={job} room={room} /></aside>}
             </div>
           ) : <RoomsTab job={job} />}
         </div>

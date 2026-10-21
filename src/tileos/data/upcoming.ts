@@ -30,6 +30,8 @@ export interface Prep {
   walk?: { state: 'todo' | 'set' | 'done'; when?: string; with?: string }
   /** our materials changed by hand: added, a different amount, taken off the list */
   mats?: MatEdits
+  /** where the laser line was set for the floor heights — "40 inches up, on the hallway wall" */
+  laser?: { where: string; date?: string; by?: string }
 }
 export interface MatEdits { add?: { itemId: string; qty: number; note?: string }[]; qty?: Record<string, number>; off?: string[] }
 

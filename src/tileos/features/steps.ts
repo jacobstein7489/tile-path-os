@@ -68,11 +68,11 @@ export interface StepRec {
 }
 /* what the site manager looks at on the site check */
 export const SITE_CHECKS: { k: string; label: string; sub: string }[] = [
-  { k: 'heights', label: 'Wall heights', sub: 'Measured where the tile goes up' },
-  { k: 'electric', label: 'Electrical', sub: 'Boxes and wires where the layout needs them' },
-  { k: 'plumbing', label: 'Plumbing', sub: 'Valves, drains and shower heads in place' },
+  { k: 'power', label: 'Power on site', sub: 'An outlet for the saw and the mixer' },
   { k: 'water', label: 'Water on site', sub: 'Running water to mix and clean up' },
-  { k: 'ready', label: 'Ready for us', sub: 'Walls done, floors clean, room to work' },
+  { k: 'plumbing', label: 'Plumbing rough-in done', sub: 'Valves, drains, the tub and the shower heads in place' },
+  { k: 'electric', label: 'Electrical rough-in done', sub: 'Boxes and wires where the tile goes' },
+  { k: 'ready', label: 'Walls and floors ready for us', sub: 'Boards up, floors clean, room to work' },
 ]
 export interface StepAction { label: string; run?: () => void; pick?: 'delivery' | 'checkin' | 'check' }
 export interface StepView {
@@ -100,12 +100,19 @@ export interface StepView {
 }
 
 /** the parts of getting a project ready, in the order they read on the project */
+/** the lanes of the flow: one line each on the project. A lane with more than one step (the installer: his PO, show
+ *  him the job, his yes) reads like progress — the line says which step it's on, and the dots say how far. */
 export const PHASES: { key: string; label: string }[] = [
   { key: 'paper', label: 'Tile paperwork' },
+  { key: 'setup', label: 'Underlayment' },
   { key: 'meet', label: 'Design meeting' },
-  { key: 'site', label: 'The site' },
+  { key: 'grout', label: 'Grout and pictures' },
+  { key: 'layouts', label: 'Layouts' },
+  { key: 'level', label: 'Floor heights' },
+  { key: 'site', label: 'Site check' },
   { key: 'installer', label: 'The installer' },
-  { key: 'deliver', label: 'Deliveries' },
+  { key: 'store', label: 'Tile from the store' },
+  { key: 'materials', label: 'Our materials' },
   { key: 'money', label: 'Deposit' },
   { key: 'own', label: 'Your own steps' },
 ]
@@ -118,20 +125,20 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get the paperwork', owner: 'estimator' },
   { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter the paperwork', owner: 'takeoff', after: ['getpaper'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Quantities', owner: 'takeoff', after: ['rooms'] },
-  { key: 'setup', phase: 'site', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
+  { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
   { key: 'change', phase: 'meet', label: 'What was decided at the meeting — confirmed', short: 'Confirm what was decided', owner: 'office', after: ['design'], custom: true },
-  { key: 'tile', phase: 'meet', label: 'Grout and a picture for every tile', short: 'Grout and pictures', owner: 'estimator', after: ['rooms'] },
-  { key: 'layouts', phase: 'meet', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
-  { key: 'level', phase: 'site', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
+  { key: 'tile', phase: 'grout', label: 'Grout and a picture for every tile', short: 'Grout and pictures', owner: 'estimator', after: ['rooms'] },
+  { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
+  { key: 'level', phase: 'level', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
   { key: 'heights', phase: 'site', label: 'Site checked — wall heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
   { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Installer PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Job shown to the installer', short: 'Show him the job', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer confirmed — he took the PO and the dates', short: 'Installer confirmed', owner: 'ys', after: ['installer'] },
-  { key: 'order', phase: 'deliver', label: 'Tile delivery date from the store', short: 'Tile delivery date', owner: 'office', after: ['rooms'] },
-  { key: 'delivered', phase: 'deliver', label: 'Tile delivered and counted', short: 'Tile delivered', owner: 'yakov', after: ['order'] },
-  { key: 'materials', phase: 'deliver', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
-  { key: 'matin', phase: 'deliver', label: 'Our materials delivered', short: 'Materials delivered', owner: 'matBy', after: ['materials'] },
+  { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Tile delivery date', owner: 'office', after: ['rooms'] },
+  { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Tile delivered', owner: 'yakov', after: ['order'] },
+  { key: 'materials', phase: 'materials', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
+  { key: 'matin', phase: 'materials', label: 'Our materials delivered', short: 'Materials delivered', owner: 'matBy', after: ['materials'] },
   { key: 'deposit', phase: 'money', label: 'Deposit invoiced and paid', short: 'Deposit', owner: 'accounting' },
 ]
 /** the built-in steps before the paperwork was split (a company's saved list from then still has these) */
@@ -294,7 +301,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       if (hs.total && hs.measured === hs.total && !n) return { state: 'done', note: 'Square feet and materials follow the real heights' }
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !n && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: n ? `${n} of ${SITE_CHECKS.length} checked` : hs.total ? `Heights ${hs.measured} of ${hs.total} walls · electrical, plumbing, water` : 'Electrical, plumbing, water — and heights where the layout needs them', action: { label: 'Do the site check' } }
+      return { state: 'now', note: n ? `${n} of ${SITE_CHECKS.length} checked` : 'Power, water, plumbing, electrical — and the walls and floors ready for us', action: { label: 'Do the site check' } }
     }
     case 'level': {
       const fl = floorRooms(rooms)
@@ -392,6 +399,29 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     }
   }
   return null
+}
+
+/** one line of the flow: a lane and where it is — the step it's on, how many of its steps are done */
+export interface LaneView { key: string; label: string; steps: StepView[]; at: StepView; state: StepState; done: number; total: number }
+const laneOrder = (phase: string) => { const i = PHASES.findIndex((p) => p.key === phase); return i < 0 ? PHASES.length : i }
+/** the steps grouped into lanes, in the flow's order — a company's own step is a lane of its own */
+export function lanesFor(steps: StepView[]): LaneView[] {
+  const groups: { key: string; label: string; phase: string; steps: StepView[] }[] = []
+  steps.forEach((v) => {
+    const own = v.phase === 'own' || !PHASES.some((p) => p.key === v.phase)
+    const key = own ? 'own:' + v.key : v.phase
+    let g = groups.find((x) => x.key === key)
+    if (!g) { g = { key, label: own ? v.short : PHASES.find((p) => p.key === v.phase)!.label, phase: own ? 'own' : v.phase, steps: [] }; groups.push(g) }
+    g.steps.push(v)
+  })
+  groups.sort((a, b) => laneOrder(a.phase) - laneOrder(b.phase) || steps.indexOf(a.steps[0]) - steps.indexOf(b.steps[0]))
+  return groups.map((g) => {
+    const list = g.steps
+    const at = list.find((v) => v.state === 'bad') || list.find((v) => v.state === 'now') || list.find((v) => v.state === 'wait') || list.find((v) => v.state === 'later') || list[list.length - 1]
+    const done = list.filter((v) => v.state === 'done' || v.state === 'na').length
+    const state: StepState = list.some((v) => v.state === 'bad') ? 'bad' : list.some((v) => v.state === 'now') ? 'now' : list.some((v) => v.state === 'wait') ? 'wait' : done === list.length ? 'done' : 'later'
+    return { key: g.key, label: g.label, steps: list, at, state, done, total: list.length }
+  })
 }
 
 /** every step of one project, in order, with who has it and where it stands */
@@ -748,6 +778,13 @@ export function setFloorLevel(jobId: string, room: string, high: number, low: nu
     const rec = (st.stepRecs[jobId] ||= {}).level
     if (rec?.done) { delete rec.done; delete rec.by }
   }, 'Floor saved')
+}
+/** where the laser line was set on this project (40" up, on the hallway wall) — so anyone can check the numbers again */
+export function setLaser(jobId: string, where: string) {
+  const s = S()
+  const was = s.prep[jobId]?.laser?.where || ''
+  if (was === where.trim()) return
+  s.commit((st) => { const p = (st.prep[jobId] ||= {}); if (where.trim()) p.laser = { where: where.trim(), date: TODAY, by: me() }; else delete p.laser }, where.trim() ? 'Laser line noted' : 'Laser line cleared')
 }
 /** a floor is too far out for us: the office hears it, with the numbers, to take up with the GC */
 export function sendFloorProblems(jobId: string) {

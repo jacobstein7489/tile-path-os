@@ -76,3 +76,30 @@ export const inviteLink = createServerFn({ method: "POST" })
       return { ok: false, why: why(e) };
     }
   });
+
+/** where each invite stands, by email: when it went out, whether they've signed in — for the Team page. The admin only. */
+export type Standing = { invited?: string; signedIn?: string; confirmed?: string; made?: string }
+export const inviteStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { emails: string[] }) => ({ emails: Array.from(new Set((Array.isArray(d?.emails) ? d.emails : []).map((e) => String(e || "").trim().toLowerCase()).filter(Boolean))).slice(0, 200) }))
+  .handler(async ({ data, context }): Promise<{ ok: true; users: Record<string, Standing> } | { ok: false; why: string }> => {
+    if (!(await isAdmin(context))) return { ok: false, why: "Only the admin sees this" };
+    const admin = supabaseAdmin as any;
+    const want = new Set(data.emails);
+    const users: Record<string, Standing> = {};
+    try {
+      for (let page = 1; page <= 10 && want.size; page++) {
+        const { data: res, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+        if (error) return { ok: false, why: why(error) };
+        for (const u of res?.users || []) {
+          const e = String(u.email || "").toLowerCase();
+          if (!want.has(e)) continue;
+          users[e] = { invited: u.invited_at || undefined, signedIn: u.last_sign_in_at || undefined, confirmed: u.email_confirmed_at || u.confirmed_at || undefined, made: u.created_at || undefined };
+        }
+        if (!res?.users?.length || res.users.length < 200) break;
+      }
+      return { ok: true, users };
+    } catch (e) {
+      return { ok: false, why: why(e) };
+    }
+  });

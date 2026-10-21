@@ -4,7 +4,7 @@
  * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
  * Back / Next walk through that part's steps. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, X, Sparkles, Clock3, Upload, FileText, Hourglass, CornerDownRight, Users, Lock, MoreHorizontal } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -19,12 +19,12 @@ import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jo
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView, setFloorLevel, fracIn, parseIn, floorRooms, isFloor, sendFloorProblems, LEVEL_OK, LEVEL_PREP } from './steps'
-import { insidePeople, AddStep, StepIcon } from './steps-ui'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteCheck, sendSiteProblems, waitOnStep, stopWaiting, materialsCame, materialsLate, logChanges, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, CHANGE_KINDS, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LEVEL_OK, LEVEL_PREP } from './steps'
+import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
 import { confirmSetting } from './setting'
-import { heightStatus, isWall } from './heights'
+import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
 import { pickInstaller, sendDraftIPO, setSurfaceTile } from './flows2'
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
@@ -214,7 +214,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
 
 /** this part's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done, a
  *  blue ring where it's going on, red for a problem, and who has it. The step you're on is underlined. */
-function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
+export function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
   return (
     <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 max-sm:px-1">
       <Path
@@ -1006,18 +1006,17 @@ function Deposit({ job }: { job: Job }) {
 }
 
 /* ================= 8 · the site check ================= */
-const CHECK_ICON: Record<string, React.ElementType> = { heights: Ruler, level: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, ready: HardHat }
+const CHECK_ICON: Record<string, React.ElementType> = { power: Plug, level: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, ready: HardHat }
 function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const answers = s.stepRecs[job.id]?.heights?.checks || {}
-  const hs = heightStatus(s, job.id)
   const answered = SITE_CHECKS.filter((c) => answers[c.k]).length
   const bad = SITE_CHECKS.filter((c) => answers[c.k] && !answers[c.k].ok)
   const done = v.state === 'done'
   return (
     <div>
       <Block title="On site" right={`${answered} of ${SITE_CHECKS.length} checked`}>
-        {SITE_CHECKS.map((c) => <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} heights={c.k === 'heights' && hs.total ? hs : undefined} />)}
+        {SITE_CHECKS.map((c) => <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} />)}
       </Block>
       {!done && (
         <Actions>
@@ -1028,8 +1027,7 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
     </div>
   )
 }
-function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: string; sub: string }; a?: { ok: boolean; note?: string }; heights?: { measured: number; total: number } }) {
-  const s = useStore()
+function CheckRow({ job, c, a }: { job: Job; c: { k: string; label: string; sub: string }; a?: { ok: boolean; note?: string } }) {
   const [note, setNote] = React.useState(a?.note || '')
   const Ic = CHECK_ICON[c.k] || Check
   const chip = (on: boolean, tone: 'ok' | 'bad') => cn('inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[0.8125rem] font-semibold transition', on ? (tone === 'ok' ? 'border-ok-500 bg-ok-500 text-white' : 'border-bad-500 bg-bad-500 text-white') : 'border-line bg-white text-ink-2 hover:bg-wash')
@@ -1039,9 +1037,8 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden @max-lg:hidden"><Ic className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1 max-sm:basis-full @max-lg:basis-full">
           <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
-          <span className="block text-[0.78125rem] text-muted">{c.sub}{heights ? ` · ${heights.measured} of ${heights.total} walls measured` : ''}</span>
+          <span className="block text-[0.78125rem] text-muted">{c.sub}</span>
         </span>
-        {heights && <Button size="sm" variant="ghost" icon={<Ruler />} onClick={() => s.open({ t: 'heights', jobId: job.id })}>Enter heights</Button>}
         <span className="flex shrink-0 gap-1.5 max-sm:ml-auto @max-lg:ml-auto">
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === true ? null : true)} className={chip(a?.ok === true, 'ok')}><Check className="h-3.5 w-3.5" strokeWidth={3} />Good</button>
           <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === false ? null : false, note.trim() || undefined)} className={chip(a?.ok === false, 'bad')}><X className="h-3.5 w-3.5" strokeWidth={3} />Problem</button>
@@ -1053,74 +1050,82 @@ function CheckRow({ job, c, a, heights }: { job: Job; c: { k: string; label: str
 }
 
 /* ================= 8b · the floors: the high and the low point of every one ================= */
-const FRACS = ['⅛', '¼', '⅜', '½', '⅝', '¾', '⅞']
-/** every floor we tile, one line each: type the high and the low point (36 3/4, 36¾ or 36.75 — all the same), and the
- *  line says flat, self-leveler, or the GC's to fix. A mud bed levels itself, so it needs no numbers. */
+const FRACS: [string, number][] = [['0', 0], ['⅛', 0.125], ['¼', 0.25], ['⅜', 0.375], ['½', 0.5], ['⅝', 0.625], ['¾', 0.75], ['⅞', 0.875]]
+const splitIn = (n?: number) => (n == null ? { whole: '', frac: 0 } : { whole: String(Math.floor(n)), frac: Math.round((n - Math.floor(n)) * 1000) / 1000 })
+/** one reading: the tape from the floor up to the laser line — whole inches, and the fraction picked from a list */
+function Reading({ label, value, onSave, bad }: { label: string; value?: number; onSave: (n: number | null) => void; bad?: boolean }) {
+  const [whole, setWhole] = React.useState(() => splitIn(value).whole)
+  const [frac, setFrac] = React.useState(() => splitIn(value).frac)
+  React.useEffect(() => { const v = splitIn(value); setWhole(v.whole); setFrac(v.frac) }, [value])
+  const commit = (w: string, f: number) => { const n = w.trim() === '' ? null : Number(w); onSave(n == null || isNaN(n) ? null : Math.round((n + f) * 1000) / 1000) }
+  const box = cn('h-9 rounded-lg border bg-white text-[0.9375rem] tnum text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100', bad ? 'border-bad-300' : 'border-line')
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input aria-label={label} inputMode="numeric" value={whole} placeholder="40" onChange={(e) => setWhole(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={() => commit(whole, frac)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.125rem] px-1.5 text-center')} />
+      <span className="relative inline-flex">
+        <select aria-label={`${label} — the fraction`} value={String(frac)} onChange={(e) => { const f = Number(e.target.value); setFrac(f); if (whole.trim() !== '') commit(whole, f) }} className={cn(box, 'w-[3.75rem] appearance-none pl-2 pr-6')}>
+          {FRACS.map(([t, n]) => <option key={t} value={String(n)}>{t === '0' ? '—' : t}</option>)}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+      </span>
+    </span>
+  )
+}
+/** every floor we tile, one line each: where the laser line was set, then the tape from the floor up to it at the
+ *  highest spot and the lowest spot of each floor. The line says flat, self-leveler, or the GC's to fix. A mud bed
+ *  levels itself, so it needs no numbers. */
 function FloorLevels({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rooms = floorRooms(s.rooms[job.id] || [])
   const toDo = rooms.filter((f) => !f.mud)
   const measured = toDo.filter((f) => f.word)
   const bad = measured.filter((f) => f.word!.tone === 'bad')
-  const [text, setText] = React.useState<Record<string, string>>({})
-  const [on, setOn] = React.useState<string | null>(null)
-  const shown = (f: typeof rooms[number], k: 'high' | 'low') => text[`${f.room.name}|${k}`] ?? (f.room.level ? fracIn(f.room.level[k]) : '')
-  const edit = (f: typeof rooms[number], k: 'high' | 'low', t: string) => setText((p) => ({ ...p, [`${f.room.name}|${k}`]: t }))
-  const save = (f: typeof rooms[number]) => {
-    const high = parseIn(text[`${f.room.name}|high`] ?? (f.room.level ? String(f.room.level.high) : ''))
-    const low = parseIn(text[`${f.room.name}|low`] ?? (f.room.level ? String(f.room.level.low) : ''))
+  const laser = s.prep[job.id]?.laser
+  const [where, setWhere] = React.useState(laser?.where || '')
+  const [draft, setDraft] = React.useState<Record<string, number | null>>({})
+  const save = (f: typeof rooms[number], k: 'high' | 'low', n: number | null) => {
+    const key = `${f.room.name}|${k}`
+    const next = { ...draft, [key]: n }
+    setDraft(next)
+    const high = next[`${f.room.name}|high`] ?? f.room.level?.high ?? null
+    const low = next[`${f.room.name}|low`] ?? f.room.level?.low ?? null
     if (high == null || low == null) return
     if (f.room.level && f.room.level.high === high && f.room.level.low === low) return
     setFloorLevel(job.id, f.room.name, high, low)
-    setText((p) => { const n = { ...p }; delete n[`${f.room.name}|high`]; delete n[`${f.room.name}|low`]; return n })
-  }
-  /* the fraction buttons under the line you're typing on: ¾ makes 36 into 36¾ */
-  const frac = (f: typeof rooms[number], k: 'high' | 'low', c: string) => {
-    const cur = parseIn(shown(f, k)) ?? 0
-    edit(f, k, `${Math.floor(cur) ? Math.floor(cur) : ''}${c}`)
   }
   if (!rooms.length) return <div className="rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-muted">No floors on this project — nothing to measure.</div>
   return (
     <div>
-      <div className="overflow-hidden rounded-xl border border-line">
-        <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-center gap-2 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted">
-          <span>Floor</span><span className="text-center">High point</span><span className="text-center">Low point</span>
+      <div className="rounded-xl border border-line bg-wash/60 px-4 py-3">
+        <label className="block">
+          <span className="block text-[0.8125rem] font-semibold text-ink">Where the laser line is set</span>
+          <input aria-label="Where the laser line is set" value={where} onChange={(e) => setWhere(e.target.value)} onBlur={() => setLaser(job.id, where)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="e.g. 40 inches up, on the hallway wall by the door" className="mt-1.5 h-9 w-full rounded-lg border border-line bg-white px-3 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+        </label>
+        <div className="mt-2 text-[0.78125rem] leading-snug text-muted">{laser?.date ? `Noted ${labelFromIso(laser.date)}${laser.by ? ` by ${PEOPLE[laser.by as PersonKey]?.short || ''}` : ''} · ` : ''}Then, in every room, the tape from the floor up to the line — at the highest spot and the lowest spot.</div>
+      </div>
+      <div className="mt-3 overflow-hidden rounded-xl border border-line">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted max-sm:hidden @max-md:hidden">
+          <span>Floor</span><span className="text-center">Highest spot<span className="block font-normal text-faint">floor → laser</span></span><span className="text-center">Lowest spot<span className="block font-normal text-faint">floor → laser</span></span>
         </div>
         {rooms.map((f) => {
           const w = f.word
-          const here = on?.startsWith(f.room.name + '|')
           const method = f.room.surfaces.find((x) => isFloor(x.name))?.method
           return (
-            <div key={f.room.name} className="border-b border-line-2 last:border-b-0">
-              <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] items-center gap-2 px-3 py-2">
-                <span className="min-w-0">
-                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{f.room.name}</span>
-                  <span className={cn('block truncate text-[0.75rem]', f.mud ? 'text-muted' : !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'font-semibold text-bad-600')}>
-                    {f.mud ? 'Mud bed — it levels itself' : w ? w.label : method === 'slu' ? 'Self-leveler planned — measure it anyway' : 'Off one laser line, in inches'}
-                  </span>
+            <div key={f.room.name} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 border-b border-line-2 px-3 py-2 last:border-b-0 max-sm:grid-cols-[auto_auto] @max-md:grid-cols-[auto_auto]">
+              <span className="min-w-0 max-sm:col-span-2 @max-md:col-span-2">
+                <span className="block truncate text-[0.875rem] font-semibold text-ink">{f.room.name}</span>
+                <span className={cn('block truncate text-[0.75rem]', f.mud ? 'text-muted' : !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'font-semibold text-bad-600')}>
+                  {f.mud ? 'Mud bed — it levels itself' : w ? w.label : method === 'slu' ? 'Self-leveler planned — measure it anyway' : 'Not measured yet'}
                 </span>
-                {f.mud
-                  ? <span className="col-span-2 text-center text-[0.8125rem] text-faint">no numbers needed</span>
-                  : (['high', 'low'] as const).map((k) => (
-                    <input
-                      key={k}
-                      aria-label={`${f.room.name} floor ${k} point in inches`}
-                      inputMode="decimal"
-                      value={shown(f, k)}
-                      placeholder={k === 'high' ? '36¾' : '37'}
-                      onFocus={(e) => { setOn(`${f.room.name}|${k}`); e.target.select() }}
-                      onBlur={() => { setOn((o) => (o === `${f.room.name}|${k}` ? null : o)); save(f) }}
-                      onChange={(e) => edit(f, k, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                      className={cn('h-9 w-full min-w-0 rounded-lg border bg-white px-2 text-center text-[0.9375rem] tnum text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100', w?.tone === 'bad' ? 'border-bad-300' : 'border-line')}
-                    />
-                  ))}
-              </div>
-              {here && (
-                <div className="flex gap-1 px-3 pb-2">
-                  {FRACS.map((c) => <button key={c} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => frac(f, on!.split('|')[1] as 'high' | 'low', c)} className="h-8 flex-1 rounded-lg border border-line bg-white text-[0.9375rem] font-semibold text-ink-2 hover:bg-wash">{c}</button>)}
-                </div>
-              )}
+              </span>
+              {f.mud
+                ? <span className="col-span-2 text-[0.8125rem] text-faint max-sm:col-span-2 max-sm:text-left @max-md:text-left">no numbers needed</span>
+                : (['high', 'low'] as const).map((k) => (
+                  <span key={k} className="inline-flex flex-col items-start gap-0.5">
+                    <span className="text-[0.6875rem] font-semibold text-faint sm:hidden @max-md:block">{k === 'high' ? 'Highest spot' : 'Lowest spot'}</span>
+                    <Reading label={`${f.room.name} — ${k === 'high' ? 'highest' : 'lowest'} spot, floor to laser, in inches`} value={draft[`${f.room.name}|${k}`] ?? f.room.level?.[k]} bad={w?.tone === 'bad'} onSave={(n) => save(f, k, n)} />
+                  </span>
+                ))}
             </div>
           )
         })}
@@ -1248,99 +1253,5 @@ function Custom({ job, v }: { job: Job; v: StepView }) {
       <Field label="Note (optional)"><TextArea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything the next person should know" /></Field>
       <Actions><Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, v.key, note.trim() || undefined, { close: true })}>Done</Button></Actions>
     </div>
-  )
-}
-
-/* ================= the game plan — on the project ================= */
-const DOT: Record<string, string> = { bad: 'bg-bad-500', now: 'bg-brand-600', mine: 'bg-brand-600', wait: 'bg-warn-500', ev: 'bg-vio-500', task: 'bg-brand-400' }
-/** every step, grouped the way the work goes — one line each: where it stands, in words; who has it; when */
-export function GamePlan({ job }: { job: Job }) {
-  const s = useStore()
-  const me = meOf(s.role)
-  const [adding, setAdding] = React.useState(false)
-  const steps = stepsFor(s, job)
-  const c = stepCounts(steps)
-  const start = s.prep[job.id]?.targetISO
-  const stepTasks = new Set(steps.map((v) => v.taskId).filter(Boolean))
-  const tasks = s.tasks.filter((t) => t.jobId === job.id && (t.state === 'now' || t.state === 'waiting') && !stepTasks.has(t.id) && !t.step)
-  const meets = s.events.filter((e) => e.jobId === job.id && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).slice(0, 3)
-  const mine = steps.filter((v) => (v.state === 'now' || v.state === 'bad') && v.owner === me).length
-  return (
-    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-5 py-3.5 max-sm:px-4">
-        <div className="min-w-0">
-          <h3 className="text-[0.9375rem] font-semibold text-ink">Getting ready <span className="ml-1 text-[0.8125rem] font-semibold text-muted">{c.done} of {c.total} done</span></h3>
-          <div className="text-[0.78125rem] text-muted">{start ? `Starts ${labelFromIso(start)} · ` : ''}each step goes on its person’s Today when the one before it is done{mine ? ` · ${mine} for you` : ''}</div>
-        </div>
-        <Legend className="ml-auto max-sm:ml-0" />
-      </header>
-      {PHASES.map((ph) => {
-        const items = steps.filter((v) => v.phase === ph.key)
-        if (!items.length) return null
-        const d = items.filter((v) => v.state === 'done' || v.state === 'na').length
-        return (
-          <div key={ph.key}>
-            <div className="flex items-center gap-2 border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 first:border-t-0 max-sm:px-4">
-              <span className="text-[0.71875rem] font-semibold text-muted">{ph.label}</span>
-              <span className={cn('text-[0.71875rem] font-semibold', d === items.length ? 'text-ok-700' : 'text-faint')}>{d === items.length ? 'all done' : `${d} of ${items.length}`}</span>
-            </div>
-            {items.map((v) => <PlanRow key={v.key} job={job} v={v} me={me} />)}
-          </div>
-        )
-      })}
-      {(tasks.length > 0 || meets.length > 0) && (
-        <>
-          <div className="border-t border-line-2 bg-[#f8f6f2] px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:px-4">Also on this project</div>
-          {tasks.map((t) => <NextRow key={t.id} dot={t.state === 'waiting' ? 'wait' : 'task'} title={t.title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')} sub={t.state === 'waiting' ? `Waiting on ${t.waitingOn}${t.followUp ? ` · back ${t.followUp}` : ''}` : undefined} who={t.owner} mine={t.owner === me} when={t.state === 'waiting' ? 'Waiting' : t.due || ''} onClick={() => s.open({ t: 'task', id: t.id })} />)}
-          {meets.map((e) => <NextRow key={e.id} dot="ev" title={e.title} sub={e.with ? `With ${e.with}` : undefined} who={e.people[0]} mine={e.people.includes(me)} when={`${labelFromIso(e.date)} ${timeLabel(e.start)}`} onClick={() => s.open({ t: 'event', id: e.id })} />)}
-        </>
-      )}
-      {adding ? <AddStep job={job} steps={steps} onDone={() => setAdding(false)} compact /> : (
-        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink max-sm:px-4"><Plus className="h-4 w-4" />Add a step for this project</button>
-      )}
-    </section>
-  )
-}
-function PlanRow({ job, v, me }: { job: Job; v: StepView; me: PersonKey }) {
-  const quiet = v.state === 'done' || v.state === 'na'
-  const sub = v.state === 'later' ? `After ${v.waitsFor?.toLowerCase()}${v.waitsOn ? ` · ${v.waitsOn === me ? 'you' : PEOPLE[v.waitsOn]?.short}` : ''}`
-    : v.state === 'done' ? (v.note || 'Done') : v.state === 'na' ? 'Not needed on this project' : v.note || ''
-  const when = v.state === 'done' ? (v.doneOn ? `Done ${v.doneOn}` : 'Done') : v.state === 'na' || v.state === 'later' ? '' : v.due ? (v.state === 'wait' ? labelFromIso(v.due) : `Due ${labelFromIso(v.due)}`) : v.state === 'wait' ? 'Waiting' : ''
-  const late = !!v.due && v.due < TODAY && (v.state === 'now' || v.state === 'bad')
-  return (
-    <button onClick={() => openStep(job.id, v.key)} className={cn('group flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition hover:bg-[#f8f6f2] max-sm:px-4', v.state === 'later' && 'bg-[#fcfcfd]')}>
-      <StepIcon state={v.state} size={22} />
-      <span className="min-w-0 flex-1">
-        <span className={cn('block truncate text-[0.875rem] font-semibold max-sm:whitespace-normal max-sm:leading-snug', quiet ? 'text-muted' : v.state === 'later' ? 'text-ink-2' : 'text-ink')}>
-          {v.label}{v.only && <span className="ml-2 text-[0.71875rem] font-medium text-faint">this project only</span>}
-        </span>
-        {sub && <span className={cn('block truncate text-[0.78125rem] max-sm:whitespace-normal max-sm:leading-snug', v.state === 'bad' ? 'font-medium text-bad-600' : v.state === 'wait' ? 'text-warn-700' : 'text-muted')}>{v.state === 'later' && <CornerDownRight className="mr-1 inline h-3 w-3 align-[-0.0625rem]" />}{sub}</span>}
-      </span>
-      <span className="flex w-[9.5rem] shrink-0 items-center gap-2 max-sm:w-auto">
-        <Avatar who={v.owner} size={24} />
-        <span className={cn('truncate text-[0.84375rem] max-sm:hidden', v.owner === me && !quiet ? 'font-semibold text-brand-700' : 'text-ink-2')}>{v.owner === me ? 'You' : PEOPLE[v.owner]?.short}</span>
-      </span>
-      <span className={cn('w-[5.5rem] shrink-0 text-right text-[0.8125rem] tnum max-sm:hidden', late ? 'font-semibold text-bad-600' : v.state === 'done' ? 'text-ok-700' : 'text-muted')}>{when}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
-    </button>
-  )
-}
-function NextRow({ dot, title, sub, bad, who, mine, when, late, onClick }: { dot: string; title: string; sub?: string; bad?: boolean; who?: PersonKey; mine?: boolean; when?: string; late?: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="group flex w-full items-center gap-3 border-t border-line-2 px-5 py-3 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
-      <span className="inline-flex w-[1.375rem] shrink-0 justify-center"><span className={cn('h-2.5 w-2.5 rounded-full', DOT[dot])} /></span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink max-sm:whitespace-normal max-sm:leading-snug">{title}</span>
-        {sub && <span className={cn('block truncate text-[0.78125rem] max-sm:whitespace-normal max-sm:leading-snug', bad ? 'font-medium text-bad-600' : 'text-muted')}>{sub}</span>}
-      </span>
-      {who && (
-        <span className="flex w-[9.5rem] shrink-0 items-center gap-2 max-sm:w-auto">
-          <Avatar who={who} size={24} />
-          <span className={cn('truncate text-[0.84375rem] max-sm:hidden', mine ? 'font-semibold text-brand-700' : 'text-ink-2')}>{mine ? 'You' : PEOPLE[who]?.short}</span>
-        </span>
-      )}
-      <span className={cn('w-[5.5rem] shrink-0 text-right text-[0.8125rem] tnum max-sm:hidden', late ? 'font-semibold text-bad-600' : 'text-muted')}>{when}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
-    </button>
   )
 }

@@ -56,9 +56,22 @@ type Group = 'team' | 'checklist' | 'autos' | 'rules' | 'connections' | 'practic
 const GROUP_OF: Record<Tab, Group> = { team: 'team', access: 'team', checklist: 'checklist', statuses: 'checklist', autos: 'autos', rules: 'rules', numbers: 'rules', connections: 'connections', practice: 'practice', testdata: 'practice' }
 
 /* ================= the team ================= */
+type Standing = { invited?: string; signedIn?: string; confirmed?: string; made?: string }
+const Standings = React.createContext<Record<string, Standing> | null>(null)
+const dayOf = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')
 function TeamTab() {
   const s = useStore()
+  /* the real app: when each invite went out, and who has signed in since */
+  const [standings, setStandings] = React.useState<Record<string, Standing> | null>(null)
+  const emails = s.team.map((m) => (m.email || '').trim().toLowerCase()).filter(Boolean).join(',')
+  React.useEffect(() => {
+    if (!REAL.inviteStatus || !emails) return
+    let live = true
+    REAL.inviteStatus(emails.split(',')).then((r) => { if (live) setStandings(r) }).catch(() => { if (live) setStandings({}) })
+    return () => { live = false }
+  }, [emails])
   return (
+    <Standings.Provider value={standings}>
     <div className="flex max-w-[56rem] flex-col gap-4">
       {REAL.people && REAL.admin && <WaitingToJoin />}
       <Card pad={false}>
@@ -67,9 +80,30 @@ function TeamTab() {
           {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
       </Card>
+      {REAL.testEmail && <EmailCheck />}
       <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#d1cbc0] hover:text-ink">
         <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page — <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
       </button>
+    </div>
+    </Standings.Provider>
+  )
+}
+/** do emails from the app land at all? the admin sends one to himself (a password link he can ignore) */
+function EmailCheck() {
+  const [busy, setBusy] = React.useState(false)
+  const [said, setSaid] = React.useState('')
+  const send = async () => {
+    setBusy(true); setSaid('')
+    try {
+      const to = await REAL.testEmail!()
+      setSaid(`Sent to ${to} — a password link you can ignore. Not there in a minute? Check spam. Never comes? Emails aren’t set up yet: in Lovable, More → Cloud → Emails.`)
+    } catch (e: any) { setSaid(e?.message || 'Couldn’t send it') } finally { setBusy(false) }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-[0.84375rem] text-muted">
+      <Mail className="h-4 w-4 shrink-0 text-faint" />
+      <span className="min-w-0 flex-1">{said || 'Invites not landing? See if any email from the app reaches you.'}</span>
+      <Button size="sm" disabled={busy} onClick={send}>{busy ? 'Sending…' : 'Send a test email to me'}</Button>
     </div>
   )
 }
@@ -138,6 +172,11 @@ function WaitingToJoin() {
 function MemberRow({ k }: { k: PersonKey }) {
   const s = useStore()
   const m = s.team.find((x) => x.key === k)!
+  const standings = React.useContext(Standings)
+  const st = standings?.[(m.email || '').trim().toLowerCase()]
+  /* in the real app: the invite went out (the account exists) but they haven't signed in yet */
+  const sentNotIn = !m.uid && !!st && !st.signedIn
+  const inAt = m.uid ? st?.signedIn : undefined
   const [edit, setEdit] = React.useState(false)
   const [first, setFirst] = React.useState(m.first)
   const [last, setLast] = React.useState(m.last || '')
@@ -162,7 +201,7 @@ function MemberRow({ k }: { k: PersonKey }) {
       ) : (
         <button onClick={() => setEdit(true)} className="group min-w-0 flex-1 text-left">
           <span className="flex min-w-0 items-center gap-2 truncate text-[0.875rem] font-semibold text-ink"><span className="truncate">{PEOPLE[k].name}</span><Pencil className="h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" /></span>
-          <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet — click to add'}</span>
+          <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet — click to add'}{sentNotIn ? <span className="text-warn-700"> · invite went out {dayOf(st!.invited || st!.made) || m.invited} — not opened yet</span> : inAt ? ` · last signed in ${dayOf(inAt)}` : m.uid ? '' : m.invited && standings && !st ? <span className="text-warn-700"> · invited {m.invited} — no account yet, send it again</span> : ''}</span>
         </button>
       )}
       {!edit && (
@@ -176,7 +215,7 @@ function MemberRow({ k }: { k: PersonKey }) {
             </Menu>
           )}
           {!admin && !m.uid && m.role !== 'client'
-            ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} onClick={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invited' : 'Invite'}</Button>
+            ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} onClick={() => s.open({ t: 'invite', key: k })}>{m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'}</Button>
             : <span className="w-[4.75rem] text-right max-sm:hidden"><Pill tone="ok" size="sm">{m.uid ? 'Signs in' : 'Active'}</Pill></span>}
           <Menu align="end" width={220} trigger={<button aria-label={`More for ${PEOPLE[k].name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2">⋯</button>}>
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>

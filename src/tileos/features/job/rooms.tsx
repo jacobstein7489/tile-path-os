@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Ban, Clock3, PauseCircle, HelpCircle, AlertTriang
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
 import { Card, Button, Pill, Empty, UnderlineTabs } from '@/tileos/components/ui/core'
+import { Modal } from '@/tileos/components/ui/overlay'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { Ring, Bar } from '@/tileos/components/ui/progress'
 import { cn, TONE } from '@/tileos/lib/utils'
@@ -202,6 +203,70 @@ export function RoomsTab({ job, room: r0, view: v0, surface: s0, noRail }: { job
         {view === 'photos' && <RoomPhotos key={'pics' + room.name} job={job} room={room} />}
       </div>
     </Card>
+  )
+}
+
+/** beside the rooms on the project: the room, its surfaces one line each, the daily log and the photos a tap away.
+ *  A surface opens in its own window — nothing nested. */
+export function RoomPanel({ job, room: name }: { job: Job; room?: string }) {
+  const rooms = useStore((s) => s.rooms[job.id]) || []
+  const diary = useStore((s) => s.diary[job.id])
+  const open = useStore((s) => s.open)
+  const room = rooms.find((r) => r.name === name) || rooms[0]
+  if (!room) return null
+  const roomDone = room.surfaces.filter((x) => x.state === 'done').length
+  const entries = (diary || []).filter((e) => e.rooms.some((x) => x.room === room.name))
+  const media = roomMedia(diary, room.name)
+  const inField = ['scheduled', 'installation', 'punch'].includes(job.stage)
+  const link = 'inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline'
+  return (
+    <div className="flex min-h-0 flex-col">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line-2 px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-[1.0625rem] font-semibold leading-tight text-ink">{room.name}</div>
+          <div className="mt-0.5 text-[0.8125rem] text-muted">
+            {inField ? <>{roomDone} of {room.surfaces.length} surfaces finished · <span className="font-semibold text-ink-2">{room.pct}% installed</span>{entries[0] ? ` · last update ${entries[0].day}` : ''}</> : `${room.surfaces.length} ${room.surfaces.length === 1 ? 'surface' : 'surfaces'} to install`}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+            <button className={link} onClick={() => open({ t: 'room', jobId: job.id, room: room.name, view: 'log' })}><ClipboardList className="h-3.5 w-3.5" />Daily log{entries.length ? ` · ${entries.length}` : ''}</button>
+            <button className={link} onClick={() => open({ t: 'room', jobId: job.id, room: room.name, view: 'photos' })}><LayoutGrid className="h-3.5 w-3.5" />Photos{media.length ? ` · ${media.length}` : ''}</button>
+          </div>
+        </div>
+        {inField && <Button size="sm" variant="primary" icon={<ClipboardList className="h-4 w-4" />} onClick={() => open({ t: 'daily', jobId: job.id, room: room.name })}>Today’s update</Button>}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+        {room.surfaces.map((x) => {
+          const tile = tileOf(job.id, x.tile)
+          const grout = x.grout ? GROUTS[x.grout] : undefined
+          const what = [tile ? `${x.tile} ${tile.name}` : x.tile || 'No tile yet', grout ? `${grout.name} grout` : ''].filter(Boolean).join(' · ')
+          return (
+            <button key={x.name} data-surface={x.name} onClick={() => open({ t: 'install-surface', jobId: job.id, room: room.name, surface: x.name })} className="flex w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-[#f6f3ee]">
+              {stateIcon(x)}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.875rem] font-medium leading-[1.25rem] text-ink">{x.name}<span className="font-normal text-muted"> · {what}</span></span>
+                <span className={cn('block truncate text-[0.75rem] leading-[1rem]', subTone(x))}>{inField ? surfaceSub(x) : x.reason ? x.reason : x.sf ? `${x.sf} SF` : ''}{x.state === 'blocked' && x.reason ? ` — ${x.reason}` : ''}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-faint" />
+            </button>
+          )
+        })}
+        <AddSurfaceButton jobId={job.id} room={room.name} have={room.surfaces.map((x) => x.name)} className="mx-4 mb-3 mt-1.5" />
+      </div>
+    </div>
+  )
+}
+
+/** one surface of a room, while it's being installed: where it is, what's in the way, what goes on it */
+export function InstallSurfaceModal({ jobId, room: name, surface, level }: { jobId: string; room: string; surface: string; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  const room = (s.rooms[jobId] || []).find((r) => r.name === name)
+  const sf = room?.surfaces.find((x) => x.name === surface)
+  if (!job || !room || !sf) return null
+  return (
+    <Modal level={level} size="lg" onClose={s.close} title={`${room.name} · ${sf.name}`} sub={job.name} bodyClass="p-0">
+      <SurfaceDetail key={sf.name} job={job} room={room} sf={sf} />
+    </Modal>
   )
 }
 

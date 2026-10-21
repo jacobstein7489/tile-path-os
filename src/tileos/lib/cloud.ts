@@ -17,7 +17,7 @@ import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
-import { sendInvite, inviteLink } from '@/lib/invite'
+import { sendInvite, inviteLink, inviteStatus } from '@/lib/invite'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -319,6 +319,10 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.invite = opts.admin ? async (p) => { const r = await sendInvite({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return r.already ? 'already' : 'sent' } : undefined
   /* when the email doesn't land: a one-time link the admin texts them — it signs them in and asks for a password */
   REAL.inviteLink = opts.admin ? async (p) => { const r = await inviteLink({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return r.link } : undefined
+  /* the Team page: when each invite went out and whether they've signed in */
+  REAL.inviteStatus = opts.admin ? async (emails) => { const r = await inviteStatus({ data: { emails } }); if (!r.ok) throw new Error(r.why); return r.users } : undefined
+  /* does an email from the app reach anyone? the admin sends one to himself — a password link he can ignore */
+  REAL.testEmail = opts.admin && user.email ? async () => { const { error } = await supabase.auth.resetPasswordForEmail(user.email!, { redirectTo: location.origin }); if (error) throw new Error(error.message); return user.email! } : undefined
   /* the company's AI reads paperwork; files go to the company's storage */
   REAL.ai = askAI
   REAL.files = files
