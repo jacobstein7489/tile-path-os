@@ -4,8 +4,8 @@
  * Mine / Everyone switches between your list and the whole team's. */
 import { InboxStrip } from './inbox'
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus } from 'lucide-react'
-import { useStore, meOf, NOW, type Store } from '@/tileos/store'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck } from 'lucide-react'
+import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch } from '@/tileos/components/ui/page'
@@ -164,7 +164,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
         done ? <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
           : stepTask ? <Button size="sm" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className="max-w-full" onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
-            : t.state === 'now' ? <Button size="sm" icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
+            : t.state === 'now' ? <Button size="sm" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>{isRequest(t) ? 'Delivered' : 'Done'}</Button>
               : <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
       }
     />
@@ -345,7 +345,8 @@ export function MyTasksPage() {
   const late = plate.filter((x) => x.b === 'overdue')
   const tomorrow = plate.filter((x) => x.b === 'tomorrow')
   const later = plate.filter((x) => x.b === 'week' || x.b === 'later' || x.b === 'aside')
-  const waiting = s.tasks.filter((t) => t.state === 'waiting' && (all ? true : isMine(t, role)))
+  /* waiting on others: what's out with the GC or a supplier — and what I asked for from the site, until it's delivered */
+  const waiting = s.tasks.filter((t) => (t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && t.by === me && t.owner !== me && t.state !== 'done'))
   const done = s.tasks.filter((t) => t.state === 'done' && (all ? true : isMine(t, role)))
   const doneToday = done.filter((t) => t.doneAt === 'Just now' || t.doneAt === 'Today' || isoFromLabel(t.doneAt) === TODAY).length
   const meetingsToday = today.filter((x) => x.kind === 'meet').length
@@ -608,7 +609,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {pill}
         <Menu align="start" width={250} trigger={<button className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-white pl-0.5 pr-2.5 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash"><Avatar who={t.owner} size={22} />{PEOPLE[t.owner].short} has it</button>}>
           <MenuLabel>Hand it to</MenuLabel>
-          {ASSIGNABLE.map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={t.owner === p} onSelect={() => s.reassignTask(t.id, p)} hint={PEOPLE[p].roleLabel}>{PEOPLE[p].name}</MenuItem>)}
+          {(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={t.owner === p} onSelect={() => s.reassignTask(t.id, p)} hint={PEOPLE[p]?.roleLabel}>{PEOPLE[p]?.name || p}</MenuItem>)}
         </Menu>
         {t.repeat && <span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-ink-2"><Repeat className="h-3.5 w-3.5 text-muted" />{REPEAT_LABEL[t.repeat]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>}
         {t.blocks && t.state !== 'done' && <span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-bad-700"><Ban className="h-3.5 w-3.5" />Holds up {t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}</span>}
@@ -639,7 +640,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {hasAction ? (
           <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
         ) : (
-          <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<Check />} onClick={() => { s.completeTask(t.id); s.close() }}>Done</Button>
+          <Button variant="primary" className="ml-auto max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }}>{isRequest(t) ? 'Delivered — it’s there' : 'Done'}</Button>
         )}
       </>
     )
@@ -808,7 +809,8 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
           <div>
             <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who follows it — they see every note and when it’s done</div>
             <div className="flex flex-wrap gap-1.5">
-              {ASSIGNABLE.filter((p) => p !== owner).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p].short}</Chip>)}
+              {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p]?.short || p}</Chip>)}
+              {people.length < 2 && <span className="self-center text-[0.8125rem] text-muted">Nobody else on the team yet — add people in Settings → Team.</span>}
             </div>
           </div>
           <button type="button" onClick={() => setAll(!all)} className={cn('flex items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', all ? 'border-warn-300 bg-warn-50' : 'border-line hover:bg-wash')}>

@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type Ask = { email: string; name: string; role: string; redirectTo?: string };
-export type Sent = { ok: true; already?: boolean } | { ok: false; why: string };
+export type Sent = { ok: true; already?: boolean; resent?: boolean; sentAt?: string } | { ok: false; why: string };
 export type Linked = { ok: true; link: string; already?: boolean } | { ok: false; why: string };
 const ROLES = new Set(["admin", "pm", "office_coordinator", "estimator", "site_manager", "accounting", "installer", "viewer"]);
 
@@ -29,6 +29,18 @@ const why = (e: any) => {
   return m || "Couldn’t send it";
 };
 
+/** the auth user with this email, if there is one */
+const findUser = async (admin: any, email: string) => {
+  for (let page = 1; page <= 10; page++) {
+    const { data: res, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const u = (res?.users || []).find((x: any) => String(x.email || "").toLowerCase() === email);
+    if (u) return u;
+    if (!res?.users?.length || res.users.length < 200) return null;
+  }
+  return null;
+};
+
 export const sendInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(check)
@@ -36,18 +48,27 @@ export const sendInvite = createServerFn({ method: "POST" })
     if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
     const admin = supabaseAdmin as any;
     const giveRole = (uid: string) => admin.from("user_roles").upsert({ user_id: uid, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+    const invite = () => admin.auth.admin.inviteUserByEmail(data.email, { data: { full_name: data.name }, redirectTo: data.redirectTo });
     try {
-      const { data: res, error } = await admin.auth.admin.inviteUserByEmail(data.email, { data: { full_name: data.name }, redirectTo: data.redirectTo });
-      if (error) {
-        /* already signed up: just give them the login type — they're in next time they open the app */
-        if (already(error)) {
-          const { data: prof } = await admin.from("profiles").select("user_id").eq("email", data.email).maybeSingle();
-          if (prof?.user_id) { await giveRole(prof.user_id); return { ok: true, already: true }; }
-        }
-        return { ok: false, why: why(error) };
+      const { data: res, error } = await invite();
+      if (!error) {
+        if (res?.user?.id) await giveRole(res.user.id);
+        return { ok: true, sentAt: res?.user?.invited_at || new Date().toISOString() };
       }
-      if (res?.user?.id) await giveRole(res.user.id);
-      return { ok: true };
+      if (!already(error)) return { ok: false, why: why(error) };
+      /* invited before. Signed in since: they're in — just make sure of the login type. Never opened it: start the
+         account over so a fresh invite email goes out (nothing of theirs exists yet). */
+      const u = await findUser(admin, data.email);
+      if (!u) return { ok: false, why: why(error) };
+      if (u.last_sign_in_at) { await giveRole(u.id); return { ok: true, already: true }; }
+      await admin.from("user_roles").delete().eq("user_id", u.id);
+      await admin.from("profiles").delete().eq("user_id", u.id);
+      const del = await admin.auth.admin.deleteUser(u.id);
+      if (del.error) return { ok: false, why: why(del.error) };
+      const r2 = await invite();
+      if (r2.error) return { ok: false, why: why(r2.error) };
+      if (r2.data?.user?.id) await giveRole(r2.data.user.id);
+      return { ok: true, resent: true, sentAt: r2.data?.user?.invited_at || new Date().toISOString() };
     } catch (e) {
       return { ok: false, why: why(e) };
     }

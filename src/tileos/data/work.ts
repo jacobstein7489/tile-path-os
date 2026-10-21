@@ -9,6 +9,8 @@ export interface Task {
   jobId: string
   title: string
   detail?: string
+  /** who asked for it (a request from the site): they hear when it's delivered */
+  by?: PersonKey
   where?: string
   type: TaskType
   owner: PersonKey
@@ -508,7 +510,9 @@ export const PUNCH0: PunchItem[] = [
 /* ================= notifications ================= */
 export interface Notice { id: string; jobId?: string; text: string; when: string; kind: 'material' | 'pricing' | 'money' | 'field' | 'change'; unread: boolean
   /** the exact thing it's about — the bill, the PO, the update — so the inbox opens that, not the whole project */
-  open?: { t: string; [k: string]: any } }
+  open?: { t: string; [k: string]: any }
+  /** only for these people (a request that got delivered goes to whoever asked) — everyone, when it's left out */
+  for?: PersonKey[] }
 export const NOTICES0: Notice[] = [
   { id: 'n1', jobId: '119', text: 'Metal Works Inc.: 2 JOLLY profiles ship tomorrow', when: '1h ago', kind: 'material', unread: true, open: { t: 'po', id: 'PO-1041' } },
   { id: 'n2', jobId: '2385', text: 'CO-002 approved · ballroom epoxy upgrade', when: '10:05 AM', kind: 'change', unread: true, open: { t: 'job', id: '2385', tab: 'money' } },

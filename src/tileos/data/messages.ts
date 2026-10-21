@@ -16,6 +16,9 @@ export interface Msg {
   became?: string
   /** came in from WhatsApp */
   wa?: boolean
+  /** a voice note: the recording (a data URL) and how long it runs, in seconds */
+  audio?: string
+  dur?: number
 }
 export const MESSAGES0: Record<string, Msg[]> = {
   '119': [

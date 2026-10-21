@@ -949,7 +949,8 @@ export function recordEvent(e: { jobId: string; type: string; label: string; kin
       newTask(s, { jobId: e.jobId, title: `Change requested · ${e.where || ''}`, type: 'Changes', owner: 'ys', for: ['pm', 'owner'], state: 'now', due: 'Today', tone: 'warn', where: e.where, blocks: 'Crew holds until approved', detail: 'Decide: included or extra. If extra, it goes to pricing and approval.' })
     }
     if (e.type === 'question') newTask(s, { jobId: e.jobId, title: e.kind ? `Question · ${e.kind}` : 'Technical question', type: 'Field', owner: me(), for: [s.role], state: 'waiting', waitingOn: e.waitingOn || 'GC', followUp: e.back || 'Tomorrow', tone: 'warn', where: e.where, blocks: e.where ? `${e.where} only` : undefined })
-    if (e.type === 'shortage') newTask(s, { jobId: e.jobId, title: `Short on site · ${e.kind || 'material'}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'bad', where: e.where })
+    /* a request from the site: whoever orders our materials gets it over there, and says "Delivered" — the one who asked hears it */
+    if (e.type === 'shortage') newTask(s, { jobId: e.jobId, title: `Get to the site · ${e.kind || 'material'}${e.note ? ` — ${e.note}` : ''}`, detail: `${PEOPLE[me()]?.name || 'The site'} asked for it${e.where ? ` · ${e.where}` : ''}`, type: 'Materials', owner: matBy(s), for: matFor(s), by: me(), followers: [me()].filter((p) => p !== matBy(s)), state: 'now', due: 'Today', tone: 'bad', where: e.where })
     if (e.type === 'delivery' && e.kind && !/^All of it/.test(e.kind)) newTask(s, { jobId: e.jobId, title: `Delivery · ${e.kind.toLowerCase()} — ${e.where || 'check it'}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: e.kind === 'Part of it' ? 'warn' : 'bad', where: e.where })
     if (e.type === 'call' && e.back) {
       const open = s.tasks.find((t) => t.jobId === e.jobId && t.state !== 'done' && t.type === 'Pricing')

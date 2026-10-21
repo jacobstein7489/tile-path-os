@@ -81,6 +81,17 @@ function useBadges() {
   return (k: string) => (k === 'today' ? todayN : k === 'inbox' ? inboxN : k === 'money' && role === 'accounting' ? moneyTodo : k === 'pay' ? payOpenN : 0)
 }
 
+/** the number on the app's icon (an installed app on a phone or a desktop): what's new in the inbox plus what's due today */
+export function AppBadge() {
+  const badge = useBadges()
+  const n = badge('inbox') + badge('today')
+  React.useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+    try { if (n > 0) void nav.setAppBadge?.(n); else void nav.clearAppBadge?.() } catch { /* not supported */ }
+  }, [n])
+  return null
+}
+
 export function Sidebar() {
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
@@ -104,7 +115,10 @@ export function Sidebar() {
       >
         <Icon className={cn('h-4 w-4 shrink-0', on ? 'text-brand-600' : 'text-[#7b8492] group-hover:text-ink-2')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
-        {!!n && <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-brand-700' : 'text-muted')}>{n}</span>}
+        {/* the red badge, like a phone: what's new in the inbox, what's due today */}
+        {!!n && (k === 'inbox' || k === 'today'
+          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1.5 text-[0.6875rem] font-bold tnum leading-none text-white">{n}</span>
+          : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-brand-700' : 'text-muted')}>{n}</span>)}
       </button>
     )
   }

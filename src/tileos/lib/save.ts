@@ -35,7 +35,7 @@ export const REAL: {
   sampleView?: boolean
   people?: { waiting: () => Promise<WaitingPerson[]>; letIn: (p: WaitingPerson, role: Role, memberKey?: string) => Promise<void> }
   /** the real app sends the invite email itself (the admin only): 'sent', or 'already' when they'd signed up before */
-  invite?: (p: { email: string; name: string; role: Role }) => Promise<'sent' | 'already'>
+  invite?: (p: { email: string; name: string; role: Role }) => Promise<{ what: 'sent' | 'resent' | 'already'; at?: string }>
   /** a one-time link to text them instead (the real app, the admin only): it signs them in and asks for a password */
   inviteLink?: (p: { email: string; name: string; role: Role }) => Promise<string>
   /** where each invite stands, by email (lower-case): when it went out, when they last signed in — the admin only */

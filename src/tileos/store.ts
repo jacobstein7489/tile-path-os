@@ -110,6 +110,9 @@ export interface Data {
   jobSteps: Record<string, StepDef[]>
   /** clients, designers, installers and suppliers marked inactive — 'client:parkplace', 'crew:caesar' */
   inactive: string[]
+  /** the inbox, per person: "<conversation>|<person>" → how many messages they've seen, whether they put it away
+   *  (at which count — a new message brings it back) or marked it unread */
+  seen: Record<string, { n: number; away?: number; unread?: boolean }>
 }
 
 interface UI {
@@ -247,6 +250,7 @@ export function initialData(): Data {
     jobSteps: {},
     files: [],
     inactive: [],
+    seen: {},
   } as Data)
   ensureTiles(d)
   /* 115 Park's tile paperwork is in: the store is sending enough of every tile (with the extra for cuts) */
@@ -288,7 +292,7 @@ function pinDates(s: Data) {
   })
   Object.values(s.jobs).forEach((j) => { if (j.next?.due) { const d = pinDate(j.next.due); if (d !== j.next.due) j.next.due = d } })
 }
-export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'files', 'stepRecs', 'jobSteps', 'inactive']
+export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'files', 'stepRecs', 'jobSteps', 'inactive', 'seen']
 /** a clean start for testing: no projects, estimates, tasks or clients — the team, logins, items and settings stay */
 export function freshData(keep: Data): Data {
   const d = initialData()
@@ -426,8 +430,11 @@ export const useStore = create<Store>()(
         if (result) t.result = result
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
+        /* a request from the site: whoever asked hears it's there, in their inbox */
+        const hear = Array.from(new Set([t.by, ...(t.followers || [])].filter((p): p is PersonKey => !!p && p !== meOf(s.role))))
+        if (hear.length) s.notices.unshift({ id: 'nt' + Date.now(), jobId: t.jobId, text: `${isRequest(t) ? 'Delivered' : 'Done'} · ${t.title.replace(/^(Get to the site|Short on site) · /, '')} — ${PEOPLE[meOf(s.role)]?.short || 'someone'}`, when: 'Just now', kind: isRequest(t) ? 'material' : 'field', unread: true, open: { t: 'task', id: t.id }, for: hear })
         if (t.repeat) repeatTask(s, t)
-      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),
+      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : isRequest(get().tasks.find((x) => x.id === id)) ? 'Delivered!' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),
     waitTask: (id, on, back) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
@@ -495,6 +502,8 @@ export function addHist(s: Data, jobId: string, e: Omit<HistEntry, 'date'> & { d
 export function kindOfTask(type: string): HistEntry['kind'] {
   return ({ Pricing: 'pricing', Setup: 'setup', Materials: 'material', Field: 'field', Changes: 'change', Schedule: 'schedule', Money: 'money' } as any)[type] || 'system'
 }
+/** a request from the site — something to get over there; it's "Delivered", not "Done" */
+export const isRequest = (t?: Task) => !!t && t.type === 'Materials' && /^(Get to the site|Short on site) · /.test(t.title)
 export function newTask(s: Data, p: Partial<Task> & { jobId: string; title: string }) {
   const t: Task = { id: 'n' + tid++ + ID.sfx, type: 'Setup', owner: 'ys', for: ['owner'], state: 'now', tone: 'info', log: [{ date: NOW, who: 'system', text: 'Created' }], ...p } as Task
   s.tasks.unshift(t)

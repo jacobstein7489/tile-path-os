@@ -243,18 +243,18 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
   const [touched, setTouched] = React.useState(false)
   const [sending, setSending] = React.useState(false)
   const [failed, setFailed] = React.useState('')
+  const [sent, setSent] = React.useState<SentResult | null>(null)
   if (!m) return null
   const ok = /\S+@\S+\.\S+/.test(email)
   const mark = () => updateMember(k, { email: email.trim(), role, status: 'invited', invited: TODAY }, `${m.first} is invited`)
-  /* the real app sends the email itself; the preview hands you the message to send */
+  /* the real app sends the email itself and says what happened; the preview hands you the message to send */
   const send = async () => {
     if (!REAL.invite || sending) return
-    setSending(true); setFailed('')
+    setSending(true); setFailed(''); setSent(null)
     try {
       const r = await REAL.invite({ email: email.trim(), name: `${m.first} ${m.last || ''}`.trim(), role })
       mark()
-      toast(r === 'already' ? `${m.first} can sign in now` : `Invite sent to ${email.trim()}`, { description: r === 'already' ? `They’d signed up already — they’re in as ${short(role)}.` : `They pick a password from the email and they’re in as ${short(role)}. No letting in needed.` })
-      s.close()
+      setSent(r)
     } catch (e: any) { setFailed(e?.message || 'Couldn’t send it') } finally { setSending(false) }
   }
   const subject = 'You’re invited to Cobblestone Tile OS'
@@ -269,7 +269,7 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
       footer={REAL.invite ? (
         <>
           {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
-          <Button className="ml-auto" variant="primary" icon={<Send />} disabled={!ok || sending} onClick={send}>{sending ? 'Sending…' : 'Send the invite'}</Button>
+          {sent ? <Button className="ml-auto" variant="primary" icon={<Check />} onClick={s.close}>Done</Button> : <Button className="ml-auto" variant="primary" icon={<Send />} disabled={!ok || sending} onClick={send}>{sending ? 'Sending…' : m.invited ? 'Send it again' : 'Send the invite'}</Button>}
         </>
       ) : (
         <>
@@ -289,8 +289,22 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
         </Field>
       </div>
       {!REAL.invite && <Field label="The message" className="mt-3"><TextArea rows={9} aria-label="The message" value={msg} onChange={(e) => { setMsg(e.target.value); setTouched(true) }} /></Field>}
+      {sent && <SentPane r={sent} email={email.trim()} first={m.first} role={role} />}
       {REAL.invite && <InviteLinkBox email={email} name={`${m.first} ${m.last || ''}`.trim()} role={role} phone={m.phone} first={m.first} ok={ok} onGot={mark} />}
     </Modal>
+  )
+}
+
+/** what happened when the invite was sent — said plainly, with what to do if it doesn't land */
+type SentResult = { what: 'sent' | 'resent' | 'already'; at?: string }
+const clock = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '')
+function SentPane({ r, email, first, role }: { r: SentResult; email: string; first: string; role: Role }) {
+  if (r.what === 'already') return <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] text-ink"><b className="font-semibold">{first} already signs in</b> — they’re in as {short(role)}. Nothing to send.</div>
+  return (
+    <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] leading-snug text-ink">
+      <div className="font-semibold">{r.what === 'resent' ? 'A fresh invite went out' : 'The invite went out'}{r.at ? ` at ${clock(r.at)}` : ''} to {email}</div>
+      <div className="mt-1 text-ink-2">The mail service took it. Not in their inbox in a few minutes? Have them check <b className="font-semibold">Spam or Junk</b>. Still nothing? The app’s emails aren’t set up yet — in Lovable: <b className="font-semibold">More → Cloud → Emails</b>. Either way, the link below gets them in by text.</div>
+    </div>
   )
 }
 
@@ -340,14 +354,15 @@ export function AddPersonModal({ level }: { level: number }) {
   const ok = first.trim() && /\S+@\S+\.\S+/.test(email) && (role !== 'client' || !!client)
   const [busy, setBusy] = React.useState(false)
   const [failed, setFailed] = React.useState('')
-  /* the real app emails the invite right away; the preview just adds them to the team */
+  const [sent, setSent] = React.useState<SentResult | null>(null)
+  /* the real app emails the invite right away and says what happened; the preview just adds them to the team */
   const add = async () => {
     if (!ok || busy) return
     setBusy(true); setFailed('')
     try {
-      if (REAL.invite && role !== 'client') await REAL.invite({ email: email.trim(), name: `${first.trim()} ${last.trim()}`.trim(), role })
-      addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, clientId: role === 'client' ? client : undefined, ...(REAL.invite && role !== 'client' ? { invited: TODAY } : {}) })
-      s.close()
+      const r = REAL.invite && role !== 'client' ? await REAL.invite({ email: email.trim(), name: `${first.trim()} ${last.trim()}`.trim(), role }) : null
+      addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, clientId: role === 'client' ? client : undefined, ...(r ? { invited: TODAY } : {}) })
+      if (r) setSent(r); else s.close()
     } catch (e: any) { setFailed(e?.message || 'Couldn’t send it') } finally { setBusy(false) }
   }
   return (
@@ -361,8 +376,8 @@ export function AddPersonModal({ level }: { level: number }) {
         <>
           <Button variant="ghost" icon={<Eye />} onClick={() => s.setRole(role)}>See what a {short(role)} login sees</Button>
           {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" icon={<Mail />} disabled={!ok || busy} onClick={add}>{busy ? 'Sending…' : REAL.invite ? 'Send the invite' : 'Add them'}</Button>
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>{sent ? 'Close' : 'Cancel'}</Button>
+          {sent ? <Button variant="primary" icon={<Check />} onClick={s.close}>Done</Button> : <Button variant="primary" icon={<Mail />} disabled={!ok || busy} onClick={add}>{busy ? 'Sending…' : REAL.invite ? 'Send the invite' : 'Add them'}</Button>}
         </>
       }
     >
@@ -400,7 +415,8 @@ export function AddPersonModal({ level }: { level: number }) {
         <div className="mt-2 text-[0.75rem] text-muted">Change it any time under What each login sees.</div>
       </div>
       )}
-      {failed && role !== 'client' && <InviteLinkBox email={email} name={`${first.trim()} ${last.trim()}`.trim()} role={role} phone={phone.trim() || undefined} first={first.trim()} ok={!!ok} onGot={() => { addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, invited: TODAY }); setFailed('') }} />}
+      {sent && <SentPane r={sent} email={email.trim()} first={first.trim()} role={role} />}
+      {(failed || sent) && role !== 'client' && <InviteLinkBox email={email} name={`${first.trim()} ${last.trim()}`.trim()} role={role} phone={phone.trim() || undefined} first={first.trim()} ok={!!ok} onGot={() => { if (!sent) addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, invited: TODAY }); setFailed('') }} />}
     </Modal>
   )
 }

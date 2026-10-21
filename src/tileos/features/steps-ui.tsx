@@ -9,11 +9,13 @@ import { Path } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, md } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, markTileOrdered, checkInTile, addJobStep, removeJobStep, type StepView, type StepState } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, markTileOrdered, checkInTile, addJobStep, removeJobStep, emptySpot, type StepView, type StepState } from './steps'
+import { REAL } from '@/tileos/lib/save'
 
 /** the people a step can belong to: everyone inside with a login */
 export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
-  const keys = s.team.filter((m) => m.status !== 'off' && m.role !== 'client' && m.role !== 'crew').map((m) => m.key)
+  /* the real app: a login spot nobody has taken ("Estimator") isn't a person — it's never offered as one */
+  const keys = s.team.filter((m) => m.status !== 'off' && m.role !== 'client' && m.role !== 'crew' && !(REAL.cloud && emptySpot(s, m.key))).map((m) => m.key)
   return Array.from(new Set(keys))
 }
 

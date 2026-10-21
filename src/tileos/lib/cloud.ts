@@ -31,7 +31,7 @@ const CLIENT = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).
 type Shape = 'map' | 'list' | 'one'
 const SHAPE: Partial<Record<keyof Data, Shape>> = {
   jobs: 'map', clients: 'map', tiles: 'map', pricing: 'map', hist: 'map', rooms: 'map', diary: 'map', prep: 'map', notes: 'map', pay: 'map',
-  messages: 'map', stepRecs: 'map', jobSteps: 'map',
+  messages: 'map', stepRecs: 'map', jobSteps: 'map', seen: 'map',
   tasks: 'list', money: 'list', pos: 'list', mats: 'list', checks: 'list', bookings: 'list', notices: 'list', punch: 'list', ipos: 'list', files: 'list',
   items: 'list', estimates: 'list', designers: 'list', suppliers: 'list', events: 'list', team: 'list', shortages: 'list',
   ready: 'one', lost: 'one', rules: 'one', access: 'one', inactive: 'one',
@@ -316,7 +316,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   /* the admin lets people in from Settings → Team */
   REAL.people = opts.admin ? { waiting: waitingPeople, letIn } : undefined
   /* the admin invites people by email — the app sends it, they pick a password, and they're in with that login */
-  REAL.invite = opts.admin ? async (p) => { const r = await sendInvite({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return r.already ? 'already' : 'sent' } : undefined
+  REAL.invite = opts.admin ? async (p) => { const r = await sendInvite({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return { what: r.already ? 'already' : r.resent ? 'resent' : 'sent', at: r.sentAt } } : undefined
   /* when the email doesn't land: a one-time link the admin texts them — it signs them in and asks for a password */
   REAL.inviteLink = opts.admin ? async (p) => { const r = await inviteLink({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: location.origin } }); if (!r.ok) throw new Error(r.why); return r.link } : undefined
   /* the Team page: when each invite went out and whether they've signed in */

@@ -4,16 +4,16 @@
  *   header: the project, the client and the address, the installer, and three buttons at most: the one thing to do
  *           now (start the job, the daily update…), + Add, and ··· for the rest. */
 import * as React from 'react'
-import { Building2, MapPin, CalendarDays, Maximize2, Check, Printer, HardHat, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, ArrowRight, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { CalendarDays, Maximize2, Check, Printer, HardHat, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, ArrowRight, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useStore, historyOf, type Store } from '@/tileos/store'
-import { Button } from '@/tileos/components/ui/core'
+import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { EstimatePaper } from '../estpaper'
 import { printNode } from '@/tileos/lib/print'
-import { PEOPLE, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { filesFor, tileOf, floorsOf } from '@/tileos/data/jobs'
+import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
+import { tileOf, floorsOf } from '@/tileos/data/jobs'
 import { verificationDone, startProject } from '../flows'
 import { installerOf } from '../upcoming'
 import { MoneyTab } from './money-tab'
@@ -22,13 +22,12 @@ import { POsTab } from './pos-tab'
 import { PricingWorkspace } from '../pricing'
 import { RoomsTab } from './rooms'
 import { ScopeTab } from './scope-tab'
-import { unreadOf } from '../messages'
 import { projectStatus } from '../statuses'
-import { isGettingReady, stepsFor, stepCounts } from '../steps'
+import { stepsFor } from '../steps'
 import { openStep, todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard } from './board'
-import { useSaveStatus } from '@/tileos/lib/save'
+import { ProjectBoard, ProjectFoot, Track, useParts } from './board'
+import { pictureOf } from '../progressbill'
 import { md } from '@/tileos/lib/today'
 
 export { floorsOf }
@@ -56,22 +55,35 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   const role = useStore((s) => s.role)
   const close = useStore((s) => s.close)
   const pricing = job && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  const [tab, setTab] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
+  const [part, setPart] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
   if (!job) return null
+  if (pricing) {
+    return (
+      <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" />} bodyClass="p-0">
+        <div className="p-6"><PricingWorkspace job={job} /></div>
+      </Modal>
+    )
+  }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" tab={pricing ? undefined : tab} setTab={setTab} />} bodyClass={pricing ? 'p-0' : 'bg-[#f4f1eb] p-0'}>
-      {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : <ProjectBody job={job} tab={tab} setTab={setTab} />}
+    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} />} bodyClass="p-0">
+      <ProjectBoard job={job} part={part} />
     </Modal>
   )
 }
 
 /** the same project as a page (Open full page) */
 export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
-  const [tab, setTab] = React.useState<PTab>(tabFrom(initial, job))
+  const [part, setPart] = React.useState<PTab>(tabFrom(initial, job))
+  const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-      <ProjectHeader job={job} mode="page" tab={tab} setTab={setTab} />
-      <div className="min-h-[35rem] bg-[#f4f1eb]"><ProjectBody job={job} tab={tab} setTab={setTab} /></div>
+      <ProjectHeader job={job} mode="page" part={pricing ? undefined : part} setPart={setPart} />
+      {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
+        <>
+          <ProjectBoard job={job} part={part} />
+          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} part={part} /></div>
+        </>
+      )}
     </div>
   )
 }
@@ -87,63 +99,32 @@ const PRIMARY: Partial<Record<string, { label: string; icon: React.ReactNode }>>
   closeout: { label: 'Final invoice', icon: <Receipt /> },
 }
 
-/** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list.
- *  With the four-part bar under it, the bubble is just the word: the bar already says how far along it is. */
-function headStatus(s: Store, job: Job, withBar = false): { tone: Tone; label: string; onClick?: () => void } {
+/** where the project stands, in one plain bubble (red only when it's on hold) — the same words as the Projects list */
+function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: () => void } {
   const st = projectStatus(s, job)
   if (st.key === 'hold') return { tone: 'bad', label: `On hold · ${(job.hold?.reason || '').replace(/^Waiting for /, 'waiting for ')}`, onClick: job.hold?.shortage ? () => s.open({ t: 'short', id: job.hold!.shortage! }) : undefined }
-  if (withBar) return { tone: st.tone, label: st.label }
-  if (isGettingReady(job)) {
-    const c = stepCounts(stepsFor(s, job))
-    return { tone: st.tone, label: `${st.label} · ${c.done} of ${c.total} steps done` }
-  }
-  if (st.key === 'progress') return { tone: st.tone, label: `In progress · ${job.pct ?? 0}% installed` }
-  if (st.key === 'touchups') {
-    const n = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified').length
-    return { tone: st.tone, label: n ? `Touch-ups · ${n} open` : 'Touch-ups' }
-  }
   return { tone: st.tone, label: st.label }
 }
 
-export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'modal' | 'page'; tab?: PTab; setTab: (t: PTab) => void }) {
+/** the header, the same as an estimate's: what it is and where it stands, the name, the client and the address;
+ *  on the right the contract (for whoever sees money) and the two buttons; under it the four parts as rings */
+export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'modal' | 'page'; part?: PTab; setPart?: (t: PTab) => void }) {
   const s = useStore()
   const role = s.role
-  const status = headStatus(s, job, !!tab)
+  const status = headStatus(s, job)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const prim = PRIMARY[job.stage]
-  /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
-  const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
-  const locked = left.length > 0
-  /* the one thing to press: my next step here — or whose turn it is */
-  const next = nextOn(s, job)
-  const save = useSaveStatus()
-  const files = s.files.filter((f) => f.jobId === job.id).length + (save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).length : 0)
-  const unread = unreadOf(s, job.id)
-  const runPrimary = () => {
-    if (job.stage === 'setup' || job.stage === 'verification') return verificationDone(job.id)
-    if (job.stage === 'ready' || job.stage === 'scheduled') return startProject(job.id)
-    if (job.stage === 'installation') return s.open({ t: 'daily', jobId: job.id })
-    if (job.stage === 'punch') return s.open({ t: 'assign', jobId: job.id })
-    if (job.stage === 'closeout') return s.open({ t: 'money', id: s.money.find((m) => m.jobId === job.id && m.kind === 'final')?.id || '' })
-  }
-  const pricing = !tab
-  /* the one button: my next step here, or what this stage needs */
-  const main = next && (locked || !prim)
-    ? (next.mine && tab !== 'ready'
-      ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-w-[22rem] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button></span>
-      : null)
-    : prim && !locked
-      ? <span className="max-sm:flex max-sm:min-w-0 max-sm:flex-1"><Button variant="primary" className="max-sm:w-full max-sm:min-w-0" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button></span>
-      : null
-  const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
+  const parts = useParts(job)
+  const pricing = !part
+  const money = !['site', 'crew'].includes(role)
+  const pic = money && !pricing ? pictureOf(s, job.id) : null
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
-  /* the rest, in one short menu — adding things is on the Overview's list (+ Add) */
+  const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
   const more = (
-    <Menu align="end" width={270} trigger={<Button aria-label="More for this project" icon={<MoreHorizontal />} />}>
+    <Menu align="end" width={270} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} />}>
       <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'whatsopen', jobId: job.id })}>Everything open — mine, everyone’s, done</MenuItem>
       <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'history', jobId: job.id })}>Everything that happened</MenuItem>
-      <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })} hint={files ? `${files}` : undefined}>Files and photos</MenuItem>
-      <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })} hint={unread ? `${unread} new` : undefined}>Messages</MenuItem>
+      <MenuItem icon={<Paperclip className="h-4 w-4" />} onSelect={() => s.open({ t: 'files', jobId: job.id })}>Files and photos</MenuItem>
+      <MenuItem icon={<MessageCircle className="h-4 w-4" />} onSelect={() => s.open({ t: 'chat', jobId: job.id })}>Messages</MenuItem>
       <MenuSep />
       <MenuItem icon={<Grid2x2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'scopewin', jobId: job.id })}>Scope of work — every wall and floor</MenuItem>
       {role !== 'site' && <MenuItem icon={<Package className="h-4 w-4" />} onSelect={() => s.open({ t: 'orderswin', jobId: job.id })}>All the orders</MenuItem>}
@@ -154,48 +135,79 @@ export function ProjectHeader({ job, mode, tab, setTab }: { job: Job; mode: 'mod
     </Menu>
   )
   return (
-    <div className="relative border-b border-line bg-white">
-      <div className={cn('px-7 pt-4 max-sm:px-4 max-sm:pt-3.5', mode === 'modal' && 'pr-16 max-sm:pr-14', !main && !pricing && (mode === 'modal' ? 'max-sm:pr-24' : 'max-sm:pr-14'), pricing && 'pb-4')}>
-        <div className="flex items-start gap-4 max-lg:flex-wrap max-sm:gap-2.5">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-              <h1 className="font-display min-w-0 truncate text-[1.625rem] font-semibold leading-tight tracking-[-0.015em] text-ink max-sm:text-[1.3125rem]">{job.name}</h1>
-              {/* on a phone the bar under it says where it is — the word is extra */}
-              {!pricing && (status.onClick
-                ? <button onClick={status.onClick} className="min-w-0 max-w-full max-sm:hidden"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
-                : <Status tone={status.tone} plain={status.tone !== 'bad'} className={cn('shrink-0', status.tone !== 'bad' && 'max-sm:hidden')}>{status.label}</Status>)}
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[0.8125rem] text-muted max-sm:gap-x-2.5">
-              <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex min-w-0 items-center gap-1.5 font-medium text-ink-2 hover:text-brand-600"><Building2 className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.client}</span></button>
-              <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{job.address}</span></span>
-              {!pricing && (crew
-                ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1.5 hover:text-ink"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2 underline decoration-line underline-offset-[0.1875rem]">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
-                : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1.5"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>)}
-            </div>
+    <div className={cn('relative border-b border-line bg-white px-6 pb-4 pt-5 max-sm:px-4 max-sm:pb-3 max-sm:pt-4', mode === 'modal' && 'pr-16 max-sm:pr-14')}>
+      <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-3 max-sm:gap-1.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-[0.8125rem] text-muted">
+            <span>{job.kind === 'repair' ? 'Repair' : 'Project'}</span>
+            {status.onClick
+              ? <button onClick={status.onClick}><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+              : <Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status>}
           </div>
+          <h2 className="font-display mt-0.5 text-[1.5625rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.375rem]">{job.name}</h2>
+          {/* one line on a desktop, dots between; a line each on a phone */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.875rem] text-muted max-sm:text-[0.8125rem] [&>*+*]:sm:before:mr-1.5 [&>*+*]:sm:before:content-['·']">
+            <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="text-ink-2 hover:text-brand-700">{job.client}</button>
+            <span className="max-sm:basis-full">{job.address}</span>
+            {!pricing && (crew
+              ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink max-sm:basis-full"><HardHat className="h-4 w-4 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
+              : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1 max-sm:basis-full"><HardHat className="h-4 w-4 text-faint" />No installer yet</span>)}
+            {pic && pic.contract > 0 && <span className="sm:hidden max-sm:basis-full">Contract <b className="font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b>{pic.billed > 0 ? ` · ${fmtMoney(pic.paid)} paid` : ''}</span>}
+          </div>
+        </div>
+        <div className="shrink-0 text-right max-md:text-left max-sm:absolute max-sm:right-14 max-sm:top-3">
+          {pic && (
+            <div className="max-sm:hidden">
+              <div className="text-[0.8125rem] text-muted">{pic.contract ? 'Contract' : 'No contract amount yet'}</div>
+              {pic.contract > 0 && <div className="text-[1.625rem] font-semibold leading-tight tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</div>}
+              {pic.billed > 0 && <div className="text-[0.75rem] text-muted">{fmtMoney(pic.paid)} paid · {fmtMoney(pic.contract + pic.changes - pic.paid)} open</div>}
+            </div>
+          )}
           {!pricing && (
-            <div className={cn('flex shrink-0 items-center gap-2', main ? 'max-lg:w-full' : cn('max-sm:absolute max-sm:top-3', mode === 'modal' ? 'max-sm:right-14' : 'max-sm:right-4'))}>
-              {/* with nothing to start, the "…" sits up by the title on a phone instead of on a row of its own */}
-              <span className="max-lg:flex-1 max-sm:hidden" />
-              {main}
+            <div className={cn('flex items-center justify-end gap-2 max-md:justify-start', pic ? 'mt-2 max-sm:mt-0' : '')}>
               {!['accounting', 'client'].includes(role) && <AddToProject job={job} />}
               {more}
             </div>
           )}
         </div>
       </div>
+      {!pricing && setPart && <Track className="mt-4 max-sm:mt-3" parts={parts} at={part} onPick={setPart} />}
+    </div>
+  )
+}
 
-    </div>
-  )
-}
-/* ---------------- the body: just the tab you're on ---------------- */
-export function ProjectBody({ job, tab }: { job: Job; tab?: PTab; setTab?: (t: PTab) => void }) {
+/* ---------------- footer: the one thing to do now ---------------- */
+function ProjectFooter({ job, part }: { job: Job; part: PTab }) {
+  const s = useStore()
+  const prim = PRIMARY[job.stage]
+  /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
+  const left = job.stage === 'setup' || job.stage === 'verification' ? stepsFor(s, job).filter((v) => v.state !== 'done' && v.state !== 'na' && v.key !== 'deposit') : []
+  const locked = left.length > 0
+  const next = nextOn(s, job)
+  const runPrimary = () => {
+    if (job.stage === 'setup' || job.stage === 'verification') return verificationDone(job.id)
+    if (job.stage === 'ready' || job.stage === 'scheduled') return startProject(job.id)
+    if (job.stage === 'installation') return s.open({ t: 'daily', jobId: job.id })
+    if (job.stage === 'punch') return s.open({ t: 'assign', jobId: job.id })
+    if (job.stage === 'closeout') return s.open({ t: 'money', id: s.money.find((m) => m.jobId === job.id && m.kind === 'final')?.id || '' })
+  }
+  const viewer = ['client', 'crew'].includes(s.role)
+  /* the one button: my next step here, or what this stage needs */
+  const main = viewer ? null : next && (locked || !prim)
+    ? (next.mine
+      ? <Button variant="primary" className="max-w-[26rem] max-sm:max-w-none" icon={<ArrowRight />} onClick={() => openStep(job.id, next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button>
+      : <span className="inline-flex items-center gap-2 text-[0.84375rem] text-muted"><Avatar who={next.v.owner} size={22} />{PEOPLE[next.v.owner]?.short}’s turn — {todoOf(next.v)}</span>)
+    : prim && !locked
+      ? <Button variant="primary" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button>
+      : null
   return (
-    <div className="animate-fade-up px-5 py-3 max-sm:px-3 max-sm:py-3">
-      <ProjectBoard job={job} part0={tab} />
-    </div>
+    <>
+      <span className="min-w-0 max-sm:hidden"><ProjectFoot job={job} part={part} /></span>
+      <span className="ml-auto flex min-w-0 items-center gap-2 max-sm:w-full max-sm:[&>button]:w-full">{main}</span>
+    </>
   )
 }
+
 /** the money, in its own window (from the board's Billed and paid) */
 export function MoneyWinModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
