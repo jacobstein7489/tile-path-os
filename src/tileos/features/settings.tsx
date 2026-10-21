@@ -20,7 +20,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
-import { REAL, lookAtSample, type WaitingPerson } from '@/tileos/lib/save'
+import { REAL, lookAtSample, type WaitingPerson, appUrl } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
@@ -231,7 +231,7 @@ function MemberRow({ k }: { k: PersonKey }) {
 
 /** invite someone to sign in: their email and what they'll see, and a message with the link — sent from your own email
  *  or phone. They make their own password when they sign up; you let them in with one tap (Waiting to join). */
-const APP_LINK = () => (REAL.cloud && typeof location !== 'undefined' ? location.origin : 'https://tile-path-os.lovable.app')
+const APP_LINK = () => appUrl()
 export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
   const s = useStore()
   const m = s.team.find((x) => x.key === k)

@@ -270,7 +270,7 @@ export function InstallSurfaceModal({ jobId, room: name, surface, level }: { job
   )
 }
 
-function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Surface }) {
+export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Surface }) {
   const s = useStore()
   const tile = tileOf(job.id, sf.tile)
   const grout = sf.grout ? GROUTS[sf.grout] : undefined

@@ -81,6 +81,7 @@ const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled:
 /* + New — short: the few things your login adds most, one line each, and the rest under More. The project is on top
  * (the one you're in, or pick one). Starting something new — pricing, a project, a repair, a client — sits at the bottom. */
 const ADD: Pick[] = [
+  { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, m: (j) => ({ t: 'need', jobId: j }) },
   { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, m: (j) => ({ t: 'newtask', jobId: j }) },
   { k: 'note', l: 'Note', h: 'A call, a decision — anything to remember', i: StickyNote, job: true, m: (j) => ({ t: 'note', jobId: j! }) },
   { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready', i: TriangleAlert, job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
@@ -94,15 +95,15 @@ const ADD: Pick[] = [
   { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
   { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
   { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
-  { k: 'shortage', l: 'Short on metal or materials', h: 'Thinset, grout, trim — the crew can’t finish', i: PackageX, m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
+  { k: 'shortage', l: 'Damaged or wrong on site', h: 'Tile or material that came broken, wrong or short', i: PackageX, m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
 ]
 /** the few each login adds most — the rest are under More */
 const TOP: Partial<Record<Role, string[]>> = {
-  owner: ['task', 'note', 'problem', 'punch', 'meeting', 'po'],
-  pm: ['task', 'note', 'problem', 'punch', 'meeting', 'po'],
-  office: ['task', 'note', 'problem', 'meeting', 'po', 'delivery'],
-  site: ['daily', 'problem', 'punch', 'delivery', 'note', 'task'],
-  materials: ['po', 'delivery', 'problem', 'task', 'note'],
+  owner: ['need', 'task', 'note', 'problem', 'punch', 'meeting'],
+  pm: ['need', 'task', 'note', 'problem', 'punch', 'meeting'],
+  office: ['need', 'task', 'note', 'problem', 'meeting', 'po'],
+  site: ['daily', 'need', 'problem', 'punch', 'delivery', 'task'],
+  materials: ['need', 'po', 'delivery', 'problem', 'task'],
   accounting: ['payment', 'task', 'note'],
   estimator: ['task', 'note', 'meeting', 'decision'],
   takeoff: ['task', 'note', 'meeting'],

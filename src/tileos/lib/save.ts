@@ -27,6 +27,15 @@ export type SaveStatus = { where: 'account' | 'browser' | 'cloud' | 'none'; at?:
 export type WaitingPerson = { uid: string; name: string; email: string; since: string }
 /** set by the real app (not the mockup): it saves to the company's database, who signed in, how to sign out —
  *  and, for the admin, the people waiting to be let in */
+/** the published app — where every emailed link goes. From the Lovable editor the page runs on a private preview
+ *  address that needs a Lovable login, so links never point there. */
+export const PUBLISHED = 'https://tile-path-os.lovable.app'
+export function appUrl(): string {
+  if (typeof location === 'undefined') return PUBLISHED
+  const h = location.hostname
+  if (/preview--|lovableproject\.com$|\.lovable\.dev$|^localhost$|^127\.|^0\.0\.0\.0$/.test(h) || location.protocol === 'file:') return PUBLISHED
+  return location.origin
+}
 export const REAL: {
   cloud: boolean; admin: boolean; home: Role; email?: string; signOut?: () => void
   /** who's signed in (the real app) — "Back to me" comes back to this person */

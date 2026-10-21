@@ -7,7 +7,7 @@
  *   At a glance — the five facts, each in the same shape. Scope of work — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight } from 'lucide-react'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight, Truck } from 'lucide-react'
 import { useStore, meOf, historyOf, type Store } from '@/tileos/store'
 import { Button, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -322,6 +322,7 @@ export function AddToProject({ job }: { job: Job }) {
     <>
       <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
         <MenuLabel>Add to {job.name}</MenuLabel>
+        <MenuItem icon={<Truck className="h-4 w-4" />} onSelect={() => s.open({ t: 'need', jobId: job.id })} hint="Material or a tool, brought to the job">Need something on site</MenuItem>
         <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
         <MenuItem icon={<Wrench className="h-4 w-4" />} onSelect={() => s.open({ t: 'punchnew', jobId: job.id })} hint="The whole list at once — one per line">Touch-ups</MenuItem>
         <MenuItem icon={<StickyNote className="h-4 w-4" />} onSelect={() => s.open({ t: 'note', jobId: job.id })} hint="With photos or videos">A note</MenuItem>

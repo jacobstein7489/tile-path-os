@@ -1,27 +1,31 @@
 /* The project, in the same shape as the estimate: the header carries its four parts as rings (Getting ready,
- * Installing, Touch-ups, Billed and paid — how far each one is, in one look), the main column is the part you're on,
- * and the right side is the project — who's on it, the client, the dates, the scope, the files, the messages — until
- * you tap something: then the right side is that thing (a step with its lane's path on top, a room with its
- * surfaces). One shape for every part; nothing nested. On a phone the step opens over the list. */
+ * Installing, Touch-ups, Billed and paid). The main side is the work of the part you're on, and what to look at first
+ * is on top: in Getting ready, what's YOUR turn, then what's with others, then what's done. Tap a step and it opens
+ * right there, with a back arrow — one window, nothing on top of it. Installing is the rooms; tap one and its walls
+ * and floors open the same way. The right side is the project, the same in every part: the tile and the grout, the
+ * files, the messages, the scope. */
 import * as React from 'react'
-import { X, Check, Plus, Paperclip, MessageCircle, Package, History, ListTodo, Building2, CalendarDays, Receipt } from 'lucide-react'
-import { useStore, meOf } from '@/tileos/store'
-import { Button } from '@/tileos/components/ui/core'
+import { Check, Plus, Paperclip, MessageCircle, Package, History, ListTodo, Building2, CalendarDays, Receipt, ChevronLeft, ChevronRight, ArrowRight, Grid2x2, FileText, Upload, Play, Truck } from 'lucide-react'
+import { useStore, meOf, isRequest } from '@/tileos/store'
+import { Button, Avatar } from '@/tileos/components/ui/core'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
-import { roomPct, tilesOf, tileOf, GROUTS } from '@/tileos/data/jobs'
+import { roomPct, tilesOf, GROUTS, filesFor } from '@/tileos/data/jobs'
 import { Ring } from '@/tileos/components/ui/progress'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
 import { isGettingReady, stepsFor, stepCounts, lanesFor, type StepView, type LaneView } from '../steps'
 import { StepIcon } from '../steps-ui'
 import { StepInline, StepTabs, todoOf } from '../stepwin'
-import { unreadOf } from '../messages'
 import { pictureOf } from '../progressbill'
-import { RoomsTab, RoomPanel } from './rooms'
+import { startProject } from '../flows'
+import { RoomsTab, SurfaceDetail } from './rooms'
 import { MoneyTab } from './money-tab'
 import { TouchupsList } from '../touchups'
 import { firstName } from './kit'
+import { useSaveStatus } from '@/tileos/lib/save'
+import { keepFiles, openFile } from '@/tileos/lib/files'
+import { surfacePct, SURF_LABEL } from '@/tileos/data/jobs'
 
 export type Part = 'ready' | 'install' | 'punch' | 'money'
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
@@ -122,9 +126,9 @@ export function Track({ parts, at, onPick, className }: { parts: PartView[]; at:
         const on = p.key === at
         return (
           <li key={p.key} className="flex min-w-0 flex-1 items-center">
-            <button onClick={() => onPick(p.key)} aria-current={on ? 'step' : undefined} aria-label={`${p.label} — ${p.sub}`} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left transition', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : 'hover:bg-[#f6f3ee]/70')}>
+            <button onClick={() => onPick(p.key)} aria-current={on ? 'step' : undefined} aria-label={`${p.label} — ${p.sub}`} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left transition max-sm:flex-col max-sm:gap-1 max-sm:px-0.5 max-sm:text-center', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : 'hover:bg-[#f6f3ee]/70')}>
               <PartRing pct={p.pct} state={p.state} size={34} />
-              <span className="min-w-0 leading-tight">
+              <span className="min-w-0 leading-tight max-sm:w-full">
                 <span className={cn('block truncate text-[0.8125rem] font-semibold', on ? 'text-ink' : p.state === 'later' ? 'text-muted' : 'text-ink-2')}><span className="max-sm:hidden">{p.label}</span><span className="sm:hidden">{p.short}</span></span>
                 <span className={cn('block truncate text-[0.71875rem]', p.state === 'bad' ? 'font-semibold text-bad-600' : p.state === 'done' ? 'text-[#2c8a5b]' : p.state === 'now' ? 'text-ink-2' : 'text-faint')}><span className="max-sm:hidden">{p.sub}</span><span className="sm:hidden">{p.subShort}</span></span>
               </span>
@@ -168,209 +172,360 @@ function Dots({ steps }: { steps: StepView[] }) {
   return <span className="ml-1.5 inline-flex shrink-0 items-center gap-[0.1875rem] align-middle" aria-label={`${steps.filter((x) => x.state === 'done' || x.state === 'na').length} of ${steps.length} steps done`}>{steps.map((x) => <span key={x.key} className={cn('inline-block h-[0.4375rem] w-[0.4375rem] rounded-full', tone(x.state))} />)}</span>
 }
 
-/** one line of the flow: the number, the lane, the word on the right — and under it the step it's on, or the problem */
-function LaneLine({ n, lane, me, on, onClick, past }: { n: number; lane: LaneView; me: PersonKey; on?: boolean; onClick: () => void; past?: boolean }) {
+/* ---------------- Getting ready: your turn, with others, done ---------------- */
+/** a lane to do: the number, what it is, the step it's on and what it needs — and who has it */
+function LaneRow({ n, lane, me, big, onClick }: { n: number; lane: LaneView; me: PersonKey; big?: boolean; onClick: () => void }) {
   const at = lane.at
-  const state = past ? 'done' : lane.state
-  const w = past ? { text: 'Done', tone: 'ok' } : lane.state === 'done' ? { text: at.doneOn ? `Done ${at.doneOn}` : 'Done', tone: 'ok' } : stepWord(at, me)
-  /* the step the lane is on, when it isn't the lane itself (the installer lane on "Show him the job") */
+  const w = stepWord(at, me)
   const sub = lane.steps.length > 1 && at.short.toLowerCase() !== lane.label.toLowerCase() ? at.short : ''
-  /* what's going on in the lane, in a few words: the problem, the wait, or the step it's on */
-  const note = past || state === 'done' || state === 'later' ? '' : [sub, at.note || ''].filter(Boolean).join(at.state === 'bad' || at.state === 'wait' ? ' — ' : ' · ')
-  const muted = past || state === 'done'
+  const note = [sub, at.note || ''].filter(Boolean).join(at.state === 'bad' || at.state === 'wait' ? ' — ' : ' · ')
   return (
-    <button data-lane={lane.key} data-step={at.key} data-has={lane.steps.map((x) => x.key).join(' ')} onClick={onClick} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-b border-line-2 border-l-[0.1875rem] px-3 py-2 text-left transition last:border-b-0 [@media(max-height:860px)]:py-[0.3125rem]', on ? 'border-l-brand-600 bg-brand-50/70' : 'border-l-transparent hover:bg-[#f6f3ee]')}>
-      <NumMark n={n} state={state} />
+    <button data-lane={lane.key} data-step={at.key} data-has={lane.steps.map((x) => x.key).join(' ')} onClick={onClick} className={cn('group flex w-full items-center gap-3 border-b border-line-2 px-4 text-left transition last:border-b-0 hover:bg-[#f6f3ee]', big ? 'py-3' : 'py-2')}>
+      <NumMark n={n} state={lane.state} />
       <span className="min-w-0 flex-1">
-        <span className={cn('block truncate text-[0.875rem] leading-[1.25rem]', muted ? 'text-ink-2' : state === 'later' ? 'text-muted' : 'font-medium text-ink')}>{lane.label}{!past && <Dots steps={lane.steps} />}</span>
-        {note && <span className={cn('block truncate text-[0.75rem] leading-[1rem]', w.tone === 'bad' ? 'text-bad-600' : 'text-muted')}>{note.replace(/ — $/, '')}</span>}
+        <span className={cn('block truncate leading-[1.25rem]', big ? 'text-[0.9375rem] font-semibold text-ink' : 'text-[0.875rem] font-medium text-ink')}>{big ? todoOf(at) : lane.label}{!big && <Dots steps={lane.steps} />}</span>
+        {(big || at.state === 'bad' || at.state === 'wait') && note && <span className={cn('block truncate text-[0.78125rem] leading-[1.125rem]', at.state === 'bad' ? 'text-bad-600' : 'text-muted')}>{big ? `${lane.label}${note ? ` · ${note}` : ''}` : note}</span>}
       </span>
-      <span className={cn('shrink-0 text-[0.78125rem] tnum', TONE[w.tone] || TONE.plain)}>{w.text}</span>
+      {big
+        ? <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-brand-600 px-3 text-[0.8125rem] font-semibold text-white shadow-btn transition group-hover:bg-brand-700">Open<ArrowRight className="h-3.5 w-3.5" /></span>
+        : <span className="flex shrink-0 items-center gap-2">
+            {at.state !== 'wait' && at.state !== 'bad' && <Avatar who={at.owner} size={22} />}
+            <span className={cn('text-[0.78125rem] tnum', TONE[w.tone] || TONE.plain)}>{w.text}</span>
+          </span>}
     </button>
+  )
+}
+function Head({ children, n, tone }: { children: React.ReactNode; n?: number; tone?: 'me' | 'bad' }) {
+  return (
+    <div className="flex items-center gap-2 px-1 pb-1.5 pt-1">
+      <span className={cn('text-[0.8125rem] font-semibold', tone === 'me' ? 'text-brand-700' : tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>{children}</span>
+      {n != null && <span className={cn('rounded-full px-1.5 text-[0.71875rem] font-bold tnum', tone === 'me' ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}
+    </div>
+  )
+}
+function Flow({ job, open }: { job: Job; open: (k: string) => void }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const steps = stepsFor(s, job).filter((v) => v.state !== 'na')
+  const lanes = lanesFor(steps)
+  const num = (l: LaneView) => lanes.indexOf(l) + 1
+  const active = lanes.filter((l) => l.state === 'now' || l.state === 'bad' || l.state === 'wait')
+  const mine = active.filter((l) => l.at.owner === me && l.at.state !== 'wait')
+  const others = active.filter((l) => !mine.includes(l)).sort((a, b) => (a.state === 'bad' ? 0 : 1) - (b.state === 'bad' ? 0 : 1) || num(a) - num(b))
+  const later = lanes.filter((l) => l.state === 'later')
+  const done = lanes.filter((l) => l.state === 'done')
+  const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.title.startsWith('Touch-ups at') && !t.step)
+  const allDone = lanes.length > 0 && done.length === lanes.length
+  return (
+    <div className="flex flex-col gap-4">
+      {allDone && ['setup', 'verification', 'ready', 'scheduled'].includes(job.stage) && (
+        <div className="flex items-center gap-4 rounded-[0.875rem] border border-ok-100 bg-ok-50 px-5 py-4">
+          <StepIcon state="done" size={34} />
+          <span className="min-w-0 flex-1"><span className="block text-[1rem] font-semibold text-ink">Everything is ready</span><span className="block text-[0.84375rem] text-ink-2">All {lanes.length} steps are done. Start the job when the crew is there.</span></span>
+          {['ready', 'scheduled'].includes(job.stage) && <Button variant="primary" icon={<Play />} onClick={() => startProject(job.id)}>Start the job</Button>}
+        </div>
+      )}
+      {!allDone && (
+        <section>
+          <Head n={mine.length} tone="me">Your turn</Head>
+          {mine.length ? (
+            <div className="overflow-hidden rounded-[0.875rem] border border-brand-100 bg-white shadow-[0_0.0625rem_0.125rem_rgba(38,80,207,.06)]">
+              {mine.map((l) => <LaneRow key={l.key} n={num(l)} lane={l} me={me} big onClick={() => open(l.at.key)} />)}
+            </div>
+          ) : <div className="rounded-[0.875rem] border border-dashed border-[#ddd6ca] px-4 py-3 text-[0.84375rem] text-muted">Nothing on this project is waiting on you.</div>}
+        </section>
+      )}
+      {others.length > 0 && (
+        <section>
+          <Head n={others.length}>With others</Head>
+          <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+            {others.map((l) => <LaneRow key={l.key} n={num(l)} lane={l} me={me} onClick={() => open(l.at.key)} />)}
+          </div>
+        </section>
+      )}
+      {tasks.length > 0 && (
+        <section>
+          <Head n={tasks.length}>Requests and questions</Head>
+          <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+            {tasks.map((t) => (
+              <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-b border-line-2 px-4 py-2 text-left transition last:border-b-0 hover:bg-[#f6f3ee]">
+                {isRequest(t) ? <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-[#fff1e3] text-[#c2410c]"><Truck className="h-3 w-3" /></span> : <StepIcon state={t.tone === 'bad' ? 'bad' : t.state === 'waiting' ? 'wait' : 'now'} size={22} />}
+                <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-medium text-ink">{t.title}</span>{t.state === 'waiting' ? <span className="block truncate text-[0.75rem] text-muted">Waiting on {t.waitingOn}</span> : t.req ? <span className="block truncate text-[0.75rem] text-muted">{t.req.trip === 'onway' ? 'On the way' : 'Asked'}{t.by ? ` by ${firstName(t.by)}` : ''}</span> : null}</span>
+                <Avatar who={t.owner} size={22} />
+                <span className={cn('shrink-0 text-[0.78125rem]', t.owner === me ? 'font-semibold text-brand-700' : 'text-ink-2')}>{t.owner === me ? 'You' : firstName(t.owner)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {(later.length > 0 || done.length > 0) && (
+        <section className="flex flex-col gap-2 rounded-[0.875rem] bg-[#f6f3ee] px-4 py-3">
+          {later.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[0.78125rem] font-semibold text-muted">Then</span>
+              {later.map((l) => <button key={l.key} data-lane={l.key} data-step={l.at.key} data-has={l.steps.map((x) => x.key).join(' ')} onClick={() => open(l.at.key)} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-white px-2.5 text-[0.78125rem] font-medium text-ink-2 hover:border-[#cdc7bc]"><span className="text-faint tnum">{num(l)}</span>{l.label}</button>)}
+            </div>
+          )}
+          {done.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[0.78125rem] font-semibold text-muted">Done</span>
+              {done.map((l) => <button key={l.key} data-lane={l.key} data-step={l.at.key} data-has={l.steps.map((x) => x.key).join(' ')} onClick={() => open(l.at.key)} className="inline-flex h-7 items-center gap-1 rounded-full bg-white px-2.5 text-[0.78125rem] font-medium text-[#2c4a3e] ring-1 ring-[#d5e7dc] hover:bg-ok-50"><Check className="h-3.5 w-3.5 text-[#2c8a5b]" strokeWidth={3} />{l.label}</button>)}
+            </div>
+          )}
+        </section>
+      )}
+    </div>
   )
 }
 
-/* ---------------- the right side: the scope of work ---------------- */
-function SideLink({ icon, label, n, hot, on }: { icon: React.ReactNode; label: string; n?: string; hot?: boolean; on: () => void }) {
-  return (
-    <button onClick={on} className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-center transition hover:bg-[#f6f3ee]">
-      <span className={cn('relative inline-flex h-8 w-8 items-center justify-center rounded-[0.5625rem] bg-wash text-muted [&>svg]:h-4 [&>svg]:w-4', hot && 'bg-brand-50 text-brand-700')}>{icon}{hot && n && <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.625rem] font-bold text-white">{n}</span>}</span>
-      <span className="block w-full truncate text-[0.71875rem] font-semibold text-ink-2">{label}{n && !hot ? <span className="font-normal text-muted"> · {n}</span> : ''}</span>
-    </button>
-  )
-}
-/** the scope, always in view: every room with its walls and floors, the tile and the grout on each — and the tiles
- *  themselves. Tap a surface or a tile and it opens. Files, messages, orders and the rest sit under it. */
-export function ProjectInfo({ job }: { job: Job }) {
+/** one step, open right on the project: back to the list, the lane's path, the step itself */
+function StepOpen({ job, k, back, setK }: { job: Job; k: string; back: () => void; setK: (k: string) => void }) {
   const s = useStore()
-  const rooms = s.rooms[job.id] || []
-  const sf = rooms.flatMap((r) => r.surfaces).reduce((n, x) => n + (x.sf || 0), 0)
-  const tiles = tilesOf(job.id)
-  const files = s.files.filter((f) => f.jobId === job.id).length
-  const unread = unreadOf(s, job.id)
-  const orders = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
-  const money = s.role !== 'site' && s.role !== 'crew'
-  const open = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done').length
-  const groutOf = (x: { tile: string; grout?: string }) => { const g = x.grout || tileOf(job.id, x.tile)?.grout; return g ? GROUTS[g]?.name || g : '' }
+  const me = meOf(s.role)
+  const steps = stepsFor(s, job).filter((v) => v.state !== 'na' || v.key === k)
+  const lanes = lanesFor(steps)
+  const v = steps.find((x) => x.key === k)
+  const lane = v ? lanes.find((l) => l.steps.some((x) => x.key === k)) : undefined
+  if (!v || !lane) return null
+  const n = lanes.indexOf(lane) + 1
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="sticky top-0 z-[1] flex shrink-0 items-center gap-2 border-b border-line bg-white py-2.5 pl-5 pr-3">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[0.9375rem] font-semibold text-ink">Scope of work</span>
-          <span className="block truncate text-[0.75rem] text-muted">{rooms.length ? `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}${tiles.length ? ` · ${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'}` : ''}` : 'Rooms, walls and floors, tile and grout'}</span>
-        </span>
-        <Button size="sm" onClick={() => s.open({ t: 'scopewin', jobId: job.id })}>Open</Button>
-      </div>
-      <div className="min-h-0 flex-1 px-3 py-2">
-        {rooms.length === 0 && <div className="rounded-xl bg-wash px-4 py-6 text-center text-[0.84375rem] text-muted">No rooms yet — they come in with the estimate, or from the tile paperwork.</div>}
-        {rooms.map((r) => (
-          <div key={r.name} className="mb-1.5">
-            <div className="flex items-baseline justify-between gap-2 px-2 pb-0.5 pt-1.5">
-              <span className="truncate text-[0.8125rem] font-semibold text-ink">{r.name}</span>
-              <span className="shrink-0 text-[0.71875rem] tnum text-muted">{r.surfaces.reduce((n, x) => n + (x.sf || 0), 0) ? `${r.surfaces.reduce((n, x) => n + (x.sf || 0), 0)} SF` : ''}</span>
-            </div>
-            {r.surfaces.map((x) => {
-              const t = tileOf(job.id, x.tile)
-              const g = groutOf(x)
-              return (
-                <button key={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition hover:bg-[#f6f3ee]">
-                  <TileImg tile={t} size={26} radius={6} />
-                  <span className="min-w-0 flex-1 leading-tight">
-                    <span className="block truncate text-[0.8125rem] text-ink">{x.name}<span className="text-muted"> · {t ? `${x.tile} ${t.name}` : x.tile || 'no tile yet'}</span></span>
-                    <span className={cn('block truncate text-[0.71875rem]', g ? 'text-muted' : 'text-warn-700')}>{g ? `${g} grout` : t ? 'no grout yet' : ''}{x.layout ? ` · ${x.layout}` : ''}</span>
-                  </span>
-                  {x.sf ? <span className="shrink-0 text-[0.71875rem] tnum text-faint">{x.sf} SF</span> : null}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-        {tiles.length > 0 && (
-          <div className="mt-2 border-t border-line-2 pt-2">
-            <div className="px-2 pb-0.5 text-[0.71875rem] font-semibold text-muted">Tile and grout</div>
-            {tiles.map((t) => {
-              const on = rooms.flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
-              const g = t.grout ? GROUTS[t.grout]?.name || t.grout : ''
-              return (
-                <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition hover:bg-[#f6f3ee]">
-                  <TileImg tile={t} size={26} radius={6} />
-                  <span className="min-w-0 flex-1 leading-tight">
-                    <span className="block truncate text-[0.8125rem] text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
-                    <span className={cn('block truncate text-[0.71875rem]', g ? 'text-muted' : 'text-warn-700')}>{g ? `${g} grout` : 'no grout yet'}{on.length ? ` · ${on.length} ${on.length === 1 ? 'surface' : 'surfaces'}` : ''}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-      <div className="sticky bottom-0 z-[1] flex shrink-0 items-stretch border-t border-line bg-white px-2 py-1">
-        <SideLink icon={<Paperclip />} label="Files" n={files ? `${files}` : undefined} on={() => s.open({ t: 'files', jobId: job.id })} />
-        <SideLink icon={<MessageCircle />} label="Messages" n={unread ? `${unread}` : undefined} hot={unread > 0} on={() => s.open({ t: 'chat', jobId: job.id })} />
-        {money && <SideLink icon={<Package />} label="Orders" n={orders ? `${orders}` : undefined} on={() => s.open({ t: 'orderswin', jobId: job.id })} />}
-        <SideLink icon={<ListTodo />} label="Open" n={open ? `${open}` : undefined} on={() => s.open({ t: 'whatsopen', jobId: job.id })} />
-        <SideLink icon={<History />} label="History" on={() => s.open({ t: 'history', jobId: job.id })} />
+    <div data-panel className="@container">
+      <button onClick={back} className="mb-3 inline-flex items-center gap-1 rounded-lg py-1 pr-2 text-[0.84375rem] font-semibold text-brand-700 hover:bg-brand-50"><ChevronLeft className="h-4 w-4" />All steps</button>
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        <div className="flex items-center gap-3 border-b border-line px-5 py-3">
+          <NumMark n={n} state={lane.state} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.75rem] font-semibold text-muted">Step {n} of {lanes.length} · {lane.label}</span>
+            <span className="block truncate text-[1.0625rem] font-semibold leading-tight text-ink">{isDone(v) ? v.label : todoOf(v)}</span>
+          </span>
+        </div>
+        {lane.steps.length > 1 && <StepTabs list={lane.steps} at={v.key} go={(x) => x && setK(x.key)} me={me} />}
+        <div className="px-5 pb-5 pt-4 max-sm:px-4"><StepInline key={v.key} job={job} v={v} onClose={back} /></div>
       </div>
     </div>
   )
 }
 
-/* ---------------- the body: the part on the left, the thing you tapped (or the project) on the right ---------------- */
-export function ProjectBoard({ job, part }: { job: Job; part: Part }) {
+/* ---------------- Installing: the rooms; tap one and its walls and floors open right there ---------------- */
+function Rooms({ job, room, setRoom }: { job: Job; room: string | null; setRoom: (r: string | null) => void }) {
   const s = useStore()
-  const me = meOf(s.role)
-  const wide = useWide()
-  const money = s.role !== 'site' && s.role !== 'crew'
-  const pricing = PRICING.includes(job.stage)
-  const ready = isGettingReady(job)
+  const rooms = s.rooms[job.id] || []
   const inField = IN_FIELD.includes(job.stage)
-  const past = !ready && !pricing
-  /* past getting ready the steps still show (all done): when each thing happened is part of the picture */
-  const steps = pricing ? [] : stepsFor(s, job).filter((v) => v.state !== 'na')
-  const lanes = lanesFor(steps)
-  const c = stepCounts(steps)
-  const lDone = lanes.filter((l) => l.state === 'done').length
+  const [openSf, setOpenSf] = React.useState<string | null>(null)
   const b = s.bookings.find((x) => x.jobId === job.id)
-  const crew = (job.crew || b?.crew) as PersonKey | undefined
   const startIso = b?.start || s.prep[job.id]?.targetISO
   const start = job.dates?.start || (startIso ? labelFromIso(startIso) : undefined)
-  const lateStart = !inField && !pricing && !!startIso && startIso < TODAY
+  const crew = (job.crew || b?.crew) as PersonKey | undefined
+  if (!rooms.length) return <RoomsTab job={job} />
+  const r = room ? rooms.find((x) => x.name === room) : undefined
+  if (r) {
+    const p = roomPct(r)
+    const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.name))
+    return (
+      <div>
+        <button onClick={() => { setRoom(null); setOpenSf(null) }} className="mb-3 inline-flex items-center gap-1 rounded-lg py-1 pr-2 text-[0.84375rem] font-semibold text-brand-700 hover:bg-brand-50"><ChevronLeft className="h-4 w-4" />All rooms</button>
+        <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-5 py-3">
+            <Ring pct={inField ? p : 0} size={34} stroke={3.5} tone={p >= 100 ? 'ok' : p > 0 ? 'info' : 'neutral'} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[1.0625rem] font-semibold leading-tight text-ink">{r.name}</span>
+              <span className="block text-[0.8125rem] text-muted">{inField ? `${p}% installed · ${r.surfaces.filter((x) => x.state === 'done').length} of ${r.surfaces.length} done${entries[0] ? ` · last update ${entries[0].day}` : ''}` : `${r.surfaces.length} walls and floors to install`}</span>
+            </span>
+            {entries.length > 0 && <Button size="sm" variant="ghost" icon={<FileText />} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name, view: 'log' })}>Daily log · {entries.length}</Button>}
+          </div>
+          {r.surfaces.map((x) => {
+            const tile = tilesOf(job.id).find((t) => t.tag === x.tile)
+            const g = x.grout || tile?.grout
+            const on = openSf === x.name
+            const waiting = ['blocked', 'waitmat', 'hold', 'unknown'].includes(x.state)
+            return (
+              <div key={x.name} className="border-b border-line-2 last:border-b-0">
+                <button data-surface={x.name} onClick={() => setOpenSf(on ? null : x.name)} aria-expanded={on} className={cn('flex w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-[#f6f3ee]', on && 'bg-[#f6f3ee]')}>
+                  <TileImg tile={tile} size={30} radius={7} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {tile ? `${x.tile} ${tile.name}` : x.tile || 'no tile yet'}{g ? ` · ${GROUTS[g]?.name || g} grout` : ''}</span></span>
+                    <span className={cn('block truncate text-[0.75rem]', waiting ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-brand-700' : x.state === 'done' ? 'text-[#2c8a5b]' : 'text-muted')}>{x.state === 'working' ? `In progress · ${surfacePct(x)}%` : SURF_LABEL[x.state]}{x.reason ? ` — ${x.reason}` : ''}{x.sf ? ` · ${x.sf} SF` : ''}</span>
+                  </span>
+                  <ChevronRight className={cn('h-4 w-4 shrink-0 text-faint transition', on && 'rotate-90')} />
+                </button>
+                {on && <div className="border-t border-line-2 bg-white"><SurfaceDetail job={job} room={r} sf={x} /></div>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {!inField && <div className="rounded-[0.875rem] border border-line bg-white px-4 py-2.5 text-[0.875rem] text-ink-2">{start ? `Starts ${start}${crew ? ` with ${PEOPLE[crew]?.short}` : ''}. These rooms get installed.` : 'No start date yet — it comes with the installer’s PO. These rooms get installed.'}</div>}
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        {rooms.map((x) => {
+          const p = roomPct(x)
+          const waiting = x.surfaces.filter((y) => ['blocked', 'waitmat', 'hold'].includes(y.state)).length
+          return (
+            <button key={x.name} data-room={x.name} onClick={() => setRoom(x.name)} className="flex w-full items-center gap-4 border-b border-line-2 px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f6f3ee]">
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-[0.9375rem] font-semibold text-ink">{x.name}</span>
+                  <span className={cn('shrink-0 text-[0.8125rem] tnum', p >= 100 ? 'text-[#2c8a5b]' : p > 0 ? 'font-semibold text-ink' : 'text-faint')}>{!inField ? `${x.surfaces.length} walls and floors` : p >= 100 ? 'Done' : p > 0 ? `${p}%` : 'Not started'}</span>
+                </span>
+                {inField && <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#ece7de]"><span className={cn('block h-full rounded-full', p >= 100 ? 'bg-[#2c8a5b]' : waiting ? 'bg-bad-500' : 'bg-brand-600')} style={{ width: `${Math.max(p, p > 0 ? 3 : 0)}%` }} /></span>}
+                {waiting > 0 && <span className="mt-1 block text-[0.75rem] font-medium text-bad-600">{waiting} {waiting === 1 ? 'wall or floor' : 'walls and floors'} waiting — {x.surfaces.find((y) => ['blocked', 'waitmat', 'hold'].includes(y.state))?.reason || 'see the room'}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- the right side: the project, the same in every part ---------------- */
+export function Box({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="border-b border-line px-5 py-4 last:border-b-0 max-sm:px-4">
+      <div className="mb-2 flex items-center justify-between gap-2"><span className="text-[0.875rem] font-semibold text-ink">{title}</span>{right}</div>
+      {children}
+    </section>
+  )
+}
+/** the files kept with a project — plans, paperwork, photos — as pictures you can open, and Add. Documents the
+ *  estimate is still missing show as empty tiles to fill. Used on the project and on the estimate. */
+export function FilesBox({ jobId, title = 'Files', missing = [], named = [] }: { jobId: string; title?: string; missing?: string[]; named?: string[] }) {
+  const s = useStore()
+  const save = useSaveStatus()
+  const files = s.files.filter((f) => f.jobId === jobId)
+  const sample = save.mode === 'sample' && save.where !== 'cloud' ? filesFor(jobId) : []
+  const add = React.useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = React.useState(false)
+  const upload = async (list: File[]) => {
+    if (!list.length) return
+    setBusy(true)
+    const photos = list.filter((f) => f.type.startsWith('image/'))
+    const other = list.filter((f) => !f.type.startsWith('image/'))
+    if (photos.length) await keepFiles(jobId, photos, 'photo')
+    if (other.length) await keepFiles(jobId, other, /plan|drawing|arch/i.test(other[0].name) ? 'plans' : 'other')
+    setBusy(false)
+  }
+  /* documents the estimate says came in, when no file of theirs is kept here (the sample) */
+  const names = files.length || sample.length ? [] : named
+  const n = files.length + sample.length + names.length
+  return (
+    <Box title={title} right={<span className="flex items-center gap-1">{n > 0 && <button onClick={() => s.open({ t: 'files', jobId })} className="rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50">All {n}</button>}<button onClick={() => add.current?.click()} disabled={busy} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><Upload className="h-3.5 w-3.5" />{busy ? 'Adding…' : 'Add'}</button></span>}>
+      <input ref={add} type="file" multiple className="hidden" aria-label={`Add files — ${title}`} onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void upload(f) }} />
+      {n === 0 && !missing.length && <button onClick={() => add.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d6cfc3] py-4 text-[0.8125rem] font-medium text-muted hover:border-brand-300 hover:text-brand-700"><Paperclip className="h-4 w-4" />Plans, paperwork, photos — add them here</button>}
+      {(n > 0 || missing.length > 0) && (
+        <div className="grid grid-cols-3 gap-2">
+          {files.slice(-6).reverse().map((f) => (
+            <button key={f.id} onClick={() => void openFile(f)} title={f.name} className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-white text-left transition hover:border-[#cdc7bc]">
+              {f.thumb ? <img src={f.thumb} alt="" className="aspect-[4/3] w-full object-cover" /> : <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-wash text-muted"><FileText className="h-6 w-6" /><span className="text-[0.625rem] font-semibold uppercase tracking-wide">{(f.name.split('.').pop() || f.kind).slice(0, 4)}</span></span>}
+              <span className="block truncate px-1.5 py-1 text-[0.6875rem] font-medium text-ink-2">{f.name}</span>
+            </button>
+          ))}
+          {files.length < 6 && sample.slice(0, 6 - files.length).map((d) => (
+            <button key={d.name} onClick={() => s.open({ t: 'files', jobId })} title={d.name} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-white text-left transition hover:border-[#cdc7bc]">
+              <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-wash text-muted"><FileText className="h-6 w-6" /><span className="text-[0.625rem] font-semibold uppercase tracking-wide">{d.kind}</span></span>
+              <span className="block truncate px-1.5 py-1 text-[0.6875rem] font-medium text-ink-2">{d.name}</span>
+            </button>
+          ))}
+          {names.map((name) => (
+            <button key={'n' + name} onClick={() => s.open({ t: 'files', jobId })} title={name} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-white text-left transition hover:border-[#cdc7bc]">
+              <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-wash text-muted"><FileText className="h-6 w-6" /><span className="text-[0.625rem] font-semibold uppercase tracking-wide">In</span></span>
+              <span className="block truncate px-1.5 py-1 text-[0.6875rem] font-medium text-ink-2">{name}</span>
+            </button>
+          ))}
+          {missing.map((name) => (
+            <button key={'m' + name} onClick={() => add.current?.click()} title={`${name} — missing, add it`} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-dashed border-warn-300 bg-[#fffaf0] text-left transition hover:border-warn-500">
+              <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 text-warn-700"><Upload className="h-5 w-5" /><span className="text-[0.625rem] font-semibold uppercase tracking-wide">Missing</span></span>
+              <span className="block truncate px-1.5 py-1 text-[0.6875rem] font-medium text-warn-800">{name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Box>
+  )
+}
+
+/** the project on the right: the tile and the grout, the files, the messages, the scope — always there */
+export function ProjectInfo({ job }: { job: Job }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const rooms = s.rooms[job.id] || []
+  const sf = rooms.flatMap((r) => r.surfaces).reduce((n, x) => n + (x.sf || 0), 0)
+  const tiles = tilesOf(job.id)
+  const msgs = s.messages[job.id] || []
+  const unread = msgs.slice(s.seen?.[`${job.id}|${me}`]?.n || 0).filter((m) => m.who !== me).length
+  const money = s.role !== 'site' && s.role !== 'crew'
+  const orders = s.pos.filter((p) => p.jobId === job.id).length + s.ipos.filter((p) => p.jobId === job.id).length
+  const open = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done').length
+  const said = (m: (typeof msgs)[number]) => (m.audio || m.audioPath ? '🎤 Voice note' : m.media?.length || m.photos?.length ? '📷 Photo' : m.text)
+  return (
+    <div>
+      <Box title="Tile and grout" right={tiles.length ? <span className="text-[0.75rem] text-muted">{tiles.length}</span> : undefined}>
+        {tiles.length ? tiles.map((t) => {
+          const g = t.grout ? GROUTS[t.grout] : undefined
+          const on = rooms.flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
+          return (
+            <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]">
+              <TileImg tile={t} size={36} radius={8} />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.84375rem] font-semibold text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-[0.75rem]">{g ? <><span className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: g.color }} /><span className="truncate text-ink-2">{g.name}{t.joint ? ` · ${t.joint}` : ''}</span></> : <span className="text-warn-700">No grout yet</span>}{on.length ? <span className="truncate text-faint">· {on.length} {on.length === 1 ? 'surface' : 'surfaces'}</span> : null}</span>
+              </span>
+            </button>
+          )
+        }) : <div className="text-[0.8125rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
+      </Box>
+      <FilesBox jobId={job.id} />
+      <Box title="Messages" right={unread ? <span className="rounded-full bg-bad-500 px-1.5 text-[0.71875rem] font-bold text-white">{unread} new</span> : undefined}>
+        <button onClick={() => s.open({ t: 'chat', jobId: job.id })} className="-mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1 text-left transition hover:bg-[#f6f3ee]">
+          {msgs.length ? msgs.slice(-2).map((m) => (
+            <span key={m.id} className="flex items-start gap-2 py-1">
+              <Avatar who={m.who} size={22} />
+              <span className="min-w-0 flex-1 text-[0.8125rem] leading-snug"><b className="font-semibold text-ink">{m.who === me ? 'You' : PEOPLE[m.who]?.short || 'Someone'}</b> <span className="text-ink-2">{said(m)}</span><span className="ml-1 text-[0.71875rem] text-faint">{m.time}</span></span>
+            </span>
+          )) : <span className="block py-1 text-[0.8125rem] text-muted">No messages yet — write to the team, send a photo or a voice note.</span>}
+          <span className="mt-1 inline-flex items-center gap-1 text-[0.78125rem] font-semibold text-brand-700"><MessageCircle className="h-3.5 w-3.5" />Open the conversation</span>
+        </button>
+      </Box>
+      <Box title="Scope of work">
+        <button onClick={() => s.open({ t: 'scopewin', jobId: job.id })} className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted"><Grid2x2 className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">{rooms.length ? `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}` : 'No rooms yet'}</span><span className="block text-[0.75rem] text-muted">Every wall and floor — its tile, grout and layout</span></span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+        </button>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.78125rem] font-semibold text-brand-700">
+          {money && <button onClick={() => s.open({ t: 'orderswin', jobId: job.id })} className="inline-flex items-center gap-1 hover:underline"><Package className="h-3.5 w-3.5" />Orders{orders ? ` · ${orders}` : ''}</button>}
+          <button onClick={() => s.open({ t: 'whatsopen', jobId: job.id })} className="inline-flex items-center gap-1 hover:underline"><ListTodo className="h-3.5 w-3.5" />Everything open{open ? ` · ${open}` : ''}</button>
+          <button onClick={() => s.open({ t: 'history', jobId: job.id })} className="inline-flex items-center gap-1 hover:underline"><History className="h-3.5 w-3.5" />What happened</button>
+        </div>
+      </Box>
+    </div>
+  )
+}
+
+/* ---------------- the body: the work on the left, the project on the right ---------------- */
+export function ProjectBoard({ job, part }: { job: Job; part: Part }) {
+  const s = useStore()
+  const money = s.role !== 'site' && s.role !== 'crew'
+  const pricing = PRICING.includes(job.stage)
   const punch = s.punch.filter((p) => p.jobId === job.id)
   const punchOpen = punch.filter((p) => p.status !== 'verified')
-  const pct = job.pct ?? 0
-  /* the step open on the right: the one you tapped — until then, the project */
-  const [focus, setFocus] = React.useState<string | null>(null)
-  React.useEffect(() => { setFocus(null) }, [part])
-  const rooms = s.rooms[job.id] || []
-  /* the room on the right: the one being worked on, else the first that isn't done */
-  const [room, setRoom] = React.useState<string | undefined>(() => (rooms.find((r) => r.surfaces.some((x) => x.state === 'working')) || rooms.find((r) => roomPct(r) < 100) || rooms[0])?.name)
-  const focused = focus ? steps.find((v) => v.key === focus) : undefined
-  const focusedLane = focused ? lanes.find((l) => l.steps.some((x) => x.key === focused.key)) : undefined
-  const open = (k: string) => { if (wide) setFocus(k); else s.open({ t: 'step', jobId: job.id, k }) }
-  const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.title.startsWith('Touch-ups at') && !t.step)
   const canAdd = !['accounting', 'client', 'crew'].includes(s.role)
-
+  /* a step open on the left, or a room — the back arrow brings you back; changing the part closes it */
+  const [step, setStep] = React.useState<string | null>(null)
+  const [room, setRoom] = React.useState<string | null>(null)
+  React.useEffect(() => { setStep(null); setRoom(null) }, [part])
+  const top = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [step, room])
   const main = (
     <>
-      {part === 'ready' && (
-        pricing ? (
-          <div className="rounded-[0.875rem] border border-line bg-white px-4 py-8 text-center text-[0.875rem] text-muted">Paperwork, the design meeting, the site, the installer, deliveries, the deposit — the flow starts once the estimate is won.</div>
-        ) : (
-          <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-            <div>
-              {lanes.map((l, i) => <LaneLine key={l.key} n={i + 1} lane={l} me={me} past={past} on={wide && focusedLane?.key === l.key} onClick={() => open(l.at.key)} />)}
-            </div>
-            {tasks.length > 0 && (
-              <div className="border-t border-line">
-                <div className="bg-[#faf8f5] px-4 py-1.5 text-[0.71875rem] font-semibold text-muted">Also on this project</div>
-                {tasks.map((t) => (
-                  <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-3 py-2 text-left transition hover:bg-[#f6f3ee]">
-                    <StepIcon state={t.tone === 'bad' ? 'bad' : t.state === 'waiting' ? 'wait' : 'now'} size={22} />
-                    <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-medium text-ink">{t.title}</span>{t.tone === 'bad' ? <span className="block truncate text-[0.75rem] text-bad-600">{t.detail?.split('\n')[0]}</span> : t.state === 'waiting' ? <span className="block truncate text-[0.75rem] text-muted">Waiting on {t.waitingOn}</span> : null}</span>
-                    <span className={cn('shrink-0 text-[0.78125rem]', t.owner === me ? 'font-semibold text-brand-700' : 'text-ink-2')}>{t.owner === me ? 'You' : firstName(t.owner) || PEOPLE[t.owner]?.short}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-        )
-      )}
-
-      {part === 'install' && (
-        <>
-          {!inField && (
-            <div className={cn('mb-3 rounded-[0.875rem] border bg-white px-4 py-2.5 text-[0.875rem]', lateStart ? 'border-bad-200 text-bad-700' : 'border-line text-ink-2')}>
-              {lateStart ? `It was to start ${start} — it hasn’t.` : start ? `Starts ${start}${crew ? ` with ${PEOPLE[crew]?.short}` : ''}. These rooms get installed.` : 'No start date yet — it comes with the installer’s PO. These rooms get installed.'}
-            </div>
-          )}
-          {rooms.length ? (
-            <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-              <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-                <span className="text-[0.9375rem] font-semibold text-ink">Rooms</span>
-                <span className="text-[0.78125rem] text-muted">{inField ? `${pct}% installed · ${rooms.filter((r) => roomPct(r) >= 100).length} of ${rooms.length} done` : `${rooms.length}`}</span>
-              </div>
-              <div>
-                {rooms.map((r) => {
-                  const p = roomPct(r)
-                  const waiting = r.surfaces.filter((x) => ['blocked', 'waitmat', 'hold'].includes(x.state)).length
-                  const on = wide && room === r.name
-                  return (
-                    <button key={r.name} data-room={r.name} onClick={() => (wide ? setRoom(r.name) : s.open({ t: 'room', jobId: job.id, room: r.name }))} aria-current={on ? 'true' : undefined} className={cn('flex w-full items-center gap-3 border-b border-line-2 border-l-[0.1875rem] px-3 py-2 text-left transition last:border-b-0', on ? 'border-l-brand-600 bg-brand-50/70' : 'border-l-transparent hover:bg-[#f6f3ee]')}>
-                      <Ring pct={inField ? p : 0} size={22} stroke={3} tone={p >= 100 ? 'ok' : waiting ? 'bad' : p > 0 ? 'info' : 'neutral'} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[0.875rem] font-medium leading-[1.25rem] text-ink">{r.name}</span>
-                        <span className={cn('block truncate text-[0.75rem] leading-[1rem]', waiting ? 'text-bad-600' : 'text-muted')}>{waiting ? `${waiting} ${waiting === 1 ? 'surface' : 'surfaces'} waiting` : `${r.surfaces.length} ${r.surfaces.length === 1 ? 'surface' : 'surfaces'}${inField ? ` · ${r.surfaces.filter((x) => x.state === 'done').length} done` : ''}`}</span>
-                      </span>
-                      <span className={cn('shrink-0 text-[0.78125rem] tnum', p >= 100 ? 'text-[#2c8a5b]' : p > 0 ? 'font-semibold text-ink' : 'text-faint')}>{!inField ? '' : p >= 100 ? 'Done' : p > 0 ? `${p}%` : 'Not started'}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
-          ) : <RoomsTab job={job} />}
-        </>
-      )}
-
+      {part === 'ready' && (pricing
+        ? <div className="rounded-[0.875rem] border border-line bg-white px-4 py-8 text-center text-[0.875rem] text-muted">Paperwork, the design meeting, the site, the installer, deliveries, the deposit — the flow starts once the estimate is won.</div>
+        : step ? <StepOpen job={job} k={step} back={() => setStep(null)} setK={setStep} /> : <Flow job={job} open={setStep} />)}
+      {part === 'install' && <Rooms job={job} room={room} setRoom={setRoom} />}
       {part === 'punch' && (
         <section className="rounded-[0.875rem] border border-line bg-white px-4 pb-4 pt-3">
           {punch.length > 0 && (
@@ -382,34 +537,13 @@ export function ProjectBoard({ job, part }: { job: Job; part: Part }) {
           <TouchupsList job={job} />
         </section>
       )}
-
       {part === 'money' && money && <MoneyTab job={job} />}
     </>
   )
-
-  /* the right side: the step you tapped (with its lane's path), the room, or the project */
-  const side = wide && part === 'ready' && focused ? (
-    <div data-panel className="@container flex min-h-[24rem] flex-col">
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-line py-3 pl-5 pr-3">
-        <StepIcon state={past ? 'done' : focused.state} size={22} />
-        <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{isDone(focused) || past ? focused.label : todoOf(focused)}</span>
-        <button onClick={() => setFocus(null)} aria-label="Close the step" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash hover:text-ink"><X className="h-4 w-4" /></button>
-      </div>
-      {focusedLane && focusedLane.steps.length > 1 && <StepTabs list={focusedLane.steps} at={focused.key} go={(x) => x && setFocus(x.key)} me={me} />}
-      <div className="min-h-0 flex-1 px-5 pb-5 pt-3">
-        <StepInline key={focused.key} job={job} v={focused} onClose={() => setFocus(null)} />
-      </div>
-    </div>
-  ) : wide && part === 'install' && rooms.length ? (
-    <div data-panel className="flex min-h-[24rem] flex-col"><RoomPanel key={room} job={job} room={room} /></div>
-  ) : (
-    <ProjectInfo job={job} />
-  )
-
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_26rem] max-lg:h-auto max-lg:grid-cols-1">
-      <div className="scroll-soft min-h-0 min-w-0 border-r border-line px-5 py-4 max-lg:border-r-0 max-sm:px-3 lg:overflow-y-auto">{main}</div>
-      <aside className="scroll-soft min-h-0 min-w-0 max-lg:border-t max-lg:border-line lg:overflow-y-auto">{side}</aside>
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_22.5rem] max-lg:h-auto max-lg:grid-cols-1">
+      <div ref={top} className="scroll-soft min-h-0 min-w-0 border-r border-line bg-[#faf8f5] px-5 py-4 max-lg:border-r-0 max-sm:px-3 lg:overflow-y-auto">{main}</div>
+      <aside className="scroll-soft min-h-0 min-w-0 bg-white max-lg:border-t max-lg:border-line lg:overflow-y-auto"><ProjectInfo job={job} /></aside>
     </div>
   )
 }

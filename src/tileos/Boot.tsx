@@ -27,7 +27,7 @@ const ARRIVED = ((): 'invite' | 'recovery' | 'magiclink' | null => {
     const q = new URLSearchParams(location.search)
     const t = h.get('type') || q.get('type')
     /* a sign-up confirmation is the invite's link when the account was made by the invite */
-    return t === 'invite' || t === 'recovery' || t === 'magiclink' ? t : t === 'signup' ? 'magiclink' : null
+    return t === 'invite' || t === 'recovery' || t === 'magiclink' ? t : t === 'signup' ? 'invite' : null
   } catch { return null }
 })()
 let askedPassword = false

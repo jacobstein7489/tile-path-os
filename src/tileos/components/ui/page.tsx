@@ -426,11 +426,11 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               disabled={!b.onClick}
               className={cn(
                 'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
-                b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
+                b.on ? 'border-transparent text-white' : 'border-transparent enabled:hover:brightness-[0.97]',
               )}
-              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
+              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : { background: c.tint }}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: '#ffffff', color: c.solid }}>
                 {b.icon}
               </span>
               <span className="min-w-0 flex-1">

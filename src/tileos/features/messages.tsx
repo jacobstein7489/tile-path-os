@@ -393,7 +393,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
                   {isLastMine && !outside && <div className="mt-0.5 pr-1 text-[0.6875rem] text-muted">{seenBy.length ? `Seen by ${seenBy.map((p) => PEOPLE[p]?.short || p).join(', ')}` : 'Sent'}</div>}
                 </div>
                 {/* react, or make it a task — on hover on a computer, always there on a phone */}
-                <span className="mb-1.5 shrink-0 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 max-lg:opacity-60">
+                <span className="mb-1.5 shrink-0 opacity-45 transition focus-within:opacity-100 group-hover:opacity-100">
                   <Pop width={250} side="top" align={mine ? 'end' : 'start'} trigger={<button aria-label="React" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm hover:text-ink"><SmilePlus className="h-4 w-4" /></button>}>
                     <div className="flex justify-between">{EMOJI.map((e) => <button key={e} aria-label={`React ${e}`} onClick={() => reactTo(jobId, m.id, e)} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[1.25rem] transition hover:scale-110 hover:bg-wash">{e}</button>)}</div>
                     {!outside && !m.became && <button onClick={() => messageToTask(jobId, m.id)} className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50"><ListPlus className="h-4 w-4" />Make it a task</button>}

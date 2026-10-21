@@ -1,5 +1,6 @@
 /* The screens before the app: sign in (or make an account), waiting to be let in, and the one-time setup note. */
 import * as React from 'react'
+import { appUrl } from '@/tileos/lib/save'
 import { ArrowRight, Hourglass, Database, RefreshCw, LogOut, KeyRound } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { lovable } from '@/integrations/lovable'
@@ -56,7 +57,7 @@ export function SignIn() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) throw error
       } else {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.origin } })
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() }, emailRedirectTo: appUrl() } })
         if (error) throw error
         if (!data.session) setMsg({ text: 'Check your email to confirm it — then sign in here.' })
       }
@@ -75,7 +76,7 @@ export function SignIn() {
     if (!/\S+@\S+\.\S+/.test(email.trim())) { setMsg({ bad: true, text: 'Type your email first, then tap “Forgot your password?”' }); return }
     setBusy(true); setMsg(null)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl() })
       if (error) throw error
       setMsg({ text: `Check ${email.trim()} for a link — it opens Tile OS and asks for a new password.` })
     } catch (err: any) { setMsg({ bad: true, text: err?.message || 'That didn’t work — try again.' }) } finally { setBusy(false) }

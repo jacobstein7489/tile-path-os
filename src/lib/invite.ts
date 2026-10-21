@@ -158,3 +158,28 @@ export const grantRole = createServerFn({ method: "POST" })
       return { ok: false, why: why(e) };
     }
   });
+
+/** before an invite goes out: is there an account for this email already? If there is, it gets the login type and a
+ *  confirmed email (so the next email is a plain sign-in link, not "confirm your signup"). The admin only. */
+export type Prepped = { ok: true; exists: boolean; signedIn: boolean } | { ok: false; why: string }
+export const prepInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { email: string; name: string; role: string }) => {
+    const email = String(d?.email || "").trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("That email doesn’t look right");
+    if (!ROLES.has(d.role)) throw new Error("Pick a login type");
+    return { email, name: String(d.name || "").slice(0, 120), role: d.role };
+  })
+  .handler(async ({ data, context }): Promise<Prepped> => {
+    if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
+    const admin = supabaseAdmin as any;
+    try {
+      const u = await findUser(admin, data.email);
+      if (!u) return { ok: true, exists: false, signedIn: false };
+      if (!u.email_confirmed_at) await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
+      await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      return { ok: true, exists: true, signedIn: !!u.last_sign_in_at };
+    } catch (e) {
+      return { ok: false, why: why(e) };
+    }
+  });

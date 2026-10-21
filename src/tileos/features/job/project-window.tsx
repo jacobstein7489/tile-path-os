@@ -152,7 +152,7 @@ export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'm
       {/* the name, with the client and the address beside it */}
       <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0">
         <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{job.name}</h2>
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted [&>*+*]:before:mr-1.5 [&>*+*]:before:content-['·']">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
           <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
           {meta[1] && <span className="truncate">{meta[1]}</span>}
           {!pricing && (crew

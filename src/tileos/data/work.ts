@@ -9,8 +9,10 @@ export interface Task {
   jobId: string
   title: string
   detail?: string
-  /** who asked for it (a request from the site): they hear when it's delivered */
+  /** who asked for it (a request from the site): they hear when it's on the way and when it's dropped off */
   by?: PersonKey
+  /** something needed on site: what, and where the trip is — asked, on the way (dropped off = done) */
+  req?: { what: string; trip: 'asked' | 'onway'; at?: string }
   where?: string
   type: TaskType
   owner: PersonKey

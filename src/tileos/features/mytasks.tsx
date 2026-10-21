@@ -30,6 +30,7 @@ import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, add
 import { REAL } from '@/tileos/lib/save'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
+import { TripButtons } from './requests'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -145,7 +146,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const Ic = TYPE_ICON[t.type] || ListTodo
   const log = t.log || []
   const last = log[log.length - 1]
-  const detail0 = t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
+  const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
   const w = when || (t.state === 'waiting' ? { text: `Back ${t.followUp}`, tone: (isoFromLabel(t.followUp) || '9') <= TODAY ? 'warn' as const : undefined } : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
   return (
@@ -164,7 +165,9 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
         done ? <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
           : stepTask ? <Button size="sm" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className="max-w-full" onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
-            : t.state === 'now' ? <Button size="sm" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>{isRequest(t) ? 'Delivered' : 'Done'}</Button>
+            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
+            : isRequest(t) && t.state === 'now' ? <TripButtons t={t} onDone={() => setLeaving(true)} />
+            : t.state === 'now' ? <Button size="sm" icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
               : <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
       }
     />
@@ -640,7 +643,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {hasAction ? (
           <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
         ) : (
-          <Button variant="primary" className="ml-auto max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }}>{isRequest(t) ? 'Delivered — it’s there' : 'Done'}</Button>
+          isRequest(t) && t.owner === meOf(s.role) ? <span className="ml-auto max-sm:flex-1"><TripButtons t={t} size="md" onDone={() => s.close()} /></span> : <Button variant="primary" className="ml-auto max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }}>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
         )}
       </>
     )
