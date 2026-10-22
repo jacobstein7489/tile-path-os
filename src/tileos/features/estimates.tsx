@@ -8,7 +8,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, StepBar, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -257,13 +257,13 @@ function DocStrip({ e, onOpen }: { e: Estimate; onOpen: (doc: string) => void })
       <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
       {docs.map((d) =>
         d.status === 'missing' ? (
-          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-dashed border-warn-300 bg-[#fffaf0] px-3 text-[0.8125rem] font-semibold text-warn-800 transition hover:border-warn-500">
+          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-warn-300 bg-[#fffaf0] px-2.5 text-[0.78125rem] font-semibold text-warn-800 transition hover:border-warn-500">
             {busy === d.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             {d.name}
             <span className="font-normal text-warn-700">missing</span>
           </button>
         ) : (
-          <button key={d.name} data-doc={d.name} onClick={() => onOpen(d.name)} title={`Open the ${d.name.toLowerCase()}`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 shadow-xs transition hover:border-[#cdc7bc] hover:text-ink">
+          <button key={d.name} data-doc={d.name} onClick={() => onOpen(d.name)} title={`Open the ${d.name.toLowerCase()}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 text-[0.78125rem] font-semibold text-ink-2 transition hover:border-[#cdc7bc] hover:text-ink">
             <FileText className="h-4 w-4 text-brand-600" />
             {d.name}
             <Check className="h-3.5 w-3.5 text-ok-600" strokeWidth={3} />
@@ -347,27 +347,35 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     sent: sent?.sentOn,
     approved: e.approvedOn,
   }
+  const people = [
+    PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].name : PEOPLE[team.follow].name,
+    PEOPLE[team.takeoff].name, PEOPLE[team.review].name, PEOPLE[team.final].name, PEOPLE[team.follow].name, undefined,
+  ]
   const path = [
-    { key: 'request', label: 'Request', sub: PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].name : PEOPLE[team.follow].name },
-    { key: 'takeoff', label: cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : 'Takeoff', sub: PEOPLE[team.takeoff].name },
-    { key: 'review', label: 'Office review', sub: PEOPLE[team.review].name },
-    { key: 'final', label: 'Final review', sub: PEOPLE[team.final].name },
-    { key: 'sent', label: 'Sent · follow-up', sub: PEOPLE[team.follow].name },
-    { key: 'approved', label: b === 'lost' ? 'Lost' : 'Approved', sub: undefined },
+    { key: 'request', label: 'Request' },
+    { key: 'takeoff', label: cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : 'Takeoff' },
+    { key: 'review', label: 'Office review' },
+    { key: 'final', label: 'Final review' },
+    { key: 'sent', label: 'Sent · follow-up' },
+    { key: 'approved', label: b === 'lost' ? 'Lost' : 'Approved' },
   ].map((p, i) => {
     const s0 = state(i)
-    return { ...p, state: s0, date: s0 === 'done' ? doneOn[p.key] : s0 === 'current' && e.since && p.key !== 'sent' ? `since ${e.since}` : s0 === 'current' && p.key === 'sent' ? sent?.sentOn : st === 'approved' && p.key === 'approved' ? e.approvedOn : undefined }
+    const cs: CircleState = s0 === 'done' ? 'done' : s0 === 'current' ? 'now' : s0 === 'blocked' ? 'bad' : 'later'
+    const date = s0 === 'done' ? doneOn[p.key] : s0 === 'current' && e.since && p.key !== 'sent' ? `since ${e.since}` : s0 === 'current' && p.key === 'sent' ? sent?.sentOn : st === 'approved' && p.key === 'approved' ? e.approvedOn : undefined
+    const sub = s0 === 'done' ? (date ? `Done ${date.replace(/^Done\s*/, '')}` : people[i]) : [people[i], date].filter(Boolean).join(' · ') || undefined
+    return { key: p.key, label: p.label, state: cs, sub, center: String(i + 1) }
   })
 
   const header = (
-    <div className="border-b border-line px-5 pb-3.5 pt-3 pr-14 max-sm:px-4 max-sm:pr-14">
-      {/* one line: what it is, where it stands — the total and the buttons on the right */}
-      <div className="flex items-center gap-2">
-        <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted">Estimate {e.id}</span>
+    <div className="border-b border-line px-5 pb-3 pt-3 pr-14 max-sm:px-4 max-sm:pr-14">
+      {/* the name, where it stands, the total and the buttons */}
+      <div className="flex min-w-0 items-center gap-2.5">
+        <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{j.name}</h2>
+        <Status tone={CAT[catOf(e)].tone} className="min-w-0 shrink-0 max-sm:hidden">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
+        <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted max-md:hidden">{e.id}</span>
         {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
-        <Status tone={CAT[catOf(e)].tone} className="min-w-0">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft total' : 'total'}{smp('x') ? ' · sample' : ''}</span>
+          <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft' : 'total'}{smp('x') ? ' · sample' : ''}</span>
           {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} aria-pressed={panel?.t === 'paper'} onClick={() => setPanel(panel?.t === 'paper' ? null : { t: 'paper' })}><span className="max-sm:hidden">Scope of work</span></Button>}
           {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
             <Menu align="end" width={250} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
@@ -380,9 +388,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           )}
         </span>
       </div>
-      {/* the name, then who it's for, where, and when it's due */}
-      <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3">
-        <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{j.name}</h2>
+      {/* who it's for, where, when it's due — and its documents, one tap to open each */}
+      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
           <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
           <span className="truncate">{j.address}</span>
@@ -391,8 +398,9 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           {st === 'approved' && e.approvedOn && <span>Approved {e.approvedOn}</span>}
           <span className="sm:hidden">{shown.lines.length ? fmtMoney(total) : ''}</span>
         </span>
+        <span className="ml-auto max-md:ml-0 max-md:w-full"><DocStrip e={e} onOpen={(doc) => setPanel({ t: 'doc', doc })} /></span>
       </div>
-      <StepBar className="mt-3" steps={path} label="Where the estimate is" />
+      <Circles layout="beside" className="mt-3" groups={[{ key: 'path', steps: path }]} label="Where the estimate is" />
     </div>
   )
 
@@ -427,7 +435,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       )}
       {(b === 'review' || b === 'final') && canAct && (
         <>
-          <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted"><Avatar who={team[b]} size={22} />{noteCount ? `${plural(noteCount, 'note')} for ${PEOPLE[team.takeoff].short}` : b === 'review' ? 'Check it, add a note to any room' : 'Last look before it goes out'}</span>
+          {canNote && noteAt !== '' && <Button icon={<MessageSquarePlus />} onClick={() => setNoteAt('')} className="text-warn-700">Add a note</Button>}
+          <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted max-md:hidden">{noteCount ? `${plural(noteCount, 'note')} for ${PEOPLE[team.takeoff].short}` : b === 'review' ? 'or on a room' : 'Last look before it goes out'}</span>
           <Tip label={noteCount ? `Goes back to ${PEOPLE[team.takeoff].name} with the notes` : 'Add a note to a room first'}>
             <span className="ml-auto"><Button icon={<Undo2 />} disabled={!noteCount} onClick={() => estSendBack(e.id)}>Send back{noteCount ? ` · ${plural(noteCount, 'note')}` : ''}</Button></span>
           </Tip>
@@ -479,8 +488,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     const sf = sfOf(a)
     const pinned = notes.filter((n) => n.area === a)
     return (
-      <div key={a} data-area={a}>
-        <div className={cn(SHEET_GRID, 'group/area px-5 py-2 max-sm:flex max-sm:gap-2 max-sm:px-3')} style={{ background: GRAY }}>
+      <div key={a} data-area={a} className="group/room">
+        <div className={cn(SHEET_GRID, 'group/area px-5 py-1.5 max-sm:flex max-sm:gap-2 max-sm:px-3')} style={{ background: GRAY }}>
           <span className="col-span-4 flex min-w-0 items-center gap-2 max-sm:flex-1">
             <span className={cn('truncate text-[0.875rem] font-semibold', !ls.length && gone.length ? 'text-bad-700 line-through' : 'text-ink')}>{a}</span>
             {sf > 0 && <span className="shrink-0 text-[0.78125rem] font-medium tnum text-muted">{sf.toLocaleString('en-US')} SF</span>}
@@ -496,7 +505,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
         {!ls.length && !gone.length && <div className="px-5 py-2 text-[0.8125rem] text-muted max-sm:px-3">No tile here yet{editable ? ' — add a surface' : ''}</div>}
         {editable && (
-          <div className="flex flex-wrap items-center gap-1.5 px-5 pb-2.5 pt-1 max-sm:px-3">
+          <div className={cn('flex-wrap items-center gap-1.5 px-5 pb-2 pt-1 max-sm:flex max-sm:px-3', ls.length ? 'hidden group-focus-within/room:flex group-hover/room:flex pointer-coarse:flex' : 'flex')} data-add-row>
             <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
             <ItemPicker label="Item" onPick={(it) => estEditLines(e.id, (L) => [...L, newLine(a, it.id, it.unit === 'LS' ? 1 : 100, it.price)])} />
           </div>
@@ -510,7 +519,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     <div className="overflow-clip rounded-[0.875rem] border border-[#e4ded3] bg-white shadow-card" data-sheet>
       {groups.map((g) => (
         <section key={g.floor}>
-          <div className={cn(SHEET_GRID, 'sticky top-0 z-[5] px-5 py-2 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-sm:flex max-sm:justify-between max-sm:px-3')} style={{ background: GREEN }}>
+          <div className={cn(SHEET_GRID, 'sticky top-0 z-[5] px-5 py-1.5 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-sm:flex max-sm:justify-between max-sm:px-3')} style={{ background: GREEN }}>
             <span className="truncate">{g.floor}</span>
             <span className="text-right max-sm:hidden">Qty</span>
             <span className="pl-2 max-sm:hidden">Unit</span>
@@ -538,15 +547,13 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
 
   const desk = (
     <div className="min-h-full bg-[#f3f0ea]" data-desk>
-      <div className="mx-auto w-full max-w-[60rem] px-6 pb-10 pt-4 max-sm:px-2 max-sm:pt-3">
-        {/* the documents on the left; the notes on the right */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <DocStrip e={e} onOpen={(doc) => setPanel({ t: 'doc', doc })} />
-          <span className="ml-auto flex items-center gap-3">
-            {notes.length > 0 && <span className="inline-flex items-center gap-1.5 text-[0.8125rem] text-ink-2"><StickyNote className="h-4 w-4 text-warn-600" /><b className="font-semibold text-ink">{notes.filter((n) => n.done).length} of {notes.length}</b> notes checked off</span>}
-            {canNote && noteAt !== '' && <button onClick={() => setNoteAt('')} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-warn-700 transition hover:bg-warn-50"><MessageSquarePlus className="h-4 w-4" />Add a note</button>}
-          </span>
-        </div>
+      <div className="mx-auto w-full max-w-[64rem] px-6 pb-8 pt-3 max-sm:px-2 max-sm:pt-2">
+        {/* review notes: how many are checked off, and a note for the whole estimate */}
+        {notes.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+            <span className="inline-flex items-center gap-1.5 text-[0.8125rem] text-ink-2"><StickyNote className="h-4 w-4 text-warn-600" /><b className="font-semibold text-ink">{notes.filter((n) => n.done).length} of {notes.length}</b> notes checked off</span>
+          </div>
+        )}
         {shown !== cur && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn-100 bg-warn-50 px-3.5 py-2.5 text-[0.8125rem] text-warn-800">
             <span>You’re looking at revision {shown.n}{shown.what ? ` — ${shown.what}` : ''}. It’s kept as it was.</span>
@@ -624,7 +631,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     )
 
   return (
-    <Modal level={level} size="xl" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
+    <Modal level={level} size="full" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
       <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
     </Modal>
   )
@@ -902,7 +909,7 @@ function LineRow({ e, l, editable, diff }: { e: Estimate; l: EstLine; editable: 
   )
   const unit = it?.unit === 'LS' ? 'EA' : it?.unit
   return (
-    <div className={cn('group border-b border-[#f1ede6] px-5 py-[0.3125rem] last:border-b-0 max-sm:px-3 max-sm:py-2', diff?.kind === 'added' && 'bg-ok-50/40', was && 'bg-warn-50/40')} data-line={l.id}>
+    <div className={cn('group border-b border-[#f1ede6] px-5 py-px last:border-b-0 max-sm:px-3 max-sm:py-2', diff?.kind === 'added' && 'bg-ok-50/40', was && 'bg-warn-50/40')} data-line={l.id}>
       {/* laptops: one row, the columns of the green band */}
       <div className={cn(SHEET_GRID, 'max-sm:hidden')}>
         {name}
@@ -944,7 +951,7 @@ function NumIn({ value, onChange, label, money }: { value: number; onChange: (n:
       onChange={(x) => setV(x.target.value)}
       onBlur={() => { setOn(false); if (cancel.current) return; const n = Number(v.replace(/[^0-9.]/g, '')); if (v.trim() !== '' && !isNaN(n) && n !== value) onChange(n) }}
       onKeyDown={(x) => { if (x.key === 'Enter') (x.target as HTMLInputElement).blur(); if (x.key === 'Escape') { cancel.current = true; (x.target as HTMLInputElement).blur() } }}
-      className="h-8 w-full max-w-[5.75rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-[0.875rem] tnum text-ink transition hover:border-[#e2dcd2] hover:bg-[#faf8f4] focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 max-sm:w-[4.75rem] max-sm:border-[#e2dcd2] max-sm:bg-[#faf8f4]"
+      className="h-7 w-full max-w-[5.75rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-[0.875rem] tnum text-ink transition hover:border-[#e2dcd2] hover:bg-[#faf8f4] focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 max-sm:w-[4.75rem] max-sm:border-[#e2dcd2] max-sm:bg-[#faf8f4]"
     />
   )
 }

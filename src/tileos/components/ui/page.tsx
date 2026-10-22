@@ -637,7 +637,7 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
               disabled={!st.onClick}
               aria-label={st.aria}
               aria-current={on ? 'step' : undefined}
-              className={cn('group relative z-[1] flex max-w-full flex-col items-center rounded-xl px-2 pb-1 disabled:cursor-default', on && 'bg-white')}
+              className={cn('group relative z-[1] flex max-w-full flex-col items-center rounded-xl px-2 pb-1 disabled:cursor-default')}
             >
               <span
                 className={cn(
@@ -664,35 +664,102 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
   )
 }
 
-/* ================= the steps as one bar in pieces: done ones green, this one half full, the rest waiting ================= */
-export type StepBarStep = { key: string; label: string; short?: string; state: 'done' | 'current' | 'future' | 'blocked'; sub?: string; date?: string; dateTone?: 'bad' }
-export function StepBar({ steps, className, label }: { steps: StepBarStep[]; className?: string; label?: string }) {
-  const at = steps.findIndex((x) => x.state === 'current' || x.state === 'blocked')
-  const now = steps[at]
-  const done = steps.filter((x) => x.state === 'done').length
+/* ================= circles: every step a circle that fills — done is green with a check, a problem is red, waiting
+ * is amber, whose turn it is is blue. "beside": the words next to each circle, in one line (the estimate); "below":
+ * the words under each, in groups with a name over them (the project — every part of the job). ================= */
+export type CircleState = 'done' | 'now' | 'wait' | 'bad' | 'later'
+export type CircleStep = { key: string; label: string; sub?: string; state: CircleState; pct?: number; center?: React.ReactNode; mine?: boolean; attrs?: Record<string, string> }
+export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
+const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd' }
+const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9' }
+const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint' }
+
+/** one circle: green and full with a check when done, red with ! for a problem, else a ring that fills */
+export function Circle({ st, size = 36, on }: { st: CircleStep; size?: number; on?: boolean }) {
+  const w = size >= 34 ? 3.5 : 3
+  const r = (size - w) / 2
+  const c = 2 * Math.PI * r
+  const filled = st.state === 'done' || st.state === 'bad'
+  const pct = filled ? 100 : st.state === 'later' ? (st.pct || 0) : Math.max(st.pct ?? 0, st.pct == null ? 100 : 6)
+  const txt = size >= 34 ? 'text-[0.6875rem]' : 'text-[0.625rem]'
   return (
-    <div className={className} data-stepbar>
-      {/* phones: where it stands in words, over the bar */}
-      <div className="mb-1.5 flex items-baseline justify-between gap-2 sm:hidden">
-        <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{now ? now.label : done === steps.length ? 'All done' : steps[0]?.label}{now?.sub ? <span className="font-normal text-muted"> · {now.sub}</span> : null}</span>
-        <span className="shrink-0 text-[0.75rem] tnum text-muted">{now ? `Step ${at + 1} of ${steps.length}` : `${done} of ${steps.length}`}</span>
-      </div>
-      <ol aria-label={label} className="grid gap-x-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-        {steps.map((st) => (
-          <li key={st.key} aria-current={st.state === 'current' ? 'step' : undefined} data-state={st.state} className="min-w-0">
-            <span className="relative block h-1.5 overflow-hidden rounded-full bg-[#ebe6de]">
-              <span className={cn('absolute inset-y-0 left-0 rounded-full transition-[width] duration-500', st.state === 'done' ? 'w-full bg-ok-500' : st.state === 'current' ? 'w-1/2 bg-brand-600' : st.state === 'blocked' ? 'w-full bg-bad-500' : 'w-0')} />
-            </span>
-            <span className="mt-2 flex min-w-0 items-center gap-1 max-sm:hidden">
-              {st.state === 'done' && <Check className="h-3.5 w-3.5 shrink-0 text-ok-600" strokeWidth={3} />}
-              <span className={cn('truncate text-[0.8125rem] font-semibold leading-tight', st.state === 'current' ? 'text-ink' : st.state === 'done' ? 'text-ink-2' : st.state === 'blocked' ? 'text-bad-700' : 'text-muted')}>{st.label}</span>
-            </span>
-            <span className={cn('mt-0.5 block truncate text-[0.75rem] leading-tight max-sm:hidden', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'current' ? 'font-medium text-brand-700' : st.state === 'blocked' ? 'text-bad-700' : st.state === 'done' ? 'text-muted' : 'text-faint')}>
-              {st.state === 'done' ? (st.date ? `Done ${st.date.replace(/^Done\s*/, '')}` : st.sub || 'Done') : st.state === 'current' ? [st.sub, st.date].filter(Boolean).join(' · ') || 'Now' : st.sub || ' '}
-            </span>
-          </li>
-        ))}
+    <span className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full transition-shadow', on && 'shadow-[0_0_0_0.25rem_rgba(38,80,207,.16)]')} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={filled ? size / 2 : r} fill={filled ? C_ARC[st.state] : '#fff'} stroke={filled ? 'none' : C_TRACK[st.state]} strokeWidth={w} />
+        {!filled && pct > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C_ARC[st.state]} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} className="transition-[stroke-dasharray] duration-700" />}
+      </svg>
+      <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum leading-none', txt, filled ? 'text-white' : st.state === 'now' ? 'text-brand-700' : st.state === 'wait' ? 'text-warn-700' : 'text-faint')}>
+        {st.state === 'done' ? <Check className={size >= 34 ? 'h-4 w-4' : 'h-3.5 w-3.5'} strokeWidth={3.2} /> : st.state === 'bad' ? '!' : st.center}
+      </span>
+      {st.mine && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-brand-600 ring-2 ring-white" aria-label="Your turn" />}
+    </span>
+  )
+}
+
+export function Circles({ groups, at, onPick, layout = 'below', size, label, className }: { groups: CircleGroup[]; at?: string; onPick?: (key: string) => void; layout?: 'below' | 'beside'; size?: number; label?: string; className?: string }) {
+  const all = groups.flatMap((g) => g.steps)
+  const rowRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const row = rowRef.current
+    const on = row?.querySelector<HTMLElement>('[aria-current="step"]')
+    if (!row || !on || row.scrollWidth <= row.clientWidth) return
+    const r = on.getBoundingClientRect(), b = row.getBoundingClientRect()
+    if (r.left < b.left || r.right > b.right) row.scrollLeft += r.left - b.left - b.width / 2 + r.width / 2
+  }, [at])
+  if (layout === 'beside') {
+    const sz = size ?? 30
+    return (
+      <ol aria-label={label} className={cn('no-scrollbar flex items-center overflow-x-auto', className)} data-circles>
+        {all.map((st, i) => {
+          const on = at === st.key
+          const Tag = onPick ? 'button' : 'span'
+          return (
+            <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state}>
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key) } : {})} {...(st.attrs || {})} className="flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left">
+                <Circle st={st} size={sz} on={on} />
+                <span className="min-w-0 leading-tight max-sm:hidden">
+                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
+                  {st.sub && <span className={cn('block max-w-[9rem] truncate text-[0.71875rem]', C_SUB[st.state])}>{st.sub}</span>}
+                </span>
+              </Tag>
+              {i < all.length - 1 && <span className={cn('mx-2 h-[0.125rem] min-w-3 flex-1 rounded-full max-sm:mx-1', st.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
+            </li>
+          )
+        })}
       </ol>
+    )
+  }
+  const sz = size ?? 36
+  const named = groups.some((g) => g.label || g.sub)
+  return (
+    <div ref={rowRef} aria-label={label} className={cn('no-scrollbar flex items-stretch gap-0 overflow-x-auto', className)} data-circles>
+      {groups.map((g, gi) => (
+        <div key={g.key} className={cn('flex min-w-0 flex-col', gi > 0 && 'ml-3 border-l border-line pl-3', g.steps.length > 1 ? '' : 'flex-none')} style={g.steps.length > 1 ? { flex: `${g.steps.length} 1 0`, minWidth: `${g.steps.length * 4.75}rem` } : undefined}>
+          {named && <div className="mb-1.5 flex h-5 items-center gap-2 px-1">
+            {g.label && (g.onLabel
+              ? <button type="button" onClick={g.onLabel} className="whitespace-nowrap text-[0.75rem] font-semibold text-ink-2 hover:text-ink">{g.label}</button>
+              : <span className="whitespace-nowrap text-[0.75rem] font-semibold text-ink-2">{g.label}</span>)}
+            {g.sub && <span className={cn('whitespace-nowrap text-[0.75rem]', g.subTone === 'bad' ? 'font-semibold text-bad-600' : 'text-muted')}>{g.sub}</span>}
+            {g.label && g.steps.length > 1 && <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" />}
+          </div>}
+          <ol className="flex items-start">
+            {g.steps.map((st, i) => {
+              const on = at === st.key
+              return (
+                <li key={st.key} className="relative flex min-w-[4.75rem] flex-[1_1_0] flex-col items-center" data-state={st.state}>
+                  {i > 0 && <span className={cn('absolute h-[0.125rem] rounded-full', g.steps[i - 1].state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} style={{ top: sz / 2 - 1, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
+                  <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
+                    <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>
+                    <span title={st.label} className={cn('mt-1.5 max-w-full truncate text-[0.75rem] font-semibold leading-[1.15]', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
+                    {st.sub && <span title={st.sub} className={cn('mt-0.5 max-w-full truncate text-[0.6875rem] leading-tight', C_SUB[st.state])}>{st.sub}</span>}
+                    <span className={cn('mt-1 h-[0.1875rem] w-6 rounded-full', on ? 'bg-brand-600' : 'bg-transparent')} />
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+      ))}
     </div>
   )
 }

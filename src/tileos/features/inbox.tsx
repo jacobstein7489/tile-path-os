@@ -3,7 +3,7 @@
  * quiet line. Newest on top, a blue count for what's new; tap one and the conversation opens. On a phone the list
  * and the conversation are two screens; on a desktop they sit side by side. */
 import * as React from 'react'
-import { ChevronLeft, Building2, Bell, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus } from 'lucide-react'
+import { Building2, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus, Package, FileText, Receipt, HardHat, Repeat, CheckCheck, BellDot } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -11,7 +11,7 @@ import { cn } from '@/tileos/lib/utils'
 import { NOW } from '@/tileos/lib/today'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import type { Notice } from '@/tileos/data/work'
-import { Thread, msgGist, lastAt } from './messages'
+import { Thread, msgGist, lastAt, ConvoHead, ProjectFace } from './messages'
 import markUrl from '@/tileos/assets/mark.svg'
 
 
@@ -56,7 +56,18 @@ export function conversations(s: St, withAway = false): Convo[] {
   })
   return out.sort((a, b) => b.rank - a.rank)
 }
-export const inboxUnread = (s: St) => conversations(s).reduce((n, c) => n + c.unread, 0)
+/** what the app noticed for this login — a delivery, an approval, a request dropped off — newest first */
+export const updatesFor = (s: St) => noticesFor(s, meOf(s.role))
+export const updatesUnread = (s: St) => updatesFor(s).filter((n) => n.unread).length
+export const inboxUnread = (s: St) => conversations(s).reduce((n, c) => n + c.unread, 0) + updatesUnread(s)
+/** an update seen — or all of them */
+export function readUpdate(id?: string) {
+  const st = useStore.getState()
+  const me = meOf(st.role)
+  if (!st.notices.some((n) => n.unread && (!id || n.id === id) && (!n.for || n.for.includes(me)))) return
+  st.commit((x) => { x.notices.forEach((n) => { if (n.unread && (!id || n.id === id) && (!n.for || n.for.includes(me))) n.unread = false }) })
+}
+const UPD_ICON: Record<Notice['kind'], React.ElementType> = { material: Package, pricing: FileText, money: Receipt, field: HardHat, change: Repeat }
 
 /** opening a conversation: everything in it is read, for you */
 export function markRead(key: string, jobId?: string) {
@@ -89,14 +100,8 @@ export function markUnread(key: string, jobId?: string) {
 }
 
 function Face({ c }: { c: Convo }) {
-  if (!c.jobId) return <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#22372b]"><img src={markUrl} alt="" width={26} height={26} style={{ filter: 'brightness(0) invert(1)' }} /></span>
-  /* initials from the words, not the house number: "119 Park Place" → PP, "530 Mark" → M */
-  const words = c.name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(Boolean)
-  const ini = (words[0]?.[0] || '') + (words[1]?.[0] || '')
-  const [bg, fg] = FACES[[...c.key].reduce((n, ch) => n + ch.charCodeAt(0), 0) % FACES.length]
-  return <span className={cn('inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[0.9375rem] font-bold', bg, fg)}>{ini ? ini.toUpperCase() : <Building2 className="h-5 w-5" />}</span>
+  return <ProjectFace id={c.key} name={c.name} size={48} />
 }
-const FACES: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#fde3d7]', 'text-[#a8431c]'], ['bg-[#d8f0e2]', 'text-[#1d6b43]'], ['bg-[#ece2fb]', 'text-[#6034a8]'], ['bg-[#fdf0c9]', 'text-[#8a5a00]'], ['bg-[#d6eef3]', 'text-[#0d6475]'], ['bg-[#fbdbe7]', 'text-[#9b2459]']]
 
 export function InboxPage() {
   const s = useStore()
@@ -113,7 +118,9 @@ export function InboxPage() {
   }
   const [picked, setPicked] = React.useState<string | null>(null)
   /* New: what you haven't seen. All: everything that isn't put away. Put away: what you filed — it comes back on its own */
-  const [view, setView] = React.useState<'all' | 'new' | 'away'>('all')
+  const [view, setView] = React.useState<'all' | 'new' | 'away' | 'updates'>('all')
+  const updates = updatesFor(s)
+  const updN = updates.filter((n) => n.unread).length
   const list = all.filter((c) => !c.away)
   const unreadN = list.reduce((n, c) => n + c.unread, 0)
   const shown = (view === 'away' ? all.filter((c) => c.away) : view === 'new' ? list.filter((c) => c.unread > 0) : list).map((c) => ({ c, h: hit(c) })).filter((x) => x.h.ok).map((x) => (x.h.said ? { ...x.c, preview: x.h.said } : x.c))
@@ -146,16 +153,35 @@ export function InboxPage() {
             </Menu>
           </div>
           <div className="flex items-center gap-1.5 border-b border-line-2 px-3 py-2">
-            {([['all', 'All'], ['new', 'New'], ['away', 'Put away']] as const).map(([k, label]) => {
+            {([['all', 'All'], ['new', 'New'], ['updates', 'Updates'], ['away', 'Put away']] as const).map(([k, label]) => {
               const on = view === k
-              const n = k === 'new' ? unreadN : k === 'away' ? all.filter((c) => c.away).length : 0
+              const n = k === 'new' ? unreadN : k === 'updates' ? updN : k === 'away' ? all.filter((c) => c.away).length : 0
               if (k === 'away' && !n) return null
-              return <button key={k} onClick={() => setView(k)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' ? 'bg-bad-500 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
+              return <button key={k} onClick={() => setView(k)} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-bad-500 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
             })}
-            <span className="ml-auto text-[0.75rem] text-faint">{list.length} {list.length === 1 ? 'conversation' : 'conversations'}</span>
           </div>
           <div className="scroll-soft min-h-0 flex-1 overflow-y-auto">
-            {shown.map((c) => {
+            {view === 'updates' && (
+              <>
+                {updates.length > 0 && updN > 0 && <div className="flex justify-end border-b border-line-2 px-3 py-1.5"><button onClick={() => readUpdate()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><CheckCheck className="h-3.5 w-3.5" />Mark all as seen</button></div>}
+                {updates.map((n) => {
+                  const Ic = UPD_ICON[n.kind] || BellDot
+                  const job = n.jobId ? s.jobs[n.jobId] : undefined
+                  return (
+                    <button key={n.id} data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 border-b border-line-2 px-4 py-3 text-left transition hover:bg-[#f8f6f2]', n.unread && 'bg-[#f6f8fe]')}>
+                      <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
+                        <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
+                      </span>
+                      {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-bad-500" aria-label="New" />}
+                    </button>
+                  )
+                })}
+                {!updates.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">No updates yet — deliveries, approvals and requests land here.</div>}
+              </>
+            )}
+            {view !== 'updates' && shown.map((c) => {
               const on = cur?.key === c.key
               return (
                 <div key={c.key} className={cn('group relative border-b border-line-2 transition hover:bg-[#f8f6f2]', on && 'bg-[#eef2fd] hover:bg-[#eef2fd]')}>
@@ -183,23 +209,14 @@ export function InboxPage() {
                 </div>
               )
             })}
-            {!shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? 'Nothing put away.' : 'No conversations yet — tap the blue button to write on a project.'}</div>}
+            {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? 'Nothing put away.' : 'No conversations yet — tap the blue button to write on a project.'}</div>}
           </div>
         </div>
         {/* the conversation */}
         <div className={cn('flex min-h-0 min-w-0 flex-col', !cur && 'max-lg:hidden')}>
           {cur ? (
             <>
-              <div className="flex shrink-0 items-center gap-2.5 border-b border-line-2 px-4 py-2.5">
-                <button onClick={() => setPicked(null)} aria-label="Back to the inbox" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-wash lg:hidden"><ChevronLeft className="h-5 w-5" /></button>
-                <Face c={cur} />
-                <span className="min-w-0 flex-1">
-                  <button onClick={() => cur.jobId && s.open({ t: 'job', id: cur.jobId })} className="block max-w-full truncate text-left text-[1rem] font-semibold text-ink hover:underline">{cur.name}</button>
-                  <span className="block truncate text-[0.78125rem] text-muted">{cur.jobId ? `${team(cur.jobId).map((p) => PEOPLE[p]?.short).join(', ')} and the GC` : 'What the app noticed, company-wide'}</span>
-                </span>
-                {cur.jobId && <span className="flex -space-x-1.5 max-sm:hidden">{team(cur.jobId).map((p) => <Avatar key={p} who={p} size={26} ring />)}</span>}
-                {cur.jobId && <button onClick={() => s.open({ t: 'job', id: cur.jobId })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>}
-              </div>
+              {cur.jobId && <ConvoHead jobId={cur.jobId} onBack={() => setPicked(null)} backLabel="Back to the inbox" backClass="lg:hidden" right={<button onClick={() => s.open({ t: 'job', id: cur.jobId })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>} />}
               <div className="flex min-h-0 flex-1 flex-col">
                 {cur.jobId && <div className="min-h-0 flex-1"><Thread key={cur.key} jobId={cur.jobId} newFrom={from[cur.key]} outside={s.role === 'client'} /></div>}
               </div>

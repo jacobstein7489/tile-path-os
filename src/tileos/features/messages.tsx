@@ -3,11 +3,11 @@
  * Newest at the bottom; a "New" line where you left off; "Seen by" under what you sent; a reaction with one tap; any
  * message can become a task. "Team only" stays inside — the GC's login never shows it. */
 import * as React from 'react'
-import { Send, Camera, Lock, ListPlus, Mic, X, Play, Pause, CheckCheck, Check, SmilePlus, Package, FileText, Receipt, HardHat, Repeat, Users, Smile, Paperclip, Reply, Copy, Trash2, ChevronDown, Plus, Ban } from 'lucide-react'
+import { Send, Camera, Lock, ListPlus, Mic, X, Play, Pause, CheckCheck, Check, SmilePlus, Package, FileText, Receipt, HardHat, Repeat, Users, Smile, Paperclip, Reply, Copy, Trash2, ChevronDown, ChevronLeft, Plus, Ban } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Modal, Tip, Pop, Menu, MenuItem } from '@/tileos/components/ui/overlay'
-import { EmojiPicker, QUICK } from '@/tileos/components/ui/emoji'
+import { EmojiPicker } from '@/tileos/components/ui/emoji'
 import { toast } from '@/tileos/lib/pop'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -461,7 +461,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
                 {!m.deleted && (
                   <span className="mb-1.5 flex shrink-0 items-center gap-0.5 opacity-60 transition focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
                     <ReactPop m={m} jobId={jobId} mine={mine} />
-                    <Menu align={mine ? 'end' : 'start'} width={210} trigger={<button aria-label="Message options" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm transition hover:text-ink focus:opacity-100 data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"><ChevronDown className="h-4 w-4" /></button>}>
+                    <Menu align={mine ? 'end' : 'start'} width={210} trigger={<button aria-label="Message options" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm transition hover:text-ink"><ChevronDown className="h-4 w-4" /></button>}>
                       <MenuItem icon={<Reply className="h-4 w-4" />} onSelect={() => { setReplyTo(m); requestAnimationFrame(() => box.current?.focus()) }}>Reply</MenuItem>
                       {!!m.text && !m.audio && !m.audioPath && <MenuItem icon={<Copy className="h-4 w-4" />} onSelect={() => void copy(m)}>Copy the text</MenuItem>}
                       {!outside && !m.became && <MenuItem icon={<ListPlus className="h-4 w-4" />} onSelect={() => messageToTask(jobId, m.id)}>Make it a task</MenuItem>}
@@ -502,7 +502,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
             <input ref={docRef} type="file" multiple className="hidden" aria-label="Files to send" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void addDocs(f) }} />
             <div className={cn('flex min-w-0 flex-1 items-end rounded-[1.375rem] border pl-1 transition focus-within:border-brand-300', internal ? 'border-warn-200 bg-[#fffaf0]' : 'border-line bg-white')}>
               <Pop open={emojiOpen} onOpenChange={setEmojiOpen} side="top" align="start" width={360} trigger={<button aria-label="Emoji" className={cn('mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-wash hover:text-ink', emojiOpen ? 'text-brand-600' : 'text-muted')}><Smile className="h-5 w-5" /></button>}>
-                <EmojiPicker onPick={insert} />
+                <EmojiPicker onPick={insert} className="w-full max-w-full" />
               </Pop>
               <Tip label="Send a file — a PDF, a drawing"><button onClick={() => docRef.current?.click()} aria-label="Send a file" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Paperclip className="h-[1.0625rem] w-[1.0625rem]" /></button></Tip>
               <textarea ref={box} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } if (e.key === 'Escape' && replyTo) setReplyTo(null) }} rows={1} aria-label="Message" placeholder={outside ? 'Message the Cobblestone team' : internal ? 'Team only — the GC won’t see this' : 'Message'} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[0.9375rem] leading-tight outline-none placeholder:text-faint" />
@@ -520,23 +520,47 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
   )
 }
 
-/** a reaction: the six quick ones in a row, and + for every emoji */
+/** a reaction: the same emoji picker as writing a message — the ones you use most on top */
 function ReactPop({ m, jobId, mine }: { m: Msg; jobId: string; mine: boolean }) {
   const [open, setOpen] = React.useState(false)
-  const [all, setAll] = React.useState(false)
-  const me = meOf(useStore((s) => s.role))
   const pick = (e: string) => { reactTo(jobId, m.id, e); setOpen(false) }
   return (
-    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setAll(false) }} width={all ? 360 : 292} side="top" align={mine ? 'end' : 'start'} trigger={<button aria-label="React" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm hover:text-ink"><SmilePlus className="h-4 w-4" /></button>}>
-      {all ? (
-        <EmojiPicker onPick={pick} autoFocus />
-      ) : (
-        <div className="flex items-center justify-between gap-0.5">
-          {QUICK.map((e) => <button key={e} aria-label={`React ${e}`} onClick={() => pick(e)} className={cn('inline-flex h-10 w-10 items-center justify-center rounded-full text-[1.5rem] transition hover:scale-110 hover:bg-wash', m.reacts?.[e]?.includes(me) && 'bg-brand-50')}>{e}</button>)}
-          <button aria-label="Every emoji" onClick={() => setAll(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wash text-ink-2 transition hover:bg-wash-2"><Plus className="h-5 w-5" /></button>
-        </div>
-      )}
+    <Pop open={open} onOpenChange={setOpen} width={360} side="top" align={mine ? 'end' : 'start'} trigger={<button aria-label="React" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-muted shadow-sm transition hover:text-ink"><SmilePlus className="h-4 w-4" /></button>}>
+      <EmojiPicker onPick={pick} className="w-full max-w-full" />
     </Pop>
+  )
+}
+
+/* ---------------- the top of a conversation: the same in the inbox and on the project ---------------- */
+const FACES: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#fde3d7]', 'text-[#a8431c]'], ['bg-[#d8f0e2]', 'text-[#1d6b43]'], ['bg-[#ece2fb]', 'text-[#6034a8]'], ['bg-[#fdf0c9]', 'text-[#8a5a00]'], ['bg-[#d6eef3]', 'text-[#0d6475]'], ['bg-[#fbdbe7]', 'text-[#9b2459]']]
+/** a project's face: the first letters of its words (not the house number — "119 Park Place" is PP), a colour of its own */
+export function ProjectFace({ id, name, size = 48 }: { id: string; name: string; size?: number }) {
+  const words = name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(Boolean)
+  const ini = ((words[0]?.[0] || '') + (words[1]?.[0] || '')).toUpperCase()
+  const [bg, fg] = FACES[[...id].reduce((n, ch) => n + ch.charCodeAt(0), 0) % FACES.length]
+  return <span className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-bold', bg, fg)} style={{ width: size, height: size, fontSize: size * 0.32 }}>{ini || '·'}</span>
+}
+/** who's in a project's conversation from our side */
+export const convoTeam = (s: ReturnType<typeof useStore.getState>, jobId: string): PersonKey[] => {
+  const j = s.jobs[jobId]
+  return j ? (Array.from(new Set([j.pm || 'ys', 'yakov', ...(j.crew ? [j.crew] : [])])) as PersonKey[]) : []
+}
+export function ConvoHead({ jobId, onBack, backLabel = 'Back', backClass, right }: { jobId: string; onBack?: () => void; backLabel?: string; backClass?: string; right?: React.ReactNode }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  const team = convoTeam(s, jobId)
+  return (
+    <div className="flex shrink-0 items-center gap-2.5 border-b border-line-2 bg-white px-4 py-2.5 max-sm:px-3" data-panelbar data-convo-head>
+      {onBack && <button onClick={onBack} aria-label={backLabel} className={cn('inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg pl-1 pr-2 text-[0.84375rem] font-semibold text-brand-700 transition hover:bg-brand-50', backClass)}><ChevronLeft className="h-5 w-5" /><span className="max-sm:hidden">{backLabel}</span></button>}
+      <ProjectFace id={jobId} name={job.name} size={40} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[1rem] font-semibold text-ink">{job.name}</span>
+        <span className="block truncate text-[0.78125rem] text-muted">{team.map((p) => PEOPLE[p]?.short).join(', ')} and the GC</span>
+      </span>
+      <span className="flex -space-x-1.5 max-sm:hidden">{team.map((p) => <Avatar key={p} who={p} size={26} ring />)}<Avatar who="gcpp" size={26} ring /></span>
+      {right}
+    </div>
   )
 }
 

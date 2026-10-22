@@ -8,7 +8,7 @@ import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Came
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
-import { Status, Path } from '@/tileos/components/ui/page'
+import { Status, Path, Circles } from '@/tileos/components/ui/page'
 import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -215,19 +215,23 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
 /** this part's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done, a
  *  blue ring where it's going on, red for a problem, and who has it. The step you're on is underlined. */
 export function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
+  /* the steps of one piece as circles, the same as everywhere — tap one to open it */
   return (
-    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 max-sm:px-1">
-      <Path
+    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 pb-1 pt-3 max-sm:px-1">
+      <Circles
         at={at}
-        className="pb-2 pt-2.5"
-        steps={list.map((x) => ({
-          key: x.key,
-          label: x.short,
-          state: x.state === 'done' ? 'done' as const : x.state === 'bad' ? 'blocked' as const : x.state === 'now' || x.state === 'wait' ? 'current' as const : 'future' as const,
-          sub: x.state === 'done' || x.state === 'na' ? undefined : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
-          date: x.state === 'done' ? 'Done' : x.state === 'wait' ? 'Waiting' : x.state === 'na' ? 'Not needed' : x.state === 'later' ? 'Not yet' : x.state === 'bad' ? 'Problem' : undefined,
-          onClick: () => go(x),
-        }))}
+        size={30}
+        onPick={(k) => go(list.find((x) => x.key === k))}
+        groups={[{
+          key: 'steps',
+          steps: list.map((x, i) => ({
+            key: x.key,
+            label: x.short,
+            state: x.state === 'done' || x.state === 'na' ? 'done' as const : x.state === 'bad' ? 'bad' as const : x.state === 'now' ? 'now' as const : x.state === 'wait' ? 'wait' as const : 'later' as const,
+            sub: x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.state === 'later' ? `Not yet · ${x.owner === me ? 'you' : PEOPLE[x.owner]?.short || ''}` : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
+            center: String(i + 1),
+          })),
+        }]}
       />
     </nav>
   )

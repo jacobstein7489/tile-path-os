@@ -26,7 +26,7 @@ import { projectStatus } from '../statuses'
 import { stepsFor } from '../steps'
 import { openStep, todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard, ProjectFoot, Track, useParts, type BoardView } from './board'
+import { ProjectBoard, ProjectFoot, ProjectCircles, defaultSel, laneOfStep, type BoardView, type Sel } from './board'
 import { pictureOf } from '../progressbill'
 import { md } from '@/tileos/lib/today'
 
@@ -52,13 +52,13 @@ const tabFrom = (initial: string | undefined, job: Job): PTab =>
 /* ================= the window ================= */
 export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: string; level: number }) {
   const job = useStore((s) => s.jobs[id])
-  const role = useStore((s) => s.role)
   const close = useStore((s) => s.close)
   const pricing = job && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  const [part, setPart0] = React.useState<PTab>(() => (job ? (initial ? tabFrom(initial, job) : role === 'accounting' ? 'money' : sectionOf(job)) : 'ready'))
-  /* a step, a room, the conversation or a file opened on the project — the part's own page when nothing is */
+  /* the open circle — where the project is (your turn first), or the part a link asks for */
+  const [sel, setSel0] = React.useState<Sel>(() => { const s = useStore.getState(); return job ? defaultSel(s, job, initial ? tabFrom(initial, job) : undefined) : '@install' })
+  /* a room, the conversation or a file opened from there — the circle's own page when nothing is */
   const [view, setView] = React.useState<BoardView>(null)
-  const setPart = (p: PTab) => { setPart0(p); setView(null) }
+  const setSel = (k: Sel) => { setSel0(k); setView(null) }
   if (!job) return null
   if (pricing) {
     return (
@@ -67,26 +67,28 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
       </Modal>
     )
   }
+  const onStep = (k: string) => { const l = laneOfStep(useStore.getState(), job, k); if (l) setSel(l) }
   return (
-    <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" part={part} setPart={setPart} />} footer={<ProjectFooter job={job} part={part} onStep={(k) => { setPart0('ready'); setView({ t: 'step', k }) }} />} bodyClass="p-0 lg:overflow-hidden">
-      <ProjectBoard job={job} part={part} view={view} setView={setView} />
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" sel={sel} setSel={setSel} />} footer={<ProjectFooter job={job} sel={sel} onStep={onStep} />} bodyClass="p-0 lg:overflow-hidden">
+      <ProjectBoard job={job} sel={sel} view={view} setView={setView} />
     </Modal>
   )
 }
 
 /** the same project as a page (Open full page) */
 export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
-  const [part, setPart0] = React.useState<PTab>(tabFrom(initial, job))
+  const [sel, setSel0] = React.useState<Sel>(() => defaultSel(useStore.getState(), job, initial ? tabFrom(initial, job) : undefined))
   const [view, setView] = React.useState<BoardView>(null)
-  const setPart = (p: PTab) => { setPart0(p); setView(null) }
+  const setSel = (k: Sel) => { setSel0(k); setView(null) }
   const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
+  const onStep = (k: string) => { const l = laneOfStep(useStore.getState(), job, k); if (l) setSel(l) }
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-      <ProjectHeader job={job} mode="page" part={pricing ? undefined : part} setPart={setPart} />
+      <ProjectHeader job={job} mode="page" sel={pricing ? undefined : sel} setSel={setSel} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(44rem,calc(100dvh-16rem))] min-h-[24rem]"><ProjectBoard job={job} part={part} view={view} setView={setView} /></div>
-          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} part={part} onStep={(k) => { setPart0('ready'); setView({ t: 'step', k }) }} /></div>
+          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} sel={sel} view={view} setView={setView} /></div>
+          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} sel={sel} onStep={onStep} /></div>
         </>
       )}
     </div>
@@ -113,13 +115,12 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
 
 /** the header, the same as an estimate's: what it is and where it stands, the name, the client and the address;
  *  on the right the contract (for whoever sees money) and the two buttons; under it the four parts as rings */
-export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'modal' | 'page'; part?: PTab; setPart?: (t: PTab) => void }) {
+export function ProjectHeader({ job, mode, sel, setSel }: { job: Job; mode: 'modal' | 'page'; sel?: Sel; setSel?: (k: Sel) => void }) {
   const s = useStore()
   const role = s.role
   const status = headStatus(s, job)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const parts = useParts(job)
-  const pricing = !part
+  const pricing = !sel
   const money = !['site', 'crew'].includes(role)
   const pic = money && !pricing ? pictureOf(s, job.id) : null
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
@@ -134,37 +135,34 @@ export function ProjectHeader({ job, mode, part, setPart }: { job: Job; mode: 'm
   const meta = [job.client, job.address].filter(Boolean)
   return (
     <div className={cn('relative border-b border-line bg-white px-5 pb-2.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
-      {/* one line: what it is, where it stands — and on the right the contract and the two buttons */}
-      <div className="flex items-center gap-2">
-        <span className="text-[0.8125rem] text-muted">{job.kind === 'repair' ? 'Repair' : 'Project'}</span>
+      {/* the name and where it stands — on the right the contract and the two buttons */}
+      <div className="flex min-w-0 items-center gap-2.5">
+        <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
         {status.onClick
-          ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
-          : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>}
+          ? <button onClick={status.onClick} className="min-w-0 shrink-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+          : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0 shrink-0">{status.label}</Status>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          {pic && pic.contract > 0 && <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</span>}
+          {pic && pic.contract > 0 && <span className="text-[0.8125rem] text-muted max-md:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</span>}
           {!pricing && !['accounting', 'client'].includes(role) && <AddToProject job={job} />}
           {!pricing && more}
         </span>
       </div>
-      {/* the name, with the client and the address beside it */}
-      <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0">
-        <h2 className="font-display min-w-0 truncate text-[1.3125rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]">{job.name}</h2>
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
-          <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
-          {meta[1] && <span className="truncate">{meta[1]}</span>}
-          {!pricing && (crew
-            ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
-            : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
-          {pic && pic.contract > 0 && <span className="sm:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
-        </span>
+      {/* who it's for, where, who installs it and when */}
+      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
+        <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
+        {meta[1] && <span className="truncate">{meta[1]}</span>}
+        {!pricing && (crew
+          ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
+          : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
+        {pic && pic.contract > 0 && <span className="md:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
       </div>
-      {!pricing && setPart && <Track className="mt-2" parts={parts} at={part} onPick={setPart} />}
+      {!pricing && sel && setSel && <ProjectCircles className="mt-3" job={job} sel={sel} onPick={setSel} />}
     </div>
   )
 }
 
 /* ---------------- footer: the one thing to do now ---------------- */
-function ProjectFooter({ job, part, onStep }: { job: Job; part: PTab; onStep: (k: string) => void }) {
+function ProjectFooter({ job, sel, onStep }: { job: Job; sel: Sel; onStep: (k: string) => void }) {
   const s = useStore()
   const prim = PRIMARY[job.stage]
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
@@ -189,7 +187,7 @@ function ProjectFooter({ job, part, onStep }: { job: Job; part: PTab; onStep: (k
       : null
   return (
     <>
-      <span className="min-w-0 max-sm:hidden"><ProjectFoot job={job} part={part} /></span>
+      <span className="min-w-0 max-sm:hidden"><ProjectFoot job={job} sel={sel} /></span>
       <span className="ml-auto flex min-w-0 items-center gap-2 max-sm:w-full max-sm:[&>button]:w-full">{main}</span>
     </>
   )

@@ -173,7 +173,6 @@ export function DesktopTopBar() {
         <Kbd>⌘K</Kbd>
       </button>
       <div className="ml-auto flex items-center gap-3">
-        <Notifications big />
         <Menu
           align="end"
           width={270}
@@ -227,7 +226,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
 }
 
 /* Phones and tablets: four pages sit in a bar at the bottom; everything else is under More. */
-const PHONE_ORDER = ['today', 'projects', 'upcoming', 'estimates', 'money', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers']
+const PHONE_ORDER = ['today', 'inbox', 'projects', 'estimates', 'upcoming', 'money', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers']
 export function phoneNav(navIn: string[]) {
   const nav = navKeys(navIn)
   const bar = PHONE_ORDER.filter((k) => nav.includes(k)).slice(0, 4)
@@ -303,7 +302,6 @@ export function TopBar() {
       <button onClick={() => setPalette(true)} aria-label="Search" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-wash-2">
         <Search className="h-[1.125rem] w-[1.125rem]" />
       </button>
-      <Notifications />
       <NewMenu align="end" trigger={<button aria-label="New" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white hover:bg-brand-700"><Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.2} /></button>} />
       <Menu
         align="end"
@@ -325,19 +323,6 @@ export function TopBar() {
         <UserMenuItems />
       </Menu>
     </header>
-  )
-}
-
-/** the bell: how many new things are in the inbox — tap it and the inbox opens (one place for everything, not a side panel) */
-function Notifications({ dark, big }: { dark?: boolean; big?: boolean }) {
-  const s = useStore()
-  const unread = inboxUnread(s)
-  const on = activeNav(s.route.page) === 'inbox'
-  return (
-    <button aria-label={unread ? `Inbox — ${unread} new` : 'Inbox'} onClick={() => s.go({ page: 'inbox' })} className={cn('relative inline-flex shrink-0 items-center justify-center', big ? 'h-9 w-9 rounded-[0.5625rem] border border-line bg-white text-ink-2 shadow-xs hover:border-[#cdc7bc]' : 'h-9 w-9 rounded-lg hover:bg-wash-2', dark ? 'text-white/80' : 'text-ink-2', on && 'text-brand-600')}>
-      <Bell className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.8} />
-      {unread > 0 && (big ? <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-canvas">{unread}</span> : <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-bad-500 ring-2 ring-white" />)}
-    </button>
   )
 }
 
