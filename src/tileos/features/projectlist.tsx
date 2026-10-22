@@ -12,7 +12,8 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
-import { stepsFor, stepCounts, lanesFor, isGettingReady } from './steps'
+import { stepsFor, isGettingReady } from './steps'
+import { readyGroups, readyCounts } from './ready'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
@@ -79,7 +80,6 @@ export function ProjectsPage() {
   return (
     <Page
       title="Projects"
-      actions={allowedFor(s.role, 'newproject') ? <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newproject' })}>New project</Button> : undefined}
       top={
         <Bubbles
           items={[
@@ -182,12 +182,11 @@ function StandsCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   if (t === 'coming') {
-    const steps = stepsFor(s, j).filter((x) => x.state !== 'na')
-    const c = stepCounts(steps)
-    const lanes = lanesFor(steps)
-    const lDone = lanes.filter((l) => l.state === 'done').length
-    const bad = steps.filter((x) => x.state === 'bad')
-    return <Progress pct={(c.done / Math.max(1, c.total)) * 100} tone="brand" label={c.done === c.total ? 'Ready — every step done' : `${lDone} of ${lanes.length} ready`} sub={bad.length ? `${bad[0].note || bad[0].short}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
+    /* the same count as the project's own checklist: questions answered, of how many */
+    const groups = readyGroups(s, j)
+    const c = readyCounts(groups)
+    const bad = groups.flatMap((g) => g.rows).filter((r) => r.state === 'bad')
+    return <Progress pct={(c.done / Math.max(1, c.total)) * 100} tone="brand" label={c.done === c.total ? 'Ready — everything answered' : `${c.done} of ${c.total} ready`} sub={bad.length ? `${bad[0].q.replace(/\?$/, '')}: ${(bad[0].note || 'No').replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
   }
   if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">{j.hold?.reason}</span></span>
   const rooms = s.rooms[j.id] || []

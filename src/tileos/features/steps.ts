@@ -50,11 +50,15 @@ export function realOwner(s: Store, key: PersonKey): PersonKey {
 const S = () => useStore.getState()
 
 export type StepState = 'done' | 'now' | 'wait' | 'later' | 'bad' | 'na'
-export interface StepDef { key: string; label: string; short: string; owner: PersonKey | 'matBy'; after?: string[]; custom?: boolean; phase?: string }
+export interface StepDef { key: string; label: string; short: string; owner: PersonKey | 'matBy'; after?: string[]; custom?: boolean; phase?: string
+  /** where a question added on one project sits on its checklist: 'design', 'site', 'installer', 'materials' */
+  group?: string }
 export interface StepRec {
   done?: string; by?: PersonKey; owner?: PersonKey; due?: string; na?: boolean; note?: string
-  /** the site check, one answer per thing looked at: good, or a problem with what's wrong */
-  checks?: Record<string, { ok: boolean; note?: string }>
+  /** the site check, one answer per thing looked at: yes, no (with what's wrong) or not needed here */
+  checks?: Record<string, { ok: boolean; note?: string; na?: boolean; by?: PersonKey; at?: string }>
+  /** answered "No" on the project's checklist — something's wrong, and what */
+  no?: { note?: string; by: PersonKey; at: string }
   /** revised quantities sent back on the paperwork — waiting for the new one */
   qty?: { at: string; to: string; text: string }
   /** waiting on someone outside (the store, the installer…) — back on the owner's Today on that day */
@@ -66,13 +70,16 @@ export interface StepRec {
   /** someone reminded the owner it's late — it pops up on the owner's screen */
   nudge?: { by: PersonKey; at: string; day: string }
 }
-/* what the site manager looks at on the site check */
-export const SITE_CHECKS: { k: string; label: string; sub: string }[] = [
-  { k: 'power', label: 'Power on site', sub: 'An outlet for the saw and the mixer' },
-  { k: 'water', label: 'Water on site', sub: 'Running water to mix and clean up' },
-  { k: 'plumbing', label: 'Plumbing rough-in done', sub: 'Valves, drains, the tub and the shower heads in place' },
-  { k: 'electric', label: 'Electrical rough-in done', sub: 'Boxes and wires where the tile goes' },
-  { k: 'ready', label: 'Walls and floors ready for us', sub: 'Boards up, floors clean, room to work' },
+/* what the site manager looks at on the site check — each one a question: Yes, No (what's wrong), or N/A */
+export const SITE_CHECKS: { k: string; label: string; q: string; sub: string }[] = [
+  { k: 'power', label: 'Power on site', q: 'Power on site?', sub: 'An outlet for the saw and the mixer' },
+  { k: 'water', label: 'Water on site', q: 'Water on site?', sub: 'Running water to mix and clean up' },
+  { k: 'drains', label: 'Shower drains on site', q: 'Shower drains on site?', sub: 'Every shower’s drain is here — the right one' },
+  { k: 'led', label: 'LED tracks on site', q: 'LED tracks on site?', sub: 'The channels that go in the tile, if the designer wants them' },
+  { k: 'windows', label: 'Windows ready', q: 'Windows ready?', sub: 'Sills and openings framed, so we can tile around them' },
+  { k: 'plumbing', label: 'Plumbing rough-in done', q: 'Plumbing rough-in done?', sub: 'Valves, drains, the tub and the shower heads in place' },
+  { k: 'electric', label: 'Electrical rough-in done', q: 'Electrical rough-in done?', sub: 'Boxes and wires where the tile goes' },
+  { k: 'ready', label: 'Site ready for us', q: 'Site ready for us?', sub: 'Boards up, floors clean, nothing in our way' },
 ]
 export interface StepAction { label: string; run?: () => void; pick?: 'delivery' | 'checkin' | 'check' }
 export interface StepView {
@@ -97,6 +104,10 @@ export interface StepView {
   doneOn?: string
   doneBy?: PersonKey
   phase: string
+  /** answered "No" on the checklist */
+  no?: { note?: string; by: PersonKey; at: string }
+  /** a question added on one project: the part of the checklist it's in */
+  group?: string
 }
 
 /** the parts of getting a project ready, in the order they read on the project */
@@ -147,6 +158,8 @@ const OURS = new Set(STEP_DEFAULTS.map((d) => d.key))
 export const BUILT_IN = new Set(STEP_DEFAULTS.filter((d) => !d.custom).map((d) => d.key))
 
 export const READY_STAGES = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
+/** the job has started — on site, touch-ups, closing out, done */
+export const IN_FIELD_STAGES = ['installation', 'punch', 'closeout', 'complete']
 export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.includes(j.stage)
 /** the company's checklist: ours, in our order, with whoever the company put on each step — plus its own steps.
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
@@ -293,15 +306,18 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'heights': {
       const hs = heightStatus(s, j.id)
       const answers = rec.checks || {}
-      const n = Object.keys(answers).length
+      const asked = SITE_CHECKS.filter((c) => answers[c.k]).length
       const bad = Object.entries(answers).filter(([, c]) => !c.ok)
+      /* the wall heights: measured on site (the square feet follow), or answered by hand */
+      const walls = !hs.total || hs.measured === hs.total || !!answers.walls?.ok
       if (rec.done) return { state: 'done', note: rec.note || 'Checked on site' }
-      if (bad.length) return { state: 'bad', note: bad.map(([k, c]) => `${SITE_CHECKS.find((x) => x.k === k)?.label || k}${c.note ? ` — ${c.note}` : ''}`).join(' · '), action: { label: 'Open the site check' } }
+      if (bad.length) return { state: 'bad', note: bad.map(([k, c]) => `${k === 'walls' ? 'Wall heights' : SITE_CHECKS.find((x) => x.k === k)?.label || k}${c.note ? ` — ${c.note}` : ''}`).join(' · '), action: { label: 'Open the site check' } }
+      if (asked === SITE_CHECKS.length && walls) return { state: 'done', note: 'Everything checked on site' }
       /* heights already measured (before this checklist had the rest) */
-      if (hs.total && hs.measured === hs.total && !n) return { state: 'done', note: 'Square feet and materials follow the real heights' }
+      if (hs.total && hs.measured === hs.total && !Object.keys(answers).length) return { state: 'done', note: 'Square feet and materials follow the real heights' }
       /* projects past the site check had theirs taken before this list existed */
-      if (['ready', 'scheduled'].includes(j.stage) && !n && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: n ? `${n} of ${SITE_CHECKS.length} checked` : 'Power, water, plumbing, electrical — and the walls and floors ready for us', action: { label: 'Do the site check' } }
+      if (['ready', 'scheduled'].includes(j.stage) && !Object.keys(answers).length && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
+      return { state: 'now', note: asked ? `${asked} of ${SITE_CHECKS.length} checked${walls ? '' : ' · wall heights to measure'}` : 'Power, water, drains, LED tracks, windows, wall heights — and the site ready for us', action: { label: 'Do the site check' } }
     }
     case 'level': {
       const fl = floorRooms(rooms)
@@ -463,10 +479,18 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     }
     /* late, and its owner moved it to a later day: due that day */
     if (rec.moved && (raw.state === 'now' || raw.state === 'bad') && (raw.due || rec.due || '') < rec.moved) raw = { ...raw, due: rec.moved }
+    /* the job has started: what wasn't checked off was done before the start — only what's really still open (tile
+       short, materials on the way, the deposit) stays open */
+    if (IN_FIELD_STAGES.includes(j.stage) && (raw.state === 'now' || raw.state === 'later') && d.key !== 'deposit' && !rec.no) raw = { state: 'done', note: 'Done before the start' }
+    /* answered by hand on the project's checklist: No is a problem, with what's wrong; Yes is done — unless what really
+       happened says there's a problem (that has to be fixed, not answered away) */
+    if (rec.no && !rec.na) raw = { ...raw, state: 'bad', note: rec.no.note ? `No — ${rec.no.note}` : `No — ${PEOPLE[rec.no.by]?.short || 'someone'} said it isn’t` }
+    else if (rec.done && !['done', 'bad', 'na'].includes(raw.state)) raw = { state: 'done', note: rec.note || 'Done' }
     const owner = realOwner(s, (task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey)
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
       after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',
+      no: rec.no && !rec.na ? rec.no : undefined, group: d.group,
     }
     /* a task already open for this step: its button and its words win */
     if (task && view.state !== 'done') {
@@ -535,6 +559,8 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
     r.by = me()
     if (note) r.note = note
     delete r.qty
+    delete r.no
+    delete r.na
     /* the step's own task is done too */
     st.tasks.forEach((x) => { if (x.step === `${jobId}:${key}` && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'Done' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: done`, detail: note } as any)
@@ -554,7 +580,7 @@ export function sendRevisedQty(jobId: string, o: { to: string; text: string }) {
     st.prep[jobId] = { ...(st.prep[jobId] || {}), paperwork: 'qty' }
     st.tasks.forEach((x) => { if ((x.step === `${jobId}:rooms` || x.step === `${jobId}:qty`) && x.state === 'now') { x.state = 'waiting'; x.waitingOn = o.to || 'the client'; x.followUp = labelFromIso(addDays(TODAY, 2)); x.log.push({ date: NOW, who: me(), text: 'Revised quantities sent' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Revised quantities sent on the tile paperwork', detail: `${o.to ? `To ${o.to} — ` : ''}${o.text.split('\n').filter((l) => /^[-•]/.test(l.trim())).join(' ').slice(0, 220)}` } as any)
-  }, 'Revised quantities sent', { sub: `It waits for the new paperwork — back on ${PEOPLE[owner]?.short || 'your'}’s list in 2 days if it doesn’t come.`, close: true })
+  }, 'Revised quantities sent', { tone: 'wait', sub: `It waits for the new paperwork — back on ${PEOPLE[owner]?.short || 'your'}’s list in 2 days if it doesn’t come.`, close: true })
 }
 
 /** waiting on someone outside — the step comes back on its owner's Today that day */
@@ -566,7 +592,7 @@ export function waitOnStep(jobId: string, key: string, on: string, back: string)
     const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
     r.wait = { on, back: iso, at: NOW }
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${v?.short || 'Step'}: waiting on ${on}`, detail: `Back ${labelFromIso(iso)}` } as any)
-  }, `Waiting on ${on}`, { sub: `It comes back on ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} Today ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : `on ${labelFromIso(iso)}`} if it hasn’t come.`, close: true })
+  }, `Waiting on ${on}`, { tone: 'wait', sub: `It comes back on ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} Today ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : `on ${labelFromIso(iso)}`} if it hasn’t come.`, close: true })
 }
 export function stopWaiting(jobId: string, key: string) {
   S().commit((st) => { const r = st.stepRecs[jobId]?.[key]; if (r) delete r.wait }, 'Not waiting any more')
@@ -602,7 +628,7 @@ export function materialsLate(jobId: string, when: string) {
       p.eta = labelFromIso(iso)
       p.log.push({ date: NOW, who: me(), text: `Not here yet — now ${labelFromIso(iso)}` })
     })
-  }, `Coming ${labelFromIso(iso)}`, { sub: 'It comes back on your Today that day.', close: true })
+  }, `Coming ${labelFromIso(iso)}`, { tone: 'wait', sub: 'It comes back on your Today that day.', close: true })
 }
 
 /** what usually changes once we see the site or meet the designer — tap one, or say it */
@@ -646,20 +672,39 @@ export function sendSiteProblems(jobId: string) {
   }, 'Sent to the office', { sub: text, to: [{ who: 'ys', what: `Site check · ${j.name}` }], close: true })
 }
 
-/** one answer on the site check */
-export function setSiteCheck(jobId: string, k: string, ok: boolean | null, note?: string) {
+/** one answer on the site check: yes, no (with what's wrong), N/A — or null to take the answer back */
+export function setSiteCheck(jobId: string, k: string, ok: boolean | null, note?: string, na?: boolean) {
   S().commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {}).heights ||= {})
     const c = (r.checks ||= {})
     if (ok === null) delete c[k]
-    else c[k] = { ok, ...(note ? { note } : {}) }
+    else c[k] = { ok, ...(note ? { note } : {}), ...(na ? { na: true } : {}), by: me(), at: NOW }
+    /* a problem found after it was checked off: it isn't done any more */
+    if (ok === false && r.done) { delete r.done; delete r.by }
   })
 }
 export function reopenStep(jobId: string, key: string) {
   S().commit((st) => { const r = st.stepRecs[jobId]?.[key]; if (r) { delete r.done; delete r.by } }, 'Back on the list')
 }
 export function skipStep(jobId: string, key: string, na: boolean) {
-  S().commit((st) => { const r = ((st.stepRecs[jobId] ||= {})[key] ||= {}); if (na) r.na = true; else delete r.na }, na ? 'Not needed on this project' : 'Back on the list')
+  S().commit((st) => { const r = ((st.stepRecs[jobId] ||= {})[key] ||= {}); if (na) { r.na = true; delete r.no } else delete r.na }, na ? 'Not needed on this project' : 'Back on the list')
+}
+/** answered "No" on the checklist — something's wrong, and what. It shows red on the project and on its owner's Today
+ *  until someone answers Yes (or N/A). null takes the No back. */
+export function sayNo(jobId: string, key: string, note: string | null) {
+  const s = S()
+  const j = s.jobs[jobId]
+  const def = defsFor(s, jobId).find((d) => d.key === key)
+  if (!j || !def) return
+  s.commit((st) => {
+    const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
+    if (note === null) { delete r.no; return }
+    r.no = { ...(note.trim() ? { note: note.trim() } : {}), by: me(), at: NOW }
+    delete r.done
+    delete r.by
+    delete r.na
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: no`, detail: note.trim() || undefined } as any)
+  })
 }
 export function setStepOwner(jobId: string, key: string, owner: PersonKey) {
   const s = S()
@@ -704,11 +749,11 @@ export function checkInTile(jobId: string) {
 
 /* ---------------- your own steps ---------------- */
 const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) + '-' + Date.now().toString(36).slice(-4)
-export function addJobStep(jobId: string, label: string, owner: PersonKey, after?: string) {
+export function addJobStep(jobId: string, label: string, owner: PersonKey, after?: string, group?: string) {
   const key = slug(label)
   S().commit((st) => {
-    ;(st.jobSteps[jobId] ||= []).push({ key, label, short: label.split(/\s+/).slice(0, 3).join(' '), owner, after: after ? [after] : [], custom: true })
-  }, 'Step added', { sub: 'Only on this project.', to: [{ who: owner, what: label }] })
+    ;(st.jobSteps[jobId] ||= []).push({ key, label, short: label.replace(/\?$/, '').split(/\s+/).slice(0, 3).join(' '), owner, after: after ? [after] : [], custom: true, ...(group ? { group } : {}) })
+  }, group ? 'Question added' : 'Step added', { sub: 'Only on this project.', to: [{ who: owner, what: label }] })
 }
 export function removeJobStep(jobId: string, key: string) {
   S().commit((st) => { st.jobSteps[jobId] = (st.jobSteps[jobId] || []).filter((d) => d.key !== key) }, 'Step removed')

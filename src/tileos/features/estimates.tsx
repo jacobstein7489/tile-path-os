@@ -10,7 +10,7 @@ import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
+import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
 import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { FLOORS, sortAreas } from '@/tileos/data/areas'
@@ -21,7 +21,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE } from './estflow'
+import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE, sameJobCandidates, moveEstimateTo } from './estflow'
 import { insidePeople } from './steps-ui'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
@@ -231,7 +231,7 @@ function EstRow({ e }: { e: Estimate }) {
 /* ================= one estimate ================= */
 /* the estimate's documents, the client's copy, every revision, who does what and what happened open in the window
  * itself, with "Back to the estimate" on top — never a window on a window */
-type EstPanel = null | { t: 'doc'; doc: string } | { t: 'paper'; prices?: boolean } | { t: 'revs' } | { t: 'team' } | { t: 'log' }
+type EstPanel = null | { t: 'doc'; doc: string } | { t: 'paper'; prices?: boolean } | { t: 'revs' } | { t: 'team' } | { t: 'log' } | { t: 'same' }
 const GREEN = '#2c4a3e'
 const GRAY = '#efece5'
 /** scope · qty · unit · rate · amount · (remove) — the same columns on the green bands, the rooms and every line */
@@ -338,18 +338,22 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const at = b === 'lost' ? 5 : order.indexOf(b)
   const state = (i: number) => (i < at ? 'done' : i === at ? (b === 'lost' ? 'blocked' : 'current') : 'future') as 'done' | 'current' | 'future' | 'blocked'
   /* when each step was done — from the estimate's own log (the last time, if it went round again) */
-  const lastLog = (re: RegExp) => [...e.log].reverse().find((l) => re.test(l.text))?.date
+  const lastLog = (re: RegExp) => [...e.log].reverse().find((l) => re.test(l.text))
+  const DONE_RE: Record<string, RegExp> = { takeoff: /Ready for review/, review: /^Office review done/, final: /^Final review done/, sent: /^Revision \d+ sent|^Sent/, approved: /^Approved/ }
+  const doneLog = (k: string) => (k === 'request' ? e.log[0] : DONE_RE[k] ? lastLog(DONE_RE[k]) : undefined)
   const doneOn: Record<string, string | undefined> = {
     request: e.log[0]?.date,
-    takeoff: lastLog(/Ready for review/),
-    review: lastLog(/^Office review done/),
-    final: lastLog(/^Final review done/) || sent?.sentOn,
+    takeoff: doneLog('takeoff')?.date,
+    review: doneLog('review')?.date,
+    final: doneLog('final')?.date || sent?.sentOn,
     sent: sent?.sentOn,
     approved: e.approvedOn,
   }
+  /* who did it — the one in the estimate's own log; else whoever has that step */
+  const doneBy = (k: string) => { const w = doneLog(k)?.who; return w && w !== 'system' && PEOPLE[w] ? PEOPLE[w].short : undefined }
   const people = [
-    PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].name : PEOPLE[team.follow].name,
-    PEOPLE[team.takeoff].name, PEOPLE[team.review].name, PEOPLE[team.final].name, PEOPLE[team.follow].name, undefined,
+    PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].short : PEOPLE[team.follow].short,
+    PEOPLE[team.takeoff].short, PEOPLE[team.review].short, PEOPLE[team.final].short, PEOPLE[team.follow].short, undefined,
   ]
   const path = [
     { key: 'request', label: 'Request' },
@@ -362,7 +366,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     const s0 = state(i)
     const cs: CircleState = s0 === 'done' ? 'done' : s0 === 'current' ? 'now' : s0 === 'blocked' ? 'bad' : 'later'
     const date = s0 === 'done' ? doneOn[p.key] : s0 === 'current' && e.since && p.key !== 'sent' ? `since ${e.since}` : s0 === 'current' && p.key === 'sent' ? sent?.sentOn : st === 'approved' && p.key === 'approved' ? e.approvedOn : undefined
-    const sub = s0 === 'done' ? (date ? `Done ${date.replace(/^Done\s*/, '')}` : people[i]) : [people[i], date].filter(Boolean).join(' · ') || undefined
+    const sub = s0 === 'done' ? [doneBy(p.key) || people[i], date ? date.replace(/^Done\s*/, '') : ''].filter(Boolean).join(' · ') || 'Done' : [people[i], date].filter(Boolean).join(' · ') || undefined
     return { key: p.key, label: p.label, state: cs, sub, center: String(i + 1) }
   })
 
@@ -382,6 +386,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
               {canTeam && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => setPanel({ t: 'team' })}>Who does what</MenuItem>}
               <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => setPanel({ t: 'log' })}>What happened</MenuItem>
               {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
+              {PRICING_STAGES.includes(j.stage) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Building2 className="h-4 w-4" />} hint="Same job, two names? Put it on the project" onSelect={() => setPanel({ t: 'same' })}>It’s for a project we have…</MenuItem>}
               <MenuSep />
               <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'estimate', id: e.id })}>Delete this estimate…</MenuItem>
             </Menu>
@@ -618,6 +623,11 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       <div className="min-h-full" data-panel="team">
         <PanelBar title="Who does what" sub="on this estimate" onBack={back} back="Back to the estimate" />
         <div className="mx-auto max-w-[30rem] px-6 py-5 max-sm:px-3"><TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(k, p) => setEstTeam(e.id, k, p)} /></div>
+      </div>
+    ) : panel?.t === 'same' ? (
+      <div className="min-h-full" data-panel="same">
+        <PanelBar title="Which project is it for?" sub={`${e.id} was made as “${j.name}”`} onBack={back} back="Back to the estimate" />
+        <div className="mx-auto max-w-[40rem] px-6 py-5 max-sm:px-3"><SameJob e={e} onDone={() => setPanel(null)} /></div>
       </div>
     ) : panel?.t === 'log' ? (
       <div className="min-h-full" data-panel="log">
@@ -1127,5 +1137,38 @@ export function EstLostModal({ id, level }: { id: string; level: number }) {
         ))}
       </div>
     </Modal>
+  )
+}
+
+/** the same job made twice — an estimate on its own, and the project: pick the project, and the estimate goes on it */
+function SameJob({ e, onDone }: { e: Estimate; onDone: () => void }) {
+  const s = useStore()
+  const [q, setQ] = React.useState('')
+  const [pick, setPick] = React.useState<string | null>(null)
+  const list = sameJobCandidates(s, e.jobId, q).slice(0, 8)
+  const to = pick ? s.jobs[pick] : undefined
+  const from = s.jobs[e.jobId]
+  return (
+    <div>
+      <p className="text-[0.875rem] leading-snug text-ink-2">Pick the project. The estimate goes on it — its tasks, files and messages too — and it says the project’s name everywhere: on Today, in the inbox, on the estimate.</p>
+      <TextInput className="mt-4" aria-label="Find the project" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Find the project — name, client or address" />
+      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
+        {list.map(({ j, score }) => (
+          <button key={j.id} data-same={j.id} onClick={() => setPick(j.id)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f7f5f0]', pick === j.id && 'bg-brand-50/60')}>
+            <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', pick === j.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white')}>{pick === j.id && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[0.90625rem] font-semibold text-ink">{j.name}{score >= 2 && <span className="ml-2 rounded-full bg-ok-50 px-1.5 py-px text-[0.6875rem] font-semibold text-ok-700">Looks like the one</span>}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{[j.client, j.address].filter(Boolean).join(' · ')}</span>
+            </span>
+          </button>
+        ))}
+        {!list.length && <div className="px-4 py-6 text-center text-[0.84375rem] text-muted">No project like that.</div>}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <Button variant="ghost" onClick={onDone}>Cancel</Button>
+        <Button variant="primary" icon={<ArrowRight />} disabled={!to} onClick={() => { if (to) { moveEstimateTo(e.id, to.id); onDone() } }}>{to ? `Put it on ${to.name}` : 'Pick the project'}</Button>
+      </div>
+      {from && <p className="mt-3 text-[0.78125rem] text-muted">“{from.name}” goes away — it was the same job.</p>}
+    </div>
   )
 }

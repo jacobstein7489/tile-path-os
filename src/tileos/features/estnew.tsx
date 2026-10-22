@@ -11,7 +11,7 @@ import { CUSTOMERS } from '@/tileos/data/jobs'
 import { FLOORS, uniqueArea, sortAreas, guessSurfaces } from '@/tileos/data/areas'
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday } from '@/tileos/lib/today'
-import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
+import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
 import { isOff } from './active'
 import { insidePeople } from './steps-ui'
 
@@ -194,14 +194,19 @@ export function NewEstimateModal({ level }: { level: number }) {
   /* the rooms are the takeoff person's job — but if you already know them, you can put them in */
   const [areas, setAreas] = React.useState<PickedArea[]>([])
   const [rooms, setRooms] = React.useState(false)
+  const [onJob, setOnJob] = React.useState<string | null>(null)
+  const onJobOk = !!onJob
   const input = React.useRef<HTMLInputElement>(null)
   const custs = Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id) && (!cq || c.name.toLowerCase().includes(cq.toLowerCase()))).slice(0, 5)
-  const ok = !!name.trim() && !!(client || cq.trim())
+  const ok = !!name.trim() && !!(client || cq.trim() || onJobOk)
   const me = meOf(s.role)
   const people = insidePeople(s)
   const addFiles = (l: File[]) => { const ok2 = l.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic|dwg)$/i.test(f.name)); if (!ok2.length) return; setFiles((p) => [...p, ...ok2]); setDocs((d) => (d.includes('Plans') ? d : [...d, 'Plans'])) }
   const shownDocs = Array.from(new Set([...(files.length ? ['Plans'] : []), ...docs]))
-  const create = () => newEstimate({ name: name.trim(), address: address.trim(), clientId: client?.id || 'new', client: client?.name || cq.trim(), due, scope: scope.trim() || 'Scope to confirm from the plans', docs: shownDocs, team, areas, files })
+  /* the same job twice? a project we already have with this name or street — price it there */
+  const like = projectLike(s, name, address)
+  const on = onJob ? s.jobs[onJob] : undefined
+  const create = () => newEstimate({ name: on ? on.name : name.trim(), address: on ? on.address : address.trim(), clientId: on ? on.clientId : client?.id || 'new', client: on ? on.client : client?.name || cq.trim(), due, scope: scope.trim() || 'Scope to confirm from the plans', docs: shownDocs, team, areas, files, onJob: on?.id })
   const tk = PEOPLE[team.takeoff]
   return (
     <Modal
@@ -226,6 +231,15 @@ export function NewEstimateModal({ level }: { level: number }) {
           <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Project name</span><TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Leeds Residence" className="h-10" /></label>
           <label className="block"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">Address</span><TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" className="h-10" /></label>
         </div>
+        {(on || like) && (
+          <div data-same-job className={cn('flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3', on ? 'border-ok-200 bg-ok-50/60' : 'border-brand-100 bg-brand-50/50')}>
+            <Building2 className={cn('h-5 w-5 shrink-0', on ? 'text-ok-600' : 'text-brand-600')} />
+            <span className="min-w-0 flex-1 text-[0.84375rem] leading-snug text-ink">
+              {on ? <>Priced on <b className="font-semibold">{on.name}</b> — the same job. It says {on.name} everywhere.</> : <><b className="font-semibold">{like!.name}</b> is a project already{like!.address ? ` (${like!.address})` : ''}. Is this estimate for it?</>}
+            </span>
+            {on ? <Button size="sm" variant="ghost" onClick={() => setOnJob(null)}>No — a new one</Button> : <Button size="sm" onClick={() => { setOnJob(like!.id); setName(like!.name); setAddress(like!.address) }}>Yes — price it on {like!.name}</Button>}
+          </div>
+        )}
         <div>
           <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Client or GC</div>
           {client ? (

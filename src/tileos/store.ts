@@ -134,7 +134,7 @@ interface Actions {
   undo: () => void
   /** swap in a whole set of data — a saved test, a fresh start or the sample — without an undo step */
   replaceData: (d: Data) => void
-  commit: (fn: (s: Store) => void, msg?: string, opts?: { undo?: boolean; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; close?: boolean; tone?: 'ok' | 'warn' | 'done' }) => void
+  commit: (fn: (s: Store) => void, msg?: string, opts?: { undo?: boolean; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; close?: boolean; tone?: 'ok' | 'warn' | 'done' | 'wait' }) => void
   log: (jobId: string, e: Omit<HistEntry, 'date'> & { date?: string }) => void
   /* tasks */
   completeTask: (id: string, result?: string) => void
@@ -411,8 +411,9 @@ export const useStore = create<Store>()(
         pinDates(s)
         s.past = [...s.past.slice(-24), snap] as any
       })
-      /* hand-offs close their window; the pop-up in the middle says where it went */
-      if (opts.close) set({ modals: get().modals.slice(0, -1) } as any)
+      /* hand-offs close their window; the pop-up in the middle says where it went. The project's own window stays:
+         a step answered right on the project is done there, and the project is still what you're looking at */
+      if (opts.close) { const m = get().modals; if (m.length && m[m.length - 1].t !== 'job') set({ modals: m.slice(0, -1) } as any) }
       if (msg) showPop({ title: msg, sub: opts.sub, flow: opts.flow, to: opts.to, tone: opts.tone, undo: opts.undo === false ? undefined : () => get().undo() })
     },
     log: (jobId, e) =>
@@ -443,7 +444,7 @@ export const useStore = create<Store>()(
         t.waitingOn = on
         t.followUp = back
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Waiting on ${on} · back ${back}` })
-      }, `Waiting on ${on} — it comes back ${back.toLowerCase().startsWith('tomorrow') || back === 'Today' ? back.toLowerCase() : 'on ' + back}`),
+      }, `Waiting on ${on}`, { tone: 'wait', sub: `It comes back on your Today ${back.toLowerCase().startsWith('tomorrow') || back === 'Today' ? back.toLowerCase() : 'on ' + back}.` }),
     laterTask: (id, until) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)

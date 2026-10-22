@@ -76,8 +76,10 @@ export function remind(who: PersonKey, items: PlateItem[]) {
   }, `Reminder sent to ${PEOPLE[who]?.short || 'them'}`, { sub: 'It pops up on their screen with what’s late, and it’s on their Today.', undo: false })
 }
 
-/* ---------------- once a day, by itself ---------------- */
+/* ---------------- by itself: the first time each day, and whenever something more goes late ---------------- */
 const dayKey = (s: Store) => `tileos-late:${REAL.email || 'preview'}:${meOf(s.role)}`
+const seenKey = (s: Store) => `tileos-late-seen:${REAL.email || 'preview'}:${meOf(s.role)}`
+const readSeen = (k: string): string[] => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
 /* the automated tests drive the app themselves — no pop-ups in their way (a test that checks this one says so) */
 const quiet = () => { try { return navigator.webdriver && !localStorage.getItem('tileos-late-test') } catch { return false } }
 
@@ -88,18 +90,29 @@ export function LateWatcher() {
       const s = S()
       if (s.role === 'crew' || s.role === 'client' || s.modals.length) return
       if ((s.rules.autoOff || []).includes('late')) return
-      const k = dayKey(s)
-      try { if (localStorage.getItem(k) === TODAY) return } catch { return }
       const mine = lateOf(s, s.role)
       const team = bossView(s) ? teamLate(s) : []
       if (!mine.length && !team.length) return
-      try { localStorage.setItem(k, TODAY) } catch { /* private window */ }
+      /* each late thing pops up once — the first look of the day shows them all again */
+      const keys = mine.map((x) => `${x.key}@${x.iso || ''}`)
+      let first = false
+      try { first = localStorage.getItem(dayKey(s)) !== TODAY } catch { return }
+      const seen = readSeen(seenKey(s))
+      const fresh = keys.filter((k) => !seen.includes(k))
+      if (!first && !fresh.length) return
+      try {
+        localStorage.setItem(dayKey(s), TODAY)
+        localStorage.setItem(seenKey(s), JSON.stringify(Array.from(new Set([...seen, ...keys])).slice(-400)))
+      } catch { /* private window */ }
+      if (!first && !mine.length) return
       s.open({ t: 'late', auto: true })
     }
-    /* give the screen a moment (what's new pops first), then look; again whenever the person or the screen changes */
+    /* give the screen a moment (what's new pops first), then look; again whenever the person or the screen changes,
+       and every few minutes — something that goes late while the app is open pops up too */
     const t = setTimeout(check, 2500)
-    const off = useStore.subscribe((s, prev) => { if (s.role !== prev.role || (prev.modals.length && !s.modals.length)) setTimeout(check, 1200) })
-    return () => { clearTimeout(t); off() }
+    const every = setInterval(check, 5 * 60 * 1000)
+    const off = useStore.subscribe((s, prev) => { if (s.role !== prev.role || (prev.modals.length && !s.modals.length) || s.tasks !== prev.tasks) setTimeout(check, 1200) })
+    return () => { clearTimeout(t); clearInterval(every); off() }
   }, [])
   return null
 }
@@ -140,7 +153,7 @@ export function LateModal({ level }: { level: number }) {
       level={level}
       size="md"
       onClose={s.close}
-      title={n ? (n === 1 ? '1 thing is late' : `${n} things are late`) : others ? 'Late on the team' : 'Nothing is late'}
+      title={<span className="inline-flex items-center gap-2.5">{(n > 0 || others > 0) && <span className="bell-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600 ring-1 ring-bad-100"><BellRing className="h-[1.125rem] w-[1.125rem]" /></span>}{n ? (n === 1 ? '1 thing is late' : `${n} things are late`) : others ? 'Late on the team' : 'Nothing is late'}</span>}
       sub={n ? 'Past its date on your Today — open it, or move it to tomorrow.' : others ? 'Send a reminder — it pops up on their screen.' : 'Everything on your Today is on time.'}
       footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Later</Button><Button variant="primary" icon={<ArrowRight />} onClick={goToday}>Go to Today</Button></>}
     >

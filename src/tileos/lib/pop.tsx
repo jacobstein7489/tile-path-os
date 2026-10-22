@@ -2,13 +2,13 @@
  * Replaces the little corner toasts. Closes by itself; hover keeps it; Undo when it can be undone. */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Check, Undo2, ArrowRight, Building2 } from 'lucide-react'
+import { Check, Undo2, ArrowRight, Building2, Hourglass } from 'lucide-react'
 import { Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 export type FlowStep = { who?: PersonKey; label: string; state: 'done' | 'now' | 'next'; outside?: string }
-export type PopData = { id: number; title: string; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; undo?: () => void; tone?: 'ok' | 'warn' | 'done' }
+export type PopData = { id: number; title: string; sub?: string; flow?: FlowStep[]; to?: { who: PersonKey; what: string }[]; undo?: () => void; tone?: 'ok' | 'warn' | 'done' | 'wait' }
 type PopStore = { pop: PopData | null; show: (p: Omit<PopData, 'id'>) => void; hide: () => void }
 let pid = 0
 export const usePop = create<PopStore>((set) => ({
@@ -26,6 +26,15 @@ export const toast = Object.assign((msg: string, o?: Opts) => showPop({ title: m
 })
 
 if (typeof window !== 'undefined') (window as any).__pop = usePop
+
+/* the confetti for the done moment: pieces flung out in every direction, a few falling further */
+const COLORS = ['#12b76a', '#2650cf', '#f0b429', '#e05d4b', '#7a5af8', '#0ba5ec']
+/* a fan over the check — up and out to the sides, then a little fall — so none of it lands on the words under it */
+const CONFETTI = Array.from({ length: 24 }, (_, i) => {
+  const a = Math.PI * (1.04 + (i / 23) * 0.92) + ((i % 3) - 1) * 0.06
+  const d = 52 + ((i * 37) % 40)
+  return { x: Math.round(Math.cos(a) * d * 1.35), y: Math.round(Math.sin(a) * d * 0.8 - 6), r: ((i * 97) % 540) - 270, w: i % 4 === 0 ? 7 : 5, h: i % 4 === 0 ? 7 : i % 2 ? 10 : 5, round: i % 4 === 0, color: COLORS[i % COLORS.length], delay: 40 + ((i * 23) % 140) }
+})
 
 export function CenterPop() {
   const { pop, hide } = usePop()
@@ -58,15 +67,23 @@ export function CenterPop() {
       >
         <div className="px-7 pb-5 pt-6">
           {pop.tone === 'done' ? (
-            /* something got finished: the check lands with a bounce, a ring spreads, a few sparks fly */
+            /* something got finished: the check lands with a bounce and draws itself, rings spread, confetti flies */
             <span className="relative mx-auto block h-16 w-16">
               <span className="cheer-ring absolute inset-0 rounded-full bg-ok-500/30" />
-              <span className="cheer-ring absolute inset-0 rounded-full bg-ok-500/20" style={{ animationDelay: '120ms' }} />
-              {Array.from({ length: 8 }).map((_, i) => (
-                <span key={i} className="cheer-spark absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full" style={{ ['--a' as any]: `${i * 45}deg`, background: ['#12b76a', '#2650cf', '#f0b429', '#e05d4b'][i % 4] }} />
+              <span className="cheer-ring absolute inset-0 rounded-full bg-ok-500/20" style={{ animationDelay: '140ms' }} />
+              {CONFETTI.map((c, i) => (
+                <span key={i} className="confetti" style={{ width: c.w, height: c.h, marginLeft: -c.w / 2, marginTop: -c.h / 2, borderRadius: c.round ? 999 : 2, background: c.color, animationDelay: `${c.delay}ms`, ['--x' as any]: `${c.x}px`, ['--y' as any]: `${c.y}px`, ['--r' as any]: `${c.r}deg` }} />
               ))}
               <span className="cheer-check absolute inset-0 inline-flex items-center justify-center rounded-full bg-ok-500 text-white shadow-[0_0.5rem_1.25rem_-0.375rem_rgba(18,183,106,.6)]">
-                <Check className="h-8 w-8" strokeWidth={3.5} />
+                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path className="cheer-draw" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              </span>
+            </span>
+          ) : pop.tone === 'wait' ? (
+            /* waiting on someone: the hourglass turns while a soft ring breathes */
+            <span className="relative mx-auto block h-14 w-14">
+              <span className="wait-breathe absolute inset-0 rounded-full bg-warn-500/25" />
+              <span className="absolute inset-0 inline-flex items-center justify-center rounded-full bg-warn-50 text-warn-600 ring-1 ring-warn-100">
+                <Hourglass className="wait-turn h-6 w-6" strokeWidth={2.4} />
               </span>
             </span>
           ) : (

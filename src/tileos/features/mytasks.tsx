@@ -11,7 +11,7 @@ import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker
 import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
-import { PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
+import { PRICING_STAGES, PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
 import { TODAY_LABEL } from '@/tileos/data/jobs'
 import { REPEAT_LABEL, type Task, type TaskType } from '@/tileos/data/work'
 import { runTaskAction } from './flows'
@@ -30,7 +30,7 @@ import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, add
 import { REAL } from '@/tileos/lib/save'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
-import { TripButtons } from './requests'
+import { TripButtons, ROW_BTN } from './requests'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -158,17 +158,17 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       title={cleanTitle(t.title, job)}
       detail={detail}
       owner={showOwner ? t.owner : undefined}
-      project={job ? job.name : 'Company'}
+      project={job ? (PRICING_STAGES.includes(job.stage) ? `${job.name} · estimate` : job.name) : 'Company'}
       when={w.text}
       whenTone={w.tone}
       action={
-        done ? <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
-          : stepTask ? <Button size="sm" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-          : act ? <Button size="sm" className="max-w-full" onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
-            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
+        done ? <Button size="sm" className={ROW_BTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+          : stepTask ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+          : act ? <Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
+            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
             : isRequest(t) && t.state === 'now' ? <TripButtons t={t} onDone={() => setLeaving(true)} />
-            : t.state === 'now' ? <Button size="sm" icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
-              : <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+            : t.state === 'now' ? <Button size="sm" className={ROW_BTN} icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
+              : <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
       }
     />
   )
@@ -187,7 +187,7 @@ function StepRowToday({ job, v, showOwner, when }: { job: Job; v: StepView; show
       project={job.name}
       when={when?.text ?? 'Anytime'}
       whenTone={when?.tone ?? 'quiet'}
-      action={<StepButton job={job} v={v} />}
+      action={<Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}><span className="truncate">{v.action?.label || 'Open'}</span></Button>}
     />
   )
 }
@@ -205,7 +205,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
       project={job.name}
       when="End of day"
       whenTone="strong"
-      action={<Button size="sm" onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
+      action={<Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
     />
   )
 }
@@ -226,7 +226,7 @@ function PayRow() {
       project="Company"
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" onClick={go}>Review the week</Button>}
+      action={<Button size="sm" className={ROW_BTN} onClick={go}>Review the week</Button>}
     />
   )
 }
@@ -247,7 +247,7 @@ function BillRow() {
       project="Company"
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" onClick={go}>Bill the week</Button>}
+      action={<Button size="sm" className={ROW_BTN} onClick={go}>Bill the week</Button>}
     />
   )
 }
@@ -265,7 +265,7 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
       project={job?.name || 'Company'}
       when={hourLabel(e.start)}
       whenTone="strong"
-      action={<Button size="sm" variant="ghost" onClick={open}>Open</Button>}
+      action={<Button size="sm" className={ROW_BTN} onClick={open}>Open</Button>}
     />
   )
 }
@@ -368,13 +368,15 @@ export function MyTasksPage() {
     return (
       <React.Fragment key={iso}>
         {lateRows.length > 0 && (
-          <section>
-            <Group label="Overdue" count={lateRows.length} tone="bad" />
+          <section data-day="overdue" className="bg-[#fffafa]">
+            <Group label="Overdue" count={lateRows.length} tone="bad" hint="from before today" />
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
+        {/* a gap between what's late and the day itself — two blocks, not one list */}
+        {lateRows.length > 0 && (rows.length > 0 || !lateRows.length) && <div aria-hidden className="h-4 border-y border-line bg-canvas" />}
         {(rows.length > 0 || !lateRows.length) && (
-          <section>
+          <section data-day={iso}>
             <Group label={dayHead(iso)} count={rows.length} tone="info" hint={iso === TOMORROW ? dayLongFull(iso) : undefined} />
             {timed.map((x, i) => (
               <React.Fragment key={x.key}>

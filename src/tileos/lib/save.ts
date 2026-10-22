@@ -51,6 +51,8 @@ export const REAL: {
   inviteStatus?: (emails: string[]) => Promise<Record<string, { invited?: string; signedIn?: string; confirmed?: string; made?: string }>>
   /** the admin sends himself an email from the app, to see that emails land at all — resolves with the address */
   testEmail?: () => Promise<string>
+  /** someone taken off the team (the real app, the admin only): their login stops working — the server takes it away */
+  removeAccess?: (p: { email?: string; uid?: string }) => Promise<void>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */

@@ -3,7 +3,7 @@
 import { SURFACES } from '@/tileos/data/areas'
 import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask } from '@/tileos/store'
 import type { PersonKey, Role } from '@/tileos/data/model'
-import { fmtMoney, PEOPLE } from '@/tileos/data/model'
+import { fmtMoney, PEOPLE, PRICING_STAGES } from '@/tileos/data/model'
 import type { Room } from '@/tileos/data/jobs'
 import { tileOf } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
@@ -50,7 +50,7 @@ export function estStart(estId: string, who: PersonKey = 'estimator') {
     e.estimator = who
     e.log.push(L(me(), `Estimating started · ${PEOPLE[who].name}`))
     const j = s.jobs[e.jobId]
-    if (j) j.stage = 'estimating'
+    if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'estimating'
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Estimating started · ${e.id}`, ref: { t: 'estimate', id: e.id } })
   }, 'Estimating started')
 }
@@ -77,7 +77,7 @@ export function estSend(estId: string) {
     e.log.push(L(me(), `Revision ${r.n} sent · ${fmtMoney(total)}`))
     const j = s.jobs[e.jobId]
     if (j) {
-      j.stage = 'followup'
+      if (PRICING_STAGES.includes(j.stage)) j.stage = 'followup'
       j.keyDate = { label: 'Sent', value: NOW }
       j.next = { text: `Follow up on revision ${r.n}`, owner: fol, due: fu }
       j.headline = `Revision ${r.n} sent today`
@@ -108,7 +108,7 @@ export function estRevise(estId: string, what: string, o: { changes?: { text: st
     e.backTo = undefined
     e.log.push(L(me(), `Revision ${last.n + 1} started — ${what || 'changes requested'}`))
     const j = s.jobs[e.jobId]
-    if (j) j.stage = 'proposal'
+    if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'proposal'
     /* a revision walks the same path: takeoff, office review, owner review */
     giveTo(s, e, 'takeoff')
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Revision ${last.n + 1} requested · ${what || 'changes'}`, ref: { t: 'estimate', id: e.id } })

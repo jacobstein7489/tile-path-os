@@ -55,6 +55,7 @@ async function ready(admin: any, data: { email: string; name: string; role: stri
   }
   if (!u) throw new Error("Couldn’t make the account");
   await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+  await admin.from("profiles").update({ is_active: true }).eq("user_id", u.id);
   return { u, fresh };
 }
 
@@ -147,6 +148,7 @@ export const grantRole = createServerFn({ method: "POST" })
       }
       if (!u) return { ok: false, why: "The account wasn’t made — the sign-in link may not have gone out. Try again in a minute." };
       await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      await admin.from("profiles").update({ is_active: true }).eq("user_id", u.id);
       if (data.name) {
         const { data: prof } = await admin.from("profiles").select("user_id, full_name").eq("user_id", u.id).maybeSingle();
         if (prof && !prof.full_name) await admin.from("profiles").update({ full_name: data.name }).eq("user_id", u.id);
@@ -178,7 +180,33 @@ export const prepInvite = createServerFn({ method: "POST" })
       if (!u) return { ok: true, exists: false, signedIn: false };
       if (!u.email_confirmed_at) await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
       await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      /* someone taken off the team before: back in */
+      await admin.from("profiles").update({ is_active: true }).eq("user_id", u.id);
       return { ok: true, exists: true, signedIn: !!u.last_sign_in_at };
+    } catch (e) {
+      return { ok: false, why: why(e) };
+    }
+  });
+
+/** someone taken off the team: their login types are taken away, so signing in doesn't open the company's data any
+ *  more (it waits for the admin, like a stranger's would). Inviting them again gives it back. Never your own login.
+ *  The admin only. */
+export type Removed = { ok: true; removed: boolean } | { ok: false; why: string }
+export const removeAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: { email?: string; uid?: string }) => ({ email: String(d?.email || "").trim().toLowerCase(), uid: String(d?.uid || "").trim() }))
+  .handler(async ({ data, context }): Promise<Removed> => {
+    if (!(await isAdmin(context))) return { ok: false, why: "Only the admin takes people off the team" };
+    const admin = supabaseAdmin as any;
+    try {
+      let id = /^[0-9a-f-]{36}$/i.test(data.uid) ? data.uid : "";
+      if (!id && /^\S+@\S+\.\S+$/.test(data.email)) id = (await findUser(admin, data.email))?.id || "";
+      if (!id) return { ok: true, removed: false };
+      if (id === context.userId) return { ok: false, why: "That’s your own login — it stays" };
+      const { error } = await admin.from("user_roles").delete().eq("user_id", id);
+      if (error) return { ok: false, why: why(error) };
+      await admin.from("profiles").update({ is_active: false }).eq("user_id", id);
+      return { ok: true, removed: true };
     } catch (e) {
       return { ok: false, why: why(e) };
     }

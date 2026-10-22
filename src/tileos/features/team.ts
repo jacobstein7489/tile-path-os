@@ -1,6 +1,8 @@
 /* The admin's controls: who signs in, what they're called, and what each login sees. */
 import { useStore } from '@/tileos/store'
 import { PEOPLE, ROLES, type Member, type PersonKey, type Role } from '@/tileos/data/model'
+import { REAL } from '@/tileos/lib/save'
+import { toast } from '@/tileos/lib/pop'
 
 const S = () => useStore.getState()
 const roleName = (r: Role) => ROLES.find((x) => x.key === r)?.label.split(' · ')[0] || r
@@ -37,11 +39,16 @@ export function resetAccess(role: Role) {
 }
 export const memberName = (key: PersonKey) => PEOPLE[key]?.name || 'Someone'
 
-/** take someone off the team — their login stops working; what they did stays in the history */
+/** take someone off the team — their login stops working (the real app takes it away on the server, so a sign-in
+ *  doesn't put them back); what they did stays in the history. Invite them again any time: a new email goes out. */
 export function removeMember(key: PersonKey) {
   const name = PEOPLE[key]?.name || 'They'
+  const m = S().team.find((x) => x.key === key)
   S().commit((s) => {
-    s.team = s.team.filter((m) => m.key !== key)
+    s.team = s.team.filter((x) => x.key !== key)
     s.tasks.filter((t) => t.owner === key && t.state !== 'done').forEach((t) => (t.owner = 'ys'))
   }, `${name} removed`, { sub: 'Their login stops working. Their open tasks came back to you; everything they did stays in the history.' })
+  if (REAL.removeAccess && m && (m.email || m.uid)) {
+    REAL.removeAccess({ email: m.email || undefined, uid: m.uid || undefined }).catch((e) => toast.error(`${name} is off the team, but their login couldn’t be stopped: ${e?.message || 'try again'}`))
+  }
 }

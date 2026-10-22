@@ -2,7 +2,7 @@
 import * as React from 'react'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
-  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, ChevronRight, ChevronLeft, StickyNote, TriangleAlert,
+  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert,
 } from 'lucide-react'
 import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -78,54 +78,81 @@ function projectInView(s: ReturnType<typeof useStore.getState>) {
 }
 const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled: 1, punch: 2, ready: 3, verification: 4, setup: 5, awarded: 6, proposal: 7, followup: 7, estimating: 8, request: 9, closeout: 10, complete: 11 }
 
-/* + New — short: the few things your login adds most, one line each, and the rest under More. The project is on top
- * (the one you're in, or pick one). Starting something new — pricing, a project, a repair, a client — sits at the bottom. */
-const ADD: Pick[] = [
-  { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, m: (j) => ({ t: 'need', jobId: j }) },
-  { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, m: (j) => ({ t: 'newtask', jobId: j }) },
-  { k: 'note', l: 'Note', h: 'A call, a decision — anything to remember', i: StickyNote, job: true, m: (j) => ({ t: 'note', jobId: j! }) },
-  { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready', i: TriangleAlert, job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
-  { k: 'punch', l: 'Touch-ups', h: 'A list for the crew, with photos', i: Sparkles, m: (j) => ({ t: 'punchnew', jobId: j }) },
-  { k: 'meeting', l: 'Meeting or walkthrough', h: 'A day, a time, who’s in it', i: CalendarPlus, m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
-  { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: PackageCheck, m: (j) => ({ t: 'newpo', jobId: j }) },
-  { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
-  { k: 'delivery', l: 'Delivery arrived', h: 'Tile or materials landed on site', i: Truck, m: (j) => ({ t: 'record', type: 'delivery', jobId: j }) },
-  { k: 'payment', l: 'Payment received', h: 'A check or transfer came in', i: Wallet, m: (j) => ({ t: 'record', type: 'payment', jobId: j }) },
-  { k: 'change', l: 'Client asked for a change', h: 'Height, tile, layout or extra work', i: ArrowLeftRight, m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
-  { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
-  { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
-  { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
-  { k: 'shortage', l: 'Damaged or wrong on site', h: 'Tile or material that came broken, wrong or short', i: PackageX, m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
+/* + New — everything your login adds, in color, all on one screen (no "More"): the project on top (the one you're in,
+ * or pick one), then what goes on the job site, then the paperwork, then starting something new. What your login adds
+ * most comes first in each. */
+type Group = 'site' | 'office'
+const ADD: (Pick & { c: TileColor; g: Group })[] = [
+  { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, c: 'orange', g: 'site', m: (j) => ({ t: 'need', jobId: j }) },
+  { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready', i: TriangleAlert, c: 'red', g: 'site', job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
+  { k: 'punch', l: 'Touch-ups', h: 'A list for the crew, with photos', i: Sparkles, c: 'violet', g: 'site', m: (j) => ({ t: 'punchnew', jobId: j }) },
+  { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, c: 'blue', g: 'site', m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
+  { k: 'delivery', l: 'Delivery arrived', h: 'Tile or materials landed on site', i: PackageCheck, c: 'teal', g: 'site', m: (j) => ({ t: 'record', type: 'delivery', jobId: j }) },
+  { k: 'shortage', l: 'Damaged or wrong', h: 'Tile or material that came broken, wrong or short', i: PackageX, c: 'rose', g: 'site', m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
+  { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, c: 'amber', g: 'site', m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
+  { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, c: 'blue', g: 'office', m: (j) => ({ t: 'newtask', jobId: j }) },
+  { k: 'note', l: 'Note', h: 'A call, a decision — anything to remember', i: StickyNote, c: 'amber', g: 'office', job: true, m: (j) => ({ t: 'note', jobId: j! }) },
+  { k: 'meeting', l: 'Meeting or walkthrough', h: 'A day, a time, who’s in it', i: CalendarPlus, c: 'indigo', g: 'office', m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
+  { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: FileText, c: 'cyan', g: 'office', m: (j) => ({ t: 'newpo', jobId: j }) },
+  { k: 'change', l: 'Client asked for a change', h: 'Height, tile, layout or extra work', i: ArrowLeftRight, c: 'violet', g: 'office', m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
+  { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, c: 'slate', g: 'office', m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
+  { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, c: 'green', g: 'office', m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
+  { k: 'payment', l: 'Payment received', h: 'A check or transfer came in', i: Wallet, c: 'green', g: 'office', m: (j) => ({ t: 'record', type: 'payment', jobId: j }) },
 ]
-/** the few each login adds most — the rest are under More */
+/** what each login adds most — first in its group */
 const TOP: Partial<Record<Role, string[]>> = {
-  owner: ['need', 'task', 'note', 'problem', 'punch', 'meeting'],
-  pm: ['need', 'task', 'note', 'problem', 'punch', 'meeting'],
-  office: ['need', 'task', 'note', 'problem', 'meeting', 'po'],
+  owner: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
+  pm: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
+  office: ['need', 'problem', 'task', 'note', 'meeting', 'po'],
   site: ['daily', 'need', 'problem', 'punch', 'delivery', 'task'],
-  materials: ['need', 'po', 'delivery', 'problem', 'task'],
+  materials: ['need', 'delivery', 'problem', 'po', 'task'],
   accounting: ['payment', 'task', 'note'],
   estimator: ['task', 'note', 'meeting', 'decision'],
   takeoff: ['task', 'note', 'meeting'],
 }
-const STARTS: Pick[] = [
-  { k: 'newreq', l: 'Price a new project', h: 'Upload the plans', i: FileText, m: () => ({ t: 'newreq' }) },
-  { k: 'newproject', l: 'New project', h: 'Won already', i: Building2, m: () => ({ t: 'newproject' }) },
-  { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, m: () => ({ t: 'newrepair' }) },
-  { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, m: () => ({ t: 'newclient' }) },
+const STARTS: (Pick & { c: TileColor })[] = [
+  { k: 'newreq', l: 'Price a new project', h: 'Upload the plans', i: FileText, c: 'blue', m: () => ({ t: 'newreq' }) },
+  { k: 'newproject', l: 'New project', h: 'Won already', i: Building2, c: 'teal', m: () => ({ t: 'newproject' }) },
+  { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, c: 'orange', m: () => ({ t: 'newrepair' }) },
+  { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, c: 'violet', m: () => ({ t: 'newclient' }) },
 ]
+
+/** one choice on + New: its own color, the icon solid, the words beside it — the same size for all of them */
+function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => void }) {
+  const c = TILE_COLORS[x.c]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={x.h}
+      data-new={x.k}
+      className="group flex min-h-12 min-w-0 items-center gap-2.5 rounded-[0.75rem] border px-2.5 py-2 text-left transition duration-150 hover:-translate-y-px hover:shadow-[0_0.5rem_1rem_-0.625rem_rgba(20,26,36,.3)]"
+      style={{ background: c.tint, borderColor: c.line }}
+    >
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] text-white shadow-[0_0.125rem_0.375rem_-0.125rem_rgba(0,0,0,.3)] transition group-hover:scale-105" style={{ background: c.solid }}>
+        <x.i className="h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.1} />
+      </span>
+      <span className="min-w-0 text-[0.84375rem] font-semibold leading-tight text-ink">{x.l}</span>
+    </button>
+  )
+}
 
 export function NewPickerModal({ level, jobId: given }: { level: number; jobId?: string }) {
   const s = useStore()
   const role = s.role
   const here = given || projectInView(useStore.getState())
   const [jobId, setJobId] = React.useState<string>(here && s.jobs[here] ? here : '')
-  const [more, setMore] = React.useState(false)
   const [needJob, setNeedJob] = React.useState('')
   const job = jobId ? s.jobs[jobId] : undefined
   const ok = (x: { k: string }) => allowedFor(role, x.k)
-  const top = (TOP[role] || TOP.owner!).map((k) => ADD.find((x) => x.k === k)!).filter((x) => x && ok(x))
-  const rest = ADD.filter((x) => ok(x) && !top.includes(x))
+  const top = TOP[role] || TOP.owner!
+  const rank = (k: string) => { const i = top.indexOf(k); return i < 0 ? 99 : i }
+  const of = (g: Group) => ADD.filter((x) => x.g === g && ok(x)).sort((a, b) => rank(a.k) - rank(b.k))
+  /* the group with your most-used first on top (the site manager's day starts on site, the books' in the office) */
+  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][])
+    .map(([g, label]) => ({ g, label, list: of(g) }))
+    .filter((x) => x.list.length)
+    .sort((a, b) => Math.min(...a.list.map((x) => rank(x.k))) - Math.min(...b.list.map((x) => rank(x.k))))
   const starts = STARTS.filter(ok)
   const go = (x: Pick) => {
     /* a note or a problem goes on a project — pick it first */
@@ -133,18 +160,9 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
     s.swap(x.m(jobId || undefined))
   }
   const projects = Object.values(s.jobs).filter((j) => j.stage !== 'complete').sort((a, b) => (STAGE_RANK[a.stage] ?? 12) - (STAGE_RANK[b.stage] ?? 12) || a.name.localeCompare(b.name))
-  const Row = ({ x }: { x: Pick }) => (
-    <button onClick={() => go(x)} className="group flex w-full items-center gap-3.5 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] bg-wash-2 text-ink-2 transition group-hover:bg-white group-hover:text-brand-600 [&_svg]:h-[1.0625rem] [&_svg]:w-[1.0625rem]"><x.i /></span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.90625rem] font-semibold text-ink">{x.l}</span>
-        <span className="block truncate text-[0.78125rem] text-muted">{x.h}</span>
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-ink-2" />
-    </button>
-  )
+  const head = 'mb-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
   return (
-    <Modal level={level} size="sm" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Which project is it for?'}>
+    <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Which project is it for?'}>
       <SearchSelect
         label="Project"
         value={jobId}
@@ -160,24 +178,17 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
         plain
       />
       {needJob && <div className="mt-1.5 text-[0.8125rem] font-medium text-bad-600">Pick the project for the {needJob.toLowerCase()} first.</div>}
-      <div className="mt-4 overflow-hidden rounded-[0.875rem] border border-line bg-white">
-        {top.map((x) => <Row key={x.k} x={x} />)}
-        {more && rest.map((x) => <Row key={x.k} x={x} />)}
-      </div>
-      {rest.length > 0 && (
-        <button onClick={() => setMore((v) => !v)} aria-expanded={more} className="mt-2 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
-          {more ? <><ChevronLeft className="h-4 w-4 rotate-90" />Less</> : <><ChevronLeft className="h-4 w-4 -rotate-90" />More — {rest.length} other things</>}
-        </button>
-      )}
+      {groups.map((x) => (
+        <section key={x.g} className="mt-4" data-new-group={x.g}>
+          <div className={head}>{x.label}</div>
+          <div className="grid grid-cols-3 gap-2 max-sm:grid-cols-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+        </section>
+      ))}
       {starts.length > 0 && (
-        <div className="mt-5 border-t border-line-2 pt-4">
-          <div className="mb-2 text-[0.78125rem] font-semibold text-muted">Or start something new</div>
-          <div className="grid grid-cols-2 gap-2">
-            {starts.map((x) => (
-              <button key={x.k} onClick={() => go(x)} title={x.h} className="inline-flex h-10 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 transition hover:border-[#c9c2b7] hover:text-ink [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-muted"><x.i /><span className="truncate">{x.l}</span></button>
-            ))}
-          </div>
-        </div>
+        <section className="mt-5 border-t border-line-2 pt-4" data-new-group="start">
+          <div className={head}>Start something new</div>
+          <div className="grid grid-cols-4 gap-2 max-md:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+        </section>
       )}
     </Modal>
   )

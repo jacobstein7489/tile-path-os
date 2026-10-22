@@ -1,11 +1,11 @@
-/* The project window — the job like the estimate (job/board): a track of its four parts on top, each a ring that
- * says how far it is, and under it the part you're on: the flow numbered step by step with its status and whose it
- * is, the rooms, the touch-ups, the money. Tap a step and it opens beside the list — never a window inside a window.
- *   header: the project, the client and the address, the installer, and three buttons at most: the one thing to do
- *           now (start the job, the daily update…), + Add, and ··· for the rest. */
+/* The project window — two sides (job/board): where it stands on the left (getting ready as questions, then the
+ * installing, the touch-ups, the money), the job's details on the right (tile and grout, rooms, people, documents).
+ *   header: the project, where it stands in one word, the client and the address, the installer and the dates; on the
+ *           right the conversation, + Add, and ··· (its details, delete).
+ *   footer: the one thing to do now — your turn on a question, or what the stage needs (start the job, the daily update…). */
 import * as React from 'react'
-import { CalendarDays, Maximize2, Check, Printer, HardHat, Play, ClipboardList, ListTodo, Receipt, Paperclip, History, MessageCircle, Package, Grid2x2, ArrowRight, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import { useStore, historyOf, type Store } from '@/tileos/store'
+import { CalendarDays, Check, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle } from 'lucide-react'
+import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
 import { Status } from '@/tileos/components/ui/page'
@@ -24,9 +24,9 @@ import { RoomsTab } from './rooms'
 import { ScopeTab } from './scope-tab'
 import { projectStatus } from '../statuses'
 import { stepsFor } from '../steps'
-import { openStep, todoOf } from '../stepwin'
+import { todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard, ProjectFoot, ProjectCircles, defaultSel, laneOfStep, type BoardView, type Sel } from './board'
+import { ProjectBoard, defaultStages, viewFromTab, rowOfStep, type BoardView, type StageKey } from './board'
 import { pictureOf } from '../progressbill'
 import { md } from '@/tileos/lib/today'
 
@@ -40,55 +40,56 @@ export function sectionOf(job: Job): PTab {
   if (['closeout', 'complete'].includes(job.stage)) return 'money'
   return 'ready'
 }
-/** links into the window (section names, and tab names from earlier versions) land on the right section */
-const tabFrom = (initial: string | undefined, job: Job): PTab =>
-  (['ready', 'install', 'punch', 'money'] as PTab[]).includes(initial as PTab) ? (initial as PTab)
-  : initial === 'estimate' || initial === 'billing' ? 'money'
-  : initial === 'scope' || initial === 'rooms' || initial === 'installer' || initial === 'crew' ? 'install'
-  : initial === 'touchups' ? 'punch'
-  : initial === 'orders' || initial === 'materials' || initial === 'pos' || initial === 'setup' || initial === 'checklist' ? 'ready'
-  : sectionOf(job)
+
+/** the window's state: which parts are open, the question to show, what's open in place */
+function useProjectState(job: Job | undefined, initial?: string) {
+  const [stages, setStages] = React.useState<StageKey[]>(() => (job ? defaultStages(useStore.getState(), job, initial) : ['ready']))
+  const [view, setView] = React.useState<BoardView>(() => viewFromTab(initial))
+  const [focus, setFocus] = React.useState<string | null>(null)
+  /* "Your turn": the question opens on the checklist, right there */
+  const onStep = (k: string) => {
+    if (!job) return
+    const id = rowOfStep(useStore.getState(), job, k)
+    if (!id) return
+    setView(null)
+    setStages((x) => (x.includes('ready') ? x : ['ready', ...x]))
+    setFocus(id)
+  }
+  return { stages, setStages, view, setView, focus, setFocus, onStep }
+}
 
 /* ================= the window ================= */
 export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: string; level: number }) {
   const job = useStore((s) => s.jobs[id])
   const close = useStore((s) => s.close)
   const pricing = job && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  /* the open circle — where the project is (your turn first), or the part a link asks for */
-  const [sel, setSel0] = React.useState<Sel>(() => { const s = useStore.getState(); return job ? defaultSel(s, job, initial ? tabFrom(initial, job) : undefined) : '@install' })
-  /* a room, the conversation or a file opened from there — the circle's own page when nothing is */
-  const [view, setView] = React.useState<BoardView>(null)
-  const setSel = (k: Sel) => { setSel0(k); setView(null) }
+  const st = useProjectState(job, initial)
   if (!job) return null
   if (pricing) {
     return (
-      <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" />} bodyClass="p-0">
+      <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" pricing />} bodyClass="p-0">
         <div className="p-6"><PricingWorkspace job={job} /></div>
       </Modal>
     )
   }
-  const onStep = (k: string) => { const l = laneOfStep(useStore.getState(), job, k); if (l) setSel(l) }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" sel={sel} setSel={setSel} />} footer={<ProjectFooter job={job} sel={sel} onStep={onStep} />} bodyClass="p-0 lg:overflow-hidden">
-      <ProjectBoard job={job} sel={sel} view={view} setView={setView} />
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} />} footer={<ProjectFooter job={job} onStep={st.onStep} />} bodyClass="p-0 lg:overflow-hidden">
+      <ProjectBoard job={job} stages={st.stages} setStages={st.setStages} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} />
     </Modal>
   )
 }
 
 /** the same project as a page (Open full page) */
 export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
-  const [sel, setSel0] = React.useState<Sel>(() => defaultSel(useStore.getState(), job, initial ? tabFrom(initial, job) : undefined))
-  const [view, setView] = React.useState<BoardView>(null)
-  const setSel = (k: Sel) => { setSel0(k); setView(null) }
+  const st = useProjectState(job, initial)
   const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
-  const onStep = (k: string) => { const l = laneOfStep(useStore.getState(), job, k); if (l) setSel(l) }
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-      <ProjectHeader job={job} mode="page" sel={pricing ? undefined : sel} setSel={setSel} />
+      <ProjectHeader job={job} mode="page" pricing={pricing} onChat={() => st.setView({ t: 'chat' })} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} sel={sel} view={view} setView={setView} /></div>
-          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} sel={sel} onStep={onStep} /></div>
+          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} stages={st.stages} setStages={st.setStages} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} /></div>
+          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} onStep={st.onStep} /></div>
         </>
       )}
     </div>
@@ -113,14 +114,16 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
   return { tone: st.tone, label: st.label }
 }
 
-/** the header, the same as an estimate's: what it is and where it stands, the name, the client and the address;
- *  on the right the contract (for whoever sees money) and the two buttons; under it the four parts as rings */
-export function ProjectHeader({ job, mode, sel, setSel }: { job: Job; mode: 'modal' | 'page'; sel?: Sel; setSel?: (k: Sel) => void }) {
+/** the header, the same as an estimate's: the name and where it stands, the client and the address, the installer and
+ *  the dates; on the right the contract (for whoever sees money), the conversation, + Add and ··· */
+export function ProjectHeader({ job, mode, pricing, onChat }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void }) {
   const s = useStore()
   const role = s.role
   const status = headStatus(s, job)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
-  const pricing = !sel
+  const me = meOf(role)
+  const msgs = s.messages[job.id] || []
+  const unread = msgs.slice(s.seen?.[`${job.id}|${me}`]?.n || 0).filter((m) => m.who !== me).length
   const money = !['site', 'crew'].includes(role)
   const pic = money && !pricing ? pictureOf(s, job.id) : null
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
@@ -133,21 +136,29 @@ export function ProjectHeader({ job, mode, sel, setSel }: { job: Job; mode: 'mod
     </Menu>
   ) : null
   const meta = [job.client, job.address].filter(Boolean)
+  const statusChip = status.onClick
+    ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
+    : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>
   return (
     <div className={cn('relative border-b border-line bg-white px-5 pb-2.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
       {/* the name and where it stands — on the right the contract and the two buttons */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
-        {status.onClick
-          ? <button onClick={status.onClick} className="min-w-0 shrink-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
-          : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0 shrink-0">{status.label}</Status>}
+        <span className="min-w-0 shrink-0 max-sm:hidden">{statusChip}</span>
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {pic && pic.contract > 0 && <span className="text-[0.8125rem] text-muted max-md:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</span>}
+          {!pricing && onChat && (
+            <Button size="sm" icon={<MessageCircle />} onClick={onChat} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden">
+              <span>Messages</span>
+              {unread > 0 && <span className="absolute -right-1.5 -top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-white">{unread}</span>}
+            </Button>
+          )}
           {!pricing && !['accounting', 'client'].includes(role) && <AddToProject job={job} />}
           {!pricing && more}
         </span>
       </div>
       {/* who it's for, where, who installs it and when */}
+      <div className="mt-1.5 sm:hidden">{statusChip}</div>
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
         <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
         {meta[1] && <span className="truncate">{meta[1]}</span>}
@@ -156,13 +167,12 @@ export function ProjectHeader({ job, mode, sel, setSel }: { job: Job; mode: 'mod
           : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
         {pic && pic.contract > 0 && <span className="md:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
       </div>
-      {!pricing && sel && setSel && <ProjectCircles className="mt-3" job={job} sel={sel} onPick={setSel} />}
     </div>
   )
 }
 
 /* ---------------- footer: the one thing to do now ---------------- */
-function ProjectFooter({ job, sel, onStep }: { job: Job; sel: Sel; onStep: (k: string) => void }) {
+function ProjectFooter({ job, onStep }: { job: Job; onStep: (k: string) => void }) {
   const s = useStore()
   const prim = PRIMARY[job.stage]
   /* getting ready is done when the checklist is (the deposit is a warning, not a stop) */
@@ -185,9 +195,11 @@ function ProjectFooter({ job, sel, onStep }: { job: Job; sel: Sel; onStep: (k: s
     : prim && !locked
       ? <Button variant="primary" icon={prim.icon} onClick={runPrimary}><span className="truncate">{prim.label}</span></Button>
       : null
+  const money = !['site', 'crew'].includes(s.role)
+  const pic = money ? pictureOf(s, job.id) : null
   return (
     <>
-      <span className="min-w-0 max-sm:hidden"><ProjectFoot job={job} sel={sel} /></span>
+      {pic && pic.billed > 0 && <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted max-sm:hidden"><Receipt className="h-4 w-4 text-faint" />{fmtMoney(pic.paid)} paid of {fmtMoney(pic.contract + pic.changes)}</span>}
       <span className="ml-auto flex min-w-0 items-center gap-2 max-sm:w-full max-sm:[&>button]:w-full">{main}</span>
     </>
   )

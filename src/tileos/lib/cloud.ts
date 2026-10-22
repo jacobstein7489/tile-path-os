@@ -17,7 +17,7 @@ import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
-import { grantRole, inviteLink, inviteStatus, prepInvite } from '@/lib/invite'
+import { grantRole, inviteLink, inviteStatus, prepInvite, removeAccess } from '@/lib/invite'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -324,7 +324,8 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
     const pre = await prepInvite({ data: { email, name: p.name, role: APP_ROLE[p.role] } })
     if (!pre.ok) throw new Error(pre.why)
     if (pre.exists) {
-      if (pre.signedIn) return { what: 'already' as const, at: new Date().toISOString() }
+      /* an account already — new, or someone taken off the team and asked back: the email goes out either way, so
+         Invite always sends something they can tap */
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: appUrl() })
       if (error) throw new Error(say(error.message))
       return { what: 'resent' as const, at: new Date().toISOString() }
@@ -340,6 +341,8 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.inviteLink = opts.admin ? async (p) => { const r = await inviteLink({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl() } }); if (!r.ok) throw new Error(r.why); return r.link } : undefined
   /* the Team page: when each invite went out and whether they've signed in */
   REAL.inviteStatus = opts.admin ? async (emails) => { const r = await inviteStatus({ data: { emails } }); if (!r.ok) throw new Error(r.why); return r.users } : undefined
+  /* someone taken off the team: the server takes their login away, so signing in doesn't put them back on */
+  REAL.removeAccess = opts.admin ? async (p) => { const r = await removeAccess({ data: p }); if (!r.ok) throw new Error(r.why) } : undefined
   /* does an email from the app reach anyone? the admin sends one to himself — a password link he can ignore */
   REAL.testEmail = opts.admin && user.email ? async () => { const { error } = await supabase.auth.resetPasswordForEmail(user.email!, { redirectTo: appUrl() }); if (error) throw new Error(error.message); return user.email! } : undefined
   /* the company's AI reads paperwork; files go to the company's storage */

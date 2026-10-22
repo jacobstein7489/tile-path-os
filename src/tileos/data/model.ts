@@ -20,6 +20,8 @@ export const PHASES: { key: Phase; label: string; stages: Stage[]; hint: string 
   { key: 'closing', label: 'Closing out', stages: ['punch', 'closeout', 'complete'], hint: 'Punch → Closeout → Complete' },
 ]
 
+/** still being priced — an estimate, not a project yet */
+export const PRICING_STAGES: string[] = ['request', 'estimating', 'proposal', 'followup']
 export const STAGE_LABEL: Record<Stage, string> = {
   request: 'New request', estimating: 'Estimating', proposal: 'Pending approval', followup: 'Pending approval',
   awarded: 'Won', setup: 'Setup', verification: 'Site check', ready: 'Ready to start',

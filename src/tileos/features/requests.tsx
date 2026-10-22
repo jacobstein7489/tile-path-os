@@ -35,7 +35,7 @@ export function askFor(o: { jobId: string; what: string; when: string; who: Pers
     } as Partial<Task> & { jobId: string; title: string })
     if (o.who !== by) st.notices.unshift({ id: 'nr' + Date.now(), jobId: o.jobId, text: `${PEOPLE[by]?.short || 'Someone'} needs ${o.what} at ${j?.name || 'the site'} — by ${due}`, when: 'Just now', kind: 'material', unread: true, for: [o.who] })
     addHist(st, o.jobId, { who: by, kind: 'material', title: `Asked for ${o.what}`, detail: `${PEOPLE[o.who]?.short || 'Someone'} brings it · by ${due}` })
-  }, o.who === by ? 'On your list' : `Asked — ${PEOPLE[o.who]?.short || 'they'} brings it`, { sub: `${o.what} · by ${due}. It stays on the list until it’s dropped off.`, to: o.who === by ? undefined : [{ who: o.who, what: `Bring ${o.what}` }], close: true })
+  }, o.who === by ? 'On your list' : `Asked — ${PEOPLE[o.who]?.short || 'they'} brings it`, { tone: o.who === by ? undefined : 'wait', sub: `${o.what} · by ${due}. It stays on the list until it’s dropped off.`, to: o.who === by ? undefined : [{ who: o.who, what: `Bring ${o.what}` }], close: true })
 }
 /** on the way: the one who asked hears it */
 export function onTheWay(id: string) {
@@ -116,10 +116,18 @@ export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number 
 /** the two buttons on a request: On my way, Dropped off */
 export function TripButtons({ t, size = 'sm', onDone }: { t: Task; size?: 'sm' | 'md'; onDone?: () => void }) {
   const s = useStore()
+  /* in a list row: one button, the same size as every row's — the next thing to say (on my way, then dropped off) */
+  if (size === 'sm') {
+    return t.req?.trip !== 'onway'
+      ? <Button size="sm" className={ROW_BTN} icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }}>On my way</Button>
+      : <Button size="sm" className={ROW_BTN} icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }}>Dropped off</Button>
+  }
   return (
     <span className="inline-flex items-center gap-1.5">
-      {t.req?.trip !== 'onway' && <Button size={size === 'sm' ? 'sm' : undefined} variant="ghost" icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }}>On my way</Button>}
-      <Button size={size === 'sm' ? 'sm' : undefined} variant="primary" icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }}>Dropped off</Button>
+      {t.req?.trip !== 'onway' && <Button variant="ghost" icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }}>On my way</Button>}
+      <Button variant="primary" icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }}>Dropped off</Button>
     </span>
   )
 }
+/** every button at the end of a list row: the same size and look */
+export const ROW_BTN = 'min-w-[6.75rem] justify-center'

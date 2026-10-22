@@ -4,7 +4,7 @@
  * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
  * Back / Next walk through that part's steps. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -34,6 +34,9 @@ import { poRatio, type Ratio } from './poratio'
 import { PaperRead } from './paperread'
 import { AddRoomButton } from './roomedit'
 import { LayoutsList, fillSuggestions } from './layout'
+import { readyGroups, answerRow, canAnswer, lockedOf, type ReadyRow } from './ready'
+import { AnswerPick, NoNote } from './answer'
+import { HeightsInline } from './heights'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -1010,45 +1013,45 @@ function Deposit({ job }: { job: Job }) {
 }
 
 /* ================= 8 · the site check ================= */
-const CHECK_ICON: Record<string, React.ElementType> = { power: Plug, level: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, ready: HardHat }
+const CHECK_ICON: Record<string, React.ElementType> = { power: Plug, walls: Ruler, level: Ruler, electric: Zap, plumbing: Wrench, water: Droplets, drains: Droplets, led: Zap, windows: Grid2x2, ready: HardHat }
 function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
-  const answers = s.stepRecs[job.id]?.heights?.checks || {}
-  const answered = SITE_CHECKS.filter((c) => answers[c.k]).length
-  const bad = SITE_CHECKS.filter((c) => answers[c.k] && !answers[c.k].ok)
+  const rows = (readyGroups(s, job).find((g) => g.key === 'site')?.rows || []).filter((r) => r.kind === 'site')
+  const answered = rows.filter((r) => r.answer).length
+  const bad = rows.filter((r) => r.state === 'bad')
   const done = v.state === 'done'
   return (
     <div>
-      <Block title="On site" right={`${answered} of ${SITE_CHECKS.length} checked`}>
-        {SITE_CHECKS.map((c) => <CheckRow key={c.k} job={job} c={c} a={answers[c.k]} />)}
+      <Block title="On site" right={`${answered} of ${rows.length} answered`}>
+        {rows.map((r) => <CheckRow key={r.id} job={job} r={r} />)}
       </Block>
-      {!done && (
+      {!done && bad.length > 0 && (
         <Actions>
-          {bad.length > 0 && <Button variant="primary" icon={<Send />} onClick={() => sendSiteProblems(job.id)}>Send {bad.length === 1 ? 'the problem' : `the ${bad.length} problems`} to the office</Button>}
-          <Button variant={bad.length ? 'secondary' : 'primary'} icon={<Check />} disabled={answered < SITE_CHECKS.length || bad.length > 0} onClick={() => markStep(job.id, 'heights', 'All good on site', { close: true })}>All good — done</Button>
+          <Button variant="primary" icon={<Send />} onClick={() => sendSiteProblems(job.id)}>Send {bad.length === 1 ? 'the problem' : `the ${bad.length} problems`} to the office</Button>
         </Actions>
       )}
+      {done && <Good>Everything checked on site.</Good>}
     </div>
   )
 }
-function CheckRow({ job, c, a }: { job: Job; c: { k: string; label: string; sub: string }; a?: { ok: boolean; note?: string } }) {
-  const [note, setNote] = React.useState(a?.note || '')
-  const Ic = CHECK_ICON[c.k] || Check
-  const chip = (on: boolean, tone: 'ok' | 'bad') => cn('inline-flex h-8 items-center gap-1 rounded-full border px-3 text-[0.8125rem] font-semibold transition', on ? (tone === 'ok' ? 'border-ok-500 bg-ok-500 text-white' : 'border-bad-500 bg-bad-500 text-white') : 'border-line bg-white text-ink-2 hover:bg-wash')
+/** one thing looked at on site: Yes, No (what's wrong — typed or said) or N/A — the same as on the project */
+function CheckRow({ job, r }: { job: Job; r: ReadyRow }) {
+  const s = useStore()
+  const [measure, setMeasure] = React.useState(false)
+  const Ic = CHECK_ICON[r.key] || Check
+  const note = s.stepRecs[job.id]?.heights?.checks?.[r.key]?.note
   return (
-    <div className="border-t border-line-2 px-4 py-3 first:border-t-0">
+    <div className="border-t border-line-2 px-4 py-3 first:border-t-0" data-site={r.key}>
       <div className="flex items-center gap-3 max-sm:flex-wrap @max-lg:flex-wrap">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden @max-lg:hidden"><Ic className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1 max-sm:basis-full @max-lg:basis-full">
-          <span className="block text-[0.875rem] font-semibold text-ink">{c.label}</span>
-          <span className="block text-[0.78125rem] text-muted">{c.sub}</span>
+          <span className="block text-[0.875rem] font-semibold text-ink">{r.q}</span>
+          <span className={cn('block text-[0.78125rem]', r.state === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>{r.state === 'bad' ? r.note : r.key === 'walls' && r.note ? r.note : r.sub}</span>
         </span>
-        <span className="flex shrink-0 gap-1.5 max-sm:ml-auto @max-lg:ml-auto">
-          <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === true ? null : true)} className={chip(a?.ok === true, 'ok')}><Check className="h-3.5 w-3.5" strokeWidth={3} />Good</button>
-          <button onClick={() => setSiteCheck(job.id, c.k, a?.ok === false ? null : false, note.trim() || undefined)} className={chip(a?.ok === false, 'bad')}><X className="h-3.5 w-3.5" strokeWidth={3} />Problem</button>
-        </span>
+        <AnswerPick q={r.q} value={r.answer} onPick={(a) => answerRow(job, r, a)} disabled={!canAnswer(s, r)} locked={lockedOf(s, job, r)} className="max-sm:ml-auto @max-lg:ml-auto" />
       </div>
-      {a?.ok === false && <TextInput autoFocus={!a.note} className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => note.trim() !== (a.note || '') && setSiteCheck(job.id, c.k, false, note.trim() || undefined)} placeholder="What’s wrong — e.g. no box for the vanity light" />}
+      {r.answer === 'no' && <div className="mt-2"><NoNote value={note} autoFocus={!note} onSave={(t) => answerRow(job, r, 'no', t)} /></div>}
+      {r.key === 'walls' && r.state !== 'done' && r.state !== 'na' && <div className="mt-2">{measure ? <HeightsInline jobId={job.id} /> : <Button size="sm" icon={<Ruler />} onClick={() => setMeasure(true)}>Measure the walls</Button>}</div>}
     </div>
   )
 }

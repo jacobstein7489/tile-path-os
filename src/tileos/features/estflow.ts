@@ -3,7 +3,7 @@
  * the estimate knows whose turn it is. Review notes are pinned to a room or line and go back as a checklist. */
 import { useStore, addHist, newTask, closeTasks, meOf, NOW, type Store } from '@/tileos/store'
 import { keepFiles } from '@/tileos/lib/files'
-import { PEOPLE, fmtMoney, type PersonKey, type Role } from '@/tileos/data/model'
+import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Role } from '@/tileos/data/model'
 import { curRev, revTotal, teamOf, openNotes, bucketOf, EST_STEP, EST_TEAM0, type Estimate, type EstStep, type EstLine, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { AREA_PRESETS, SURFACES, customSurface, uniqueArea, sortAreas, type AreaPreset, type SurfaceDef } from '@/tileos/data/areas'
 import { estSend, newLine } from './flows2'
@@ -77,7 +77,7 @@ export function estStartTakeoff(estId: string, who: PersonKey = 'takeoff') {
     e.team = { ...(e.team || {}), takeoff: who }
     e.log.push({ date: NOW, who: me(), text: `Takeoff started · ${PEOPLE[who].name}` })
     const j = s.jobs[e.jobId]
-    if (j) j.stage = 'estimating'
+    if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'estimating'
     giveTo(s, e, 'takeoff')
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Takeoff started · ${PEOPLE[who].name}`, ref: { t: 'estimate', id: e.id } })
   }, `The takeoff is with ${PEOPLE[who].name}`, { close: true, sub: 'It’s on their Today. It comes back for review when they’re done.', flow: [{ who: meOf(S().role), label: 'Request', state: 'done' }, { who, label: 'Takeoff', state: 'now' }, { who: 'estimator', label: 'Office review', state: 'next' }, { who: 'ys', label: 'Final review', state: 'next' }, { label: 'Client', state: 'next' }] })
@@ -295,7 +295,7 @@ export function applyAiDraft(estId: string) {
         e.estimator = who
         e.team = { ...(e.team || {}), takeoff: who }
         const j = s.jobs[e.jobId]
-        if (j) j.stage = 'estimating'
+        if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'estimating'
         giveTo(s, e, 'takeoff')
       }
       addHist(s, e.jobId, { who: 'system', kind: 'pricing', title: `Draft takeoff from the plans · ${e.id}`, detail: `${lines.length} lines · ${plural(notes.length, 'thing')} to check`, ref: { t: 'estimate', id: e.id } })
@@ -330,27 +330,30 @@ export function linesForArea(s: Pick<Store, 'rules' | 'items'>, area: string, ke
   })
 }
 
-export interface NewEstimate { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; team: EstTeam; areas: { name: string; floor?: string; surfaces: string[] }[]; files?: File[] }
+export interface NewEstimate { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; team: EstTeam; areas: { name: string; floor?: string; surfaces: string[] }[]; files?: File[]
+  /** priced on a project we already have — the same job, not a new one */
+  onJob?: string }
 /** a new estimate goes straight to whoever does the takeoff — no waiting for someone to assign it */
 export function newEstimate(d: NewEstimate) {
   const s0 = S()
-  const id = 'r' + Date.now().toString(36)
+  const on = d.onJob && s0.jobs[d.onJob] ? s0.jobs[d.onJob] : undefined
+  const id = on ? on.id : 'r' + Date.now().toString(36)
   const estId = 'E-' + (1 + Math.max(1000, ...s0.estimates.map((e) => Number(e.id.slice(2)) || 0)))
   const missing = ['Plans', 'Spec book', 'Finish schedule'].filter((x) => !d.docs.includes(x))
   const t = d.team
   /* a client typed for the first time becomes a real client, so Clients and the filters know them */
-  const clientId = d.clientId === 'new' || !d.clientId ? 'c' + Date.now().toString(36) : d.clientId
+  const clientId = on ? on.clientId : d.clientId === 'new' || !d.clientId ? 'c' + Date.now().toString(36) : d.clientId
   s0.commit(
     (s) => {
-      if (!s.clients[clientId]) s.clients[clientId] = { id: clientId, name: d.client, kind: 'General contractor', address: d.address || '', phone: '', email: '', notes: '', contacts: [] }
-      s.jobs[id] = {
+      if (!on && !s.clients[clientId]) s.clients[clientId] = { id: clientId, name: d.client, kind: 'General contractor', address: d.address || '', phone: '', email: '', notes: '', contacts: [] }
+      if (!on) s.jobs[id] = {
         id, name: d.name, client: d.client, clientId, address: d.address || 'Address to confirm', stage: 'estimating',
         status: missing.length ? 'warn' : 'info', headline: `Takeoff · ${PEOPLE[t.takeoff].short}`,
         issues: missing.map((m) => ({ tone: 'warn' as const, text: `${m} missing` })),
         next: { text: 'Finish the takeoff', owner: t.takeoff, due: 'Today' },
         keyDate: { label: 'Bid due', value: d.due }, swatch: 'blueprint', building: 'midrise', estimator: t.takeoff, scope: d.scope,
       } as Store['jobs'][string]
-      s.pricing[id] = {
+      if (!on || !s.pricing[id]) s.pricing[id] = {
         docs: ['Plans', 'Spec book', 'Finish schedule'].map((n) => ({ name: n, status: d.docs.includes(n) ? 'in' : 'missing', note: d.docs.includes(n) ? 'Received today' : 'Not received' })),
         estimator: t.takeoff, due: d.due, scope: d.scope, contact: d.client, revs: [], fu: [],
       } as unknown as Store['pricing'][string]
@@ -480,4 +483,79 @@ export function addCompanySurface(label: string) {
 }
 export function removeCompanySurface(key: string) {
   S().commit((s) => { s.rules.surfaces = (s.rules.surfaces || []).filter((x) => x.key !== key) })
+}
+
+/* ---------------- the same job twice: an estimate made on its own for a project we already have ---------------- */
+/** projects an estimate could belong to — the live ones, and any with a name or an address like it */
+export function sameJobCandidates(s: Pick<Store, 'jobs'>, fromJobId: string, q = '') {
+  const from = s.jobs[fromJobId]
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const words = (t: string) => norm(t).split(' ').filter(Boolean)
+  const like = (j: { name: string; address: string }) => {
+    if (!from) return 0
+    const a = words(from.name), b = words(j.name)
+    const nameHit = a.length && b.length && (b.join(' ').startsWith(a.join(' ')) || a.join(' ').startsWith(b.join(' ')) || a.some((w) => /\d/.test(w) && b.includes(w)))
+    const addrHit = from.address && j.address && norm(from.address) && norm(j.address).startsWith(norm(from.address).split(' ').slice(0, 2).join(' '))
+    return (nameHit ? 2 : 0) + (addrHit ? 1 : 0)
+  }
+  const nq = norm(q)
+  return Object.values(s.jobs)
+    .filter((j) => j.id !== fromJobId && j.kind !== 'repair' && !PRICING_STAGES.includes(j.stage) && j.stage !== ('lost' as any))
+    .filter((j) => !nq || norm(`${j.name} ${j.client} ${j.address}`).includes(nq))
+    .map((j) => ({ j, score: like(j) }))
+    .sort((x, y) => y.score - x.score || x.j.name.localeCompare(y.j.name))
+}
+
+/** the estimate goes onto the project it's really for: its tasks, files, messages and history go with it, and the
+ *  name everywhere is the project's. The project stays where it is (an estimate on a live project doesn't move it). */
+export function moveEstimateTo(estId: string, toJobId: string) {
+  const s0 = S()
+  const e0 = s0.estimates.find((x) => x.id === estId)
+  const from = e0?.jobId
+  const fromJob = from ? s0.jobs[from] : undefined
+  const to = s0.jobs[toJobId]
+  if (!e0 || !from || !fromJob || !to || from === toJobId) return
+  s0.commit((s) => {
+    const arrays = ['tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'notices', 'punch', 'ipos', 'events', 'shortages', 'files', 'estimates'] as const
+    arrays.forEach((k) => ((s as any)[k] as { jobId?: string }[]).forEach((x) => { if (x.jobId === from) x.jobId = toJobId }))
+    const lists = ['hist', 'diary', 'notes', 'messages', 'jobSteps', 'rooms'] as const
+    lists.forEach((k) => {
+      const m = (s as any)[k] as Record<string, unknown[]>
+      if (!m?.[from]) return
+      m[toJobId] = k === 'hist' ? [...(m[from] || []), ...(m[toJobId] || [])] : [...(m[toJobId] || []), ...(m[from] || [])]
+      delete m[from]
+    })
+    const objs = ['tiles', 'pricing', 'prep', 'stepRecs'] as const
+    objs.forEach((k) => {
+      const m = (s as any)[k] as Record<string, Record<string, unknown>>
+      if (!m?.[from]) return
+      m[toJobId] = { ...(m[from] || {}), ...(m[toJobId] || {}) }
+      delete m[from]
+    })
+    Object.keys(s.seen).forEach((key) => {
+      const [id, who] = key.split('|')
+      if (id !== from) return
+      const next = `${toJobId}|${who}`
+      /* what they'd read there they've read here — the joined conversation isn't all new to them */
+      if (!s.seen[next]) s.seen[next] = { n: s.messages[toJobId]?.length || 0 }
+      delete s.seen[key]
+    })
+    delete s.jobs[from]
+    addHist(s, toJobId, { who: me(), kind: 'pricing', title: `Estimate ${estId} is on this project now`, detail: `It was made as “${fromJob.name}” — the same job`, ref: { t: 'estimate', id: estId } })
+  }, `${estId} is on ${to.name} now`, { sub: `“${fromJob.name}” was the same job — its tasks, files and messages moved with it. It says ${to.name} everywhere.`, tone: 'done' })
+}
+
+/** a project we already have that looks like the one being typed in — the same name or number, or the same street */
+export function projectLike(s: Pick<Store, 'jobs'>, name: string, address = '') {
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const a = norm(name).split(' ').filter(Boolean)
+  if (!a.length || norm(name).length < 3) return undefined
+  const street = norm(address).split(' ').slice(0, 2).join(' ')
+  return Object.values(s.jobs)
+    .filter((j) => j.kind !== 'repair' && !PRICING_STAGES.includes(j.stage) && j.stage !== ('lost' as any))
+    .find((j) => {
+      const b = norm(j.name).split(' ').filter(Boolean)
+      const same = b.join(' ').startsWith(a.join(' ')) || a.join(' ').startsWith(b.join(' ')) || (a[0] && /\d/.test(a[0]) && a[0] === b[0])
+      return same || (street.length > 4 && norm(j.address).startsWith(street))
+    })
 }
