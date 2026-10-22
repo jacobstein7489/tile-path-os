@@ -14,6 +14,7 @@ import type { FileRec } from '@/tileos/data/jobs'
 import type { PunchItem } from '@/tileos/data/work'
 import { setPunch } from './flows'
 import { isOff } from './active'
+import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 
 const ORDER: Record<PunchItem['status'], number> = { open: 0, working: 0, verify: 1, verified: 2 }
 
@@ -166,17 +167,16 @@ function TouchupLine({ p }: { p: PunchItem }) {
   )
 }
 
-/* ================= a note on a project ================= */
-export function NoteModal({ jobId, level }: { jobId: string; level: number }) {
+/* ================= a note on a project — the same frame as every + New ================= */
+export function NoteModal({ jobId: j0, level }: { jobId?: string; level: number }) {
   const s = useStore()
-  const job = s.jobs[jobId]
+  const [jobId, setJobId] = React.useState(j0 || '')
+  const job = jobId ? s.jobs[jobId] : undefined
   const [text, setText] = React.useState('')
   const [files, setFiles] = React.useState<File[]>([])
-  const pick = React.useRef<HTMLInputElement>(null)
-  if (!job) return null
   const save = () => {
     const t = text.trim()
-    if (!t) return
+    if (!t || !job) return
     const me = meOf(s.role)
     const first = t.split('\n')[0]
     s.commit((st) => {
@@ -192,19 +192,20 @@ export function NoteModal({ jobId, level }: { jobId: string; level: number }) {
       size="md"
       onClose={s.close}
       title="A note"
-      sub={job.name}
+      header={<FormHead k="note" kicker={j0 && job ? job.name : undefined} title="A note" />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <input ref={pick} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) setFiles((x) => [...x, ...l]) }} />
-          <Button icon={<Camera />} onClick={() => pick.current?.click()}>{files.length ? `${files.length} photo${files.length === 1 ? '' : 's'} or video${files.length === 1 ? '' : 's'}` : 'Photos or videos'}</Button>
+          <PhotoButton photos={files} onAdd={(l) => setFiles((x) => [...x, ...l])} label="Photos or videos" />
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" disabled={!text.trim()} onClick={save}>Save the note</Button>
+          <Button variant="primary" disabled={!text.trim() || !job} onClick={save}>Save the note</Button>
         </>
       }
     >
-      <Field label="What happened, what was said, what to remember">
-        <TextArea data-autofocus aria-label="The note" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Walked it with the GC — they want the lobby done before the units. Tap the mic to say it." />
-      </Field>
+      {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} autoFocus /></FormRow>}
+      <FormRow label="The note">
+        <TextArea data-autofocus={j0 ? true : undefined} aria-label="The note" rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, what was said, what to remember — tap the mic to say it" />
+      </FormRow>
     </Modal>
   )
 }

@@ -6,7 +6,7 @@
 import * as React from 'react'
 import { Camera, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, CalendarDays, Grid2x2, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
-import { Avatar } from '@/tileos/components/ui/core'
+import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -27,25 +27,41 @@ import type { BoardView } from './board'
 /** a part of the details: a small title, a count, and one link on the right */
 function Part({ title, count, right, children, id }: { title: string; count?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
   return (
-    <section data-detail={id} className="border-b border-line px-5 py-4 last:border-b-0 max-sm:px-4">
-      <header className="mb-2.5 flex min-h-7 items-center gap-2">
-        <h4 className="text-[0.90625rem] font-bold text-ink">{title}</h4>
-        {count != null && <span className="text-[0.8125rem] text-muted">{count}</span>}
-        {right && <span className="ml-auto flex items-center gap-1">{right}</span>}
-      </header>
+    <section data-detail={id} className="px-5 py-3.5 max-sm:px-4">
+      {/* the tab above says what it is — here only how many, and the one link */}
+      <h4 className="sr-only">{title}</h4>
+      {(count != null || right) && (
+        <header className="mb-2.5 flex min-h-7 items-center gap-2">
+          {count != null && <span className="text-[0.8125rem] text-muted">{count}</span>}
+          {right && <span className="ml-auto flex items-center gap-1">{right}</span>}
+        </header>
+      )}
       {children}
     </section>
   )
 }
 const LINK = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50'
 
-export function Details({ job, open }: { job: Job; open: (v: BoardView) => void }) {
+export type JobTab = 'tiles' | 'rooms' | 'people' | 'files'
+/** the job, one section at a time — no long scroll: Tile & grout · Rooms · People · Files */
+export function JobPanel({ job, open, tab, setTab }: { job: Job; open: (v: BoardView) => void; tab: JobTab; setTab: (t: JobTab) => void }) {
+  const s = useStore()
+  const tiles = Object.keys(s.tiles[job.id] || {}).length
+  const rooms = (s.rooms[job.id] || []).length
+  const files = s.files.filter((f) => f.jobId === job.id).length
   return (
-    <div data-details>
-      <TilesPart job={job} />
-      <RoomsPart job={job} open={open} />
-      <PeoplePart job={job} />
-      <DocsPart job={job} open={open} />
+    <div data-details className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-line-2 px-5 pb-3 pt-3.5 max-sm:px-4">
+        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:flex-1" items={[
+          { key: 'tiles', label: `Tile & grout${tiles ? ` · ${tiles}` : ''}` },
+          { key: 'rooms', label: `Rooms${rooms ? ` · ${rooms}` : ''}` },
+          { key: 'people', label: 'People' },
+          { key: 'files', label: `Files${files ? ` · ${files}` : ''}` },
+        ]} />
+      </div>
+      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-job-tab={tab}>
+        {tab === 'tiles' ? <TilesPart job={job} /> : tab === 'rooms' ? <RoomsPart job={job} open={open} /> : tab === 'people' ? <PeoplePart job={job} /> : <DocsPart job={job} open={open} />}
+      </div>
     </div>
   )
 }

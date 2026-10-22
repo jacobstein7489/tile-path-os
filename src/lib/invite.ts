@@ -90,7 +90,11 @@ export const inviteLink = createServerFn({ method: "POST" })
       const { u } = await ready(admin, data);
       const r = await admin.auth.admin.generateLink({ type: "recovery", email: data.email, options: { redirectTo: data.redirectTo } });
       if (r.error) return { ok: false, why: why(r.error) };
-      const link = r.data?.properties?.action_link;
+      /* the link goes straight to the app, which checks the token itself — it never stops at the sign-in service, so
+         it can't land on a Lovable page whatever the Cloud's address settings say */
+      const hashed = r.data?.properties?.hashed_token;
+      const base = String(data.redirectTo || "https://tile-path-os.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
+      const link = hashed ? `${base}/#/welcome?th=${encodeURIComponent(hashed)}&type=recovery` : r.data?.properties?.action_link;
       if (!link) return { ok: false, why: "No link came back" };
       return { ok: true, link, already: !!u.last_sign_in_at };
     } catch (e) {
@@ -161,28 +165,37 @@ export const grantRole = createServerFn({ method: "POST" })
     }
   });
 
-/** before an invite goes out: is there an account for this email already? If there is, it gets the login type and a
- *  confirmed email (so the next email is a plain sign-in link, not "confirm your signup"). The admin only. */
-export type Prepped = { ok: true; exists: boolean; signedIn: boolean } | { ok: false; why: string }
+/** before an invite goes out: the account for this email — made right here if there isn't one (this works even with
+ *  sign-ups turned off, where a new person can't make their own), with the login type and a confirmed email, so the
+ *  email that goes out next is the plain "set your password" one. Someone taken off the team before is back in.
+ *  The admin only. */
+export type Prepped = { ok: true; exists: boolean; signedIn: boolean; made?: boolean } | { ok: false; why: string }
 export const prepInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: { email: string; name: string; role: string }) => {
+  .validator((d: { email: string; name: string; role: string; create?: boolean }) => {
     const email = String(d?.email || "").trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("That email doesn’t look right");
     if (!ROLES.has(d.role)) throw new Error("Pick a login type");
-    return { email, name: String(d.name || "").slice(0, 120), role: d.role };
+    return { email, name: String(d.name || "").slice(0, 120), role: d.role, create: d?.create !== false };
   })
   .handler(async ({ data, context }): Promise<Prepped> => {
     if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
     const admin = supabaseAdmin as any;
     try {
-      const u = await findUser(admin, data.email);
+      let u = await findUser(admin, data.email);
+      let made = false;
+      if (!u && data.create) {
+        const { data: mk, error } = await admin.auth.admin.createUser({ email: data.email, email_confirm: true, user_metadata: data.name ? { full_name: data.name } : {} });
+        if (error && !already(error)) return { ok: false, why: why(error) };
+        u = mk?.user || (await findUser(admin, data.email));
+        made = !!u;
+      }
       if (!u) return { ok: true, exists: false, signedIn: false };
       if (!u.email_confirmed_at) await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
       await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
       /* someone taken off the team before: back in */
-      await admin.from("profiles").update({ is_active: true }).eq("user_id", u.id);
-      return { ok: true, exists: true, signedIn: !!u.last_sign_in_at };
+      await admin.from("profiles").update({ is_active: true, ...(data.name ? { full_name: data.name } : {}) }).eq("user_id", u.id);
+      return { ok: true, exists: !made, signedIn: !!u.last_sign_in_at, made };
     } catch (e) {
       return { ok: false, why: why(e) };
     }

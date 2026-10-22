@@ -1,10 +1,11 @@
-/* The project — one window that fills the screen, in two sides:
- *   Where it stands (left): getting ready as questions answered Yes, No or N/A — part by part, what's answered folds
- *     away — then the installing room by room, the touch-ups, what's billed and paid. The part it's in is open.
- *   Job details (right): what goes on this job, there at any time — the tile and grout, the rooms with what they're set
- *     on and their layouts, the people and the dates, the documents.
- * On a phone, one side at a time. Anything opened from there — a room, the conversation, a file, the scope of work —
- * opens in the same window, with Back on top. */
+/* The project — one window that fills the screen, the same shape as the estimate:
+ *   on top (in the header) the flow as circles, like the estimate's path: Design & setup · Site · Installer ·
+ *     Materials & deposit · Installing · Touch-ups · Billing — tap one and it opens on the left;
+ *   left: that step — getting ready's questions (Yes, No or N/A; what's answered folds away), the rooms, the
+ *     touch-ups, the money;
+ *   right: the job, one section at a time — Tile & grout · Rooms · People · Files.
+ * Everything fits on one screen. On a phone, one side at a time. A room, the conversation, a file, the scope of work
+ * open in the same window, with Back on top. */
 import * as React from 'react'
 import { ChevronRight, FileText } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
@@ -20,34 +21,26 @@ import { DocPanel, PanelBar } from '../docview'
 import { FilesTab, HistoryTab } from './files'
 import { ScopeTab } from './scope-tab'
 import { POsTab } from './pos-tab'
-import { Standing, stageOf, IN_FIELD, type StageKey } from './standing'
-import { Details } from './details'
-import { readyGroups } from '../ready'
+import { StagePanel, IN_FIELD, type FlowKey } from './standing'
+import { JobPanel, type JobTab } from './details'
+import { readyGroups, type GroupKey } from '../ready'
 
-export type { StageKey }
 /** something opened on the project: a room, the conversation, a file… */
 export type BoardView = null | { t: 'room'; name: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' }
 
-/** where the window opens — the part the project is in, or the part a link asks for */
-export function defaultStages(s: Store, job: Job, tab?: string): StageKey[] {
-  const t = tab === 'estimate' || tab === 'billing' || tab === 'money' ? 'money'
-    : tab === 'touchups' || tab === 'punch' ? 'punch'
-      : tab === 'install' || tab === 'rooms' || tab === 'installer' || tab === 'crew' ? 'install'
-        : tab === 'ready' || tab === 'setup' || tab === 'checklist' || tab === 'orders' || tab === 'materials' || tab === 'pos' ? 'ready'
-          : undefined
-  const k = (t || stageOf(s, job)) as StageKey
-  /* the money is only for whoever sees money */
-  if (k === 'money' && ['site', 'crew'].includes(s.role)) return [IN_FIELD.includes(job.stage) ? 'install' : 'ready']
-  return [k]
-}
 /** a link that opens something on the project right away (the scope of work) */
 export const viewFromTab = (tab?: string): BoardView => (tab === 'scope' ? { t: 'scope' } : null)
 
-/** the question a step is, on the checklist — for "Your turn" in the footer */
-export function rowOfStep(s: Store, job: Job, k: string): string | undefined {
-  const rows = readyGroups(s, job).flatMap((g) => g.rows)
-  if (k === 'heights') return rows.find((r) => r.kind === 'site' && r.state !== 'done' && r.state !== 'na')?.id || rows.find((r) => r.kind === 'site')?.id
-  return rows.find((r) => r.kind === 'step' && r.key === k)?.id
+/** the question a step is, and the part of getting ready it's in — for "Your turn" in the footer */
+export function rowOfStep(s: Store, job: Job, k: string): { id: string; group: GroupKey } | undefined {
+  const groups = readyGroups(s, job)
+  for (const g of groups) {
+    const r = k === 'heights'
+      ? g.rows.find((x) => x.kind === 'site' && x.state !== 'done' && x.state !== 'na') || g.rows.find((x) => x.kind === 'site')
+      : g.rows.find((x) => x.kind === 'step' && x.key === k)
+    if (r) return { id: r.id, group: g.key }
+  }
+  return undefined
 }
 
 /** one room, open on the project: its walls and floors — tap one for its tile, grout, layout and photos */
@@ -116,39 +109,37 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
   }
 }
 
-/* ---------------- the body: where it stands on the left, the job's details on the right ---------------- */
-export function ProjectBoard({ job, stages, setStages, focus, setFocus, view, setView }: {
+/* ---------------- the body: the step that's open on the left, the job on the right ---------------- */
+export function ProjectBoard({ job, at, focus, setFocus, view, setView }: {
   job: Job
-  stages: StageKey[]
-  setStages: (k: StageKey[]) => void
+  at: FlowKey
   focus: string | null
   setFocus: (id: string | null) => void
   view: BoardView
   setView: (v: BoardView) => void
 }) {
-  const [side, setSide] = React.useState<'stands' | 'details'>('stands')
+  const [side, setSide] = React.useState<'stands' | 'job'>('stands')
+  const [tab, setTab] = React.useState<JobTab>('tiles')
   const top = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view])
-  /* "Your turn" on a phone: the question is on the left side */
+  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view, at])
+  /* "Your turn" or a circle tapped on a phone: the step is on the left side */
   React.useEffect(() => { if (focus) setSide('stands') }, [focus])
+  React.useEffect(() => { setSide('stands') }, [at])
   if (view) {
     const full = FULL.includes(view.t)
-    return <div ref={top} className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
+    return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
   }
-  const title = 'text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-line bg-white px-4 py-2 lg:hidden">
-        <Segmented value={side} onChange={setSide} items={[{ key: 'stands', label: 'Where it stands' }, { key: 'details', label: 'Job details' }]} className="w-full [&>button]:flex-1" />
+        <Segmented value={side} onChange={setSide} items={[{ key: 'stands', label: 'Where it stands' }, { key: 'job', label: 'The job' }]} className="w-full [&>button]:flex-1" />
       </div>
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
-        <div data-side="stands" className={cn('scroll-soft min-h-0 min-w-0 bg-[#f4f1ec] px-5 pb-6 pt-4 max-sm:px-2.5 lg:overflow-y-auto lg:border-r lg:border-line', side !== 'stands' && 'max-lg:hidden')}>
-          <h3 className={cn(title, 'mb-2.5 px-0.5 max-lg:hidden')}>Where it stands</h3>
-          <Standing job={job} open={stages} setOpen={setStages} focus={focus} setFocus={setFocus} onRoom={(name) => setView({ t: 'room', name })} />
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
+        <div ref={top} data-side="stands" className={cn('scroll-soft min-h-0 min-w-0 bg-[#f4f1ec] px-5 pb-5 pt-4 max-sm:px-2.5 lg:overflow-y-auto lg:border-r lg:border-line', side !== 'stands' && 'max-lg:hidden')}>
+          <StagePanel job={job} at={at} focus={focus} setFocus={setFocus} onRoom={(name) => setView({ t: 'room', name })} />
         </div>
-        <div data-side="details" className={cn('scroll-soft min-h-0 min-w-0 bg-white lg:overflow-y-auto', side !== 'details' && 'max-lg:hidden')}>
-          <h3 className={cn(title, 'px-5 pt-4 max-sm:px-4 max-lg:hidden')}>Job details</h3>
-          <Details job={job} open={setView} />
+        <div data-side="job" className={cn('min-h-0 min-w-0 bg-white', side !== 'job' && 'max-lg:hidden')}>
+          <JobPanel job={job} open={setView} tab={tab} setTab={setTab} />
         </div>
       </div>
     </div>

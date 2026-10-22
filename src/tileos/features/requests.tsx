@@ -2,12 +2,11 @@
  * the list of whoever brings it and stays there until it's dropped off. "On my way" and "Dropped off" are one tap each,
  * and the one who asked hears both, with a pop-up and in the inbox. */
 import * as React from 'react'
-import { Truck, PackageCheck, Camera, X } from 'lucide-react'
+import { Truck, PackageCheck, X } from 'lucide-react'
 import { useStore, newTask, addHist, meOf, NOW, type Store } from '@/tileos/store'
-import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
-import { DatePresets } from '@/tileos/components/ui/overlay'
-import { Mic } from '@/tileos/components/ui/mic'
+import { Button, TextInput, TextArea } from '@/tileos/components/ui/core'
+import { Modal } from '@/tileos/components/ui/overlay'
+import { FormHead, FormRow, ProjectField, WhoWhen, PhotoButton } from './formkit'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import { isoFromLabel, labelFromIso, TODAY } from '@/tileos/lib/today'
@@ -51,64 +50,75 @@ export function onTheWay(id: string) {
   }, 'On the way', { sub: t.by && t.by !== me() ? `${PEOPLE[t.by]?.short} knows it’s coming.` : undefined, undo: false })
 }
 
-/* ---------------- the window: what, by when, who brings it ---------------- */
-const QUICK = ['Thinset', 'Grout', 'Spacers', 'Leveling clips', 'Trim / metal', 'Saw blade', 'Sponges', 'Caulk']
+/* ---------------- the window: the same frame as every + New ----------------
+ * Project (typed) · What do you need (each thing its own line — tap a common one and it's a line with how many, or type
+ * it or say it) · Who brings it and by when (two dropdowns) · a note. A photo from the button at the bottom. */
+const QUICK: [string, string, string][] = [['Thinset', 'bag', 'bags'], ['Grout', 'bag', 'bags'], ['Spacers', 'box', 'boxes'], ['Leveling clips', 'bag', 'bags'], ['Trim / metal', 'piece', 'pieces'], ['Saw blade', 'blade', 'blades'], ['Sponges', 'pack', 'packs'], ['Caulk', 'tube', 'tubes']]
+type NeedLine = { id: string; text: string; qty?: number; unit?: [string, string] }
+let lineN = 0
+/** a line as said in the request: "2 bags thinset", or what was typed */
+export const needWords = (l: NeedLine) => (l.qty && l.unit ? `${l.qty} ${l.qty === 1 ? l.unit[0] : l.unit[1]} ${l.text.toLowerCase()}` : l.text)
 export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number }) {
   const s = useStore()
-  const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(j.stage))
   const [jobId, setJobId] = React.useState(j0 || '')
-  const [what, setWhat] = React.useState('')
+  const [lines, setLines] = React.useState<NeedLine[]>([])
+  const [draft, setDraft] = React.useState('')
   const [when, setWhen] = React.useState('Today')
   const people = insidePeople(s)
   const [who, setWho] = React.useState<PersonKey>(() => { const m = matBy(s); return people.includes(m) || !people.length ? m : people[0] })
   const [note, setNote] = React.useState('')
-  const [photo, setPhoto] = React.useState<File | null>(null)
-  const pic = React.useRef<HTMLInputElement>(null)
-  const ok = !!jobId && what.trim().length > 1
+  const [photos, setPhotos] = React.useState<File[]>([])
+  const job = jobId ? s.jobs[jobId] : undefined
+  const typed = (t: string) => { const x = t.trim(); if (x.length < 2) return; setLines((l) => [...l, { id: 'nl' + ++lineN, text: x }]); setDraft('') }
+  const quick = ([name, one, many]: [string, string, string]) => setLines((l) => {
+    const had = l.find((x) => x.text === name && x.unit)
+    return had ? l.map((x) => (x === had ? { ...x, qty: (x.qty || 1) + 1 } : x)) : [...l, { id: 'nl' + ++lineN, text: name, qty: 1, unit: [one, many] }]
+  })
+  const all = [...lines, ...(draft.trim().length > 1 ? [{ id: 'draft', text: draft.trim() }] : [])]
+  const ok = !!jobId && all.length > 0
   const send = async () => {
     if (!ok) return
-    if (photo) await keepFiles(jobId, [photo], 'photo', { quiet: true })
-    askFor({ jobId, what: what.trim(), when, who, note: note.trim() || (photo ? 'Photo with the project' : undefined) })
+    if (photos.length) await keepFiles(jobId, photos, 'photo', { quiet: true })
+    askFor({ jobId, what: all.map(needWords).join(' · '), when, who, note: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'} with the project` : ''].filter(Boolean).join(' · ') || undefined })
   }
-  const add = (q: string) => setWhat((w) => (w.trim() ? `${w.trim().replace(/,$/, '')}, ${q.toLowerCase()}` : q))
   return (
-    <Modal level={level} size="md" onClose={s.close} title="Need something on site" sub="It goes on the list of whoever brings it, and stays there until it’s dropped off. You hear when it’s on the way."
-      footer={<><Button variant="ghost" onClick={s.close}>Cancel</Button><Button className="ml-auto" variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Ask for it</Button></>}>
-      {!j0 && (
-        <div className="mb-4">
-          <div className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">Which project</div>
-          <div className="flex flex-wrap gap-1.5">
-            {projects.map((j) => <button key={j.id} onClick={() => setJobId(j.id)} className={cn('inline-flex h-9 items-center rounded-full border px-3 text-[0.84375rem] font-semibold transition', jobId === j.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink-2 hover:border-[#cdc7bc]')}>{j.name}</button>)}
-            {!projects.length && <span className="text-[0.84375rem] text-muted">No projects yet.</span>}
+    <Modal level={level} size="md" onClose={s.close} title="Need something on site"
+      header={<FormHead k="need" kicker={job && j0 ? job.name : undefined} />}
+      bodyClass="px-6 py-5 max-sm:px-4"
+      footer={<><PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} /><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Ask for it</Button></>}>
+      {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
+      <FormRow label="What do you need?">
+        {lines.length > 0 && (
+          <div className="mb-2 overflow-hidden rounded-[0.625rem] border border-line" data-need-lines>
+            {lines.map((l) => (
+              <div key={l.id} className="flex min-h-10 items-center gap-2 border-t border-line-2 px-3 py-1 first:border-t-0" data-need-line={l.text}>
+                <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink">{l.text}</span>
+                {l.unit && (
+                  <span className="inline-flex h-8 items-center rounded-lg border border-line">
+                    <button type="button" aria-label={`Fewer ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: Math.max(1, (y.qty || 1) - 1) } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">−</button>
+                    <span className="min-w-[4.5rem] text-center text-[0.8125rem] font-semibold tnum text-ink">{l.qty} {l.qty === 1 ? l.unit[0] : l.unit[1]}</span>
+                    <button type="button" aria-label={`More ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: (y.qty || 1) + 1 } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">+</button>
+                  </span>
+                )}
+                <button type="button" aria-label={`Take ${l.text} off`} onClick={() => setLines((x) => x.filter((y) => y.id !== l.id))} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><X className="h-4 w-4" /></button>
+              </div>
+            ))}
           </div>
+        )}
+        <div className="flex items-center gap-2">
+          <TextInput mic aria-label="What do you need" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); typed(draft) } }} placeholder={lines.length ? 'Something else? Type it or say it' : 'Type it or say it — e.g. 3 bags of white thinset'} className="h-10" />
+          {draft.trim().length > 1 && <Button onClick={() => typed(draft)}>Add</Button>}
         </div>
-      )}
-      <div className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">What do you need?</div>
-      <div className="flex items-start gap-2">
-        <textarea data-autofocus aria-label="What do you need" value={what} onChange={(e) => setWhat(e.target.value)} rows={2} placeholder="e.g. 3 bags of white thinset, a box of 1/8 spacers" className="min-h-[4.25rem] flex-1 resize-none rounded-xl border border-line px-3 py-2.5 text-[0.9375rem] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
-        <Mic onText={(t) => setWhat((w) => (w.trim() ? `${w.trim()} ${t}` : t))} />
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">{QUICK.map((q) => <button key={q} onClick={() => add(q)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 hover:border-brand-300 hover:text-brand-700">+ {q}</button>)}</div>
-      <div className="mt-4 grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-        <div>
-          <div className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">By when</div>
-          <DatePresets value={when} onPick={(d) => setWhen(d)} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri']} />
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {QUICK.map((q) => <button key={q[0]} type="button" onClick={() => quick(q)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700">+ {q[0]}</button>)}
         </div>
-        <div>
-          <div className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">Who brings it</div>
-          <Menu align="start" width={280} trigger={<button aria-label="Who brings it" className="inline-flex h-10 w-full items-center gap-2 rounded-xl border border-line bg-white pl-1.5 pr-3 text-left text-[0.875rem] font-semibold text-ink hover:border-[#cdc7bc]"><Avatar who={who} size={28} />{PEOPLE[who]?.name || 'Pick someone'}</button>}>
-            <MenuLabel>Who brings it</MenuLabel>
-            {(people.length ? people : [who]).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={who === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setWho(p)}>{PEOPLE[p]?.name}</MenuItem>)}
-          </Menu>
-        </div>
-      </div>
-      <div className="mt-4 flex items-center gap-2">
-        <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="A note for them (optional) — the color, the brand, where to leave it" className="h-10 flex-1" />
-        <input ref={pic} type="file" accept="image/*" className="hidden" aria-label="A photo of what you need" onChange={(e) => { setPhoto(e.target.files?.[0] || null); e.target.value = '' }} />
-        {photo
-          ? <span className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 text-[0.8125rem] font-semibold text-brand-700">Photo<button aria-label="Take the photo off" onClick={() => setPhoto(null)}><X className="h-3.5 w-3.5" /></button></span>
-          : <Button icon={<Camera />} onClick={() => pic.current?.click()}><span className="max-sm:hidden">Photo</span></Button>}
-      </div>
+      </FormRow>
+      <FormRow label="Who brings it">
+        <WhoWhen who={who} onWho={setWho} when={when} onWhen={setWhen} whoLabel="Who brings it" whenLabel="By when" people={people.length ? people : [who]} />
+      </FormRow>
+      <FormRow label="Note">
+        <TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="The color, the brand, where to leave it (optional)" className="min-h-[3.75rem]" />
+      </FormRow>
     </Modal>
   )
 }

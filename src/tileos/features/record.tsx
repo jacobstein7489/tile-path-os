@@ -19,7 +19,8 @@ import { fmtMoney, PEOPLE, CREWS, type Job, type PersonKey } from '@/tileos/data
 import { dayLabel, timeLabel, rangeLabel, parseTime, workDays } from '@/tileos/data/calendar'
 import { busyFor, clashesWith, nextFree, addEvent } from './calendar'
 import { recordEvent, recordPayment, receivePO, receiveTile } from './flows'
-import { ColorTile, TILE_COLORS, allowedFor } from './newpicker'
+import { KIND, KindChoice, allowedFor } from './newpicker'
+import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 
 type Color = 'amber' | 'violet' | 'red' | 'teal' | 'indigo' | 'cyan' | 'blue' | 'green' | 'orange'
 
@@ -61,18 +62,6 @@ function projectsFor(s: Store, type: TypeKey | ''): Job[] {
   return all.filter((j) => !PRICING.includes(j.stage))
 }
 
-/* one line of the form: the question on the left, the answer on the right (stacked on a phone) */
-function FormRow({ label, children, hint }: { label: string; children: React.ReactNode; hint?: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[10rem_minmax(0,1fr)] items-start gap-x-5 gap-y-1.5 border-t border-line-2 py-3.5 first:border-t-0 first:pt-0 max-sm:grid-cols-1">
-      <div className="pt-2.5 text-[0.84375rem] font-semibold text-ink-2 max-sm:pt-0">{label}</div>
-      <div className="min-w-0">
-        {children}
-        {hint && <div className="mt-1.5 text-[0.78125rem] text-muted">{hint}</div>}
-      </div>
-    </div>
-  )
-}
 const DURS: [number, string][] = [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1½ hours'], [120, '2 hours'], [180, '3 hours'], [240, 'Half day']]
 const BACK_OPTS = ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks']
 const nextHour = () => { const d = new Date(); const m = (d.getHours() + 1) * 60; return m >= 7 * 60 && m <= 17 * 60 ? m : 9 * 60 }
@@ -82,7 +71,6 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [type, setType] = React.useState<TypeKey | ''>((initialType as TypeKey) || '')
   /* photos picked for this record — they go onto the project's photos when it's saved */
   const [photos, setPhotos] = React.useState<File[]>([])
-  const photoInput = React.useRef<HTMLInputElement>(null)
   const [jobId, setJobId] = React.useState(initialJob || '')
   const [invoice, setInvoice] = React.useState('')
   const [full, setFull] = React.useState(true)
@@ -165,8 +153,6 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   }
 
   const projects = projectsFor(s, type)
-  const ORDER = ['installation', 'punch', 'ready', 'scheduled', 'verification', 'setup', 'awarded', 'closeout', 'complete']
-  const projOpts = projects.slice().sort((a, b) => ORDER.indexOf(a.stage) - ORDER.indexOf(b.stage)).map((j) => ({ key: j.id, label: j.name, hint: `${j.client}${j.address ? ' · ' + j.address : ''}` }))
   const invoices = openInvoices(s, initialJob)
   /* the times of the day, every 15 minutes — the ones already taken for these people say so */
   const busy = date ? busyFor(s, date, people) : []
@@ -177,16 +163,12 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const dayOpts = Array.from({ length: 28 }, (_, i) => addDays(TODAY, i)).filter((d) => dow(d) !== 6 || d === TODAY).map((d) => ({ key: d, label: dayLabel(d) === 'Today' || dayLabel(d) === 'Tomorrow' ? `${dayLabel(d)} · ${dayShort(d)}` : dayShort(d) }))
 
   const header = (
-    <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pr-14">
-      <div className="flex items-center gap-3">
-        {tpl && <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.6875rem] text-white" style={{ background: TILE_COLORS[tpl.color].solid }}><tpl.icon className="h-5 w-5" /></span>}
-        <div className="min-w-0">
-          <div className="text-[0.8125rem] font-medium text-muted">{initialJob && job ? job.name : 'Log what happened'}</div>
-          <h2 className="truncate text-[1.25rem] font-bold tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{tpl ? tpl.label : 'What happened?'}</h2>
-        </div>
-        {tpl && !initialType && <button onClick={() => { setType(''); setKind('') }} className="ml-auto shrink-0 text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change</button>}
-      </div>
-    </div>
+    <FormHead
+      k={type || 'none'}
+      kicker={initialJob && job ? job.name : 'Log what happened'}
+      title={tpl ? (KIND[tpl.key]?.l || tpl.label) : 'What happened?'}
+      right={tpl && !initialType ? <button onClick={() => { setType(''); setKind('') }} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change</button> : undefined}
+    />
   )
   const footer = !type ? undefined : (
     <>
@@ -195,27 +177,25 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
       {type === 'payment' && <Button className="ml-auto" variant="primary" icon={<Check />} disabled={!ready} onClick={savePayment}>Record {amount ? fmtMoney(amount) : 'payment'}</Button>}
       {type !== 'meeting' && type !== 'payment' && type !== 'daily' && (
         <>
-          <input ref={photoInput} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; setPhotos((p) => [...p, ...l]) }} />
-          <Button className="ml-auto" icon={<Camera className="h-4 w-4" />} onClick={() => photoInput.current?.click()}>{photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : 'Add photo'}</Button>
+          <PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} />
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" disabled={!ready} onClick={save}>Save</Button>
         </>
       )}
     </>
   )
+  const ids = new Set(projects.map((j) => j.id))
   const projectRow = !initialJob && (
     <FormRow label={type === 'meeting' ? 'About' : 'Project'}>
-      <SearchSelect
-        label="Project"
-        value={jobId}
-        onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }}
-        options={projOpts}
-        placeholder="Pick the project"
-        emptyLabel={type === 'meeting' ? 'Company meeting — no project' : undefined}
-        searchPlaceholder="Type a project, address or client…"
-        width={420}
-        search
-      />
-      {!projOpts.length && <div className="mt-1.5 text-[0.78125rem] text-muted">{type === 'delivery' ? 'Nothing is on its way to any project.' : 'No project needs this right now.'}</div>}
+      {type === 'meeting' ? (
+        <div className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
+          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project — or leave it for a company meeting" /></div>
+          {jobId && <Button variant="ghost" icon={<Building2 className="h-4 w-4" />} onClick={() => setJobId('')}>Company meeting</Button>}
+        </div>
+      ) : (
+        <ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} autoFocus={!jobId} />
+      )}
+      {!projects.length && <div className="mt-1.5 text-[0.78125rem] text-muted">{type === 'delivery' ? 'Nothing is on its way to any project.' : 'No project needs this right now.'}</div>}
     </FormRow>
   )
 
@@ -223,9 +203,9 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title="Log what happened" bodyClass="px-6 py-5 max-sm:px-4">
       <div key={type || 'type'} className="animate-fade-up">
         {!type && (
-          <div className="grid grid-cols-3 gap-2.5 max-sm:grid-cols-2 max-sm:gap-2">
+          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
             {TPL.filter((t) => allowedFor(s.role, t.key)).map((t) => (
-              <ColorTile key={t.key} label={t.label} hint={t.hint} icon={t.icon} color={t.color} selected={false} onClick={() => { setType(t.key); setKind(''); setDelivery(''); setInvoice('') }} />
+              <KindChoice key={t.key} k={t.key} big onClick={() => { setType(t.key); setKind(''); setDelivery(''); setInvoice('') }} />
             ))}
           </div>
         )}

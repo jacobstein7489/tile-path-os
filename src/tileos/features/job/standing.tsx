@@ -1,67 +1,73 @@
-/* Where the project stands — the left side of the project, always in the same order:
- *   Getting ready · Installing · Touch-ups · Billed and paid
- * Each is one line with its ring; the part the project is in is open. Getting ready is the office's sheet as questions
- * in four parts (Design & setup, Site, Installer, Materials & deposit), each answered Yes, No or N/A. What's answered
- * folds away — a part that's all done is one line — so what's left is what you see. Tap a question for the rest of it
- * (who has it, when, the paperwork, the PO…), right there under it. */
+/* Where the project stands — the flow, one step at a time, like the estimate's path:
+ *   Design & setup · Site · Installer · Materials & deposit · Installing · Touch-ups · Billing
+ * The circles on top (ProjectFlow) say how far each is; tap one and it opens underneath (StagePanel). A step of
+ * getting ready is the office's sheet as questions, each answered Yes, No or N/A — what's answered folds away, so what's
+ * left is what you see. Tap a question for the rest of it (who has it, when, the paperwork, the PO…), right under it. */
 import * as React from 'react'
 import { ChevronDown, Plus, Truck, HardHat, CalendarDays, Grid2x2, Check, X, Trash2 } from 'lucide-react'
 import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
-import { Circle, type CircleState } from '@/tileos/components/ui/page'
+import { Circle, Circles, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
 import { roomPct } from '@/tileos/data/jobs'
-import { TODAY, labelFromIso, daysBetween } from '@/tileos/lib/today'
-import { readyGroups, readyCounts, canAnswer, answerRow, lockedOf, GROUPS, type ReadyRow, type ReadyGroup, type GroupKey, type Answer } from '../ready'
+import { TODAY, labelFromIso, daysBetween, isoFromLabel } from '@/tileos/lib/today'
+import { readyGroups, canAnswer, answerRow, lockedOf, GROUPS, type ReadyRow, type ReadyGroup, type GroupKey, type Answer } from '../ready'
 import { addJobStep, removeJobStep } from '../steps'
 import { StepIcon, insidePeople } from '../steps-ui'
 import { StepInline } from '../stepwin'
 import { AnswerPick, NoNote } from '../answer'
 import { HeightsInline } from '../heights'
 import { pictureOf } from '../progressbill'
+import { installerOf } from '../upcoming'
 import { RoomsTab } from './rooms'
 import { MoneyTab } from './money-tab'
 import { TouchupsList } from '../touchups'
 import { firstName } from './kit'
 import { SURF_LABEL } from '@/tileos/data/jobs'
 
-export type StageKey = 'ready' | 'install' | 'punch' | 'money'
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
 export const IN_FIELD = ['installation', 'punch', 'closeout', 'complete']
 
-/** the part a project is in — the one that's open when it opens */
-export function stageOf(s: Store, job: Job): StageKey {
-  if (s.role === 'accounting') return 'money'
-  if (job.stage === 'installation') return 'install'
-  if (job.stage === 'punch') return 'punch'
-  if (['closeout', 'complete'].includes(job.stage)) return 'money'
-  return 'ready'
-}
+/** a step of the flow: a part of getting ready, or what comes after it */
+export type FlowKey = GroupKey | 'install' | 'punch' | 'money'
+export type FlowStage = { key: FlowKey; label: string; state: CircleState; pct?: number; sub: string; words: string; tone?: 'bad' | 'warn' | 'ok'; mine?: boolean; group?: ReadyGroup }
+const SHORT_LABEL: Record<string, string> = { design: 'Design & setup', site: 'Site', installer: 'Installer', materials: 'Materials & deposit', other: 'Your own' }
+const latest = (rows: ReadyRow[]) => rows.map((r) => r.doneOn).filter(Boolean).sort((a, b) => (isoFromLabel(a) || '').localeCompare(isoFromLabel(b) || '')).pop()
 
-/* ---------------- the four parts, each one line with its ring ---------------- */
-type StageView = { key: StageKey; label: string; state: CircleState; pct?: number; center?: string; words: string; tone?: 'bad' | 'warn' | 'ok' }
-export function useStages(job: Job): StageView[] {
+/** every step of the flow, with how far it is — the circles on top and the words in the panel */
+export function useFlow(job: Job): FlowStage[] {
   const s = useStore()
+  return flowOf(s, job)
+}
+export function flowOf(s: Store, job: Job): FlowStage[] {
+  const me = meOf(s.role)
   const money = !['site', 'crew'].includes(s.role)
   const inField = IN_FIELD.includes(job.stage)
-  const out: StageView[] = []
-  const groups = readyGroups(s, job)
-  if (groups.length) {
-    const c = readyCounts(groups)
-    const all = c.done === c.total
+  const out: FlowStage[] = []
+  if (PRICING.includes(job.stage)) return out
+  readyGroups(s, job).forEach((g) => {
+    const all = g.done === g.total
+    const open = g.rows.filter((r) => r.state !== 'done' && r.state !== 'na')
+    const mine = open.some((r) => r.owner === me && (r.state === 'now' || r.state === 'bad'))
+    const waiting = open.length > 0 && open.every((r) => r.state === 'wait')
+    const later = open.length > 0 && open.every((r) => r.state === 'later')
+    const count = `${g.done} of ${g.total}`
+    const who = g.key === 'site' ? firstName(g.rows[0]?.owner) || PEOPLE[g.rows[0]?.owner]?.short : g.key === 'installer' ? (() => { const c = installerOf(s, job) || (job.crew as PersonKey | undefined); return c ? PEOPLE[c]?.short : undefined })() : undefined
+    const when = all ? latest(g.rows) : undefined
     out.push({
-      key: 'ready', label: 'Getting ready',
-      state: all ? 'done' : 'now',
-      pct: c.total ? Math.max(4, Math.round((c.done / c.total) * 100)) : 0,
-      center: all ? undefined : String(c.left),
-      words: all ? 'All done' : `${c.done} of ${c.total} done${c.bad ? ` · ${c.bad} ${c.bad === 1 ? 'problem' : 'problems'}` : ''}`,
-      tone: all ? 'ok' : c.bad ? 'bad' : undefined,
+      key: g.key, label: SHORT_LABEL[g.key] || g.label, group: g, mine,
+      state: all ? 'done' : g.bad ? 'bad' : waiting ? 'wait' : later ? 'later' : 'now',
+      pct: g.total ? Math.round((g.done / g.total) * 100) : 0,
+      sub: all ? `Done${when ? ` ${when}` : ''}` : g.bad ? `${g.bad} ${g.bad === 1 ? 'problem' : 'problems'}` : [who, count].filter(Boolean).join(' · '),
+      words: all ? 'All done' : `${count} done${g.bad ? ` · ${g.bad} ${g.bad === 1 ? 'problem' : 'problems'}` : ''}${waiting ? ' · waiting' : ''}`,
+      tone: all ? 'ok' : g.bad ? 'bad' : undefined,
     })
-  }
+  })
   const rooms = s.rooms[job.id] || []
   const b = s.bookings.find((x) => x.jobId === job.id)
+  const crew = (job.crew || b?.crew || installerOf(s, job)) as PersonKey | undefined
   const startIso = b?.start || s.prep[job.id]?.targetISO
   const start = job.dates?.start || (startIso ? labelFromIso(startIso) : undefined)
   const days = startIso ? daysBetween(TODAY, startIso) : null
@@ -71,86 +77,116 @@ export function useStages(job: Job): StageView[] {
   out.push({
     key: 'install', label: 'Installing',
     state: !inField ? (late ? 'bad' : 'later') : pct >= 100 ? 'done' : 'now',
-    pct, center: inField && pct < 100 ? `${pct}%` : !inField ? String(rooms.length || '') : undefined,
+    pct,
+    sub: !inField ? (start ? `${late ? 'Was to start' : 'Starts'} ${start}` : 'No start date') : pct >= 100 ? `Done${job.dates?.finish ? ` ${job.dates.finish}` : ''}` : `${pct}%${crew ? ` · ${PEOPLE[crew]?.short}` : ''}`,
     words: !inField ? (start ? `${late ? 'Was to start' : 'Starts'} ${start}${!late && days != null && days >= 0 ? ` · ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`}` : ''}` : 'No start date yet') : pct >= 100 ? `Done${job.dates?.finish ? ` ${job.dates.finish}` : ''}` : `${pct}% · ${doneRooms} of ${rooms.length} rooms done`,
     tone: late ? 'bad' : pct >= 100 ? 'ok' : undefined,
   })
   const punch = s.punch.filter((p) => p.jobId === job.id)
-  const open = punch.filter((p) => p.status !== 'verified')
+  const openP = punch.filter((p) => p.status !== 'verified')
   const after = ['closeout', 'complete'].includes(job.stage)
   out.push({
     key: 'punch', label: 'Touch-ups',
-    state: punch.length && !open.length ? 'done' : open.length ? 'now' : after ? 'done' : 'later',
-    pct: punch.length ? Math.round(((punch.length - open.length) / punch.length) * 100) : 0,
-    center: open.length ? String(open.length) : undefined,
-    words: open.length ? `${open.length} open · ${punch.length - open.length} of ${punch.length} checked` : punch.length ? 'All checked' : after ? 'None' : inField ? 'None yet' : 'After the installing',
-    tone: punch.length && !open.length ? 'ok' : undefined,
+    state: punch.length && !openP.length ? 'done' : openP.length ? 'now' : after ? 'done' : 'later',
+    pct: punch.length ? Math.round(((punch.length - openP.length) / punch.length) * 100) : 0,
+    sub: openP.length ? `${openP.length} open` : punch.length ? 'All checked' : after ? 'None' : 'After installing',
+    words: openP.length ? `${openP.length} open · ${punch.length - openP.length} of ${punch.length} checked` : punch.length ? 'All checked' : after ? 'None' : inField ? 'None yet' : 'After the installing',
+    tone: punch.length && !openP.length ? 'ok' : undefined,
   })
   if (money) {
     const pic = pictureOf(s, job.id)
     const total = pic.contract + pic.changes
+    const paid = job.stage === 'complete' || (total > 0 && pic.paid >= total)
     out.push({
-      key: 'money', label: 'Billed and paid',
-      state: job.stage === 'complete' || (total > 0 && pic.paid >= total) ? 'done' : pic.billed ? 'now' : 'later',
-      pct: pic.paidPct, center: pic.billed && pic.paidPct < 100 ? `${pic.paidPct}%` : undefined,
+      key: 'money', label: 'Billing',
+      state: paid ? 'done' : pic.billed ? 'now' : 'later',
+      pct: pic.paidPct,
+      sub: paid ? 'Paid' : pic.billed ? `${pic.paidPct}% paid` : 'Not billed yet',
       words: pic.billed ? `${fmtMoney(pic.paid)} of ${fmtMoney(total)} paid` : total ? `Nothing billed yet · ${fmtMoney(total)} contract` : 'Nothing billed yet',
+      tone: paid ? 'ok' : undefined,
     })
   }
   return out
 }
 
+/** the step the project opens on: once it's started, where it is; before that, your turn first, then a problem, then
+ *  the first part that isn't done — or the part a link asks for */
+export function defaultFlow(s: Store, job: Job, tab?: string): FlowKey {
+  const flow = flowOf(s, job)
+  const has = (k: FlowKey) => flow.some((f) => f.key === k)
+  const t = tab === 'estimate' || tab === 'billing' || tab === 'money' ? 'money'
+    : tab === 'touchups' || tab === 'punch' ? 'punch'
+      : tab === 'install' || tab === 'rooms' || tab === 'crew' ? 'install'
+        : tab === 'installer' ? 'installer'
+          : tab === 'orders' || tab === 'materials' || tab === 'pos' ? 'materials'
+            : undefined
+  if (t && has(t as FlowKey)) return t as FlowKey
+  if (s.role === 'accounting' && has('money')) return 'money'
+  if (job.stage === 'installation') return 'install'
+  if (job.stage === 'punch') return 'punch'
+  if (['closeout', 'complete'].includes(job.stage)) return has('money') ? 'money' : 'punch'
+  const parts = flow.filter((f) => f.group)
+  const pick = parts.find((f) => f.mine) || parts.find((f) => f.state === 'bad') || parts.find((f) => f.state === 'now') || parts.find((f) => f.state === 'wait') || parts.find((f) => f.state !== 'done')
+  return pick?.key || 'install'
+}
+
+/** the circles on top — the project's flow, like the estimate's path. Tap one and it opens underneath. */
+export function ProjectFlow({ job, at, onPick, className }: { job: Job; at: FlowKey; onPick: (k: FlowKey) => void; className?: string }) {
+  const flow = useFlow(job)
+  if (!flow.length) return null
+  return (
+    <Circles
+      layout="beside"
+      size={30}
+      at={at}
+      onPick={(k) => onPick(k as FlowKey)}
+      label="The project, step by step"
+      className={className}
+      groups={[{ key: 'flow', steps: flow.map((f, i) => ({ key: f.key, label: f.label, sub: f.sub, state: f.state, pct: f.state === 'done' || f.state === 'bad' ? undefined : Math.max(f.pct || 0, f.state === 'later' ? 0 : 6), center: String(i + 1), mine: f.mine, attrs: { 'data-flow': f.key } })) }]}
+    />
+  )
+}
+
 const TONE: Record<string, string> = { ok: 'text-[#2c8a5b]', bad: 'font-medium text-bad-600', warn: 'text-warn-700' }
 
-export function Standing({ job, open, setOpen, focus, setFocus, onRoom }: {
+/** the step that's open, under the circles: its questions, the rooms, the touch-ups or the money */
+export function StagePanel({ job, at, focus, setFocus, onRoom }: {
   job: Job
-  open: StageKey[]
-  setOpen: (k: StageKey[]) => void
+  at: FlowKey
   /** a question to open and show ('step:qty', 'site:water') — from "Your turn" */
   focus?: string | null
   setFocus: (id: string | null) => void
   onRoom: (name: string) => void
 }) {
-  const stages = useStages(job)
-  const pricing = PRICING.includes(job.stage)
-  if (pricing) return <div className="rounded-[0.875rem] border border-line bg-white px-4 py-8 text-center text-[0.875rem] text-muted">Paperwork, the design meeting, the site, the installer, deliveries, the deposit — it all starts once the estimate is won.</div>
-  const toggle = (k: StageKey) => setOpen(open.includes(k) ? open.filter((x) => x !== k) : [...open, k])
+  const flow = useFlow(job)
+  const f = flow.find((x) => x.key === at) || flow[0]
+  if (PRICING.includes(job.stage)) return <div className="rounded-[0.875rem] border border-line bg-white px-4 py-8 text-center text-[0.875rem] text-muted">Paperwork, the design meeting, the site, the installer, deliveries, the deposit — it all starts once the estimate is won.</div>
+  if (!f) return null
+  const n = flow.indexOf(f) + 1
   return (
-    <div className="flex flex-col gap-2.5" data-standing>
-      {stages.map((st) => {
-        const on = open.includes(st.key)
-        return (
-          <section key={st.key} data-stage={st.key} className={cn('overflow-hidden rounded-[1rem] border bg-white transition-shadow', on ? 'border-[#e2dcd1] shadow-[0_0.0625rem_0.1875rem_rgba(16,24,40,.05)]' : 'border-line')}>
-            <button onClick={() => toggle(st.key)} aria-expanded={on} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[#faf8f5] max-sm:px-3">
-              <Circle st={{ key: st.key, label: st.label, state: st.state, pct: st.pct, center: st.center }} size={38} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[1rem] font-semibold leading-tight text-ink">{st.label}</span>
-                <span className={cn('mt-0.5 block truncate text-[0.8125rem] text-muted', st.tone && TONE[st.tone])}>{st.words}</span>
-              </span>
-              <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', on && 'rotate-180')} />
-            </button>
-            {on && (
-              <div className="border-t border-line-2 bg-[#f9f7f3] px-4 pb-4 pt-3 max-sm:px-2.5">
-                {st.key === 'ready' ? <Checklist job={job} focus={focus} setFocus={setFocus} />
-                  : st.key === 'install' ? <InstallBody job={job} onRoom={onRoom} />
-                    : st.key === 'punch' ? <PunchBody job={job} />
-                      : <MoneyTab job={job} />}
-              </div>
-            )}
-          </section>
-        )
-      })}
-      <AlsoOpen job={job} />
-    </div>
+    <section data-stage={f.key} className="flex min-h-0 flex-col">
+      <header className="mb-2.5 flex min-w-0 items-center gap-3 px-0.5">
+        <Circle st={{ key: f.key, label: f.label, state: f.state, pct: f.state === 'done' || f.state === 'bad' ? undefined : Math.max(f.pct || 0, f.state === 'later' ? 0 : 6), center: String(n) }} size={34} />
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[1.0625rem] font-semibold text-ink">{f.label}</span>
+          <span className={cn('block truncate text-[0.8125rem] text-muted', f.tone && TONE[f.tone])}>{f.words}</span>
+        </span>
+      </header>
+      {f.group ? <Questions key={f.key} job={job} g={f.group} focus={focus} setFocus={setFocus} />
+        : f.key === 'install' ? <InstallBody job={job} onRoom={onRoom} />
+          : f.key === 'punch' ? <PunchBody job={job} />
+            : <MoneyTab job={job} />}
+      {/* what else is open on the job — a problem, something asked for, a wait — under every part but the money */}
+      {f.key !== 'money' && <AlsoOpen job={job} className="mt-3" max={f.group ? 3 : undefined} />}
+    </section>
   )
 }
 
-/* ================= getting ready: the questions, part by part ================= */
+/* ================= a part of getting ready: its questions ================= */
 const answered = (r: ReadyRow) => r.state === 'done' || r.state === 'na'
-function Checklist({ job, focus, setFocus }: { job: Job; focus?: string | null; setFocus: (id: string | null) => void }) {
-  const s = useStore()
-  const groups = readyGroups(s, job)
+function Questions({ job, g, focus, setFocus }: { job: Job; g: ReadyGroup; focus?: string | null; setFocus: (id: string | null) => void }) {
   const [openRow, setOpenRow] = React.useState<string | null>(focus || null)
-  const [showDone, setShowDone] = React.useState<Partial<Record<GroupKey, boolean>>>({})
+  const [show, setShow] = React.useState(false)
   /* a question just answered stays a moment, its mark landing, before it folds away */
   const [fresh, setFresh] = React.useState<Record<string, true>>({})
   const box = React.useRef<HTMLDivElement>(null)
@@ -158,8 +194,7 @@ function Checklist({ job, focus, setFocus }: { job: Job; focus?: string | null; 
     if (!focus) return
     setOpenRow(focus)
     const t = setTimeout(() => {
-      const el = box.current?.querySelector<HTMLElement>(`[data-row="${focus}"]`)
-      el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      box.current?.querySelector<HTMLElement>(`[data-row="${focus}"]`)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
       setFocus(null)
     }, 60)
     return () => clearTimeout(t)
@@ -167,54 +202,32 @@ function Checklist({ job, focus, setFocus }: { job: Job; focus?: string | null; 
   const pick = (r: ReadyRow, a: Answer | null) => {
     answerRow(job, r, a)
     if (a === 'yes' || a === 'na') {
-      setFresh((f) => ({ ...f, [r.id]: true }))
-      setTimeout(() => setFresh((f) => { const n = { ...f }; delete n[r.id]; return n }), 1500)
+      setFresh((x) => ({ ...x, [r.id]: true }))
+      setTimeout(() => setFresh((x) => { const n = { ...x }; delete n[r.id]; return n }), 1500)
       if (openRow === r.id) setOpenRow(null)
     }
     if (a === 'no') setOpenRow(r.id)
   }
-  return (
-    <div ref={box} className="flex flex-col gap-2.5" data-checklist>
-      {groups.map((g) => (
-        <Group
-          key={g.key}
-          job={job}
-          g={g}
-          show={!!showDone[g.key]}
-          setShow={(v) => setShowDone((x) => ({ ...x, [g.key]: v }))}
-          fresh={fresh}
-          openRow={openRow}
-          setOpenRow={setOpenRow}
-          pick={pick}
-        />
-      ))}
-      <AddQuestion job={job} />
-    </div>
-  )
-}
-
-function Group({ job, g, show, setShow, fresh, openRow, setOpenRow, pick }: {
-  job: Job; g: ReadyGroup; show: boolean; setShow: (v: boolean) => void; fresh: Record<string, true>; openRow: string | null; setOpenRow: (id: string | null) => void; pick: (r: ReadyRow, a: Answer | null) => void
-}) {
   const all = g.done === g.total
   const rows = g.rows.filter((r) => !answered(r) || show || fresh[r.id] || openRow === r.id)
   return (
-    <section data-group={g.key} className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className={cn('flex min-h-11 items-center gap-2 px-4 py-2 max-sm:px-3', rows.length && 'border-b border-line-2')}>
-        {all ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-3 w-3" strokeWidth={3.4} /></span> : null}
-        <h4 className="text-[0.90625rem] font-bold text-ink">{g.label}</h4>
-        <span className={cn('text-[0.8125rem]', all ? 'font-semibold text-[#2c8a5b]' : 'text-muted')}>
-          {all ? 'All done' : `${g.done} of ${g.total}`}
-          {g.bad > 0 && <span className="font-semibold text-bad-600"> · {g.bad} {g.bad === 1 ? 'problem' : 'problems'}</span>}
-        </span>
+    <div ref={box} data-group={g.key} data-checklist>
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        {rows.map((r) => <Row key={r.id} job={job} r={r} fresh={!!fresh[r.id]} open={openRow === r.id} onToggle={() => setOpenRow(openRow === r.id ? null : r.id)} pick={pick} />)}
+        {all && !show && (
+          <div className="flex items-center gap-2.5 px-4 py-3.5 text-[0.875rem] font-semibold text-[#2c8a5b]">
+            <span className="cheer-check inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-3.5 w-3.5" strokeWidth={3.4} /></span>
+            Everything here is answered.
+          </div>
+        )}
         {g.done > 0 && (
-          <button onClick={() => setShow(!show)} className="ml-auto rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50">
-            {show ? 'Hide what’s done' : all ? 'Show' : `Show ${g.done} done`}
+          <button onClick={() => setShow(!show)} className="flex w-full items-center gap-2 border-t border-line-2 px-4 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50/40">
+            <Check className="h-3.5 w-3.5" />{show ? 'Hide what’s answered' : `${g.done} answered — show ${g.done === 1 ? 'it' : 'them'}`}
           </button>
         )}
-      </header>
-      {rows.map((r) => <Row key={r.id} job={job} r={r} fresh={!!fresh[r.id]} open={openRow === r.id} onToggle={() => setOpenRow(openRow === r.id ? null : r.id)} pick={pick} />)}
-    </section>
+      </div>
+      <AddQuestion job={job} group={g.key} />
+    </div>
   )
 }
 
@@ -228,7 +241,7 @@ function rowWords(r: ReadyRow, me: PersonKey): { text: React.ReactNode; tone?: s
   if (r.state === 'na') return { text: 'Not needed on this project', tone: 'text-faint' }
   if (r.state === 'bad') return { text: r.note || 'No', tone: 'font-medium text-bad-600' }
   if (r.state === 'wait') return { text: r.note || 'Waiting', tone: 'text-warn-700' }
-  if (r.state === 'later') return { text: r.step.waitsFor ? `Not yet — after: ${r.step.waitsFor.toLowerCase()}` : 'Not yet', tone: 'text-faint' }
+  if (r.state === 'later') return { text: r.step.waitsFor ? `Not yet — waits for: ${r.step.waitsFor}` : 'Not yet', tone: 'text-faint' }
   const late = !!r.due && r.due < TODAY
   const note = r.kind === 'site' ? r.note || r.sub : r.note
   return {
@@ -244,14 +257,14 @@ function Row({ job, r, fresh, open, onToggle, pick }: { job: Job; r: ReadyRow; f
   const noNote = r.kind === 'site' ? s.stepRecs[job.id]?.heights?.checks?.[r.key]?.note : s.stepRecs[job.id]?.[r.key]?.no?.note
   return (
     <div data-row={r.id} {...(r.kind === 'step' ? { 'data-step': r.key } : { 'data-site': r.key })} data-state={r.state} className={cn('border-t border-line-2 first:border-t-0', fresh && 'row-fresh')}>
-      <div className="flex items-center gap-3 px-4 py-2.5 max-sm:gap-2.5 max-sm:px-3">
+      <div className="flex items-center gap-3 px-3.5 py-2 max-sm:gap-2.5 max-sm:px-3">
         <span className={cn('inline-flex shrink-0', fresh && 'cheer-check')}><StepIcon state={r.state} size={22} /></span>
         <button onClick={onToggle} aria-expanded={open} className="group min-w-0 flex-1 text-left">
           <span className="flex min-w-0 items-center gap-1">
-            <span className={cn('line-clamp-2 text-[0.90625rem] font-semibold leading-snug', r.state === 'na' ? 'text-muted' : 'text-ink')}>{r.q}</span>
+            <span className={cn('line-clamp-2 text-[0.875rem] font-semibold leading-snug', r.state === 'na' ? 'text-muted' : 'text-ink')}>{r.q}</span>
             <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-faint opacity-0 transition group-hover:opacity-100 pointer-coarse:opacity-100', open && 'rotate-180 opacity-100')} />
           </span>
-          <span className={cn('block truncate text-[0.78125rem] text-muted', w.tone)}>{w.text}</span>
+          <span className={cn('block truncate text-[0.75rem] text-muted', w.tone)}>{w.text}</span>
         </button>
         <AnswerPick q={r.q} value={r.answer} onPick={(a) => pick(r, a)} disabled={!can} locked={lockedOf(s, job, r)} />
       </div>
@@ -288,40 +301,35 @@ function SiteMore({ job, r }: { job: Job; r: ReadyRow }) {
   )
 }
 
-/** a question just for this project — in the part it belongs to, answered by whoever it's for */
-function AddQuestion({ job }: { job: Job }) {
+/** a question just for this project — in the part that's open, answered by whoever it's for */
+function AddQuestion({ job, group }: { job: Job; group: GroupKey }) {
   const s = useStore()
   const me = meOf(s.role)
   const [on, setOn] = React.useState(false)
   const [text, setText] = React.useState('')
-  const [g, setG] = React.useState<GroupKey>('site')
-  const siteOwner = (readyGroups(s, job).find((x) => x.key === 'site')?.rows[0]?.owner || me) as PersonKey
+  const partOwner = (readyGroups(s, job).find((x) => x.key === group)?.rows[0]?.owner || me) as PersonKey
   const [who, setWho] = React.useState<PersonKey | null>(null)
-  const owner = who || (g === 'site' ? siteOwner : me)
+  const owner = who || (group === 'site' ? partOwner : me)
   if (['crew', 'client', 'accounting'].includes(s.role)) return null
   if (!on) return (
-    <button onClick={() => setOn(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/60 text-[0.84375rem] font-semibold text-muted transition hover:border-brand-300 hover:text-brand-700">
+    <button onClick={() => setOn(true)} className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-semibold text-muted transition hover:bg-white hover:text-brand-700">
       <Plus className="h-4 w-4" />Add a question
     </button>
   )
   const add = () => {
     const q = text.trim()
     if (!q) return
-    addJobStep(job.id, /\?$/.test(q) ? q : `${q}?`, owner, undefined, g)
+    addJobStep(job.id, /\?$/.test(q) ? q : `${q}?`, owner, undefined, group)
     setText('')
     setOn(false)
   }
   const pill = 'inline-flex h-9 items-center gap-1.5 rounded-[0.5625rem] border border-line bg-white px-2.5 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash'
   return (
-    <div className="rounded-[0.875rem] border border-line bg-white p-3" data-add-question>
-      <div className="mb-2 text-[0.84375rem] font-semibold text-ink">A question just for {job.name}</div>
-      <TextInput mic autoFocus aria-label="The question" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} placeholder="e.g. Heated floor wire on site?" />
+    <div className="mt-2 rounded-[0.875rem] border border-line bg-white p-3" data-add-question>
+      <div className="mb-2 text-[0.84375rem] font-semibold text-ink">A question for {GROUPS.find((x) => x.key === group)?.label.toLowerCase()} on {job.name}</div>
+      <TextInput mic autoFocus aria-label="The question" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} placeholder={group === 'site' ? 'e.g. Heated floor wire on site?' : 'e.g. Sample board approved?'} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Menu align="start" width={240} trigger={<button className={pill} aria-label="Which part">{GROUPS.find((x) => x.key === g)?.label}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-          <MenuLabel>In which part</MenuLabel>
-          {GROUPS.filter((x) => x.key !== 'other').map((x) => <MenuItem key={x.key} checked={g === x.key} hint={x.sub} onSelect={() => setG(x.key)}>{x.label}</MenuItem>)}
-        </Menu>
-        <Menu align="start" width={280} trigger={<button className={pill} aria-label="Who answers it"><Avatar who={owner} size={20} plain />{owner === me ? 'You' : PEOPLE[owner]?.short}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+        <Menu align="start" width={280} trigger={<button className={pill} aria-label="Who answers it"><Avatar who={owner} size={20} plain />{owner === me ? 'You answer it' : `${PEOPLE[owner]?.short} answers it`}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Who answers it</MenuLabel>
           {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setWho(p)}>{PEOPLE[p]?.name}</MenuItem>)}
         </Menu>
@@ -385,16 +393,22 @@ function PunchBody({ job }: { job: Job }) {
 }
 
 /** what else is open on the job — requests, questions, things to chase — that isn't one of its questions */
-function AlsoOpen({ job }: { job: Job }) {
+export function AlsoOpen({ job, className, max }: { job: Job; className?: string; /** show this many, the rest one tap away */ max?: number }) {
   const s = useStore()
   const me = meOf(s.role)
-  const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.title.startsWith('Touch-ups at') && !t.step)
+  const [all, setAll] = React.useState(false)
+  /* problems first, then what we're waiting on, then the rest */
+  const rank = (t: (typeof s.tasks)[number]) => (t.tone === 'bad' ? 0 : t.state === 'waiting' ? 1 : 2)
+  const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.title.startsWith('Touch-ups at') && !t.step).sort((a, b) => rank(a) - rank(b))
   if (!tasks.length) return null
+  const shown = all || !max ? tasks : tasks.slice(0, max)
   return (
-    <section className="overflow-hidden rounded-[1rem] border border-line bg-white" data-also-open>
-      <header className="flex items-center gap-2 border-b border-line-2 px-4 py-2.5"><h4 className="text-[0.90625rem] font-bold text-ink">Also open</h4><span className="rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-bold tnum text-ink-2">{tasks.length}</span></header>
+    <section className={cn('overflow-hidden rounded-[1rem] border border-line bg-white', className)} data-also-open>
+      <header className="flex items-center gap-2 border-b border-line-2 px-4 py-2.5"><h4 className="text-[0.90625rem] font-bold text-ink">Also open</h4><span className="rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-bold tnum text-ink-2">{tasks.length}</span>
+        {shown.length < tasks.length && <button onClick={() => setAll(true)} className="ml-auto text-[0.78125rem] font-semibold text-brand-700 hover:underline">{tasks.length - shown.length} more</button>}
+      </header>
       <div className="p-1.5">
-        {tasks.map((t) => (
+        {shown.map((t) => (
           <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition hover:bg-[#f6f3ee]">
             {isRequest(t) ? <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-[#fff1e3] text-[#c2410c]"><Truck className="h-3 w-3" /></span> : <StepIcon state={t.tone === 'bad' ? 'bad' : t.state === 'waiting' ? 'wait' : 'now'} size={22} />}
             <span className="min-w-0 flex-1">

@@ -31,6 +31,7 @@ import { REAL } from '@/tileos/lib/save'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
+import { FormHead, FormRow, ProjectField } from './formkit'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -765,7 +766,8 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
     s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
     s.close()
   }
-  const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[#d9d3c9] bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#c6bfb4] hover:text-ink data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
+  /* the same frame as every + New: a box with a dropdown look */
+  const chip = 'flex h-10 w-full min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink transition hover:border-[#cdc7bc] data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
   const whenLabel = repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : WHEN.find(([k]) => k === due)?.[1] || due
   return (
     <Modal
@@ -773,6 +775,8 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
       size="md"
       onClose={s.close}
       title="New task"
+      header={<FormHead k="task" kicker={jobId && s.jobs[jobId] ? s.jobs[jobId].name : undefined} title="Task" />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
           <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{owner === me ? 'On your Today' : `On ${PEOPLE[owner].short}’s Today`} {repeat ? `· ${REPEAT_LABEL[repeat].toLowerCase()}` : `· ${whenLabel.toLowerCase()}`}</span>
@@ -781,49 +785,61 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         </>
       }
     >
-      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones — tap to pick" />
-      {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{owner === me ? 'Me' : PEOPLE[owner].short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-          <MenuLabel>Who does it</MenuLabel>
-          {(people.length ? people : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p]?.roleLabel}>{p === me ? `${PEOPLE[p]?.name} (me)` : PEOPLE[p]?.name}</MenuItem>)}
-        </Menu>
-        <Menu align="start" width={240} trigger={<button type="button" aria-label="When" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted">{repeat ? <Repeat className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}</span><span className="truncate">{whenLabel}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-          <MenuLabel>Due</MenuLabel>
-          {WHEN.map(([k, l]) => <MenuItem key={k} checked={!repeat && due === k} onSelect={() => { setRepeat(''); setDue(k); setPicked(true) }}>{l}</MenuItem>)}
-          <MenuSep />
-          <MenuLabel>Repeats</MenuLabel>
-          {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} icon={<Repeat className="h-4 w-4" />} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
-        </Menu>
-        {repeat && (
-          <Menu align="start" width={180} trigger={<button type="button" aria-label="At" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted"><Clock3 className="h-4 w-4" /></span>at {at}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-            {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
+      <FormRow label="What needs to be done?">
+        <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Type it or say it" listLabel="The usual ones — tap to pick" />
+        {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
+      </FormRow>
+      {!jobId && (
+        <FormRow label="Project" hint="Leave it empty for something for the whole company">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1"><ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} /></div>
+            {job && <button type="button" onClick={() => { setJob(''); setJobPicked(true); setHeard('') }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink">Company-wide</button>}
+          </div>
+        </FormRow>
+      )}
+      <FormRow label="Who does it">
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={22} /><span className="min-w-0 flex-1 truncate">{owner === me ? 'Me' : PEOPLE[owner].name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+            <MenuLabel>Who does it</MenuLabel>
+            {(people.length ? people : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p]?.roleLabel}>{p === me ? `${PEOPLE[p]?.name} (me)` : PEOPLE[p]?.name}</MenuItem>)}
           </Menu>
-        )}
-        {!jobId && (
-          <SearchSelect value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} emptyLabel="Which project?" placeholder="Which project?" icon={<Building2 />} width={340} className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} plain />
-        )}
-        {jobId && s.jobs[jobId] && <span className={cn(chip, 'cursor-default pl-2.5 hover:border-[#d9d3c9] hover:text-ink-2')}><Building2 className="h-4 w-4 text-muted" /><span className="truncate">{s.jobs[jobId].name}</span></span>}
-      </div>
+          <span className="flex min-w-0 gap-2">
+            <Menu align="start" width={240} trigger={<button type="button" aria-label="When" className={chip}><span className="inline-flex shrink-0 text-faint">{repeat ? <Repeat className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}</span><span className="min-w-0 flex-1 truncate">{whenLabel}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+              <MenuLabel>Due</MenuLabel>
+              {WHEN.map(([k, l]) => <MenuItem key={k} checked={!repeat && due === k} onSelect={() => { setRepeat(''); setDue(k); setPicked(true) }}>{l}</MenuItem>)}
+              <MenuSep />
+              <MenuLabel>Repeats</MenuLabel>
+              {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} icon={<Repeat className="h-4 w-4" />} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
+            </Menu>
+            {repeat && (
+              <Menu align="start" width={180} trigger={<button type="button" aria-label="At" className={cn(chip, 'w-auto shrink-0')}><Clock3 className="h-4 w-4 text-faint" />at {at}<ChevronDown className="h-4 w-4 text-faint" /></button>}>
+                {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
+              </Menu>
+            )}
+          </span>
+        </div>
+      </FormRow>
       {!more ? (
-        <button type="button" onClick={() => setMore(true)} className="mt-4 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:text-brand-800">
+        <button type="button" onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:text-brand-800">
           <Plus className="h-3.5 w-3.5" />Someone follows it, or show it to everyone
         </button>
       ) : (
-        <div className="mt-4 flex flex-col gap-3 border-t border-line-2 pt-4">
-          <div>
-            <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who follows it — they see every note and when it’s done</div>
-            <div className="flex flex-wrap gap-1.5">
-              {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p]?.short || p}</Chip>)}
-              {people.length < 2 && <span className="self-center text-[0.8125rem] text-muted">Nobody else on the team yet — add people in Settings → Team.</span>}
+        <FormRow label="Others">
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who follows it — they see every note and when it’s done</div>
+              <div className="flex flex-wrap gap-1.5">
+                {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p]?.short || p}</Chip>)}
+                {people.length < 2 && <span className="self-center text-[0.8125rem] text-muted">Nobody else on the team yet — add people in Settings → Team.</span>}
+              </div>
             </div>
+            <button type="button" onClick={() => setAll(!all)} className={cn('flex items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', all ? 'border-warn-300 bg-warn-50' : 'border-line hover:bg-wash')}>
+              <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', all ? 'bg-warn-500 text-white' : 'bg-wash-2 text-muted')}><Megaphone className="h-3.5 w-3.5" /></span>
+              <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Show it on everyone’s Today</span><span className="block text-[0.75rem] text-muted">For the big ones — pinned for the whole team until it’s done</span></span>
+              <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', all ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', all ? 'left-[1.125rem]' : 'left-0.5')} /></span>
+            </button>
           </div>
-          <button type="button" onClick={() => setAll(!all)} className={cn('flex items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', all ? 'border-warn-300 bg-warn-50' : 'border-line hover:bg-wash')}>
-            <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', all ? 'bg-warn-500 text-white' : 'bg-wash-2 text-muted')}><Megaphone className="h-3.5 w-3.5" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Show it on everyone’s Today</span><span className="block text-[0.75rem] text-muted">For the big ones — pinned for the whole team until it’s done</span></span>
-            <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', all ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', all ? 'left-[1.125rem]' : 'left-0.5')} /></span>
-          </button>
-        </div>
+        </FormRow>
       )}
     </Modal>
   )

@@ -21,7 +21,7 @@ import { curRev, revTotal, type Estimate } from '@/tileos/data/estimates'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, NOW, labelFromIso, isoFromLabel, md } from '@/tileos/lib/today'
 import { isGettingReady, stepsFor, stepCounts, takesTile, realOwner, SITE_CHECKS, type StepView } from '../steps'
-import { StepIcon, AddStep } from '../steps-ui'
+import { StepIcon } from '../steps-ui'
 import { openStep, todoOf } from '../stepwin'
 import { installerOf } from '../upcoming'
 import { matBy } from '../flows'
@@ -310,32 +310,21 @@ export function doneRows(s: Store, job: Job): TodoRow[] {
   return rows.reverse()
 }
 
-/** + Add — the few things you put on a project: a problem (tile came wrong, broken or short; the site isn't ready),
- *  a task, a meeting or walkthrough, a step just for this project */
+/** + Add — the few things you put on a project: what's needed on site, a problem, touch-ups, a note, a task, a meeting.
+ *  (A question just for this project is added right in its part — "Add a question" — not in a window on top.) */
 export function AddToProject({ job }: { job: Job }) {
   const s = useStore()
-  const [step, setStep] = React.useState(false)
   if (['accounting', 'client', 'crew'].includes(s.role)) return null
-  const steps = isGettingReady(job) ? stepsFor(s, job) : []
-  const canStep = steps.length > 0 && ['owner', 'pm', 'office', 'estimator'].includes(s.role)
   return (
-    <>
-      <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
-        <MenuLabel>Add to {job.name}</MenuLabel>
-        <MenuItem icon={<Truck className="h-4 w-4" />} onSelect={() => s.open({ t: 'need', jobId: job.id })} hint="Material or a tool, brought to the job">Need something on site</MenuItem>
-        <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
-        <MenuItem icon={<Wrench className="h-4 w-4" />} onSelect={() => s.open({ t: 'punchnew', jobId: job.id })} hint="The whole list at once — one per line">Touch-ups</MenuItem>
-        <MenuItem icon={<StickyNote className="h-4 w-4" />} onSelect={() => s.open({ t: 'note', jobId: job.id })} hint="With photos or videos">A note</MenuItem>
-        {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>}
-        {allowedFor(s.role, 'meeting') && <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>}
-        {canStep && <MenuItem icon={<ClipboardList className="h-4 w-4" />} onSelect={() => setStep(true)}>A step just for this project</MenuItem>}
-      </Menu>
-      {step && (
-        <Modal level={8} size="sm" onClose={() => setStep(false)} title="A step just for this project" sub={job.name}>
-          <AddStep job={job} steps={steps} onDone={() => setStep(false)} />
-        </Modal>
-      )}
-    </>
+    <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
+      <MenuLabel>Add to {job.name}</MenuLabel>
+      <MenuItem icon={<Truck className="h-4 w-4" />} onSelect={() => s.open({ t: 'need', jobId: job.id })} hint="Material or a tool, brought to the job">Need something on site</MenuItem>
+      <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
+      <MenuItem icon={<Wrench className="h-4 w-4" />} onSelect={() => s.open({ t: 'punchnew', jobId: job.id })} hint="The whole list at once — one per line">Touch-ups</MenuItem>
+      <MenuItem icon={<StickyNote className="h-4 w-4" />} onSelect={() => s.open({ t: 'note', jobId: job.id })} hint="With photos or videos">A note</MenuItem>
+      {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>}
+      {allowedFor(s.role, 'meeting') && <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>}
+    </Menu>
   )
 }
 

@@ -715,10 +715,10 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
           const Tag = onPick ? 'button' : 'span'
           return (
             <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state}>
-              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key) } : {})} {...(st.attrs || {})} className="flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left">
-                <Circle st={st} size={sz} on={on} />
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
+                <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={sz} on={on} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
-                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
+                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
                   {st.sub && <span className={cn('block max-w-[9rem] truncate text-[0.71875rem]', C_SUB[st.state])}>{st.sub}</span>}
                 </span>
               </Tag>

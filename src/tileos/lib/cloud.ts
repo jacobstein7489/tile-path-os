@@ -17,7 +17,7 @@ import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
-import { grantRole, inviteLink, inviteStatus, prepInvite, removeAccess } from '@/lib/invite'
+import { inviteLink, inviteStatus, prepInvite, removeAccess } from '@/lib/invite'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -319,23 +319,15 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
      The link always opens the published app (from the Lovable editor, the page's own address is its private preview). */
   REAL.invite = opts.admin ? async (p) => {
     const email = p.email.trim().toLowerCase()
-    const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address — wait a moment and send it again' : m)
-    /* someone with an account already: the login type, a confirmed email — then the "set your password" email (the one that lands) */
-    const pre = await prepInvite({ data: { email, name: p.name, role: APP_ROLE[p.role] } })
-    if (!pre.ok) throw new Error(pre.why)
-    if (pre.exists) {
-      /* an account already — new, or someone taken off the team and asked back: the email goes out either way, so
-         Invite always sends something they can tap */
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: appUrl() })
-      if (error) throw new Error(say(error.message))
-      return { what: 'resent' as const, at: new Date().toISOString() }
-    }
-    /* someone new: the sign-in link makes the account; the login type goes on it from the server */
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: appUrl(), data: { full_name: p.name } } })
+    const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address — wait a moment and send it again' : /signups? not allowed|not allowed for this instance/i.test(m) ? 'Sign-ups are off in Lovable Cloud — the app makes the account itself now; try once more' : m)
+    /* the account is made (or found) on the server with the login type — that works with sign-ups turned off — and
+       then the "set your password" email goes out from here, the one that's known to land. New, asked back, or
+       never signed in: it's always the same email, so Invite always sends something they can tap. */
+    const pre = await prepInvite({ data: { email, name: p.name, role: APP_ROLE[p.role], create: true } })
+    if (!pre.ok) throw new Error(say(pre.why))
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: appUrl() })
     if (error) throw new Error(say(error.message))
-    const r = await grantRole({ data: { email, name: p.name, role: APP_ROLE[p.role] } })
-    if (!r.ok) throw new Error(r.why)
-    return { what: 'sent' as const, at: new Date().toISOString() }
+    return { what: pre.made ? 'sent' as const : 'resent' as const, at: new Date().toISOString() }
   } : undefined
   /* when the email doesn't land: a one-time link the admin texts them — it signs them in and asks for a password */
   REAL.inviteLink = opts.admin ? async (p) => { const r = await inviteLink({ data: { email: p.email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl() } }); if (!r.ok) throw new Error(r.why); return r.link } : undefined

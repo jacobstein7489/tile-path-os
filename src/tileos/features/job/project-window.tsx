@@ -26,7 +26,8 @@ import { projectStatus } from '../statuses'
 import { stepsFor } from '../steps'
 import { todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard, defaultStages, viewFromTab, rowOfStep, type BoardView, type StageKey } from './board'
+import { ProjectBoard, viewFromTab, rowOfStep, type BoardView } from './board'
+import { ProjectFlow, defaultFlow, type FlowKey } from './standing'
 import { pictureOf } from '../progressbill'
 import { md } from '@/tileos/lib/today'
 
@@ -41,21 +42,23 @@ export function sectionOf(job: Job): PTab {
   return 'ready'
 }
 
-/** the window's state: which parts are open, the question to show, what's open in place */
+/** the window's state: the step of the flow that's open, the question to show, what's open in place */
 function useProjectState(job: Job | undefined, initial?: string) {
-  const [stages, setStages] = React.useState<StageKey[]>(() => (job ? defaultStages(useStore.getState(), job, initial) : ['ready']))
-  const [view, setView] = React.useState<BoardView>(() => viewFromTab(initial))
-  const [focus, setFocus] = React.useState<string | null>(null)
-  /* "Your turn": the question opens on the checklist, right there */
+  /* 'step:order' — open on that question, in its part */
+  const asked = React.useMemo(() => (job && initial?.startsWith('step:') ? rowOfStep(useStore.getState(), job, initial.slice(5)) : undefined), [])
+  const [at, setAt0] = React.useState<FlowKey>(() => (asked ? asked.group : job ? defaultFlow(useStore.getState(), job, initial) : 'install'))
+  const [view, setView] = React.useState<BoardView>(() => (asked ? null : viewFromTab(initial)))
+  const [focus, setFocus] = React.useState<string | null>(asked?.id || null)
+  const setAt = (k: FlowKey) => { setAt0(k); setView(null) }
+  /* "Your turn": its part opens, and the question with it */
   const onStep = (k: string) => {
     if (!job) return
-    const id = rowOfStep(useStore.getState(), job, k)
-    if (!id) return
-    setView(null)
-    setStages((x) => (x.includes('ready') ? x : ['ready', ...x]))
-    setFocus(id)
+    const r = rowOfStep(useStore.getState(), job, k)
+    if (!r) return
+    setAt(r.group)
+    setFocus(r.id)
   }
-  return { stages, setStages, view, setView, focus, setFocus, onStep }
+  return { at, setAt, view, setView, focus, setFocus, onStep }
 }
 
 /* ================= the window ================= */
@@ -73,8 +76,8 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
     )
   }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} />} footer={<ProjectFooter job={job} onStep={st.onStep} />} bodyClass="p-0 lg:overflow-hidden">
-      <ProjectBoard job={job} stages={st.stages} setStages={st.setStages} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} />
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" at={st.at} onPick={st.setAt} onChat={() => st.setView({ t: 'chat' })} />} footer={<ProjectFooter job={job} onStep={st.onStep} />} bodyClass="p-0 overflow-hidden">
+      <ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} />
     </Modal>
   )
 }
@@ -85,10 +88,10 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
   const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-      <ProjectHeader job={job} mode="page" pricing={pricing} onChat={() => st.setView({ t: 'chat' })} />
+      <ProjectHeader job={job} mode="page" pricing={pricing} at={st.at} onPick={st.setAt} onChat={() => st.setView({ t: 'chat' })} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} stages={st.stages} setStages={st.setStages} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} /></div>
+          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} /></div>
           <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} onStep={st.onStep} /></div>
         </>
       )}
@@ -116,7 +119,7 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
 
 /** the header, the same as an estimate's: the name and where it stands, the client and the address, the installer and
  *  the dates; on the right the contract (for whoever sees money), the conversation, + Add and ··· */
-export function ProjectHeader({ job, mode, pricing, onChat }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void }) {
+export function ProjectHeader({ job, mode, pricing, onChat, at, onPick }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void; at?: FlowKey; onPick?: (k: FlowKey) => void }) {
   const s = useStore()
   const role = s.role
   const status = headStatus(s, job)
@@ -136,6 +139,7 @@ export function ProjectHeader({ job, mode, pricing, onChat }: { job: Job; mode: 
     </Menu>
   ) : null
   const meta = [job.client, job.address].filter(Boolean)
+  const designer = s.designers.find((d) => d.clients.includes(job.clientId))
   const statusChip = status.onClick
     ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
     : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>
@@ -165,8 +169,11 @@ export function ProjectHeader({ job, mode, pricing, onChat }: { job: Job; mode: 
         {!pricing && (crew
           ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
           : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
+        {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
         {pic && pic.contract > 0 && <span className="md:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
       </div>
+      {/* the flow, like the estimate's path: tap a step and it opens underneath */}
+      {!pricing && at && onPick && <ProjectFlow className="mt-3" job={job} at={at} onPick={onPick} />}
     </div>
   )
 }

@@ -24,6 +24,7 @@ import { ActivityRow } from './activity'
 import { ItemPicker } from './estimates'
 import { allowedFor } from './newpicker'
 import { ItemThumb } from './items'
+import { FormHead, FormRow, ProjectField, DAY_OPTIONS, byDay } from './formkit'
 import { CalcHow } from './calc'
 import { PAY_WEEKS, PAY_STATE, PAID_EARLIER, payRow } from './pay'
 import { shiftText, TODAY } from '@/tileos/lib/today'
@@ -685,7 +686,6 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
   const [needed, setNeeded] = React.useState('Thu')
   const total = lines.reduce((n, l) => n + l.n * l.price, 0)
   const j = s.jobs[job]
-  const projects = Object.values(s.jobs).filter((x) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(x.stage))
   const send = () => {
     const ls = lines.map((l) => {
       const it = s.items.find((i) => i.id === l.itemId)!
@@ -695,13 +695,30 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
     const what = prefill?.what || (ids.some((i) => i === 'm-sand' || i === 'm-portland') ? 'Floor prep' : ids.some((i) => i === 'm-board' || i === 'm-wp') ? 'Board and waterproofing' : ids.every((i) => /jolly|trim|edge/.test(i)) ? 'Metal edges' : 'Setting materials')
     createPO(job, { supplier: vendor, lines: ls, amount: Math.round(total), what, neededBy: needed, replaces: prefill?.replaces, tag: prefill?.tag, addQty: prefill?.addQty })
   }
+  /* the supplier: one dropdown, with what each one has for this project */
+  const pickVendor2 = (v: string) => {
+    setVendor(v)
+    if (useTake) { const t = byVendor.find((x) => x.vendor === v); setLines(t ? t.lines : []); return }
+    const g = groups.find((x) => x.vendor === v)
+    if (g) setLines(g.lines.map((l) => ({ itemId: l.itemId!, n: l.n || 1, price: l.price || 0 })))
+  }
+  const vendors = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name)).map((x) => x.name)
+  const vendorHint = (v: string) => {
+    const t = byVendor.find((g) => g.vendor === v)
+    if (useTake && t) return `${t.lines.length} still missing on this project`
+    if (!useTake && groups.some((g) => g.vendor === v)) return 'on the estimate'
+    return undefined
+  }
+  const days = DAY_OPTIONS()
+  if (!days.some((d) => d.key === needed)) days.unshift({ key: needed, label: needed })
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
       title={useTake && j ? `Order materials · ${j.name}` : j ? `New PO · ${j.name}` : 'New purchase order'}
-      sub={useTake ? 'Calculated from the setup and the square feet — only what’s still missing. Check it, change any number.' : 'Priced from your QuickBooks items — what you last paid is filled in.'}
+      header={<FormHead k="po" kicker={j ? j.name : undefined} title={useTake ? 'Order materials' : 'Purchase order'} />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{lines.length} lines · <span className="font-medium text-ink">{fmtMoney(total)}</span>{smp(' · sample amounts')}</span>
@@ -710,69 +727,61 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        {prefill?.replaces && <div className="rounded-lg border border-warn-100 bg-warn-50 px-4 py-3 text-[0.875rem] text-ink-2">This replaces {prefill.replaces}, which will be cancelled and kept in the history.</div>}
-        {!jobId && (
-          <Field label="Project">
-            <SearchSelect value={job} onChange={setJob} placeholder="Type a project name" options={projects.map((x) => ({ key: x.id, label: x.name, hint: x.client }))} />
-          </Field>
-        )}
-        {j && <SetupPanel jobId={j.id} />}
-        <Field label="Supplier">
-          <div className="flex flex-wrap gap-2">
-            {s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name)).map((x) => x.name).map((v) => (
-              <Chip
-                key={v}
-                on={vendor === v}
-                onClick={() => {
-                  setVendor(v)
-                  if (useTake) { const t = byVendor.find((x) => x.vendor === v); setLines(t ? t.lines : []); return }
-                  const g = groups.find((x) => x.vendor === v)
-                  if (g) setLines(g.lines.map((l) => ({ itemId: l.itemId!, n: l.n || 1, price: l.price || 0 })))
-                }}
-                className="h-9"
-              >
-                {v}
-                {useTake && byVendor.some((g) => g.vendor === v) ? <span className="text-[0.75rem] font-normal text-muted">· {byVendor.find((g) => g.vendor === v)!.lines.length} from the scope</span> : !useTake && groups.some((g) => g.vendor === v) ? <span className="text-[0.75rem] font-normal text-muted">· on the estimate</span> : null}
-              </Chip>
-            ))}
-          </div>
-        </Field>
-        <div>
-          <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">What to order</div>
-          <div className="grid grid-cols-[minmax(0,1fr)_5.625rem_6.25rem_6.25rem_2rem] border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden">
-            <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Amount</span><span />
-          </div>
-          {lines.map((l, i) => {
-            const it = s.items.find((x) => x.id === l.itemId)!
-            const set = (p: Partial<DraftLine>) => setLines((L) => L.map((x, k) => (k === i ? { ...x, ...p } : x)))
-            return (
-              <div key={i} className="grid grid-cols-[minmax(0,1fr)_5.625rem_6.25rem_6.25rem_2rem] items-center gap-0 border-b border-line-2 py-2 max-sm:grid-cols-[minmax(0,1fr)_4.5rem_2rem] max-sm:gap-y-1">
-                <span className="flex min-w-0 items-center gap-3">
-                  <ItemThumb item={it} size={40} />
-                  <span className="min-w-0">
-                    <span className="block truncate text-[0.875rem] font-medium text-ink">{it.brand ? `${it.brand} ${it.product}` : it.name}</span>
-                    <span className="block truncate text-[0.75rem] text-muted">{it.brand ? `${it.name} · ` : ''}Last paid {fmtMoney(it.cost, { cents: it.cost % 1 !== 0 })} / {it.unit}</span>
-                    {(() => { const m = take?.lines.find((x) => x.itemId === l.itemId); return m && useTake ? <CalcHow line={m} unit={it.unit} waste={take!.rules.waste} className="mt-0.5" defaultOpen /> : null })()}
-                  </span>
+      {prefill?.replaces && <div className="mb-3 rounded-lg border border-warn-100 bg-warn-50 px-4 py-2.5 text-[0.875rem] text-ink-2">This replaces {prefill.replaces}, which will be cancelled and kept in the history.</div>}
+      {!jobId && (
+        <FormRow label="Project">
+          <ProjectField value={job} onChange={setJob} keep={(x) => !['request', 'estimating', 'proposal', 'followup'].includes(x.stage)} autoFocus />
+        </FormRow>
+      )}
+      <FormRow label="Supplier" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />Delivered to {j.address}</span> : undefined}>
+        <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2 max-sm:grid-cols-1">
+          <SearchSelect label="Supplier" value={vendor} onChange={pickVendor2} search={vendors.length > 8} width={340} options={vendors.map((v) => ({ key: v, label: v, hint: vendorHint(v) }))} />
+          <SearchSelect label="Needed on site by" value={needed} onChange={setNeeded} search={false} width={260} options={days.map((d) => ({ key: d.key, label: byDay(d.label, 'Needed by') }))} plain />
+        </div>
+      </FormRow>
+      <FormRow label="What to order" hint={useTake && j ? <SetupLine jobId={j.id} /> : 'Priced from QuickBooks — what you last paid is filled in.'}>
+        <div className="grid grid-cols-[minmax(0,1fr)_5.625rem_6.25rem_6.25rem_2rem] border-b border-line pb-2 pt-2.5 text-[0.78125rem] font-medium text-muted max-sm:hidden">
+          <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Amount</span><span />
+        </div>
+        {lines.map((l, i) => {
+          const it = s.items.find((x) => x.id === l.itemId)!
+          const set = (p: Partial<DraftLine>) => setLines((L) => L.map((x, k) => (k === i ? { ...x, ...p } : x)))
+          return (
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_5.625rem_6.25rem_6.25rem_2rem] items-center gap-0 border-b border-line-2 py-2 max-sm:grid-cols-[minmax(0,1fr)_4.5rem_2rem] max-sm:gap-y-1">
+              <span className="flex min-w-0 items-center gap-3">
+                <ItemThumb item={it} size={36} />
+                <span className="min-w-0">
+                  <span className="block truncate text-[0.875rem] font-medium text-ink">{it.brand ? `${it.brand} ${it.product}` : it.name}</span>
+                  <span className="block truncate text-[0.75rem] text-muted">{it.brand ? `${it.name} · ` : ''}Last paid {fmtMoney(it.cost, { cents: it.cost % 1 !== 0 })} / {it.unit}</span>
+                  {(() => { const m = take?.lines.find((x) => x.itemId === l.itemId); return m && useTake ? <CalcHow line={m} unit={it.unit} waste={take!.rules.waste} className="mt-0.5" /> : null })()}
                 </span>
-                <span className="text-right"><Num value={l.n} onChange={(n) => set({ n })} label={`Quantity · ${it.name}`} /></span>
-                <span className="text-right max-sm:hidden"><Num value={l.price} onChange={(n) => set({ price: n })} label={`Price · ${it.name}`} money /></span>
-                <span className="text-right text-[0.875rem] tnum text-ink max-sm:hidden">{fmtMoney(l.n * l.price)}</span>
-                <button aria-label="Remove line" onClick={() => setLines((L) => L.filter((_, k) => k !== i))} className="inline-flex h-7 w-7 items-center justify-center justify-self-end rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            )
-          })}
-          <div className="py-1.5">
-            <ItemPicker types={['material']} label="Add an item" onPick={(it) => setLines((L) => [...L, { itemId: it.id, n: 1, price: it.cost }])} />
-          </div>
+              </span>
+              <span className="text-right"><Num value={l.n} onChange={(n) => set({ n })} label={`Quantity · ${it.name}`} /></span>
+              <span className="text-right max-sm:hidden"><Num value={l.price} onChange={(n) => set({ price: n })} label={`Price · ${it.name}`} money /></span>
+              <span className="text-right text-[0.875rem] tnum text-ink max-sm:hidden">{fmtMoney(l.n * l.price)}</span>
+              <button aria-label="Remove line" onClick={() => setLines((L) => L.filter((_, k) => k !== i))} className="inline-flex h-7 w-7 items-center justify-center justify-self-end rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          )
+        })}
+        <div className="py-1.5">
+          <ItemPicker types={['material']} label="Add an item" onPick={(it) => setLines((L) => [...L, { itemId: it.id, n: 1, price: it.cost }])} />
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 max-sm:grid-cols-1">
-          <Field label="Needed on site by"><DatePresets value={needed} onPick={setNeeded} presets={['Tomorrow', 'Thu', 'Fri', 'Next Mon']} /></Field>
-          {j && <div className="flex items-center gap-2 pb-2 text-[0.84375rem] text-muted"><Truck className="h-4 w-4" />Deliver to {j.address}</div>}
-        </div>
-      </div>
+      </FormRow>
     </Modal>
+  )
+}
+
+/** the setup in one line, under what to order — worked out from it; a guess says so; Change the setup opens it */
+function SetupLine({ jobId }: { jobId: string }) {
+  const s = useStore()
+  const rows = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.filter((x) => x.sf).map((x) => ({ m: methodOf(r.name, x) })))
+  const guessed = rows.filter((r) => r.m.auto).length
+  return (
+    <span data-setup-line>
+      Worked out from the setup and the square feet — only what’s still missing.{' '}
+      {guessed > 0 && <span className="font-medium text-warn-700">{guessed} {guessed === 1 ? 'wall or floor’s' : 'walls or floors’'} setup is a guess.{' '}</span>}
+      <button type="button" onClick={() => s.open({ t: 'setting', jobId })} className="font-semibold text-brand-700 hover:underline">Change the setup</button>
+    </span>
   )
 }
 

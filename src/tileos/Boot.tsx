@@ -31,6 +31,17 @@ const ARRIVED = ((): 'invite' | 'recovery' | 'magiclink' | null => {
   } catch { return null }
 })()
 let askedPassword = false
+/* a link the app made itself (the one the admin texts): the token is checked right here, with no stop at the sign-in
+ * service — so it lands in the app, never on a Lovable page */
+const DIRECT = ((): { th: string; type: 'recovery' | 'invite' | 'magiclink' } | null => {
+  try {
+    const h = new URLSearchParams(location.hash.replace(/^#\/?/, '').replace(/^[^?&]*[?]/, ''))
+    const q = new URLSearchParams(location.search)
+    const th = h.get('th') || q.get('th')
+    const t = h.get('type') || q.get('type')
+    return th && (t === 'recovery' || t === 'invite' || t === 'magiclink') ? { th, type: t } : null
+  } catch { return null }
+})()
 
 export default function Boot() {
   const [phase, setPhase] = React.useState<Phase>({ k: 'loading' })
@@ -84,7 +95,14 @@ export default function Boot() {
 
   React.useEffect(() => {
     let live = true
-    supabase.auth.getSession().then(({ data }) => { if (live) void begin(data.session) })
+    const go = () => supabase.auth.getSession().then(({ data }) => { if (live) void begin(data.session) })
+    if (DIRECT) {
+      /* sign in with the link's token first; a used or old link falls back to the sign-in page */
+      void supabase.auth.verifyOtp({ token_hash: DIRECT.th, type: DIRECT.type }).then(({ error }) => {
+        if (error) { askedPassword = true; try { history.replaceState(null, '', location.pathname) } catch { /* fine */ } }
+        void go()
+      })
+    } else void go()
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') { started.current = null; setPhase({ k: 'signin' }); return }
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') void begin(session)

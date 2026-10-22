@@ -10,6 +10,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, type PersonKey } from '@/tileos/data/model'
 import { isOff } from './active'
 import { keepFiles } from '@/tileos/lib/files'
+import { FormHead, FormRow, ProjectField } from './formkit'
 
 /** a small rounded picker — the same as on a new task */
 const CHIP = 'h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial'
@@ -79,20 +80,18 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       size="md"
       onClose={s.close}
       title={job ? `Touch-ups · ${job.name}` : 'Touch-ups'}
-      sub="One list for the whole project — each line is its own touch-up, with its own photos, done and checked on its own."
+      header={<FormHead k="punch" kicker={jobId0 && job ? job.name : undefined} title="Touch-ups" />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{who && PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : filled.length ? `${filled.length} on the list` : ''}</span>
+          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{who && PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : filled.length ? `${filled.length} on the list` : 'Each line its own touch-up, with its own photos'}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" icon={<Sparkles />} disabled={!jobId || !filled.length || !who} onClick={save}>Log {filled.length || ''} touch-up{filled.length === 1 ? '' : 's'}</Button>
         </>
       }
     >
-      {!jobId0 && (
-        <div className="mb-3">
-          <SearchSelect label="Project" value={jobId} onChange={setJobId} placeholder="Which project" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} icon={<Building2 />} />
-        </div>
-      )}
+      {!jobId0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
+      <FormRow label="The touch-ups">
       <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white" role="list" aria-label="The touch-ups">
         {rows.map((r, i) => (
           <div key={r.id} role="listitem" className="flex items-center gap-2 border-t border-line-2 py-1.5 pl-3 pr-2 first:border-t-0">
@@ -117,14 +116,19 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
         ))}
         <button type="button" onClick={() => addRow()} className="flex w-full items-center gap-2 border-t border-line-2 px-3 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-[#f8f6f2]"><Plus className="h-4 w-4" />Another one</button>
       </div>
-      {/* who, by when, who checks — small, with good guesses already in */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'On this job' : 'Installer' })), ...(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel }))]} placeholder="Who does them" width={280} icon={<HardHat />} className={CHIP} plain />
-        <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={200} icon={<CalendarDays />} className={CHIP} />
-        {who && PEOPLE[who]?.crew && (
-          <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: `${PEOPLE[p].short} checks`, hint: PEOPLE[p].roleLabel }))} search={false} width={240} icon={<CheckCheck />} className={CHIP} plain />
-        )}
-      </div>
+      </FormRow>
+      {/* who does them and by when — the same two dropdowns as every form; who checks, when a crew does them */}
+      <FormRow label="Who does them">
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'On this job' : 'Installer', lead: <Avatar who={c} size={22} /> })), ...(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))]} placeholder="Who does them" width={280} plain />
+          <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={220} icon={<CalendarDays />} />
+        </div>
+      </FormRow>
+      {who && PEOPLE[who]?.crew && (
+        <FormRow label="Who checks them">
+          <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: `${PEOPLE[p].short} checks`, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))} search={false} width={260} icon={<CheckCheck />} plain />
+        </FormRow>
+      )}
     </Modal>
   )
 }

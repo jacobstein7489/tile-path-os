@@ -209,7 +209,8 @@ export function PracticeTab() {
   const site = siteOf(s)
   const ipo = s.ipos.find((p) => p.id === IPO_ID)
   const asSite = () => { if (site) signInAs(site); else s.setRole('site'); S().go({ page: 'today' }) }
-  const open = (k?: string) => () => { S().open({ t: 'job', id: PRACTICE }); if (k) setTimeout(() => S().open({ t: 'step', jobId: PRACTICE, k }), 120) }
+  /* the project opens right on that question — no window on top of it */
+  const open = (k?: string) => () => S().open({ t: 'job', id: PRACTICE, tab: k ? `step:${k}` : undefined })
   const early = !!job && ['awarded', 'setup', 'verification', 'ready', 'scheduled'].includes(job.stage)
   const startSteps: { icon: React.ElementType; title: string; sub: string; btn: string; run: () => void }[] = [
     { icon: HardHat, title: '1 · The installer’s PO', sub: 'Pick who installs it — his PO is made from the square feet × his rates. Send it, then mark that he said yes.', btn: 'Pick the installer', run: open('installer') },

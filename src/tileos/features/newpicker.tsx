@@ -8,7 +8,7 @@ import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { STAGE_LABEL, type Stage, type Role } from '@/tileos/data/model'
-import { SearchSelect } from '@/tileos/components/ui/select'
+import { ProjectField } from './formkit'
 
 export const TILE_COLORS = {
   blue: { solid: '#2f5bd8', tint: '#f0f4fe', line: '#d9e2f9' },
@@ -117,8 +117,11 @@ const STARTS: (Pick & { c: TileColor })[] = [
   { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, c: 'violet', m: () => ({ t: 'newclient' }) },
 ]
 
-/** one choice on + New: its own color, the icon solid, the words beside it — the same size for all of them */
-function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => void }) {
+/** every kind of thing you add — its name, what it's for, its icon and color — the same on + New and on its form */
+export const KIND: Record<string, { l: string; h: string; i: React.ElementType; c: TileColor }> = Object.fromEntries([...ADD, ...STARTS].map((x) => [x.k, { l: x.l, h: x.h, i: x.i, c: x.c }]))
+
+/** a choice on + New: a white card, only the icon in its color (calm, like the filter bubbles) */
+function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
   const c = TILE_COLORS[x.c]
   return (
     <button
@@ -126,15 +129,24 @@ function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => voi
       onClick={onClick}
       title={x.h}
       data-new={x.k}
-      className="group flex min-h-12 min-w-0 items-center gap-2.5 rounded-[0.75rem] border px-2.5 py-2 text-left transition duration-150 hover:-translate-y-px hover:shadow-[0_0.5rem_1rem_-0.625rem_rgba(20,26,36,.3)]"
-      style={{ background: c.tint, borderColor: c.line }}
+      className={cn('group flex min-w-0 items-center gap-3 rounded-[0.75rem] border border-line bg-white text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[4rem] px-3 py-2.5' : 'min-h-11 px-2.5 py-1.5')}
     >
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] text-white shadow-[0_0.125rem_0.375rem_-0.125rem_rgba(0,0,0,.3)] transition group-hover:scale-105" style={{ background: c.solid }}>
-        <x.i className="h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.1} />
+      <span className={cn('inline-flex shrink-0 items-center justify-center text-white shadow-[0_0.125rem_0.375rem_-0.125rem_rgba(0,0,0,.25)] transition group-hover:scale-105', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]')} style={{ background: c.solid }}>
+        <x.i className={big ? 'h-[1.125rem] w-[1.125rem]' : 'h-[0.9375rem] w-[0.9375rem]'} strokeWidth={2.1} />
       </span>
-      <span className="min-w-0 text-[0.84375rem] font-semibold leading-tight text-ink">{x.l}</span>
+      <span className="min-w-0 leading-tight">
+        <span className={cn('block font-semibold text-ink', big ? 'text-[0.90625rem]' : 'text-[0.8125rem]')}>{x.l}</span>
+        {big && <span className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted max-sm:hidden">{x.h}</span>}
+      </span>
     </button>
   )
+}
+
+/** the same calm card for one kind, anywhere ("Log what happened" picks from these too) */
+export function KindChoice({ k, onClick, big }: { k: string; onClick: () => void; big?: boolean }) {
+  const x = KIND[k]
+  if (!x) return null
+  return <Choice x={{ k, l: x.l, h: x.h, i: x.i, c: x.c, m: () => ({ t: 'record' } as M) }} onClick={onClick} big={big} />
 }
 
 export function NewPickerModal({ level, jobId: given }: { level: number; jobId?: string }) {
@@ -142,54 +154,47 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const role = s.role
   const here = given || projectInView(useStore.getState())
   const [jobId, setJobId] = React.useState<string>(here && s.jobs[here] ? here : '')
-  const [needJob, setNeedJob] = React.useState('')
   const job = jobId ? s.jobs[jobId] : undefined
   const ok = (x: { k: string }) => allowedFor(role, x.k)
   const top = TOP[role] || TOP.owner!
   const rank = (k: string) => { const i = top.indexOf(k); return i < 0 ? 99 : i }
-  const of = (g: Group) => ADD.filter((x) => x.g === g && ok(x)).sort((a, b) => rank(a.k) - rank(b.k))
-  /* the group with your most-used first on top (the site manager's day starts on site, the books' in the office) */
-  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][])
-    .map(([g, label]) => ({ g, label, list: of(g) }))
-    .filter((x) => x.list.length)
-    .sort((a, b) => Math.min(...a.list.map((x) => rank(x.k))) - Math.min(...b.list.map((x) => rank(x.k))))
+  /* the quick ones: what your login adds most */
+  const quick = ADD.filter(ok).filter((x) => rank(x.k) < 4).sort((a, b) => rank(a.k) - rank(b.k))
+  const rest = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !quick.includes(x)).sort((a, b) => rank(a.k) - rank(b.k))
+  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: rest(g) })).filter((x) => x.list.length)
   const starts = STARTS.filter(ok)
-  const go = (x: Pick) => {
-    /* a note or a problem goes on a project — pick it first */
-    if (x.job && !jobId) { setNeedJob(x.l); return }
-    s.swap(x.m(jobId || undefined))
-  }
-  const projects = Object.values(s.jobs).filter((j) => j.stage !== 'complete').sort((a, b) => (STAGE_RANK[a.stage] ?? 12) - (STAGE_RANK[b.stage] ?? 12) || a.name.localeCompare(b.name))
+  /* each form asks for the project itself (typed) if it isn't picked here */
+  const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
   return (
-    <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Which project is it for?'}>
-      <SearchSelect
-        label="Project"
-        value={jobId}
-        onChange={(k) => { setJobId(k); setNeedJob('') }}
-        options={projects.map((j) => ({ key: j.id, label: j.name, hint: [j.client, STAGE_LABEL[j.stage]].filter(Boolean).join(' · ') }))}
-        emptyLabel="Not for a project — company-wide"
-        placeholder="Pick a project"
-        searchPlaceholder="Type a project, address or client…"
-        search
-        width={420}
-        icon={<Building2 />}
-        className={cn('w-full', needJob && 'ring-2 ring-bad-200')}
-        plain
-      />
-      {needJob && <div className="mt-1.5 text-[0.8125rem] font-medium text-bad-600">Pick the project for the {needJob.toLowerCase()} first.</div>}
+    <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick the project, or not — each one asks'}>
+      <ProjectPick value={jobId} onChange={setJobId} />
+      <section className="mt-4" data-new-group="quick">
+        <div className={head}>Quick</div>
+        <div className="grid grid-cols-2 gap-2">{quick.map((y) => <Choice key={y.k} x={y} big onClick={() => go(y)} />)}</div>
+      </section>
       {groups.map((x) => (
         <section key={x.g} className="mt-4" data-new-group={x.g}>
           <div className={head}>{x.label}</div>
-          <div className="grid grid-cols-3 gap-2 max-sm:grid-cols-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+          <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
         </section>
       ))}
       {starts.length > 0 && (
-        <section className="mt-5 border-t border-line-2 pt-4" data-new-group="start">
+        <section className="mt-4 border-t border-line-2 pt-4" data-new-group="start">
           <div className={head}>Start something new</div>
-          <div className="grid grid-cols-4 gap-2 max-md:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+          <div className="grid grid-cols-4 gap-1.5 max-md:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
         </section>
       )}
     </Modal>
+  )
+}
+
+/** + New's project: typed (the same field every form uses), or none for something company-wide */
+function ProjectPick({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1"><ProjectField value={value} onChange={onChange} /></div>
+      {value && <button type="button" onClick={() => onChange('')} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink">Company-wide</button>}
+    </div>
   )
 }

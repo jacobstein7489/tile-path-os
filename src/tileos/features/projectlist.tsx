@@ -18,6 +18,7 @@ import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
+import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 export type ProjType = 'hold' | 'coming' | 'progress' | 'touchups' | 'repairs' | 'done'
@@ -297,37 +298,43 @@ export function NewRepairModal({ level }: { level: number }) {
     s.close()
     setTimeout(() => s.open({ t: 'job', id }), 60)
   }
+  const crews = CREWS.filter((c) => !isOff(s, 'crew', c))
+  const days = DAY_OPTIONS()
+  if (!days.some((d) => d.key === day)) days.unshift({ key: day, label: day })
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
       title="New repair"
-      sub="A callback, a warranty fix or a small repair. It goes straight to Projects → Repairs."
+      header={<FormHead k="newrepair" kicker="Start something new" />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <Button variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button className="ml-auto" variant="primary" disabled={!clientId || !name.trim() || !what.trim() || billable === null} onClick={create}>Add repair</Button>
+          <span className="text-[0.8125rem] text-muted">It goes straight to Projects → Repairs</span>
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <Button variant="primary" disabled={!clientId || !name.trim() || !what.trim() || billable === null} onClick={create}>Add repair</Button>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        <Field label="Client">
-          <SearchSelect value={clientId} onChange={(id) => { setClientId(id); if (!name) setName(`${CUSTOMERS[id]?.name.split(' ')[0]} repair`) }} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} />
-        </Field>
-        <Field label="Name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 830 Northwood — lobby grout" /></Field>
-        <Field label="What needs fixing?"><TextInput value={what} onChange={(e) => setWhat(e.target.value)} placeholder="e.g. Cracked tiles at the elevator landing" /></Field>
-        <Field label="Who pays?">
-          <div className="flex gap-2">
-            <Chip on={billable === true} onClick={() => setBillable(true)}>We bill the client</Chip>
-            <Chip on={billable === false} onClick={() => setBillable(false)}>Warranty — no charge</Chip>
-          </div>
-        </Field>
-        <Field label="Who does it" hint="Leave it empty to book a crew later">
-          <div className="flex flex-wrap gap-2">{CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => <Chip key={c} on={crew === c} onClick={() => setCrew(crew === c ? '' : c)} className="h-9" icon={<Avatar who={c} size={20} />}>{PEOPLE[c].short}</Chip>)}</div>
-        </Field>
-        {crew && <Field label="When"><DatePresets value={day} onPick={setDay} presets={['Today', 'Tomorrow', 'Fri', 'Next Mon']} /></Field>}
-      </div>
+      <FormRow label="Client">
+        <SearchSelect label="Client" value={clientId} onChange={(id) => { setClientId(id); if (!name) setName(`${CUSTOMERS[id]?.name.split(' ')[0]} repair`) }} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} search />
+      </FormRow>
+      <FormRow label="What needs fixing?">
+        <TextInput mic aria-label="What needs fixing" value={what} onChange={(e) => setWhat(e.target.value)} placeholder="e.g. Cracked tiles at the elevator landing" />
+      </FormRow>
+      <FormRow label="Name it" hint="How it shows on Projects">
+        <TextInput aria-label="Repair name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 830 Northwood — lobby grout" />
+      </FormRow>
+      <FormRow label="Who pays?">
+        <SearchSelect label="Who pays" value={billable === null ? '' : billable ? 'bill' : 'warranty'} onChange={(k) => setBillable(k === 'bill')} placeholder="Pick one" search={false} width={300} options={[{ key: 'bill', label: 'We bill the client' }, { key: 'warranty', label: 'Warranty — no charge' }]} />
+      </FormRow>
+      <FormRow label="Who does it">
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <SearchSelect label="Who does it" value={crew} onChange={(k) => setCrew(k as PersonKey | '')} emptyLabel="Book a crew later" placeholder="Book a crew later" search={false} width={300} options={crews.map((c) => ({ key: c, label: PEOPLE[c].name, lead: <Avatar who={c} size={22} /> }))} plain />
+          {crew && <SearchSelect label="When" value={day} onChange={setDay} search={false} width={260} options={days.map((d) => ({ key: d.key, label: d.label }))} plain />}
+        </div>
+      </FormRow>
     </Modal>
   )
 }
@@ -369,13 +376,16 @@ export function NewProjectModal({ level }: { level: number }) {
     s.close()
     setTimeout(() => s.open({ t: 'job', id }), 60)
   }
+  const days = DAY_OPTIONS()
+  const startOpts = [...days.map((d) => ({ key: d.key, label: d.label })), { key: 'Next Mon', label: 'Next Monday' }, { key: 'In 2 weeks', label: 'In 2 weeks' }]
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
       title="New project"
-      sub="Won already. To price one, use Estimates."
+      header={<FormHead k="newproject" kicker="Won already — to price one, use Estimates" />}
+      bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
           <Button variant="ghost" onClick={s.close}>Cancel</Button>
@@ -383,34 +393,34 @@ export function NewProjectModal({ level }: { level: number }) {
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <Field label="Client">
-          <div className="flex gap-2">
-            <div className="min-w-0 flex-1"><SearchSelect value={clientId} onChange={setClientId} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} /></div>
-            <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
+      <FormRow label="Client">
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1"><SearchSelect label="Client" value={clientId} onChange={setClientId} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} search /></div>
+          <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
+        </div>
+      </FormRow>
+      <FormRow label="Address">
+        <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 42 Orchard St, Brooklyn" />
+      </FormRow>
+      {!more && (
+        <button onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
+          <Plus className="h-4 w-4" />A different name, the contract, when we start
+        </button>
+      )}
+      {more && <>
+        <FormRow label="Name" hint="It goes by the street if you leave it">
+          <TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'e.g. Green Tree'} />
+        </FormRow>
+        <FormRow label="Contract" hint="The deposit invoice is made from it">
+          <TextInput aria-label="Contract" inputMode="decimal" value={contract} onChange={(e) => setContract(e.target.value)} placeholder="$0" />
+        </FormRow>
+        <FormRow label="Start and who runs it">
+          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+            <SearchSelect label="When can we start" value={start} onChange={setStart} placeholder="Start — not set yet" emptyLabel="Not set yet" search={false} width={260} options={startOpts} plain />
+            <SearchSelect label="Project manager" value={pm} onChange={(k) => setPm(k as PersonKey)} search={false} width={280} options={(['ys', 'office'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: 'Runs it', lead: <Avatar who={p} size={22} /> }))} plain />
           </div>
-        </Field>
-        <Field label="Address"><TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 42 Orchard St, Brooklyn" /></Field>
-        {!more && (
-          <button onClick={() => setMore(true)} className="inline-flex items-center gap-1.5 self-start text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
-            <Plus className="h-4 w-4" />A different name, the contract, when we start
-          </button>
-        )}
-        {more && (
-          <div className="flex flex-col gap-4 rounded-[0.875rem] bg-wash px-4 py-4">
-            <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-              <Field label="Name" hint="It goes by the street if you leave it"><TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'e.g. Green Tree'} /></Field>
-              <Field label="Contract" hint="The deposit invoice is made from it"><TextInput aria-label="Contract" inputMode="decimal" value={contract} onChange={(e) => setContract(e.target.value)} placeholder="$0" /></Field>
-            </div>
-            <Field label="When can we start?"><DatePresets value={start} onPick={setStart} presets={['Next Mon', 'In 2 weeks']} /></Field>
-            <Field label="Project manager">
-              <div className="flex flex-wrap gap-2">
-                {(['ys', 'office'] as PersonKey[]).map((p) => <Chip key={p} on={pm === p} onClick={() => setPm(p)} icon={<Avatar who={p} size={20} />}>{PEOPLE[p].name}</Chip>)}
-              </div>
-            </Field>
-          </div>
-        )}
-      </div>
+        </FormRow>
+      </>}
     </Modal>
   )
 }
