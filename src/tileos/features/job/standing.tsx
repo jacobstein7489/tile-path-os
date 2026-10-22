@@ -177,7 +177,7 @@ export function StagePanel({ job, at, focus, setFocus, onRoom }: {
           : f.key === 'punch' ? <PunchBody job={job} />
             : <MoneyTab job={job} />}
       {/* what else is open on the job — a problem, something asked for, a wait — under every part but the money */}
-      {f.key !== 'money' && <AlsoOpen job={job} className="mt-3" max={f.group ? 3 : undefined} />}
+      {f.key !== 'money' && <AlsoOpen job={job} className="mt-3" max={f.group ? 2 : undefined} />}
     </section>
   )
 }

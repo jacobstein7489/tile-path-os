@@ -4,7 +4,7 @@
  *   People        — the client and their contact, the designer, the installer, our site manager; the dates
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
-import { Camera, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, CalendarDays, Grid2x2, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, CalendarDays, Grid2x2, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -16,7 +16,7 @@ import { GROUTS, JOINTS, byTag, filesFor, type Tile, type Room } from '@/tileos/
 import { METHODS } from '@/tileos/data/takeoff'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
 import { timeLabel } from '@/tileos/data/calendar'
-import { keepFiles } from '@/tileos/lib/files'
+import { keepFiles, filesOfDoc } from '@/tileos/lib/files'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { methodOf } from '../takeoff'
 import { takesTile } from '../steps'
@@ -44,7 +44,7 @@ const LINK = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78
 
 export type JobTab = 'tiles' | 'rooms' | 'people' | 'files'
 /** the job, one section at a time — no long scroll: Tile & grout · Rooms · People · Files */
-export function JobPanel({ job, open, tab, setTab }: { job: Job; open: (v: BoardView) => void; tab: JobTab; setTab: (t: JobTab) => void }) {
+export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (v: BoardView) => void; tab: JobTab; setTab: (t: JobTab) => void; /** a missing paper: open the question that gets it */ onStep?: (k: string) => void }) {
   const s = useStore()
   const tiles = Object.keys(s.tiles[job.id] || {}).length
   const rooms = (s.rooms[job.id] || []).length
@@ -56,11 +56,11 @@ export function JobPanel({ job, open, tab, setTab }: { job: Job; open: (v: Board
           { key: 'tiles', label: `Tile & grout${tiles ? ` · ${tiles}` : ''}` },
           { key: 'rooms', label: `Rooms${rooms ? ` · ${rooms}` : ''}` },
           { key: 'people', label: 'People' },
-          { key: 'files', label: `Files${files ? ` · ${files}` : ''}` },
+          { key: 'files', label: `Documents${files ? ` · ${files}` : ''}` },
         ]} />
       </div>
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-job-tab={tab}>
-        {tab === 'tiles' ? <TilesPart job={job} /> : tab === 'rooms' ? <RoomsPart job={job} open={open} /> : tab === 'people' ? <PeoplePart job={job} /> : <DocsPart job={job} open={open} />}
+        {tab === 'tiles' ? <TilesPart job={job} /> : tab === 'rooms' ? <RoomsPart job={job} open={open} /> : tab === 'people' ? <PeoplePart job={job} /> : <DocsPart job={job} open={open} onStep={onStep} />}
       </div>
     </div>
   )
@@ -207,7 +207,7 @@ function PeoplePart({ job }: { job: Job }) {
 }
 
 /* ---------------- Documents ---------------- */
-function DocsPart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
+function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => void; onStep?: (k: string) => void }) {
   const s = useStore()
   const save = useSaveStatus()
   const money = !['site', 'crew'].includes(s.role)
@@ -234,18 +234,53 @@ function DocsPart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const rest = files.filter((f) => !top.includes(f) && f.kind !== 'photo').slice(-3).reverse()
   const n = files.length + sample.length
   const row = 'flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]'
+  /* the papers the job has by name — each one here (tap to open it) or missing; never a step */
+  const rooms = s.rooms[job.id] || []
+  const sf = rooms.reduce((a, r) => a + r.surfaces.reduce((b, x) => b + (x.sf || 0), 0), 0)
+  const asked = s.pricing[job.id]?.docs || []
+  const tiles = Object.keys(s.tiles[job.id] || {}).length
+  const sampleOf = (k: string) => sample.find((d) => d.kind === k)
+  const sp = sampleOf('paperwork')
+  type Paper = { name: string; here: boolean; sub: string; go: () => void }
+  const NAMED: [string, string][] = [['Plans', 'plans'], ['Spec book', 'spec'], ['Finish schedule', 'finish']]
+  const papers: Paper[] = [
+    { name: 'Tile paperwork', here: !!paper || !!sp || tiles > 0, sub: paper ? `${paper.name} · ${paper.at}` : sp ? `${sp.name} · ${sp.date}` : tiles ? `${tiles} ${tiles === 1 ? 'tile' : 'tiles'} on it` : 'missing — tap to see who gets it', go: () => (paper ? open({ t: 'file', id: paper.id }) : sp ? open({ t: 'files' }) : tiles ? open({ t: 'scope' }) : onStep?.('getpaper')) },
+    ...(rooms.length ? [{ name: 'Scope of work', here: true, sub: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`, go: () => open({ t: 'scope' }) }] : []),
+    ...NAMED.flatMap(([doc, kind]): Paper[] => {
+      const a = asked.find((d) => d.name === doc)
+      const f = last(filesOfDoc(files, job.id, doc))
+      const smp = sampleOf(kind)
+      if (!a && !f && !smp) return []
+      const here = !!f || !!smp || (!!a && a.status !== 'missing')
+      return [{ name: doc, here, sub: f ? `${f.name} · ${f.at}` : smp ? `${smp.rev} · ${smp.date}` : !here ? 'missing — tap to add it' : a?.note || 'Here', go: () => (f || a ? open({ t: 'doc', doc }) : open({ t: 'files' })) }]
+    }),
+    ...asked.filter((d) => !NAMED.some(([x]) => x === d.name)).map((d) => ({ name: d.name, here: d.status !== 'missing', sub: d.status === 'missing' ? 'missing — tap to add it' : d.note || 'Here', go: () => open({ t: 'doc', doc: d.name }) })),
+  ]
+  const namedKinds = ['paperwork', 'plans', 'spec', 'finish']
+  const named = new Set([paper?.id, ...asked.flatMap((d) => filesOfDoc(files, job.id, d.name).map((f) => f.id))])
   const kindWord = (f: (typeof files)[number]) => (f.kind === 'paperwork' ? 'Tile paperwork' : f.doc || (f.kind === 'plans' ? 'Plans' : 'File'))
   return (
     <Part
       id="docs"
       title="Documents"
-      count={n ? `${n}` : undefined}
       right={<>{n > 0 && <button onClick={() => open({ t: 'files' })} className={LINK}>All {n}</button>}<button onClick={() => add.current?.click()} disabled={busy} className={LINK}><Upload className="h-3.5 w-3.5" />{busy ? 'Adding…' : 'Add'}</button></>}
     >
       <input ref={add} type="file" multiple className="hidden" aria-label="Add files — Documents" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void upload(f) }} />
-      {n === 0 && <button onClick={() => add.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d6cfc3] py-3 text-[0.8125rem] font-medium text-muted hover:border-brand-300 hover:text-brand-700"><Paperclip className="h-4 w-4" />Tile paperwork, plans, photos</button>}
+      <div className="-mx-2 mb-1.5 border-b border-line-2 pb-1.5" data-papers>
+        {papers.map((d) => (
+          <button key={d.name} onClick={d.go} data-paper={d.name} data-here={d.here || undefined} className={row}>
+            <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md', d.here ? 'bg-brand-50 text-brand-600' : 'border border-dashed border-warn-300 bg-[#fffaf0] text-warn-700')}>{d.here ? <FileText className="h-4 w-4" /> : <Upload className="h-3.5 w-3.5" />}</span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-semibold text-ink"><span className="truncate">{d.name}</span>{d.here && <Check className="h-3.5 w-3.5 shrink-0 text-ok-600" strokeWidth={3} />}</span>
+              <span className={cn('block truncate text-[0.71875rem]', d.here ? 'text-muted' : 'font-medium text-warn-700')}>{d.sub}</span>
+            </span>
+            {d.here && <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
+          </button>
+        ))}
+      </div>
+      {n === 0 && <button onClick={() => add.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#d6cfc3] py-3 text-[0.8125rem] font-medium text-muted hover:border-brand-300 hover:text-brand-700"><Paperclip className="h-4 w-4" />Photos and other files</button>}
       <div className="-mx-2">
-        {[...top, ...rest].map((f) => (
+        {[...top, ...rest].filter((f) => !named.has(f.id)).map((f) => (
           <button key={f.id} onClick={() => open({ t: 'file', id: f.id })} title={f.name} className={row}>
             {f.thumb ? <img src={f.thumb} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-wash text-[0.5625rem] font-bold uppercase text-muted">{(f.name.split('.').pop() || f.kind).slice(0, 4)}</span>}
             <span className="min-w-0 flex-1 leading-tight">
@@ -254,7 +289,7 @@ function DocsPart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
             </span>
           </button>
         ))}
-        {files.length < 3 && sample.slice(0, 4 - files.length).map((d) => (
+        {files.length < 3 && sample.filter((d) => !namedKinds.includes(d.kind)).slice(0, 4 - files.length).map((d) => (
           <button key={d.name} onClick={() => open({ t: 'files' })} title={d.name} className={row}>
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-wash text-muted"><FileText className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1 leading-tight">

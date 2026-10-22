@@ -26,7 +26,7 @@ import { JobPanel, type JobTab } from './details'
 import { readyGroups, type GroupKey } from '../ready'
 
 /** something opened on the project: a room, the conversation, a file… */
-export type BoardView = null | { t: 'room'; name: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' }
+export type BoardView = null | { t: 'room'; name: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' }
 
 /** a link that opens something on the project right away (the scope of work) */
 export const viewFromTab = (tab?: string): BoardView => (tab === 'scope' ? { t: 'scope' } : null)
@@ -84,7 +84,7 @@ function RoomOpen({ job, name, back }: { job: Job; name: string; back: () => voi
 
 
 /* ---------------- something opened on the project, with Back on top ---------------- */
-const FULL: string[] = ['chat', 'file']
+const FULL: string[] = ['chat', 'file', 'doc']
 function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<BoardView>; back: () => void; setView: (v: BoardView) => void }) {
   const backLabel = 'Back to the project'
   const page = (title: string, body: React.ReactNode, sub?: string) => (
@@ -102,6 +102,7 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
       </div>
     )
     case 'file': return <DocPanel jobId={job.id} fileId={view.id} onBack={back} back={backLabel} />
+    case 'doc': return <DocPanel jobId={job.id} doc={view.doc} onBack={back} back={backLabel} />
     case 'files': return page('Files and photos', <FilesTab job={job} />)
     case 'scope': return page('Scope of work', <ScopeTab job={job} />, 'every wall and floor — its tile, grout and layout')
     case 'log': return page('What happened', <HistoryTab job={job} />)
@@ -110,13 +111,15 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
 }
 
 /* ---------------- the body: the step that's open on the left, the job on the right ---------------- */
-export function ProjectBoard({ job, at, focus, setFocus, view, setView }: {
+export function ProjectBoard({ job, at, focus, setFocus, view, setView, onStep }: {
   job: Job
   at: FlowKey
   focus: string | null
   setFocus: (id: string | null) => void
   view: BoardView
   setView: (v: BoardView) => void
+  /** open a question of the flow (a missing paper on the job side → the question that gets it) */
+  onStep?: (k: string) => void
 }) {
   const [side, setSide] = React.useState<'stands' | 'job'>('stands')
   const [tab, setTab] = React.useState<JobTab>('tiles')
@@ -139,7 +142,7 @@ export function ProjectBoard({ job, at, focus, setFocus, view, setView }: {
           <StagePanel job={job} at={at} focus={focus} setFocus={setFocus} onRoom={(name) => setView({ t: 'room', name })} />
         </div>
         <div data-side="job" className={cn('min-h-0 min-w-0 bg-white', side !== 'job' && 'max-lg:hidden')}>
-          <JobPanel job={job} open={setView} tab={tab} setTab={setTab} />
+          <JobPanel job={job} open={setView} tab={tab} setTab={setTab} onStep={onStep} />
         </div>
       </div>
     </div>

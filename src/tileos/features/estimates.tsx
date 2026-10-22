@@ -3,7 +3,7 @@
  * to the room they're about and go back as a checklist. Approved, it becomes a project. */
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
-import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt, Users, History, GitCompareArrows, Loader2 } from 'lucide-react'
+import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt, Users, History, GitCompareArrows, Loader2, ChevronRight } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
@@ -21,7 +21,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE, sameJobCandidates, moveEstimateTo } from './estflow'
+import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
 import { insidePeople } from './steps-ui'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
@@ -237,9 +237,12 @@ const GRAY = '#efece5'
 /** scope · qty · unit · rate · amount · (remove) — the same columns on the green bands, the rooms and every line */
 const SHEET_GRID = 'grid grid-cols-[minmax(0,1fr)_5.25rem_2.75rem_6.25rem_6.75rem_2.25rem] items-center'
 
-/** Plans · Spec book · Finish schedule — tap one and it opens right here; a missing one takes its file */
-function DocStrip({ e, onOpen }: { e: Estimate; onOpen: (doc: string) => void }) {
+/** the job itself, beside the estimate — in the same spot as on a project: its papers (plans, spec book, finish
+ *  schedule — each one here, or missing), who does what, the client. None of it is a step: it's here or it isn't.
+ *  Tap a paper and it opens right in the window; a missing one takes its file. */
+function EstJob({ e, onDoc, onTeam, className }: { e: Estimate; onDoc: (doc: string) => void; onTeam?: () => void; className?: string }) {
   const s = useStore()
+  const j = s.jobs[e.jobId]
   const docs = s.pricing[e.jobId]?.docs || []
   const add = React.useRef<HTMLInputElement>(null)
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -249,28 +252,68 @@ function DocStrip({ e, onOpen }: { e: Estimate; onOpen: (doc: string) => void })
     setBusy(doc)
     await docUploaded(e.jobId, doc, fl)
     setBusy(null)
-    onOpen(doc)
+    onDoc(doc)
   }
-  if (!docs.length) return null
+  const team = teamOf(e)
+  const b = bucketOf(e)
+  const nowKey: keyof EstTeam | null = b === 'takeoff' || b === 'review' || b === 'final' ? b : b === 'sent' ? 'follow' : null
+  const me = meOf(s.role)
+  const here = docs.filter((d) => d.status !== 'missing').length
+  const row = 'flex w-full min-w-0 items-center gap-3 rounded-[0.625rem] px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]'
+  const head = 'text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint'
+  if (!j) return null
   return (
-    <div className="no-scrollbar flex min-w-0 flex-wrap items-center gap-2 max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-2 max-sm:[&>button]:shrink-0" aria-label="Documents">
-      <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
-      {docs.map((d) =>
-        d.status === 'missing' ? (
-          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-warn-300 bg-[#fffaf0] px-2.5 text-[0.78125rem] font-semibold text-warn-800 transition hover:border-warn-500">
-            {busy === d.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {d.name}
-            <span className="font-normal text-warn-700">missing</span>
-          </button>
-        ) : (
-          <button key={d.name} data-doc={d.name} onClick={() => onOpen(d.name)} title={`Open the ${d.name.toLowerCase()}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 text-[0.78125rem] font-semibold text-ink-2 transition hover:border-[#cdc7bc] hover:text-ink">
-            <FileText className="h-4 w-4 text-brand-600" />
-            {d.name}
-            <Check className="h-3.5 w-3.5 text-ok-600" strokeWidth={3} />
-          </button>
-        ),
-      )}
-    </div>
+    <aside data-side="job" data-est-job className={cn('scroll-soft min-h-0 min-w-0 border-line bg-white lg:overflow-y-auto lg:border-l', className)}>
+      <section className="px-4 pb-2.5 pt-4" aria-label="Documents">
+        <header className="mb-1 flex items-center gap-2 px-2"><h4 className={head}>Documents</h4>{docs.length > 0 && <span className="ml-auto text-[0.75rem] text-muted">{here} of {docs.length} here</span>}</header>
+        <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
+        {docs.map((d) =>
+          d.status === 'missing' ? (
+            <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className={row}>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] border border-dashed border-warn-300 bg-[#fffaf0] text-warn-700">{busy === d.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.875rem] font-semibold text-ink">{d.name}</span>
+                <span className="block truncate text-[0.75rem] font-medium text-warn-700">missing — tap to add it</span>
+              </span>
+            </button>
+          ) : (
+            <button key={d.name} data-doc={d.name} onClick={() => onDoc(d.name)} title={`Open the ${d.name.toLowerCase()}`} className={row}>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-brand-50 text-brand-600"><FileText className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-center gap-1.5 text-[0.875rem] font-semibold text-ink"><span className="truncate">{d.name}</span><Check className="h-3.5 w-3.5 shrink-0 text-ok-600" strokeWidth={3} /></span>
+                <span className="block truncate text-[0.75rem] text-muted">{d.note || 'Here'}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+            </button>
+          ),
+        )}
+        {!docs.length && <div className="px-2 py-2 text-[0.8125rem] text-muted">No documents yet.</div>}
+      </section>
+      <section className="border-t border-line-2 px-4 pb-2.5 pt-3" aria-label="Who does what">
+        <header className="mb-1 flex items-center gap-2 px-2"><h4 className={head}>Who does what</h4>{onTeam && <button onClick={onTeam} className="ml-auto text-[0.78125rem] font-semibold text-brand-700 hover:underline">Change</button>}</header>
+        {TEAM_KEYS.map((k) => (
+          <div key={k} className="flex min-w-0 items-center gap-3 px-2 py-1.5" data-team={k}>
+            <Avatar who={team[k]} size={28} />
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[0.84375rem] font-semibold text-ink">{team[k] === me ? 'You' : PEOPLE[team[k]]?.name}</span>
+              <span className="block truncate text-[0.75rem] text-muted">{TEAM_LABEL[k]}</span>
+            </span>
+            {nowKey === k && <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 text-[0.6875rem] font-bold text-white">Now</span>}
+          </div>
+        ))}
+      </section>
+      <section className="border-t border-line-2 px-4 pb-4 pt-3" aria-label="Client">
+        <header className="mb-1 px-2"><h4 className={head}>Client</h4></header>
+        <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className={row}>
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash-2 text-ink-2"><Building2 className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.875rem] font-semibold text-ink">{j.client}</span>
+            <span className="block truncate text-[0.75rem] text-muted">{j.address}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+        </button>
+      </section>
+    </aside>
   )
 }
 
@@ -305,6 +348,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const e = s.estimates.find((x) => x.id === id)
   const [revN, setRevN] = React.useState<number | null>(null)
   const [panel, setPanel] = React.useState<EstPanel>(null)
+  /* on a phone: the estimate, or the job (its documents, who does what, the client) */
+  const [side, setSide] = React.useState<'est' | 'job'>('est')
   const paperRef = React.useRef<HTMLDivElement>(null)
   const [noteAt, setNoteAt] = React.useState<string | null>(null)
   const [takeoffBy, setTakeoffBy] = React.useState<PersonKey>(() => { const x = s.estimates.find((y) => y.id === id); return x ? teamOf(x).takeoff : 'takeoff' })
@@ -383,7 +428,6 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} aria-pressed={panel?.t === 'paper'} onClick={() => setPanel(panel?.t === 'paper' ? null : { t: 'paper' })}><span className="max-sm:hidden">Scope of work</span></Button>}
           {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
             <Menu align="end" width={250} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
-              {canTeam && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => setPanel({ t: 'team' })}>Who does what</MenuItem>}
               <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => setPanel({ t: 'log' })}>What happened</MenuItem>
               {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
               {PRICING_STAGES.includes(j.stage) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Building2 className="h-4 w-4" />} hint="Same job, two names? Put it on the project" onSelect={() => setPanel({ t: 'same' })}>It’s for a project we have…</MenuItem>}
@@ -393,7 +437,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           )}
         </span>
       </div>
-      {/* who it's for, where, when it's due — and its documents, one tap to open each */}
+      {/* who it's for, where, when it's due (its documents are on the right, with the job) */}
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
           <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
@@ -403,9 +447,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           {st === 'approved' && e.approvedOn && <span>Approved {e.approvedOn}</span>}
           <span className="sm:hidden">{shown.lines.length ? fmtMoney(total) : ''}</span>
         </span>
-        <span className="ml-auto max-md:ml-0 max-md:w-full"><DocStrip e={e} onOpen={(doc) => setPanel({ t: 'doc', doc })} /></span>
       </div>
-      <Circles layout="beside" className="mt-3" groups={[{ key: 'path', steps: path }]} label="Where the estimate is" />
+      <Circles layout="beside" markNow className="mt-3" groups={[{ key: 'path', steps: path }]} label="Where the estimate is" />
     </div>
   )
 
@@ -642,7 +685,19 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
 
   return (
     <Modal level={level} size="full" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
-      <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
+      {panel ? (
+        <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
+      ) : (
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="border-b border-line bg-white px-4 py-2 lg:hidden">
+            <Segmented value={side} onChange={setSide} items={[{ key: 'est', label: 'The estimate' }, { key: 'job', label: 'The job' }]} className="w-full [&>button]:flex-1" />
+          </div>
+          <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_21rem]">
+            <div className={cn('scroll-soft min-h-0 min-w-0 lg:overflow-y-auto', side !== 'est' && 'max-lg:hidden')} data-est-body>{body}</div>
+            <EstJob e={e} className={cn(side !== 'job' && 'max-lg:hidden')} onDoc={(doc) => setPanel({ t: 'doc', doc })} onTeam={canTeam ? () => setPanel({ t: 'team' }) : undefined} />
+          </div>
+        </div>
+      )}
     </Modal>
   )
 }
@@ -740,17 +795,12 @@ function AiCard({ e, filled }: { e: Estimate; filled?: boolean }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-vio-100 bg-gradient-to-r from-[#f6f4ff] to-white px-3.5 py-2.5">
       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-vio-600 ring-1 ring-vio-100"><Sparkles className="h-4 w-4" /></span>
+      {/* the documents themselves are on the right, with the job — here only what AI does with the plans */}
       <div className="min-w-0 flex-1">
         <div className="text-[0.875rem] font-semibold text-ink">{filled ? 'Fill in the square feet from the plans' : 'Draft the takeoff from the plans'}</div>
-        <div className="mt-0.5 flex flex-wrap gap-1">
-          {docs.map((d) => (
-            <span key={d.name} className={cn('inline-flex items-center gap-1 rounded-full px-2 py-px text-[0.71875rem] font-medium', d.status === 'in' ? 'bg-white text-ink-2 ring-1 ring-line' : 'bg-warn-50 text-warn-700 ring-1 ring-warn-100')}>
-              {d.status === 'in' ? <Check className="h-3 w-3 text-ok-600" /> : <X className="h-3 w-3" />}{d.name}
-            </span>
-          ))}
-        </div>
+        <div className="mt-0.5 text-[0.78125rem] text-muted">{hasPlans ? 'AI reads them and fills in the rooms and square feet — you check every number.' : 'Upload the plans and AI drafts the rooms and square feet.'}</div>
       </div>
-      <span className="flex shrink-0 items-center gap-3">
+      <span className="flex shrink-0 items-center gap-3 max-sm:w-full max-sm:justify-end">
         <button onClick={() => file.current?.click()} className={cn(hasPlans ? 'text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700' : 'inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-[0.8125rem] font-semibold text-white hover:bg-brand-700')}>
           {hasPlans ? 'Newer plans' : <><Upload className="h-4 w-4" />Upload the plans</>}
         </button>

@@ -77,7 +77,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   }
   return (
     <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" at={st.at} onPick={st.setAt} onChat={() => st.setView({ t: 'chat' })} />} footer={<ProjectFooter job={job} onStep={st.onStep} />} bodyClass="p-0 overflow-hidden">
-      <ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} />
+      <ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} onStep={st.onStep} />
     </Modal>
   )
 }
@@ -91,7 +91,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
       <ProjectHeader job={job} mode="page" pricing={pricing} at={st.at} onPick={st.setAt} onChat={() => st.setView({ t: 'chat' })} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} /></div>
+          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} at={st.at} focus={st.focus} setFocus={st.setFocus} view={st.view} setView={st.setView} onStep={st.onStep} /></div>
           <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} onStep={st.onStep} /></div>
         </>
       )}
@@ -144,7 +144,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, at, onPick }: { job:
     ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
     : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>
   return (
-    <div className={cn('relative border-b border-line bg-white px-5 pb-2.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
+    <div className={cn('relative border-b border-line bg-white px-5 pt-3 max-sm:px-4 max-sm:pt-3', !pricing && at && onPick ? 'pb-0' : 'pb-2.5', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
       {/* the name and where it stands — on the right the contract and the two buttons */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>

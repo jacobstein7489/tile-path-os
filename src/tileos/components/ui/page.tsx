@@ -675,15 +675,15 @@ const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', 
 const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint' }
 
 /** one circle: green and full with a check when done, red with ! for a problem, else a ring that fills */
-export function Circle({ st, size = 36, on }: { st: CircleStep; size?: number; on?: boolean }) {
+export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: number; on?: boolean; /** "where it's up to": filled blue, breathing */ solid?: boolean }) {
   const w = size >= 34 ? 3.5 : 3
   const r = (size - w) / 2
   const c = 2 * Math.PI * r
-  const filled = st.state === 'done' || st.state === 'bad'
+  const filled = st.state === 'done' || st.state === 'bad' || (!!solid && st.state === 'now')
   const pct = filled ? 100 : st.state === 'later' ? (st.pct || 0) : Math.max(st.pct ?? 0, st.pct == null ? 100 : 6)
   const txt = size >= 34 ? 'text-[0.6875rem]' : 'text-[0.625rem]'
   return (
-    <span className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full transition-shadow', on && 'shadow-[0_0_0_0.25rem_rgba(38,80,207,.16)]')} style={{ width: size, height: size }}>
+    <span className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full transition-shadow', on && 'shadow-[0_0_0_0.25rem_rgba(38,80,207,.16)]', solid && st.state === 'now' && 'animate-pulse-ring')} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={filled ? size / 2 : r} fill={filled ? C_ARC[st.state] : '#fff'} stroke={filled ? 'none' : C_TRACK[st.state]} strokeWidth={w} />
         {!filled && pct > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C_ARC[st.state]} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} className="transition-[stroke-dasharray] duration-700" />}
@@ -696,7 +696,7 @@ export function Circle({ st, size = 36, on }: { st: CircleStep; size?: number; o
   )
 }
 
-export function Circles({ groups, at, onPick, layout = 'below', size, label, className }: { groups: CircleGroup[]; at?: string; onPick?: (key: string) => void; layout?: 'below' | 'beside'; size?: number; label?: string; className?: string }) {
+export function Circles({ groups, at, onPick, layout = 'below', size, label, className, markNow }: { groups: CircleGroup[]; at?: string; onPick?: (key: string) => void; layout?: 'below' | 'beside'; size?: number; label?: string; className?: string; /** where it's up to: the step going on now is filled blue, a little bigger, and says "Now" */ markNow?: boolean }) {
   const all = groups.flatMap((g) => g.steps)
   const rowRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
@@ -709,18 +709,21 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
   if (layout === 'beside') {
     const sz = size ?? 30
     return (
-      <ol aria-label={label} className={cn('no-scrollbar flex items-center overflow-x-auto', className)} data-circles>
+      <ol aria-label={label} className={cn('no-scrollbar flex items-center overflow-x-auto', onPick && 'pb-2.5', className)} data-circles>
         {all.map((st, i) => {
           const on = at === st.key
+          const here = !!markNow && st.state === 'now'
           const Tag = onPick ? 'button' : 'span'
           return (
-            <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state}>
-              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
-                <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={sz} on={on} /></span>
+            <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state} data-here={here || undefined}>
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
+                <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={here ? sz + 6 : sz} on={on} solid={here} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
-                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
-                  {st.sub && <span className={cn('block max-w-[9rem] truncate text-[0.71875rem]', C_SUB[st.state])}>{st.sub}</span>}
+                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
+                  {(st.sub || here) && <span className={cn('block max-w-[11rem] truncate text-[0.71875rem]', here ? 'font-semibold text-brand-700' : C_SUB[st.state])}>{here ? ['Now', st.sub].filter(Boolean).join(' · ') : st.sub}</span>}
                 </span>
+                {/* the part that's open below — underlined, like a tab */}
+                {on && onPick && <span aria-hidden data-picked className="absolute -bottom-[0.625rem] left-0 right-1 h-[0.1875rem] rounded-t-full bg-brand-600 max-sm:right-0" />}
               </Tag>
               {i < all.length - 1 && <span className={cn('mx-2 h-[0.125rem] min-w-3 flex-1 rounded-full max-sm:mx-1', st.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
             </li>

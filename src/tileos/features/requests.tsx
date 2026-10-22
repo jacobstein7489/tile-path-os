@@ -139,5 +139,6 @@ export function TripButtons({ t, size = 'sm', onDone }: { t: Task; size?: 'sm' |
     </span>
   )
 }
-/** every button at the end of a list row: the same size and look */
-export const ROW_BTN = 'min-w-[6.75rem] justify-center'
+/** every button at the end of a list row: one size and look — Done, Dropped off, Send update, Open it, all the same width
+ *  (a long label is cut short rather than making its button wider) */
+export const ROW_BTN = 'w-[11rem] shrink-0 justify-center overflow-hidden whitespace-nowrap'
