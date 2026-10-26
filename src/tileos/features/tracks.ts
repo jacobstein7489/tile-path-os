@@ -20,34 +20,34 @@ import type { Task } from '@/tileos/data/work'
 export type TrackKey = 'scope' | 'tile' | 'site' | 'installer' | 'materials' | 'other'
 /** the five tracks of getting ready, and the steps each one walks through, in order */
 export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
-  { key: 'scope', label: 'Scope', steps: ['design', 'change', 'tile', 'setup', 'layouts'] },
+  { key: 'scope', label: 'Design', steps: ['design', 'change', 'tile', 'setup', 'layouts'] },
   { key: 'tile', label: 'Tile', steps: ['getpaper', 'rooms', 'qty', 'order', 'delivered'] },
-  { key: 'site', label: 'Site', steps: ['heights', 'fixes', 'level'] },
+  { key: 'site', label: 'Site', steps: ['heights', 'level', 'fixes'] },
   { key: 'installer', label: 'Installer', steps: ['installer', 'confirmed', 'walk'] },
   { key: 'materials', label: 'Materials', steps: ['materials', 'matin'] },
 ]
 /** a question added on one project sits in the track of the part it was added to */
 const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', site: 'site', installer: 'installer', materials: 'materials' }
-/** each step's name on its track's path — short */
-const STEP_SHORT: Record<string, string> = {
-  design: 'Meeting', change: 'Confirm the scope', tile: 'Tile & grout', setup: 'Underlayment', layouts: 'Layouts',
-  getpaper: 'Paperwork', rooms: 'Entered', qty: 'Quantities', order: 'Delivery date', delivered: 'Checked in',
-  heights: 'Site check', fixes: 'Fixes', level: 'Floors',
-  installer: 'His PO', confirmed: 'His yes', walk: 'Walk the job',
-  materials: 'Ordered', matin: 'On site',
+/** each step's name on its track's path — what has to happen, said plainly */
+export const STEP_SHORT: Record<string, string> = {
+  design: 'Design meeting', change: 'Confirm scope', tile: 'Pick tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
+  getpaper: 'Get paperwork', rooms: 'Enter paperwork', qty: 'Check quantities', order: 'Get delivery date', delivered: 'Receive tile',
+  heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems',
+  installer: 'Send installer PO', confirmed: 'Installer accepts', walk: 'Walk-through',
+  materials: 'Order materials', matin: 'Receive materials',
 }
-/** a step's name on the path — what it says changes with what happened (short on the paperwork, the store revising) */
+/** a step's name on the path — it says what happened when that matters (tile short, the store revising) */
 export function stepShort(s: Store, job: Job, v: StepView) {
   if (v.key === 'qty' && v.state === 'bad') {
     const short = Object.values(s.tiles[job.id] || {}).map((t) => paperQty(s, job.id, t)).filter((r) => r.on > 0 && r.short > 0)
     if (short.length) return `${short[0].tag} short${short.length > 1 ? ` +${short.length - 1}` : ''}`
   }
-  if (v.key === 'qty' && v.state === 'wait') return 'Store revising'
-  if (v.key === 'installer' && v.state !== 'done' && !installerOf(s, job)) return 'Pick · send PO'
-  if (v.key === 'fixes' && v.state === 'now') return 'Check again'
-  if (v.key === 'order' && v.state === 'bad') return 'Ordered short'
-  if (v.key === 'delivered' && v.state === 'bad') return s.tasks.some((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done') ? 'Came wrong' : 'Came short'
-  return STEP_SHORT[v.key] || v.short
+  if (v.key === 'qty' && v.state === 'wait') return 'Waiting on store'
+  if (v.key === 'installer' && v.state !== 'done' && !installerOf(s, job)) return 'Pick installer'
+  if (v.key === 'fixes' && v.state === 'now') return 'Re-check on site'
+  if (v.key === 'order' && v.state === 'bad') return 'Store ordered short'
+  if (v.key === 'delivered' && v.state === 'bad') return s.tasks.some((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done') ? 'Tile came wrong' : 'Tile came short'
+  return (!v.custom || v.key === 'design' || v.key === 'change' || v.key === 'layouts' || v.key === 'walk') && !v.only ? STEP_SHORT[v.key] || v.short : v.short
 }
 
 export interface TrackView {
@@ -118,7 +118,10 @@ export function leadWords(s: Store, job: Job, t: TrackView): { who?: PersonKey; 
     if (['design', 'walk'].includes(v.key)) return { who: v.owner, top: v.due ? `Set for ${labelFromIso(v.due)}` : 'Set', sub: name(v.owner), tone: 'wait' }
     return { who: v.owner, top: on ? `Waiting on ${on}` : 'Waiting', sub: when, tone: 'wait' }
   }
-  if (v.state === 'later') return { who: v.waitsOn || v.owner, top: `After ${(v.waitsFor || 'the step before').toLowerCase()}`, sub: v.waitsOn ? name(v.waitsOn) : undefined, tone: 'later' }
+  if (v.state === 'later') {
+    const before = t.steps.find((x) => x.short === v.waitsFor)
+    return { who: v.waitsOn || v.owner, top: `Waits for ${before ? stepShort(s, job, before) : v.waitsFor || 'the step before'}`, sub: v.waitsOn ? name(v.waitsOn) : undefined, tone: 'later' }
+  }
   return { who: v.owner, top: name(v.owner), sub: day(v.due), tone: v.state === 'bad' ? 'bad' : v.owner === me ? 'mine' : 'now', late }
 }
 
@@ -212,7 +215,9 @@ export type ChipTone = 'bad' | 'warn' | 'todo' | 'ok'
 export interface RoomChip { tone: ChipTone; text: string }
 /** the word before a room's line, where the line itself doesn't say it */
 export const ROOM_WORD: Record<RoomState, string> = { notready: '', ready: '', installing: '', stopped: 'Stopped', done: '', notstarted: 'Not started' }
-export interface RoomView { room: Room; sf: number; pct: number; state: RoomState; chips: RoomChip[]; tiles: string[]; sub: string }
+/** what a room needs before the crew can start on it — each one done, to come, or a problem */
+export interface RoomCheck { label: string; state: 'ok' | 'todo' | 'bad'; note?: string }
+export interface RoomView { room: Room; sf: number; pct: number; state: RoomState; chips: RoomChip[]; tiles: string[]; sub: string; checks: RoomCheck[] }
 
 
 const low = (t: string) => t.replace(/\s*·.*$/, '').replace(/^[A-Z](?![A-Z]|-\d)/, (c) => c.toLowerCase())
@@ -294,6 +299,20 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
     const sub = state === 'done' ? `Done${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`
       : started ? `${crew ? `${PEOPLE[crew]?.short} · ` : ''}${doneN} of ${r.surfaces.length} walls & floors done`
         : `${sf ? `${sf.toLocaleString('en-US')} SF` : `${r.surfaces.length} walls & floors`}${tags.length ? ` · ${tags.join(', ')}` : ''}`
-    return { room: r, sf, pct, state, chips, tiles: tags, sub }
+    /* before the crew: what this room needs, one line each */
+    const checks: RoomCheck[] = []
+    if (!inField) {
+      const tileProblem = chips.find((c) => c.tone === 'bad' && tags.some((tag) => c.text.includes(tag)))
+      checks.push({ label: 'Tile picked', state: tiled.some((x) => !x.tile) ? 'todo' : 'ok', note: tags.join(', ') || undefined })
+      const tileHere = !open('delivered') || (tags.length > 0 && tags.every((tag) => { const c = s.checks.find((x) => x.jobId === job.id && x.tag === tag); return !!c && c.received >= c.ordered }))
+      checks.push({ label: 'Tile on site', state: tileProblem ? 'bad' : tileHere ? 'ok' : 'todo', note: tileProblem?.text || toCome.find((x) => /^tile /.test(x))?.replace(/^tile /, 'coming ') })
+      checks.push({ label: 'Layout set', state: !open('layouts') || tiled.every((x) => !x.tile || x.layout) ? 'ok' : chips.some((c) => c.text === 'Layout in question') ? 'bad' : 'todo' })
+      checks.push({ label: 'Underlayment decided', state: !open('setup') || !r.surfaces.some((x) => x.sf && methodOf(r.name, x).auto) ? 'ok' : 'todo' })
+      const siteProblem = chips.find((c) => c.tone === 'bad' && SITE_CHECKS.some((d) => d.no === c.text))
+      checks.push({ label: 'Site checked', state: siteProblem ? 'bad' : !open('heights') ? 'ok' : 'todo', note: siteProblem?.text })
+      const fl = floors.find((f) => f.room.name === r.name)
+      if (fl && !fl.mud) checks.push({ label: 'Floor level', state: fl.word?.tone === 'bad' ? 'bad' : fl.word || !open('level') ? 'ok' : 'todo', note: fl.word?.label })
+    }
+    return { room: r, sf, pct, state, chips, tiles: tags, sub, checks }
   })
 }

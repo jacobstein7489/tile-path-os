@@ -381,8 +381,6 @@ export function sendToSite(jobId: string) {
     j.next = { text: 'Walk the project and verify', owner: 'ys', due: 'Wed' }
     closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.type === 'Setup' && t.owner === 'office').map((t) => t.id), 'Setup done')
     newTask(s, { jobId, title: `Walk ${j.name} and verify what the office built`, type: 'Field', owner: 'yakov', for: ['site'], state: 'now', due: 'Wed', tone: 'info', where: 'Field verification', action: { label: 'Start walkthrough', kind: 'open-job' } })
-    if ((s.rooms[jobId] || []).some((r) => r.surfaces.some((x) => /wall|backsplash|splash|wainscot|niche|tub|shower w/i.test(x.name) && !x.measured)))
-      newTask(s, { jobId, title: `Measure the wall heights · ${j.name}`, detail: 'Every tiled wall, on site. The square feet and materials follow; taller walls become a change order by themselves.', type: 'Field', owner: 'yakov', for: ['site'], state: 'now', due: 'Wed', tone: 'warn', where: 'Site check — required', action: { label: 'Measure', kind: 'heights:' + jobId } })
     addHist(s, jobId, { who: me(), kind: 'setup', title: 'Setup approved · sent to the site manager' })
   }, 'Sent to the site manager for verification')
 }

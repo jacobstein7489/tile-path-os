@@ -24,7 +24,7 @@ import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
 import { confirmSetting } from './setting'
-import { isWall, heightStatus } from './heights'
+import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
 import { pickInstaller, sendDraftIPO, setSurfaceTile } from './flows2'
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
@@ -37,28 +37,29 @@ import { LayoutsList, fillSuggestions } from './layout'
 import { NoNote, SitePick, type SiteVal } from './answer'
 import { HeightsInline } from './heights'
 import { SiteChangeForm } from './field'
-import { trackOf, TRACKS } from './tracks'
+import { trackOf, TRACKS, stepShort } from './tracks'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
 export const TITLE: Record<string, string> = {
   getpaper: 'Get the tile paperwork from the store',
   rooms: 'Enter the tile paperwork',
-  qty: 'Quantities on the paperwork',
+  qty: 'Check the quantities on the paperwork',
   design: 'Design meeting',
   change: 'Confirm the scope after the meeting',
-  tile: 'Tile and grout — a picture and the grout for every tile',
-  layouts: 'Layouts',
-  heights: 'Site check — on site, room by room',
-  fixes: 'Fixes from the site check',
-  setup: 'Underlayment — what every floor and wall is set on',
-  installer: 'Installer and his PO',
-  walk: 'Show the installer the job',
-  confirmed: 'Installer confirmed',
+  tile: 'Pick the tile and grout — a picture and the grout for every tile',
+  layouts: 'Set the layouts',
+  heights: 'Site check — on site',
+  level: 'Floor levels — the high and low point of every floor',
+  fixes: 'Fix what the site check found',
+  setup: 'Decide the underlayment — what every floor and wall is set on',
+  installer: 'Pick the installer — send his PO',
+  walk: 'Walk-through with the installer',
+  confirmed: 'The installer accepts the PO',
   materials: 'Order our materials',
-  matin: 'Our materials delivered',
-  order: 'Tile delivery date',
-  delivered: 'Tile delivered',
+  matin: 'Receive our materials',
+  order: 'Get the tile delivery date',
+  delivered: 'Receive the tile — count it',
   deposit: 'Deposit',
 }
 /** what to do, said the way you'd say it — the line on Today and on the project */
@@ -75,12 +76,12 @@ export const TODO: Record<string, string> = {
   level: 'Measure the floors — high and low',
   setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
-  walk: 'Show the installer the job',
-  confirmed: 'Get the installer’s yes',
+  walk: 'Walk-through with the installer',
+  confirmed: 'Get the installer to accept',
   materials: 'Order our materials',
   matin: 'Did our materials come?',
   order: 'Get the tile delivery date',
-  delivered: 'Check in the tile',
+  delivered: 'Receive the tile',
   deposit: 'Invoice the deposit',
 }
 /** one line under the title: what this step is for */
@@ -97,8 +98,8 @@ const WHAT: Record<string, string> = {
   level: 'Every floor we tile: the high point and the low point off one laser line. The system says flat, self-leveler, or the GC’s to fix. A mud bed levels itself.',
   setup: 'What every floor and wall is set on — underlayment, membrane, mud. Our materials are worked out from it.',
   installer: 'Pick who installs it and send him his PO — the meter shows it against the estimate.',
-  walk: 'Show the installer the job before he starts. Not every job needs it.',
-  confirmed: 'He took the PO and the dates. Until he says yes, it comes back on the list to call him.',
+  walk: 'Walk the job with the installer before he starts. Not every job needs it.',
+  confirmed: 'He accepts the PO and the dates. Until he does, it comes back on the list to call him.',
   materials: 'Setting materials, worked out from the setup and the square feet.',
   matin: 'On the day it’s due, it’s on the list of whoever ordered it: did it come?',
   order: 'Find out when the store delivers the tile, and who checks it in.',
@@ -131,34 +132,57 @@ function stateWords(v: StepView, me: PersonKey): { text: string; tone: Tone } {
 const StepHost = React.createContext<{ close: () => void } | null>(null)
 export const useStepHost = () => React.useContext(StepHost)
 
-/** one step, without any window around it — the project page shows it right in the list */
-export function StepInline({ job, v, onClose }: { job: Job; v: StepView; onClose?: () => void }) {
-  const s = useStore()
+/** who may do what with a step: only its person does it; a manager can hand it to someone else or take it over */
+function stepRights(s: Store, v: StepView) {
   const me = meOf(s.role)
+  const mine = v.owner === me
+  const manager = ['owner', 'pm', 'office'].includes(s.role)
+  return { me, mine, manager, viewOnly: !mine, handles: mine || manager }
+}
+/** the step itself: where it stands, who has it and when, what it's for — then what finishes it. Someone else's step
+ *  shows where it is, and whose it is; a manager can take it over. */
+function StepPanel({ job, v, roomy }: { job: Job; v: StepView; roomy?: boolean }) {
+  const s = useStore()
+  const { me, mine, manager, viewOnly, handles } = stepRights(s, v)
   const word = stateWords(v, me)
   const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
-  const viewer = ['site', 'accounting', 'crew', 'client'].includes(s.role)
-  const viewOnly = viewer && v.owner !== me
+  const name = PEOPLE[v.owner]?.short || 'someone else'
+  /* checking the fixes again is the site manager's — taking it over takes the site check */
+  const takeKey = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
+  const open = v.state !== 'done' && v.state !== 'na'
+  return (
+    <>
+      <div className={cn('text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')} data-step-state={v.state}>
+        {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
+      </div>
+      <div className={cn('flex flex-wrap items-center gap-2', roomy ? 'mt-3.5' : 'mt-2.5')}>
+        {handles
+          ? <Who job={job} v={v} />
+          : <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{mine ? 'You' : name}</span>}
+        {dated && open && (handles
+          ? <When job={job} v={v} />
+          : (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null))}
+        {handles && <StepMore job={job} v={v} />}
+      </div>
+      {WHAT[v.key] && open && !(v.state === 'now' && v.note) && <p className={cn('text-[0.875rem] leading-snug text-muted', roomy ? 'mt-4' : 'mt-3')}>{WHAT[v.key]}</p>}
+      {viewOnly && open && (
+        <div className={cn('flex items-center gap-3 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2 max-sm:flex-wrap', roomy ? 'mt-4' : 'mt-3')} data-not-mine>
+          <Lock className="h-4 w-4 shrink-0 text-faint" />
+          <span className="min-w-0 flex-1">It’s {name}’s step — {name} does it{v.key === 'heights' || v.key === 'level' || (v.key === 'fixes' && v.state === 'now') ? ' on site' : ''}. You see where it is.</span>
+          {manager && <Button size="sm" onClick={() => setStepOwner(job.id, takeKey, me)}>Take it over</Button>}
+        </div>
+      )}
+      <fieldset disabled={viewOnly} className={cn('m-0 min-w-0 border-0 p-0', roomy ? 'mt-5' : 'mt-4')}><Body job={job} v={v} /></fieldset>
+    </>
+  )
+}
+
+/** one step, without any window around it — right on the project */
+export function StepInline({ job, v, onClose }: { job: Job; v: StepView; onClose?: () => void }) {
   const host = React.useMemo(() => ({ close: () => onClose?.() }), [onClose])
   return (
     <StepHost.Provider value={host}>
-      <div className="min-w-0">
-        <div className={cn('text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')}>
-          {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
-        </div>
-        <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          {viewer
-            ? <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{v.owner === me ? 'You' : PEOPLE[v.owner]?.short || 'Someone'}</span>
-            : <Who job={job} v={v} />}
-          {dated && v.state !== 'done' && v.state !== 'na' && (viewer
-            ? (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null)
-            : <When job={job} v={v} />)}
-          {!viewer && <StepMore job={job} v={v} />}
-        </div>
-        {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-3 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
-        {viewOnly && <div className="mt-3 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2">It’s {PEOPLE[v.owner]?.short || 'someone else'}’s step — you can see where it is; {PEOPLE[v.owner]?.short || 'they'} changes it.</div>}
-        <fieldset disabled={viewOnly} className="m-0 mt-4 min-w-0 border-0 p-0"><Body job={job} v={v} /></fieldset>
-      </div>
+      <div className="min-w-0"><StepPanel job={job} v={v} /></div>
     </StepHost.Provider>
   )
 }
@@ -177,12 +201,8 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   const me = meOf(s.role)
   const go = (x?: StepView) => { if (x) s.swap({ t: 'step', jobId, k: x.key }) }
   const c = stepCounts(list)
-  const word = stateWords(v, me)
-  const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
   const part = (tk && TRACKS.find((t) => t.key === tk)?.label) || PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
-  /* the site manager (and the books) can see every step; they change only their own — not who does it, not the date */
   const viewer = ['site', 'accounting', 'crew', 'client'].includes(s.role)
-  const viewOnly = viewer && v.owner !== me
   return (
     <Modal
       level={level}
@@ -194,38 +214,21 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
       footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} viewer={viewer} />}
     >
-      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} />}
+      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} job={job} />}
       <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
-        <div className="min-w-0">
-          {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
-          <div className="min-w-0">
-            <h3 className="font-display mt-0.5 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
-            <div className={cn('mt-1 text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')}>
-              {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3.5 flex flex-wrap items-center gap-2">
-          {viewer
-            ? <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{v.owner === me ? 'You' : PEOPLE[v.owner]?.short || 'Someone'}</span>
-            : <Who job={job} v={v} />}
-          {dated && v.state !== 'done' && v.state !== 'na' && (viewer
-            ? (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null)
-            : <When job={job} v={v} />)}
-          {!viewer && <StepMore job={job} v={v} />}
-        </div>
-        {WHAT[v.key] && v.state !== 'done' && !(v.state === 'now' && v.note) && <p className="mt-4 text-[0.875rem] leading-snug text-muted">{WHAT[v.key]}</p>}
-        {viewOnly && <div className="mt-4 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2">It’s {PEOPLE[v.owner]?.short || 'someone else'}’s step — you can see where it is; {PEOPLE[v.owner]?.short || 'they'} changes it.</div>}
-        <fieldset disabled={viewOnly} className="m-0 mt-5 min-w-0 border-0 p-0"><Body job={job} v={v} /></fieldset>
+        {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
+        <h3 className="font-display mt-0.5 mb-1 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
+        <StepPanel job={job} v={v} roomy />
       </div>
     </Modal>
   )
 }
 
-/** this part's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done, a
- *  blue ring where it's going on, red for a problem, and who has it. The step you're on is underlined. */
-export function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey }) {
-  /* the steps of one piece as circles, the same as everywhere — tap one to open it */
+/** this track's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done,
+ *  blue where it's your turn, a dark ring where it's someone else's, red for a problem, amber waiting. The step that's
+ *  open is underlined. */
+export function StepTabs({ list, at, go, me, job }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey; job?: Job }) {
+  const s = useStore()
   return (
     <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 pb-1 pt-3 max-sm:px-1">
       <Circles
@@ -236,10 +239,11 @@ export function StepTabs({ list, at, go, me }: { list: StepView[]; at: string; g
           key: 'steps',
           steps: list.map((x, i) => ({
             key: x.key,
-            label: x.short,
-            state: x.state === 'done' || x.state === 'na' ? 'done' as const : x.state === 'bad' ? 'bad' as const : x.state === 'now' ? 'now' as const : x.state === 'wait' ? 'wait' as const : 'later' as const,
-            sub: x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.state === 'later' ? `Not yet · ${x.owner === me ? 'you' : PEOPLE[x.owner]?.short || ''}` : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
+            label: job ? stepShort(s, job, x) : x.short,
+            state: x.state === 'done' || x.state === 'na' ? 'done' as const : x.state === 'bad' ? 'bad' as const : x.state === 'now' ? (x.owner === me ? 'now' as const : 'todo' as const) : x.state === 'wait' ? 'wait' as const : 'later' as const,
+            sub: x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.state === 'later' ? 'Not yet' : x.owner === me ? 'Your turn' : PEOPLE[x.owner]?.short,
             center: String(i + 1),
+            attrs: { 'data-tab': x.key },
           })),
         }]}
       />
@@ -300,12 +304,17 @@ function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?
     <>
       <span className="ml-auto" />
       {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => go(prev)}>Back</Button>}
-      {next ? <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {next.short}</span></Button> : <Button onClick={s.close}>Close</Button>}
+      {next ? <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {stepShort(s, job, next)}</span></Button> : <Button onClick={s.close}>Close</Button>}
     </>
   )
 }
 
 /* ---------------- small pieces ---------------- */
+/** a row that opens something to look at (a PO, a file, a problem) — it still opens when the step is someone else's
+ *  (a step you only see has its buttons off, not its links) */
+function OpenRow({ onClick, className, children, ...rest }: React.HTMLAttributes<HTMLDivElement> & { onClick: () => void; title?: string }) {
+  return <div role="button" tabIndex={0} {...rest} onClick={onClick} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} className={cn('cursor-pointer', className)}>{children}</div>
+}
 function Block({ title, right, children, className }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={cn('overflow-hidden rounded-xl border border-line', className)}>
@@ -399,11 +408,11 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       {kept.length > 0 && (
         <Block title="The paperwork" right={`${kept.length} file${kept.length === 1 ? '' : 's'}`}>
           {kept.map((f) => (
-            <button key={f.id} onClick={() => openFile(f)} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
+            <OpenRow key={f.id} onClick={() => openFile(f)} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
               <FileText className="h-4 w-4 shrink-0 text-faint" />
               <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{f.name}</span>
               <span className="shrink-0 text-[0.78125rem] text-muted">{f.at} · {sizeLabel(f.size)}</span>
-            </button>
+            </OpenRow>
           ))}
         </Block>
       )}
@@ -486,7 +495,7 @@ function TileWhere({ job, t, loose, locked }: { job: Job; t: Tile; loose?: boole
     <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
       <TileImg tile={t} size={40} radius={8} />
       <div className="min-w-0 flex-1">
-        <button onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{t.tag} {t.name}{t.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}{t.paper ? <span className="font-normal text-muted"> · {t.paper.qty.toLocaleString('en-US')} {unitWord(t.paper.unit, t.paper.qty)} on the paperwork</span> : null}</button>
+        <OpenRow onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{t.tag} {t.name}{t.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}{t.paper ? <span className="font-normal text-muted"> · {t.paper.qty.toLocaleString('en-US')} {unitWord(t.paper.unit, t.paper.qty)} on the paperwork</span> : null}</OpenRow>
         {locked ? <div className="mt-0.5 truncate text-[0.8125rem] text-muted">{vals.length ? opts.filter((o) => vals.includes(o.key)).map((o) => o.label).join(', ') : 'Not on a wall or floor'}</div> : <MultiSelect values={vals} options={opts} label={`Where ${t.tag} goes`} placeholder="Where does it go?" width={360} className={cn('mt-1 min-h-8 py-1 text-[0.8125rem]', loose && 'border-warn-300 bg-warn-50/50')} onChange={(keys) => setTileOn(job.id, t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))} summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))} />}
       </div>
       {loose && <Status tone="warn">Not on a wall or floor</Status>}
@@ -544,7 +553,7 @@ function TileQty({ job, r }: { job: Job; r: QtyRow }) {
       <div className="flex min-w-0 items-center gap-3 max-md:col-span-2">
         <TileImg tile={r.t} size={40} radius={8} />
         <div className="min-w-0 flex-1">
-          <button onClick={() => s.open({ t: 'tile', jobId: job.id, tag: r.t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{r.t.tag} {r.t.name}{r.t.size ? <span className="font-normal text-muted"> · {r.t.size}</span> : null}</button>
+          <OpenRow onClick={() => s.open({ t: 'tile', jobId: job.id, tag: r.t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{r.t.tag} {r.t.name}{r.t.size ? <span className="font-normal text-muted"> · {r.t.size}</span> : null}</OpenRow>
           <MultiSelect values={vals} options={opts} label={`Where ${r.t.tag} goes`} placeholder="Where does it go?" width={360} className="mt-1 min-h-8 py-1 text-[0.8125rem]" onChange={(keys) => setTileOn(job.id, r.t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))} summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))} />
         </div>
       </div>
@@ -748,10 +757,10 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
   const list = cos.length > 0 && (
     <Block title="What changed — a change order each" right={`${cos.length}`}>
       {cos.map((m) => (
-        <button key={m.id} data-co={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
+        <OpenRow key={m.id} data-co={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
           <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{m.meta ? `${m.meta.from} → ${m.meta.to}` : m.note}</span></span>
           <span className="shrink-0 text-right leading-tight"><span className="block text-[0.8125rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : '—'}</span><span className={cn('block text-[0.75rem] font-medium', m.step < 0 ? 'text-warn-700' : 'text-[#2c8a5b]')}>{coWord(m)}</span></span>
-        </button>
+        </OpenRow>
       ))}
     </Block>
   )
@@ -797,14 +806,14 @@ function Confirmed({ job, v }: { job: Job; v: StepView }) {
   if (ipo.status === 'Rejected') return <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else on “Installer PO”.</div>
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
+      <OpenRow onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
         <Avatar who={ipo.crew} size={38} />
         <span className="min-w-0 flex-1">
           <span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew].name}</span>
           <span className={cn('block text-[0.8125rem]', ipo.status === 'Accepted' ? 'text-ok-700' : 'text-warn-700')}>{ipo.id} · {ipo.status === 'Accepted' ? `took it ${ipo.date}` : 'sent — waiting for his yes'}{b ? ` · ${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''}</span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-      </button>
+      </OpenRow>
       {ipo.status === 'Sent' && v.state !== 'done' && (
         <Actions>
           <WaitFor job={job} k="confirmed" who={PEOPLE[ipo.crew].short} label="Called him — waiting" />
@@ -826,11 +835,11 @@ function MaterialsIn({ job, v }: { job: Job; v: StepView }) {
     <div className="flex flex-col gap-4">
       <Block title="On the way" right={`${open.length} order${open.length === 1 ? '' : 's'}`}>
         {open.map((p) => (
-          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
+          <OpenRow key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
             <Truck className="h-4 w-4 shrink-0 text-faint" />
             <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-semibold text-ink">{p.id} · {p.supplier}</span><span className="block truncate text-[0.78125rem] text-muted">{p.what}</span></span>
             <span className={cn('shrink-0 text-[0.8125rem] font-semibold', p.late ? 'text-bad-600' : 'text-ink-2')}>{p.eta ? `Due ${p.eta.replace(/^Due\s+/i, '')}` : 'No date yet'}</span>
-          </button>
+          </OpenRow>
         ))}
       </Block>
       {!late ? (
@@ -879,14 +888,14 @@ function Installer({ job }: { job: Job }) {
     const said = ipo.status === 'Draft' ? 'Not sent yet' : ipo.status === 'Sent' ? 'Sent — waiting for him to accept' : `Accepted ${ipo.date}`
     return (
       <div className="flex flex-col gap-3">
-        <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
+        <OpenRow onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
           <Avatar who={ipo.crew} size={38} />
           <span className="min-w-0 flex-1">
             <span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew].name}</span>
             <span className={cn('block text-[0.8125rem]', ipo.status === 'Accepted' ? 'text-ok-700' : ipo.status === 'Sent' ? 'text-warn-700' : 'text-muted')}>{ipo.id} · {said}</span>
           </span>
           <span className="shrink-0 text-right"><span className="block text-[1.125rem] font-semibold tnum text-ink">{fmtMoney(r.total)}</span><span className="block text-[0.71875rem] text-muted">his PO</span></span>
-        </button>
+        </OpenRow>
         <RatioMeter r={r} />
         <Actions>
           <Button onClick={() => s.open({ t: 'ipo', id: ipo.id })}>{ipo.status === 'Accepted' ? 'Open the PO' : 'Adjust the PO'}</Button>
@@ -1004,13 +1013,13 @@ function Deposit({ job }: { job: Job }) {
   const paid = dep.state === 'paid'
   return (
     <div>
-      <button onClick={() => s.open({ t: 'money', id: dep.id })} className="flex w-full items-center gap-4 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
+      <OpenRow onClick={() => s.open({ t: 'money', id: dep.id })} className="flex w-full items-center gap-4 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
         <span className="min-w-0 flex-1">
           <span className="block text-[1.25rem] font-semibold tnum text-ink">{fmtMoney(dep.amount || 0)}</span>
           <span className="block text-[0.8125rem] text-muted">{paid ? `Paid${dep.date ? ` ${dep.date}` : ''}` : dep.step >= 1 ? `Invoice ${dep.ref || ''} sent · ${fmtMoney(left)} open`.replace('  ', ' ') : 'Not invoiced yet'}</span>
         </span>
         <Status tone={paid ? 'ok' : dep.step >= 1 ? 'warn' : 'neutral'}>{paid ? 'Paid' : dep.step >= 1 ? 'Waiting for payment' : 'To invoice'}</Status>
-      </button>
+      </OpenRow>
       {!paid && (
         <Actions>
           {dep.step < 1 ? <Button variant="primary" icon={<Check />} onClick={() => createInvoice(dep.id)}>It’s invoiced in QuickBooks</Button> : <Button variant="primary" icon={<Check />} onClick={() => recordPayment(dep.id, left, 'Deposit paid')}>Paid in full</Button>}
@@ -1033,95 +1042,88 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
   const asked = qs.filter((c) => answers[c.k]).length
   const wrong = Object.entries(answers).filter(([, c]) => !c.ok && !c.na)
   const fixer = stepsFor(s, job).find((x) => x.key === 'fixes')?.owner
-  /* the office answers anything; the site manager his own; the crew and the client look */
-  const can = !['crew', 'client'].includes(s.role) && (!['site', 'accounting'].includes(s.role) || v.owner === me)
+  const fixerName = fixer === me ? 'your' : `${PEOPLE[fixer as PersonKey]?.name || 'the office'}’s`
+  /* only the site check's person answers it (anyone else sees it) */
+  const can = v.owner === me
+  const done = asked === qs.length
   return (
     <div className="flex flex-col gap-4">
-      <Block title="The whole site" right={`${asked} of ${qs.length} looked at`}>
-        {whole.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} />)}
+      {done && (
+        <div className={cn('flex items-center gap-2.5 rounded-xl px-4 py-3 text-[0.875rem] font-semibold', wrong.length ? 'bg-[#fdf3f1] text-bad-700' : 'bg-ok-50 text-ok-700')} data-site-done>
+          {wrong.length ? <StepIcon state="bad" size={22} /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>}
+          {wrong.length ? `Site check done — ${wrong.length === 1 ? 'one thing' : `${wrong.length} things`} to fix, on ${fixerName} list (Fix problems)` : 'Site check done — everything’s good on site'}
+        </div>
+      )}
+      <Block title="The whole site" right={`${asked} of ${qs.length} answered`}>
+        {whole.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} fixer={fixerName} />)}
       </Block>
-      <Block title="Room by room" right="missing in some rooms? tap Some">
-        {byRoom.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} />)}
-        <WallsRow job={job} />
+      <Block title="Room by room" right="some rooms missing it? tap Some">
+        {byRoom.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} fixer={fixerName} />)}
       </Block>
-      {wrong.length > 0 && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] text-bad-700" data-to-fix>{wrong.length === 1 ? 'One thing' : `${wrong.length} things`} to fix — on {fixer === me ? 'your' : `${PEOPLE[fixer as PersonKey]?.short || 'the office'}’s`} list now. Once fixed, {wrong.length === 1 ? 'it comes' : 'they come'} back to {v.owner === me ? 'you' : PEOPLE[v.owner]?.short} to look at again.</div>}
-      {v.state === 'done' && !wrong.length && <Good>Everything checked on site.</Good>}
     </div>
   )
 }
-/** one thing looked at on site: Yes, Some (pick the rooms that miss it — "2 of 3 here"), No (what's wrong) or N/A */
-function SiteRow({ job, k, can }: { job: Job; k: string; can: boolean }) {
+/** one thing looked at on site: Yes, Some (which rooms don't have it — "2 of 3 have it"), No (what's wrong) or N/A.
+ *  What happens is said right under it: a No or a Some goes on the fix list. */
+function SiteRow({ job, k, can, fixer }: { job: Job; k: string; can: boolean; fixer: string }) {
   const s = useStore()
   const c = SITE_CHECKS.find((x) => x.k === k)!
   const a = s.stepRecs[job.id]?.heights?.checks?.[k]
   const rooms = siteRooms(s.rooms[job.id] || [], k)
+  const byRoom = !!c.byRoom && rooms.length > 1
   const [some, setSome] = React.useState(false)
-  const val: SiteVal | undefined = !a ? (some ? 'some' : undefined) : a.na ? 'na' : a.ok ? 'yes' : a.rooms?.length && a.rooms.length < rooms.length ? 'some' : 'no'
   const missing = a && !a.ok && !a.na ? a.rooms || [] : []
+  const val: SiteVal | undefined = !a ? (some ? 'some' : undefined) : a.na ? 'na' : a.ok ? 'yes' : byRoom && missing.length && missing.length < rooms.length ? 'some' : 'no'
   const Ic = CHECK_ICON[k] || Check
   const pick = (x: SiteVal | null) => {
+    if (x === 'some' && val === 'some') return
     setSome(x === 'some')
-    if (x === null) return setSiteAnswer(job.id, k, null)
+    if (x === null || x === 'some') { if (a) setSiteAnswer(job.id, k, null); return }
     if (x === 'yes') return setSiteAnswer(job.id, k, { ok: true })
     if (x === 'na') return setSiteAnswer(job.id, k, { ok: true, na: true })
-    if (x === 'no') return setSiteAnswer(job.id, k, { ok: false, note: a?.note, rooms: c.byRoom ? rooms : undefined })
+    setSiteAnswer(job.id, k, { ok: false, note: a?.note, rooms: byRoom ? rooms : undefined })
   }
-  /* Some: tap the rooms that miss it — each tap is kept */
+  /* Some: tap the rooms that don't have it — each tap is kept */
   const toggle = (room: string) => {
     const next = missing.includes(room) ? missing.filter((x) => x !== room) : [...missing, room]
     if (!next.length) { setSiteAnswer(job.id, k, null); setSome(true); return }
     setSiteAnswer(job.id, k, { ok: false, note: a?.note, rooms: next })
   }
-  const here = rooms.length - missing.length
-  const words = !a ? (some ? 'Tap the rooms that miss it' : c.sub)
+  const have = rooms.length - missing.length
+  const wrong = !!a && !a.ok && !a.na
+  const words = !a ? (some ? 'Which rooms don’t have it? Tap them.' : c.sub)
     : a.na ? 'Not needed here'
       : a.ok ? `Yes${a.by ? ` · ${PEOPLE[a.by]?.short}${a.at ? ` ${a.at}` : ''}` : ''}`
-        : `${c.byRoom && rooms.length ? `${here} of ${rooms.length} here${missing.length ? ` — missing: ${missing.join(', ')}` : ''}` : 'No'}${a.note ? ` · ${a.note}` : ''}${a.fixed ? ` · fixed ${a.fixed} — look again` : ''}`
-  const showRooms = c.byRoom && rooms.length > 0 && (val === 'some' || val === 'no')
+        : `${byRoom ? `${have} of ${rooms.length} have it — missing: ${missing.join(', ')}` : 'No'}${a.note ? ` · ${a.note}` : ''}`
+  const showRooms = byRoom && (val === 'some' || val === 'no')
   return (
     <div className="border-t border-line-2 px-4 py-3 first:border-t-0" data-site={k} data-answer-is={val}>
       <div className="flex items-center gap-3 max-sm:flex-wrap @max-lg:flex-wrap">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden @max-lg:hidden"><Ic className="h-4 w-4" /></span>
+        <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:hidden @max-lg:hidden', wrong ? 'bg-bad-50 text-bad-600' : a?.ok && !a.na ? 'bg-ok-50 text-ok-700' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1 max-sm:basis-full @max-lg:basis-full">
           <span className="block text-[0.875rem] font-semibold text-ink">{c.q}</span>
-          <span className={cn('block text-[0.78125rem]', a && !a.ok && !a.na ? (a.fixed ? 'font-medium text-brand-700' : 'font-medium text-bad-600') : a?.ok && !a.na ? 'text-[#2c8a5b]' : 'text-muted')}>{words}</span>
+          <span className={cn('block text-[0.78125rem]', wrong ? 'font-medium text-bad-600' : a?.ok && !a.na ? 'text-[#2c8a5b]' : some ? 'font-medium text-warn-700' : 'text-muted')}>{words}</span>
         </span>
-        <SitePick q={c.q} byRoom={!!c.byRoom && rooms.length > 1} value={val} onPick={pick} disabled={!can} className="max-sm:ml-auto @max-lg:ml-auto" />
+        <SitePick q={c.q} byRoom={byRoom} value={val} onPick={pick} disabled={!can} className="max-sm:ml-auto @max-lg:ml-auto" />
       </div>
       {showRooms && (
         <div className="mt-2.5 flex flex-wrap gap-1.5 sm:pl-12" data-site-rooms>
           {rooms.map((r) => {
             const miss = missing.includes(r)
             return (
-              <button key={r} type="button" disabled={!can} data-room-here={!miss || undefined} onClick={() => toggle(r)} aria-pressed={miss} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition', miss ? 'border-bad-200 bg-bad-50 text-bad-700' : 'border-ok-200 bg-ok-50/70 text-ok-700', 'enabled:hover:brightness-[0.98]')}>
-                {miss ? <X className="h-3.5 w-3.5" strokeWidth={3} /> : <Check className="h-3.5 w-3.5" strokeWidth={3} />}{r}
+              <button key={r} type="button" disabled={!can} data-missing={miss || undefined} onClick={() => toggle(r)} aria-pressed={miss} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition', miss ? 'border-bad-200 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 enabled:hover:border-[#cdc7bc]')}>
+                {miss && <X className="h-3.5 w-3.5" strokeWidth={3} />}{r}
               </button>
             )
           })}
         </div>
       )}
-      {a && !a.ok && !a.na && <div className="mt-2 sm:pl-12"><NoNote value={a.note} disabled={!can} autoFocus={!a.note && !c.byRoom} placeholder="What’s wrong? (optional) — e.g. the GC says next week" onSave={(t) => setSiteAnswer(job.id, k, { ok: false, note: t, rooms: a.rooms })} /></div>}
-    </div>
-  )
-}
-/** the wall heights: measured on site — the square feet and the materials follow */
-function WallsRow({ job }: { job: Job }) {
-  const s = useStore()
-  const [measure, setMeasure] = React.useState(false)
-  const hs = heightStatus(s, job.id)
-  if (!hs.total) return null
-  const done = hs.measured === hs.total
-  return (
-    <div className="border-t border-line-2 px-4 py-3" data-site="walls">
-      <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash text-muted max-sm:hidden"><Ruler className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[0.875rem] font-semibold text-ink">Wall heights measured?</span>
-          <span className={cn('block text-[0.78125rem]', done ? 'text-[#2c8a5b]' : 'text-muted')}>{done ? 'Measured — the square feet follow' : `${hs.measured} of ${hs.total} walls measured`}</span>
-        </span>
-        {!done && !measure && <Button size="sm" icon={<Ruler />} onClick={() => setMeasure(true)}>Measure the walls</Button>}
-      </div>
-      {measure && !done && <div className="mt-2"><HeightsInline jobId={job.id} /></div>}
+      {wrong && (
+        <div className="mt-2 flex flex-col gap-1.5 sm:pl-12">
+          <NoNote value={a!.note} disabled={!can} autoFocus={can && !a!.note && !byRoom} placeholder="What’s wrong? (optional) — e.g. the GC says next week" onSave={(t) => setSiteAnswer(job.id, k, { ok: false, note: t, rooms: a!.rooms })} />
+          <span className="text-[0.75rem] font-medium text-bad-600" data-goes-to-fix>→ On {fixer} list to fix — it comes back here to look at again</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -1286,14 +1288,14 @@ function TileProblems({ job }: { job: Job }) {
   return (
     <Block title={probs.length === 1 ? 'A problem' : `${probs.length} problems`}>
       {probs.map((t) => (
-        <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+        <OpenRow key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
           <StepIcon state="bad" size={22} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.title}</span>
             <span className="block truncate text-[0.78125rem] text-muted">{[t.owner === me ? 'You' : PEOPLE[t.owner]?.short, t.state === 'waiting' && t.waitingOn ? `waiting on ${t.waitingOn}` : t.due].filter(Boolean).join(' · ')}</span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-        </button>
+        </OpenRow>
       ))}
     </Block>
   )

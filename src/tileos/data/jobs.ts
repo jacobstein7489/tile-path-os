@@ -120,7 +120,7 @@ export const JOBS0: Record<string, Job> = {
     id: 'mdrive', clientPO: 'MD-2026-09', name: 'Mark Drive', client: 'Mark Drive LLC', clientId: 'markdrive', address: 'Mark Drive, Main house',
     stage: 'ready', status: 'warn', headline: 'Wall heights to check on site · floors released',
     issues: [{ tone: 'warn', text: 'Wall heights to check on site · floors released' }, { tone: 'warn', text: 'Wall tile not confirmed' }],
-    next: { text: 'Check the wall heights on site', owner: 'ys', due: 'Wed' },
+    next: { text: 'Check the floor levels on site', owner: 'ys', due: 'Wed' },
     keyDate: { label: 'Ready', value: 'Sep 25', tone: 'warn' }, readiness: 'partial',
     swatch: 'travertine', building: 'house', pm: 'ys', site: 'ys', contract: 47500,
     stageDates: { won: 'Sep 1', setup: 'Sep 8', verification: 'Sep 18', ready: 'Sep 25' },

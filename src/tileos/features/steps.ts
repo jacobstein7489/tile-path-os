@@ -15,7 +15,6 @@ import type { Room } from '@/tileos/data/jobs'
 import { teamOf, EST_TEAM0 } from '@/tileos/data/estimates'
 import { TODAY, addDays, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { settingStatus } from './setting'
-import { heightStatus } from './heights'
 import { materialStatus } from './takeoff'
 import { installerOf } from './upcoming'
 import { matBy, runTaskAction } from './flows'
@@ -157,24 +156,24 @@ export const PHASES: { key: string; label: string }[] = [
  * and the deliveries. The meeting, the estimate check after it, the layouts and showing the installer the job are
  * checked off (or set on the calendar); the rest read themselves from what happened. */
 export const STEP_DEFAULTS: StepDef[] = [
-  { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get the paperwork', owner: 'estimator' },
-  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter the paperwork', owner: 'takeoff', after: ['getpaper'] },
-  { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Quantities', owner: 'takeoff', after: ['rooms'] },
-  { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
+  { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get paperwork', owner: 'estimator' },
+  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper'] },
+  { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Check quantities', owner: 'takeoff', after: ['rooms'] },
+  { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
-  { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm the scope', owner: 'yakov', after: ['design'], custom: true },
-  { key: 'tile', phase: 'grout', label: 'Tile and grout picked — a picture and the grout for every tile', short: 'Tile and grout', owner: 'estimator', after: ['rooms'] },
-  { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
-  { key: 'level', phase: 'level', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
-  { key: 'heights', phase: 'site', label: 'Site checked — wall heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
-  { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fixes', owner: 'ys' },
-  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Installer PO', owner: 'ys', after: ['rooms'] },
-  { key: 'walk', phase: 'installer', label: 'Job shown to the installer', short: 'Show him the job', owner: 'yakov', after: ['installer'], custom: true },
-  { key: 'confirmed', phase: 'installer', label: 'Installer confirmed — he took the PO and the dates', short: 'Installer confirmed', owner: 'ys', after: ['installer'] },
-  { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Tile delivery date', owner: 'office', after: ['rooms'] },
-  { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Tile delivered', owner: 'yakov', after: ['order'] },
+  { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm scope', owner: 'yakov', after: ['design'], custom: true },
+  { key: 'tile', phase: 'grout', label: 'Tile and grout picked — a picture and the grout for every tile', short: 'Pick tile & grout', owner: 'estimator', after: ['rooms'] },
+  { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Set layouts', owner: 'office', after: ['design'], custom: true },
+  { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['rooms'] },
+  { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['rooms'] },
+  { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
+  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Send installer PO', owner: 'ys', after: ['rooms'] },
+  { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
+  { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
+  { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['rooms'] },
+  { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Receive tile', owner: 'yakov', after: ['order'] },
   { key: 'materials', phase: 'materials', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
-  { key: 'matin', phase: 'materials', label: 'Our materials delivered', short: 'Materials delivered', owner: 'matBy', after: ['materials'] },
+  { key: 'matin', phase: 'materials', label: 'Our materials delivered', short: 'Receive materials', owner: 'matBy', after: ['materials'] },
   { key: 'deposit', phase: 'money', label: 'Deposit invoiced and paid', short: 'Deposit', owner: 'accounting' },
 ]
 /** the built-in steps before the paperwork was split (a company's saved list from then still has these) */
@@ -196,7 +195,10 @@ const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'] }
 const MOVED: Record<number, Record<string, [string, string]>> = { 4: { change: ['office', 'yakov'] } }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
-const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting — confirmed', 'Confirm what was decided'])
+const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting — confirmed', 'Confirm what was decided',
+  /* the clearer names (Oct 26): what a saved list still calls them gets the new name */
+  'Get the paperwork', 'Enter the paperwork', 'Quantities', 'Underlayment', 'Confirm the scope', 'Tile and grout', 'Layouts', 'Floor heights', 'Fixes', 'Installer PO', 'Show him the job', 'Installer confirmed', 'Tile delivery date', 'Tile delivered', 'Materials delivered',
+  'Floor heights — the high and the low point of every floor', 'Site checked — wall heights, water, electrical, plumbing', 'Job shown to the installer', 'Installer confirmed — he took the PO and the dates'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS
@@ -332,21 +334,16 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       return { state: 'now', note: 'Find out when it’s being delivered', action: { label: 'Mark ordered', pick: 'delivery' } }
     }
     case 'heights': {
-      const hs = heightStatus(s, j.id)
       const answers = rec.checks || {}
       const qs = siteQuestions(rooms)
       const asked = qs.filter((c) => answers[c.k]).length
       const wrong = wrongOf(rec)
-      /* the wall heights: measured on site (the square feet follow), or answered by hand */
-      const walls = !hs.total || hs.measured === hs.total || !!answers.walls?.ok || !!answers.walls?.na
       if (rec.done) return { state: 'done', note: rec.note || 'Checked on site' }
-      /* everything looked at — what's wrong is on its way to be fixed (the next step) */
-      if (asked === qs.length && walls) return { state: 'done', note: wrong.length ? `Checked on site — ${wrong.length} to fix` : 'Everything checked on site' }
-      /* heights already measured (before this checklist had the rest) */
-      if (hs.total && hs.measured === hs.total && !Object.keys(answers).length) return { state: 'done', note: 'Square feet and materials follow the real heights' }
+      /* everything looked at — what's wrong is on its way to be fixed (Fix problems) */
+      if (asked === qs.length) return { state: 'done', note: wrong.length ? `Checked on site — ${wrong.length} to fix` : 'Everything checked on site' }
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !Object.keys(answers).length && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: asked ? `${asked} of ${qs.length} looked at${walls ? '' : ' · wall heights to measure'}${wrong.length ? ` · ${wrong.length} to fix` : ''}` : 'Power, water, drains, LED tracks, windows, wall heights — and the site ready for us', action: { label: 'Do the site check' } }
+      return { state: 'now', note: asked ? `${asked} of ${qs.length} answered${wrong.length ? ` · ${wrong.length} to fix` : ''}` : 'Power, water, drains, LED tracks, windows, the rough-in — and the site ready for us', action: { label: 'Do the site check' } }
     }
     case 'fixes': {
       /* what the site check found: someone gets each one fixed — then it's back on the site manager's list to look again */
@@ -607,7 +604,7 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
     /* the step's own task is done too */
     st.tasks.forEach((x) => { if (x.step === `${jobId}:${key}` && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'Done' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: done`, detail: note } as any)
-  }, `${def.short} — done!`, { tone: 'done', sub: to.length ? 'The next steps are on their lists now.' : 'Checked off on the project.', to: to.length ? to : undefined, close: !!o.close })
+  }, `${def.short} — done!`, { tone: 'done', sub: to.length ? 'The next steps are on their lists now.' : 'The project shows it done.', to: to.length ? to : undefined, close: !!o.close })
 }
 
 /** the paperwork's quantities are off: they went back with the right numbers — the step waits for the new paperwork */

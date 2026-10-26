@@ -667,14 +667,15 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
 /* ================= circles: every step a circle that fills — done is green with a check, a problem is red, waiting
  * is amber, whose turn it is is blue. "beside": the words next to each circle, in one line (the estimate); "below":
  * the words under each, in groups with a name over them (the project — every part of the job). ================= */
-export type CircleState = 'done' | 'now' | 'wait' | 'bad' | 'later'
+export type CircleState = 'done' | 'now' | 'wait' | 'bad' | 'later' | 'todo'
 export type CircleStep = { key: string; label: string; sub?: string; state: CircleState; pct?: number; center?: React.ReactNode; mine?: boolean; attrs?: Record<string, string>
   /** a gate: it can't start until what's before it is done — a dashed ring with a lock */
   lock?: boolean }
 export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
-const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd' }
-const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9' }
-const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint' }
+/* blue is "your turn" (and where the project is) — someone else's open step is a dark ring: to do */
+const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd', todo: '#3f4654' }
+const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9', todo: '#e3e5e8' }
+const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint', todo: 'text-ink-2' }
 
 /** one circle: green and full with a check when done, red with ! for a problem, else a ring that fills */
 export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: number; on?: boolean; /** "where it's up to": filled blue, breathing */ solid?: boolean }) {
@@ -698,7 +699,7 @@ export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: nu
         <circle cx={size / 2} cy={size / 2} r={filled ? size / 2 : r} fill={filled ? C_ARC[st.state] : '#fff'} stroke={filled ? 'none' : C_TRACK[st.state]} strokeWidth={w} />
         {!filled && pct > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C_ARC[st.state]} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} className="transition-[stroke-dasharray] duration-700" />}
       </svg>
-      <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum leading-none', txt, filled ? 'text-white' : st.state === 'now' ? 'text-brand-700' : st.state === 'wait' ? 'text-warn-700' : 'text-faint')}>
+      <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum leading-none', txt, filled ? 'text-white' : st.state === 'now' ? 'text-brand-700' : st.state === 'wait' ? 'text-warn-700' : st.state === 'todo' ? 'text-ink-2' : 'text-faint')}>
         {st.state === 'done' ? <Check className={size >= 34 ? 'h-4 w-4' : 'h-3.5 w-3.5'} strokeWidth={3.2} /> : st.state === 'bad' ? '!' : st.center}
       </span>
       {st.mine && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-brand-600 ring-2 ring-white" aria-label="Your turn" />}

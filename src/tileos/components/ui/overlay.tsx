@@ -41,6 +41,9 @@ export function Modal({
         <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }}>
           <Dialog.Content
             aria-describedby={undefined}
+            /* the pop-up in the middle (Done! · Undo · OK) isn't outside the window — tapping it keeps the window open */
+            onPointerDownOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
+            onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onOpenAutoFocus={(e) => {
               const el = (e.currentTarget as HTMLElement)?.querySelector?.('[data-autofocus]') as HTMLElement | null
               if (el) {

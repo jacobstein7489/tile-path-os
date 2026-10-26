@@ -59,6 +59,7 @@ export function CenterPop() {
       <div
         key={pop.id}
         ref={card}
+        data-center-pop
         role="status"
         aria-live="polite"
         onMouseEnter={() => setHover(true)}

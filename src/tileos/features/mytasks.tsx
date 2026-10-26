@@ -716,7 +716,7 @@ const COMMON_TASKS: { t: string; for: Role[] }[] = [
   { t: 'Ask the designer for the grout color', for: ['owner', 'pm', 'office', 'estimator'] },
   { t: 'Follow up on the change order with the GC', for: ['owner', 'pm', 'office', 'estimator'] },
   { t: 'Order the setting materials', for: ['owner', 'pm', 'office', 'materials'] },
-  { t: 'Check the wall heights on site', for: ['owner', 'pm', 'office', 'site'] },
+  { t: 'Check the floor levels on site', for: ['owner', 'pm', 'office', 'site'] },
   { t: 'Walk the job with the installer', for: ['owner', 'pm', 'site'] },
   { t: 'Count the tile boxes when they come', for: ['owner', 'pm', 'site', 'materials'] },
   { t: 'Check the drains are set before tile', for: ['owner', 'pm', 'site'] },

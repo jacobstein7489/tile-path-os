@@ -6,35 +6,36 @@
  *   People        — the client and their contact, the designer, the installer, our site manager; the dates
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
-import { Camera, Check, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, CalendarDays, Grid2x2, Lock, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Grid2x2, Lock, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
-import { GROUTS, byTag, filesFor, type Tile } from '@/tileos/data/jobs'
+import { GROUTS, byTag, filesFor, tilesOf, surfacePct, SURF_LABEL, type Tile } from '@/tileos/data/jobs'
+import { METHODS } from '@/tileos/data/takeoff'
+import { methodOf } from '../takeoff'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
 import { timeLabel } from '@/tileos/data/calendar'
 import { keepFiles, filesOfDoc } from '@/tileos/lib/files'
 import { useSaveStatus } from '@/tileos/lib/save'
-import { stepsFor, IN_FIELD_STAGES } from '../steps'
+import { stepsFor, paperQty, takesTile, IN_FIELD_STAGES } from '../steps'
 import { installerOf } from '../upcoming'
 import { Circle } from '@/tileos/components/ui/page'
-import { roomsOf, ROOM_WORD, type RoomView, type ChipTone } from '../tracks'
+import { roomsOf, ROOM_WORD, STEP_SHORT, type RoomView, type RoomCheck, type ChipTone } from '../tracks'
 import type { BoardView } from './board'
 
-/** a part of the details: a small title, a count, and one link on the right */
-function Part({ title, count, right, children, id }: { title: string; count?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
+/** a part of the details: its title and what it is in one line, one link on the right */
+function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
   return (
     <section data-detail={id} className="px-5 py-3.5 max-sm:px-4">
-      {/* the tab above says what it is — here only how many, and the one link */}
-      <h4 className="sr-only">{title}</h4>
-      {(count != null || right) && (
-        <header className="mb-2.5 flex min-h-7 items-center gap-2">
-          {count != null && <span className="text-[0.8125rem] text-muted">{count}</span>}
-          {right && <span className="ml-auto flex items-center gap-1">{right}</span>}
-        </header>
-      )}
+      <header className="mb-2.5 flex min-w-0 items-start gap-2">
+        <span className="min-w-0 flex-1 leading-tight">
+          <h4 className="text-[0.96875rem] font-semibold text-ink">{title}</h4>
+          {sub && <span className="mt-0.5 block text-[0.78125rem] text-muted">{sub}</span>}
+        </span>
+        {right && <span className="flex shrink-0 items-center gap-1">{right}</span>}
+      </header>
       {children}
     </section>
   )
@@ -48,14 +49,15 @@ export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (
   const tiles = Object.keys(s.tiles[job.id] || {}).length
   const rooms = (s.rooms[job.id] || []).length
   const files = s.files.filter((f) => f.jobId === job.id).length
+  const n = (x: number) => (x ? <span className="ml-1 font-medium text-muted">{x}</span> : null)
   return (
-    <div data-details className="flex h-full min-h-0 flex-col">
+    <div data-details className="@container flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-line-2 px-5 pb-3 pt-3.5 max-sm:px-4">
-        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:min-w-0 [&>button]:flex-1 [&>button]:justify-center" items={[
-          { key: 'scope', label: <><span className="max-sm:hidden">Scope of work</span><span className="sm:hidden">Scope</span>{rooms ? ` · ${rooms}` : ''}</> },
-          { key: 'tiles', label: `Tiles${tiles ? ` · ${tiles}` : ''}` },
+        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:min-w-0 [&>button]:flex-1 [&>button]:justify-center [&>button]:whitespace-nowrap [&>button]:px-1.5" items={[
+          { key: 'scope', label: <><span className="hidden @[30rem]:inline">Scope of work</span><span className="@[30rem]:hidden">Scope</span>{n(rooms)}</> },
+          { key: 'tiles', label: <>Tiles{n(tiles)}</> },
           { key: 'people', label: 'People' },
-          { key: 'files', label: <><span className="max-sm:hidden">Documents</span><span className="sm:hidden">Docs</span>{files ? ` · ${files}` : ''}</> },
+          { key: 'files', label: <><span className="hidden @[30rem]:inline">Documents</span><span className="@[30rem]:hidden">Docs</span>{n(files)}</> },
         ]} />
       </div>
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-job-tab={tab}>
@@ -65,11 +67,16 @@ export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (
   )
 }
 
-/* ---------------- Scope of work: every room, where it really is ---------------- */
+/* ---------------- Scope of work: every room, where it really is — tap one for its walls and floors ---------------- */
 const CHIP: Record<ChipTone, string> = { bad: 'bg-bad-50 text-bad-700', warn: 'bg-[#fbf2e1] text-warn-700', todo: 'bg-wash-2 text-muted', ok: 'bg-ok-50 text-ok-700' }
 function RoomRing({ r, inField }: { r: RoomView; inField: boolean }) {
-  const st = r.state === 'done' ? 'done' : r.state === 'stopped' ? 'bad' : r.state === 'installing' ? 'now' : 'later'
+  const st = r.state === 'done' ? 'done' : r.state === 'stopped' ? 'bad' : r.state === 'installing' ? 'now' : r.state === 'ready' ? 'done' : 'later'
   return <Circle st={{ key: r.room.name, label: r.room.name, state: st, pct: r.state === 'installing' ? Math.max(r.pct, 6) : 0, center: inField ? `${r.pct}%` : '—' }} size={38} />
+}
+const CHECK_MARK: Record<RoomCheck['state'], React.ReactNode> = {
+  ok: <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>,
+  todo: <span className="inline-flex h-4 w-4 shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white" />,
+  bad: <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#d7342a] text-[0.625rem] font-black text-white">!</span>,
 }
 function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const s = useStore()
@@ -81,36 +88,77 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const ready = rooms.filter((r) => r.state === 'ready').length
   const done = rooms.filter((r) => r.state === 'done').length
   const confirmed = ['done', 'na'].includes(steps.find((v) => v.key === 'change')?.state || '') || inField
+  const [openRoom, setOpenRoom] = React.useState<string | null>(null)
   return (
     <Part
       id="scope"
       title="Scope of work"
-      count={rooms.length ? <><b className="font-semibold text-ink">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? ` · from estimate ${est.id}` : ''}</> : undefined}
+      sub={rooms.length ? <><b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? ` · from estimate ${est.id}` : ''} · tap a room for its walls and floors</> : 'Every room from the approved estimate'}
       right={rooms.length ? <button onClick={() => open({ t: 'scope' })} className={LINK}><Grid2x2 className="h-3.5 w-3.5" />Every wall & floor</button> : undefined}
     >
       {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
-      <div className="-mx-1">
+      <div className="flex flex-col gap-1.5">
         {rooms.map((r) => {
           const chips = r.state === 'ready' ? [{ tone: 'ok' as ChipTone, text: 'Ready' }] : r.chips
+          const on = openRoom === r.room.name
           return (
-            <button key={r.room.name} data-room={r.room.name} data-room-state={r.state} onClick={() => open({ t: 'room', name: r.room.name })} className="flex w-full min-w-0 items-center gap-3 rounded-xl border-b border-line-2 px-1 py-2.5 text-left transition last:border-b-0 hover:bg-[#f9f7f3] max-sm:flex-wrap max-sm:gap-2">
-              <RoomRing r={r} inField={inField} />
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.room.name}</span>
-                <span className={cn('block truncate text-[0.75rem]', r.state === 'installing' ? 'text-brand-700' : r.state === 'done' ? 'text-[#2c8a5b]' : 'text-muted')}>{ROOM_WORD[r.state] ? `${ROOM_WORD[r.state]} · ` : ''}{r.sub}</span>
-              </span>
-              {chips.length > 0 && (
-                <span className="flex min-w-0 max-w-[58%] shrink items-center justify-end gap-1 max-sm:ml-[3.125rem] max-sm:max-w-none max-sm:basis-full max-sm:justify-start" data-chips>
-                  {chips.slice(0, 2).map((c) => <span key={c.text} data-chip={c.tone} title={c.text} className={cn('min-w-0 truncate rounded-full px-2 py-0.5 text-[0.71875rem] font-semibold', CHIP[c.tone])}>{c.text}</span>)}
-                  {chips.length > 2 && <span title={chips.slice(2).map((c) => c.text).join(' · ')} className="shrink-0 rounded-full bg-wash-2 px-1.5 py-0.5 text-[0.71875rem] font-semibold text-muted">+{chips.length - 2}</span>}
+            <div key={r.room.name} data-room={r.room.name} data-room-state={r.state} className={cn('overflow-hidden rounded-xl border bg-white', on ? 'border-[#d8d1c5] shadow-card' : 'border-[#ece7de]')}>
+              <button onClick={() => setOpenRoom(on ? null : r.room.name)} aria-expanded={on} className="flex w-full min-w-0 items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[#fbfaf7] max-sm:flex-wrap max-sm:gap-2" data-room-head>
+                <RoomRing r={r} inField={inField} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.room.name}</span>
+                  <span className={cn('block truncate text-[0.75rem]', r.state === 'installing' ? 'text-brand-700' : r.state === 'done' ? 'text-[#2c8a5b]' : 'text-muted')}>{ROOM_WORD[r.state] ? `${ROOM_WORD[r.state]} · ` : ''}{r.sub}</span>
                 </span>
-              )}
-            </button>
+                {chips.length > 0 && (
+                  <span className="flex min-w-0 max-w-[52%] shrink items-center justify-end gap-1 max-sm:ml-[3.125rem] max-sm:max-w-none max-sm:basis-full max-sm:justify-start" data-chips>
+                    {chips.slice(0, 2).map((c) => <span key={c.text} data-chip={c.tone} title={c.text} className={cn('min-w-0 truncate rounded-full px-2 py-0.5 text-[0.71875rem] font-semibold', CHIP[c.tone])}>{c.text}</span>)}
+                    {chips.length > 2 && <span title={chips.slice(2).map((c) => c.text).join(' · ')} className="shrink-0 rounded-full bg-wash-2 px-1.5 py-0.5 text-[0.71875rem] font-semibold text-muted">+{chips.length - 2}</span>}
+                  </span>
+                )}
+                <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition max-sm:hidden', on && 'rotate-180')} />
+              </button>
+              {on && <RoomBody job={job} r={r} inField={inField} onOpen={() => open({ t: 'room', name: r.room.name })} />}
+            </div>
           )
         })}
       </div>
       {rooms.length > 0 && confirmed && <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#f6f3ee] px-3 py-2 text-[0.78125rem] text-muted" data-scope-locked><Lock className="h-3.5 w-3.5 shrink-0 text-faint" />The scope is set — a change goes through a change order.</div>}
     </Part>
+  )
+}
+/** a room, open: what it still needs before the crew (or how far it is), and every wall and floor — its tile, square
+ *  feet, layout and what it's set on */
+function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField: boolean; onOpen: () => void }) {
+  return (
+    <div className="border-t border-line-2 bg-[#fcfbf9] px-3 pb-3 pt-2.5" data-room-body>
+      {r.checks.length > 0 && (
+        <div className="mb-2.5 grid grid-cols-2 gap-x-3 gap-y-1 max-sm:grid-cols-1" data-room-checks>
+          {r.checks.map((c) => (
+            <span key={c.label} data-check={c.state} className="flex min-w-0 items-center gap-1.5 text-[0.78125rem]">
+              {CHECK_MARK[c.state]}
+              <span className={cn('truncate', c.state === 'bad' ? 'font-semibold text-bad-700' : c.state === 'ok' ? 'text-ink-2' : 'text-muted')}>{c.label}{c.note && c.state !== 'ok' ? ` — ${c.note}` : ''}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="overflow-hidden rounded-lg border border-[#ece7de] bg-white">
+        {r.room.surfaces.map((x) => {
+          const t = tilesOf(job.id).find((y) => y.tag === x.tile)
+          const m = methodOf(r.room.name, x)
+          const set = x.sf ? `${METHODS[m.key]?.short || m.key}${m.auto ? ' (suggested)' : ''}` : ''
+          return (
+            <div key={x.name} data-surface-row={x.name} className="flex min-w-0 items-center gap-2.5 border-t border-line-2 px-2.5 py-1.5 first:border-t-0">
+              <TileImg tile={t} size={26} radius={6} />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.8125rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {t ? `${t.tag} ${t.name}` : x.tile || 'no tile yet'}{x.sf ? ` · ${x.sf} SF` : ''}</span></span>
+                <span className="block truncate text-[0.71875rem] text-muted">{[x.layout ? `Layout: ${x.layout.replace(/\s*·.*$/, '')}` : takesTile(x.name) ? 'Layout: not set' : '', set ? `On: ${set}` : '', inField ? (x.state === 'working' ? `${surfacePct(x)}% in` : SURF_LABEL[x.state]) : ''].filter(Boolean).join(' · ')}</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-2 flex justify-end"><button onClick={onOpen} className={LINK}>Open the room — photos, daily log<ChevronRight className="h-3.5 w-3.5" /></button></div>
+    </div>
   )
 }
 
@@ -122,25 +170,32 @@ function TilesPart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) 
   const used = tiles.filter((t) => flat.some((f) => f.x.tile === t.tag))
   const list = used.length ? [...used, ...tiles.filter((t) => !used.includes(t))] : tiles
   return (
-    <Part id="tiles" title="Tiles" count={tiles.length ? `${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'}` : undefined}>
+    <Part id="tiles" title="Tiles" sub={tiles.length ? `${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'} — where each goes, its grout, how much, and whether it’s here` : 'Every tile on the job'}>
       {!tiles.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
       <div className="flex flex-col gap-1.5">
-        {list.map((t) => <TileRow key={t.tag} t={t} where={flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)} onStep={onStep} />)}
+        {list.map((t) => <TileRow key={t.tag} job={job} t={t} where={flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)} onStep={onStep} />)}
       </div>
     </Part>
   )
 }
-function TileRow({ t, where, onStep }: { t: Tile; where: string[]; onStep?: (k: string) => void }) {
+function TileRow({ job, t, where, onStep }: { job: Job; t: Tile; where: string[]; onStep?: (k: string) => void }) {
+  const s = useStore()
   const g = t.grout ? GROUTS[t.grout] : undefined
   const pic = !!(t.photo || t.swatch)
   const pick = () => onStep?.('tile')
+  const q = paperQty(s, job.id, t)
+  const c = s.checks.find((x) => x.jobId === job.id && x.tag === t.tag)
+  const unit = q.unit === 'boxes' ? 'boxes' : 'SF'
+  const qty = q.have != null ? <>{q.have.toLocaleString('en-US')} {unit} on the paperwork{q.need != null ? <> · we need {q.need.toLocaleString('en-US')}{q.short > 0 ? <b className="font-semibold text-bad-600"> — {q.short.toLocaleString('en-US')} short</b> : ''}</> : null}</> : q.need != null ? <>We need {q.need.toLocaleString('en-US')} {unit} · <span className="text-warn-700">not on the paperwork yet</span></> : null
+  const here = c ? (c.received >= c.ordered ? { t: `On site — ${c.received} ${c.unit}`, c: 'text-[#2c8a5b]' } : c.received > 0 ? { t: `Short — ${c.received} of ${c.ordered} ${c.unit} here`, c: 'font-semibold text-bad-600' } : { t: c.eta ? `Coming ${c.eta.replace(/^\w+,\s*/, '')}` : 'Ordered — no date yet', c: 'text-warn-700' }) : null
   return (
-    <div data-tile={t.tag} className="flex items-center gap-3 rounded-xl border border-[#ece7de] bg-white px-2.5 py-2">
+    <div data-tile={t.tag} className="flex items-start gap-3 rounded-xl border border-[#ece7de] bg-white px-2.5 py-2">
       {pic ? <TileImg tile={t} size={46} radius={9} /> : <button onClick={pick} aria-label={`Picture of ${t.tag}`} className="inline-flex h-[2.875rem] w-[2.875rem] shrink-0 items-center justify-center rounded-[0.5625rem] border border-dashed border-[#c9ced6] text-faint hover:border-brand-300 hover:text-brand-600"><Camera className="h-5 w-5" /></button>}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 leading-snug">
         <div className="truncate text-[0.875rem] font-semibold text-ink">{t.tag} {t.name}<span className="font-normal text-muted">{t.size ? ` · ${t.size}` : ''}</span></div>
-        <div className="truncate text-[0.75rem] text-muted">{[t.finish, t.maker, t.supplier].filter(Boolean).join(' · ') || 'No details yet'}</div>
         <div className={cn('truncate text-[0.75rem]', where.length ? 'text-ink-2' : 'text-warn-700')}>{where.length ? where.join(', ') : 'Not on a wall or floor yet'}</div>
+        {qty && <div className="truncate text-[0.75rem] text-muted" data-tile-qty>{qty}</div>}
+        {here && <div className={cn('truncate text-[0.75rem]', here.c)} data-tile-here>{here.t}</div>}
       </div>
       <span className="flex shrink-0 flex-col items-end gap-0.5 text-[0.78125rem]">
         {g ? <span className="inline-flex items-center gap-1.5 font-medium text-ink-2"><GroutDot grout={t.grout} />{g.name}</span> : <button onClick={pick} className="font-semibold text-warn-700 hover:underline">No grout yet</button>}
@@ -150,7 +205,7 @@ function TileRow({ t, where, onStep }: { t: Tile; where: string[]; onStep?: (k: 
   )
 }
 
-/* ---------------- People and dates ---------------- */
+/* ---------------- People: who's on the job, how to reach them, and what each one has on it now ---------------- */
 function PeoplePart({ job }: { job: Job }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -159,30 +214,52 @@ function PeoplePart({ job }: { job: Job }) {
   const designer = s.designers.find((d) => d.clients.includes(job.clientId))
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
-  const site = (job.site || s.team.find((m) => m.role === 'site' && m.status !== 'off')?.key) as PersonKey | undefined
   const b = s.bookings.find((x) => x.jobId === job.id)
   const start = job.dates?.start || (b ? labelFromIso(b.start) : s.prep[job.id]?.targetISO ? labelFromIso(s.prep[job.id]!.targetISO!) : undefined)
   const finish = job.dates?.finish || (b ? labelFromIso(b.end) : undefined)
   const next = s.events.filter((e) => e.jobId === job.id && e.date >= TODAY).sort((a, b2) => (a.date + a.start).localeCompare(b2.date + b2.start))[0]
-  const line = (label: string, value: React.ReactNode, sub?: React.ReactNode, who?: PersonKey, phone?: string) => (
-    <div className="flex min-h-9 items-center gap-2.5 py-1">
-      {who ? <Avatar who={who} size={26} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.6875rem] font-bold text-muted">{label.charAt(0)}</span>}
+  /* our people, each with what they have open on this job now */
+  const steps = stepsFor(s, job).filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
+  const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.step)
+  const ours = Array.from(new Set([...steps.map((v) => v.owner), ...tasks.map((t) => t.owner)])).filter((p) => p && PEOPLE[p])
+  const has = (p: PersonKey) => [...steps.filter((v) => v.owner === p).map((v) => STEP_SHORT[v.key] || v.short), ...tasks.filter((t) => t.owner === p).map((t) => t.title)]
+  const call = (phone?: string, label = '') => phone ? <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Phone className="h-3.5 w-3.5" /></a> : null
+  const mail = (email?: string, label = '') => email ? <a href={`mailto:${email}`} aria-label={`Email ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Mail className="h-3.5 w-3.5" /></a> : null
+  const row = (label: string, value: React.ReactNode, sub?: React.ReactNode, who?: PersonKey, end?: React.ReactNode) => (
+    <div className="flex min-h-10 items-center gap-2.5 border-t border-line-2 px-3 py-1.5 first:border-t-0" data-person={label}>
+      {who ? <Avatar who={who} size={28} /> : <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.6875rem] font-bold text-muted">{label.charAt(0)}</span>}
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block text-[0.71875rem] font-semibold uppercase tracking-[0.04em] text-faint">{label}</span>
+        <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-faint">{label}</span>
         <span className="block truncate text-[0.84375rem] font-medium text-ink">{value}{sub ? <span className="font-normal text-muted"> · {sub}</span> : null}</span>
       </span>
-      {phone && <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${label.toLowerCase()}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Phone className="h-3.5 w-3.5" /></a>}
+      {end}
     </div>
   )
   return (
-    <Part id="people" title="People & dates">
-      <div className="grid grid-cols-2 gap-x-4 max-sm:grid-cols-1">
-        {line('Client', <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="hover:text-brand-700 hover:underline">{job.client}</button>, contact?.name, undefined, contact?.phone || client?.phone)}
-        {line('Designer', designer ? designer.name : <span className="text-muted">None on file</span>, undefined, undefined, designer?.phone)}
-        {line('Installer', crew ? PEOPLE[crew]?.name : <span className="text-warn-700">Not picked yet</span>, crew && ipo ? `${ipo.id} ${ipo.status === 'Accepted' ? 'accepted' : ipo.status.toLowerCase()}` : undefined, crew)}
-        {line('Site manager', site ? (site === me ? 'You' : PEOPLE[site]?.name) : <span className="text-muted">—</span>, undefined, site)}
+    <Part id="people" title="People" sub="Who’s on this job, how to reach them — and what each of ours has on it now">
+      <div className="overflow-hidden rounded-xl border border-[#ece7de] bg-white">
+        {row('Client', <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="hover:text-brand-700 hover:underline">{job.client}</button>, contact ? `${contact.name}${contact.role ? `, ${contact.role.toLowerCase()}` : ''}` : undefined, undefined, <span className="flex gap-1">{mail(contact?.email || client?.email, 'the client')}{call(contact?.phone || client?.phone, 'the client')}</span>)}
+        {row('Designer', designer ? designer.name : <span className="text-muted">None on file</span>, undefined, undefined, call(designer?.phone, 'the designer'))}
+        {row('Installer', crew ? PEOPLE[crew]?.name : <span className="text-warn-700">Not picked yet</span>, crew && ipo ? `${ipo.id} ${ipo.status === 'Accepted' ? 'accepted' : ipo.status.toLowerCase()}` : undefined, crew)}
       </div>
-      <div className="mt-2 flex flex-wrap gap-2 text-[0.8125rem]">
+      <div className="mb-1.5 mt-3.5 text-[0.75rem] font-semibold uppercase tracking-[0.04em] text-faint">Ours — what each has now</div>
+      <div className="overflow-hidden rounded-xl border border-[#ece7de] bg-white" data-ours>
+        {!ours.length && <div className="px-3 py-2.5 text-[0.8125rem] text-muted">Nothing open on this job.</div>}
+        {ours.map((p) => {
+          const list = has(p)
+          return (
+            <div key={p} data-our={p} className="flex min-w-0 items-center gap-2.5 border-t border-line-2 px-3 py-2 first:border-t-0">
+              <Avatar who={p} size={28} />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.84375rem] font-semibold text-ink">{p === me ? 'You' : PEOPLE[p]?.name}<span className="font-normal text-muted">{PEOPLE[p]?.roleLabel ? ` · ${PEOPLE[p]?.roleLabel}` : ''}</span></span>
+                <span className="block truncate text-[0.75rem] text-muted">{list.slice(0, 3).join(' · ')}{list.length > 3 ? ` · +${list.length - 3}` : ''}</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-bold tnum text-ink-2">{list.length}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-[0.8125rem]">
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#f6f3ee] px-2.5 py-1.5 text-ink-2"><CalendarDays className="h-3.5 w-3.5 text-faint" />{start ? <>Start <b className="font-semibold text-ink">{start}</b>{finish ? <> · finish <b className="font-semibold text-ink">{finish}</b></> : null}</> : 'No start date yet'}</span>
         {next && <button onClick={() => s.open({ t: 'event', id: next.id })} className="inline-flex min-w-0 items-center gap-1.5 rounded-lg bg-[#f6f3ee] px-2.5 py-1.5 text-left text-ink-2 hover:bg-[#efebe4]"><span className="text-muted">Next:</span><b className="truncate font-semibold text-ink">{next.title}</b><span className="shrink-0">· {labelFromIso(next.date)} {timeLabel(next.start)}</span></button>}
       </div>
