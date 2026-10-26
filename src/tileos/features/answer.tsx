@@ -73,3 +73,24 @@ export function NoNote({ value, onSave, autoFocus, placeholder = 'What’s wrong
     />
   )
 }
+
+/** the site check's answers: Yes · Some (looked at room by room — pick the rooms that miss it) · No · N/A */
+export type SiteVal = 'yes' | 'some' | 'no' | 'na'
+const SITE_OPTS: [SiteVal, string][] = [['yes', 'Yes'], ['some', 'Some'], ['no', 'No'], ['na', 'N/A']]
+const SITE_ON: Record<SiteVal, string> = { ...ON, some: 'bg-[#d98c0b] text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.12)]' }
+export function SitePick({ value, onPick, q, byRoom, disabled, className }: { value?: SiteVal; onPick: (a: SiteVal | null) => void; q: string; /** "Some" only where it's looked at room by room */ byRoom?: boolean; disabled?: boolean; className?: string }) {
+  return (
+    <span role="radiogroup" aria-label={q} className={cn('inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-white p-0.5', disabled && 'opacity-70', className)}>
+      {SITE_OPTS.filter(([a]) => a !== 'some' || byRoom).map(([a, label]) => {
+        const on = value === a
+        return (
+          <button key={a} type="button" role="radio" aria-checked={on} aria-label={`${label} — ${q}`} data-answer={a} disabled={disabled}
+            onClick={(e) => { e.stopPropagation(); onPick(on && a !== 'some' ? null : a) }}
+            className={cn('inline-flex h-7 min-w-[2.625rem] items-center justify-center rounded-full px-2.5 text-[0.8125rem] font-semibold transition pointer-coarse:h-9 pointer-coarse:min-w-[3rem]', on ? SITE_ON[a] : 'text-ink-2 enabled:hover:bg-wash', !on && disabled && 'text-faint', on && 'answer-on')}>
+            {label}
+          </button>
+        )
+      })}
+    </span>
+  )
+}

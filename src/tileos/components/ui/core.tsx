@@ -222,7 +222,7 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
   )
 }
 
-export function Segmented<T extends string>({ value, onChange, items, className }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: string; icon?: React.ReactNode }[]; className?: string }) {
+export function Segmented<T extends string>({ value, onChange, items, className }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: React.ReactNode; icon?: React.ReactNode }[]; className?: string }) {
   return (
     <div className={cn('inline-flex h-9 items-center rounded-[0.5625rem] border border-line bg-wash-2 p-[0.1875rem]', className)}>
       {items.map((it) => (

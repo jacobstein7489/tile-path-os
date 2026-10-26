@@ -6,7 +6,7 @@
  * Rows have a visual anchor (icon tile, progress ring, date leaf or initials), a bold title,
  * one line of details, and a few aligned facts on the right. */
 import * as React from 'react'
-import { ChevronDown, ChevronRight, Check, X, CircleCheck, CircleDashed, CircleAlert, CircleDot, Minus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Check, X, CircleCheck, CircleDashed, CircleAlert, CircleDot, Minus, Lock } from 'lucide-react'
 import * as DM from '@radix-ui/react-dropdown-menu'
 import { cn } from '@/tileos/lib/utils'
 import { SearchField, Avatar } from './core'
@@ -668,7 +668,9 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
  * is amber, whose turn it is is blue. "beside": the words next to each circle, in one line (the estimate); "below":
  * the words under each, in groups with a name over them (the project — every part of the job). ================= */
 export type CircleState = 'done' | 'now' | 'wait' | 'bad' | 'later'
-export type CircleStep = { key: string; label: string; sub?: string; state: CircleState; pct?: number; center?: React.ReactNode; mine?: boolean; attrs?: Record<string, string> }
+export type CircleStep = { key: string; label: string; sub?: string; state: CircleState; pct?: number; center?: React.ReactNode; mine?: boolean; attrs?: Record<string, string>
+  /** a gate: it can't start until what's before it is done — a dashed ring with a lock */
+  lock?: boolean }
 export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
 const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd' }
 const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9' }
@@ -679,6 +681,14 @@ export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: nu
   const w = size >= 34 ? 3.5 : 3
   const r = (size - w) / 2
   const c = 2 * Math.PI * r
+  if (st.lock) {
+    return (
+      <span className="relative inline-flex shrink-0 items-center justify-center rounded-full" style={{ width: size, height: size }} data-lock>
+        <svg width={size} height={size} aria-hidden><circle cx={size / 2} cy={size / 2} r={r} fill="#faf8f5" stroke="#bdb5a8" strokeWidth={1.6} strokeDasharray="3.2 3" /></svg>
+        <Lock className="absolute h-3.5 w-3.5 text-[#8b8478]" strokeWidth={2.4} />
+      </span>
+    )
+  }
   const filled = st.state === 'done' || st.state === 'bad' || (!!solid && st.state === 'now')
   const pct = filled ? 100 : st.state === 'later' ? (st.pct || 0) : Math.max(st.pct ?? 0, st.pct == null ? 100 : 6)
   const txt = size >= 34 ? 'text-[0.6875rem]' : 'text-[0.625rem]'
@@ -716,11 +726,11 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
           const Tag = onPick ? 'button' : 'span'
           return (
             <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state} data-here={here || undefined}>
-              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90', st.lock && 'border border-dashed border-[#d6cfc3] bg-[#faf8f5] py-1 pl-1 pr-3 max-sm:pr-1')}>
                 <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={here ? sz + 6 : sz} on={on} solid={here} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
                   <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
-                  {(st.sub || here) && <span className={cn('block max-w-[11rem] truncate text-[0.71875rem]', here ? 'font-semibold text-brand-700' : C_SUB[st.state])}>{here ? ['Now', st.sub].filter(Boolean).join(' · ') : st.sub}</span>}
+                  {(st.sub || here) && <span className={cn('block max-w-[12rem] truncate text-[0.71875rem]', here ? 'font-semibold text-brand-700' : st.lock ? 'text-[#8b8478]' : C_SUB[st.state])}>{here ? ['Now', st.sub].filter(Boolean).join(' · ') : st.sub}</span>}
                 </span>
                 {/* the part that's open below — underlined, like a tab */}
                 {on && onPick && <span aria-hidden data-picked className="absolute -bottom-[0.625rem] left-0 right-1 h-[0.1875rem] rounded-t-full bg-brand-600 max-sm:right-0" />}

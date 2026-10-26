@@ -56,7 +56,7 @@ export interface StepDef { key: string; label: string; short: string; owner: Per
 export interface StepRec {
   done?: string; by?: PersonKey; owner?: PersonKey; due?: string; na?: boolean; note?: string
   /** the site check, one answer per thing looked at: yes, no (with what's wrong) or not needed here */
-  checks?: Record<string, { ok: boolean; note?: string; na?: boolean; by?: PersonKey; at?: string }>
+  checks?: Record<string, SiteAnswer>
   /** answered "No" on the project's checklist — something's wrong, and what */
   no?: { note?: string; by: PersonKey; at: string }
   /** revised quantities sent back on the paperwork — waiting for the new one */
@@ -70,17 +70,41 @@ export interface StepRec {
   /** someone reminded the owner it's late — it pops up on the owner's screen */
   nudge?: { by: PersonKey; at: string; day: string }
 }
-/* what the site manager looks at on the site check — each one a question: Yes, No (what's wrong), or N/A */
-export const SITE_CHECKS: { k: string; label: string; q: string; sub: string }[] = [
-  { k: 'power', label: 'Power on site', q: 'Power on site?', sub: 'An outlet for the saw and the mixer' },
-  { k: 'water', label: 'Water on site', q: 'Water on site?', sub: 'Running water to mix and clean up' },
-  { k: 'drains', label: 'Shower drains on site', q: 'Shower drains on site?', sub: 'Every shower’s drain is here — the right one' },
-  { k: 'led', label: 'LED tracks on site', q: 'LED tracks on site?', sub: 'The channels that go in the tile, if the designer wants them' },
-  { k: 'windows', label: 'Windows ready', q: 'Windows ready?', sub: 'Sills and openings framed, so we can tile around them' },
-  { k: 'plumbing', label: 'Plumbing rough-in done', q: 'Plumbing rough-in done?', sub: 'Valves, drains, the tub and the shower heads in place' },
-  { k: 'electric', label: 'Electrical rough-in done', q: 'Electrical rough-in done?', sub: 'Boxes and wires where the tile goes' },
-  { k: 'ready', label: 'Site ready for us', q: 'Site ready for us?', sub: 'Boards up, floors clean, nothing in our way' },
+/** one answer on the site check: yes, no (with what's wrong), not needed — or, for what's looked at room by room, the
+ *  rooms where it's missing ("drains: 2 of 3 here"). What's wrong goes to be fixed; once it's fixed it comes back to
+ *  the site manager to check again on site. */
+export interface SiteAnswer { ok: boolean; note?: string; na?: boolean; by?: PersonKey; at?: string
+  /** looked at room by room: the rooms where it's missing (the rest have it) */
+  rooms?: string[]
+  /** the day someone said it's fixed — the site manager checks it again */
+  fixed?: string; fixedBy?: PersonKey }
+/* what the site manager looks at on the site check — each one a question: Yes, No (what's wrong), or N/A. Some are
+ * looked at room by room: "Some" says which rooms miss it. */
+export const SITE_CHECKS: { k: string; label: string; q: string; sub: string; byRoom?: 'shower' | 'all'; no: string }[] = [
+  { k: 'power', label: 'Power on site', q: 'Power on site?', sub: 'An outlet for the saw and the mixer', no: 'No power on site' },
+  { k: 'water', label: 'Water on site', q: 'Water on site?', sub: 'Running water to mix and clean up', no: 'No water on site' },
+  { k: 'drains', label: 'Shower drains on site', q: 'Shower drains on site?', sub: 'Every shower’s drain is here — the right one', byRoom: 'shower', no: 'Drain missing' },
+  { k: 'led', label: 'LED tracks on site', q: 'LED tracks on site?', sub: 'The channels that go in the tile, if the designer wants them', byRoom: 'all', no: 'LED track missing' },
+  { k: 'windows', label: 'Windows ready', q: 'Windows ready?', sub: 'Sills and openings framed, so we can tile around them', byRoom: 'all', no: 'Window not ready' },
+  { k: 'plumbing', label: 'Plumbing rough-in done', q: 'Plumbing rough-in done?', sub: 'Valves, drains, the tub and the shower heads in place', byRoom: 'all', no: 'Plumbing not roughed in' },
+  { k: 'electric', label: 'Electrical rough-in done', q: 'Electrical rough-in done?', sub: 'Boxes and wires where the tile goes', byRoom: 'all', no: 'Electric not roughed in' },
+  { k: 'ready', label: 'Site ready for us', q: 'Site ready for us?', sub: 'Boards up, floors clean, nothing in our way', no: 'Site not ready for us' },
 ]
+/** the rooms a site question is looked at in — a shower's drain only where there's a shower */
+export function siteRooms(rooms: Room[], k: string): string[] {
+  const c = SITE_CHECKS.find((x) => x.k === k)
+  if (!c?.byRoom) return []
+  return rooms.filter((r) => c.byRoom === 'all' || /shower/i.test(r.name) || r.surfaces.some((x) => /shower/i.test(x.name))).map((r) => r.name)
+}
+/** the questions this project's site check asks — no drains on a job without a shower */
+export const siteQuestions = (rooms: Room[]) => SITE_CHECKS.filter((c) => c.byRoom !== 'shower' || siteRooms(rooms, c.k).length > 0)
+/** what's wrong, said plainly: "Drain missing — Kids Bath", "No water on site — the GC says Friday" */
+export function siteProblem(k: string, c: SiteAnswer): string {
+  const def = SITE_CHECKS.find((x) => x.k === k)
+  const what = k === 'walls' ? 'Wall heights' : def?.no || def?.label || k
+  return `${what}${c.rooms?.length ? ` — ${c.rooms.join(', ')}` : ''}${c.note ? ` · ${c.note}` : ''}`
+}
+const wrongOf = (rec?: StepRec) => Object.entries(rec?.checks || {}).filter(([, c]) => !c.ok && !c.na)
 export interface StepAction { label: string; run?: () => void; pick?: 'delivery' | 'checkin' | 'check' }
 export interface StepView {
   key: string
@@ -138,11 +162,12 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Quantities', owner: 'takeoff', after: ['rooms'] },
   { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
-  { key: 'change', phase: 'meet', label: 'What was decided at the meeting — confirmed', short: 'Confirm what was decided', owner: 'office', after: ['design'], custom: true },
+  { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm the scope', owner: 'yakov', after: ['design'], custom: true },
   { key: 'tile', phase: 'grout', label: 'Tile and grout picked — a picture and the grout for every tile', short: 'Tile and grout', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Layouts', owner: 'office', after: ['design'], custom: true },
   { key: 'level', phase: 'level', label: 'Floor heights — the high and the low point of every floor', short: 'Floor heights', owner: 'yakov', after: ['rooms'] },
   { key: 'heights', phase: 'site', label: 'Site checked — wall heights, water, electrical, plumbing', short: 'Site check', owner: 'yakov', after: ['rooms'] },
+  { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fixes', owner: 'ys' },
   { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Installer PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Job shown to the installer', short: 'Show him the job', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer confirmed — he took the PO and the dates', short: 'Installer confirmed', owner: 'ys', after: ['installer'] },
@@ -164,12 +189,14 @@ export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.in
 /** the company's checklist: ours, in our order, with whoever the company put on each step — plus its own steps.
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
 const OLD_OWNER: Record<string, string> = { rooms: 'estimator', tile: 'estimator', design: 'office', installer: 'ys', setup: 'office', order: 'office', deposit: 'accounting', heights: 'yakov', materials: 'matBy', delivered: 'yakov', walk: 'yakov' }
-export const STEPS_V = 3
+export const STEPS_V = 4
 /** built-in steps added after a version — a company list saved before that gets them */
-const ADDED: Record<number, string[]> = { 3: ['level'] }
+const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'] }
+/** a step whose person changed in a version: a list saved before it, still on the old person, gets the new one */
+const MOVED: Record<number, Record<string, [string, string]>> = { 4: { change: ['office', 'yakov'] } }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
-const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures'])
+const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting — confirmed', 'Confirm what was decided'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS
@@ -180,7 +207,8 @@ export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const ours = STEP_DEFAULTS.filter((d) => had.has(d.key) || extra.has(d.key) || (!fresh && !OLD_KEYS.has(d.key))).map((d) => {
     const x = saved.find((y) => y.key === d.key)
     if (!x) return d
-    if (fresh) return { ...d, owner: x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short }
+    const moved = Object.entries(MOVED).find(([n, m]) => Number(n) > v && m[d.key]?.[0] === x.owner)
+    if (fresh) return { ...d, owner: moved ? d.owner : x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short }
     return x.owner !== OLD_OWNER[d.key] ? { ...d, owner: x.owner } : d
   })
   const own = saved.filter((d) => !OURS.has(d.key)).map((d) => ({ ...d, custom: true, phase: d.phase || 'own' }))
@@ -232,7 +260,7 @@ export function paperQty(s: Store, jobId: string, t: { tag: string; paper?: { qt
   return { tag: t.tag, on: on.length, need, have, unit, short: have != null && need != null ? Math.max(0, need - have) : 0 }
 }
 
-type Raw = { state: StepState; note?: string; due?: string; action?: StepAction }
+type Raw = { state: StepState; note?: string; due?: string; action?: StepAction; /** who has it now, when that isn't the step's own person */ owner?: PersonKey }
 function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
   const rooms = s.rooms[j.id] || []
   const flat = rooms.flatMap((r) => r.surfaces)
@@ -306,18 +334,30 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'heights': {
       const hs = heightStatus(s, j.id)
       const answers = rec.checks || {}
-      const asked = SITE_CHECKS.filter((c) => answers[c.k]).length
-      const bad = Object.entries(answers).filter(([, c]) => !c.ok)
+      const qs = siteQuestions(rooms)
+      const asked = qs.filter((c) => answers[c.k]).length
+      const wrong = wrongOf(rec)
       /* the wall heights: measured on site (the square feet follow), or answered by hand */
-      const walls = !hs.total || hs.measured === hs.total || !!answers.walls?.ok
+      const walls = !hs.total || hs.measured === hs.total || !!answers.walls?.ok || !!answers.walls?.na
       if (rec.done) return { state: 'done', note: rec.note || 'Checked on site' }
-      if (bad.length) return { state: 'bad', note: bad.map(([k, c]) => `${k === 'walls' ? 'Wall heights' : SITE_CHECKS.find((x) => x.k === k)?.label || k}${c.note ? ` — ${c.note}` : ''}`).join(' · '), action: { label: 'Open the site check' } }
-      if (asked === SITE_CHECKS.length && walls) return { state: 'done', note: 'Everything checked on site' }
+      /* everything looked at — what's wrong is on its way to be fixed (the next step) */
+      if (asked === qs.length && walls) return { state: 'done', note: wrong.length ? `Checked on site — ${wrong.length} to fix` : 'Everything checked on site' }
       /* heights already measured (before this checklist had the rest) */
       if (hs.total && hs.measured === hs.total && !Object.keys(answers).length) return { state: 'done', note: 'Square feet and materials follow the real heights' }
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !Object.keys(answers).length && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: asked ? `${asked} of ${SITE_CHECKS.length} checked${walls ? '' : ' · wall heights to measure'}` : 'Power, water, drains, LED tracks, windows, wall heights — and the site ready for us', action: { label: 'Do the site check' } }
+      return { state: 'now', note: asked ? `${asked} of ${qs.length} looked at${walls ? '' : ' · wall heights to measure'}${wrong.length ? ` · ${wrong.length} to fix` : ''}` : 'Power, water, drains, LED tracks, windows, wall heights — and the site ready for us', action: { label: 'Do the site check' } }
+    }
+    case 'fixes': {
+      /* what the site check found: someone gets each one fixed — then it's back on the site manager's list to look again */
+      const wrong = wrongOf(s.stepRecs[j.id]?.heights)
+      if (!wrong.length) return rec.done ? { state: 'done', note: rec.note || 'Fixed — and checked again on site' } : { state: 'na', note: 'Nothing to fix' }
+      const open = wrong.filter(([, c]) => !c.fixed)
+      if (open.length) return { state: 'bad', note: open.map(([k, c]) => siteProblem(k, c)).join(' · '), action: { label: 'Fixed — check it again' } }
+      const siteRec = s.stepRecs[j.id]?.heights
+      const siteDef = companySteps(s).find((d) => d.key === 'heights')
+      const site = (siteRec?.owner || (siteDef && siteDef.owner !== 'matBy' ? siteDef.owner : 'yakov')) as PersonKey
+      return { state: 'now', owner: site, note: `Check again on site: ${wrong.map(([k, c]) => siteProblem(k, c)).join(' · ')}`, action: { label: 'Check it again' } }
     }
     case 'level': {
       const fl = floorRooms(rooms)
@@ -455,7 +495,10 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     }
     /* the estimate check after the meeting, and the layouts: checked off — projects past setup had theirs before this list */
     if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
-    if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) raw = { state: 'now', due: rec.due, note: 'Send the designer and the GC what was decided — anything extra goes to the estimator', action: { label: 'Confirm it' } }
+    if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) {
+      const cos = s.money.filter((m) => m.jobId === j.id && m.kind === 'change' && m.meta?.meeting).length
+      raw = { state: 'now', due: rec.due, note: cos ? `${cos} change${cos === 1 ? '' : 's'} so far — say when that’s everything` : 'The same as the estimate — or what changed (each change becomes a change order)', action: { label: 'Confirm it' } }
+    }
     if (!raw && !rec.done && !rec.na && d.key === 'layouts' && !d.only) {
       /* how many walls and floors have their layout — the system suggests the rest */
       const tiled = (s.rooms[j.id] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name))
@@ -486,7 +529,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
        happened says there's a problem (that has to be fixed, not answered away) */
     if (rec.no && !rec.na) raw = { ...raw, state: 'bad', note: rec.no.note ? `No — ${rec.no.note}` : `No — ${PEOPLE[rec.no.by]?.short || 'someone'} said it isn’t` }
     else if (rec.done && !['done', 'bad', 'na'].includes(raw.state)) raw = { state: 'done', note: rec.note || 'Done' }
-    const owner = realOwner(s, (task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey)
+    const owner = realOwner(s, (raw.owner || task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey)
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
       after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',
@@ -674,14 +717,54 @@ export function sendSiteProblems(jobId: string) {
 
 /** one answer on the site check: yes, no (with what's wrong), N/A — or null to take the answer back */
 export function setSiteCheck(jobId: string, k: string, ok: boolean | null, note?: string, na?: boolean) {
+  setSiteAnswer(jobId, k, ok === null ? null : { ok, note, na })
+}
+/** one answer on the site check, room by room when it's looked at that way. What's wrong is on the fixes right away
+ *  (the office's to get it fixed); a Yes on something that was fixed closes it — the last one closes the fixes. */
+export function setSiteAnswer(jobId: string, k: string, a: { ok: boolean; note?: string; na?: boolean; rooms?: string[] } | null) {
+  const before = S()
+  const j = before.jobs[jobId]
+  const had = wrongOf(before.stepRecs[jobId]?.heights).length
   S().commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {}).heights ||= {})
     const c = (r.checks ||= {})
-    if (ok === null) delete c[k]
-    else c[k] = { ok, ...(note ? { note } : {}), ...(na ? { na: true } : {}), by: me(), at: NOW }
-    /* a problem found after it was checked off: it isn't done any more */
-    if (ok === false && r.done) { delete r.done; delete r.by }
+    if (a === null) delete c[k]
+    else c[k] = { ok: a.ok, ...(a.note ? { note: a.note } : {}), ...(a.na ? { na: true } : {}), ...(!a.ok && !a.na && a.rooms?.length ? { rooms: a.rooms } : {}), by: me(), at: NOW }
+    const now = wrongOf(r).length
+    const fx = ((st.stepRecs[jobId] ||= {}).fixes ||= {})
+    /* the last thing wrong is fine now: the fixes are done */
+    if (had && !now && !fx.done) { fx.done = NOW; fx.by = me(); fx.note = 'Fixed — and checked again on site' }
+    if (now) delete fx.done
+    if (a && !a.ok && !a.na) (st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `Site check: ${siteProblem(k, c[k])}` } as any)
   })
+  /* everything looked at: the site check is done — it hands off like any step */
+  const after = S()
+  if (j && a) {
+    const v = stepsFor(after, j).find((x) => x.key === 'heights')
+    if (v?.state === 'done' && !after.stepRecs[jobId]?.heights?.done) markStep(jobId, 'heights', v.note || 'Everything checked on site')
+  }
+}
+/** it's fixed (the GC put the drain in): back on the site manager's list to look at it again on site */
+export function siteFixed(jobId: string, k: string) {
+  const s = S()
+  const c = s.stepRecs[jobId]?.heights?.checks?.[k]
+  if (!c) return
+  const j = s.jobs[jobId]
+  const site = j ? stepsFor(s, j).find((x) => x.key === 'heights')?.owner : undefined
+  s.commit((st) => {
+    const x = st.stepRecs[jobId]?.heights?.checks?.[k]
+    if (!x) return
+    x.fixed = NOW
+    x.fixedBy = me()
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `Fixed: ${siteProblem(k, x)}`, detail: 'Back to the site manager to check on site' } as any)
+  }, 'Marked fixed', { sub: 'It’s on the site manager’s list to check again on site.', to: site ? [{ who: site, what: `Check again: ${siteProblem(k, c)}` }] : undefined })
+}
+/** looked at again on site: it's fine now — or still not (back to be fixed) */
+export function siteRecheck(jobId: string, k: string, ok: boolean, note?: string) {
+  const c = S().stepRecs[jobId]?.heights?.checks?.[k]
+  if (!c) return
+  if (ok) return setSiteAnswer(jobId, k, { ok: true })
+  setSiteAnswer(jobId, k, { ok: false, note: note || c.note, rooms: c.rooms })
 }
 export function reopenStep(jobId: string, key: string) {
   S().commit((st) => { const r = st.stepRecs[jobId]?.[key]; if (r) { delete r.done; delete r.by } }, 'Back on the list')

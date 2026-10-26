@@ -396,6 +396,8 @@ export interface ChangeMeta {
   room: string; surface: string; label: string; from: string; to: string
   sfDelta: number; tileTag: string; tileSF: number; ipoQty: string; ipoAmount: number
   doTile: boolean; doIPO: boolean; by: string; sent?: boolean; estimate?: number
+  /** decided at the design meeting (confirming the scope), not asked on site */
+  meeting?: boolean
 }
 export interface MoneyItem {
   id: string; jobId: string; kind: MoneyKind; title: string; amount: number | null

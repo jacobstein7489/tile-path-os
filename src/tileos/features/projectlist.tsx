@@ -13,7 +13,7 @@ import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type St
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
 import { stepsFor, isGettingReady } from './steps'
-import { readyGroups, readyCounts } from './ready'
+import { tracksFor, phaseOf, bookingOf } from './tracks'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
@@ -183,11 +183,12 @@ function StandsCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   if (t === 'coming') {
-    /* the same count as the project's own checklist: questions answered, of how many */
-    const groups = readyGroups(s, j)
-    const c = readyCounts(groups)
-    const bad = groups.flatMap((g) => g.rows).filter((r) => r.state === 'bad')
-    return <Progress pct={(c.done / Math.max(1, c.total)) * 100} tone="brand" label={c.done === c.total ? 'Ready — everything answered' : `${c.done} of ${c.total} ready`} sub={bad.length ? `${bad[0].q.replace(/\?$/, '')}: ${(bad[0].note || 'No').replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
+    /* the same as the project's own line: getting ready's tracks done, of how many — and the first problem */
+    const tracks = tracksFor(s, j)
+    const done = tracks.filter((t) => t.state === 'done').length
+    const bad = tracks.filter((t) => t.state === 'bad')
+    const first = bad[0]?.lead
+    return <Progress pct={(done / Math.max(1, tracks.length)) * 100} tone="brand" label={done === tracks.length ? 'Getting ready — all done' : `Getting ready · ${done} of ${tracks.length} done`} sub={first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
   }
   if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">{j.hold?.reason}</span></span>
   const rooms = s.rooms[j.id] || []
@@ -237,8 +238,11 @@ function DatesCell({ j }: { j: Job }) {
 function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
   const t = typeOf(j)
-  const status = j.hold ? 'On hold' : t === 'coming' ? (flowOf(j) === 'setup' ? 'Setup' : 'Ready to start') : STAGE_LABEL[j.stage]
-  const tone = j.hold ? 'bad' : t === 'coming' ? (flowOf(j) === 'setup' ? 'vio' : 'info') : TYPE_TONE[t]
+  /* getting ready until all its tracks are done; then ready for the crew; then the crew is scheduled */
+  const ph = t === 'coming' ? phaseOf(s, j) : null
+  const booked = t === 'coming' && (j.stage === 'scheduled' || !!bookingOf(s, j))
+  const status = j.hold ? 'On hold' : t === 'coming' ? (ph === 'ready' ? 'Getting ready' : booked ? 'Crew scheduled' : 'Ready for the crew') : STAGE_LABEL[j.stage]
+  const tone = j.hold ? 'bad' : t === 'coming' ? (ph === 'ready' ? 'vio' : 'info') : TYPE_TONE[t]
   return (
     <div
       role="button"

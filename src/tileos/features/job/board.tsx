@@ -1,11 +1,11 @@
 /* The project — one window that fills the screen, the same shape as the estimate:
- *   on top (in the header) the flow as circles, like the estimate's path: Design & setup · Site · Installer ·
- *     Materials & deposit · Installing · Touch-ups · Billing — tap one and it opens on the left;
- *   left: that step — getting ready's questions (Yes, No or N/A; what's answered folds away), the rooms, the
- *     touch-ups, the money;
- *   right: the job, one section at a time — Tile & grout · Rooms · People · Files.
- * Everything fits on one screen. On a phone, one side at a time. A room, the conversation, a file, the scope of work
- * open in the same window, with Back on top. */
+ *   on top (in the header) the line, like the estimate's path — Approved · Getting ready · Crew scheduled · Installing ·
+ *     Touch-ups · Closed — with the billing alongside it;
+ *   left: what's going on now — getting ready's five tracks and the open issues; once the crew is in, the issues, the
+ *     changes, more tile and the touch-ups;
+ *   right: the job, one section at a time — Scope of work (every room and where it is) · Tiles · People · Documents.
+ * Everything fits on one screen. On a phone, one side at a time. A room, the conversation, a file, the money open in
+ * the same window, with Back on top. */
 import * as React from 'react'
 import { ChevronRight, FileText } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
@@ -21,26 +21,22 @@ import { DocPanel, PanelBar } from '../docview'
 import { FilesTab, HistoryTab } from './files'
 import { ScopeTab } from './scope-tab'
 import { POsTab } from './pos-tab'
-import { StagePanel, IN_FIELD, type FlowKey } from './standing'
+import { MoneyTab } from './money-tab'
+import { ProjectNow, type OpenTrack } from './standing'
 import { JobPanel, type JobTab } from './details'
-import { readyGroups, type GroupKey } from '../ready'
+import { IN_FIELD_STAGES, stepsFor } from '../steps'
+import { tracksFor } from '../tracks'
 
-/** something opened on the project: a room, the conversation, a file… */
-export type BoardView = null | { t: 'room'; name: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' }
+/** something opened on the project: a room, the conversation, a file, the money… */
+export type BoardView = null | { t: 'room'; name: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' }
 
-/** a link that opens something on the project right away (the scope of work) */
-export const viewFromTab = (tab?: string): BoardView => (tab === 'scope' ? { t: 'scope' } : null)
+/** a link that opens something on the project right away (the scope of work, the money) */
+export const viewFromTab = (tab?: string): BoardView => (tab === 'scope' ? { t: 'scope' } : tab === 'money' || tab === 'billing' || tab === 'estimate' ? { t: 'money' } : null)
 
-/** the question a step is, and the part of getting ready it's in — for "Your turn" in the footer */
-export function rowOfStep(s: Store, job: Job, k: string): { id: string; group: GroupKey } | undefined {
-  const groups = readyGroups(s, job)
-  for (const g of groups) {
-    const r = k === 'heights'
-      ? g.rows.find((x) => x.kind === 'site' && x.state !== 'done' && x.state !== 'na') || g.rows.find((x) => x.kind === 'site')
-      : g.rows.find((x) => x.kind === 'step' && x.key === k)
-    if (r) return { id: r.id, group: g.key }
-  }
-  return undefined
+/** the track a step is on, opened on that step — for "Your turn", Today and a missing paper on the job side */
+export function trackOfStep(s: Store, job: Job, k: string): OpenTrack {
+  const t = tracksFor(s, job, stepsFor(s, job)).find((x) => x.steps.some((v) => v.key === k))
+  return t ? { track: t.key, step: k } : null
 }
 
 /** one room, open on the project: its walls and floors — tap one for its tile, grout, layout and photos */
@@ -48,7 +44,7 @@ function RoomOpen({ job, name, back }: { job: Job; name: string; back: () => voi
   const s = useStore()
   const r = (s.rooms[job.id] || []).find((x) => x.name === name)
   const [openSf, setOpenSf] = React.useState<string | null>(null)
-  const inField = IN_FIELD.includes(job.stage)
+  const inField = IN_FIELD_STAGES.includes(job.stage)
   if (!r) return null
   const p = roomPct(r)
   const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.name))
@@ -107,27 +103,27 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
     case 'scope': return page('Scope of work', <ScopeTab job={job} />, 'every wall and floor — its tile, grout and layout')
     case 'log': return page('What happened', <HistoryTab job={job} />)
     case 'orders': return page('All the orders', <POsTab job={job} onScope={() => setView({ t: 'scope' })} />)
+    case 'money': return page('Billing', <MoneyTab job={job} />, 'alongside the job the whole time — billed, paid, the changes')
   }
 }
 
-/* ---------------- the body: the step that's open on the left, the job on the right ---------------- */
-export function ProjectBoard({ job, at, focus, setFocus, view, setView, onStep }: {
+/* ---------------- the body: what's going on now on the left, the job on the right ---------------- */
+export function ProjectBoard({ job, open, setOpen, view, setView, onStep }: {
   job: Job
-  at: FlowKey
-  focus: string | null
-  setFocus: (id: string | null) => void
+  /** the track (and its step) open on the left */
+  open: OpenTrack
+  setOpen: (o: OpenTrack) => void
   view: BoardView
   setView: (v: BoardView) => void
-  /** open a question of the flow (a missing paper on the job side → the question that gets it) */
+  /** open a step on its track (a missing paper on the job side → the step that gets it) */
   onStep?: (k: string) => void
 }) {
   const [side, setSide] = React.useState<'stands' | 'job'>('stands')
-  const [tab, setTab] = React.useState<JobTab>('tiles')
+  const [tab, setTab] = React.useState<JobTab>('scope')
   const top = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view, at])
-  /* "Your turn" or a circle tapped on a phone: the step is on the left side */
-  React.useEffect(() => { if (focus) setSide('stands') }, [focus])
-  React.useEffect(() => { setSide('stands') }, [at])
+  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view])
+  /* "Your turn" or a step picked on a phone: it's on the left side */
+  React.useEffect(() => { if (open) setSide('stands') }, [open])
   if (view) {
     const full = FULL.includes(view.t)
     return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
@@ -137,9 +133,9 @@ export function ProjectBoard({ job, at, focus, setFocus, view, setView, onStep }
       <div className="border-b border-line bg-white px-4 py-2 lg:hidden">
         <Segmented value={side} onChange={setSide} items={[{ key: 'stands', label: 'Where it stands' }, { key: 'job', label: 'The job' }]} className="w-full [&>button]:flex-1" />
       </div>
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div ref={top} data-side="stands" className={cn('scroll-soft min-h-0 min-w-0 bg-[#f4f1ec] px-5 pb-5 pt-4 max-sm:px-2.5 lg:overflow-y-auto lg:border-r lg:border-line', side !== 'stands' && 'max-lg:hidden')}>
-          <StagePanel job={job} at={at} focus={focus} setFocus={setFocus} onRoom={(name) => setView({ t: 'room', name })} />
+          <ProjectNow job={job} open={open} setOpen={setOpen} />
         </div>
         <div data-side="job" className={cn('min-h-0 min-w-0 bg-white', side !== 'job' && 'max-lg:hidden')}>
           <JobPanel job={job} open={setView} tab={tab} setTab={setTab} onStep={onStep} />

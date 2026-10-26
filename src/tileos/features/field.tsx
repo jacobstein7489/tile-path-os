@@ -570,7 +570,10 @@ function feet(h?: string): number | null {
 const isWall = (n: string) => /wall|backsplash|splash|wainscot|niche|tub|shower w/i.test(n)
 type CType = 'Height' | 'Tile' | 'Layout' | 'Add area' | 'Leave it out'
 
-export function SiteChangeModal({ jobId, room: r0, surface: s0, level }: { jobId: string; room?: string; surface?: string; level: number }) {
+/** a change from what was planned — where, what they want now, who asked — and everything it starts: the change order
+ *  (priced, OK'd, billed), the installer's PO, the tile, the crew holding that surface. One form for the change asked on
+ *  site (its own window) and the change decided at the design meeting (right in the step, when the scope is confirmed). */
+function useSiteChange({ jobId, room: r0, surface: s0, by: by0 = 'Homeowner', meeting, compact, onDone }: { jobId: string; room?: string; surface?: string; by?: string; meeting?: boolean; compact?: boolean; onDone?: () => void }) {
   const s = useStore()
   const job = s.jobs[jobId]
   const rooms = s.rooms[jobId] || []
@@ -589,14 +592,15 @@ export function SiteChangeModal({ jobId, room: r0, surface: s0, level }: { jobId
   const [to, setTo] = React.useState('')
   const [area, setArea] = React.useState('')
   const [areaSF, setAreaSF] = React.useState(30)
-  const [by, setBy] = React.useState('Homeowner')
+  const [by, setBy] = React.useState(by0)
   const [note, setNote] = React.useState('')
-  const tilesUsed = Array.from(new Set(rooms.flatMap((x) => x.surfaces.map((y) => y.tile)))).filter((t) => tileOf(jobId, t))
   const [tileTo, setTileTo] = React.useState('')
+  const [doIPO, setDoIPO] = React.useState(true)
+  const [doTile, setDoTile] = React.useState(true)
   React.useEffect(() => setTo(''), [type, surface])
+  const tilesUsed = Array.from(new Set(rooms.flatMap((x) => x.surfaces.map((y) => y.tile)))).filter((t) => tileOf(jobId, t))
   const ipo = s.ipos.find((p) => p.jobId === jobId)
   const crew = ipo?.crew || job?.crew
-  if (!job) return null
   const co = nextCO(s, jobId)
   const tile = tileOf(jobId, sf?.tile)
   const area0 = sf?.sf || 40
@@ -650,26 +654,122 @@ export function SiteChangeModal({ jobId, room: r0, surface: s0, level }: { jobId
     ipoQty = `−${left} SF install`
     ipoAmount = -Math.round((left * 18) / 10) * 10
   }
-  const [doIPO, setDoIPO] = React.useState(true)
-  const [doTile, setDoTile] = React.useState(true)
   const ipoOn = doIPO && !!crew && ipoAmount !== 0
   const tileOn = doTile && tileSF > 0
   const waste = s.checks.find((c) => c.jobId === jobId && c.tag === tileTag)?.wastePct ?? 12
   const tileNeed = Math.ceil(tileSF * (1 + waste / 100))
   const supplier = tileOf(jobId, tileTag)?.suppliedBy === 'GC' || s.checks.find((c) => c.jobId === jobId && c.tag === tileTag)?.suppliedBy === 'GC' ? 'GC' : 'us'
   const ready = !!sf && !!toLabel && toLabel !== from
+  const count = 2 + (ipoOn ? 1 : 0) + (tileOn ? 1 : 0)
   const start = () => {
     const label = type === 'Add area' ? 'Extra area' : type === 'Leave it out' ? 'Scope' : type
-    siteChange({ jobId, room, surface, label, from, to: toLabel, by, note: note.trim() || undefined, sfDelta, tileTag, tileSF: tileOn ? tileSF : 0, ipoQty, ipoAmount, doIPO: ipoOn, doTile: tileOn })
-    s.close()
+    siteChange({ jobId, room, surface, label, from, to: toLabel, by, note: note.trim() || undefined, sfDelta, tileTag, tileSF: tileOn ? tileSF : 0, ipoQty, ipoAmount, doIPO: ipoOn, doTile: tileOn, meeting })
+    onDone?.()
   }
+  const body = !job ? null : (
+    <div className={cn('grid gap-8 max-lg:grid-cols-1 max-lg:gap-6', compact ? 'grid-cols-1 gap-5' : 'grid-cols-[minmax(0,1fr)_23.75rem]')} data-change-form>
+      <div className="flex min-w-0 flex-col gap-6">
+        <Field label="Where?">
+          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+            <SearchSelect label="Room" value={room} onChange={setRoom} options={rooms.map((x) => ({ key: x.name, label: x.name }))} placeholder="Which room" width={300} />
+            {rm && <SearchSelect label="Wall or floor" value={surface} onChange={setSurface} options={rm.surfaces.map((x) => ({ key: x.name, label: x.name, hint: tileOf(jobId, x.tile) ? tileLine(tileOf(jobId, x.tile)) : undefined }))} placeholder="Which wall or floor" width={320} search={false} />}
+          </div>
+        </Field>
+        {sf && (
+          <div className="flex items-center gap-4 rounded-2xl border border-line bg-wash/60 p-4">
+            <TileImg tile={tile} size={56} />
+            <div className="min-w-0">
+              <div className="text-[0.78125rem] font-semibold text-muted">What was planned</div>
+              <div className="text-[0.9375rem] font-semibold text-ink">{room} · {sf.name}</div>
+              <div className="text-[0.8125rem] text-ink-2">{[tile ? `${tile.tag} ${tile.name} ${tile.size}` : '', sf.layout, sf.height, sf.sf ? `${sf.sf} SF` : ''].filter(Boolean).join(' · ')}</div>
+              <div className="mt-0.5 text-[0.78125rem] text-muted">{surfacePct(sf)}% installed{sf.pending ? ` · ${sf.pending.co} already pending` : ''}</div>
+            </div>
+          </div>
+        )}
+        <Field label="What do they want now?">
+          <div className="flex flex-wrap gap-2">
+            {(['Height', 'Tile', 'Layout', 'Add area', 'Leave it out'] as CType[]).map((x) => <Chip key={x} on={type === x} onClick={() => setType(x)}>{x === 'Height' ? 'Different height' : x === 'Tile' ? 'Different tile' : x === 'Layout' ? 'Different layout' : x}</Chip>)}
+          </div>
+          <div className="mt-3">
+            {type === 'Height' && (
+              <div className="flex flex-wrap gap-2">
+                {HEIGHTS.filter((h) => feet(h) !== feet(sf?.height)).map((h) => <Chip key={h} on={to === h} onClick={() => setTo(h)} className="h-9 px-3 text-[0.84375rem]">{h}</Chip>)}
+              </div>
+            )}
+            {type === 'Tile' && (
+              <div className="flex flex-wrap gap-2">
+                {tilesOf(jobId).filter((t) => t.tag !== sf?.tile).map((t) => (
+                  <Chip key={t.tag} on={tileTo === t.tag} onClick={() => setTileTo(t.tag)} className="h-10 px-3 text-[0.84375rem]" icon={<TileImg tile={t} size={20} radius={5} />}>{t.tag} {t.name}{tilesUsed.includes(t.tag) ? '' : ' · new'}</Chip>
+                ))}
+              </div>
+            )}
+            {type === 'Layout' && (
+              <div className="flex flex-wrap gap-2">
+                {LAYOUTS.filter((l) => !sf?.layout?.toLowerCase().startsWith(l.toLowerCase())).map((l) => <Chip key={l} on={to === l} onClick={() => setTo(l)} className="h-9 px-3 text-[0.84375rem]">{l}</Chip>)}
+              </div>
+            )}
+            {type === 'Add area' && (
+              <div className="flex flex-wrap items-center gap-3">
+                <TextInput value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. A border, tub deck, bench, window sill" className="max-w-[20rem] max-sm:max-w-none" />
+                <NumStepper value={areaSF} onChange={setAreaSF} min={1} max={500} suffix="SF" />
+              </div>
+            )}
+            {type === 'Leave it out' && <div className="rounded-xl bg-wash px-3.5 py-2.5 text-[0.84375rem] text-ink-2">The {sf?.name.toLowerCase()} comes out of the scope. What’s already installed stays billed.</div>}
+          </div>
+        </Field>
+        <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
+          <Field label="Who asked?">
+            <div className="flex flex-wrap gap-2">
+              {['Homeowner', 'GC', 'Designer'].map((x) => <Chip key={x} on={by === x} onClick={() => setBy(x)} className="h-9 px-3 text-[0.84375rem]">{x}</Chip>)}
+            </div>
+          </Field>
+          <Field label="Note (optional)">
+            <TextInput mic value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was actually said" />
+          </Field>
+        </div>
+      </div>
 
+      <aside className={cn('self-start rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/70 to-white', compact ? 'p-4' : 'p-5')}>
+        <div className="flex items-center gap-2.5">
+          <IconCircle tone="info" size={34}><Sparkles className="h-4 w-4" /></IconCircle>
+          <div className="text-[0.96875rem] font-semibold text-ink">One click starts all of this</div>
+        </div>
+        <div className={cn('mt-4 grid gap-3', compact ? 'grid-cols-2 max-md:grid-cols-1' : 'grid-cols-1')}>
+          <Effect on icon={<Receipt className="h-4 w-4" />} title={`Change order ${co}`} sub={ready ? `${from} → ${toLabel}. The estimator prices it, it goes to the ${meeting ? 'client' : 'GC'}, and it becomes billable the moment it’s approved.` : `Priced by the estimator, approved by the ${meeting ? 'client' : 'GC'}, then billed.`} />
+          <Effect
+            on={ipoOn}
+            disabled={!crew || ipoAmount === 0}
+            onToggle={() => setDoIPO((v) => !v)}
+            icon={<HardHat className="h-4 w-4" />}
+            title={crew ? `${PEOPLE[crew].name}’s installer PO` : 'Installer PO'}
+            sub={!crew ? 'No installer yet — his PO is made from the new scope.' : ipoAmount === 0 ? 'No change to the installer’s work.' : s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}. You’ll get it once it’s approved.` : `${ipo?.id || 'New PO'} gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}). Sent to ${PEOPLE[crew].name} when approved.`}
+          />
+          <Effect
+            on={tileOn}
+            disabled={tileSF <= 0}
+            onToggle={() => setDoTile((v) => !v)}
+            icon={<Package className="h-4 w-4" />}
+            title="Tile"
+            sub={tileSF <= 0 ? 'No extra tile needed.' : `About ${tileNeed} SF of ${tileTag} ${tileOf(jobId, tileTag)?.name || ''} with ${waste}% waste. ${supplier === 'GC' ? 'The GC supplies it — they’re asked to order it once approved.' : 'We order it once approved.'}`}
+          />
+          <Effect on icon={<PauseCircle className="h-4 w-4" />} title={meeting ? 'That surface waits' : 'The crew holds'} sub={sf ? `${crew ? PEOPLE[crew].name + '’s' : 'The crew’s'} phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()} until it’s approved. Everything else keeps moving.` : 'Only that surface waits.'} />
+        </div>
+      </aside>
+    </div>
+  )
+  return { body, ready, start, co, count, job }
+}
+
+export function SiteChangeModal({ jobId, room, surface, level }: { jobId: string; room?: string; surface?: string; level: number }) {
+  const s = useStore()
+  const f = useSiteChange({ jobId, room, surface, onDone: () => s.close() })
+  if (!f.job) return null
   const header = (
     <div className="border-b border-line-2 px-7 pb-5 pt-6 pr-20 max-sm:px-4 max-sm:pb-4 max-sm:pr-14 max-sm:pt-4">
       <div className="flex flex-wrap items-center gap-2 text-[0.84375rem] text-muted">
-        <span className="font-semibold text-ink-2">{job.name}</span>
+        <span className="font-semibold text-ink-2">{f.job.name}</span>
         <span>·</span>
-        <span>Asked on site · {co}</span>
+        <span>Asked on site · {f.co}</span>
       </div>
       <h2 className="h-tight mt-1 text-[1.4375rem] font-bold text-ink max-sm:text-[1.1875rem]">The client wants something different</h2>
     </div>
@@ -683,102 +783,30 @@ export function SiteChangeModal({ jobId, room: r0, surface: s0, level }: { jobId
       title="Change on site"
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{ready ? `One click starts ${2 + (ipoOn ? 1 : 0) + (tileOn ? 1 : 0)} things — nobody has to remember the rest.` : 'Pick what they want now.'}</span>
+          <span className="text-[0.84375rem] text-muted">{f.ready ? `One click starts ${f.count} things — nobody has to remember the rest.` : 'Pick what they want now.'}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" disabled={!ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={start}>Start {co}</Button>
+          <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
         </>
       }
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_23.75rem] gap-8 max-lg:grid-cols-1 max-lg:gap-6">
-        <div className="flex min-w-0 flex-col gap-6">
-          <Field label="Where?">
-            <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-              <SearchSelect label="Room" value={room} onChange={setRoom} options={rooms.map((x) => ({ key: x.name, label: x.name }))} placeholder="Which room" width={300} />
-              {rm && <SearchSelect label="Wall or floor" value={surface} onChange={setSurface} options={rm.surfaces.map((x) => ({ key: x.name, label: x.name, hint: tileOf(jobId, x.tile) ? tileLine(tileOf(jobId, x.tile)) : undefined }))} placeholder="Which wall or floor" width={320} search={false} />}
-            </div>
-          </Field>
-          {sf && (
-            <div className="flex items-center gap-4 rounded-2xl border border-line bg-wash/60 p-4">
-              <TileImg tile={tile} size={56} />
-              <div className="min-w-0">
-                <div className="text-[0.78125rem] font-semibold text-muted">What was planned</div>
-                <div className="text-[0.9375rem] font-semibold text-ink">{room} · {sf.name}</div>
-                <div className="text-[0.8125rem] text-ink-2">{[tile ? `${tile.tag} ${tile.name} ${tile.size}` : '', sf.layout, sf.height, sf.sf ? `${sf.sf} SF` : ''].filter(Boolean).join(' · ')}</div>
-                <div className="mt-0.5 text-[0.78125rem] text-muted">{surfacePct(sf)}% installed{sf.pending ? ` · ${sf.pending.co} already pending` : ''}</div>
-              </div>
-            </div>
-          )}
-          <Field label="What do they want now?">
-            <div className="flex flex-wrap gap-2">
-              {(['Height', 'Tile', 'Layout', 'Add area', 'Leave it out'] as CType[]).map((x) => <Chip key={x} on={type === x} onClick={() => setType(x)}>{x === 'Height' ? 'Different height' : x === 'Tile' ? 'Different tile' : x === 'Layout' ? 'Different layout' : x}</Chip>)}
-            </div>
-            <div className="mt-3">
-              {type === 'Height' && (
-                <div className="flex flex-wrap gap-2">
-                  {HEIGHTS.filter((h) => feet(h) !== feet(sf?.height)).map((h) => <Chip key={h} on={to === h} onClick={() => setTo(h)} className="h-9 px-3 text-[0.84375rem]">{h}</Chip>)}
-                </div>
-              )}
-              {type === 'Tile' && (
-                <div className="flex flex-wrap gap-2">
-                  {tilesOf(jobId).filter((t) => t.tag !== sf?.tile).map((t) => (
-                    <Chip key={t.tag} on={tileTo === t.tag} onClick={() => setTileTo(t.tag)} className="h-10 px-3 text-[0.84375rem]" icon={<TileImg tile={t} size={20} radius={5} />}>{t.tag} {t.name}{tilesUsed.includes(t.tag) ? '' : ' · new'}</Chip>
-                  ))}
-                </div>
-              )}
-              {type === 'Layout' && (
-                <div className="flex flex-wrap gap-2">
-                  {LAYOUTS.filter((l) => !sf?.layout?.toLowerCase().startsWith(l.toLowerCase())).map((l) => <Chip key={l} on={to === l} onClick={() => setTo(l)} className="h-9 px-3 text-[0.84375rem]">{l}</Chip>)}
-                </div>
-              )}
-              {type === 'Add area' && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <TextInput value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Tub deck, bench, window sill" className="max-w-[20rem] max-sm:max-w-none" />
-                  <NumStepper value={areaSF} onChange={setAreaSF} min={1} max={500} suffix="SF" />
-                </div>
-              )}
-              {type === 'Leave it out' && <div className="rounded-xl bg-wash px-3.5 py-2.5 text-[0.84375rem] text-ink-2">The {sf?.name.toLowerCase()} comes out of the scope. What’s already installed stays billed.</div>}
-            </div>
-          </Field>
-          <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
-            <Field label="Who asked?">
-              <div className="flex flex-wrap gap-2">
-                {['Homeowner', 'GC', 'Designer'].map((x) => <Chip key={x} on={by === x} onClick={() => setBy(x)} className="h-9 px-3 text-[0.84375rem]">{x}</Chip>)}
-              </div>
-            </Field>
-            <Field label="Note (optional)">
-              <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was actually said" />
-            </Field>
-          </div>
-        </div>
-
-        <aside className="self-start rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/70 to-white p-5">
-          <div className="flex items-center gap-2.5">
-            <IconCircle tone="info" size={34}><Sparkles className="h-4 w-4" /></IconCircle>
-            <div className="text-[0.96875rem] font-semibold text-ink">One click starts all of this</div>
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            <Effect on icon={<Receipt className="h-4 w-4" />} title={`Change order ${co}`} sub={ready ? `${from} → ${toLabel}. The estimator prices it, it goes to the GC, and it becomes billable the moment it’s approved.` : 'Priced by the estimator, approved by the GC, then billed.'} />
-            <Effect
-              on={ipoOn}
-              disabled={!crew || ipoAmount === 0}
-              onToggle={() => setDoIPO((v) => !v)}
-              icon={<HardHat className="h-4 w-4" />}
-              title={crew ? `${PEOPLE[crew].name}’s installer PO` : 'Installer PO'}
-              sub={!crew ? 'No crew booked yet — added when one is.' : ipoAmount === 0 ? 'No change to the installer’s work.' : s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}. You’ll get it once it’s approved.` : `${ipo?.id || 'New PO'} gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}). Sent to ${PEOPLE[crew].name} when approved.`}
-            />
-            <Effect
-              on={tileOn}
-              disabled={tileSF <= 0}
-              onToggle={() => setDoTile((v) => !v)}
-              icon={<Package className="h-4 w-4" />}
-              title="Tile"
-              sub={tileSF <= 0 ? 'No extra tile needed.' : `About ${tileNeed} SF of ${tileTag} ${tileOf(jobId, tileTag)?.name || ''} with ${waste}% waste. ${supplier === 'GC' ? 'The GC supplies it — they’re asked to order it once approved.' : 'We order it once approved.'}`}
-            />
-            <Effect on icon={<PauseCircle className="h-4 w-4" />} title="The crew holds" sub={sf ? `${crew ? PEOPLE[crew].name + '’s' : 'The crew’s'} phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()} until it’s approved. Everything else keeps moving.` : 'Only that surface waits.'} />
-          </div>
-        </aside>
-      </div>
+      {f.body}
     </Modal>
+  )
+}
+
+/** the same change, right in place (confirming the scope after the design meeting) — its buttons under it */
+export function SiteChangeForm({ jobId, by, meeting, onDone, onCancel }: { jobId: string; by?: string; meeting?: boolean; onDone: () => void; onCancel: () => void }) {
+  const f = useSiteChange({ jobId, by, meeting, compact: true, onDone })
+  if (!f.job) return null
+  return (
+    <section className="rounded-xl border border-line bg-white p-4 max-sm:p-3" data-change-inline>
+      {f.body}
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-2 pt-3">
+        <span className="mr-auto text-[0.8125rem] text-muted">{f.ready ? `One click starts ${f.count} things.` : 'Pick what they want now.'}</span>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
+      </div>
+    </section>
   )
 }
 function Effect({ on, disabled, onToggle, icon, title, sub }: { on: boolean; disabled?: boolean; onToggle?: () => void; icon: React.ReactNode; title: string; sub: string }) {

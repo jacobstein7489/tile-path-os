@@ -399,6 +399,21 @@ export function verificationDone(jobId: string) {
   }, `${S().jobs[jobId]?.name || 'The project'} is ready to start`, { sub: 'Start it from here when the crew goes in.' })
 }
 
+/** getting ready is done — all five tracks: the project is ready for the crew (no toast — the crew window opens next) */
+export function readyForCrew(jobId: string) {
+  const j0 = S().jobs[jobId]
+  if (!j0 || !['awarded', 'setup', 'verification'].includes(j0.stage)) return
+  S().commit((s) => {
+    const j = s.jobs[jobId]
+    j.stage = 'ready'
+    j.readiness = 'partial'
+    j.stageDates = { ...(j.stageDates || {}), verification: NOW }
+    j.next = { text: 'Schedule the crew', owner: 'ys', due: 'This week' }
+    j.headline = 'Ready for the crew'
+    addHist(s, jobId, { who: me(), kind: 'field', title: 'Getting ready is done — all five tracks' })
+  })
+}
+
 /* business-day helper for the schedule */
 export function addBusinessDays(iso: string, days: number) {
   const d = new Date(iso + 'T12:00:00')
@@ -1095,6 +1110,8 @@ export interface SiteChangeInput {
   tileTag: string; tileSF: number
   ipoQty: string; ipoAmount: number
   doIPO: boolean; doTile: boolean
+  /** decided at the design meeting, when the scope is confirmed */
+  meeting?: boolean
 }
 export function siteChange(o: SiteChangeInput) {
   const co = nextCO(S(), o.jobId)
@@ -1105,9 +1122,9 @@ export function siteChange(o: SiteChangeInput) {
     const estimate = Math.max(450, Math.round((Math.abs(o.sfDelta) * 68 + o.tileSF * 6) / 10) * 10)
     s.money.unshift({
       id, jobId: o.jobId, kind: 'change', title: `${co} · ${o.room} ${o.surface.toLowerCase()} · ${o.label.toLowerCase()} ${o.to.toLowerCase()}`,
-      amount: null, step: -1, state: 'upcoming', due: 'Being priced', note: `${o.label}: ${o.from} → ${o.to}. Asked on site by the ${o.by.toLowerCase()}. Billable the moment the approval is recorded.`,
-      log: [L(me(), `Asked on site by the ${o.by.toLowerCase()}${o.note ? ' — ' + o.note : ''}`)],
-      meta: { room: o.room, surface: o.surface, label: o.label, from: o.from, to: o.to, sfDelta: o.sfDelta, tileTag: o.tileTag, tileSF: o.tileSF, ipoQty: o.ipoQty, ipoAmount: o.ipoAmount, doTile: o.doTile, doIPO: o.doIPO, by: o.by, estimate },
+      amount: null, step: -1, state: 'upcoming', due: 'Being priced', note: `${o.label}: ${o.from} → ${o.to}. ${o.meeting ? 'Decided at the design meeting' : 'Asked on site'} by the ${o.by.toLowerCase()}. Billable the moment the approval is recorded.`,
+      log: [L(me(), `${o.meeting ? 'Decided at the design meeting' : 'Asked on site'} by the ${o.by.toLowerCase()}${o.note ? ' — ' + o.note : ''}`)],
+      meta: { room: o.room, surface: o.surface, label: o.label, from: o.from, to: o.to, sfDelta: o.sfDelta, tileTag: o.tileTag, tileSF: o.tileSF, ipoQty: o.ipoQty, ipoAmount: o.ipoAmount, doTile: o.doTile, doIPO: o.doIPO, by: o.by, estimate, ...(o.meeting ? { meeting: true } : {}) },
     })
     if (sf) {
       sf.pending = { co, label: o.label, from: o.from, to: o.to }
@@ -1131,9 +1148,9 @@ export function siteChange(o: SiteChangeInput) {
       if (c) c.note = `If ${co} is approved: +${Math.ceil(o.tileSF * (1 + c.wastePct / 100))} SF with waste`
     }
     setIssues(s, o.jobId, (iss) => [...iss, { tone: 'warn', text: `${co} waiting on pricing and approval · ${o.room}` }])
-    addHist(s, o.jobId, { who: me(), kind: 'change', title: `${co} asked on site · ${o.room} ${o.surface.toLowerCase()}`, from: o.from, to: o.to, detail: `Asked by the ${o.by.toLowerCase()}. The crew holds that surface; the price, the installer’s PO and the tile wait for approval.` })
-    s.notices.unshift({ id: 'nco' + Date.now(), jobId: o.jobId, text: `${co} asked on site · ${j?.name} · ${o.room}`, when: 'Just now', kind: 'change', unread: true, open: { t: 'job', id: o.jobId, tab: 'money' } })
-  }, `${co} started — estimator, crew hold, installer PO and tile are all lined up`)
+    addHist(s, o.jobId, { who: me(), kind: 'change', title: `${co} ${o.meeting ? 'from the design meeting' : 'asked on site'} · ${o.room} ${o.surface.toLowerCase()}`, from: o.from, to: o.to, detail: `Asked by the ${o.by.toLowerCase()}. ${o.meeting ? 'That surface waits' : 'The crew holds that surface'}; the price, the installer’s PO and the tile wait for approval.` })
+    s.notices.unshift({ id: 'nco' + Date.now(), jobId: o.jobId, text: `${co} ${o.meeting ? 'from the design meeting' : 'asked on site'} · ${j?.name} · ${o.room}`, when: 'Just now', kind: 'change', unread: true, open: { t: 'job', id: o.jobId, tab: 'money' } })
+  }, `${co} started — estimator, crew hold, installer PO and tile are all lined up`, o.meeting ? { sub: 'The estimator prices it, then it goes to the client for the OK — the tile and the installer’s PO follow.' } : undefined)
   return co
 }
 export function sendCO(id: string, amount: number) {
