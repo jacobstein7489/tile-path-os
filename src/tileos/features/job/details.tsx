@@ -23,6 +23,8 @@ import { stepsFor, paperQty, takesTile, IN_FIELD_STAGES } from '../steps'
 import { installerOf } from '../upcoming'
 import { Circle } from '@/tileos/components/ui/page'
 import { roomsOf, ROOM_WORD, STEP_SHORT, type RoomView, type RoomCheck, type ChipTone } from '../tracks'
+import { roomMedia } from '../field'
+import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
 
 /** a part of the details: its title and what it is in one line, one link on the right */
@@ -61,7 +63,7 @@ export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (
         ]} />
       </div>
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-job-tab={tab}>
-        {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} /> : <DocsPart job={job} open={open} onStep={onStep} />}
+        {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
       </div>
     </div>
   )
@@ -117,7 +119,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                 )}
                 <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition max-sm:hidden', on && 'rotate-180')} />
               </button>
-              {on && <RoomBody job={job} r={r} inField={inField} onOpen={() => open({ t: 'room', name: r.room.name })} />}
+              {on && <RoomBody job={job} r={r} inField={inField} onOpen={(tab) => open({ t: 'room', name: r.room.name, tab })} />}
             </div>
           )
         })}
@@ -128,7 +130,10 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
 }
 /** a room, open: what it still needs before the crew (or how far it is), and every wall and floor — its tile, square
  *  feet, layout and what it's set on */
-function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField: boolean; onOpen: () => void }) {
+function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField: boolean; onOpen: (tab: 'log' | 'photos') => void }) {
+  const s = useStore()
+  const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.room.name)).length
+  const photos = roomMedia(s.diary[job.id], r.room.name).length
   return (
     <div className="border-t border-line-2 bg-[#fcfbf9] px-3 pb-3 pt-2.5" data-room-body>
       {r.checks.length > 0 && (
@@ -157,7 +162,14 @@ function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField:
           )
         })}
       </div>
-      <div className="mt-2 flex justify-end"><button onClick={onOpen} className={LINK}>Open the room — photos, daily log<ChevronRight className="h-3.5 w-3.5" /></button></div>
+      {(entries > 0 || photos > 0)
+        ? (
+          <div className="mt-2 flex justify-end gap-1" data-room-links>
+            {entries > 0 && <button onClick={() => onOpen('log')} className={LINK}><History className="h-3.5 w-3.5" />Daily log · {entries}</button>}
+            {photos > 0 && <button onClick={() => onOpen('photos')} className={LINK}><ImageIcon className="h-3.5 w-3.5" />Photos · {photos}</button>}
+          </div>
+        )
+        : inField ? <div className="mt-2 text-right text-[0.75rem] text-faint">No daily log or photos for this room yet</div> : null}
     </div>
   )
 }
@@ -206,7 +218,8 @@ function TileRow({ job, t, where, onStep }: { job: Job; t: Tile; where: string[]
 }
 
 /* ---------------- People: who's on the job, how to reach them, and what each one has on it now ---------------- */
-function PeoplePart({ job }: { job: Job }) {
+type Has = { key: string; what: string; state: 'now' | 'wait' | 'bad'; when: string; late?: boolean; go: () => void }
+function PeoplePart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) {
   const s = useStore()
   const me = meOf(s.role)
   const client = s.clients[job.clientId]
@@ -222,7 +235,12 @@ function PeoplePart({ job }: { job: Job }) {
   const steps = stepsFor(s, job).filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
   const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.step)
   const ours = Array.from(new Set([...steps.map((v) => v.owner), ...tasks.map((t) => t.owner)])).filter((p) => p && PEOPLE[p])
-  const has = (p: PersonKey) => [...steps.filter((v) => v.owner === p).map((v) => STEP_SHORT[v.key] || v.short), ...tasks.filter((t) => t.owner === p).map((t) => t.title)]
+  /* each of ours, what they have on this job: what it is, where it stands, when — tap one and it opens */
+  const has = (p: PersonKey): Has[] => [
+    ...steps.filter((v) => v.owner === p).map((v): Has => ({ key: 's:' + v.key, what: todoOf(v), state: v.state === 'bad' ? 'bad' : v.state === 'wait' ? 'wait' : 'now', when: v.state === 'wait' ? (v.due ? `waiting · back ${labelFromIso(v.due)}` : 'waiting') : v.due ? (v.due < TODAY ? `was due ${labelFromIso(v.due)}` : `due ${labelFromIso(v.due)}`) : '', late: !!v.due && v.due < TODAY && v.state !== 'wait', go: () => onStep?.(v.key) })),
+    ...tasks.filter((t) => t.owner === p).map((t): Has => ({ key: 't:' + t.id, what: t.title, state: t.tone === 'bad' ? 'bad' : t.state === 'waiting' ? 'wait' : 'now', when: t.state === 'waiting' ? `waiting${t.followUp ? ` · back ${t.followUp}` : ''}` : t.due ? `due ${t.due}` : '', go: () => s.open({ t: 'task', id: t.id }) })),
+  ]
+  const [openP, setOpenP] = React.useState<PersonKey | null>(null)
   const call = (phone?: string, label = '') => phone ? <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Phone className="h-3.5 w-3.5" /></a> : null
   const mail = (email?: string, label = '') => email ? <a href={`mailto:${email}`} aria-label={`Email ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Mail className="h-3.5 w-3.5" /></a> : null
   const row = (label: string, value: React.ReactNode, sub?: React.ReactNode, who?: PersonKey, end?: React.ReactNode) => (
@@ -247,14 +265,30 @@ function PeoplePart({ job }: { job: Job }) {
         {!ours.length && <div className="px-3 py-2.5 text-[0.8125rem] text-muted">Nothing open on this job.</div>}
         {ours.map((p) => {
           const list = has(p)
+          const on = openP === p
           return (
-            <div key={p} data-our={p} className="flex min-w-0 items-center gap-2.5 border-t border-line-2 px-3 py-2 first:border-t-0">
-              <Avatar who={p} size={28} />
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-[0.84375rem] font-semibold text-ink">{p === me ? 'You' : PEOPLE[p]?.name}<span className="font-normal text-muted">{PEOPLE[p]?.roleLabel ? ` · ${PEOPLE[p]?.roleLabel}` : ''}</span></span>
-                <span className="block truncate text-[0.75rem] text-muted">{list.slice(0, 3).join(' · ')}{list.length > 3 ? ` · +${list.length - 3}` : ''}</span>
-              </span>
-              <span className="shrink-0 rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-bold tnum text-ink-2">{list.length}</span>
+            <div key={p} data-our={p} className="border-t border-line-2 first:border-t-0">
+              <button onClick={() => setOpenP(on ? null : p)} aria-expanded={on} className="flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left transition hover:bg-[#fbfaf7]">
+                <Avatar who={p} size={28} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[0.84375rem] font-semibold text-ink">{p === me ? 'You' : PEOPLE[p]?.name}<span className="font-normal text-muted">{PEOPLE[p]?.roleLabel ? ` · ${PEOPLE[p]?.roleLabel}` : ''}</span></span>
+                  {!on && <span className="block truncate text-[0.75rem] text-muted">{list.slice(0, 2).map((x) => x.what).join(' · ')}{list.length > 2 ? ` · +${list.length - 2}` : ''}</span>}
+                </span>
+                <span className={cn('shrink-0 rounded-full px-1.5 text-[0.71875rem] font-bold tnum', list.some((x) => x.state === 'bad' || x.late) ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-ink-2')}>{list.length}</span>
+                <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', on && 'rotate-180')} />
+              </button>
+              {on && (
+                <div className="border-t border-line-2 bg-[#fcfbf9] py-1" data-our-list>
+                  {list.map((x) => (
+                    <button key={x.key} onClick={x.go} data-has={x.key} className="flex w-full min-w-0 items-center gap-2.5 py-1.5 pl-[3.25rem] pr-3 text-left transition hover:bg-[#f4f1ec]">
+                      <span className={cn('h-2 w-2 shrink-0 rounded-full', x.state === 'bad' ? 'bg-[#d7342a]' : x.state === 'wait' ? 'bg-[#d98c0b]' : p === me ? 'bg-[#2650cf]' : 'bg-[#3f4654]')} />
+                      <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink">{x.what}</span>
+                      {x.when && <span className={cn('shrink-0 text-[0.75rem]', x.late || x.state === 'bad' ? 'font-semibold text-bad-600' : x.state === 'wait' ? 'text-warn-700' : 'text-muted')}>{x.when}</span>}
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-faint" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
@@ -305,7 +339,7 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
   type Paper = { name: string; here: boolean; sub: string; go: () => void }
   const NAMED: [string, string][] = [['Plans', 'plans'], ['Spec book', 'spec'], ['Finish schedule', 'finish']]
   const papers: Paper[] = [
-    { name: 'Tile paperwork', here: !!paper || !!sp || tiles > 0, sub: paper ? `${paper.name} · ${paper.at}` : sp ? `${sp.name} · ${sp.date}` : tiles ? `${tiles} ${tiles === 1 ? 'tile' : 'tiles'} on it` : 'missing — tap to see who gets it', go: () => (paper ? open({ t: 'file', id: paper.id }) : sp ? open({ t: 'files' }) : tiles ? open({ t: 'scope' }) : onStep?.('getpaper')) },
+    { name: 'Tile paperwork', here: !!paper || !!sp, sub: paper ? `${paper.name} · ${paper.at}` : sp ? `${sp.name} · ${sp.date}` : tiles ? `${tiles} ${tiles === 1 ? 'tile' : 'tiles'} entered — no file kept · tap to add it` : 'missing — tap to add it', go: () => (paper ? open({ t: 'doc', doc: 'Tile paperwork' }) : sp ? open({ t: 'files' }) : open({ t: 'doc', doc: 'Tile paperwork' })) },
     ...(rooms.length ? [{ name: 'Scope of work', here: true, sub: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`, go: () => open({ t: 'scope' }) }] : []),
     ...NAMED.flatMap(([doc, kind]): Paper[] => {
       const a = asked.find((d) => d.name === doc)
@@ -313,12 +347,12 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
       const smp = sampleOf(kind)
       if (!a && !f && !smp) return []
       const here = !!f || !!smp || (!!a && a.status !== 'missing')
-      return [{ name: doc, here, sub: f ? `${f.name} · ${f.at}` : smp ? `${smp.rev} · ${smp.date}` : !here ? 'missing — tap to add it' : a?.note || 'Here', go: () => (f || a ? open({ t: 'doc', doc }) : open({ t: 'files' })) }]
+      return [{ name: doc, here: !!f || !!smp, sub: f ? `${f.name} · ${f.at}` : smp ? `${smp.rev} · ${smp.date}` : a && a.status !== 'missing' ? `${a.note || 'Came in'} — no file kept · tap to add it` : 'missing — tap to add it', go: () => (!f && smp ? open({ t: 'files' }) : open({ t: 'doc', doc })) }]
     }),
-    ...asked.filter((d) => !NAMED.some(([x]) => x === d.name)).map((d) => ({ name: d.name, here: d.status !== 'missing', sub: d.status === 'missing' ? 'missing — tap to add it' : d.note || 'Here', go: () => open({ t: 'doc', doc: d.name }) })),
+    ...asked.filter((d) => !NAMED.some(([x]) => x === d.name)).map((d) => { const f = last(filesOfDoc(files, job.id, d.name)); return { name: d.name, here: !!f, sub: f ? `${f.name} · ${f.at}` : d.status === 'missing' ? 'missing — tap to add it' : `${d.note || 'Came in'} — no file kept · tap to add it`, go: () => open({ t: 'doc', doc: d.name }) } }),
   ]
   const namedKinds = ['paperwork', 'plans', 'spec', 'finish']
-  const named = new Set([paper?.id, ...asked.flatMap((d) => filesOfDoc(files, job.id, d.name).map((f) => f.id))])
+  const named = new Set([...files.filter((f) => f.kind === 'paperwork').map((f) => f.id), ...NAMED.flatMap(([d]) => filesOfDoc(files, job.id, d).map((f) => f.id)), ...asked.flatMap((d) => filesOfDoc(files, job.id, d.name).map((f) => f.id))])
   const kindWord = (f: (typeof files)[number]) => (f.kind === 'paperwork' ? 'Tile paperwork' : f.doc || (f.kind === 'plans' ? 'Plans' : 'File'))
   return (
     <Part

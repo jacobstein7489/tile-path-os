@@ -1,27 +1,46 @@
-<!-- The invite email. Paste it in Lovable → Cloud → Auth → Email templates → "Invite user".
-     Supabase fills {{ .ConfirmationURL }} and {{ .SiteURL }}. The logo is served by the app itself. -->
+<!-- The invite email ("You're invited to Tile OS"). Lovable → More → Emails → Auth emails → Invite: use this design.
+     {{ .ConfirmationURL }} is the one-time link (keep it as the button's href). The logo is served by the published app. -->
 <!doctype html>
-<html>
-  <body style="margin:0;padding:0;background:#f4f1eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:32px 16px;">
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <title>You’re invited to Cobblestone Tile OS</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f1eb;-webkit-font-smoothing:antialiased;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Pick a password and you’re in — Cobblestone runs its projects on Tile OS.</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
       <tr><td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:16px;border:1px solid #ebe6dd;">
-          <tr><td align="center" style="padding:36px 32px 8px;">
-            <img src="{{ .SiteURL }}/logo-email.png" width="220" alt="Cobblestone Tile Installation" style="display:block;width:220px;max-width:100%;height:auto;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;">
+          <tr><td style="background:#ffffff;border:1px solid #e8e2d8;border-radius:18px;box-shadow:0 12px 32px -18px rgba(34,55,43,.35);">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+              <tr><td style="height:6px;background:#22372b;border-radius:18px 18px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+              <tr><td align="center" style="padding:34px 40px 0;">
+                <img src="https://tile-path-os.lovable.app/logo-email.png" width="190" alt="Cobblestone Tile Installation" style="display:block;width:190px;max-width:70%;height:auto;border:0;">
+              </td></tr>
+              <tr><td style="padding:22px 40px 0;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b7a70;text-align:center;">Tile OS</td></tr>
+              <tr><td style="padding:10px 40px 0;font-size:26px;font-weight:700;line-height:1.25;color:#1c1a16;text-align:center;">You’re invited</td></tr>
+              <tr><td style="padding:14px 40px 0;font-size:16px;line-height:1.6;color:#4a4740;text-align:center;">
+                Cobblestone runs its projects on Tile OS — what’s next on every job, who has it, and what came in.
+                Pick a password and you’re in.
+              </td></tr>
+              <tr><td align="center" style="padding:30px 40px 8px;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#22372b;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;padding:17px 34px;border-radius:12px;">Pick my password</a>
+              </td></tr>
+              <tr><td style="padding:14px 40px 0;font-size:13px;line-height:1.55;color:#8a857b;text-align:center;">
+                The link works once. On a phone, open it in Safari or Chrome — then “Add to Home Screen” and it works like an app.
+              </td></tr>
+              <tr><td style="padding:30px 40px 34px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0ebe3;">
+                  <tr><td style="padding-top:18px;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">
+                    Weren’t expecting this? You can ignore it — nothing happens until you pick a password.
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
           </td></tr>
-          <tr><td style="padding:16px 32px 0;font-size:22px;font-weight:700;line-height:1.3;text-align:center;">You’re invited to Tile OS</td></tr>
-          <tr><td style="padding:12px 32px 0;font-size:16px;line-height:1.55;color:#4a4740;text-align:center;">
-            It’s where Cobblestone runs its projects — what’s next on every job, who has it, and what came in.
-            Pick a password and you’re in.
-          </td></tr>
-          <tr><td align="center" style="padding:28px 32px 8px;">
-            <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2650cf;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 28px;border-radius:12px;">Set my password and open Tile OS</a>
-          </td></tr>
-          <tr><td style="padding:12px 32px 0;font-size:13px;line-height:1.5;color:#8a857b;text-align:center;">
-            On a phone, open it in Safari or Chrome and choose “Add to Home Screen” so it works like an app.
-          </td></tr>
-          <tr><td style="padding:28px 32px 32px;font-size:12px;line-height:1.5;color:#a5a095;text-align:center;border-top:1px solid #f1ede7;">
-            If you weren’t expecting this, you can ignore it. The link works once.<br>
+          <tr><td style="padding:22px 0 0;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">
             Cobblestone Tile Installation
           </td></tr>
         </table>

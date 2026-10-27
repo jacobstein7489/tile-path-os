@@ -477,6 +477,17 @@ export function lanesFor(steps: StepView[]): LaneView[] {
   })
 }
 
+/** the step that has to happen before this one on its track — when this one is done, that one is too */
+const BEFORE: Record<string, string[]> = { rooms: ['getpaper'], qty: ['rooms'], delivered: ['order'], confirmed: ['installer'], change: ['design'], matin: ['materials'] }
+const BEFORE_NOTE: Record<string, string> = {
+  getpaper: 'Got it — the paperwork is entered',
+  rooms: 'Entered — the quantities are checked',
+  order: 'The tile came',
+  installer: 'His PO went out — he accepted it',
+  design: 'Met — the scope is confirmed',
+  materials: 'Ordered — they came',
+}
+
 /** every step of one project, in order, with who has it and where it stands */
 export function stepsFor(s: Store, j: Job): StepView[] {
   const recs = s.stepRecs[j.id] || {}
@@ -539,6 +550,23 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     }
     return view
   })
+  /* the flow can't have a done step after an open one: the paperwork entered means we got it, the tile came means the
+     delivery date was known, he accepted the PO means it went out. The one before is done too — and off its list. */
+  for (let changed = true; changed;) {
+    changed = false
+    list.forEach((v) => {
+      if (v.state !== 'done') return
+      ;(BEFORE[v.key] || []).forEach((k) => {
+        const x = list.find((y) => y.key === k)
+        if (!x || x.state === 'done' || x.state === 'na') return
+        x.state = 'done'
+        x.note = BEFORE_NOTE[k] || `Done — ${v.short.toLowerCase()} is done`
+        x.action = undefined
+        x.doneOn ||= v.doneOn
+        changed = true
+      })
+    })
+  }
   /* a step that waits for an earlier one isn't anyone's turn yet */
   const doneish = (k: string) => { const x = list.find((y) => y.key === k); return !x || x.state === 'done' || x.state === 'na' }
   list.forEach((v) => {
@@ -624,15 +652,30 @@ export function sendRevisedQty(jobId: string, o: { to: string; text: string }) {
 }
 
 /** waiting on someone outside — the step comes back on its owner's Today that day */
-export function waitOnStep(jobId: string, key: string, on: string, back: string) {
+export function waitOnStep(jobId: string, key: string, on: string, back: string, note?: string) {
   const s = S()
   const iso = isoFromLabel(back) || addDays(TODAY, 2)
   const v = s.jobs[jobId] ? stepsFor(s, s.jobs[jobId]).find((x) => x.key === key) : undefined
+  /* it was already waiting: this is a follow-up — done for today, not done */
+  const again = !!s.stepRecs[jobId]?.[key]?.wait
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
     r.wait = { on, back: iso, at: NOW }
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${v?.short || 'Step'}: waiting on ${on}`, detail: `Back ${labelFromIso(iso)}` } as any)
-  }, `Waiting on ${on}`, { tone: 'wait', sub: `It comes back on ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} Today ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : `on ${labelFromIso(iso)}`} if it hasn’t come.`, close: true })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: again ? `${v?.short || 'Step'}: followed up — still waiting on ${on}` : `${v?.short || 'Step'}: waiting on ${on}`, detail: `${note ? `${note} · ` : ''}Back ${labelFromIso(iso)}` } as any)
+  }, again ? `Followed up — back ${labelFromIso(iso)}` : `Waiting on ${on}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)} — it comes back then if it hasn’t come.`, close: true })
+}
+/** the tile didn't come on its day: followed up with the store — the new day it's coming. Off the list until then. */
+export function tileNotYet(jobId: string, when: string, note?: string) {
+  const iso = isoFromLabel(when) || addDays(TODAY, 1)
+  const s = S()
+  const j = s.jobs[jobId]
+  const v = j ? stepsFor(s, j).find((x) => x.key === 'delivered') : undefined
+  s.commit((st) => {
+    const r = ((st.stepRecs[jobId] ||= {}).delivered ||= {})
+    r.due = iso
+    st.checks.forEach((c) => { if (c.jobId === jobId && c.received < c.ordered) c.eta = labelFromIso(iso) })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Followed up on the tile — not here yet', detail: `${note ? `${note} · ` : ''}Now ${labelFromIso(iso)}` } as any)
+  }, `Followed up — the tile is coming ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until then — it comes back that day to check it in.` })
 }
 export function stopWaiting(jobId: string, key: string) {
   S().commit((st) => { const r = st.stepRecs[jobId]?.[key]; if (r) delete r.wait }, 'Not waiting any more')
@@ -799,18 +842,20 @@ export function setStepDue(jobId: string, key: string, label: string) {
   S().commit((st) => { ((st.stepRecs[jobId] ||= {})[key] ||= {}).due = iso }, `Due ${labelFromIso(iso)}`)
 }
 
-/** the store ordered the tile: when is it coming, and who checks it in that day */
-export function markTileOrdered(jobId: string, when: string, receiver: PersonKey) {
+/** the store ordered the tile: when is it coming. Whoever receives the tile (Who does what) has it on that day. */
+export function markTileOrdered(jobId: string, when: string) {
   const s = S()
   const j = s.jobs[jobId]
   const iso = isoFromLabel(when) || addDays(TODAY, 3)
+  const receiver = j ? stepsFor(s, j).find((v) => v.key === 'delivered')?.owner : undefined
+  const day = labelFromIso(iso) === 'Today' ? 'today' : labelFromIso(iso)
   s.commit((st) => {
     const r = (st.stepRecs[jobId] ||= {})
     r.order = { ...(r.order || {}), done: NOW, by: me(), note: `Ordered · delivery ${labelFromIso(iso)}` }
-    r.delivered = { ...(r.delivered || {}), due: iso, owner: receiver }
+    r.delivered = { ...(r.delivered || {}), due: iso }
     if (st.prep[jobId]) st.prep[jobId].tile = 'no'
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile ordered by the store', detail: `Delivery ${labelFromIso(iso)} — ${PEOPLE[receiver].name} checks it in` } as any)
-  }, 'Tile marked ordered', { sub: `It shows on ${PEOPLE[receiver].short}’s list on ${labelFromIso(iso) === 'Today' ? 'today' : labelFromIso(iso)} to check it in.`, to: [{ who: receiver, what: `Check in the tile at ${j?.name} · ${labelFromIso(iso)}` }] })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile ordered by the store', detail: `Delivery ${labelFromIso(iso)}${receiver ? ` — ${PEOPLE[receiver].name} checks it in` : ''}` } as any)
+  }, 'Delivery date saved', { sub: receiver ? `It’s on ${receiver === me() ? 'your' : `${PEOPLE[receiver].short}’s`} list ${day === 'today' ? 'today' : `on ${day}`} to check it in.` : undefined, to: receiver && receiver !== me() ? [{ who: receiver, what: `Check in the tile at ${j?.name} · ${labelFromIso(iso)}` }] : undefined })
 }
 /** the tile came: all of it, or report what's short */
 export function checkInTile(jobId: string) {
@@ -904,12 +949,19 @@ export function setFloorLevel(jobId: string, room: string, high: number, low: nu
     if (rec?.done) { delete rec.done; delete rec.by }
   }, 'Floor saved')
 }
-/** where the laser line was set on this project (40" up, on the hallway wall) — so anyone can check the numbers again */
-export function setLaser(jobId: string, where: string) {
+/** the height the laser line is set at, off the floor at the door — the same on every floor so the numbers compare */
+export const LASER_AT = 48
+/** where the laser line was set on this project (and how high) — so anyone can check the numbers again */
+export function setLaser(jobId: string, where: string, at?: number) {
   const s = S()
-  const was = s.prep[jobId]?.laser?.where || ''
-  if (was === where.trim()) return
-  s.commit((st) => { const p = (st.prep[jobId] ||= {}); if (where.trim()) p.laser = { where: where.trim(), date: TODAY, by: me() }; else delete p.laser }, where.trim() ? 'Laser line noted' : 'Laser line cleared')
+  const was = s.prep[jobId]?.laser
+  const h = at ?? was?.at
+  if ((was?.where || '') === where.trim() && was?.at === h) return
+  s.commit((st) => {
+    const p = (st.prep[jobId] ||= {})
+    if (where.trim() || h) p.laser = { where: where.trim(), date: TODAY, by: me(), ...(h ? { at: h } : {}) }
+    else delete p.laser
+  }, where.trim() || h ? 'Laser line noted' : 'Laser line cleared')
 }
 /** a floor is too far out for us: the office hears it, with the numbers, to take up with the GC */
 export function sendFloorProblems(jobId: string) {

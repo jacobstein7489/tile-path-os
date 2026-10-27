@@ -110,25 +110,29 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
     for (const x of r.surfaces) {
       total++
       if (!x.sf) { skipped.push({ room: r.name, surface: x.name, why: 'No square feet yet' }); continue }
-      if (!x.tile) { skipped.push({ room: r.name, surface: x.name, why: 'No tile picked yet' }); continue }
       if (x.state === 'unknown' && /tile not confirmed/i.test(x.reason || '')) { skipped.push({ room: r.name, surface: x.name, why: 'Tile not confirmed yet' }); continue }
+      /* what's under the tile goes by the square feet and how it's set — it's counted before the tile is picked;
+         the thinset and the grout go by the tile, so they wait for it */
+      if (!x.tile) skipped.push({ room: r.name, surface: x.name, why: 'Thinset and grout — after its tile is picked' })
       counted++
       sf += x.sf
       const k = kindOf(x)
       const m = methodOf(r.name, x).key
-      const [L, W] = dims(jobId, x.tile)
-      const big = Math.max(L, W)
-      const size = tileOf(jobId, x.tile)?.size || ''
       const base = { room: r.name, surface: x.name, sf: x.sf }
-      /* thinset for the tile, by tile size */
-      const cov = big <= 8 ? R.thinSmall : big <= 15 ? R.thinMed : R.thinLarge
-      add('m-thinset', x.sf / cov, { ...base, note: `${x.sf} SF of ${size} tile ÷ ${cov} SF a bag` })
-      /* grout from the joint: width × tile thickness × joint length */
-      const [J, jl] = joint(x, k)
-      const T = big >= 16 ? 0.375 : big >= 6 ? 0.3125 : 0.25
-      /* 12 ≈ grout weight per cubic inch × 144, with the mixing loss the grout makers' charts include */
-      const lb = x.sf * ((L + W) / (L * W)) * J * T * 12
-      add('m-grout', lb / 25, { ...base, note: `${size} tile with a ${jl} joint → ${lb < 10 ? lb.toFixed(1) : Math.round(lb)} lb` })
+      const [L, W] = x.tile ? dims(jobId, x.tile) : [12, 12]
+      const big = Math.max(L, W)
+      if (x.tile) {
+        const size = tileOf(jobId, x.tile)?.size || ''
+        /* thinset for the tile, by tile size */
+        const cov = big <= 8 ? R.thinSmall : big <= 15 ? R.thinMed : R.thinLarge
+        add('m-thinset', x.sf / cov, { ...base, note: `${x.sf} SF of ${size} tile ÷ ${cov} SF a bag` })
+        /* grout from the joint: width × tile thickness × joint length */
+        const [J, jl] = joint(x, k)
+        const T = big >= 16 ? 0.375 : big >= 6 ? 0.3125 : 0.25
+        /* 12 ≈ grout weight per cubic inch × 144, with the mixing loss the grout makers' charts include */
+        const lb = x.sf * ((L + W) / (L * W)) * J * T * 12
+        add('m-grout', lb / 25, { ...base, note: `${size} tile with a ${jl} joint → ${lb < 10 ? lb.toFixed(1) : Math.round(lb)} lb` })
+      }
       /* what's under it */
       if (m === 'mud' || m === 'mudpan') {
         const inch = m === 'mud' ? R.mudIn : R.panIn
@@ -155,7 +159,7 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
       if (m === 'foam') add('m-foam', x.sf / R.foam, { ...base, note: `${x.sf} SF ÷ ${R.foam} SF a sheet` })
       if (m === 'skim') add('m-skim', x.sf / R.skim, { ...base, note: `${x.sf} SF ÷ ${R.skim} SF a bag` })
       /* large format gets leveling clips */
-      if (big >= 24) {
+      if (x.tile && big >= 24) {
         const clips = x.sf * (144 / (L * W)) * 3
         add('m-clips', clips / 250, { ...base, note: `About ${Math.round(clips)} clips · 3 a tile` })
       }

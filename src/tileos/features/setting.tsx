@@ -139,7 +139,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
             })}
             {!need.length && <div className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-[0.8125rem] text-muted">Add square feet and tile to the scope first.</div>}
           </div>
-          {t.skipped.length > 0 && <div className="mt-3 text-[0.75rem] text-warn-700">{t.skipped.length} surface{t.skipped.length > 1 ? 's' : ''} left out — {t.skipped[0].why.toLowerCase()}</div>}
+          {t.skipped.length > 0 && <div className="mt-3 text-[0.75rem] text-warn-700">{t.skipped.length} {t.skipped.length > 1 ? 'walls and floors' : 'wall or floor'} not fully counted yet — {t.skipped[0].why.toLowerCase()}</div>}
         </aside>
       </div>
     </Modal>

@@ -8,22 +8,22 @@
  *   Once the crew is in, the tracks fold to one ✓ line, and the left is the issues, the changes, more tile and the
  *     touch-ups. */
 import * as React from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Truck, HardHat, CalendarDays, Check, Receipt, Minus, TriangleAlert, ListTodo, Hourglass, Package, FileText } from 'lucide-react'
-import { useStore, meOf, isRequest } from '@/tileos/store'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Truck, HardHat, CalendarDays, Check, Receipt, Minus, TriangleAlert, ListTodo, Hourglass, Package, FileText, Lock } from 'lucide-react'
+import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Circles } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
-import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, type StepState } from '../steps'
+import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
+import { stepsFor, type StepState, type StepView } from '../steps'
 import { StepIcon } from '../steps-ui'
 import { StepInline, StepTabs, TITLE } from '../stepwin'
 import { installerOf } from '../upcoming'
 import { TouchupsList } from '../touchups'
 import { allowedFor } from '../newpicker'
 import { firstName } from './kit'
-import { tracksFor, lineOf, phaseOf, leadWords, stepShort, moneyLine, issuesOf, issueKind, bookingOf, type TrackView, type TrackKey } from '../tracks'
+import { tracksFor, lineOf, phaseOf, stepShort, moneyLine, issuesOf, issueKind, bookingOf, type TrackView, type TrackKey } from '../tracks'
 
 /** the track (and the step on it) that's open on the left */
 export type OpenTrack = { track: TrackKey; step: string } | null
@@ -101,12 +101,11 @@ function Tracks({ job, tracks, setOpen, onFold }: { job: Job; tracks: TrackView[
   const done = tracks.filter((t) => t.state === 'done').length
   return (
     <section data-tracks>
-      <header className="mb-1 flex min-w-0 items-baseline gap-2.5 px-0.5">
+      <header className="mb-2 flex min-w-0 items-baseline gap-2.5 px-0.5">
         <h3 className="shrink-0 text-[1.0625rem] font-semibold text-ink">Getting ready</h3>
-        <span className={cn('min-w-0 truncate text-[0.8125rem]', done === n ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{done === n ? `All ${n} done` : `${done} of ${n} done — they all move at the same time`}</span>
+        <span className={cn('min-w-0 truncate text-[0.8125rem]', done === n ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{done === n ? `All ${n} done` : `${done} of ${n} done`}</span>
         {onFold && <button onClick={onFold} className="ml-auto inline-flex shrink-0 items-center gap-1 self-center rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash"><ChevronUp className="h-3.5 w-3.5" />Fold</button>}
       </header>
-      <TrackLegend className="mb-2 px-0.5" />
       <div className="flex flex-col gap-1.5">
         {tracks.map((t) => <TrackRow key={t.key} job={job} t={t} onOpen={(k) => setOpen({ track: t.key, step: k })} />)}
       </div>
@@ -114,47 +113,18 @@ function Tracks({ job, tracks, setOpen, onFold }: { job: Job; tracks: TrackView[
   )
 }
 
-/** what the marks mean — blue is only ever "your turn" */
-function TrackLegend({ className }: { className?: string }) {
-  const items: [StepState, boolean, string][] = [['done', false, 'Done'], ['now', true, 'Your turn'], ['now', false, 'Someone’s turn'], ['wait', false, 'Waiting on someone outside'], ['bad', false, 'Problem'], ['later', false, 'Not yet']]
-  return (
-    <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.71875rem] text-muted', className)} data-legend>
-      {items.map(([st, mine, l]) => <span key={l} className="inline-flex items-center gap-1.5"><Dot state={st} mine={mine} />{l}</span>)}
-    </div>
-  )
-}
-
-const WHO_TONE: Record<string, string> = { ok: 'text-[#2c8a5b]', mine: 'text-brand-700', now: 'text-ink', wait: 'text-warn-700', bad: 'text-bad-600', later: 'text-muted' }
-
-/** one track: its name, who has it now and when — and its steps under it. Tap it (or a step) and it opens. */
+/** one track: its name — and its steps under it, each with whose it is (or when it was done). Tap it (or a step) and
+ *  it opens. */
 function TrackRow({ job, t, onOpen }: { job: Job; t: TrackView; onOpen: (k: string) => void }) {
   const s = useStore()
   const me = meOf(s.role)
-  const w = leadWords(s, job, t)
-  const lead = t.lead
-  const first = lead?.key || t.steps[t.steps.length - 1]?.key
+  const first = t.lead?.key || t.steps[t.steps.length - 1]?.key
   return (
     <div data-track={t.key} data-state={t.state} className={cn('overflow-hidden rounded-[0.875rem] border bg-white transition hover:border-[#d8d1c5]', t.state === 'bad' ? 'border-bad-200' : 'border-line')}>
-      <button onClick={() => first && onOpen(first)} className="flex w-full min-w-0 items-center gap-3 px-3.5 pt-2 text-left max-sm:gap-2 max-sm:px-3" data-track-head>
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="text-[0.9375rem] font-bold text-ink">{t.label}</span>
-          {t.state === 'done' && <span className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-[#2c8a5b]"><Check className="h-3.5 w-3.5" strokeWidth={3} />{t.doneOn ? `Done ${t.doneOn}` : 'Done'}</span>}
-        </span>
-        {t.state !== 'done' && (
-          <span className="flex min-w-0 max-w-[62%] items-center gap-2 text-right" data-who>
-            <span className="min-w-0 leading-tight">
-              <span className={cn('block truncate text-[0.8125rem] font-semibold', WHO_TONE[w.tone])}>{w.top}</span>
-              {w.sub && <span className={cn('block truncate text-[0.71875rem]', w.late ? 'font-semibold text-bad-600' : 'text-muted')}>{w.sub}</span>}
-            </span>
-            {w.who && (
-              <span className="relative shrink-0">
-                <Avatar who={w.who} size={26} />
-                {w.tone === 'wait' && <span className="absolute -bottom-1 -right-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-warn-700 ring-1 ring-[#f0dcb4]"><Hourglass className="h-2.5 w-2.5" /></span>}
-              </span>
-            )}
-          </span>
-        )}
-        <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+      <button onClick={() => first && onOpen(first)} className="flex w-full min-w-0 items-center gap-2 px-3.5 pt-2 text-left max-sm:px-3" data-track-head>
+        <span className="text-[0.9375rem] font-bold text-ink">{t.label}</span>
+        {t.state === 'done' && <span className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-[#2c8a5b]"><Check className="h-3.5 w-3.5" strokeWidth={3} />{t.doneOn ? `Done ${t.doneOn}` : 'Done'}</span>}
+        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-faint" />
       </button>
       <TrackPath job={job} t={t} me={me} onPick={onOpen} />
     </div>
@@ -162,7 +132,7 @@ function TrackRow({ job, t, onOpen }: { job: Job; t: TrackView; onOpen: (k: stri
 }
 
 /* the marks on a track's path: ✓ done · blue your turn · dark ring someone's turn · amber waiting on someone outside ·
-   red a problem · dashed not yet */
+   red a problem · a lock: not yet — it opens when the one before it is done */
 function Dot({ state, mine, lead }: { state: StepState; mine?: boolean; lead?: boolean }) {
   const box = 'inline-flex h-[0.9375rem] w-[0.9375rem] shrink-0 items-center justify-center rounded-full'
   if (state === 'done') return <span className={cn(box, 'bg-[#2c8a5b] text-white')}><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
@@ -171,25 +141,51 @@ function Dot({ state, mine, lead }: { state: StepState; mine?: boolean; lead?: b
   if (state === 'now') return <span className={cn(box, 'border-2 border-[#3f4654] bg-white')}><span className="h-[0.3125rem] w-[0.3125rem] rounded-full bg-[#3f4654]" /></span>
   if (state === 'wait') return <span className={cn(box, 'border-2 border-[#d98c0b] bg-white text-[#d98c0b]')}><Hourglass className="h-2 w-2" strokeWidth={3} /></span>
   if (state === 'na') return <span className={cn(box, 'bg-wash-2 text-faint')}><Minus className="h-2.5 w-2.5" strokeWidth={3} /></span>
-  return <span className={cn(box, 'border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white')} />
+  return <span className={cn(box, 'border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white text-[#a39b8e]')}><Lock className="h-2 w-2" strokeWidth={3} /></span>
 }
 const DOT_LABEL: Record<StepState, string> = { done: 'text-ink-2', now: 'font-semibold text-ink', bad: 'font-semibold text-bad-600', wait: 'font-medium text-warn-700', later: 'text-muted', na: 'text-faint line-through' }
 
-/** a track's steps in a row — done, the one it's on, what comes after. Tap one and it opens. */
-function TrackPath({ job, t, me, onPick }: { job: Job; t: TrackView; me: string; onPick: (k: string) => void }) {
+/** under a step on its track: whose it is and when — or the day it was done */
+export function stepWho(s: Store, job: Job, v: StepView, me: PersonKey): { text: string; tone: 'mine' | 'muted' | 'ink' | 'bad' | 'warn' } | null {
+  const who = (p: PersonKey) => (p === me ? 'You' : PEOPLE[p]?.short || '')
+  const day = (iso?: string) => (!iso ? '' : iso === TODAY ? 'today' : labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso))
+  switch (v.state) {
+    case 'done': return { text: v.doneOn || 'Done', tone: 'muted' }
+    case 'na': return null
+    case 'later': return { text: who(v.owner), tone: 'muted' }
+    case 'bad': return { text: who(v.owner), tone: 'bad' }
+    case 'wait': {
+      const when = ['delivered', 'matin'].includes(v.key) ? (v.due ? `coming ${day(v.due)}` : 'on the way') : ['design', 'walk'].includes(v.key) ? (v.due ? `set ${day(v.due)}` : 'set') : v.due ? `waiting · back ${day(v.due)}` : 'waiting'
+      return { text: `${who(v.owner)} · ${when}`, tone: 'warn' }
+    }
+    case 'now': {
+      const late = !!v.due && v.due < TODAY
+      return { text: `${who(v.owner)}${v.due ? ` · ${late ? `was due ${labelFromIso(v.due)}` : day(v.due)}` : ''}`, tone: late ? 'bad' : v.owner === me ? 'mine' : 'ink' }
+    }
+  }
+  return null
+}
+const WHO_TONE: Record<string, string> = { mine: 'font-semibold text-brand-700', muted: 'text-muted', ink: 'font-medium text-ink-2', bad: 'font-semibold text-bad-600', warn: 'font-medium text-warn-700' }
+
+/** a track's steps in a row — each one with whose it is under it. Tap one and it opens. */
+function TrackPath({ job, t, me, onPick }: { job: Job; t: TrackView; me: PersonKey; onPick: (k: string) => void }) {
   const s = useStore()
   return (
-    <ol className="flex min-w-0 flex-wrap items-center gap-y-1 px-3.5 pb-2 pt-1 max-sm:px-3" aria-label={`${t.label}, step by step`}>
+    <ol className="flex min-w-0 flex-wrap items-start gap-y-1.5 px-3.5 pb-2.5 pt-1.5 max-sm:px-3" aria-label={`${t.label}, step by step`}>
       {t.steps.filter((v) => v.state !== 'na').map((v, i, list) => {
         const lead = t.lead?.key === v.key
         const mine = v.owner === me && (v.state === 'now' || v.state === 'bad')
         const prev = list[i - 1]
+        const w = stepWho(s, job, v, me)
         return (
-          <li key={v.key} className="flex shrink-0 items-center">
-            {i > 0 && <span aria-hidden className={cn('mx-1.5 h-[0.125rem] w-3.5 shrink-0 rounded-full max-sm:mx-1 max-sm:w-2.5', prev.state === 'done' || prev.state === 'na' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
-            <button data-step={v.key} data-state={v.state} data-mine={mine || undefined} onClick={() => onPick(v.key)} title={`${TITLE[v.key] || v.label}${v.note ? ` — ${v.note}` : ''}`} className="flex min-w-0 items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-1.5 text-[0.78125rem] transition hover:bg-[#f4f1ec]">
-              <Dot state={v.state} mine={mine} lead={lead} />
-              <span className={cn('whitespace-nowrap', DOT_LABEL[v.state], mine && 'text-brand-700', lead && 'font-bold', !lead && 'max-sm:hidden')}>{stepShort(s, job, v)}</span>
+          <li key={v.key} className="flex shrink-0 items-start">
+            {i > 0 && <span aria-hidden className={cn('mx-1.5 mt-[0.6875rem] h-[0.125rem] w-3.5 shrink-0 rounded-full max-sm:mx-1 max-sm:w-2', prev.state === 'done' || prev.state === 'na' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
+            <button data-step={v.key} data-state={v.state} data-mine={mine || undefined} onClick={() => onPick(v.key)} title={`${TITLE[v.key] || v.label}${v.note ? ` — ${v.note}` : ''}`} className="flex min-w-0 flex-col items-start rounded-lg px-1 py-0.5 text-left text-[0.78125rem] transition hover:bg-[#f4f1ec]">
+              <span className="flex items-center gap-1.5">
+                <Dot state={v.state} mine={mine} lead={lead} />
+                <span className={cn('whitespace-nowrap', DOT_LABEL[v.state], mine && 'text-brand-700', lead && 'font-bold')}>{stepShort(s, job, v)}</span>
+              </span>
+              {w && <span data-who className={cn('whitespace-nowrap pl-[1.3125rem] text-[0.71875rem] leading-tight', WHO_TONE[w.tone])}>{w.text}</span>}
             </button>
           </li>
         )

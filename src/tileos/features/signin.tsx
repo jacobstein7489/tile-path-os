@@ -6,23 +6,27 @@ import { supabase } from '@/integrations/supabase/client'
 import { lovable } from '@/integrations/lovable'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import type { CloudProblem } from '@/tileos/lib/cloud'
+import logoUrl from '@/tileos/assets/logo.svg'
 
+/** the first look after signing in pops up the day (what's late, what's due) */
+export const markSignedIn = () => { try { sessionStorage.setItem('tileos-signed-in', '1'); localStorage.setItem('tileos-last-active', String(Date.now())) } catch { /* private window */ } }
+
+/** the company's own logo on top of every screen before the app — the one on the emails */
 function Mark() {
   return (
-    <div className="mb-7 flex items-center gap-2.5">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand-600 text-white">
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" /></svg>
-      </span>
-      <span className="font-display text-[16px] font-semibold leading-tight tracking-[-0.01em] text-ink">Cobblestone<br /><span className="text-muted">Tile OS</span></span>
+    <div className="mb-6 flex flex-col items-center gap-2">
+      <img src={logoUrl} alt="Cobblestone Tile Installation" className="h-[4.75rem] w-auto" />
+      <span className="text-[11.5px] font-semibold uppercase tracking-[0.18em] text-[#22372b]/70">Tile OS</span>
     </div>
   )
 }
 function Sheet({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-canvas px-5 py-12">
+    <main className="grid min-h-screen place-items-center bg-[radial-gradient(ellipse_at_top,#ffffff_0%,#f4f1eb_60%)] px-5 py-12">
       <div className="w-full max-w-[400px]">
         <Mark />
-        <div className="rounded-[16px] border border-line bg-white p-6 shadow-card">{children}</div>
+        <div className="rounded-[18px] border border-[#ebe6dd] bg-white p-7 shadow-[0_1px_2px_rgba(34,55,43,.04),0_12px_32px_-12px_rgba(34,55,43,.18)]">{children}</div>
+        <div className="mt-5 text-center text-[12px] text-faint">Cobblestone Tile Installation</div>
       </div>
     </main>
   )
@@ -32,16 +36,14 @@ export function Splash() {
   return (
     <main className="grid min-h-screen place-items-center bg-canvas">
       <div className="flex flex-col items-center gap-3 text-muted">
-        <span className="inline-flex h-10 w-10 animate-pulse items-center justify-center rounded-[11px] bg-brand-600 text-white">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M12 2l5 5-5 5-5-5 5-5zM5 12l5 5-5 5-5-5 5-5zM19 12l5 5-5 5-5-5 5-5z" /></svg>
-        </span>
+        <img src={logoUrl} alt="Cobblestone" className="h-14 w-auto animate-pulse" />
         <span className="text-[13.5px]">Opening Tile OS…</span>
       </div>
     </main>
   )
 }
 
-export function SignIn() {
+export function SignIn({ note }: { note?: string } = {}) {
   const [mode, setMode] = React.useState<'in' | 'up'>('in')
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
@@ -56,6 +58,7 @@ export function SignIn() {
       if (mode === 'in') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (error) throw error
+        markSignedIn()
       } else {
         const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() }, emailRedirectTo: appUrl() } })
         if (error) throw error
@@ -83,6 +86,7 @@ export function SignIn() {
   }
   return (
     <Sheet>
+      {note && mode === 'in' && <div className="mb-4 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-ink-2">{note}</div>}
       <h1 className="font-display text-[21px] font-semibold tracking-[-0.01em] text-ink">{mode === 'in' ? 'Sign in' : 'Make your account'}</h1>
       <p className="mt-1 text-[13.5px] text-muted">{mode === 'in' ? 'With your Cobblestone account.' : 'Once you’re in, the admin lets you in and picks what you see.'}</p>
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
@@ -120,14 +124,15 @@ export function SetPassword({ email, name, why, onDone, onSkip }: { email: strin
     try {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
+      markSignedIn()
       onDone()
     } catch (err: any) { setMsg(err?.message || 'That didn’t work — try again.'); setBusy(false) }
   }
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600"><KeyRound className="h-5 w-5" /></span>
-      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{`${name ? `${name.split(' ')[0]}, pick` : 'Pick'} your password`}</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{'You sign in with it from now on — with your email, on your phone and your computer.'}</p>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'invite' ? `Welcome to Tile OS${name ? `, ${name.split(' ')[0]}` : ''}` : `${name ? `${name.split(' ')[0]}, pick` : 'Pick'} a new password`}</h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'invite' ? 'Pick a password — you sign in with it from now on, with your email, on your phone and your computer.' : 'You sign in with it from now on — with your email, on your phone and your computer.'}</p>
       <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">For <b className="font-semibold text-ink-2">{email}</b></div>
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="At least 8 characters" className="h-10" autoComplete="new-password" autoFocus /></label>

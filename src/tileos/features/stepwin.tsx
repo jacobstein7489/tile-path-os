@@ -7,7 +7,7 @@ import * as React from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
 import { Status, Path, Circles } from '@/tileos/components/ui/page'
 import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -19,10 +19,10 @@ import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jo
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
-import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel } from './takeoff'
+import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
 import { confirmSetting } from './setting'
 import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
@@ -121,10 +121,17 @@ export function openStep(jobId: string, k: string) { useStore.getState().open({ 
 function stateWords(v: StepView, me: PersonKey): { text: string; tone: Tone } {
   if (v.state === 'done') return { text: `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${PEOPLE[v.doneBy]?.short}` : ''}`, tone: 'ok' }
   if (v.state === 'na') return { text: 'Not needed on this project', tone: 'neutral' }
-  if (v.state === 'later') return { text: `Not yet — after ${v.waitsFor?.toLowerCase()}${v.waitsOn ? ` (${v.waitsOn === me ? 'you' : PEOPLE[v.waitsOn]?.short})` : ''}`, tone: 'neutral' }
+  if (v.state === 'later') return { text: 'Not yet', tone: 'neutral' }
   if (v.state === 'wait') return { text: 'Waiting', tone: 'warn' }
   if (v.state === 'bad') return { text: 'Problem', tone: 'bad' }
   return { text: v.owner === me ? 'Your turn' : `${PEOPLE[v.owner]?.short || 'Their'}’s turn`, tone: 'info' }
+}
+/** when an open step is due — only a day the flow set (a delivery, a follow-up, a day someone was given) */
+function dueWords(v: StepView): { text: string; late: boolean } | null {
+  if (!v.due || v.state === 'done' || v.state === 'na' || v.state === 'later') return null
+  const d = labelFromIso(v.due)
+  if (v.due < TODAY) return { text: `was due ${d}`, late: true }
+  return { text: v.due === TODAY ? 'due today' : d === 'Tomorrow' ? 'due tomorrow' : `due ${d}`, late: false }
 }
 
 /* ================= the window ================= */
@@ -132,44 +139,50 @@ function stateWords(v: StepView, me: PersonKey): { text: string; tone: Tone } {
 const StepHost = React.createContext<{ close: () => void } | null>(null)
 export const useStepHost = () => React.useContext(StepHost)
 
-/** who may do what with a step: only its person does it; a manager can hand it to someone else or take it over */
+/** who may do what with a step: only its person does it, and only once the steps before it are done. Who has each step
+ *  comes from Who does what — the admin can take one over, or give it to someone else on one project. */
 function stepRights(s: Store, v: StepView) {
   const me = meOf(s.role)
   const mine = v.owner === me
-  const manager = ['owner', 'pm', 'office'].includes(s.role)
-  return { me, mine, manager, viewOnly: !mine, handles: mine || manager }
+  const admin = s.role === 'owner' || s.role === 'pm'
+  const locked = v.state === 'later'
+  return { me, mine, admin, locked, viewOnly: !mine || locked }
 }
-/** the step itself: where it stands, who has it and when, what it's for — then what finishes it. Someone else's step
- *  shows where it is, and whose it is; a manager can take it over. */
+/** the step itself: where it stands (and when it's due), what it's for — then what finishes it. Someone else's step
+ *  shows whose it is; a step that waits for the one before it is locked until then. */
 function StepPanel({ job, v, roomy }: { job: Job; v: StepView; roomy?: boolean }) {
   const s = useStore()
-  const { me, mine, manager, viewOnly, handles } = stepRights(s, v)
+  const { me, mine, admin, locked, viewOnly } = stepRights(s, v)
   const word = stateWords(v, me)
-  const dated = !['order', 'delivered', 'design', 'walk', 'matin', 'confirmed'].includes(v.key)
+  const due = dueWords(v)
   const name = PEOPLE[v.owner]?.short || 'someone else'
   /* checking the fixes again is the site manager's — taking it over takes the site check */
   const takeKey = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
   const open = v.state !== 'done' && v.state !== 'na'
+  const onSite = v.key === 'heights' || v.key === 'level' || v.key === 'delivered' || (v.key === 'fixes' && v.state === 'now')
   return (
     <>
-      <div className={cn('text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')} data-step-state={v.state}>
-        {word.text}{(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
+      <div className="flex min-w-0 items-start gap-2">
+        {locked ? (
+          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-dashed border-[#d6cfc3] bg-[#faf8f5] px-4 py-2.5 text-[0.84375rem] text-ink-2" data-locked data-step-state={v.state}>
+            <Lock className="h-4 w-4 shrink-0 text-faint" />
+            <span className="min-w-0 flex-1">Opens when <b className="font-semibold text-ink">{v.waitsFor || 'the step before'}</b> is done{v.waitsOn ? ` — ${v.waitsOn === me ? 'you have' : `${PEOPLE[v.waitsOn]?.short} has`} that` : ''}. Then it’s {mine ? 'yours' : `${name}’s`}.</span>
+          </div>
+        ) : (
+          <div className={cn('min-w-0 flex-1 text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')} data-step-state={v.state}>
+            {word.text}
+            {due && <span className={cn(due.late ? 'text-bad-600' : 'font-medium text-ink-2')}> · {due.text}</span>}
+            {(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
+          </div>
+        )}
+        {admin && <StepMore job={job} v={v} />}
       </div>
-      <div className={cn('flex flex-wrap items-center gap-2', roomy ? 'mt-3.5' : 'mt-2.5')}>
-        {handles
-          ? <Who job={job} v={v} />
-          : <span className={cn(PILL, 'cursor-default py-1 pl-1 pr-3 text-ink hover:border-line hover:bg-white')}><Avatar who={v.owner} size={26} plain />{mine ? 'You' : name}</span>}
-        {dated && open && (handles
-          ? <When job={job} v={v} />
-          : (v.due ? <span className={cn(PILL, 'cursor-default px-3 text-ink-2 hover:border-line hover:bg-white')}><CalendarDays className="h-4 w-4 text-faint" />Due {labelFromIso(v.due)}</span> : null))}
-        {handles && <StepMore job={job} v={v} />}
-      </div>
-      {WHAT[v.key] && open && !(v.state === 'now' && v.note) && <p className={cn('text-[0.875rem] leading-snug text-muted', roomy ? 'mt-4' : 'mt-3')}>{WHAT[v.key]}</p>}
-      {viewOnly && open && (
+      {WHAT[v.key] && open && !(v.state === 'now' && v.note) && <p className={cn('text-[0.875rem] leading-snug text-muted', roomy ? 'mt-3' : 'mt-2')}>{WHAT[v.key]}</p>}
+      {!locked && viewOnly && open && (
         <div className={cn('flex items-center gap-3 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2 max-sm:flex-wrap', roomy ? 'mt-4' : 'mt-3')} data-not-mine>
-          <Lock className="h-4 w-4 shrink-0 text-faint" />
-          <span className="min-w-0 flex-1">It’s {name}’s step — {name} does it{v.key === 'heights' || v.key === 'level' || (v.key === 'fixes' && v.state === 'now') ? ' on site' : ''}. You see where it is.</span>
-          {manager && <Button size="sm" onClick={() => setStepOwner(job.id, takeKey, me)}>Take it over</Button>}
+          <Avatar who={v.owner} size={26} plain />
+          <span className="min-w-0 flex-1">It’s {name}’s step — {name} does it{onSite ? ' on site' : ''}.</span>
+          {admin && <Button size="sm" onClick={() => setStepOwner(job.id, takeKey, me)}>Take it over</Button>}
         </div>
       )}
       <fieldset disabled={viewOnly} className={cn('m-0 min-w-0 border-0 p-0', roomy ? 'mt-5' : 'mt-4')}><Body job={job} v={v} /></fieldset>
@@ -261,39 +274,28 @@ export function Legend({ className }: { className?: string }) {
   )
 }
 
-const PILL = 'inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white text-[0.84375rem] font-semibold transition hover:border-[#cdc7bc] hover:bg-wash'
-function Who({ job, v }: { job: Job; v: StepView }) {
-  const s = useStore()
-  return (
-    <Menu align="start" width={290} trigger={<button className={cn(PILL, 'py-1 pl-1 pr-3 text-ink')} aria-label="Who does it"><Avatar who={v.owner} size={26} plain />{PEOPLE[v.owner]?.short || 'Someone'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-      <MenuLabel>Who does it on {job.name}</MenuLabel>
-      {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={v.owner === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
-    </Menu>
-  )
-}
-function When({ job, v }: { job: Job; v: StepView }) {
-  const [open, setOpen] = React.useState(false)
-  const late = !!v.due && v.due < TODAY
-  return (
-    <Pop open={open} onOpenChange={setOpen} align="start" width={380} trigger={<button className={cn(PILL, 'px-3', late ? 'text-bad-600' : 'text-ink-2')} aria-label="When it's due"><CalendarDays className="h-4 w-4 text-faint" />{v.due ? `Due ${labelFromIso(v.due)}` : 'No due date'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-      <div className="text-[0.875rem] font-semibold text-ink">When should it be done?</div>
-      <div className="mt-3"><DatePresets value={v.due ? labelFromIso(v.due) : undefined} onPick={(d) => { setStepDue(job.id, v.key, d); setOpen(false) }} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
-    </Pop>
-  )
-}
-
-/** the rare things to do with a step — in one small menu, not as buttons */
+/** the admin's few extra things with a step, in one small menu: not needed here, not done after all, give it to
+ *  someone else on this project — and Who does what, where every step's person is set for every project */
 function StepMore({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rec = s.stepRecs[job.id]?.[v.key]
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
+  const open = v.state !== 'done' && v.state !== 'na'
   const items: { label: string; run: () => void }[] = v.state === 'na' ? [{ label: 'Needed after all', run: () => skipStep(job.id, v.key, false) }]
     : v.state === 'done' ? (reopenable && rec?.done ? [{ label: 'Not done after all', run: () => reopenStep(job.id, v.key) }] : [])
       : [...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []), { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true) }]
-  if (!items.length) return null
   return (
-    <Menu align="start" width={240} trigger={<button aria-label="More for this step" className={cn(PILL, 'w-9 justify-center px-0 text-muted')}><MoreHorizontal className="h-4 w-4" /></button>}>
+    <Menu align="end" width={290} trigger={<button aria-label="More for this step" className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
       {items.map((x) => <MenuItem key={x.label} onSelect={x.run}>{x.label}</MenuItem>)}
+      {open && (
+        <>
+          {items.length > 0 && <MenuSep />}
+          <MenuLabel>Give it to someone else — this project only</MenuLabel>
+          {insidePeople(s).filter((p) => p !== v.owner).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
+        </>
+      )}
+      <MenuSep />
+      <MenuItem icon={<Users className="h-4 w-4" />} hint="Who has each step, on every project" onSelect={() => s.open({ t: 'whowhat' })}>Who does what</MenuItem>
     </Menu>
   )
 }
@@ -332,16 +334,37 @@ const Good = ({ children }: { children: React.ReactNode }) => <div className="mt
 
 /** waiting on someone outside — who, and the day it comes back */
 function WaitFor({ job, k, who, label = 'Asked them — waiting' }: { job: Job; k: string; who: string; label?: string }) {
+  const s = useStore()
+  const was = s.stepRecs[job.id]?.[k]?.wait
   const [open, setOpen] = React.useState(false)
-  const [on, setOn] = React.useState(who)
+  const [on, setOn] = React.useState(was?.on || who)
   const [back, setBack] = React.useState('Tomorrow')
+  const [note, setNote] = React.useState('')
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />}>{label}</Button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />} data-wait-for>{was ? 'Followed up — still waiting' : label}</Button>}>
       <div className="text-[0.875rem] font-semibold text-ink">Waiting on</div>
       <TextInput className="mt-2" value={on} onChange={(e) => setOn(e.target.value)} placeholder="The tile store, the GC…" />
-      <div className="mt-3 text-[0.875rem] font-semibold text-ink">Back on your list</div>
+      {was && <><div className="mt-3 text-[0.875rem] font-semibold text-ink">What they said</div><TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. it ships Wednesday" /></>}
+      <div className="mt-3 text-[0.875rem] font-semibold text-ink">Back on the list</div>
       <div className="mt-2"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
-      <div className="mt-3 flex justify-end"><Button variant="primary" disabled={!on.trim()} onClick={() => { waitOnStep(job.id, k, on.trim(), back); setOpen(false) }}>Save</Button></div>
+      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until then — not done. It comes back that day if it hasn’t come.</div>
+      <div className="mt-3 flex justify-end"><Button variant="primary" disabled={!on.trim()} onClick={() => { waitOnStep(job.id, k, on.trim(), back, note.trim() || undefined); setOpen(false) }}>Save</Button></div>
+    </Pop>
+  )
+}
+/** the tile didn't come on its day: followed up with the store — when it's coming now, and what they said */
+function TileNotYet({ job }: { job: Job }) {
+  const [open, setOpen] = React.useState(false)
+  const [when, setWhen] = React.useState('Tomorrow')
+  const [note, setNote] = React.useState('')
+  return (
+    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />} data-tile-not-yet>Not here yet — followed up</Button>}>
+      <div className="text-[0.875rem] font-semibold text-ink">What the store said</div>
+      <TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. on the truck Thursday" />
+      <div className="mt-3 text-[0.875rem] font-semibold text-ink">When it’s coming now</div>
+      <div className="mt-2"><DatePresets value={when} onPick={setWhen} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
+      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until that day — then it’s back, to check it in.</div>
+      <div className="mt-3 flex justify-end"><Button variant="primary" onClick={() => { tileNotYet(job.id, when, note.trim() || undefined); setOpen(false) }}>Save</Button></div>
     </Pop>
   )
 }
@@ -363,7 +386,7 @@ function Body({ job, v }: { job: Job; v: StepView }) {
     case 'heights': return <SiteCheck job={job} v={v} />
     case 'fixes': return <SiteFixes job={job} v={v} />
     case 'level': return <FloorLevels job={job} v={v} />
-    case 'materials': return <Materials job={job} />
+    case 'materials': return <Materials job={job} v={v} />
     case 'matin': return <MaterialsIn job={job} v={v} />
     case 'delivered': return <Delivered job={job} v={v} />
     case 'layouts': if (!v.only) return <Layouts job={job} v={v} />
@@ -458,9 +481,9 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const totalSF = rooms.reduce((n, r) => n + r.surfaces.reduce((m, x) => m + (x.sf || 0), 0), 0)
   return (
     <div className="flex flex-col gap-4">
-      {lock.canEdit ? <PaperRead job={job} /> : <div className="flex items-center gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked — it’s {PEOPLE[lock.owner]?.short}’s scope. Only {PEOPLE[lock.owner]?.short} can change it.</div>}
+      {lock.canEdit ? <PaperRead job={job} /> : <div className="flex items-center gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Only {PEOPLE[lock.owner]?.short} enters the paperwork and changes the scope.</div>}
       <Block title="Tile on the paperwork" right={lock.canEdit ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
-        {!tiles.length && <Quiet>Upload the paperwork above — or add each tile by hand: its tag, its name, where it goes.</Quiet>}
+        {!tiles.length && <Quiet>{lock.canEdit ? 'None yet — upload the paperwork above, or add each tile by hand: its tag, its name, where it goes.' : `None yet — ${PEOPLE[lock.owner]?.short} enters them from the paperwork.`}</Quiet>}
         {tiles.map((t) => <TileWhere key={t.tag} job={job} t={t} loose={loose.includes(t)} locked={!lock.canEdit} />)}
       </Block>
       {missing.length > 0 && (
@@ -511,7 +534,13 @@ function Quantities({ job, v }: { job: Job; v: StepView }) {
   const rows = tiles.map((t) => qtyRow(s, job.id, t)).filter((r) => r.on.length)
   const short = rows.filter((r) => r.short > 0)
   const sent = s.stepRecs[job.id]?.qty?.qty || s.stepRecs[job.id]?.rooms?.qty
-  if (!rows.length) return <Block title="Each tile"><Quiet>After the tile is matched to the walls and floors — then each one shows what the paperwork has against what we need.</Quiet></Block>
+  /* no tile entered from the paperwork yet: it goes in right here — no going back a step */
+  if (!rows.length) return (
+    <div className="flex flex-col gap-4">
+      {scopeLock(s, job.id).canEdit && <PaperRead job={job} />}
+      <Block title="Each tile"><Quiet>No tile from the paperwork on the walls and floors yet{scopeLock(s, job.id).canEdit ? ' — upload it above and AI reads it' : ''}. Then each tile shows what the paperwork has against what we need.</Quiet></Block>
+    </div>
+  )
   return (
     <div className="flex flex-col gap-4">
       {sent && v.state !== 'done' && <div className="rounded-xl bg-warn-50 px-4 py-3 text-[0.84375rem] text-warn-800">Revised quantities went to {sent.to} {sent.at}. When the new paperwork comes, drop it here — it reads the new numbers and checks itself.</div>}
@@ -965,14 +994,14 @@ function Setup({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
-/* ================= 6 · the tile order: when it comes, who checks it in ================= */
+/* ================= 6 · the tile order: when it comes — whoever receives the tile has it that day ================= */
 function Order({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const host = useStepHost()
+  const me = meOf(s.role)
   const checks = s.checks.filter((c) => c.jobId === job.id)
-  const people = insidePeople(s)
   const [when, setWhen] = React.useState('Thu')
-  const [who, setWho] = React.useState<PersonKey>(people.includes('yakov') ? 'yakov' : v.owner)
+  const receiver = stepsFor(s, job).find((x) => x.key === 'delivered')?.owner
   if (checks.length)
     return (
       <Block title="What the store ordered" right={checks[0].supplier}>
@@ -992,14 +1021,13 @@ function Order({ job, v }: { job: Job; v: StepView }) {
   return (
     <div className="flex flex-col gap-4">
       <Field label="When is the tile being delivered?"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
-      <Field label="Who checks it in that day?">
-        <div className="flex flex-wrap gap-1.5">
-          {people.map((p) => (
-            <button key={p} onClick={() => setWho(p)} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border pl-1 pr-3 text-[0.8125rem] font-medium transition', who === p ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><Avatar who={p} size={26} />{PEOPLE[p]?.short}</button>
-          ))}
+      {receiver && (
+        <div className="flex items-center gap-2.5 text-[0.84375rem] text-ink-2" data-receiver={receiver}>
+          <Avatar who={receiver} size={26} />
+          <span>It goes on {receiver === me ? 'your' : <b className="font-semibold text-ink">{PEOPLE[receiver]?.short}’s</b>} list that day, to check it in.</span>
         </div>
-      </Field>
-      <Actions><Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when, who); (host || s).close() }}>Save the delivery date</Button></Actions>
+      )}
+      <Actions><Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when); (host || s).close() }}>Save the delivery date</Button></Actions>
     </div>
   )
 }
@@ -1091,7 +1119,8 @@ function SiteRow({ job, k, can, fixer }: { job: Job; k: string; can: boolean; fi
   }
   const have = rooms.length - missing.length
   const wrong = !!a && !a.ok && !a.na
-  const words = !a ? (some ? 'Which rooms don’t have it? Tap them.' : c.sub)
+  /* the drains are only asked where the scope has a shower — it says which */
+  const words = !a ? (some ? 'Which rooms don’t have it? Tap them.' : c.byRoom === 'shower' && rooms.length ? `Only where there’s a shower: ${rooms.join(', ')}` : c.sub)
     : a.na ? 'Not needed here'
       : a.ok ? `Yes${a.by ? ` · ${PEOPLE[a.by]?.short}${a.at ? ` ${a.at}` : ''}` : ''}`
         : `${byRoom ? `${have} of ${rooms.length} have it — missing: ${missing.join(', ')}` : 'No'}${a.note ? ` · ${a.note}` : ''}`
@@ -1165,7 +1194,7 @@ function SiteFixes({ job, v }: { job: Job; v: StepView }) {
 const FRACS: [string, number][] = [['0', 0], ['⅛', 0.125], ['¼', 0.25], ['⅜', 0.375], ['½', 0.5], ['⅝', 0.625], ['¾', 0.75], ['⅞', 0.875]]
 const splitIn = (n?: number) => (n == null ? { whole: '', frac: 0 } : { whole: String(Math.floor(n)), frac: Math.round((n - Math.floor(n)) * 1000) / 1000 })
 /** one reading: the tape from the floor up to the laser line — whole inches, and the fraction picked from a list */
-function Reading({ label, value, onSave, bad }: { label: string; value?: number; onSave: (n: number | null) => void; bad?: boolean }) {
+function Reading({ label, value, onSave, bad, hint = '48' }: { label: string; value?: number; onSave: (n: number | null) => void; bad?: boolean; hint?: string }) {
   const [whole, setWhole] = React.useState(() => splitIn(value).whole)
   const [frac, setFrac] = React.useState(() => splitIn(value).frac)
   React.useEffect(() => { const v = splitIn(value); setWhole(v.whole); setFrac(v.frac) }, [value])
@@ -1173,7 +1202,7 @@ function Reading({ label, value, onSave, bad }: { label: string; value?: number;
   const box = cn('h-9 rounded-lg border bg-white text-[0.9375rem] tnum text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100', bad ? 'border-bad-300' : 'border-line')
   return (
     <span className="inline-flex items-center gap-1">
-      <input aria-label={label} inputMode="numeric" value={whole} placeholder="40" onChange={(e) => setWhole(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={() => commit(whole, frac)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.125rem] px-1.5 text-center')} />
+      <input aria-label={label} inputMode="numeric" value={whole} placeholder={hint} onChange={(e) => setWhole(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={() => commit(whole, frac)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.125rem] px-1.5 text-center')} />
       <span className="relative inline-flex">
         <select aria-label={`${label} — the fraction`} value={String(frac)} onChange={(e) => { const f = Number(e.target.value); setFrac(f); if (whole.trim() !== '') commit(whole, f) }} className={cn(box, 'w-[3.75rem] appearance-none pl-2 pr-6')}>
           {FRACS.map(([t, n]) => <option key={t} value={String(n)}>{t === '0' ? '—' : t}</option>)}
@@ -1183,9 +1212,9 @@ function Reading({ label, value, onSave, bad }: { label: string; value?: number;
     </span>
   )
 }
-/** every floor we tile, one line each: where the laser line was set, then the tape from the floor up to it at the
- *  highest spot and the lowest spot of each floor. The line says flat, self-leveler, or the GC's to fix. A mud bed
- *  levels itself, so it needs no numbers. */
+/** every floor we tile, one line each. First how to do it: the laser line at one height (48″ off the floor at the
+ *  door), then in every room the tape from the floor up to the line at the highest spot and the lowest spot. The line
+ *  says flat, self-leveler, or the GC's to fix. A mud bed levels itself, so it needs no numbers. */
 function FloorLevels({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rooms = floorRooms(s.rooms[job.id] || [])
@@ -1193,7 +1222,9 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
   const measured = toDo.filter((f) => f.word)
   const bad = measured.filter((f) => f.word!.tone === 'bad')
   const laser = s.prep[job.id]?.laser
+  const at = laser?.at || LASER_AT
   const [where, setWhere] = React.useState(laser?.where || '')
+  const [height, setHeight] = React.useState(String(at))
   const [draft, setDraft] = React.useState<Record<string, number | null>>({})
   const save = (f: typeof rooms[number], k: 'high' | 'low', n: number | null) => {
     const key = `${f.room.name}|${k}`
@@ -1205,19 +1236,27 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
     if (f.room.level && f.room.level.high === high && f.room.level.low === low) return
     setFloorLevel(job.id, f.room.name, high, low)
   }
+  const saveHeight = () => { const n = Number(height); if (n > 0 && n !== at) setLaser(job.id, where, n); else setHeight(String(at)) }
   if (!rooms.length) return <div className="rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-muted">No floors on this project — nothing to measure.</div>
+  const box = 'h-9 rounded-lg border border-line bg-white px-3 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
   return (
     <div>
-      <div className="rounded-xl border border-line bg-wash/60 px-4 py-3">
-        <label className="block">
-          <span className="block text-[0.8125rem] font-semibold text-ink">Where the laser line is set</span>
-          <input aria-label="Where the laser line is set" value={where} onChange={(e) => setWhere(e.target.value)} onBlur={() => setLaser(job.id, where)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="e.g. 40 inches up, on the hallway wall by the door" className="mt-1.5 h-9 w-full rounded-lg border border-line bg-white px-3 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
-        </label>
-        <div className="mt-2 text-[0.78125rem] leading-snug text-muted">{laser?.date ? `Noted ${labelFromIso(laser.date)}${laser.by ? ` by ${PEOPLE[laser.by as PersonKey]?.short || ''}` : ''} · ` : ''}Then, in every room, the tape from the floor up to the line — at the highest spot and the lowest spot.</div>
+      <div className="rounded-xl border border-line bg-[#faf8f5] px-4 py-3" data-laser>
+        <div className="text-[0.875rem] font-semibold text-ink">How to measure</div>
+        <ol className="mt-1.5 flex flex-col gap-1 text-[0.84375rem] leading-snug text-ink-2">
+          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">1</b><span>Set the laser on its tripod in the middle of the floor. At the door, raise it until the line is <b className="font-semibold text-ink">{at}″ off the floor</b> — mark it on the wall.</span></li>
+          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">2</b><span>In every room, look for the highest and the lowest spot — the corners, the middle, along the walls.</span></li>
+          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">3</b><span>At each, measure from the floor up to the laser line and type it below. The highest spot has the <b className="font-semibold text-ink">shortest</b> number.</span></li>
+        </ol>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[0.8125rem] text-muted">
+          <label className="inline-flex items-center gap-1.5">Line at<input aria-label="The laser line, inches off the floor" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={saveHeight} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.5rem] px-1.5 text-center tnum')} />″</label>
+          <input aria-label="Where the laser line is set" value={where} onChange={(e) => setWhere(e.target.value)} onBlur={() => setLaser(job.id, where)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="Where you marked it (optional) — e.g. the hallway wall by the door" className={cn(box, 'min-w-[12rem] flex-1')} />
+        </div>
+        {laser?.date && <div className="mt-1.5 text-[0.75rem] text-faint">Noted {labelFromIso(laser.date)}{laser.by ? ` by ${PEOPLE[laser.by as PersonKey]?.short || ''}` : ''}</div>}
       </div>
       <div className="mt-3 overflow-hidden rounded-xl border border-line">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3 border-b border-line-2 bg-wash px-3 py-1.5 text-[0.75rem] font-semibold text-muted max-sm:hidden @max-md:hidden">
-          <span>Floor</span><span className="text-center">Highest spot<span className="block font-normal text-faint">floor → laser</span></span><span className="text-center">Lowest spot<span className="block font-normal text-faint">floor → laser</span></span>
+          <span>Floor</span><span className="text-center">Highest spot<span className="block font-normal text-faint">floor → line</span></span><span className="text-center">Lowest spot<span className="block font-normal text-faint">floor → line</span></span>
         </div>
         {rooms.map((f) => {
           const w = f.word
@@ -1235,7 +1274,7 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
                 : (['high', 'low'] as const).map((k) => (
                   <span key={k} className="inline-flex flex-col items-start gap-0.5">
                     <span className="text-[0.6875rem] font-semibold text-faint sm:hidden @max-md:block">{k === 'high' ? 'Highest spot' : 'Lowest spot'}</span>
-                    <Reading label={`${f.room.name} — ${k === 'high' ? 'highest' : 'lowest'} spot, floor to laser, in inches`} value={draft[`${f.room.name}|${k}`] ?? f.room.level?.[k]} bad={w?.tone === 'bad'} onSave={(n) => save(f, k, n)} />
+                    <Reading label={`${f.room.name} — ${k === 'high' ? 'highest' : 'lowest'} spot, floor to laser, in inches`} hint={String(at)} value={draft[`${f.room.name}|${k}`] ?? f.room.level?.[k]} bad={w?.tone === 'bad'} onSave={(n) => save(f, k, n)} />
                   </span>
                 ))}
             </div>
@@ -1252,28 +1291,52 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
     </div>
   )
 }
-/* ================= 9 · our materials ================= */
-function Materials({ job }: { job: Job }) {
+/* ================= 9 · our materials — by what they're for, worked out from the setup and the square feet ================= */
+const GROUP_EMPTY: Record<Group, string> = {
+  'Floor prep': 'Nothing under the floors — they go on the slab',
+  'Walls and waterproofing': 'Nothing on the walls before the tile',
+  'Setting and grout': 'After the tile is picked — thinset and grout go by the tile',
+  'Metal edges': 'No metal edges on this job',
+}
+function Materials({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const t = takeoff(s, job.id)
-  const need = t.lines.filter((l) => l.need > 0)
   const ms = materialStatus(s, job.id)
+  const toOrder = t.lines.filter((l) => l.toOrder > 0)
+  const noSF = t.skipped.filter((k) => /square feet/i.test(k.why))
+  const noTile = t.skipped.filter((k) => /after its tile/i.test(k.why))
+  const setupOpen = stepsFor(s, job).some((x) => x.key === 'setup' && x.state !== 'done' && x.state !== 'na')
+  if (!t.total || !t.counted) return <Block title="Our materials"><Quiet>{ms.hint}</Quiet></Block>
   return (
-    <div>
-      <Block title="What it takes" right={t.sf ? `${t.sf.toLocaleString('en-US')} SF · from the setup` : undefined}>
-        {!need.length && <Quiet>{ms.hint}</Quiet>}
-        {need.map((l) => {
-          const it = s.items.find((i) => i.id === l.itemId)
+    <div className="flex flex-col gap-3">
+      <Block title="What it takes" right={`${t.sf.toLocaleString('en-US')} SF · ${setupOpen ? 'the setup isn’t decided yet — suggested' : 'from the setup'}`}>
+        {GROUPS.map((g) => {
+          const lines = t.lines.filter((l) => l.group === g && l.need > 0)
           return (
-            <div key={l.itemId} className="flex items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0">
-              <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink">{it?.brand ? `${it.brand} ${it.product}` : it?.name || l.itemId}</span>
-              <span className="shrink-0 text-[0.84375rem] font-semibold tnum text-ink">{qtyLabel(l.need, it?.unit || '')}</span>
-              <span className={cn('w-[6.5rem] shrink-0 text-right text-[0.78125rem]', l.toOrder ? 'font-semibold text-warn-700' : 'text-ok-700')}>{l.toOrder ? `${l.toOrder} to order` : 'Ordered'}</span>
+            <div key={g} className="border-t border-line-2 first:border-t-0" data-mat-group={g}>
+              <div className="px-4 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{g}</div>
+              {!lines.length && <div className="px-4 pb-2.5 text-[0.8125rem] text-faint">{g === 'Setting and grout' && !noTile.length ? 'Nothing yet' : GROUP_EMPTY[g]}</div>}
+              {lines.map((l) => {
+                const it = s.items.find((i) => i.id === l.itemId)
+                return (
+                  <div key={l.itemId} className="flex items-center gap-3 px-4 py-1.5 last:pb-2.5">
+                    <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink">{it?.brand ? `${it.brand} ${it.product}` : it?.name || l.itemId}</span>
+                    <span className="shrink-0 text-[0.84375rem] font-semibold tnum text-ink">{qtyLabel(l.need, it?.unit || '')}</span>
+                    <span className={cn('w-[6.5rem] shrink-0 text-right text-[0.78125rem]', l.toOrder ? 'font-semibold text-warn-700' : 'text-ok-700')}>{l.toOrder ? `${l.toOrder} to order` : l.onSite >= l.need ? 'On site' : 'Ordered'}</span>
+                  </div>
+                )
+              })}
             </div>
           )
         })}
       </Block>
-      {need.some((l) => l.toOrder > 0) && <Actions><Button variant="primary" onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order them</Button></Actions>}
+      {(noSF.length > 0 || noTile.length > 0) && (
+        <div className="text-[0.78125rem] leading-snug text-muted">
+          {noTile.length > 0 && <div>Thinset and grout come in once the tile is picked — {noTile.length} {noTile.length === 1 ? 'wall or floor' : 'walls and floors'} still without one.</div>}
+          {noSF.length > 0 && <div>Not counted — no square feet yet: {noSF.slice(0, 3).map((k) => `${k.room} ${k.surface.toLowerCase()}`).join(', ')}{noSF.length > 3 ? ` and ${noSF.length - 3} more` : ''}.</div>}
+        </div>
+      )}
+      {v.state !== 'done' && toOrder.length > 0 && <Actions><Button variant="primary" icon={<Truck />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order them — {toOrder.length} {toOrder.length === 1 ? 'material' : 'materials'}</Button></Actions>}
     </div>
   )
 }
@@ -1323,6 +1386,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
         </Block>
         <Actions>
           <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
+          {checks.some((c) => c.received < c.ordered) && v.state !== 'wait' && <TileNotYet job={job} />}
           {checks.some((c) => c.received < c.ordered) && <Button variant="primary" icon={<PackageCheck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })}>Check it in</Button>}
         </Actions>
       </div>
@@ -1334,6 +1398,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
       <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> — count the boxes against the order.</> : 'No delivery date yet — it’s set on the tile order step.'}</div>
       <Actions>
         <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
+        {v.due && v.state !== 'wait' && <TileNotYet job={job} />}
         <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); (host || s).close() }}>All of it is here</Button>
       </Actions>
     </div>

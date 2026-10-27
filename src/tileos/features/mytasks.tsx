@@ -23,7 +23,7 @@ import { payDue } from './pay-page'
 import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { followersOf, toggleFollow, setEveryone } from './taskshare'
-import { stepTodos, type StepView } from './steps'
+import { stepTodos, stepsFor, isGettingReady, type StepView } from './steps'
 import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
@@ -144,17 +144,20 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   /* a getting-ready step's task opens the step's own window */
   const stepTask = !!t.step && !t.step.startsWith('*:') && !!s.jobs[t.step.split(':')[0]]
   const act = !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
+  /* a hand-off (a review, a PO, an invoice) opens the thing itself — the notes and history are one tap from there */
+  const opensWork = act && /^(estimate|estchange|money|po|co|short|order|heights|pay):/.test(t.action!.kind)
+  const follow = followDue(t)
   const Ic = TYPE_ICON[t.type] || ListTodo
   const log = t.log || []
   const last = log[log.length - 1]
   const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
-  const w = when || (t.state === 'waiting' ? { text: `Back ${t.followUp}`, tone: (isoFromLabel(t.followUp) || '9') <= TODAY ? 'warn' as const : undefined } : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
+  const w = when || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
   return (
     <TodoRow
       leaving={leaving}
       done={done || leaving}
-      onClick={() => s.open({ t: 'task', id: t.id })}
+      onClick={() => (opensWork ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
       title={cleanTitle(t.title, job)}
       detail={detail}
@@ -164,6 +167,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       whenTone={w.tone}
       action={
         done ? <Button size="sm" className={ROW_BTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+          : follow ? <Button size="sm" className={ROW_BTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>Follow up</Button>
           : stepTask ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
             : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
@@ -271,6 +275,17 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
   )
 }
 
+/** an estimate's follow-up with the client while the estimate isn't with the client any more (a new revision is being
+ *  priced or reviewed, it was approved, or lost) — nobody follows up on it */
+export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
+  const k = t.action?.kind || ''
+  if (t.state !== 'waiting' || !k.startsWith('estimate:')) return false
+  const e = s.estimates.find((x) => x.id === k.slice(9))
+  return !!e && e.status !== 'sent'
+}
+/** a waiting task whose day has come: follow up */
+const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
+
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
 export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'pay' | 'bill' | 'meet' | 'step'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey }
 const AHEAD = 21
@@ -283,13 +298,30 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   dailyDue(s, role).forEach((d) => out.push({ key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
-  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'now' && !t.paused && (!t.everyone || !me || t.owner === me)).forEach((t) => {
+  /* a step's task whose step already happened (the paperwork came in another way) isn't anyone's to do */
+  const doneSteps = new Map<string, Set<string>>()
+  const stepDone = (t: Task) => {
+    if (!t.step || t.step.startsWith('*:')) return false
+    const [jobId, key] = t.step.split(':')
+    const j = s.jobs[jobId]
+    if (!j) return false
+    let set = doneSteps.get(jobId)
+    if (!set) { set = new Set(stepsFor(s, j).filter((v) => v.state === 'done' || v.state === 'na').map((v) => v.key)); doneSteps.set(jobId, set) }
+    return set.has(key)
+  }
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'now' && !t.paused && (!t.everyone || !me || t.owner === me) && !stepDone(t)).forEach((t) => {
     /* a hand-off (a takeoff, a review) is yours the moment it lands — it's on Today, with its due date */
     const b0 = taskBucket(t)
     const b = t.action?.kind?.startsWith('estimate:') && (b0 === 'tomorrow' || b0 === 'week' || b0 === 'later') ? 'today' : b0
     out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: t.owner })
   })
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))
+  /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t)).forEach((t) => {
+    const iso = isoFromLabel(t.followUp)
+    if (!iso || iso > TODAY) return
+    out.push({ key: t.id, b: bucketOfIso(iso), iso, kind: 'task', t, who: t.owner })
+  })
   stepTodos(s, me || 'all').forEach(({ job, step: v }) => {
     /* a step with no date of its own is due a week before the start (everything left has to be done by then) — no start yet, it's due now */
     const start = s.prep[job.id]?.targetISO
@@ -322,6 +354,58 @@ function PlateRow({ x, showOwner, followed, overdue }: { x: PlateItem; showOwner
   return <TaskRow t={x.t!} showOwner={showOwner} followed={followed} when={late || tm} />
 }
 
+/* ================= the team today: set for today, done, rolled over ================= */
+const doneTodayTask = (t: Task) => t.doneAt === 'Just now' || t.doneAt === 'Today' || isoFromLabel(t.doneAt) === TODAY
+/** for each of ours: what's set for today, what got done today, and what's late (set for a day before and not done
+ *  that day) — so the admin sees who's overloaded and who isn't */
+export function teamToday(s: Store): { who: PersonKey; today: number; done: number; late: number }[] {
+  const doneSteps = new Map<string, number>()
+  Object.values(s.stepRecs).forEach((recs) => Object.values(recs || {}).forEach((r) => { if (r?.done && r.by && isoFromLabel(r.done) === TODAY) doneSteps.set(r.by, (doneSteps.get(r.by) || 0) + 1) }))
+  return insidePeople(s).map((p) => {
+    const role = (s.team.find((m) => m.key === p)?.role as Role) || 'office'
+    const plate = plateOf(s, role, p).filter((x) => x.kind !== 'meet' && (x.who === p || x.kind === 'daily'))
+    return {
+      who: p,
+      today: plate.filter((x) => x.b === 'today').length,
+      late: plate.filter((x) => x.b === 'overdue').length,
+      done: s.tasks.filter((t) => t.owner === p && t.state === 'done' && doneTodayTask(t)).length + (doneSteps.get(p) || 0),
+    }
+  }).filter((r) => r.today || r.late || r.done)
+}
+function TeamToday({ who, pick }: { who: string; pick: (p: string) => void }) {
+  const s = useStore()
+  const rows = teamToday(s)
+  if (!rows.length) return null
+  return (
+    <div className={cn('border-b border-line bg-[#fbfaf7] py-3', PX)} data-team-today>
+      <div className="mb-2 flex items-baseline gap-2">
+        <span className="text-[0.84375rem] font-semibold text-ink">The team today</span>
+        <span className="text-[0.75rem] text-muted">set for today · done · late (not done on its day) — tap a person for their list</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {rows.map((r) => {
+          const on = who === r.who
+          const load = r.today + r.late
+          return (
+            <button key={r.who} onClick={() => pick(on ? 'all' : r.who)} aria-pressed={on} data-team-person={r.who} className={cn('flex min-w-[12.5rem] items-center gap-2.5 rounded-xl border bg-white px-3 py-2 text-left transition', on ? 'border-brand-400 ring-2 ring-brand-100' : 'border-line hover:border-[#d1cbc0]')}>
+              <Avatar who={r.who} size={28} />
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[r.who]?.short}</span>
+                <span className="mt-0.5 flex items-center gap-2 text-[0.75rem] tnum">
+                  <span className="text-ink-2" title="Set for today">{r.today} today</span>
+                  <span className="text-[#2c8a5b]" title="Done today">{r.done} done</span>
+                  {r.late > 0 && <span className="font-semibold text-bad-600" title="Late — not done on its day">{r.late} late</span>}
+                </span>
+              </span>
+              {load > 0 && <span className="h-6 w-1.5 shrink-0 overflow-hidden rounded-full bg-wash-2" aria-hidden><span className={cn('block w-full rounded-full', r.late ? 'bg-bad-500' : 'bg-brand-500')} style={{ height: `${Math.min(100, (r.done / Math.max(1, r.done + load)) * 100)}%` }} /></span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* ================= the page: today, tomorrow, later — each day in the order it happens ================= */
 type View = 'today' | 'tomorrow' | 'later' | 'waiting' | 'done'
 const dayHead = (iso: string) => (iso === TODAY ? 'Today' : iso === TOMORROW ? 'Tomorrow' : dayShort(iso))
@@ -336,6 +420,7 @@ export function MyTasksPage() {
   const [job, setJob] = React.useState<string>('all')
   const me = meOf(role)
   const all = scope === 'all'
+  const boss = role === 'owner' || role === 'pm' || role === 'office'
   const followsIt = (t?: Task) => !!t && t.owner !== me && followersOf(t).includes(me)
   /* one project at a time: everything for a job together (the site manager starts here) — remembered on this computer */
   const prefKey = `tileos-today-byjob:${role}`
@@ -350,7 +435,9 @@ export function MyTasksPage() {
   const tomorrow = plate.filter((x) => x.b === 'tomorrow')
   const later = plate.filter((x) => x.b === 'week' || x.b === 'later' || x.b === 'aside')
   /* waiting on others: what's out with the GC or a supplier — and what I asked for from the site, until it's delivered */
-  const waiting = s.tasks.filter((t) => (t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && t.by === me && t.owner !== me && t.state !== 'done'))
+  const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && ((t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && t.by === me && t.owner !== me && t.state !== 'done')))
+  /* steps waiting on someone outside — the store's tile, the installer's yes: they wait here with the day they're back */
+  const waitSteps = Object.values(s.jobs).filter(isGettingReady).flatMap((j) => stepsFor(s, j).filter((v) => v.state === 'wait' && (all || v.owner === me)).map((v) => ({ job: j, v })))
   const done = s.tasks.filter((t) => t.state === 'done' && (all ? true : isMine(t, role)))
   const doneToday = done.filter((t) => t.doneAt === 'Just now' || t.doneAt === 'Today' || isoFromLabel(t.doneAt) === TODAY).length
   const meetingsToday = today.filter((x) => x.kind === 'meet').length
@@ -434,6 +521,8 @@ export function MyTasksPage() {
   const noDate = shownLater.filter((x) => x.b !== 'aside' && !x.iso)
   const aside = shownLater.filter((x) => x.b === 'aside')
   const shownWaiting = waiting.filter((t) => (job === 'all' || t.jobId === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(t) : t.owner === who)))
+  const shownWaitSteps = waitSteps.filter((x) => (job === 'all' || x.job.id === job) && (!all || who === 'all' || (who !== 'follow' && x.v.owner === who)))
+  const waitWhen = (v: StepView) => ({ text: v.due ? `${['delivered', 'matin'].includes(v.key) ? 'Coming' : ['design', 'walk'].includes(v.key) ? 'Set for' : 'Back'} ${md(v.due)}` : 'Waiting', tone: 'warn' as const })
   const shownDone = done.filter((t) => (job === 'all' || t.jobId === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(t) : t.owner === who)))
 
   return (
@@ -448,7 +537,7 @@ export function MyTasksPage() {
             { key: 'today', label: 'Today', count: today.length, sub: late.length ? `${late.length} overdue` : meetingsToday ? `${meetingsToday} ${meetingsToday === 1 ? 'meeting' : 'meetings'}` : undefined, subBad: late.length > 0, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length, sub: dayShort(TOMORROW).split(', ')[0], icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
             { key: 'later', label: 'Later', count: later.length, sub: nextLater ? `next ${dayShort(nextLater).split(', ')[0]}` : undefined, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
-            { key: 'waiting', label: 'Waiting on others', count: waiting.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+            { key: 'waiting', label: 'Waiting on others', count: waiting.length + waitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
             { key: 'done', label: 'Done', count: done.length, sub: doneToday ? `${doneToday} today` : undefined, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
           ]}
         />
@@ -456,15 +545,17 @@ export function MyTasksPage() {
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
           {inside && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
+          {/* one person's list — the admin and the office see what's on anyone's plate */}
+          {(all || boss) && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {view !== 'done' && <ViewSwitch label="How it's grouped" value={byJob} onChange={groupBy} items={[{ key: false, label: 'By time', icon: <Clock3 /> }, { key: true, label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
-          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => setWho(v as string)} />}
           <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
           <ClearFilters show={job !== 'all' || who !== 'all'} onClear={() => { setJob('all'); setWho('all') }} />
         </div>
       }
     >
       <div>
+        {boss && all && view === 'today' && <TeamToday who={who} pick={(p) => setWho(p)} />}
         {pinned.length > 0 && view === 'today' && (
           <div className={cn('border-b border-line bg-[#fdf9f1] py-1.5', PX)}>
             {pinned.map((t) => (
@@ -519,18 +610,46 @@ export function MyTasksPage() {
         )}
         {view === 'later' && !shownLater.length && <EmptyState icon={<Check />} title="Nothing later" sub="Anything with a date after tomorrow shows here, day by day." />}
 
-        {view === 'waiting' && shownWaiting.length > 0 && (
+        {view === 'waiting' && (shownWaiting.length > 0 || shownWaitSteps.length > 0) && (
           <>
-            <div className={cn('border-b border-line-2 bg-wash py-2.5 text-[0.8125rem] text-muted', PX)}>Things someone else owes {all ? 'the team' : 'you'} — the GC, a supplier, a client. Each one comes back to {all ? 'its owner’s' : 'your'} Today on its date.</div>
+            <div className={cn('border-b border-line-2 bg-wash py-2.5 text-[0.8125rem] text-muted', PX)}>Things someone else owes {all ? 'the team' : 'you'} — the store, the GC, a supplier, a client. Each one comes back to {all ? 'its owner’s' : 'your'} Today on its date; following up sets the next date — it isn’t done until it comes.</div>
             {byJob ? byProject([], shownWaiting) : shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
+            {shownWaitSteps.map(({ job: j, v }) => <StepRowToday key={`w:${j.id}:${v.key}`} job={j} v={v} showOwner={all} when={waitWhen(v)} />)}
           </>
         )}
-        {view === 'waiting' && !shownWaiting.length && <EmptyState icon={<Check />} title="Nothing waiting on others" sub="When you’re waiting on the GC, a supplier or a client, it waits here with the day it comes back to you." />}
+        {view === 'waiting' && !shownWaiting.length && !shownWaitSteps.length && <EmptyState icon={<Check />} title="Nothing waiting on others" sub="When you’re waiting on the store, the GC, a supplier or a client, it waits here with the day it comes back to you." />}
 
         {view === 'done' && shownDone.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
         {view === 'done' && !shownDone.length && <EmptyState icon={<Check />} title="Nothing done yet" sub="Finished tasks stay here for the record." />}
       </div>
     </Page>
+  )
+}
+
+/** followed up — still waiting: what they said, and the day it's back. It's off the list until then; it isn't done. */
+function FollowedUp({ t, onDone }: { t: Task; onDone: () => void }) {
+  const s = useStore()
+  const [note, setNote] = React.useState('')
+  const [back, setBack] = React.useState('Tomorrow')
+  const save = () => {
+    const day = md(isoFromLabel(back) || TOMORROW)
+    s.commit((st) => {
+      const x = st.tasks.find((y) => y.id === t.id)
+      if (!x) return
+      x.followUp = day
+      x.followUps = (x.followUps || 0) + 1
+      ;(x.log ||= []).push({ date: NOW, who: meOf(st.role), text: `Followed up${note.trim() ? ` — ${note.trim()}` : ''} · back ${day}` })
+    }, `Followed up — back ${day}`, { tone: 'wait', sub: 'Off the list until then — it isn’t done until it comes.' })
+    onDone()
+  }
+  return (
+    <div>
+      <div className="text-[0.875rem] font-semibold text-ink">What {t.waitingOn || 'they'} said</div>
+      <TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. they ship it Wednesday" autoFocus />
+      <div className="mt-3 text-[0.875rem] font-semibold text-ink">Back on the list</div>
+      <div className="mt-2"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
+      <div className="mt-3 flex justify-end"><Button variant="primary" onClick={save}>Save</Button></div>
+    </div>
   )
 }
 
@@ -631,7 +750,11 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       </>
     ) : (
       <>
-        {t.state !== 'now' ? (
+        {t.state === 'waiting' ? (
+          <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
+            <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
+          </Pop>
+        ) : t.state !== 'now' ? (
           <Button variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Back on my list</Button>
         ) : (
           <>

@@ -1,0 +1,49 @@
+<!-- The password reset email ("Forgot your password?"). Lovable → More → Emails → Auth emails → Reset password: use
+     this design. {{ .ConfirmationURL }} is the one-time link (keep it as the button's href). -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <title>Your new Tile OS password</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f1eb;-webkit-font-smoothing:antialiased;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Pick a new password for Cobblestone Tile OS.</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;">
+          <tr><td style="background:#ffffff;border:1px solid #e8e2d8;border-radius:18px;box-shadow:0 12px 32px -18px rgba(34,55,43,.35);">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+              <tr><td style="height:6px;background:#22372b;border-radius:18px 18px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+              <tr><td align="center" style="padding:34px 40px 0;">
+                <img src="https://tile-path-os.lovable.app/logo-email.png" width="190" alt="Cobblestone Tile Installation" style="display:block;width:190px;max-width:70%;height:auto;border:0;">
+              </td></tr>
+              <tr><td style="padding:22px 40px 0;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b7a70;text-align:center;">Tile OS</td></tr>
+              <tr><td style="padding:10px 40px 0;font-size:26px;font-weight:700;line-height:1.25;color:#1c1a16;text-align:center;">Pick a new password</td></tr>
+              <tr><td style="padding:14px 40px 0;font-size:16px;line-height:1.6;color:#4a4740;text-align:center;">
+                Someone asked to reset the password for this email on Cobblestone Tile OS. Tap below, pick a new one, and you’re back in.
+              </td></tr>
+              <tr><td align="center" style="padding:30px 40px 8px;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#22372b;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;padding:17px 34px;border-radius:12px;">Pick a new password</a>
+              </td></tr>
+              <tr><td style="padding:14px 40px 0;font-size:13px;line-height:1.55;color:#8a857b;text-align:center;">
+                The link works once, for the next hour.
+              </td></tr>
+              <tr><td style="padding:30px 40px 34px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0ebe3;">
+                  <tr><td style="padding-top:18px;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">
+                    Didn’t ask for this? Ignore it — your password stays the same.
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:22px 0 0;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">
+            Cobblestone Tile Installation
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

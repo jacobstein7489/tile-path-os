@@ -20,40 +20,80 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
-import { REAL, lookAtSample, type WaitingPerson, appUrl } from '@/tileos/lib/save'
+import { REAL, type WaitingPerson, appUrl } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
-type Tab = 'team' | 'access' | 'checklist' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
+type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
+/* one thing at a time: a list of the parts on the left (on a phone, across the top), the part you picked on the right */
+type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'practice'
+const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', practice: 'practice', testdata: 'practice' }
+const SECTIONS: { group: string; items: { key: Section; label: string; sub: string; icon: React.ElementType }[] }[] = [
+  { group: 'People', items: [
+    { key: 'team', label: 'Team', sub: 'Who signs in — invite, change, remove', icon: Users },
+    { key: 'access', label: 'What each login sees', sub: 'The pages each login type opens', icon: Eye },
+  ] },
+  { group: 'How the work flows', items: [
+    { key: 'checklist', label: 'Who does what', sub: 'Getting ready, step by step, and who has each', icon: ListChecks },
+    { key: 'estimates', label: 'Estimates', sub: 'Who does each step, the areas, your surfaces', icon: Layers },
+    { key: 'autos', label: 'Automations', sub: 'What the system does by itself', icon: CornerDownRight },
+  ] },
+  { group: 'Company', items: [
+    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste, reminders', icon: ShieldCheck },
+    { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', icon: Calculator },
+    { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', icon: Plug },
+    { key: 'practice', label: 'Practice project', sub: 'A project to learn on · start over', icon: RotateCcw },
+  ] },
+]
+
 export function SettingsPage() {
   const s = useStore()
-  /* the real app has no test data — the company's data is the real thing */
-  /* six tabs, not ten: the smaller parts sit under the tab they belong with (what each login sees under Team,
-   * statuses under Checklists, material numbers under Company rules, test data under Practice) — old links still land */
-  const [tab, setTab] = React.useState<Group>(() => GROUP_OF[(s.route.tab as Tab) || 'team'] || 'team')
-  const below = (k: Tab) => { if (s.route.tab !== k) return; window.setTimeout(() => document.getElementById(`settings-${k}`)?.scrollIntoView({ block: 'start' }), 60) }
-  React.useEffect(() => { below(s.route.tab as Tab) }, [])
+  const [tab, setTab] = React.useState<Section>(() => SECTION_OF[(s.route.tab as Tab) || 'team'] || 'team')
+  const cur = SECTIONS.flatMap((g) => g.items).find((x) => x.key === tab)!
   return (
-    <Page
-      title="Settings"
-      sub="The team, what each login sees, and the rules the system runs on."
-      bare
-      top={<UnderlineTabs value={tab} onChange={setTab} items={[{ key: 'team', label: 'Team', count: s.team.filter((m) => m.status !== 'off').length }, { key: 'checklist', label: 'Checklists' }, { key: 'autos', label: 'Automations' }, { key: 'rules', label: 'Company rules' }, { key: 'connections', label: 'Connections' }, { key: 'practice', label: 'Practice project' }]} />}
-    >
-      {tab === 'team' && <div className="flex flex-col gap-10"><TeamTab /><div id="settings-access"><AccessTab /></div></div>}
-      {tab === 'checklist' && <div className="flex flex-col gap-10"><ChecklistTab /><div id="settings-statuses"><StatusesTab /></div></div>}
-      {tab === 'autos' && <AutomationsTab />}
-      {tab === 'rules' && <div className="flex flex-col gap-10"><RulesTab /><div id="settings-numbers"><NumbersTab /></div></div>}
-      {tab === 'connections' && <ConnectionsTab />}
-      {tab === 'practice' && <div className="flex flex-col gap-10">{REAL.cloud && REAL.admin && <SampleLookCard />}{REAL.cloud && REAL.admin && <StartOverCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+    <Page title="Settings" sub="The team, how the work flows, and the company’s rules — one part at a time." bare>
+      <div className="grid grid-cols-[15.5rem_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
+        <nav aria-label="Settings" className="sticky top-4 flex flex-col gap-4 max-lg:static max-lg:-mx-1 max-lg:flex-row max-lg:gap-1.5 max-lg:overflow-x-auto max-lg:px-1 max-lg:pb-1 no-scrollbar">
+          {SECTIONS.map((g) => (
+            <div key={g.group} className="flex flex-col gap-0.5 max-lg:contents">
+              <div className="px-3 pb-1 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden">{g.group}</div>
+              {g.items.map((it) => {
+                const on = tab === it.key
+                return (
+                  <button key={it.key} onClick={() => setTab(it.key)} aria-current={on ? 'page' : undefined} data-section={it.key} className={cn('flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition max-lg:shrink-0 max-lg:rounded-full max-lg:border max-lg:py-1.5', on ? 'bg-white text-ink shadow-card max-lg:border-brand-300 max-lg:bg-brand-50 max-lg:shadow-none' : 'text-ink-2 hover:bg-white/70 max-lg:border-line max-lg:bg-white')}>
+                    <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg max-lg:hidden', on ? 'bg-brand-50 text-brand-600' : 'bg-wash-2 text-muted')}><it.icon className="h-4 w-4" /></span>
+                    <span className="min-w-0 leading-tight">
+                      <span className={cn('block truncate text-[0.875rem]', on ? 'font-semibold' : 'font-medium')}>{it.label}</span>
+                      <span className="block truncate text-[0.71875rem] text-muted max-lg:hidden">{it.sub}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </nav>
+        <div className="min-w-0" data-settings-section={tab}>
+          <div className="mb-3 max-lg:hidden">
+            <h2 className="text-[1.1875rem] font-semibold text-ink">{cur.label}</h2>
+            <div className="text-[0.84375rem] text-muted">{cur.sub}</div>
+          </div>
+          {tab === 'team' && <TeamTab />}
+          {tab === 'access' && <AccessTab />}
+          {tab === 'checklist' && <ChecklistTab />}
+          {tab === 'estimates' && <EstimateDefaults />}
+          {tab === 'autos' && <AutomationsTab />}
+          {tab === 'rules' && <RulesTab />}
+          {tab === 'numbers' && <NumbersTab />}
+          {tab === 'connections' && <ConnectionsTab />}
+          {tab === 'practice' && <div className="flex flex-col gap-6"><PracticeTab />{REAL.cloud && REAL.admin && <StartOverCard />}{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+        </div>
+      </div>
     </Page>
   )
 }
-type Group = 'team' | 'checklist' | 'autos' | 'rules' | 'connections' | 'practice'
-const GROUP_OF: Record<Tab, Group> = { team: 'team', access: 'team', checklist: 'checklist', statuses: 'checklist', autos: 'autos', rules: 'rules', numbers: 'rules', connections: 'connections', practice: 'practice', testdata: 'practice' }
 
 /* ================= the team ================= */
 type Standing = { invited?: string; signedIn?: string; confirmed?: string; made?: string }
@@ -80,7 +120,6 @@ function TeamTab() {
           {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
       </Card>
-      {REAL.testEmail && <EmailCheck />}
       <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#d1cbc0] hover:text-ink">
         <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page — <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
       </button>
@@ -265,7 +304,7 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
       size="md"
       onClose={s.close}
       title={`Invite ${PEOPLE[k]?.name || m.first}`}
-      sub={REAL.invite ? 'They get a “set your password” email, tap it, pick a password — and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
+      sub={REAL.invite ? 'They get an invite email from Cobblestone — they tap it, pick a password, and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
       footer={REAL.invite ? (
         <>
           {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
@@ -303,7 +342,7 @@ function SentPane({ r, email, first, role }: { r: SentResult; email: string; fir
   return (
     <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] leading-snug text-ink">
       <div className="font-semibold">Sent{r.at ? ` at ${clock(r.at)}` : ''} to {email}</div>
-      <div className="mt-1 text-ink-2">It’s the same email as “Forgot password” — the one you got. {first} taps the link in it, picks a password, and is in as {short(role)}. Not there in a minute? Check Spam. Or text the link below.</div>
+      <div className="mt-1 text-ink-2">{r.what === 'resent' ? `${first} was on the team before — the old login is closed and a fresh invite went out. ` : ''}{first} gets “You’re invited to Tile OS”, taps the link, picks a password, and is in as {short(role)}. Not there in a minute? Check Spam — or text the link below.</div>
     </div>
   )
 }
@@ -431,7 +470,6 @@ function ChecklistTab() {
   const ownerOf = (o: PersonKey | 'matBy') => (o === 'matBy' ? (s.rules.matBy || 'yakov') : o)
   return (
     <div className="flex flex-col gap-4">
-    <EstimateDefaults />
     <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
       <Card pad={false} className="overflow-hidden">
         <CardHeader icon={<IconCircle tone="info" size={34}><ListChecks className="h-4 w-4" /></IconCircle>} title="Getting ready — every project" sub="The steps between the client’s yes and the crew’s first day, in order. Each one has an owner; when the steps before it are done, it lands on their Today." action={<Button size="sm" onClick={() => s.open({ t: 'whowhat' })}>Who does what</Button>} />
@@ -776,16 +814,3 @@ function StartOverCard() {
   )
 }
 
-function SampleLookCard() {
-  return (
-    <Card pad={false}>
-      <div className="flex flex-wrap items-center gap-4 px-6 py-5 max-sm:px-4">
-        <div className="min-w-0 flex-1">
-          <div className="text-[0.9375rem] font-semibold text-ink">See it full of sample projects</div>
-          <div className="text-[0.84375rem] text-muted">Every page with something on it — 13 projects, estimates, orders, pay, billing. A look around; nothing you do there is saved, and your own data isn’t touched.</div>
-        </div>
-        <Button variant="primary" onClick={lookAtSample}>Look at the sample</Button>
-      </div>
-    </Card>
-  )
-}

@@ -23,6 +23,8 @@ export interface Task {
   dueTone?: Tone
   waitingOn?: string
   followUp?: string
+  /** how many times someone followed up while it waited — each one is logged on the task */
+  followUps?: number
   laterUntil?: string
   blocks?: string
   tone: Tone

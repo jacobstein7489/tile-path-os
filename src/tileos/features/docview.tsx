@@ -54,7 +54,9 @@ export function DocPanel({ jobId, doc, fileId, onBack, back }: { jobId: string; 
   const up = async (fl: File[]) => {
     if (!fl.length) return
     setBusy(true)
-    if (doc) await docUploaded(jobId, doc, fl)
+    /* the tile paperwork is the paperwork step's — it goes where that step and the AI read it */
+    if (doc === 'Tile paperwork') await keepFiles(jobId, fl, 'paperwork')
+    else if (doc) await docUploaded(jobId, doc, fl)
     else await keepFiles(jobId, fl, 'other')
     setBusy(false)
     setPick(null)

@@ -4,20 +4,27 @@ import * as React from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import App from './App'
-import { REAL, wantsSampleLook, declinedSample, setSaveStatus } from './lib/save'
-import { useStore, initialData } from './store'
+import { REAL } from './lib/save'
 import { startCloud, stopCloud, type CloudProblem } from './lib/cloud'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword } from './features/signin'
 
 type Phase =
   | { k: 'loading' }
-  | { k: 'signin' }
+  | { k: 'signin'; note?: string }
   | { k: 'password'; email: string; name: string; why: 'invite' | 'recovery' | 'magiclink' }
   | { k: 'waiting'; email: string; name: string }
   | { k: 'problem'; why: CloudProblem; detail?: string }
   | { k: 'ready' }
 
 const sb = supabase as any
+
+/* signed out by itself after a while away: 12 hours with no tap or key on Tile OS (overnight, a computer left on at the
+ * office) — the next time, it asks for the password and pops up the day. While someone's using it, it never does. */
+const IDLE_KEY = 'tileos-last-active'
+const IDLE_MS = 12 * 60 * 60 * 1000
+const touch = () => { try { localStorage.setItem(IDLE_KEY, String(Date.now())) } catch { /* private window */ } }
+const awayTooLong = () => { try { const t = Number(localStorage.getItem(IDLE_KEY) || 0); return t > 0 && Date.now() - t > IDLE_MS } catch { return false } }
+const AWAY_NOTE = 'Signed out after 12 hours away — sign in again.'
 
 /* came in from an invite, a texted link or a password link: the link signs them in, and the app asks for a password.
  * Read before anything touches the URL (the auth client clears it once it has the session). */
@@ -50,13 +57,23 @@ export default function Boot() {
   const signOut = React.useCallback(async () => {
     stopCloud()
     started.current = null
+    try { localStorage.removeItem(IDLE_KEY) } catch { /* fine */ }
     await supabase.auth.signOut()
     location.hash = ''
     location.reload()
   }, [])
 
   const begin = React.useCallback(async (session: Session | null) => {
-    if (!session?.user) { started.current = null; setPhase({ k: 'signin' }); return }
+    if (!session?.user) { started.current = null; setPhase((p) => ({ k: 'signin', note: p.k === 'signin' ? p.note : undefined })); return }
+    /* away too long: sign out first (a link that just came in counts as being here) */
+    if (awayTooLong() && !ARRIVED && !DIRECT) {
+      try { localStorage.removeItem(IDLE_KEY) } catch { /* fine */ }
+      started.current = null
+      await supabase.auth.signOut()
+      setPhase({ k: 'signin', note: AWAY_NOTE })
+      return
+    }
+    touch()
     const user = session.user
     if (started.current === user.id) return
     started.current = user.id
@@ -71,22 +88,8 @@ export default function Boot() {
     /* from a link: a password first, then the app */
     if (ARRIVED && !askedPassword) { askedPassword = true; started.current = null; setPhase({ k: 'password', email: user.email || '', name, why: ARRIVED }); return }
     if (!appRoles.length) { setPhase({ k: 'waiting', email: user.email || '', name }); return }
-    /* the admin asked for a look at the sample — or the company has no projects yet, so every page would be empty:
-       the app opens on the made-up projects, nothing goes to the database, one tap starts their own */
-    let sample = appRoles.includes('admin') && wantsSampleLook()
-    if (!sample && appRoles.includes('admin') && !declinedSample()) {
-      const { count, error } = await sb.from('tileos_records').select('id', { count: 'exact', head: true }).eq('collection', 'jobs')
-      if (!error && count === 0) sample = true
-    }
-    if (sample) {
-      REAL.sampleView = true
-      useStore.getState().replaceData(initialData())
-      REAL.email = user.email || undefined
-      REAL.signOut = () => void signOut()
-      setSaveStatus({ where: 'none', mode: 'sample' })
-      setPhase({ k: 'ready' })
-      return
-    }
+    /* only the company's own data — no sample to look at */
+    try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ }
     const res = await startCloud(user, { admin: appRoles.includes('admin'), name, appRoles })
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
@@ -110,8 +113,21 @@ export default function Boot() {
     return () => { live = false; sub.subscription.unsubscribe() }
   }, [begin])
 
+  /* while it's open: every tap or key keeps it signed in; 12 hours with neither signs out by itself */
+  React.useEffect(() => {
+    if (phase.k !== 'ready') return
+    let last = 0
+    const seen = () => { const n = Date.now(); if (n - last > 60_000) { last = n; touch() } }
+    const look = () => { if (awayTooLong()) { stopCloud(); started.current = null; void supabase.auth.signOut().then(() => setPhase({ k: 'signin', note: AWAY_NOTE })) } }
+    window.addEventListener('pointerdown', seen, { passive: true })
+    window.addEventListener('keydown', seen)
+    document.addEventListener('visibilitychange', look)
+    const every = setInterval(look, 5 * 60 * 1000)
+    return () => { window.removeEventListener('pointerdown', seen); window.removeEventListener('keydown', seen); document.removeEventListener('visibilitychange', look); clearInterval(every) }
+  }, [phase.k])
+
   if (phase.k === 'loading') return <Splash />
-  if (phase.k === 'signin') return <SignIn />
+  if (phase.k === 'signin') return <SignIn note={phase.note} />
   if (phase.k === 'password') return <SetPassword email={phase.email} name={phase.name} why={phase.why} onDone={() => { location.hash = ''; void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} onSkip={phase.why === 'magiclink' ? () => { location.hash = ''; void supabase.auth.getSession().then(({ data }) => begin(data.session)) } : undefined} />
   if (phase.k === 'waiting') return <WaitingRoom email={phase.email} name={phase.name} onSignOut={signOut} onCheck={() => { started.current = null; void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} />
   if (phase.k === 'problem') return <SetupNeeded why={phase.why} detail={phase.detail} onRetry={() => { void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} onSignOut={signOut} />

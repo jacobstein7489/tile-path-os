@@ -59,9 +59,10 @@ async function ready(admin: any, data: { email: string; name: string; role: stri
   return { u, fresh };
 }
 
-/* The invite goes out as the "set your password" email — the same email as Forgot password, the one that's known to
- * reach people from this app. They tap it, pick a password, and they're in with the login type. Someone who already
- * signs in just gets the login type; nothing is sent. */
+/* The invite goes out as the invite email ("You're invited to Tile OS") — never a password reset. Someone who was on
+ * the team before and was taken off, or who never signed in, starts fresh: their old account is closed and a new
+ * invite goes out, so what they get is always an invite. Someone already on the team who signs in gets nothing —
+ * they already have their password. The link opens the published app (never a preview), which asks for a password. */
 export const sendInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(check)
@@ -69,11 +70,32 @@ export const sendInvite = createServerFn({ method: "POST" })
     if (!(await isAdmin(context))) return { ok: false, why: "Only the admin invites people" };
     const admin = supabaseAdmin as any;
     try {
-      const { u, fresh } = await ready(admin, data);
-      if (u.last_sign_in_at) return { ok: true, already: true };
-      const { error } = await admin.auth.resetPasswordForEmail(data.email, { redirectTo: data.redirectTo });
+      const old = await findUser(admin, data.email);
+      if (old) {
+        if (old.id === context.userId) return { ok: false, why: "That’s your own login" };
+        const [{ data: roles }, { data: prof }] = await Promise.all([
+          admin.from("user_roles").select("role").eq("user_id", old.id),
+          admin.from("profiles").select("is_active").eq("user_id", old.id).maybeSingle(),
+        ]);
+        const onTeam = (roles || []).length > 0 && prof?.is_active !== false;
+        if (onTeam && old.last_sign_in_at) {
+          /* already in — make sure the login type is the one picked now */
+          await admin.from("user_roles").upsert({ user_id: old.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+          return { ok: true, already: true };
+        }
+        /* taken off the team before, or never signed in: close the old account so the invite is a real invite */
+        await admin.from("user_roles").delete().eq("user_id", old.id);
+        await admin.from("profiles").delete().eq("user_id", old.id);
+        const { error: delErr } = await admin.auth.admin.deleteUser(old.id);
+        if (delErr) return { ok: false, why: why(delErr) };
+      }
+      const { data: inv, error } = await admin.auth.admin.inviteUserByEmail(data.email, { redirectTo: data.redirectTo, data: data.name ? { full_name: data.name } : {} });
       if (error) return { ok: false, why: why(error) };
-      return { ok: true, resent: !fresh, sentAt: new Date().toISOString() };
+      const id = inv?.user?.id || (await findUser(admin, data.email))?.id;
+      if (!id) return { ok: false, why: "The invite went out, but the account wasn’t made — try once more" };
+      await admin.from("user_roles").upsert({ user_id: id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      await admin.from("profiles").update({ is_active: true, ...(data.name ? { full_name: data.name } : {}) }).eq("user_id", id);
+      return { ok: true, resent: !!old, sentAt: new Date().toISOString() };
     } catch (e) {
       return { ok: false, why: why(e) };
     }
@@ -201,9 +223,8 @@ export const prepInvite = createServerFn({ method: "POST" })
     }
   });
 
-/** someone taken off the team: their login types are taken away, so signing in doesn't open the company's data any
- *  more (it waits for the admin, like a stranger's would). Inviting them again gives it back. Never your own login.
- *  The admin only. */
+/** someone taken off the team: their account is closed — signing in no longer works, and adding them back later
+ *  sends them a fresh invite (not a password reset). Never your own login. The admin only. */
 export type Removed = { ok: true; removed: boolean } | { ok: false; why: string }
 export const removeAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -218,7 +239,12 @@ export const removeAccess = createServerFn({ method: "POST" })
       if (id === context.userId) return { ok: false, why: "That’s your own login — it stays" };
       const { error } = await admin.from("user_roles").delete().eq("user_id", id);
       if (error) return { ok: false, why: why(error) };
-      await admin.from("profiles").update({ is_active: false }).eq("user_id", id);
+      await admin.from("profiles").delete().eq("user_id", id);
+      const { error: delErr } = await admin.auth.admin.deleteUser(id);
+      if (delErr) {
+        /* the account couldn't be closed: at least it can't open anything */
+        await admin.from("profiles").update({ is_active: false }).eq("user_id", id);
+      }
       return { ok: true, removed: true };
     } catch (e) {
       return { ok: false, why: why(e) };

@@ -13,7 +13,7 @@ import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type St
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
 import { stepsFor, isGettingReady } from './steps'
-import { tracksFor, phaseOf, bookingOf } from './tracks'
+import { tracksFor, phaseOf, bookingOf, lineOf } from './tracks'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
@@ -165,16 +165,32 @@ function MoneyCell({ j }: { j: Job }) {
 }
 
 /** one slim bar and a few words — the same shape for every kind of project */
-function Progress({ pct, tone, label, sub, subTone }: { pct: number; tone: 'brand' | 'ok' | 'warn'; label: React.ReactNode; sub?: React.ReactNode; subTone?: 'bad' | 'warn' }) {
+function Progress({ pct, tone, label, sub, subTone, job }: { pct: number; tone: 'brand' | 'ok' | 'warn'; label: React.ReactNode; sub?: React.ReactNode; subTone?: 'bad' | 'warn'; /** the project's own line — the same six steps as on top of the project */ job?: Job }) {
   const bar = tone === 'ok' ? 'bg-ok-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-brand-500'
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="h-1.5 w-[5.5rem] shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', bar)} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>
+        {job ? <MiniLine j={job} /> : <span className="h-1.5 w-[5.5rem] shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', bar)} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>}
         <span className="truncate text-[0.8125rem] font-medium tnum text-ink-2">{label}</span>
       </div>
       {sub && <div className={cn('mt-0.5 truncate pl-[6.125rem] text-[0.78125rem] max-md:pl-0', subTone === 'bad' ? 'font-medium text-bad-600' : subTone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{sub}</div>}
     </div>
+  )
+}
+/** the project's line in small — Approved · Getting ready · Crew scheduled · Installing · Touch-ups · Closed: done
+ *  green, where it is now blue (red with a problem), what's ahead an empty ring */
+function MiniLine({ j }: { j: Job }) {
+  const s = useStore()
+  const line = lineOf(s, j, tracksFor(s, j))
+  return (
+    <span className="flex w-[5.5rem] shrink-0 items-center" data-mini-line aria-label={`Where it is: ${line.find((x) => x.state === 'now' || x.state === 'bad')?.label || 'Closed'}`}>
+      {line.map((x, i) => (
+        <React.Fragment key={x.key}>
+          {i > 0 && <span aria-hidden className={cn('h-[0.125rem] min-w-0 flex-1', line[i - 1].state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
+          <span title={`${x.label}${x.sub ? ` — ${x.sub}` : ''}`} data-at={x.state} className={cn('h-2.5 w-2.5 shrink-0 rounded-full', x.state === 'done' ? 'bg-[#2c8a5b]' : x.state === 'bad' ? 'bg-[#d7342a] ring-2 ring-[#d7342a]/20' : x.state === 'now' ? 'bg-[#2650cf] ring-2 ring-[#2650cf]/20' : x.lock ? 'border border-dashed border-[#bfb8ad] bg-white' : 'border border-[#cfc8bc] bg-white')} />
+        </React.Fragment>
+      ))}
+    </span>
   )
 }
 
@@ -188,14 +204,14 @@ function StandsCell({ j }: { j: Job }) {
     const done = tracks.filter((t) => t.state === 'done').length
     const bad = tracks.filter((t) => t.state === 'bad')
     const first = bad[0]?.lead
-    return <Progress pct={(done / Math.max(1, tracks.length)) * 100} tone="brand" label={done === tracks.length ? 'Getting ready — all done' : `Getting ready · ${done} of ${tracks.length} done`} sub={first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
+    return <Progress job={j} pct={(done / Math.max(1, tracks.length)) * 100} tone="brand" label={done === tracks.length ? 'Getting ready — all done' : `Getting ready · ${done} of ${tracks.length} done`} sub={first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined} subTone="bad" />
   }
   if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">{j.hold?.reason}</span></span>
   const rooms = s.rooms[j.id] || []
   if (t === 'progress') {
     const blocked = rooms.flatMap((r) => r.surfaces.filter((x) => ['blocked', 'waitmat', 'hold'].includes(x.state)).map((x) => `${r.name} ${x.name.toLowerCase()}`))
     const left = rooms.filter((r) => (r.pct ?? 0) < 100).length
-    return <Progress pct={j.pct ?? 0} tone="ok" label={<>{j.pct ?? 0}% installed<span className="font-normal text-muted"> · {left ? `${left} of ${rooms.length} rooms left` : 'all rooms tiled'}</span></>} sub={blocked.length ? `Waiting: ${blocked.slice(0, 2).join(', ')}${blocked.length > 2 ? ` +${blocked.length - 2}` : ''}` : undefined} subTone="warn" />
+    return <Progress job={j} pct={j.pct ?? 0} tone="ok" label={<>{j.pct ?? 0}% installed<span className="font-normal text-muted"> · {left ? `${left} of ${rooms.length} rooms left` : 'all rooms tiled'}</span></>} sub={blocked.length ? `Waiting: ${blocked.slice(0, 2).join(', ')}${blocked.length > 2 ? ` +${blocked.length - 2}` : ''}` : undefined} subTone="warn" />
   }
   if (t === 'touchups' || t === 'repairs') {
     const all = s.punch.filter((p) => p.jobId === j.id)
@@ -204,6 +220,7 @@ function StandsCell({ j }: { j: Job }) {
     const hold = s.ready.find((r) => r.jobId === j.id && r.kind === 'hold')
     return (
       <Progress
+        job={j}
         pct={all.length ? ((all.length - open.length) / all.length) * 100 : 100}
         tone="warn"
         label={open.length ? `${open.length} touch-up${open.length > 1 ? 's' : ''} open` : t === 'repairs' ? j.scope || 'Repair' : 'All touch-ups verified'}

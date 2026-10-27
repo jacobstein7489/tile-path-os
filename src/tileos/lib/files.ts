@@ -108,12 +108,19 @@ export async function removeFile(rec: FileRec) {
 }
 
 /** the files that are one of the estimate's documents — tagged when they came in, or named like it */
+/** the files that are one named document — the tile paperwork, the plans, the spec book, the finish schedule. A file
+ *  given that name when it was added is it; one added without a name counts only when its file name says that one
+ *  document and no other (a "spec book and finish schedule.pdf" is neither — it stays with the other files). */
+const DOC_LIKE: Record<string, RegExp> = { Plans: /plan|drawing|arch|^A\d/i, 'Spec book': /spec/i, 'Finish schedule': /finish|schedule/i }
 export function filesOfDoc(files: FileRec[], jobId: string, doc: string): FileRec[] {
-  const mine = files.filter((f) => f.jobId === jobId && f.kind !== 'photo')
+  if (doc === 'Tile paperwork') return files.filter((f) => f.jobId === jobId && f.kind === 'paperwork')
+  const mine = files.filter((f) => f.jobId === jobId && f.kind !== 'photo' && f.kind !== 'paperwork')
   const tagged = mine.filter((f) => f.doc === doc)
   if (tagged.length) return tagged
-  const like = doc === 'Plans' ? /plan|drawing|arch|^A\d/i : doc === 'Spec book' ? /spec/i : doc === 'Finish schedule' ? /finish|schedule/i : null
-  return mine.filter((f) => !f.doc && (like ? like.test(f.name) || (doc === 'Plans' && f.kind === 'plans' && !/spec|finish|schedule/i.test(f.name)) : false))
+  const like = DOC_LIKE[doc]
+  if (!like) return []
+  const others = Object.entries(DOC_LIKE).filter(([k]) => k !== doc).map(([, r]) => r)
+  return mine.filter((f) => !f.doc && (like.test(f.name) || (doc === 'Plans' && f.kind === 'plans')) && !others.some((r) => r.test(f.name)))
 }
 export const isPdf = (f: { name: string; type?: string }) => /pdf/i.test(f.type || '') || /\.pdf$/i.test(f.name)
 export const isImage = (f: { name: string; type?: string }) => /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name)

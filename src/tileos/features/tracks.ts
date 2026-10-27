@@ -296,9 +296,11 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
       : inField ? (blocked ? 'stopped' : started ? 'installing' : chips.some((c) => c.tone === 'bad' || c.tone === 'warn') ? 'notready' : 'notstarted')
         : chips.length ? 'notready' : 'ready'
     const doneN = r.surfaces.filter((x) => x.state === 'done').length
+    const n = r.surfaces.length
+    const what = n === 1 ? r.surfaces[0].name : `${n} walls & floors`
     const sub = state === 'done' ? `Done${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`
-      : started ? `${crew ? `${PEOPLE[crew]?.short} · ` : ''}${doneN} of ${r.surfaces.length} walls & floors done`
-        : `${sf ? `${sf.toLocaleString('en-US')} SF` : `${r.surfaces.length} walls & floors`}${tags.length ? ` · ${tags.join(', ')}` : ''}`
+      : started ? `${crew ? `${PEOPLE[crew]?.short} · ` : ''}${doneN} of ${n === 1 ? '1' : `${n} walls & floors`} done`
+        : `${sf ? `${sf.toLocaleString('en-US')} SF` : `${what} · no square feet yet`}${tags.length ? ` · ${tags.join(', ')}` : ''}`
     /* before the crew: what this room needs, one line each */
     const checks: RoomCheck[] = []
     if (!inField) {

@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
 import { Inbox, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
-import { REAL, awayFromMe, backToMe, lookAtSample, leaveSample } from '@/tileos/lib/save'
+import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -217,7 +217,6 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
         })}
       <MenuItem icon={<Workflow className="h-4 w-4" />} onSelect={() => go({ page: 'flow' })} hint="The whole process, start to finish">How it works</MenuItem>
       {role === 'owner' && !REAL.cloud && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
-      {REAL.cloud && REAL.admin && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={lookAtSample} hint="Every page with something on it">Look at the sample</MenuItem>}
       {REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={leaveSample}>Start with my own projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
