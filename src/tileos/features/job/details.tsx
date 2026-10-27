@@ -6,6 +6,7 @@
  *   People        — the client and their contact, the designer, the installer, our site manager; the dates
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
+import { PrintSheetsButton, sheetRows } from '../roomsheets'
 import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Grid2x2, Lock, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
@@ -73,7 +74,7 @@ export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (
 const CHIP: Record<ChipTone, string> = { bad: 'bg-bad-50 text-bad-700', warn: 'bg-[#fbf2e1] text-warn-700', todo: 'bg-wash-2 text-muted', ok: 'bg-ok-50 text-ok-700' }
 function RoomRing({ r, inField }: { r: RoomView; inField: boolean }) {
   const st = r.state === 'done' ? 'done' : r.state === 'stopped' ? 'bad' : r.state === 'installing' ? 'now' : r.state === 'ready' ? 'done' : 'later'
-  return <Circle st={{ key: r.room.name, label: r.room.name, state: st, pct: r.state === 'installing' ? Math.max(r.pct, 6) : 0, center: inField ? `${r.pct}%` : '—' }} size={38} />
+  return <Circle st={{ key: r.room.name, label: r.room.name, state: st, pct: r.state === 'installing' ? Math.max(r.pct, 6) : 0, center: inField ? `${r.pct}%` : '' }} size={38} />
 }
 const CHECK_MARK: Record<RoomCheck['state'], React.ReactNode> = {
   ok: <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>,
@@ -90,22 +91,22 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const ready = rooms.filter((r) => r.state === 'ready').length
   const done = rooms.filter((r) => r.state === 'done').length
   const confirmed = ['done', 'na'].includes(steps.find((v) => v.key === 'change')?.state || '') || inField
-  const [openRoom, setOpenRoom] = React.useState<string | null>(null)
   return (
     <Part
       id="scope"
       title="Scope of work"
-      sub={rooms.length ? <><b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? ` · from estimate ${est.id}` : ''} · tap a room for its walls and floors</> : 'Every room from the approved estimate'}
-      right={rooms.length ? <button onClick={() => open({ t: 'scope' })} className={LINK}><Grid2x2 className="h-3.5 w-3.5" />Every wall & floor</button> : undefined}
+      sub={rooms.length ? <><b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? <> · <span className="whitespace-nowrap">estimate {est.id}</span></> : ''}</> : 'Every room from the approved estimate'}
+      right={rooms.length ? <span className="flex items-center gap-1"><PrintSheetsButton job={job} size="sm" variant="ghost">Room sheets</PrintSheetsButton><button onClick={() => open({ t: 'scope' })} className={LINK}><Grid2x2 className="h-3.5 w-3.5" />Every wall & floor</button></span> : undefined}
     >
       {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
       <div className="flex flex-col gap-1.5">
         {rooms.map((r) => {
-          const chips = r.state === 'ready' ? [{ tone: 'ok' as ChipTone, text: 'Ready' }] : r.chips
-          const on = openRoom === r.room.name
+          /* only what needs a look on the row (a problem, waiting, ready) — what's still to come is inside the room */
+          const chips = r.state === 'ready' ? [{ tone: 'ok' as ChipTone, text: 'Ready' }] : r.chips.filter((c) => c.tone !== 'todo')
+          /* every room open — its walls and floors right there; tap the room for its page (log, photos) */
           return (
-            <div key={r.room.name} data-room={r.room.name} data-room-state={r.state} className={cn('overflow-hidden rounded-xl border bg-white', on ? 'border-[#d8d1c5] shadow-card' : 'border-[#ece7de]')}>
-              <button onClick={() => setOpenRoom(on ? null : r.room.name)} aria-expanded={on} className="flex w-full min-w-0 items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[#fbfaf7] max-sm:flex-wrap max-sm:gap-2" data-room-head>
+            <div key={r.room.name} data-room={r.room.name} data-room-state={r.state} className="overflow-hidden rounded-xl border border-[#ece7de] bg-white">
+              <button onClick={() => open({ t: 'room', name: r.room.name })} className="flex w-full min-w-0 items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[#fbfaf7] max-sm:flex-wrap max-sm:gap-2" data-room-head>
                 <RoomRing r={r} inField={inField} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.room.name}</span>
@@ -117,9 +118,9 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                     {chips.length > 2 && <span title={chips.slice(2).map((c) => c.text).join(' · ')} className="shrink-0 rounded-full bg-wash-2 px-1.5 py-0.5 text-[0.71875rem] font-semibold text-muted">+{chips.length - 2}</span>}
                   </span>
                 )}
-                <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition max-sm:hidden', on && 'rotate-180')} />
+                <ChevronRight className="h-4 w-4 shrink-0 text-faint max-sm:hidden" />
               </button>
-              {on && <RoomBody job={job} r={r} inField={inField} onOpen={(tab) => open({ t: 'room', name: r.room.name, tab })} />}
+              <RoomBody job={job} r={r} inField={inField} onOpen={(tab) => open({ t: 'room', name: r.room.name, tab })} />
             </div>
           )
         })}
@@ -135,10 +136,11 @@ function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField:
   const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.room.name)).length
   const photos = roomMedia(s.diary[job.id], r.room.name).length
   return (
-    <div className="border-t border-line-2 bg-[#fcfbf9] px-3 pb-3 pt-2.5" data-room-body>
-      {r.checks.length > 0 && (
-        <div className="mb-2.5 grid grid-cols-2 gap-x-3 gap-y-1 max-sm:grid-cols-1" data-room-checks>
-          {r.checks.map((c) => (
+    <div className="border-t border-line-2 bg-[#fcfbf9] px-3 pb-2.5 pt-2" data-room-body>
+      {/* only what's wrong — what's still to come is on each wall and floor below */}
+      {r.checks.some((c) => c.state === 'bad') && (
+        <div className="mb-2 flex flex-wrap gap-x-3.5 gap-y-1" data-room-checks>
+          {r.checks.filter((c) => c.state === 'bad').map((c) => (
             <span key={c.label} data-check={c.state} className="flex min-w-0 items-center gap-1.5 text-[0.78125rem]">
               {CHECK_MARK[c.state]}
               <span className={cn('truncate', c.state === 'bad' ? 'font-semibold text-bad-700' : c.state === 'ok' ? 'text-ink-2' : 'text-muted')}>{c.label}{c.note && c.state !== 'ok' ? ` — ${c.note}` : ''}</span>
@@ -149,14 +151,18 @@ function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField:
       <div className="overflow-hidden rounded-lg border border-[#ece7de] bg-white">
         {r.room.surfaces.map((x) => {
           const t = tilesOf(job.id).find((y) => y.tag === x.tile)
+          const sh = sheetRows(job.id, { ...r.room, surfaces: [x] })[0]
           const m = methodOf(r.room.name, x)
-          const set = x.sf ? `${METHODS[m.key]?.short || m.key}${m.auto ? ' (suggested)' : ''}` : ''
+          /* what it's set on first, then the grout and the layout — the same words as the room sheet */
+          const said = sh
+            ? [`${/^on /i.test(sh.setOn) ? sh.setOn : `On ${sh.setOn.charAt(0).toLowerCase()}${sh.setOn.slice(1)}`}${sh.setAuto ? ' (suggested)' : ''}`, sh.grout ? `${sh.grout} grout` : 'grout not picked', `${sh.layout.replace(/\s*·\s*best start.*$/i, '')}${sh.layoutSuggested ? ' (suggested)' : ''}`]
+            : [x.sf ? `On ${(METHODS[m.key]?.short || m.key).toLowerCase()}` : '']
           return (
             <div key={x.name} data-surface-row={x.name} className="flex min-w-0 items-center gap-2.5 border-t border-line-2 px-2.5 py-1.5 first:border-t-0">
               <TileImg tile={t} size={26} radius={6} />
               <span className="min-w-0 flex-1 leading-tight">
                 <span className="block truncate text-[0.8125rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {t ? `${t.tag} ${t.name}` : x.tile || 'no tile yet'}{x.sf ? ` · ${x.sf} SF` : ''}</span></span>
-                <span className="block truncate text-[0.71875rem] text-muted">{[x.layout ? `Layout: ${x.layout.replace(/\s*·.*$/, '')}` : takesTile(x.name) ? 'Layout: not set' : '', set ? `On: ${set}` : '', inField ? (x.state === 'working' ? `${surfacePct(x)}% in` : SURF_LABEL[x.state]) : ''].filter(Boolean).join(' · ')}</span>
+                <span className="block truncate text-[0.71875rem] text-muted">{[...said, inField ? (x.state === 'working' ? `${surfacePct(x)}% in` : SURF_LABEL[x.state]) : ''].filter(Boolean).join(' · ')}</span>
               </span>
             </div>
           )

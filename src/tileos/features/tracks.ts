@@ -22,7 +22,7 @@ export type TrackKey = 'scope' | 'tile' | 'site' | 'installer' | 'materials' | '
 export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
   { key: 'scope', label: 'Design', steps: ['design', 'change', 'tile', 'setup', 'layouts'] },
   { key: 'tile', label: 'Tile', steps: ['getpaper', 'rooms', 'qty', 'order', 'delivered'] },
-  { key: 'site', label: 'Site', steps: ['heights', 'level', 'fixes'] },
+  { key: 'site', label: 'Site', steps: ['heights', 'level', 'fixes', 'sheets'] },
   { key: 'installer', label: 'Installer', steps: ['installer', 'confirmed', 'walk'] },
   { key: 'materials', label: 'Materials', steps: ['materials', 'matin'] },
 ]
@@ -32,11 +32,14 @@ const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', site: 'site', i
 export const STEP_SHORT: Record<string, string> = {
   design: 'Design meeting', change: 'Confirm scope', tile: 'Pick tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
   getpaper: 'Get paperwork', rooms: 'Enter paperwork', qty: 'Check quantities', order: 'Get delivery date', delivered: 'Receive tile',
-  heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems',
+  heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems', sheets: 'Hang room sheets',
   installer: 'Send installer PO', confirmed: 'Installer accepts', walk: 'Walk-through',
   materials: 'Order materials', matin: 'Receive materials',
 }
 /** a step's name on the path — it says what happened when that matters (tile short, the store revising) */
+/** a step's name where its column is narrow (a phone): long words may break, with a hyphen, at a sensible place */
+export const softWrap = (t: string) => t.replace(/\b(under)(layment)\b/gi, '$1\u00AD$2')
+
 export function stepShort(s: Store, job: Job, v: StepView) {
   if (v.key === 'qty' && v.state === 'bad') {
     const short = Object.values(s.tiles[job.id] || {}).map((t) => paperQty(s, job.id, t)).filter((r) => r.on > 0 && r.short > 0)
@@ -47,7 +50,7 @@ export function stepShort(s: Store, job: Job, v: StepView) {
   if (v.key === 'fixes' && v.state === 'now') return 'Re-check on site'
   if (v.key === 'order' && v.state === 'bad') return 'Store ordered short'
   if (v.key === 'delivered' && v.state === 'bad') return s.tasks.some((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done') ? 'Tile came wrong' : 'Tile came short'
-  return (!v.custom || v.key === 'design' || v.key === 'change' || v.key === 'layouts' || v.key === 'walk') && !v.only ? STEP_SHORT[v.key] || v.short : v.short
+  return (!v.custom || v.key === 'design' || v.key === 'change' || v.key === 'layouts' || v.key === 'walk' || v.key === 'sheets') && !v.only ? STEP_SHORT[v.key] || v.short : v.short
 }
 
 export interface TrackView {

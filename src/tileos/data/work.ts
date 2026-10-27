@@ -178,9 +178,11 @@ export const TASKS0: Task[] = [
     log: [L('Sep 26', 'office', 'Requested spec book and finish schedule')],
   },
   {
-    id: 't-custpo114', jobId: '114', title: 'Client PO from the GC', type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'],
+    id: 't-custpo114', jobId: '114', title: 'Get the client’s PO from the GC', type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'],
     state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Contract',
-    detail: 'Company rule: their PO before the first bill.', log: [L('Sep 21', 'office', 'Requested at award')],
+    detail: 'The client sends their PO before the first bill — company rule. Follow up until it comes; when it does, file it with the project’s billing. That closes this, and billing can start.',
+    action: { label: 'The PO came — file it', kind: 'money:custpo114' },
+    log: [L('Sep 21', 'system', 'Created at award — the GC gives a PO'), L('Sep 21', 'office', 'Requested from the GC')],
   },
 
   /* ---- Green Tree: a job the way the office sees one mid-week — the design walk to confirm, tile that came broken,

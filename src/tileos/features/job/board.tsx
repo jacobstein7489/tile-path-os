@@ -7,6 +7,7 @@
  * Everything fits on one screen. On a phone, one side at a time. A room, the conversation, a file, the money open in
  * the same window, with Back on top. */
 import * as React from 'react'
+import { PrintSheetsButton } from '../roomsheets'
 import { ChevronRight } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
 import { Segmented } from '@/tileos/components/ui/core'
@@ -87,6 +88,7 @@ function RoomOpen({ job, name, tab: tab0, back }: { job: Job; name: string; tab?
               )
             })}
           </div>
+          {r.surfaces.some((x) => x.tile) && <div className="mt-3 flex justify-end"><PrintSheetsButton job={job} room={r.name} size="sm" variant="ghost" /></div>}
         </div>
       )}
     </div>

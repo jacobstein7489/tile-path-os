@@ -242,6 +242,7 @@ html { font-size: 16px; }
   body > *:not(#print-root) { display: none !important; }
   #print-root { display: block !important; }
   #print-root > * { box-shadow: none !important; max-width: none !important; margin: 0 !important; }
+  html, body { background: #fff !important; }
   @page { margin: 12mm; }
 }
 

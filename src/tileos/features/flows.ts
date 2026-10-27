@@ -305,7 +305,7 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
     }
     if (o.custPO) {
       s.money.unshift({ id: 'cpo-' + jobId, jobId, kind: 'custpo', title: 'Client PO / contract', amount: null, step: 0, state: 'waiting', due: 'Requested today', note: 'Company rule: their PO before the first bill.', log: [L('office', 'Requested from the client')], action: 'Mark received' })
-      newTask(s, { jobId, title: `Client PO for ${j.name}`, type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'], state: 'waiting', waitingOn: 'Client', followUp: 'Fri', tone: 'warn', where: 'Contract' })
+      newTask(s, { jobId, title: `Get the client’s PO for ${j.name}`, type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'], state: 'waiting', waitingOn: 'Client', followUp: 'Fri', tone: 'warn', where: 'Contract', detail: 'The client sends their PO before the first bill — company rule. Follow up until it comes; when it does, file it with the project’s billing. That closes this, and billing can start.', action: { label: 'The PO came — file it', kind: 'money:cpo-' + jobId }, log: [L('system', 'Created at award — the client gives a PO')] })
     }
     s.notices.unshift({ id: 'nw' + Date.now(), jobId, text: `Awarded · ${j.name} — every department notified`, when: 'Just now', kind: 'pricing', unread: true, open: { t: 'job', id: jobId, tab: 'ready' } })
     addHist(s, jobId, { who: me(), kind: 'pricing', title: `Awarded on ${o.rev} · ${fmtMoney(o.amount)}`, detail: `Start window ${o.start}. Deposit, setup, materials and scheduling notified.` })
@@ -819,7 +819,7 @@ export function custPOReceived(id: string) {
     m.state = 'paid'
     m.date = NOW
     m.log.push(L(me(), 'Client PO received and filed'))
-    closeTasks(s, s.tasks.filter((t) => t.jobId === m.jobId && /client po/i.test(t.title)).map((t) => t.id), 'Received')
+    closeTasks(s, s.tasks.filter((t) => t.jobId === m.jobId && /client(’s|'s)? po/i.test(t.title)).map((t) => t.id), 'Received')
     setIssues(s, m.jobId, (iss) => iss.filter((i) => !/client po/i.test(i.text)))
     addHist(s, m.jobId, { who: me(), kind: 'money', title: 'Client PO received' })
   }, 'Client PO filed')

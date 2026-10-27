@@ -174,9 +174,9 @@ function agendaFor(s: Store, role: Role, day: 'today' | 'tomorrow'): Ev[] {
   /* crews */
   const on = s.bookings.filter((b) => b.start <= iso && b.end >= iso)
   const starting = s.bookings.filter((b) => b.start === iso)
-  if (field && day === 'today' && on.length) ev.push({ time: 'All day', title: `${on.length} crews on site`, sub: on.map((b) => PEOPLE[b.crew as PersonKey].short).join(', '), kind: 'crew', run: () => s.go({ page: 'schedule' }) })
+  if (field && day === 'today' && on.length) ev.push({ time: 'All day', title: `${on.length} crews on site`, sub: on.map((b) => PEOPLE[b.crew as PersonKey].short).join(', '), kind: 'crew', run: () => s.go({ page: 'upcoming' }) })
   if (field && day === 'tomorrow') starting.forEach((b) => ev.push({ time: '7 AM', title: `${PEOPLE[b.crew as PersonKey].short} starts`, sub: s.jobs[b.jobId]?.name, kind: 'crew', run: () => s.open({ t: 'job', id: b.jobId }) }))
-  if (field) s.bookings.filter((b) => b.end === iso).forEach((b) => ev.push({ title: `${PEOPLE[b.crew as PersonKey].short} finishes`, sub: s.jobs[b.jobId]?.name, kind: 'crew', run: () => s.go({ page: 'schedule' }) }))
+  if (field) s.bookings.filter((b) => b.end === iso).forEach((b) => ev.push({ title: `${PEOPLE[b.crew as PersonKey].short} finishes`, sub: s.jobs[b.jobId]?.name, kind: 'crew', run: () => s.go({ page: 'upcoming' }) }))
   /* daily updates — the site manager sends them */
   if (day === 'today' && role === 'site') {
     const due = dailyDue(s, role)
@@ -340,7 +340,7 @@ function Numbers({ role }: { role: Role }) {
   const updatesDue = dailyDue(s, role).length
 
   type Stat = { label: string; value: React.ReactNode; sub: string; bad?: boolean; go: () => void }
-  const crews: Stat = { label: 'Crews on site', value: `${busy.size} of ${CREWS.length}`, sub: free.length ? `${free.map((c) => PEOPLE[c].name).join(', ')} free` : 'Everyone is working', go: () => s.go({ page: 'schedule' }) }
+  const crews: Stat = { label: 'Crews on site', value: `${busy.size} of ${CREWS.length}`, sub: free.length ? `${free.map((c) => PEOPLE[c].name).join(', ')} free` : 'Everyone is working', go: () => s.go({ page: 'upcoming' }) }
   const risk: Stat = { label: 'Need attention', value: stopped.length, sub: stopped.slice(0, 3).map((j) => j.name).join(', ') || 'Nothing stopped', bad: stopped.length > 0, go: () => s.go({ page: 'projects', q: { attention: '1' } }) }
   const coming: Stat = { label: 'Coming up', value: upcoming.length, sub: `${noInstaller.length} still need an installer`, go: () => s.go({ page: 'upcoming' }) }
   const money: Stat = { label: 'To collect', value: fmtMoney(waitingMoney, { compact: true }), sub: `${smp('Sample amounts · ')}${toSend} bills to send`, go: () => s.go({ page: 'money' }) }
@@ -379,7 +379,7 @@ function OnSite() {
   const free = CREWS.filter((c) => !busy.has(c))
   return (
     <Card className="shrink-0 overflow-hidden">
-      <PanelHead title="On site today" right={<button onClick={() => s.go({ page: 'schedule' })} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Schedule</button>} />
+      <PanelHead title="On site today" right={<button onClick={() => s.go({ page: 'upcoming' })} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Schedule</button>} />
       {onToday.map((b) => {
         const job = s.jobs[b.jobId]
         const sent = s.diary[b.jobId]?.[0]?.date === NOW

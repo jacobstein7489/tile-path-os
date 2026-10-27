@@ -38,6 +38,8 @@ export function tileDims(size: string): { a: number; b: number; mosaic?: boolean
 export function surfaceDims(x: Surface): { w: number; h: number } {
   if (x.dims) return x.dims
   const area = (x.sf || 40) * 144
+  /* a niche, a bench, a curb: small and squarish — not a wall to the ceiling */
+  if (/niche|bench|curb|shelf|ledge|sill/i.test(x.name)) { const w = Math.max(12, Math.round(Math.sqrt(area * 1.2))); return { w, h: Math.max(6, Math.round(area / w)) } }
   const k = kindOf(x)
   if (k === 'wall') {
     const hm = (x.height || '').match(/(\d+)\s*(″|"|in)/)
@@ -99,6 +101,40 @@ function bestStart(W: number, H: number, tw: number, th: number, j: number, patt
     if (v > best) { best = v; by = oy }
   }
   return { ox: bx, oy: by }
+}
+
+/** a wall or floor laid out the way it's set: its pattern and start (from its layout — or what the system suggests),
+ *  its size, every piece and the smallest cut. The same math as the drawing in the layout window. */
+export function layoutOf(jobId: string, x: Surface) {
+  const tile = tileOf(jobId, x.tile)
+  const td = tileDims(tile?.size || '12 × 12')
+  const had = x.layout || ''
+  const pattern: Pattern = /vertical/i.test(had) ? 'vertical' : /1\/3|⅓|third/i.test(had) ? 'third' : /1\/2|½|half|offset|brick|running/i.test(had) ? 'half' : /straight|stack/i.test(had) ? 'stack' : suggestPattern(tile?.size).pattern
+  const long = Math.max(td.a, td.b), short = Math.min(td.a, td.b)
+  const tw = pattern === 'vertical' ? short : long
+  const th = pattern === 'vertical' ? long : short
+  const j = parseJoint(x.joint)
+  const { w: W, h: H } = surfaceDims(x)
+  const cw = tw + j, ch = th + j
+  const start = /centered/i.test(had) ? 'center' : /full tile/i.test(had) ? 'edge' : 'best'
+  const o = start === 'best' ? bestStart(W, H, tw, th, j, pattern) : start === 'center' ? { ox: ((W / 2 - tw / 2) % cw + cw) % cw, oy: ((H / 2 - th / 2) % ch + ch) % ch } : { ox: 0, oy: 0 }
+  const r = lay(W, H, tw, th, j, pattern, o.ox, o.oy)
+  return { tile, W, H, j, pattern, mosaic: !!td.mosaic, pieces: r.pieces, smallest: r.smallest, slivers: r.slivers, full: r.full, cut: r.cut, measured: !!x.dims }
+}
+/** the drawing, small — for the room sheet that hangs in the room */
+export function LayoutThumb({ jobId, x, max = 190 }: { jobId: string; x: Surface; max?: number }) {
+  const L = layoutOf(jobId, x)
+  const k = Math.min(max / L.W, (max * 0.78) / L.H)
+  const color = L.tile?.color || TILE_COLOR[L.tile?.swatch || ''] || '#efece6'
+  const g = GROUTS[x.grout || L.tile?.grout || '']?.color || '#b8b0a3'
+  return (
+    <svg width={Math.round(L.W * k)} height={Math.round(L.H * k)} viewBox={`0 0 ${L.W} ${L.H}`} role="img" aria-label={`${x.name} layout`} className="block rounded-[2px] shadow-[0_0_0_1px_rgba(16,24,40,.2)]" data-layout-thumb>
+      <rect x={0} y={0} width={L.W} height={L.H} fill={g} />
+      {L.pieces.map((p, i) => (
+        <rect key={i} x={p.x} y={L.H - p.y - p.h} width={p.w} height={p.h} fill={p.sliver ? '#fdd8d4' : p.cutW || p.cutH ? shade(color, -0.08) : color} stroke={g} strokeWidth={Math.max(L.j, 0.9 / k)} />
+      ))}
+    </svg>
+  )
 }
 
 /* ---------------- saving it ---------------- */

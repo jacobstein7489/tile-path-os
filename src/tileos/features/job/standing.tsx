@@ -23,7 +23,7 @@ import { installerOf } from '../upcoming'
 import { TouchupsList } from '../touchups'
 import { allowedFor } from '../newpicker'
 import { firstName } from './kit'
-import { tracksFor, lineOf, phaseOf, stepShort, moneyLine, issuesOf, issueKind, bookingOf, type TrackView, type TrackKey } from '../tracks'
+import { tracksFor, lineOf, phaseOf, stepShort, softWrap, moneyLine, issuesOf, issueKind, bookingOf, type TrackView, type TrackKey } from '../tracks'
 
 /** the track (and the step on it) that's open on the left */
 export type OpenTrack = { track: TrackKey; step: string } | null
@@ -57,7 +57,7 @@ export function BillingStrip({ job, onOpen, className }: { job: Job; onOpen: () 
   if (!m.total && !m.dep) return null
   return (
     <button onClick={onOpen} data-billing className={cn('flex w-full min-w-0 items-center gap-3 rounded-[0.625rem] border border-[#e1ebe2] bg-[#f5f9f5] px-3 py-1.5 text-left text-[0.8125rem] transition hover:border-[#cadccd] hover:bg-[#f0f6f0] max-sm:gap-2 max-sm:px-2.5', className)}>
-      <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-[#2c4a3e]"><Receipt className="h-3.5 w-3.5" />Billing<span className="font-normal text-muted max-md:hidden">· alongside, never in the way</span></span>
+      <span className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-[#2c4a3e]"><Receipt className="h-3.5 w-3.5" />Billing</span>
       <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[#dfe8df] max-sm:hidden" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b]" style={{ width: `${m.paidPct}%` }} /></span>
       <span className="min-w-0 flex-1 truncate text-ink-2">
         <b className="font-semibold tnum text-ink">{fmtMoney(m.paid)}</b> paid of <span className="tnum">{fmtMoney(m.total)}</span>
@@ -78,7 +78,9 @@ export function ProjectNow({ job, open, setOpen }: { job: Job; open: OpenTrack; 
   const [unfold, setUnfold] = React.useState(false)
   /* a step that's open has the whole side to itself — the track's steps on top, Back to getting ready */
   const openTrack = open ? tracks.find((t) => t.key === open.track) : undefined
-  if (open && openTrack) return <div data-phase={phase}><StepPage job={job} t={openTrack} k={open.step} onPick={(k) => setOpen({ track: open.track, step: k })} onBack={() => setOpen(null)} /></div>
+  /* to a step on any track — a step that isn't open yet points at the one it waits for, wherever that is */
+  const jump = (k: string) => { const tk = tracks.find((t) => t.steps.some((x) => x.key === k))?.key; if (tk) setOpen({ track: tk, step: k }) }
+  if (open && openTrack) return <div data-phase={phase}><StepPage job={job} t={openTrack} k={open.step} onPick={(k) => setOpen({ track: open.track, step: k })} onJump={jump} onBack={() => setOpen(null)} /></div>
   const showTracks = phase === 'ready' || unfold
   return (
     <div className="flex flex-col gap-3" data-phase={phase}>
@@ -95,38 +97,62 @@ export function ProjectNow({ job, open, setOpen }: { job: Job; open: OpenTrack; 
   )
 }
 
-/* ---------------- the five tracks ---------------- */
+/* ---------------- the five tracks ----------------
+ * One card: a row for each track, and every step in a straight column under the steps of the other tracks — the
+ * same mark in the same place on every row. Under each step: whose it is, or the day it was done. Tap the track's
+ * name (or any step) and it opens. */
 function Tracks({ job, tracks, setOpen, onFold }: { job: Job; tracks: TrackView[]; setOpen: (o: OpenTrack) => void; onFold?: () => void }) {
+  const s = useStore()
+  const me = meOf(s.role)
   const n = tracks.length
   const done = tracks.filter((t) => t.state === 'done').length
+  const cols = Math.max(1, ...tracks.map((t) => t.steps.filter((v) => v.state !== 'na').length))
   return (
-    <section data-tracks>
-      <header className="mb-2 flex min-w-0 items-baseline gap-2.5 px-0.5">
+    <section data-tracks className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+      <header className="flex min-w-0 items-baseline gap-2.5 border-b border-line-2 px-4 py-2.5 max-sm:px-3">
         <h3 className="shrink-0 text-[1.0625rem] font-semibold text-ink">Getting ready</h3>
         <span className={cn('min-w-0 truncate text-[0.8125rem]', done === n ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{done === n ? `All ${n} done` : `${done} of ${n} done`}</span>
         {onFold && <button onClick={onFold} className="ml-auto inline-flex shrink-0 items-center gap-1 self-center rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash"><ChevronUp className="h-3.5 w-3.5" />Fold</button>}
       </header>
-      <div className="flex flex-col gap-1.5">
-        {tracks.map((t) => <TrackRow key={t.key} job={job} t={t} onOpen={(k) => setOpen({ track: t.key, step: k })} />)}
+      <div className="divide-y divide-line-2" style={{ '--cols': cols } as React.CSSProperties}>
+        {tracks.map((t) => <TrackRow key={t.key} job={job} t={t} me={me} onOpen={(k) => setOpen({ track: t.key, step: k })} />)}
       </div>
     </section>
   )
 }
 
-/** one track: its name — and its steps under it, each with whose it is (or when it was done). Tap it (or a step) and
- *  it opens. */
-function TrackRow({ job, t, onOpen }: { job: Job; t: TrackView; onOpen: (k: string) => void }) {
+/** one track: its name on the left, its steps in the columns — the first step of every track under the first of the
+ *  others, the second under the second… */
+function TrackRow({ job, t, me, onOpen }: { job: Job; t: TrackView; me: PersonKey; onOpen: (k: string) => void }) {
   const s = useStore()
-  const me = meOf(s.role)
   const first = t.lead?.key || t.steps[t.steps.length - 1]?.key
+  const list = t.steps.filter((v) => v.state !== 'na')
+  const doneN = list.filter((v) => v.state === 'done').length
+  const status = t.state === 'done' ? { text: t.doneOn ? `Done ${t.doneOn}` : 'Done', cls: 'font-semibold text-[#2c8a5b]' }
+    : t.state === 'bad' ? { text: 'Problem', cls: 'font-semibold text-bad-600' }
+      : { text: `${doneN} of ${list.length}`, cls: 'text-muted' }
   return (
-    <div data-track={t.key} data-state={t.state} className={cn('overflow-hidden rounded-[0.875rem] border bg-white transition hover:border-[#d8d1c5]', t.state === 'bad' ? 'border-bad-200' : 'border-line')}>
-      <button onClick={() => first && onOpen(first)} className="flex w-full min-w-0 items-center gap-2 px-3.5 pt-2 text-left max-sm:px-3" data-track-head>
-        <span className="text-[0.9375rem] font-bold text-ink">{t.label}</span>
-        {t.state === 'done' && <span className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-[#2c8a5b]"><Check className="h-3.5 w-3.5" strokeWidth={3} />{t.doneOn ? `Done ${t.doneOn}` : 'Done'}</span>}
-        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-faint" />
+    <div data-track={t.key} data-state={t.state} className="grid grid-cols-[7rem_repeat(var(--cols),minmax(0,1fr))] items-start gap-y-2 px-4 py-3 max-sm:grid-cols-[repeat(var(--cols),minmax(0,1fr))] max-sm:px-3 max-sm:py-2.5">
+      <button onClick={() => first && onOpen(first)} className="group flex min-w-0 flex-col items-start pr-3 text-left max-sm:col-span-full max-sm:flex-row max-sm:items-baseline max-sm:gap-2" data-track-head>
+        <span className="flex items-center gap-1 text-[0.9375rem] font-bold text-ink group-hover:text-brand-700">{t.label}<ChevronRight className="h-3.5 w-3.5 text-faint max-sm:hidden" /></span>
+        <span className={cn('text-[0.75rem]', status.cls)}>{t.state === 'done' && <Check className="mr-0.5 inline h-3 w-3 align-[-0.125rem]" strokeWidth={3} />}{status.text}</span>
       </button>
-      <TrackPath job={job} t={t} me={me} onPick={onOpen} />
+      {list.map((v, i) => {
+        const lead = t.lead?.key === v.key
+        const mine = v.owner === me && (v.state === 'now' || v.state === 'bad')
+        const w = stepWho(s, job, v, me)
+        const last = i === list.length - 1
+        return (
+          <button key={v.key} data-step={v.key} data-state={v.state} data-mine={mine || undefined} onClick={() => onOpen(v.key)} title={`${TITLE[v.key] || v.label}${v.note ? ` — ${v.note}` : ''}`} className="group/step flex min-w-0 flex-col items-stretch rounded-lg py-0.5 text-left transition">
+            <span className="flex items-center" aria-hidden>
+              <Dot state={v.state} mine={mine} lead={lead} />
+              {!last && <span className={cn('mx-1.5 h-[0.125rem] min-w-0 flex-1 rounded-full', v.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
+            </span>
+            <span className={cn('mt-1.5 line-clamp-2 break-words pr-2 text-[0.8125rem] leading-[1.15rem] group-hover/step:underline group-hover/step:decoration-[#cfc8bc] group-hover/step:underline-offset-2 max-sm:line-clamp-3 max-sm:pr-1 max-sm:text-[0.75rem] max-sm:leading-[0.95rem]', DOT_LABEL[v.state], mine && 'text-brand-700', lead && 'font-bold')}><span className="max-sm:hidden">{stepShort(s, job, v)}</span><span className="sm:hidden">{softWrap(stepShort(s, job, v))}</span></span>
+            {w && <span data-who className={cn('mt-0.5 truncate pr-2 text-[0.71875rem] leading-tight max-sm:text-[0.6875rem]', WHO_TONE[w.tone])}>{w.text}</span>}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -167,36 +193,9 @@ export function stepWho(s: Store, job: Job, v: StepView, me: PersonKey): { text:
 }
 const WHO_TONE: Record<string, string> = { mine: 'font-semibold text-brand-700', muted: 'text-muted', ink: 'font-medium text-ink-2', bad: 'font-semibold text-bad-600', warn: 'font-medium text-warn-700' }
 
-/** a track's steps in a row — each one with whose it is under it. Tap one and it opens. */
-function TrackPath({ job, t, me, onPick }: { job: Job; t: TrackView; me: PersonKey; onPick: (k: string) => void }) {
-  const s = useStore()
-  return (
-    <ol className="flex min-w-0 flex-wrap items-start gap-y-1.5 px-3.5 pb-2.5 pt-1.5 max-sm:px-3" aria-label={`${t.label}, step by step`}>
-      {t.steps.filter((v) => v.state !== 'na').map((v, i, list) => {
-        const lead = t.lead?.key === v.key
-        const mine = v.owner === me && (v.state === 'now' || v.state === 'bad')
-        const prev = list[i - 1]
-        const w = stepWho(s, job, v, me)
-        return (
-          <li key={v.key} className="flex shrink-0 items-start">
-            {i > 0 && <span aria-hidden className={cn('mx-1.5 mt-[0.6875rem] h-[0.125rem] w-3.5 shrink-0 rounded-full max-sm:mx-1 max-sm:w-2', prev.state === 'done' || prev.state === 'na' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
-            <button data-step={v.key} data-state={v.state} data-mine={mine || undefined} onClick={() => onPick(v.key)} title={`${TITLE[v.key] || v.label}${v.note ? ` — ${v.note}` : ''}`} className="flex min-w-0 flex-col items-start rounded-lg px-1 py-0.5 text-left text-[0.78125rem] transition hover:bg-[#f4f1ec]">
-              <span className="flex items-center gap-1.5">
-                <Dot state={v.state} mine={mine} lead={lead} />
-                <span className={cn('whitespace-nowrap', DOT_LABEL[v.state], mine && 'text-brand-700', lead && 'font-bold')}>{stepShort(s, job, v)}</span>
-              </span>
-              {w && <span data-who className={cn('whitespace-nowrap pl-[1.3125rem] text-[0.71875rem] leading-tight', WHO_TONE[w.tone])}>{w.text}</span>}
-            </button>
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
-
 /** a step open on its own, in place of the tracks: the track's steps across the top (like the estimate's path), the
  *  step under them — whose it is, when, what finishes it — and Back to getting ready */
-function StepPage({ job, t, k, onPick, onBack }: { job: Job; t: TrackView; k: string; onPick: (k: string) => void; onBack: () => void }) {
+function StepPage({ job, t, k, onPick, onJump, onBack }: { job: Job; t: TrackView; k: string; onPick: (k: string) => void; onJump: (k: string) => void; onBack: () => void }) {
   const s = useStore()
   const me = meOf(s.role)
   const list = t.steps.filter((x) => x.state !== 'na' || x.key === k)
@@ -217,7 +216,7 @@ function StepPage({ job, t, k, onPick, onBack }: { job: Job; t: TrackView; k: st
       <div key={v.key} className="px-5 pb-5 pt-4 max-sm:px-3.5">
         {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
         <h3 className="font-display mb-1 mt-0.5 text-[1.1875rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{TITLE[v.key] || v.label}</h3>
-        <StepInline job={job} v={v} onClose={onBack} />
+        <StepInline job={job} v={v} onClose={onBack} onGo={onJump} />
       </div>
       <footer className="flex items-center gap-2 border-t border-line-2 px-4 py-2.5">
         {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => onPick(prev.key)}>Back</Button>}
@@ -301,24 +300,31 @@ export function OpenIssues({ job, className }: { job: Job; className?: string })
   const shown = all ? list : list.slice(0, 4)
   const canAdd = !['client', 'accounting', 'crew'].includes(s.role)
   const bad = list.some((t) => t.tone === 'bad')
+  const addMenu = canAdd && (
+    <Menu align="end" width={280} trigger={<button aria-label="Add an issue" className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" />Add</button>}>
+      <MenuLabel>An issue on {job.name}</MenuLabel>
+      <MenuItem icon={<TriangleAlert className="h-4 w-4" />} hint="Tile wrong, broken or short · site not ready" onSelect={() => s.open({ t: 'problem', jobId: job.id })}>A problem</MenuItem>
+      <MenuItem icon={<Truck className="h-4 w-4" />} hint="Material or a tool, brought to the job" onSelect={() => s.open({ t: 'need', jobId: job.id })}>Need something on site</MenuItem>
+      {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} hint="A question to answer, something to chase" onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>Something for someone to do</MenuItem>}
+    </Menu>
+  )
+  /* nothing open: one quiet line — not a box saying so */
+  if (!list.length) return (
+    <section data-issues data-none className={cn('flex min-w-0 items-center gap-2 rounded-[0.875rem] border border-line bg-white px-4 py-2 max-sm:px-3', className)}>
+      <h4 className="shrink-0 text-[0.875rem] font-semibold text-ink">Open issues</h4>
+      <span className="min-w-0 truncate text-[0.8125rem] text-muted">none</span>
+      {addMenu}
+    </section>
+  )
   return (
     <section data-issues className={cn('overflow-hidden rounded-[0.875rem] border bg-white', bad ? 'border-bad-200' : 'border-line', className)}>
       <header className={cn('flex min-w-0 items-center gap-2 border-b px-4 py-2.5', bad ? 'border-bad-100 bg-[#fdf6f5]' : 'border-line-2')}>
         <h4 className={cn('shrink-0 text-[0.9375rem] font-bold', bad ? 'text-bad-700' : 'text-ink')}>Open issues</h4>
         <span className="shrink-0 rounded-full bg-wash-2 px-1.5 text-[0.71875rem] font-bold tnum text-ink-2">{list.length}</span>
         <span className="min-w-0 truncate text-[0.75rem] text-muted max-sm:hidden">anything that comes up — each one is someone’s</span>
-        {canAdd && (
-          <Menu align="end" width={280} trigger={<button aria-label="Add an issue" className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" />Add</button>}>
-            <MenuLabel>An issue on {job.name}</MenuLabel>
-            <MenuItem icon={<TriangleAlert className="h-4 w-4" />} hint="Tile wrong, broken or short · site not ready" onSelect={() => s.open({ t: 'problem', jobId: job.id })}>A problem</MenuItem>
-            <MenuItem icon={<Truck className="h-4 w-4" />} hint="Material or a tool, brought to the job" onSelect={() => s.open({ t: 'need', jobId: job.id })}>Need something on site</MenuItem>
-            {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} hint="A question to answer, something to chase" onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>Something for someone to do</MenuItem>}
-          </Menu>
-        )}
+        {addMenu}
       </header>
-      {!list.length
-        ? <div className="px-4 py-2.5 text-[0.84375rem] text-muted">Nothing open.</div>
-        : (
+      {(
           <div className="p-1.5">
             {shown.map((t) => {
               const waiting = t.state === 'waiting'

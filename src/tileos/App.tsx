@@ -218,7 +218,7 @@ export default function App() {
   /* the team report: the admin, on his own view */
   const report = useStore((s) => reportOn(s))
   const navList = roleDef(role).nav
-  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
+  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : []), ...(navList.includes('upcoming') ? ['schedule'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
 
   let body: React.ReactNode = null

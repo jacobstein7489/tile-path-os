@@ -4,7 +4,7 @@
  * Mine / Everyone switches between your list and the whole team's. */
 import { InboxStrip } from './inbox'
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge, BellRing } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -28,8 +28,7 @@ import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
 import { REAL, awayFromMe } from '@/tileos/lib/save'
-import { whoToCheck } from './whowhat'
-import { checkIns, reportOn, type CheckItem } from './teamreport'
+import { checkIns, checkInDays, reportOn, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
@@ -143,9 +142,11 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const job = s.jobs[t.jobId]
   const [leaving, setLeaving] = React.useState(false)
   const done = t.state === 'done'
+  /* someone else's (the admin's Everyone): it opens — they finish it; you remind them or take it over from there */
+  const theirs = t.owner !== meOf(s.role) && !isMine(t, s.role)
   /* a getting-ready step's task opens the step's own window */
   const stepTask = !!t.step && !t.step.startsWith('*:') && !!s.jobs[t.step.split(':')[0]]
-  const act = !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
+  const act = !theirs && !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
   /* a hand-off (a review, a PO, an invoice) opens the thing itself — the notes and history are one tap from there */
   const opensWork = act && /^(estimate|estchange|money|po|co|short|order|heights|pay):/.test(t.action!.kind)
   const follow = followDue(t)
@@ -168,7 +169,8 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       when={w.text}
       whenTone={w.tone}
       action={
-        done ? <Button size="sm" className={ROW_BTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+        theirs && !(done && (s.role === 'owner' || s.role === 'pm')) ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+        : done ? <Button size="sm" className={ROW_BTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
           : follow ? <Button size="sm" className={ROW_BTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>Follow up</Button>
           : stepTask ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
@@ -238,42 +240,32 @@ function PayRow() {
   )
 }
 
-/** the admin's: who has each step — filled in from how he said it works; it waits here until he saves it */
-function WhoRow() {
+/** the admin's: what's late on the team past the company's line — its own part of Today, one row for each late
+ *  thing: what it is, whose, the day it was due, how late, and where it came from. "Check in" opens that person's
+ *  window. */
+function CheckInSection({ items }: { items: PlateItem[] }) {
   const s = useStore()
-  const n = whoToCheck(s)
-  const go = () => s.open({ t: 'whowhat', first: true })
+  const rows = items.flatMap((x) => (x.ci ? x.ci.items.map((c) => ({ who: x.ci!.who, c })) : []))
+  if (!rows.length) return null
+  const open = (who: PersonKey) => s.open({ t: 'checkin', who })
   return (
-    <TodoRow
-      onClick={go}
-      icon={<Users />}
-      title="Check who does what"
-      detail={n ? `${n} filled in from how you said it works — check them and save` : 'Who has each step — check it and save'}
-      project="Company"
-      when="Anytime"
-      whenTone="quiet"
-      action={<Button size="sm" className={ROW_BTN} onClick={go}>Check</Button>}
-    />
-  )
-}
-
-/** the admin's: someone's things are late past the company's line — check in with them */
-function CheckInRow({ g }: { g: { who: PersonKey; items: CheckItem[] } }) {
-  const s = useStore()
-  const go = () => s.open({ t: 'checkin', who: g.who })
-  const oldest = g.items[0]
-  return (
-    <div data-checkin-row={g.who}>
-      <TodoRow
-        onClick={go}
-        icon={<UserRoundCheck />}
-        title={`Check in with ${PEOPLE[g.who]?.short || 'them'}`}
-        detail={`${g.items.length === 1 ? '1 thing' : `${g.items.length} things`} late — ${oldest.title}, ${oldest.late} work day${oldest.late === 1 ? '' : 's'}${g.items.length > 1 ? ' and more' : ''}`}
-        when={md(oldest.setFor)}
-        whenTone="bad"
-        action={<Button size="sm" className={ROW_BTN} onClick={go}>Check in</Button>}
-      />
-    </div>
+    <section data-day="checkin" data-checkins>
+      <Group label="Check in on the team" count={rows.length} tone="neutral" hint={`not done ${checkInDays(s)}+ work days after its day`} />
+      {rows.map(({ who, c }) => (
+        <div key={c.key} data-checkin-row={who}>
+          <TodoRow
+            onClick={() => open(who)}
+            icon={<UserRoundCheck />}
+            title={c.title}
+            detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
+            owner={who}
+            when={`${c.late} ${c.late === 1 ? 'day' : 'days'} late`}
+            whenTone="bad"
+            action={<Button size="sm" className={ROW_BTN} onClick={() => open(who)}>Check in</Button>}
+          />
+        </div>
+      ))}
+    </section>
   )
 }
 
@@ -328,7 +320,7 @@ export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
 const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
 
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
-export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'pay' | 'bill' | 'meet' | 'step' | 'who' | 'checkin'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
+export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
 const AHEAD = 21
 /** everything that's mine: tasks, the daily updates I send, the pay week, my meetings, checklist steps that are my turn */
 export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateItem[] {
@@ -339,10 +331,8 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   dailyDue(s, role).forEach((d) => out.push({ key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
-  /* the admin's own list: who does what, filled in from how he said it works (it waits here — it never pops up), and
-     who on the team to check in on — late past the company's line */
-  if (person === undefined && role === 'owner' && !awayFromMe(s) && whoToCheck(s) != null) out.push({ key: 'who', b: 'today', iso: TODAY, time: null, kind: 'who', who: meOf('owner') })
-  if (person === undefined && reportOn(s)) checkIns(s).forEach((g) => out.push({ key: 'ci:' + g.who, b: 'today', iso: TODAY, time: null, kind: 'checkin', ci: g, who: meOf(role) }))
+  /* the admin's: who on the team to check in on — late past the company's line (its own part of Today) */
+  if (person === undefined && reportOn(s)) checkIns(s).forEach((g) => g.items.forEach((c) => out.push({ key: 'ci:' + c.key, b: 'today', iso: TODAY, time: null, kind: 'checkin', ci: { who: g.who, items: [c] }, who: meOf(role) })))
   /* a step's task whose step already happened (the paperwork came in another way) isn't anyone's to do */
   const doneSteps = new Map<string, Set<string>>()
   const stepDone = (t: Task) => {
@@ -393,8 +383,6 @@ function PlateRow({ x, showOwner, followed, overdue }: { x: PlateItem; showOwner
   if (x.kind === 'daily') return <DailyRow d={x.d!} showOwner={showOwner} />
   if (x.kind === 'pay') return <PayRow />
   if (x.kind === 'bill') return <BillRow />
-  if (x.kind === 'who') return <WhoRow />
-  if (x.kind === 'checkin') return <CheckInRow g={x.ci!} />
   const late = overdue ? { text: x.iso ? md(x.iso) : 'Late', tone: 'bad' as const } : undefined
   if (x.kind === 'step') return <StepRowToday job={x.job!} v={x.v!} showOwner={showOwner} when={late || (x.v?.state === 'bad' ? { text: 'Problem', tone: 'bad' } : undefined)} />
   const tm = x.time != null ? { text: hourLabel(x.time), tone: 'strong' as const } : undefined
@@ -599,7 +587,9 @@ export function MyTasksPage() {
     })
   }
 
-  const shownToday = today.filter(pick)
+  /* the admin's check-ins are their own part of Today — under the day, not mixed into it */
+  const shownToday = today.filter(pick).filter((x) => x.kind !== 'checkin')
+  const shownCheckins = all ? [] : today.filter((x) => x.kind === 'checkin')
   /* a task with no day on it still shows up — under today's, as "No day set" — so nothing gets lost */
   const undated = plate.filter((x) => x.kind === 'task' && x.t && x.t.state === 'now' && !taskIso(x.t) && !/this week/i.test(x.t.due || '')).filter(pick)
   const shownTomorrow = tomorrow.filter(pick)
@@ -667,7 +657,8 @@ export function MyTasksPage() {
 
         {/* nothing yet: what's on the admin's own list (who does what) first, then where to start */}
         {view === 'today' && !Object.keys(s.jobs).length && !s.tasks.length && role === 'owner' && <>{shownToday.length > 0 && dayBlock(TODAY, shownToday, true)}<CleanSlate /></>}
-        {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>
             <Group label="No day set" count={undated.length} tone="neutral" hint="still yours — give it a day, or do it when you can" />
@@ -789,6 +780,29 @@ function NowLine({ min }: { min: number }) {
 }
 
 /* ================= one task: what it is, who has it, the one thing to do ================= */
+/** where a task came from: what in the flow made it, or who asked for it — and when */
+export function taskOrigin(t: Task): string {
+  const first = (t.log || [])[0]
+  const said = first?.text ? ` — ${first.text.charAt(0).toLowerCase()}${first.text.slice(1)}` : ''
+  if (first?.who === 'system') return `Made by Tile OS · ${first.date}${said}`
+  if (t.by && PEOPLE[t.by]) return `Asked by ${PEOPLE[t.by].short}${first ? ` · ${first.date}` : ''}`
+  if (first && PEOPLE[first.who as PersonKey]) return `Added by ${PEOPLE[first.who as PersonKey].short} · ${first.date}`
+  return ''
+}
+/** someone else's task: remind them — it pops up on their screen — and, when it's late, it counts as checking in */
+function remindTask(t: Task) {
+  const st = useStore.getState()
+  const me = meOf(st.role)
+  const late = taskBucket(t) === 'overdue' || (t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') < TODAY)
+  st.commit((x) => {
+    const y = x.tasks.find((z) => z.id === t.id)
+    if (!y) return
+    y.nudge = { by: me, at: Date.now().toString(36), day: TODAY }
+    if (late) y.checkIn = { by: me, day: TODAY }
+    ;(y.log ||= []).push({ date: NOW, who: me, text: `Reminded ${PEOPLE[y.owner]?.short || ''}` })
+  }, `Reminder sent to ${PEOPLE[t.owner]?.short || 'them'}`, { sub: 'It pops up on their screen, and it’s on their Today.', undo: false })
+}
+
 export function TaskModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
@@ -800,6 +814,11 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   if (!t) return null
   const job = s.jobs[t.jobId]
   const me = meOf(s.role)
+  /* someone else's: you see whose it is, what it's for and where it came from — you remind them or take it over; only
+     its person finishes it (no "Done" for anyone else — nothing ends up nowhere) */
+  const theirs = t.owner !== me && !isMine(t, s.role)
+  const admin = s.role === 'owner' || s.role === 'pm'
+  const from = taskOrigin(t)
   const hasAction = !!t.action && t.state !== 'done' && t.action.kind !== 'open-job'
   const b = taskBucket(t)
   const addNote = () => { if (!note.trim()) return; s.noteTask(t.id, note.trim(), as || undefined); setNote('') }
@@ -826,6 +845,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         {t.where && <span className="truncate">· {t.where}</span>}
       </div>
       <h2 className="font-display mt-1.5 text-[1.3125rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{cleanTitle(t.title, job)}</h2>
+      {from && <div className="mt-1 text-[0.78125rem] text-muted" data-task-from>{from}</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {pill}
         <Menu align="start" width={250} trigger={<button className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-white pl-0.5 pr-2.5 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash"><Avatar who={t.owner} size={22} />{PEOPLE[t.owner].short} has it</button>}>
@@ -842,7 +862,12 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     t.state === 'done' ? (
       <>
         <span className="text-[0.84375rem] text-muted">{t.result ? `Result: ${t.result}` : 'Finished and logged.'}</span>
-        <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+        {(!theirs || admin) && <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>}
+      </>
+    ) : theirs ? (
+      <>
+        <Button variant="ghost" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {PEOPLE[t.owner]?.short || 'them'}</Button>
+        {admin && <Button className="ml-auto" icon={<UserRound />} onClick={() => s.reassignTask(t.id, me)} data-take-task>Take it over</Button>}
       </>
     ) : (
       <>
@@ -872,6 +897,12 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
 
   return (
     <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 py-5 max-sm:px-4">
+      {theirs && t.state !== 'done' && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-wash px-3.5 py-2.5 text-[0.875rem] text-ink-2" data-theirs-task>
+          <Avatar who={t.owner} size={28} plain />
+          <span className="min-w-0 flex-1">It’s <b className="font-semibold text-ink">{PEOPLE[t.owner]?.short}</b>’s{t.state === 'waiting' ? ` — waiting on ${t.waitingOn || 'someone'}, back ${t.followUp}` : t.due ? ` — due ${t.due}` : ''}. {PEOPLE[t.owner]?.short} finishes it; you can remind them{admin ? ' or take it over' : ''}.</span>
+        </div>
+      )}
       {(t.detail || !(t.log || []).length) && <p className="text-[0.9375rem] leading-relaxed text-ink">{t.detail || t.title}</p>}
       {/* who else sees it */}
       <div className={cn('flex flex-wrap items-center gap-2 rounded-[0.75rem] border border-line px-3 py-2', (t.detail || !(t.log || []).length) && 'mt-4')}>

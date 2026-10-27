@@ -34,10 +34,11 @@ import { poRatio, type Ratio } from './poratio'
 import { PaperRead } from './paperread'
 import { AddRoomButton } from './roomedit'
 import { LayoutsList, fillSuggestions } from './layout'
+import { PrintSheetsButton, sheetRooms, sheetRows } from './roomsheets'
 import { NoNote, SitePick, type SiteVal } from './answer'
 import { HeightsInline } from './heights'
 import { SiteChangeForm } from './field'
-import { trackOf, TRACKS, stepShort } from './tracks'
+import { trackOf, TRACKS, stepShort, softWrap } from './tracks'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -52,6 +53,7 @@ export const TITLE: Record<string, string> = {
   heights: 'Site check — on site',
   level: 'Floor levels — the high and low point of every floor',
   fixes: 'Fix what the site check found',
+  sheets: 'Hang the room sheets',
   setup: 'Decide the underlayment — what every floor and wall is set on',
   installer: 'Pick the installer — send his PO',
   walk: 'Walk-through with the installer',
@@ -73,6 +75,7 @@ export const TODO: Record<string, string> = {
   layouts: 'Set the layouts',
   heights: 'Site check',
   fixes: 'Get what the site check found fixed',
+  sheets: 'Print and hang the room sheets',
   level: 'Measure the floors — high and low',
   setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
@@ -95,6 +98,7 @@ const WHAT: Record<string, string> = {
   layouts: 'The system suggests each one from the tile — the pattern, and where to start so there are no thin cuts. Tap one to see it drawn, change it or send it to the designer.',
   heights: 'On site, before we order: the whole site, then room by room. Some rooms miss something (2 of 3 drains)? Tap Some and pick them — each one goes to be fixed and comes back to you to check again.',
   fixes: 'What the site check found. Get each one fixed (the GC, the plumber…) — once it is, it goes back to the site manager to look at again on site.',
+  sheets: 'One page for each room — its tiles, the grout, what every wall and floor is set on, and its layout drawn to scale. Print them and hang one in each room before the crew starts.',
   level: 'Every floor we tile: the high point and the low point off one laser line. The system says flat, self-leveler, or the GC’s to fix. A mud bed levels itself.',
   setup: 'What every floor and wall is set on — underlayment, membrane, mud. Our materials are worked out from it.',
   installer: 'Pick who installs it and send him his PO — the meter shows it against the estimate.',
@@ -148,54 +152,105 @@ function stepRights(s: Store, v: StepView) {
   const locked = v.state === 'later'
   return { me, mine, admin, locked, viewOnly: !mine || locked }
 }
-/** the step itself: where it stands (and when it's due), what it's for — then what finishes it. Someone else's step
- *  shows whose it is; a step that waits for the one before it is locked until then. */
-function StepPanel({ job, v, roomy }: { job: Job; v: StepView; roomy?: boolean }) {
+/** what's happened with a step, from the project's history — newest first */
+const HIST_OF: Record<string, RegExp> = {
+  order: /^Tile ordered by the store|^Followed up on the tile/i, delivered: /^Tile delivered/i, heights: /^Site check/i, fixes: /^Fixed:/i,
+  matin: /^Our materials delivered/i, qty: /^Revised quantities/i, change: /change(s)? from the estimate/i, level: /^Floor heights/i,
+}
+function stepHistory(s: Store, job: Job, v: StepView) {
+  const own = (t: string) => t.toLowerCase().startsWith(`${v.short.toLowerCase()}:`) || !!HIST_OF[v.key]?.test(t)
+  return (s.hist[job.id] || []).filter((e: any) => typeof e.title === 'string' && own(e.title)).slice(0, 5) as { date: string; who: PersonKey | string; title: string; detail?: string }[]
+}
+
+/** what's happening with a step — the same block on top of every step: done (when, who), your turn, someone else's
+ *  turn, waiting on someone outside, a problem, or not yet (what it waits for). When it's due, and what it's for. */
+function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job; v: StepView; me: PersonKey; mine: boolean; admin: boolean; onSite: boolean; take: string; goTo?: (k: string) => void }) {
+  const name = PEOPLE[v.owner]?.short || 'someone else'
+  const due = dueWords(v)
+  const open = v.state !== 'done' && v.state !== 'na'
+  const what = v.note && (v.state === 'now' || v.state === 'wait' || v.state === 'bad') ? v.note : open ? WHAT[v.key] : undefined
+  const look = v.state === 'done' ? { box: 'border-[#d5e7da] bg-[#f3f8f4]', head: 'text-[#22573c]' }
+    : v.state === 'bad' ? { box: 'border-bad-100 bg-bad-50/60', head: 'text-bad-700' }
+      : v.state === 'wait' ? { box: 'border-[#f0dfbd] bg-[#fdf8ee]', head: 'text-warn-700' }
+        : v.state === 'now' && mine ? { box: 'border-brand-100 bg-brand-50/60', head: 'text-brand-800' }
+          : v.state === 'later' ? { box: 'border-dashed border-[#d6cfc3] bg-[#faf8f5]', head: 'text-ink-2' }
+            : { box: 'border-line bg-[#faf8f5]', head: 'text-ink' }
+  const head = v.state === 'done' ? `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${v.doneBy === me ? 'you' : PEOPLE[v.doneBy]?.short}` : ''}`
+    : v.state === 'na' ? 'Not needed on this project'
+      : v.state === 'later' ? 'Not yet'
+        : v.state === 'wait' ? 'Waiting'
+          : v.state === 'bad' ? 'A problem'
+            : mine ? 'Your turn' : `${name}’s turn`
+  const sub = v.state === 'later'
+    ? `It opens when ${v.waitsFor || 'the step before'} is done${v.waitsOn ? ` — ${v.waitsOn === me ? 'you have' : `${PEOPLE[v.waitsOn]?.short} has`} that` : ''}. Then it’s ${mine ? 'yours' : `${name}’s`}.`
+    : what ? `${what}${!mine && open && onSite && v.state === 'now' ? ' — on site' : ''}` : undefined
+  return (
+    <div className={cn('flex min-w-0 items-start gap-3 rounded-xl border px-3.5 py-3', look.box)} data-step-status data-step-state={v.state} {...(v.state === 'later' ? { 'data-locked': '' } : {})} {...(!mine && open && v.state !== 'later' ? { 'data-not-mine': '' } : {})}>
+      {v.state === 'now' && !mine ? <Avatar who={v.owner} size={30} plain /> : v.state === 'later' ? <span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#bfb8ad] bg-white text-faint"><Lock className="h-3.5 w-3.5" /></span> : <StepIcon state={v.state} size={30} />}
+      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
+        <div className="min-w-[min(100%,13rem)] flex-1">
+          <div className={cn('text-[0.90625rem] font-semibold leading-snug', look.head)}>
+            {head}
+            {due && <span className={cn('font-medium', due.late ? 'text-bad-600' : 'text-ink-2')}> · {due.text}</span>}
+          </div>
+          {sub && <div className="mt-0.5 text-[0.84375rem] leading-snug text-ink-2">{sub}</div>}
+        </div>
+        {admin && !mine && open && v.state !== 'later' && <Button size="sm" className="shrink-0" onClick={() => setStepOwner(job.id, take, me)}>Take it over</Button>}
+        {/* not yet: straight to the step it waits for — nothing ends here */}
+        {v.state === 'later' && v.waitsKey && goTo && <Button size="sm" className="shrink-0" iconRight={<ChevronRight />} onClick={() => goTo(v.waitsKey!)} data-go-waits={v.waitsKey}><span className="max-w-[13rem] truncate">Go to {v.waitsFor || 'the step before'}</span></Button>}
+      </div>
+      {admin && <StepMore job={job} v={v} />}
+    </div>
+  )
+}
+
+/** the step itself, the same way every time: what's happening (the block on top), then the work — yours to do; or,
+ *  someone else's, what they do there (read only); nothing yet while it waits for the step before — and what's
+ *  happened with it. */
+function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boolean; goTo?: (k: string) => void }) {
   const s = useStore()
   const { me, mine, admin, locked, viewOnly } = stepRights(s, v)
-  const word = stateWords(v, me)
-  const due = dueWords(v)
   const name = PEOPLE[v.owner]?.short || 'someone else'
   /* checking the fixes again is the site manager's — taking it over takes the site check */
-  const takeKey = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
+  const take = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
   const open = v.state !== 'done' && v.state !== 'na'
   const onSite = v.key === 'heights' || v.key === 'level' || v.key === 'delivered' || (v.key === 'fixes' && v.state === 'now')
+  const hist = stepHistory(s, job, v)
+  const gap = roomy ? 'mt-5' : 'mt-4'
   return (
     <>
-      <div className="flex min-w-0 items-start gap-2">
-        {locked ? (
-          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-dashed border-[#d6cfc3] bg-[#faf8f5] px-4 py-2.5 text-[0.84375rem] text-ink-2" data-locked data-step-state={v.state}>
-            <Lock className="h-4 w-4 shrink-0 text-faint" />
-            <span className="min-w-0 flex-1">Opens when <b className="font-semibold text-ink">{v.waitsFor || 'the step before'}</b> is done{v.waitsOn ? ` — ${v.waitsOn === me ? 'you have' : `${PEOPLE[v.waitsOn]?.short} has`} that` : ''}. Then it’s {mine ? 'yours' : `${name}’s`}.</span>
-          </div>
-        ) : (
-          <div className={cn('min-w-0 flex-1 text-[0.875rem] font-semibold', word.tone === 'ok' ? 'text-[#2c4a3e]' : word.tone === 'bad' ? 'text-bad-700' : word.tone === 'info' ? 'text-ink' : 'text-ink-2')} data-step-state={v.state}>
-            {word.text}
-            {due && <span className={cn(due.late ? 'text-bad-600' : 'font-medium text-ink-2')}> · {due.text}</span>}
-            {(v.state === 'wait' || v.state === 'bad' || v.state === 'now') && v.note ? <span className="font-normal text-ink-2"> — {v.note}</span> : null}
-          </div>
-        )}
-        {admin && <StepMore job={job} v={v} />}
-      </div>
-      {WHAT[v.key] && open && !(v.state === 'now' && v.note) && <p className={cn('text-[0.875rem] leading-snug text-muted', roomy ? 'mt-3' : 'mt-2')}>{WHAT[v.key]}</p>}
-      {!locked && viewOnly && open && (
-        <div className={cn('flex items-center gap-3 rounded-xl bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2 max-sm:flex-wrap', roomy ? 'mt-4' : 'mt-3')} data-not-mine>
-          <Avatar who={v.owner} size={26} plain />
-          <span className="min-w-0 flex-1">It’s {name}’s step — {name} does it{onSite ? ' on site' : ''}.</span>
-          {admin && <Button size="sm" onClick={() => setStepOwner(job.id, takeKey, me)}>Take it over</Button>}
+      <StepStatus job={job} v={v} me={me} mine={mine} admin={admin} onSite={onSite} take={take} goTo={goTo} />
+      {locked ? null : viewOnly && open ? (
+        <div className={gap} data-theirs>
+          <div className="mb-2 text-[0.75rem] font-semibold text-muted">What {name} does here</div>
+          <fieldset disabled className="m-0 min-w-0 border-0 p-0 opacity-70"><Body job={job} v={v} /></fieldset>
+        </div>
+      ) : (
+        <fieldset disabled={viewOnly} className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
+      )}
+      {hist.length > 0 && (
+        <div className={cn('border-t border-line-2 pt-3', gap)} data-step-history>
+          <div className="mb-1 text-[0.75rem] font-semibold text-muted">What happened</div>
+          <ul className="flex flex-col gap-1">
+            {hist.map((e, i) => (
+              <li key={i} className="flex min-w-0 gap-2 text-[0.8125rem] leading-snug">
+                <span className="w-12 shrink-0 tnum text-muted">{e.date}</span>
+                <span className="min-w-0 text-ink-2"><b className="font-semibold text-ink">{PEOPLE[e.who as PersonKey]?.short || 'Tile OS'}</b> · {e.title.toLowerCase().startsWith(`${v.short.toLowerCase()}:`) ? e.title.slice(v.short.length + 1).trim() : e.title}{e.detail ? <span className="text-muted"> — {e.detail}</span> : null}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
-      <fieldset disabled={viewOnly} className={cn('m-0 min-w-0 border-0 p-0', roomy ? 'mt-5' : 'mt-4')}><Body job={job} v={v} /></fieldset>
     </>
   )
 }
 
 /** one step, without any window around it — right on the project */
-export function StepInline({ job, v, onClose }: { job: Job; v: StepView; onClose?: () => void }) {
+export function StepInline({ job, v, onClose, onGo }: { job: Job; v: StepView; onClose?: () => void; onGo?: (k: string) => void }) {
   const host = React.useMemo(() => ({ close: () => onClose?.() }), [onClose])
   return (
     <StepHost.Provider value={host}>
-      <div className="min-w-0"><StepPanel job={job} v={v} /></div>
+      <div className="min-w-0"><StepPanel job={job} v={v} goTo={onGo} /></div>
     </StepHost.Provider>
   )
 }
@@ -231,7 +286,7 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
         {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
         <h3 className="font-display mt-0.5 mb-1 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
-        <StepPanel job={job} v={v} roomy />
+        <StepPanel job={job} v={v} roomy goTo={(k) => s.swap({ t: 'step', jobId, k })} />
       </div>
     </Modal>
   )
@@ -252,9 +307,10 @@ export function StepTabs({ list, at, go, me, job }: { list: StepView[]; at: stri
           key: 'steps',
           steps: list.map((x, i) => ({
             key: x.key,
-            label: job ? stepShort(s, job, x) : x.short,
+            label: softWrap(job ? stepShort(s, job, x) : x.short),
             state: x.state === 'done' || x.state === 'na' ? 'done' as const : x.state === 'bad' ? 'bad' as const : x.state === 'now' ? (x.owner === me ? 'now' as const : 'todo' as const) : x.state === 'wait' ? 'wait' as const : 'later' as const,
-            sub: x.state === 'done' ? 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.state === 'later' ? 'Not yet' : x.owner === me ? 'Your turn' : PEOPLE[x.owner]?.short,
+            /* the same words as under the step on the project: whose it is, or the day it was done */
+            sub: x.state === 'done' ? x.doneOn || 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
             center: String(i + 1),
             attrs: { 'data-tab': x.key },
           })),
@@ -390,6 +446,8 @@ function Body({ job, v }: { job: Job; v: StepView }) {
     case 'matin': return <MaterialsIn job={job} v={v} />
     case 'delivered': return <Delivered job={job} v={v} />
     case 'layouts': if (!v.only) return <Layouts job={job} v={v} />
+      break
+    case 'sheets': if (!v.only) return <Sheets job={job} v={v} />
   }
   return <Custom job={job} v={v} />
 }
@@ -1406,6 +1464,35 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
 }
 
 /* ================= a step of your own ================= */
+/* ================= the room sheets: one page a room — print them, hang one in each ================= */
+function Sheets({ job, v }: { job: Job; v: StepView }) {
+  const s = useStore()
+  const rooms = sheetRooms(s, job.id)
+  if (!rooms.length) return <p className="text-[0.875rem] text-muted">No tile on any wall or floor yet — the sheets are made from the tile paperwork.</p>
+  return (
+    <div data-sheets-step>
+      <div className="overflow-hidden rounded-xl border border-line">
+        {rooms.map((r) => {
+          const rows = sheetRows(job.id, r)
+          return (
+            <div key={r.name} className="flex min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0" data-sheet-room={r.name}>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.name}</span>
+                <span className="block truncate text-[0.78125rem] text-muted">{rows.map((x) => `${x.x.name} · ${x.tile?.tag || x.x.tile}`).join('  ·  ')}</span>
+              </span>
+              <PrintSheetsButton job={job} room={r.name} size="sm" variant="ghost">Print</PrintSheetsButton>
+            </div>
+          )
+        })}
+      </div>
+      <Actions>
+        <PrintSheetsButton job={job} />
+        {v.state !== 'done' && <Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, 'sheets', 'Up in every room', { close: true })}>They’re up in every room</Button>}
+      </Actions>
+    </div>
+  )
+}
+
 /* ================= the layouts: every wall and floor, with what the system suggests ================= */
 function Layouts({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()

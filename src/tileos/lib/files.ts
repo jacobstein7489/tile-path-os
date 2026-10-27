@@ -77,6 +77,18 @@ export async function fileUrl(rec: FileRec): Promise<string | undefined> {
   return LOCAL.get(rec.id)
 }
 
+/** a kept file back as a file — to read it again (the paperwork uploaded on Get paperwork, read on Enter paperwork) */
+export async function fileBlob(rec: FileRec): Promise<File | undefined> {
+  try {
+    const url = await fileUrl(rec)
+    if (!url) return undefined
+    const r = await fetch(url)
+    if (!r.ok) return undefined
+    const b = await r.blob()
+    return new File([b], rec.name, { type: rec.type || b.type })
+  } catch { return undefined }
+}
+
 /** open a kept file in a new tab */
 export async function openFile(rec: FileRec) {
   /* open the tab right away (phones block a tab opened after waiting), then send it to the file */

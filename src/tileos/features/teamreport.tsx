@@ -58,8 +58,21 @@ export const reportOn = (s: Store) => REAL.admin && !awayFromMe(s) && (s.role ==
 
 /* ---------------- what's late right now ---------------- */
 export type CheckIn = { by: PersonKey; day: string; note?: string }
-/** one late thing on someone's plate: the day it was first set for, how many work days late, how often it was moved */
-export type CheckItem = { x: PlateItem; key: string; who: PersonKey; title: string; jobName: string; setFor: string; late: number; rolls: number; checkIn?: CheckIn }
+/** one late thing on someone's plate: the day it was first set for, how many work days late, how often it was moved —
+ *  and where it came from (who asked for it, or what in the flow made it) */
+export type CheckItem = { x: PlateItem; key: string; who: PersonKey; title: string; jobName: string; setFor: string; late: number; rolls: number; checkIn?: CheckIn; from: string }
+/** where a thing on someone's list came from: what made it (Tile OS, at award…) or who asked for it */
+export function originOf(x: PlateItem): string {
+  if (x.kind === 'step') return 'a getting-ready step'
+  const t = x.t
+  if (!t) return ''
+  const first = (t.log || [])[0]
+  const said = first?.text ? first.text.charAt(0).toLowerCase() + first.text.slice(1) : ''
+  if (first && first.who === 'system') return `made by Tile OS${said ? ` — ${said}` : ''}`
+  if (t.by && PEOPLE[t.by]) return `asked by ${PEOPLE[t.by].short}`
+  if (first && PEOPLE[first.who as PersonKey]) return `from ${PEOPLE[first.who as PersonKey].short}${said && !/^created$/i.test(said) ? ` — ${said}` : ''}`
+  return 'made by Tile OS'
+}
 const recOf = (s: Store, x: PlateItem) => (x.kind === 'step' && x.job && x.v ? s.stepRecs[x.job.id]?.[x.v.key] : undefined)
 function itemOf(s: Store, x: PlateItem, who: PersonKey): CheckItem {
   const t = x.kind === 'task' ? x.t : undefined
@@ -71,6 +84,7 @@ function itemOf(s: Store, x: PlateItem, who: PersonKey): CheckItem {
     jobName: (x.kind === 'step' ? x.job?.name : s.jobs[t!.jobId]?.name) || 'Company',
     setFor, late: workdaysBetween(setFor, TODAY), rolls: (t ? t.rolls : r?.rolls) || 0,
     checkIn: t ? t.checkIn : r?.checkIn,
+    from: originOf(x),
   }
 }
 const roleOf = (s: Store, p: PersonKey): Role => (s.team.find((m) => m.key === p)?.role as Role) || 'office'
@@ -140,8 +154,6 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
   const [items] = React.useState(() => checkIns(s).find((g) => g.who === who)?.items || [])
   const n = checkInDays(s)
   const p = PEOPLE[who]
-  const st = personStats(s, who, 30)
-  const goal = onTimeGoal(s)
   const done = (how: 'remind' | 'checked') => {
     if (how === 'remind') remind(who, items.map((c) => c.x), note.trim() || undefined)
     else recordCheckIn(who, items, note.trim() || undefined)
@@ -161,12 +173,6 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
         </>
       ) : <Button className="ml-auto" variant="primary" onClick={s.close}>OK</Button>}
     >
-      {st.pct != null && (
-        <div className="mb-3 flex items-center gap-2 text-[0.8125rem] text-muted" data-checkin-pct>
-          <ProgressRing pct={st.pct} size={30} tone={verdict(st.pct, goal).tone} label="" />
-          On time <b className="font-semibold text-ink">{st.pct}%</b> the last 30 days · goal {goal}%
-        </div>
-      )}
       {items.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-line" data-checkin-items>
           {items.map((c) => (
@@ -174,7 +180,8 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
               <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><AlarmClock className="h-4 w-4" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{c.title}</span>
-                <span className="block truncate text-[0.78125rem] text-muted">{c.jobName} · set for {md(c.setFor)} · <b className="font-semibold text-bad-600">{workDays(c.late)} late</b>{c.rolls ? ` · moved ${c.rolls}×` : ''}</span>
+                <span className="block truncate text-[0.78125rem] text-muted">{c.jobName} · due {md(c.setFor)} · <b className="font-semibold text-bad-600">{workDays(c.late)} late</b>{c.rolls ? ` · moved ${c.rolls}×` : ''}</span>
+                {c.from && <span className="block truncate text-[0.75rem] text-faint" data-from>{c.from.charAt(0).toUpperCase() + c.from.slice(1)}</span>}
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
             </button>

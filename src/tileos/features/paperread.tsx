@@ -9,7 +9,7 @@ import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { Status } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { REAL } from '@/tileos/lib/save'
-import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
+import { keepFiles, openFile, sizeLabel, fileBlob } from '@/tileos/lib/files'
 import { GROUTS, byTag, type Tile } from '@/tileos/data/jobs'
 import type { Job } from '@/tileos/data/model'
 import { readTilePaperwork, ReadError, labelOf, type ReadResult, type ReadTile } from './reader'
@@ -30,14 +30,26 @@ export function PaperRead({ job }: { job: Job }) {
   const ctl = React.useRef<AbortController | null>(null)
   React.useEffect(() => () => ctl.current?.abort(), [])
   const kept = s.files.filter((f) => f.jobId === job.id && f.kind === 'paperwork')
-  const go = async (list: File[]) => {
+  /* paperwork already uploaded (on Get paperwork) that nothing was read from yet: read it from here — no second upload */
+  const unread = kept.length > 0 && !Object.values(s.tiles[job.id] || {}).some((t) => t.paper)
+  const readKept = async () => {
+    const recs = kept.slice(-8)
+    setSt({ k: 'reading', name: recs.length === 1 ? recs[0].name : `${recs.length} files`, n: recs.length })
+    ctl.current?.abort()
+    const c = (ctl.current = new AbortController())
+    const files = (await Promise.all(recs.map(fileBlob))).filter(Boolean) as File[]
+    if (c.signal.aborted) return
+    if (!files.length) { setSt({ k: 'idle', msg: `Couldn’t open ${recs.length === 1 ? recs[0].name : 'the paperwork'} — upload it here instead.`, tone: 'warn' }); return }
+    void go(files, true)
+  }
+  const go = async (list: File[], already?: boolean) => {
     const files = list.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name))
     if (!files.length) { setSt({ k: 'idle', msg: 'Pick a PDF or photos of the paperwork.', tone: 'warn' }); return }
     const name = files.length === 1 ? files[0].name : `${files.length} files`
     setSt({ k: 'reading', name, n: files.length })
     ctl.current?.abort()
     const c = (ctl.current = new AbortController())
-    const keep = keepFiles(job.id, files, 'paperwork', { quiet: true })
+    const keep = already ? Promise.resolve({ recs: [], problem: undefined as string | undefined }) : keepFiles(job.id, files, 'paperwork', { quiet: true })
     try {
       const st0 = useStore.getState()
       const res = await readTilePaperwork(job, st0.rooms[job.id] || [], Object.values(st0.tiles[job.id] || {}).sort(byTag), files, c.signal)
@@ -68,6 +80,11 @@ export function PaperRead({ job }: { job: Job }) {
               <span className="block truncate text-[0.90625rem] font-semibold text-ink">Reading {st.name}…</span>
               <span className="block text-[0.8125rem] text-muted">Every tile, its size, grout and how much — matched to the walls and floors. Up to a minute.</span>
             </>
+          ) : unread ? (
+            <>
+              <span className="block text-[0.90625rem] font-semibold text-ink">The paperwork is here — AI reads it</span>
+              <span className="block text-[0.8125rem] text-muted">It finds every tile and matches it to the walls and floors from the estimate.</span>
+            </>
           ) : (
             <>
               <span className="block text-[0.90625rem] font-semibold text-ink">Upload the tile paperwork — AI reads it</span>
@@ -77,7 +94,9 @@ export function PaperRead({ job }: { job: Job }) {
         </span>
         {st.k === 'reading'
           ? <Button size="sm" variant="ghost" icon={<X />} onClick={() => { ctl.current?.abort(); setSt({ k: 'idle' }) }}>Stop</Button>
-          : <Button size="sm" variant="primary" icon={<Upload />} onClick={() => input.current?.click()}>Upload</Button>}
+          : unread
+            ? <span className="flex shrink-0 items-center gap-1.5"><Button size="sm" variant="ghost" icon={<Upload />} onClick={() => input.current?.click()}>Another</Button><Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => void readKept()} data-read-kept>Read it</Button></span>
+            : <Button size="sm" variant="primary" icon={<Upload />} onClick={() => input.current?.click()}>Upload</Button>}
         <input ref={input} type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; void go(l) }} />
       </div>
       {st.k === 'idle' && st.msg && <div className={cn('mt-2 flex items-start gap-2 text-[0.8125rem] font-medium', st.tone === 'bad' ? 'text-bad-700' : 'text-warn-800')}><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{st.msg}</div>}

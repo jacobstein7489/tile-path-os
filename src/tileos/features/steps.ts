@@ -130,6 +130,8 @@ export interface StepView {
   waitsFor?: string
   /** who has that earlier step */
   waitsOn?: PersonKey
+  /** that earlier step's key — to go straight to it */
+  waitsKey?: string
   action?: StepAction
   taskId?: string
   doneOn?: string
@@ -175,6 +177,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['rooms'] },
   { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['rooms'] },
   { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
+  { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['tile', 'layouts'], custom: true },
   { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Send installer PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
@@ -196,9 +199,9 @@ export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.in
 /** the company's checklist: ours, in our order, with whoever the company put on each step — plus its own steps.
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
 const OLD_OWNER: Record<string, string> = { rooms: 'estimator', tile: 'estimator', design: 'office', installer: 'ys', setup: 'office', order: 'office', deposit: 'accounting', heights: 'yakov', materials: 'matBy', delivered: 'yakov', walk: 'yakov' }
-export const STEPS_V = 4
+export const STEPS_V = 5
 /** built-in steps added after a version — a company list saved before that gets them */
-const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'] }
+const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'], 5: ['sheets'] }
 /** a step whose person changed in a version: a list saved before it, still on the old person, gets the new one */
 const MOVED: Record<number, Record<string, [string, string]>> = { 4: { change: ['office', 'yakov'] } }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
@@ -510,7 +513,12 @@ export function stepsFor(s: Store, j: Job): StepView[] {
       else if (!rec.done && !rec.na && (d.key === 'design' || d.key === 'walk')) raw = { state: 'now', due: rec.due, note: d.key === 'design' ? 'With the designer or the client — tile, layout, grout' : 'Show him the job before he starts', action: { label: d.key === 'design' ? 'Set the meeting' : 'Set the walkthrough', run: () => s.open({ t: 'record', type: 'meeting', jobId: j.id, title: d.key === 'design' ? 'Design meeting' : 'Walkthrough with the installer', meetKind: d.key === 'walk' ? 'walkthrough' : 'meeting' }) } }
     }
     /* the estimate check after the meeting, and the layouts: checked off — projects past setup had theirs before this list */
-    if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
+    if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts' || d.key === 'sheets') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
+    /* the room sheets: one page a room — print them, hang one in each before the crew starts */
+    if (!raw && !rec.done && !rec.na && d.key === 'sheets' && !d.only) {
+      const n = (s.rooms[j.id] || []).filter((r) => r.surfaces.some((x) => x.tile && takesTile(x.name))).length
+      raw = { state: 'now', due: rec.due, note: n ? `${n} room${n === 1 ? '' : 's'} — print them and hang one in each` : 'One page for each room, once the tile is in', action: { label: 'Print the room sheets' } }
+    }
     if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) {
       const cos = s.money.filter((m) => m.jobId === j.id && m.kind === 'change' && m.meta?.meeting).length
       raw = { state: 'now', due: rec.due, note: cos ? `${cos} change${cos === 1 ? '' : 's'} so far — say when that’s everything` : 'The same as the estimate — or what changed (each change becomes a change order)', action: { label: 'Confirm it' } }
@@ -580,7 +588,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
   list.forEach((v) => {
     if (v.state !== 'now') return
     const first = v.after.find((k) => !doneish(k))
-    if (first) { const x = list.find((y) => y.key === first); v.state = 'later'; v.waitsFor = x?.short; v.waitsOn = x?.owner }
+    if (first) { const x = list.find((y) => y.key === first); v.state = 'later'; v.waitsFor = x?.short; v.waitsOn = x?.owner; v.waitsKey = x?.key }
   })
   return list
 }

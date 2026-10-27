@@ -56,7 +56,8 @@ export function Page({
   }, [!!(tabs || toolbar)])
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
-      <div className="mx-auto w-full max-w-[92.5rem]">
+      {/* a big screen is used, not left empty on both sides — only a very wide one gets margins */}
+      <div className="mx-auto w-full max-w-[160rem]">
         {/* on a phone the bar on top already says which page this is — so no title here, only the line under it (when
             there is one: Today's "1 overdue" opens what's late) and the page's button */}
         <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && 'max-sm:hidden', PAGE_PX)}>
@@ -764,7 +765,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
                   {i > 0 && <span className={cn('absolute h-[0.125rem] rounded-full', g.steps[i - 1].state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} style={{ top: sz / 2 - 1, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
                   <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
                     <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>
-                    <span title={st.label} className={cn('mt-1.5 max-w-full truncate text-[0.75rem] font-semibold leading-[1.15]', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
+                    <span title={st.label.replace(/\u00AD/g, '')} className={cn('mt-1.5 max-w-full truncate text-[0.75rem] font-semibold leading-[1.15] max-sm:line-clamp-3 max-sm:whitespace-normal', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
                     {st.sub && <span title={st.sub} className={cn('mt-0.5 max-w-full truncate text-[0.6875rem] leading-tight', C_SUB[st.state])}>{st.sub}</span>}
                     <span className={cn('mt-1 h-[0.1875rem] w-6 rounded-full', on ? 'bg-brand-600' : 'bg-transparent')} />
                   </button>
