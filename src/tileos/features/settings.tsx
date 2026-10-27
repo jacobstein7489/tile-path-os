@@ -42,7 +42,7 @@ const SECTIONS: { group: string; items: { key: Section; label: string; sub: stri
     { key: 'autos', label: 'Automations', sub: 'What the system does by itself', icon: CornerDownRight },
   ] },
   { group: 'Company', items: [
-    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste, reminders', icon: ShieldCheck },
+    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste, check-ins', icon: ShieldCheck },
     { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', icon: Calculator },
     { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', icon: Plug },
     { key: 'practice', label: 'Practice project', sub: 'A project to learn on · start over', icon: RotateCcw },
@@ -689,6 +689,12 @@ function RulesTab() {
               </div>
             ))}
           </div>
+        </Rule>
+        <Rule title="Check in when something is late" sub="Set for a day and still not done this many work days later: it lands on your Today as “Check in with …”.">
+          <Segmented value={String(r.checkInDays || 2) as '1' | '2' | '3'} onChange={(v) => set((x) => (x.checkInDays = Number(v)))} items={[{ key: '1', label: '1 work day' }, { key: '2', label: '2 work days' }, { key: '3', label: '3 work days' }]} />
+        </Rule>
+        <Rule title="On-time goal" sub="The team report marks anyone below it. On time = done by the day it was set for.">
+          <div className="flex gap-2">{[70, 80, 85, 90, 95].map((d) => <Chip key={d} on={(r.onTimeGoal || 85) === d} onClick={() => set((x) => (x.onTimeGoal = d))} className="h-9 px-3">{d}%</Chip>)}</div>
         </Rule>
         <Rule title="Payment reminders" sub="Sent by themselves until an invoice is paid.">
           <NumStepper value={r.reminderDays} onChange={(v) => set((x) => (x.reminderDays = v))} min={1} max={14} suffix="days" />

@@ -1,7 +1,8 @@
-/* The screens before the app: sign in (or make an account), waiting to be let in, and the one-time setup note. */
+/* The screens before the app: sign in, pick a password (from an invite or a password link), a link that doesn't work
+ * any more, waiting to be let in, and the one-time setup note. New people come in by the admin's invite only. */
 import * as React from 'react'
 import { appUrl } from '@/tileos/lib/save'
-import { ArrowRight, Hourglass, Database, RefreshCw, LogOut, KeyRound } from 'lucide-react'
+import { ArrowRight, Hourglass, Database, RefreshCw, LogOut, KeyRound, Link2Off, Mail } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { lovable } from '@/integrations/lovable'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -44,8 +45,6 @@ export function Splash() {
 }
 
 export function SignIn({ note }: { note?: string } = {}) {
-  const [mode, setMode] = React.useState<'in' | 'up'>('in')
-  const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [busy, setBusy] = React.useState(false)
@@ -55,15 +54,9 @@ export function SignIn({ note }: { note?: string } = {}) {
     setBusy(true)
     setMsg(null)
     try {
-      if (mode === 'in') {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        if (error) throw error
-        markSignedIn()
-      } else {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() }, emailRedirectTo: appUrl() } })
-        if (error) throw error
-        if (!data.session) setMsg({ text: 'Check your email to confirm it — then sign in here.' })
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (error) throw error
+      markSignedIn()
     } catch (err: any) {
       setMsg({ bad: true, text: /invalid login/i.test(err?.message || '') ? 'That email and password don’t match.' : err?.message || 'That didn’t work — try again.' })
     } finally {
@@ -86,32 +79,28 @@ export function SignIn({ note }: { note?: string } = {}) {
   }
   return (
     <Sheet>
-      {note && mode === 'in' && <div className="mb-4 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-ink-2">{note}</div>}
-      <h1 className="font-display text-[21px] font-semibold tracking-[-0.01em] text-ink">{mode === 'in' ? 'Sign in' : 'Make your account'}</h1>
-      <p className="mt-1 text-[13.5px] text-muted">{mode === 'in' ? 'With your Cobblestone account.' : 'Once you’re in, the admin lets you in and picks what you see.'}</p>
+      {note && <div className="mb-4 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-ink-2">{note}</div>}
+      <h1 className="font-display text-[21px] font-semibold tracking-[-0.01em] text-ink">Sign in</h1>
+      <p className="mt-1 text-[13.5px] text-muted">With your Cobblestone account.</p>
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
-        {mode === 'up' && (
-          <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Your name</span><TextInput value={name} onChange={(e) => setName(e.target.value)} required placeholder="First and last name" className="h-10" autoComplete="name" /></label>
-        )}
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Email</span><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" className="h-10" autoComplete="email" /></label>
-        <label className="block"><span className="mb-1.5 flex items-center justify-between text-[13px] font-medium text-ink-2">Password{mode === 'in' && <button type="button" onClick={forgot} disabled={busy} className="font-semibold text-brand-700 hover:underline">Forgot your password?</button>}</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder={mode === 'up' ? 'At least 8 characters' : '••••••••'} className="h-10" autoComplete={mode === 'in' ? 'current-password' : 'new-password'} /></label>
+        <label className="block"><span className="mb-1.5 flex items-center justify-between text-[13px] font-medium text-ink-2">Password<button type="button" onClick={forgot} disabled={busy} className="font-semibold text-brand-700 hover:underline">Forgot your password?</button></span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="h-10" autoComplete="current-password" /></label>
         {msg && <div className={msg.bad ? 'rounded-[10px] bg-bad-50 px-3 py-2 text-[13px] font-medium text-bad-700' : 'rounded-[10px] bg-ok-50 px-3 py-2 text-[13px] font-medium text-ok-700'}>{msg.text}</div>}
-        <Button type="submit" variant="primary" className="mt-1 h-10 w-full justify-center" disabled={busy} iconRight={<ArrowRight />}>{mode === 'in' ? 'Sign in' : 'Make my account'}</Button>
+        <Button type="submit" variant="primary" className="mt-1 h-10 w-full justify-center" disabled={busy} iconRight={<ArrowRight />}>Sign in</Button>
       </form>
       <div className="my-4 flex items-center gap-3 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
       <Button className="h-10 w-full justify-center" disabled={busy} onClick={google}>
         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z" /><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z" /><path fill="#FBBC05" d="M5.8 14.2a6.6 6.6 0 0 1 0-4.3V7.1H2.1a11 11 0 0 0 0 9.9l3.7-2.8z" /><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z" /></svg>
         Continue with Google
       </Button>
-      <div className="mt-5 text-center text-[13px] text-muted">
-        {mode === 'in' ? <>New here? <button type="button" onClick={() => { setMode('up'); setMsg(null) }} className="font-semibold text-brand-700 hover:underline">Make an account</button></> : <>Have an account? <button type="button" onClick={() => { setMode('in'); setMsg(null) }} className="font-semibold text-brand-700 hover:underline">Sign in</button></>}
-      </div>
+      {/* no sign-ups: the admin invites each person (Settings → Team), and the invite sets up their login */}
+      <div className="mt-5 text-center text-[13px] text-muted" data-no-signup>New here? Your admin sends you an invite.</div>
     </Sheet>
   )
 }
 
 /** you came in from an invite or a password link: pick a password, and the app opens */
-export function SetPassword({ email, name, why, onDone, onSkip }: { email: string; name: string; why: 'invite' | 'recovery' | 'magiclink'; onDone: () => void; onSkip?: () => void }) {
+export function SetPassword({ email, name, why, was, onDone, onSkip }: { email: string; name: string; why: 'invite' | 'recovery' | 'magiclink'; was?: string; onDone: () => void; onSkip?: () => void }) {
   const [password, setPassword] = React.useState('')
   const [again, setAgain] = React.useState('')
   const [busy, setBusy] = React.useState(false)
@@ -131,9 +120,10 @@ export function SetPassword({ email, name, why, onDone, onSkip }: { email: strin
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600"><KeyRound className="h-5 w-5" /></span>
-      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'invite' ? `Welcome to Tile OS${name ? `, ${name.split(' ')[0]}` : ''}` : `${name ? `${name.split(' ')[0]}, pick` : 'Pick'} a new password`}</h1>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'invite' ? `Welcome to Tile OS${name ? `, ${name.split(' ')[0]}` : ''}` : `${name ? `${name.split(' ')[0]}, pick` : 'Pick'} your password`}</h1>
       <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'invite' ? 'Pick a password — you sign in with it from now on, with your email, on your phone and your computer.' : 'You sign in with it from now on — with your email, on your phone and your computer.'}</p>
-      <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">For <b className="font-semibold text-ink-2">{email}</b></div>
+      <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted" data-password-for>For <b className="font-semibold text-ink-2">{email}</b></div>
+      {was && <div className="mt-2 rounded-[10px] border border-line px-3 py-2 text-[12.5px] leading-snug text-muted" data-was-signed-in>This browser was signed in as <b className="font-semibold text-ink-2">{was}</b> — the link signed that out here. Sign in as yourself again after.</div>}
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="At least 8 characters" className="h-10" autoComplete="new-password" autoFocus /></label>
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Once more</span><TextInput type="password" value={again} onChange={(e) => setAgain(e.target.value)} required minLength={8} placeholder="The same again" className="h-10" autoComplete="new-password" /></label>
@@ -145,12 +135,54 @@ export function SetPassword({ email, name, why, onDone, onSkip }: { email: strin
   )
 }
 
+/** the link was used already (each one works once) or it's too old: say so, and send a fresh one to their email */
+export function LinkUsed({ as, onContinue, onSignIn, onSignOut }: { as?: string; onContinue?: () => void; onSignIn: () => void; onSignOut: () => void }) {
+  const [email, setEmail] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [msg, setMsg] = React.useState<{ bad?: boolean; text: string } | null>(null)
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!/\S+@\S+\.\S+/.test(email.trim())) { setMsg({ bad: true, text: 'Type the email the invite came to.' }); return }
+    setBusy(true); setMsg(null)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl() })
+      if (error) throw error
+      setMsg({ text: `Sent to ${email.trim()} — open the newest email (check Spam too). It opens Tile OS and asks for a password.` })
+    } catch (err: any) {
+      setMsg({ bad: true, text: /60 seconds|rate limit|security purposes/i.test(err?.message || '') ? 'One a minute — wait a moment and send it again.' : err?.message || 'That didn’t work — try again.' })
+    } finally { setBusy(false) }
+  }
+  return (
+    <Sheet>
+      <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-warn-50 text-warn-600"><Link2Off className="h-5 w-5" /></span>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink" data-link-used>This link doesn’t work anymore</h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Each link works once, and only for a day. Type your email and we’ll send a fresh one — or ask your admin to send the invite again.</p>
+      <form onSubmit={send} className="mt-4 flex flex-col gap-3">
+        <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Your email</span><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" className="h-10" autoComplete="email" autoFocus={!as} /></label>
+        {msg && <div className={msg.bad ? 'rounded-[10px] bg-bad-50 px-3 py-2 text-[13px] font-medium text-bad-700' : 'rounded-[10px] bg-ok-50 px-3 py-2 text-[13px] font-medium text-ok-700'}>{msg.text}</div>}
+        <Button type="submit" variant="primary" className="h-10 w-full justify-center" disabled={busy} icon={<Mail />}>{busy ? 'Sending…' : 'Email me a new link'}</Button>
+      </form>
+      {as ? (
+        <div className="mt-5 rounded-[10px] bg-wash px-3 py-2.5 text-[13px] text-muted" data-signed-in-as>
+          You’re signed in here as <b className="font-semibold text-ink-2">{as}</b>.
+          <div className="mt-2 flex flex-wrap gap-2">
+            {onContinue && <Button size="sm" onClick={onContinue} iconRight={<ArrowRight />}>Go on as {as.split('@')[0]}</Button>}
+            <Button size="sm" variant="ghost" icon={<LogOut />} onClick={onSignOut}>Sign out</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 text-center text-[13px] text-muted">Have a password? <button type="button" onClick={onSignIn} className="font-semibold text-brand-700 hover:underline">Sign in</button></div>
+      )}
+    </Sheet>
+  )
+}
+
 export function WaitingRoom({ email, name, onSignOut, onCheck }: { email: string; name: string; onSignOut: () => void; onCheck: () => void }) {
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-warn-50 text-warn-600"><Hourglass className="h-5 w-5" /></span>
-      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">You’re signed up, {name.split(' ')[0]}</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">The admin lets you in and picks what you see — it shows on their Settings → Team. Then this page opens the app.</p>
+      <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">You’re not on the team yet, {name.split(' ')[0]}</h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Ask your admin to invite this email — or to let you in from Settings → Team. Then this page opens the app.</p>
       <div className="mt-4 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">Signed in as <b className="font-semibold text-ink-2">{email}</b></div>
       <div className="mt-5 flex gap-2">
         <Button variant="primary" icon={<RefreshCw />} onClick={onCheck}>Check again</Button>

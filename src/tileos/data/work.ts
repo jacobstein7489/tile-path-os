@@ -31,6 +31,15 @@ export interface Task {
   action?: { label: string; kind: string }
   log: LogLine[]
   doneAt?: string
+  /** the day it was done (ISO) — so the team report can tell done on its day from done late */
+  doneOn?: string
+  /** how many times it was moved to a later day after it was already late */
+  rolls?: number
+  /** the day it was set for before it was first moved after going late (ISO) — lateness counts from here */
+  lateFrom?: string
+  /** the admin checked in on it when it was late past the company's line — off his list until that many more work
+   *  days go by with it still not done */
+  checkIn?: { by: PersonKey; day: string; note?: string }
   result?: string
   /** people who see it on their Following list and get told when it moves — the owner still does it */
   followers?: PersonKey[]

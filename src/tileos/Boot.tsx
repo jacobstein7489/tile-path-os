@@ -6,12 +6,13 @@ import { supabase } from '@/integrations/supabase/client'
 import App from './App'
 import { REAL } from './lib/save'
 import { startCloud, stopCloud, type CloudProblem } from './lib/cloud'
-import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword } from './features/signin'
+import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
 
 type Phase =
   | { k: 'loading' }
   | { k: 'signin'; note?: string }
-  | { k: 'password'; email: string; name: string; why: 'invite' | 'recovery' | 'magiclink' }
+  | { k: 'password'; email: string; name: string; why: 'invite' | 'recovery' | 'magiclink'; was?: string }
+  | { k: 'badlink'; as?: string }
   | { k: 'waiting'; email: string; name: string }
   | { k: 'problem'; why: CloudProblem; detail?: string }
   | { k: 'ready' }
@@ -28,35 +29,73 @@ const AWAY_NOTE = 'Signed out after 12 hours away — sign in again.'
 
 /* came in from an invite, a texted link or a password link: the link signs them in, and the app asks for a password.
  * Read before anything touches the URL (the auth client clears it once it has the session). */
-const ARRIVED = ((): 'invite' | 'recovery' | 'magiclink' | null => {
+type Link = { type?: 'invite' | 'recovery' | 'magiclink'; access?: string; refresh?: string; bad?: string }
+/* the address as the page opened — kept by the route before the sign-in client took the token out of it */
+const OPENED: { hash: string; search: string; before?: string } = (globalThis as any).__TILEOS_LINK__ || { hash: location.hash, search: location.search }
+const hashParams = () => new URLSearchParams(OPENED.hash.replace(/^#\/?/, '').replace(/^[^?&]*[?]/, ''))
+const LINK = ((): Link => {
   try {
-    const h = new URLSearchParams(location.hash.replace(/^#\/?/, '').replace(/^[^?&]*[?]/, ''))
-    const q = new URLSearchParams(location.search)
-    const t = h.get('type') || q.get('type')
+    const h = hashParams()
+    const q = new URLSearchParams(OPENED.search)
+    const get = (k: string) => h.get(k) || q.get(k) || undefined
+    const t = get('type')
     /* a sign-up confirmation is the invite's link when the account was made by the invite */
-    return t === 'invite' || t === 'recovery' || t === 'magiclink' ? t : t === 'signup' ? 'invite' : null
-  } catch { return null }
+    const type = t === 'invite' || t === 'recovery' || t === 'magiclink' ? t : t === 'signup' ? 'invite' : undefined
+    /* a link that was used already, or is too old: the sign-in service sends it back with an error */
+    const bad = get('error_code') || get('error') || get('error_description')
+    return { type, access: get('access_token'), refresh: get('refresh_token'), bad }
+  } catch { return {} }
 })()
+const ARRIVED = LINK.type || null
+/** who this browser was signed in as before the link — the link's person takes over; the page says so */
+const BEFORE = OPENED.before
+/** the person a sign-in token is for */
+const subOf = (jwt?: string): string | undefined => { try { return JSON.parse(atob((jwt || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub } catch { return undefined } }
 let askedPassword = false
+let badLink = !!LINK.bad
 /* a link the app made itself (the one the admin texts): the token is checked right here, with no stop at the sign-in
  * service — so it lands in the app, never on a Lovable page */
 const DIRECT = ((): { th: string; type: 'recovery' | 'invite' | 'magiclink' } | null => {
   try {
-    const h = new URLSearchParams(location.hash.replace(/^#\/?/, '').replace(/^[^?&]*[?]/, ''))
-    const q = new URLSearchParams(location.search)
+    const h = hashParams()
+    const q = new URLSearchParams(OPENED.search)
     const th = h.get('th') || q.get('th')
     const t = h.get('type') || q.get('type')
     return th && (t === 'recovery' || t === 'invite' || t === 'magiclink') ? { th, type: t } : null
   } catch { return null }
 })()
+/* until the link's own sign-in is done, nothing opens — not the person who was signed in on this browser before */
+let linkSettled = !(DIRECT || (LINK.access && LINK.refresh))
+let linkStep: Promise<void> | null = null
+/** the link's own sign-in, once per visit (a used or old link says so) */
+function linkSignIn(): Promise<void> {
+  return (linkStep ||= (async () => {
+    try {
+      let r: { error: unknown } | null = null
+      if (DIRECT) r = await supabase.auth.verifyOtp({ token_hash: DIRECT.th, type: DIRECT.type })
+      else if (LINK.access && LINK.refresh) {
+        /* the link is one person's: if this browser still holds someone else (signed in here before), the link wins */
+        const { data } = await supabase.auth.getSession()
+        if (data.session?.user?.id !== subOf(LINK.access)) r = await supabase.auth.setSession({ access_token: LINK.access, refresh_token: LINK.refresh })
+      }
+      if (r?.error) { askedPassword = true; badLink = true }
+    } catch { askedPassword = true; badLink = true }
+    try { history.replaceState(null, '', location.pathname) } catch { /* fine */ }
+    linkSettled = true
+  })())
+}
 
 export default function Boot() {
   const [phase, setPhase] = React.useState<Phase>({ k: 'loading' })
   const started = React.useRef<string | null>(null)
+  /* a screen that waits for the person (pick a password, a link that didn't work): nothing else replaces it — a tab
+     coming back into view or another sign-in event doesn't skip it */
+  const hold = React.useRef<string | null>(null)
 
   const signOut = React.useCallback(async () => {
     stopCloud()
     started.current = null
+    hold.current = null
     try { localStorage.removeItem(IDLE_KEY) } catch { /* fine */ }
     await supabase.auth.signOut()
     location.hash = ''
@@ -64,6 +103,16 @@ export default function Boot() {
   }, [])
 
   const begin = React.useCallback(async (session: Session | null) => {
+    if (hold.current || !linkSettled) return
+    /* the link was used already or is too old: say so — never open someone else's app, never a bare sign-in page */
+    if (badLink) {
+      badLink = false
+      hold.current = 'badlink'
+      started.current = null
+      try { history.replaceState(null, '', location.pathname) } catch { /* fine */ }
+      setPhase({ k: 'badlink', as: session?.user?.email || undefined })
+      return
+    }
     if (!session?.user) { started.current = null; setPhase((p) => ({ k: 'signin', note: p.k === 'signin' ? p.note : undefined })); return }
     /* away too long: sign out first (a link that just came in counts as being here) */
     if (awayTooLong() && !ARRIVED && !DIRECT) {
@@ -85,8 +134,15 @@ export default function Boot() {
     ])
     const appRoles: string[] = (roles || []).map((r: any) => r.role)
     const name = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
-    /* from a link: a password first, then the app */
-    if (ARRIVED && !askedPassword) { askedPassword = true; started.current = null; setPhase({ k: 'password', email: user.email || '', name, why: ARRIVED }); return }
+    /* from a link: a password first, then the app — for the link's person, whoever was signed in here before */
+    if (ARRIVED && !askedPassword) {
+      askedPassword = true
+      started.current = null
+      hold.current = user.id
+      const was = BEFORE && BEFORE.toLowerCase() !== (user.email || '').toLowerCase() ? BEFORE : undefined
+      setPhase({ k: 'password', email: user.email || '', name, why: ARRIVED, was })
+      return
+    }
     if (!appRoles.length) { setPhase({ k: 'waiting', email: user.email || '', name }); return }
     /* only the company's own data — no sample to look at */
     try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ }
@@ -99,15 +155,10 @@ export default function Boot() {
   React.useEffect(() => {
     let live = true
     const go = () => supabase.auth.getSession().then(({ data }) => { if (live) void begin(data.session) })
-    if (DIRECT) {
-      /* sign in with the link's token first; a used or old link falls back to the sign-in page */
-      void supabase.auth.verifyOtp({ token_hash: DIRECT.th, type: DIRECT.type }).then(({ error }) => {
-        if (error) { askedPassword = true; try { history.replaceState(null, '', location.pathname) } catch { /* fine */ } }
-        void go()
-      })
-    } else void go()
+    if (DIRECT || (LINK.access && LINK.refresh)) void linkSignIn().then(() => { void go() })
+    else void go()
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') { started.current = null; setPhase({ k: 'signin' }); return }
+      if (event === 'SIGNED_OUT') { started.current = null; hold.current = null; setPhase({ k: 'signin' }); return }
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'PASSWORD_RECOVERY') void begin(session)
     })
     return () => { live = false; sub.subscription.unsubscribe() }
@@ -128,7 +179,9 @@ export default function Boot() {
 
   if (phase.k === 'loading') return <Splash />
   if (phase.k === 'signin') return <SignIn note={phase.note} />
-  if (phase.k === 'password') return <SetPassword email={phase.email} name={phase.name} why={phase.why} onDone={() => { location.hash = ''; void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} onSkip={phase.why === 'magiclink' ? () => { location.hash = ''; void supabase.auth.getSession().then(({ data }) => begin(data.session)) } : undefined} />
+  const onward = () => { hold.current = null; location.hash = ''; void supabase.auth.getSession().then(({ data }) => begin(data.session)) }
+  if (phase.k === 'password') return <SetPassword email={phase.email} name={phase.name} why={phase.why} was={phase.was} onDone={onward} onSkip={phase.why === 'magiclink' ? onward : undefined} />
+  if (phase.k === 'badlink') return <LinkUsed as={phase.as} onContinue={phase.as ? onward : undefined} onSignIn={() => { hold.current = null; setPhase({ k: 'signin' }) }} onSignOut={signOut} />
   if (phase.k === 'waiting') return <WaitingRoom email={phase.email} name={phase.name} onSignOut={signOut} onCheck={() => { started.current = null; void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} />
   if (phase.k === 'problem') return <SetupNeeded why={phase.why} detail={phase.detail} onRetry={() => { void supabase.auth.getSession().then(({ data }) => begin(data.session)) }} onSignOut={signOut} />
   return <App />

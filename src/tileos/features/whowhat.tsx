@@ -170,24 +170,16 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
   )
 }
 
-/** the first time the admin opens the real app after this came in: ask once */
-export function WhoWatcher() {
-  React.useEffect(() => {
-    const s = useStore.getState()
-    const settled = (st: Store) => !!st.rules.whoSet && ((st.rules.whoV || 0) >= WHO_V || suggest(st).filled.size === 0)
-    if (!REAL.cloud || !REAL.admin || settled(s)) return
-    const asked = () => { try { return !!sessionStorage.getItem('tileos-who-asked') } catch { return false } }
-    if (asked()) return
-    /* once the screen is free (nothing else open), and only once this visit */
-    const t = setInterval(() => {
-      const st = useStore.getState()
-      if (settled(st) || asked()) { clearInterval(t); return }
-      if (st.modals.length) return
-      clearInterval(t)
-      try { sessionStorage.setItem('tileos-who-asked', '1') } catch { /* private window */ }
-      st.open({ t: 'whowhat', first: true })
-    }, 900)
-    return () => clearInterval(t)
-  }, [])
-  return null
+/** filled in from how the admin said it works and not checked yet: one task on his Today, "Check who does what" —
+ *  it never pops up by itself (the real app, the admin). How many were filled in, or null when there's nothing to do. */
+let whoMemo: { k: unknown[]; v: number | null } | null = null
+export function whoToCheck(st: Store): number | null {
+  if (!REAL.cloud || !REAL.admin) return null
+  if (st.rules.whoSet && (st.rules.whoV || 0) >= WHO_V) return null
+  const k = [st.rules, st.team, st.jobSteps]
+  if (whoMemo && whoMemo.k.every((x, i) => x === k[i])) return whoMemo.v
+  const n = suggest(st).filled.size
+  const v = st.rules.whoSet && n === 0 ? null : n
+  whoMemo = { k, v }
+  return v
 }

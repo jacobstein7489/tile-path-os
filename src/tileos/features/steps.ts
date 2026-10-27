@@ -68,6 +68,14 @@ export interface StepRec {
   moved?: string
   /** someone reminded the owner it's late — it pops up on the owner's screen */
   nudge?: { by: PersonKey; at: string; day: string }
+  /** the day it was set for when it got done (ISO) — on time or late, for the team report */
+  dueWas?: string
+  /** how many times it was moved to a later day after it was already late */
+  rolls?: number
+  /** the day it was set for before it was first moved after going late (ISO) — lateness counts from here */
+  lateFrom?: string
+  /** the admin checked in on it when it was late past the company's line */
+  checkIn?: { by: PersonKey; day: string; note?: string }
 }
 /** one answer on the site check: yes, no (with what's wrong), not needed — or, for what's looked at room by room, the
  *  rooms where it's missing ("drains: 2 of 3 here"). What's wrong goes to be fixed; once it's fixed it comes back to
@@ -621,10 +629,13 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
   const def = defsFor(s, jobId).find((d) => d.key === key)
   if (!j || !def) return
   const to = nextUp(s, j, key)
+  /* the day it was set for, kept with it — done on its day or late, for the team report */
+  const dueWas = stepsFor(s, j).find((x) => x.key === key)?.due
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
     r.done = NOW
     r.by = me()
+    if (dueWas) r.dueWas = dueWas
     if (note) r.note = note
     delete r.qty
     delete r.no

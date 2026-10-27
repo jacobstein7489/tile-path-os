@@ -115,7 +115,7 @@ export const inviteLink = createServerFn({ method: "POST" })
       /* the link goes straight to the app, which checks the token itself — it never stops at the sign-in service, so
          it can't land on a Lovable page whatever the Cloud's address settings say */
       const hashed = r.data?.properties?.hashed_token;
-      const base = String(data.redirectTo || "https://tile-path-os.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
+      const base = String(data.redirectTo || "https://cobblestone.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
       const link = hashed ? `${base}/#/welcome?th=${encodeURIComponent(hashed)}&type=recovery` : r.data?.properties?.action_link;
       if (!link) return { ok: false, why: "No link came back" };
       return { ok: true, link, already: !!u.last_sign_in_at };

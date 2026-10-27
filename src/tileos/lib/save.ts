@@ -29,7 +29,7 @@ export type WaitingPerson = { uid: string; name: string; email: string; since: s
  *  and, for the admin, the people waiting to be let in */
 /** the published app — where every emailed link goes. From the Lovable editor the page runs on a private preview
  *  address that needs a Lovable login, so links never point there. */
-export const PUBLISHED = 'https://tile-path-os.lovable.app'
+export const PUBLISHED = 'https://cobblestone.lovable.app'
 export function appUrl(): string {
   if (typeof location === 'undefined') return PUBLISHED
   const h = location.hostname

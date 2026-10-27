@@ -14,7 +14,8 @@ import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users } from 'lucide-react'
+import { Eraser, Users, Gauge } from 'lucide-react'
+import { reportOn } from '@/tileos/features/teamreport'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -56,6 +57,7 @@ export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   designers: { label: 'Designers', icon: PenTool },
   subs: { label: 'Installers', icon: HardHat },
   suppliers: { label: 'Suppliers', icon: Truck },
+  team: { label: 'Team report', icon: Gauge },
 }
 /** what a role sees in the menu, in menu order */
 export function navKeys(nav: string[]) {
@@ -66,8 +68,15 @@ const GROUPS: { label: string; keys: string[] }[] = [
   { label: '', keys: ['today', 'inbox'] },
   { label: 'Work', keys: ['estimates', 'projects', 'upcoming'] },
   { label: 'Money', keys: ['pos', 'pay', 'money', 'items'] },
-  { label: 'People', keys: ['clients', 'designers', 'subs', 'suppliers'] },
+  { label: 'People', keys: ['team', 'clients', 'designers', 'subs', 'suppliers'] },
 ]
+/** what a login has in the menu — and the team report for the admin, on his own view */
+function useNav(): string[] {
+  const role = useStore((s) => s.role)
+  const report = useStore((s) => reportOn(s))
+  const nav = roleDef(role).nav
+  return report ? [...nav, 'team'] : nav
+}
 export const activeNav = (page: string) => (page === 'job' ? 'projects' : page === 'tasks' ? 'today' : page === 'directory' ? 'clients' : page === 'schedule' ? 'upcoming' : page)
 
 function useBadges() {
@@ -97,8 +106,7 @@ export function Sidebar() {
   const route = useStore((s) => s.route)
   const go = useStore((s) => s.go)
   const open = useStore((s) => s.open)
-  const def = roleDef(role)
-  const keysFor = navKeys(def.nav)
+  const keysFor = navKeys(useNav())
   const badge = useBadges()
   const active = activeNav(route.page)
 
@@ -199,6 +207,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   const go = useStore((s) => s.go)
   const open = useStore((s) => s.open)
   const away = useStore((s) => awayFromMe(s))
+  const nav = useNav()
   return (
     <>
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="People, logins, what each one sees">Team and settings</MenuItem>}
@@ -207,7 +216,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&
-        phoneNav(roleDef(role).nav).more.map((k) => {
+        phoneNav(nav).more.map((k) => {
           const Icon = NAV[k].icon
           return (
             <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: k as Page })}>
@@ -235,10 +244,9 @@ export function BottomNav() {
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const go = useStore((s) => s.go)
-  const def = roleDef(role)
   const badge = useBadges()
   const active = activeNav(route.page)
-  const { bar, more } = phoneNav(def.nav)
+  const { bar, more } = phoneNav(useNav())
   const moreOn = more.includes(active)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main">

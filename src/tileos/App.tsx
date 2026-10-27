@@ -55,8 +55,9 @@ import { CrewView } from '@/tileos/features/crew'
 import { PayPage, PayModal, PayWeekModal } from '@/tileos/features/pay-page'
 import { ProgressModal } from '@/tileos/features/progress-page'
 import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
-import { WhoWhatModal, WhoWatcher } from '@/tileos/features/whowhat'
+import { WhoWhatModal } from '@/tileos/features/whowhat'
 import { LateModal, LateWatcher } from '@/tileos/features/late'
+import { CheckInModal, TeamReportPage, reportOn } from '@/tileos/features/teamreport'
 import { EditProjectModal } from '@/tileos/features/job/plan'
 import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
@@ -174,6 +175,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'roles': return <RolesModal level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'late': return <LateModal level={level} />
+    case 'checkin': return <CheckInModal who={m.who} level={level} />
     case 'editproject': return <EditProjectModal id={m.id} level={level} />
     case 'addperson': return <AddPersonModal level={level} />
     case 'buildrooms': return <BuildRoomsModal jobId={m.jobId} level={level} />
@@ -213,8 +215,10 @@ export default function App() {
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const away = useStore((s) => awayFromMe(s))
+  /* the team report: the admin, on his own view */
+  const report = useStore((s) => reportOn(s))
   const navList = roleDef(role).nav
-  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
+  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
 
   let body: React.ReactNode = null
@@ -238,6 +242,7 @@ export default function App() {
     case 'flow': body = <FlowPage />; break
     case 'settings': body = <SettingsPage />; break
     case 'job': body = <JobPage />; break
+    case 'team': body = <TeamReportPage />; break
   }
 
   return (
@@ -260,7 +265,6 @@ export default function App() {
           </div>
           <BottomNav />
           <IncomingWatcher />
-          <WhoWatcher />
           <AppBadge />
           <LateWatcher />
         </div>

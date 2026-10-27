@@ -19,12 +19,13 @@ import {
   type PunchItem, type Task, type MoneyItem, type PO, type OurMat, type TileCheck, type Booking, type ReadyItem, type Notice, type LogLine,
 } from '@/tileos/data/work'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
-import { NOW as NOW_T, shiftDeep, shiftText, isoFromLabel, md } from '@/tileos/lib/today'
+import { NOW as NOW_T, TODAY as TODAY_T, shiftDeep, shiftText, isoFromLabel, md } from '@/tileos/lib/today'
+import { sampleHistory } from '@/tileos/data/history'
 import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
 import type { AreaPreset, SurfaceDef } from '@/tileos/data/areas'
 
-export type Page = 'today' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay'
+export type Page = 'today' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay' | 'team'
 export interface Route { page: Page; id?: string; tab?: string; q?: Record<string, string> }
 export type Modal = { t: string; [k: string]: any }
 
@@ -33,6 +34,10 @@ export interface Rules {
   depositPct: number
   retainage: number
   reminderDays: number
+  /** the admin checks in when something is this many work days late (2 unless he changes it) */
+  checkInDays?: number
+  /** on time this share of the time (%) — below it, the team report says so (85 unless he changes it) */
+  onTimeGoal?: number
   waste: { floors: number; walls: number; mosaic: number; large: number }
   billingDay: number
   /** how the deposit comes off the progress bills: counted as billed first, a share of each bill, or at the end */
@@ -163,7 +168,7 @@ export function homeOf(r: Role): Route {
 function parseHash(): Route {
   const h = (typeof location !== 'undefined' ? location.hash : '').replace(/^#\/?/, '')
   const [page, id, tab] = h.split('/')
-  const pages: Page[] = ['today', 'upcoming', 'tasks', 'projects', 'clients', 'schedule', 'money', 'flow', 'settings', 'job', 'crew', 'estimates', 'pos', 'items', 'designers', 'subs', 'suppliers', 'directory', 'pay']
+  const pages: Page[] = ['today', 'upcoming', 'tasks', 'projects', 'clients', 'schedule', 'money', 'flow', 'settings', 'job', 'crew', 'estimates', 'pos', 'items', 'designers', 'subs', 'suppliers', 'directory', 'pay', 'team']
   if (pages.includes(page as Page)) return { page: page as Page, id, tab }
   return { page: 'today' }
 }
@@ -253,6 +258,8 @@ export function initialData(): Data {
     seen: clone(SEEN0),
   } as Data)
   ensureTiles(d)
+  /* the last four weeks of finished work — so the team report has something to show (sample only) */
+  d.tasks.push(...sampleHistory(TODAY_T))
   /* 115 Park's tile paperwork is in: the store is sending enough of every tile (with the extra for cuts) */
   Object.values(d.tiles['115'] || {}).forEach((t) => {
     const on = (d.rooms['115'] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
@@ -285,7 +292,14 @@ export function pinDate(label?: string) {
 }
 function pinDates(s: Data) {
   s.tasks.forEach((t) => {
-    if (t.state === 'done') return
+    if (t.state === 'done') {
+      /* the day it was done, kept as a date (Just now / 9:12 AM don't say which day) — the last dated line on it, or today */
+      if (!t.doneOn) {
+        const d = MD_RE.test(t.doneAt || '') ? isoFromLabel(t.doneAt) : [...(t.log || [])].reverse().map((l) => (MD_RE.test(l.date) ? isoFromLabel(l.date) : undefined)).find(Boolean)
+        t.doneOn = d || TODAY_T
+      }
+      return
+    }
     const a = pinDate(t.due); if (a !== t.due) t.due = a
     const b = pinDate(t.followUp); if (b !== t.followUp) t.followUp = b
     const c = pinDate(t.laterUntil); if (c !== t.laterUntil) t.laterUntil = c
@@ -428,6 +442,7 @@ export const useStore = create<Store>()(
         if (!t) return
         t.state = 'done'
         t.doneAt = 'Just now'
+        t.doneOn = TODAY_T
         if (result) t.result = result
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
@@ -449,6 +464,8 @@ export const useStore = create<Store>()(
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
+        const was = isoFromLabel(t.due)
+        if (t.state === 'now' && was && was < TODAY_T) { t.rolls = (t.rolls || 0) + 1; t.lateFrom ||= was }
         t.state = 'later'
         t.laterUntil = until
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Moved to later · back ${until}` })
@@ -461,6 +478,7 @@ export const useStore = create<Store>()(
         t.waitingOn = undefined
         t.followUp = undefined
         t.laterUntil = undefined
+        t.doneOn = undefined
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: 'Back to needs action' })
       }, 'Back in needs action'),
     reassignTask: (id, owner) =>
@@ -474,6 +492,9 @@ export const useStore = create<Store>()(
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
+        /* moved after it was already late: counted (the team report shows how often) */
+        const was = isoFromLabel(t.due)
+        if (t.state === 'now' && was && was < TODAY_T) { t.rolls = (t.rolls || 0) + 1; t.lateFrom ||= was }
         t.due = due
         t.dueTone = due === 'Today' ? 'warn' : 'neutral'
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Due ${due}` })
@@ -520,6 +541,7 @@ export function closeTasks(s: Data, ids: string[], text = 'Done') {
     if (ids.includes(t.id) && t.state !== 'done') {
       t.state = 'done'
       t.doneAt = 'Just now'
+      t.doneOn = TODAY_T
       ;(t.log ||= []).push({ date: NOW, who: 'system', text })
     }
   })
