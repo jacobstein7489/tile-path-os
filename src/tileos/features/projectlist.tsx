@@ -206,7 +206,7 @@ function StandsCell({ j }: { j: Job }) {
               </span>
             ))}
           </span>
-          <span className={cn('truncate text-[0.8125rem] font-medium', done === tracks.length ? 'text-[#2c8a5b]' : 'text-ink')}>{done === tracks.length ? 'All ready for the crew' : `${done} of ${tracks.length} parts ready`}</span>
+          <span title={done === tracks.length ? 'Every part is ready — book the crew' : `${done} of ${tracks.length} parts ready`} className={cn('truncate text-[0.8125rem] font-medium', done === tracks.length ? 'text-[#2c8a5b]' : 'text-ink')}>{done === tracks.length ? `All ${tracks.length} ready` : `${done} of ${tracks.length} ready`}</span>
         </div>
         {problem && <div className="mt-1 truncate text-[0.75rem] font-semibold text-bad-600">{problem}</div>}
       </div>

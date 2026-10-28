@@ -219,7 +219,8 @@ function EstRow({ e }: { e: Estimate }) {
         ) : <span className="truncate text-[0.8125rem] text-muted">{nx.text}</span>}
       </div>
       <div className={cn('truncate text-[0.8125rem] max-lg:hidden', /Today|late/.test(date) ? 'font-semibold text-warn-700' : 'text-ink-2')}>{date}</div>
-      <div className="text-right max-md:text-left">
+      {/* on a phone the amount is on the name's line — not again under it */}
+      <div className="text-right max-md:hidden">
         <span className={cn('text-[0.90625rem] font-semibold tnum', amt ? 'text-ink' : 'font-normal text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
         {e.status === 'approved' && (() => {
           const jm = jobMoney(j)
