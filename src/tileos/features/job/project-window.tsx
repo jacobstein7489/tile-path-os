@@ -17,7 +17,7 @@ import { readyForCrew, startProject } from '../flows'
 import { installerOf } from '../upcoming'
 import { MoneyTab } from './money-tab'
 import { FilesTab, HistoryTab } from './files'
-import { POsTab } from './pos-tab'
+import { MaterialsTab } from './pos-tab'
 import { PricingWorkspace } from '../pricing'
 import { RoomsTab } from './rooms'
 import { ScopeTab } from './scope-tab'
@@ -43,7 +43,7 @@ export function sectionOf(job: Job): PTab {
 }
 
 /** a link that names a track ("installer", "orders"…) opens that track on the step it's on */
-const TAB_TRACK: Record<string, TrackKey> = { installer: 'installer', materials: 'materials', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope' }
+const TAB_TRACK: Record<string, TrackKey> = { installer: 'installer', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope' }
 function openFromTab(job: Job | undefined, tab?: string): OpenTrack {
   if (!job || !tab) return null
   const s = useStore.getState()
@@ -204,7 +204,7 @@ export function OrdersWinModal({ jobId, level }: { jobId: string; level: number 
   const s = useStore()
   const job = s.jobs[jobId]
   if (!job) return null
-  return <Modal level={level} size="xl" tall onClose={s.close} title="All the orders" sub={job.name} bodyClass="bg-canvas p-5 max-sm:p-3"><POsTab job={job} onScope={() => { s.close(); s.open({ t: 'scopewin', jobId }) }} /></Modal>
+  return <Modal level={level} size="xl" tall onClose={s.close} title="Materials" sub={job.name} bodyClass="bg-canvas p-5 max-sm:p-3"><MaterialsTab job={job} onScope={() => { s.close(); s.open({ t: 'scopewin', jobId }) }} /></Modal>
 }
 
 /** files and history, each in its own window */

@@ -27,7 +27,7 @@ import { installerOf } from '../upcoming'
 import { matBy } from '../flows'
 import { materialStatus } from '../takeoff'
 import { poRatio } from '../poratio'
-import { estWord, estTone } from '../estimates'
+import { CAT, catOf } from '../estimates'
 import { billingOf } from './money-tab'
 import { tileStatus } from './scope-tab'
 import { budgetOf } from './ratio'
@@ -533,7 +533,7 @@ function EstRow({ e }: { e: Estimate }) {
         <span className="block truncate text-[0.90625rem] font-semibold text-ink">{e.id}{e.revs.length > 1 ? ` · Revision ${r?.n}` : ''}</span>
         <span className="block truncate text-[0.78125rem] text-muted">{r?.lines.length || 0} lines{e.approvedOn ? ` · approved ${e.approvedOn}` : ''}</span>
       </span>
-      <span className="flex justify-end max-md:hidden"><Word tone={estTone(e)}>{estWord(e)}</Word></span>
+      <span className="flex justify-end max-md:hidden"><Word tone={CAT[catOf(e)].tone}>{CAT[catOf(e)].label}</Word></span>
       <span className="text-right text-[0.9375rem] font-semibold tnum text-ink max-md:hidden">{fmtMoney(revTotal(r))}</span>
       <span className="flex justify-end"><Button size="sm" onClick={() => s.open({ t: 'estimate', id: e.id })}>Open the estimate</Button></span>
     </div>

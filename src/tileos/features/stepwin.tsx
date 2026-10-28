@@ -1,14 +1,14 @@
 /* One part of getting a project ready — the paperwork, the design meeting, the site, the installer, the deliveries —
- * in one window that never changes size. Only that part's steps: a tab for each across the top (where it stands, who
- * has it), and under it the one step you're on and only what that step needs — what it is, whose turn, when, the one
- * or two things that finish it. The bar on the project, its To do, Today and the step's own task all open it;
- * Back / Next walk through that part's steps. */
+ * in one window that never changes size, looking just like the part does on the project: its steps as circles on top,
+ * like the estimate's path (✓ done, the one it's on, what comes after, whose each one is), and under them the one step
+ * you picked with only what it needs — what it is, whose turn, when, the one or two things that finish it. Today, a
+ * task or a link opens it; tap another circle and that step shows instead. */
 import * as React from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
-import { Status, Path, Circles } from '@/tileos/components/ui/page'
+import { Status, Path, Circles, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
 import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
@@ -20,7 +20,7 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
-import { insidePeople, StepIcon, StepLine } from './steps-ui'
+import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
 import { confirmSetting } from './setting'
@@ -268,12 +268,31 @@ export function StepInline({ job, v, onClose, onGo }: { job: Job; v: StepView; o
   )
 }
 
-/** one part of getting ready in its own window (from Today, a task, a link): its steps on the left — each one a line,
- *  whose it is and where it's up to — and the one that's picked on the right, with its work. Pick another and it shows
- *  instead; nothing opens inside anything. On a phone the steps are on top and the picked one under them. */
-export function StepModal({ jobId, k, level }: { jobId: string; k: string; level: number }) {
+/** a part's steps as circles, like the estimate's path: ✓ done, the one it's on (blue when it's yours), amber while
+ *  it waits on someone outside, red for a problem, grey for what comes after — and under each, whose it is and when.
+ *  Tap one to see it. The same on the project and in the step's own window. */
+export function PartPath({ job, list, at, onPick, label }: { job: Job; list: StepView[]; at: string; onPick: (k: string) => void; label: string }) {
   const s = useStore()
   const me = meOf(s.role)
+  const day = (iso: string) => (iso === TODAY ? 'today' : labelFromIso(iso))
+  const circle = (x: StepView, i: number): CircleStep => {
+    const mine = x.owner === me
+    const state: CircleState = x.state === 'done' ? 'done' : x.state === 'bad' ? 'bad' : x.state === 'wait' ? 'wait' : x.state === 'now' ? (mine ? 'now' : 'todo') : 'later'
+    const who = mine ? 'You' : PEOPLE[x.owner]?.short || ''
+    const sub = x.state === 'done' ? (x.doneOn ? x.doneOn : 'Done')
+      : x.state === 'bad' ? `${who} · problem`
+        : x.state === 'wait' ? `${who} · ${x.due ? `back ${day(x.due)}` : 'waiting'}`
+          : x.state === 'now' ? `${who}${x.due ? ` · ${x.due < TODAY ? 'late' : day(x.due)}` : ''}`
+            : x.state === 'na' ? 'Not needed' : who
+    return { key: x.key, label: stepShort(s, job, x), sub, state, center: String(i + 1), attrs: { 'data-step': x.key, 'data-track-step': x.key, 'data-state': x.state, ...(x.key === at ? { 'data-on': '' } : {}) } }
+  }
+  return <Circles groups={[{ key: 'part', steps: list.map(circle) }]} at={at} onPick={onPick} size={34} label={label} />
+}
+
+/** one part of getting ready in its own window (from Today, a task, a link) — the same as on the project: its steps as
+ *  circles on top, the one that's picked under them with its work. Tap another and it shows instead. */
+export function StepModal({ jobId, k, level }: { jobId: string; k: string; level: number }) {
+  const s = useStore()
   const job = s.jobs[jobId]
   const all = job ? stepsFor(s, job) : []
   const at = all.find((x) => x.key === k)
@@ -291,26 +310,21 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   return (
     <Modal
       level={level}
-      size="xl"
+      size="lg"
       onClose={s.close}
       className="h-[min(48rem,92vh)] max-sm:h-[94dvh]"
       title={part}
       sub={`${job.name} · ${c.done === c.total ? 'all done' : `${c.done} of ${c.total} done`}${c.bad ? ` · ${c.bad} with a problem` : ''}`}
       bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
     >
-      <div className="flex min-h-0 flex-1 max-md:scroll-soft max-md:flex-col max-md:overflow-y-auto">
-        <ol data-track-steps className="scroll-soft shrink-0 border-line-2 bg-white md:w-[19.5rem] md:overflow-y-auto md:border-r max-md:border-b">
-          {list.map((x) => (
-            <li key={x.key} data-track-step={x.key} data-state={x.state} data-on={x.key === k || undefined} className="[&:first-child>button]:border-t-0">
-              <StepLine job={job} v={x} me={me} on={x.key === k} title={TITLE[x.key] || x.label} onPick={() => go(x.key)} />
-            </li>
-          ))}
-        </ol>
-        <div ref={body} className="scroll-soft min-h-0 min-w-0 flex-1 md:overflow-y-auto" data-step-view={v.key}>
-          <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
-            <h3 className="mb-3 text-[1.125rem] font-semibold leading-snug text-ink">{title}</h3>
-            <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
-          </div>
+      {/* its steps, like the estimate's path — they stay put */}
+      <div data-track-steps data-part-path className="shrink-0 border-b border-line-2 px-3 pb-2 pt-3 max-sm:px-1">
+        <PartPath job={job} list={list} at={k} onPick={go} label={`${part} — its steps`} />
+      </div>
+      <div ref={body} className="scroll-soft min-h-0 min-w-0 flex-1 overflow-y-auto" data-step-view={v.key}>
+        <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
+          <h3 className="mb-3 text-[1.125rem] font-semibold leading-snug text-ink">{title}</h3>
+          <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
         </div>
       </div>
     </Modal>

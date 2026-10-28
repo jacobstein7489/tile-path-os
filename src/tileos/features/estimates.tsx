@@ -1,8 +1,9 @@
-/* Estimates — where every project starts. One set of words everywhere, the estimate's own path:
- *   Request → Takeoff → Office review → Final review → Sent → Approved (or Lost).
- * The bubbles on top, the groups on the list and the estimate's header all say the same thing. A revision goes back
- * to its step and says "Revision 2". Whose turn it is lives on the estimate, so nobody's tasks change hands; review
- * notes are pinned to the room they're about and go back as a checklist. Approved, it becomes a project. */
+/* Estimates — where every project starts. Six words for where one stands: New request · Estimating · Pending approval ·
+ * Revision needed · Approved · Lost. Inside "Estimating" it goes Takeoff → Office review → Final review, then to the
+ * client. Whose turn it is lives on the estimate, so nobody's tasks change hands; review notes are pinned to the room
+ * they're about and go back as a checklist. Approved, it becomes a project.
+ * The list is plain: the job's name, who has it and what they do next, the date, the amount — the group it's under
+ * already says where it stands. */
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
 import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt, Users, History, GitCompareArrows, Loader2, ChevronRight } from 'lucide-react'
@@ -15,7 +16,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
 import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
-import { FLOORS, sortAreas, guessSurfaces } from '@/tileos/data/areas'
+import { FLOORS, sortAreas, guessSurfaces, isOutside } from '@/tileos/data/areas'
 import { printNode } from '@/tileos/lib/print'
 import { EstimatePaper, paperGroups, paperText } from './estpaper'
 import { DocPanel, PanelBar } from './docview'
@@ -31,29 +32,27 @@ import { ActivityRow } from './activity'
 
 const OPEN_B: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent']
 const ownerish = (s: Store) => s.role === 'owner' || s.role === 'pm'
-/** one colour per part of the path, the same on the bubbles, the groups and the estimate's header: grey for a request,
- *  blue while it's being priced inside, violet with the client, green once it's won */
-const B_TONE: Record<EstBucket, Tone> = { request: 'neutral', takeoff: 'info', review: 'info', final: 'info', sent: 'vio', approved: 'ok', lost: 'neutral' }
+const B_TONE: Record<EstBucket, Tone> = { request: 'neutral', takeoff: 'info', review: 'vio', final: 'warn', sent: 'info', approved: 'ok', lost: 'neutral' }
 const B_ICON: Record<EstBucket, React.ReactNode> = { request: <Inbox />, takeoff: <Ruler />, review: <ClipboardCheck />, final: <BadgeCheck />, sent: <FileClock />, approved: <FileCheck2 />, lost: <FileX2 /> }
 
-/* the statuses an estimate keeps (its record) — on screen it's always the path's word (estWord) */
+/* the six statuses everyone sees */
 export type EstCat = 'request' | 'estimating' | 'revision' | 'sent' | 'approved' | 'lost'
 const OPEN_C: EstCat[] = ['request', 'estimating', 'revision', 'sent']
 export const catOf = (e: Estimate): EstCat => e.status
 export const CAT: Record<EstCat, { label: string; tone: Tone; icon: React.ReactNode }> = {
-  request: { label: 'Request', tone: 'neutral', icon: <Inbox /> },
+  request: { label: 'New request', tone: 'neutral', icon: <Inbox /> },
   estimating: { label: 'Estimating', tone: 'info', icon: <Ruler /> },
-  revision: { label: 'Revision', tone: 'warn', icon: <Undo2 /> },
-  sent: { label: 'Sent', tone: 'vio', icon: <FileClock /> },
+  revision: { label: 'Revision needed', tone: 'warn', icon: <Undo2 /> },
+  sent: { label: 'Pending approval', tone: 'vio', icon: <FileClock /> },
   approved: { label: 'Approved', tone: 'ok', icon: <FileCheck2 /> },
   lost: { label: 'Lost', tone: 'neutral', icon: <FileX2 /> },
 }
-/** the path, the same words as the estimate's circles */
-export const PATH_WORD: Record<EstBucket, string> = { request: 'Request', takeoff: 'Takeoff', review: 'Office review', final: 'Final review', sent: 'Sent', approved: 'Approved', lost: 'Lost' }
-const PATH_COLOR: Record<EstBucket, 'violet' | 'blue' | 'green' | 'slate'> = { request: 'slate', takeoff: 'blue', review: 'blue', final: 'blue', sent: 'violet', approved: 'green', lost: 'slate' }
-/** where an estimate is, in the path's word — "Office review", "Takeoff · Revision 2", "Sent" */
-export const estWord = (e: Estimate): string => `${PATH_WORD[bucketOf(e)]}${e.status === 'revision' ? ` · Revision ${curRev(e).n}` : ''}`
-export const estTone = (e: Estimate): Tone => (e.status === 'revision' ? 'warn' : B_TONE[bucketOf(e)])
+/** where an estimate stands, in words — "Estimating · Office review", "Pending approval" (the same as its header) */
+export const estLabel = (e: Estimate): { label: string; tone: Tone } => {
+  const b = bucketOf(e)
+  const inside = b === 'takeoff' || b === 'review' || b === 'final'
+  return { label: `${CAT[catOf(e)].label}${inside ? ` · ${EST_STEP[b].label}` : ''}`, tone: CAT[catOf(e)].tone }
+}
 const STEP_RANK = (e: Estimate) => ['takeoff', 'review', 'final'].indexOf(bucketOf(e))
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
@@ -83,8 +82,7 @@ const whenOf = (e: Estimate) => {
   return e.due ? `Due ${e.due}` : '—'
 }
 
-type EstView = 'open' | EstBucket
-const OPEN_PATH: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent']
+type EstView = 'open' | EstCat
 export function EstimatesPage() {
   const s = useStore()
   const q0 = s.route.q?.status as string | undefined
@@ -98,30 +96,30 @@ export function EstimatesPage() {
     const j = s.jobs[e.jobId]
     return (client === 'all' || j.clientId === client) && (who === 'all' || turn(e) === who) && (!q || `${e.id} ${j.name} ${j.client}`.toLowerCase().includes(q.toLowerCase()))
   }
-  const of = (b: EstBucket) => list.filter((e) => bucketOf(e) === b)
-  const open = list.filter((e) => OPEN_PATH.includes(bucketOf(e)) && match(e))
-  const shown = view === 'open' ? open : list.filter((e) => bucketOf(e) === view && match(e)).sort((a, b) => b.id.localeCompare(a.id))
+  const of = (c: EstCat) => list.filter((e) => catOf(e) === c)
+  const open = list.filter((e) => OPEN_C.includes(catOf(e)) && match(e))
+  const shown = view === 'open' ? open : list.filter((e) => catOf(e) === view && match(e)).sort((a, b) => b.id.localeCompare(a.id))
   const lostOld = view === 'lost' ? s.lost.filter((l) => !shown.some((e) => s.jobs[e.jobId]?.name === l.name) && (!q || l.name.toLowerCase().includes(q.toLowerCase()))) : []
   const pipeline = of('sent').reduce((n, e) => n + estAmount(e), 0)
   const clients = Array.from(new Set(list.map((e) => s.jobs[e.jobId].clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || s.jobs[list.find((e) => s.jobs[e.jobId].clientId === id)!.jobId].client }))
   const pick = (v: EstView) => () => setView(view === v ? 'open' : v)
   const me = meOf(s.role)
-  const mineAt = (b: EstBucket) => of(b).filter((e) => turnOf(e) === me).length
-  const revs = (b: EstBucket) => of(b).filter((e) => e.status === 'revision').length
-  const subOf = (b: EstBucket) => (b === 'sent' ? (pipeline ? fmtMoney(pipeline) : undefined) : mineAt(b) ? `${mineAt(b)} yours` : revs(b) ? `${revs(b)} revision${revs(b) > 1 ? 's' : ''}` : undefined)
+  const mine = of('estimating').concat(of('revision')).filter((e) => turnOf(e) === me).length
   return (
     <Page
       title="Estimates"
-      sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> sent — waiting for a yes{smp(' · sample amounts')}</>}
+      sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> pending approval{smp(' · sample amounts')}</>}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
       top={
         <Bubbles
           arrows
-          dense
           items={[
-            ...OPEN_PATH.map((b) => ({ key: b, label: PATH_WORD[b], count: of(b).length, sub: subOf(b), icon: B_ICON[b], color: PATH_COLOR[b], on: view === b, onClick: pick(b) })),
-            { key: 'approved', label: PATH_WORD.approved, count: of('approved').length, icon: B_ICON.approved, color: PATH_COLOR.approved, on: view === 'approved', onClick: pick('approved'), gapBefore: true },
-            { key: 'lost', label: PATH_WORD.lost, count: of('lost').length + s.lost.length, icon: B_ICON.lost, color: PATH_COLOR.lost, on: view === 'lost', onClick: pick('lost'), plainBefore: true },
+            { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request') },
+            { key: 'estimating', label: CAT.estimating.label, count: of('estimating').length, sub: mine ? `${mine} your turn` : undefined, icon: CAT.estimating.icon, color: 'blue', on: view === 'estimating', onClick: pick('estimating') },
+            { key: 'sent', label: CAT.sent.label, count: of('sent').length, sub: pipeline ? fmtMoney(pipeline) : undefined, icon: CAT.sent.icon, color: 'cyan', on: view === 'sent', onClick: pick('sent') },
+            { key: 'revision', label: CAT.revision.label, count: of('revision').length, icon: CAT.revision.icon, color: 'amber', on: view === 'revision', onClick: pick('revision') },
+            { key: 'approved', label: CAT.approved.label, count: of('approved').length, icon: CAT.approved.icon, color: 'green', on: view === 'approved', onClick: pick('approved'), gapBefore: true },
+            { key: 'lost', label: CAT.lost.label, count: of('lost').length + s.lost.length, icon: CAT.lost.icon, color: 'slate', on: view === 'lost', onClick: pick('lost'), plainBefore: true },
           ]}
         />
       }
@@ -129,7 +127,7 @@ export function EstimatesPage() {
         <>
           {view !== 'open' ? (
             <span className="inline-flex h-9 items-center gap-2 rounded-full border border-brand-600 bg-brand-50 pl-3.5 pr-1.5 text-[0.84375rem] font-semibold text-brand-700">
-              {PATH_WORD[view]} <span className="text-brand-600">{shown.length + lostOld.length}</span>
+              {CAT[view].label} <span className="text-brand-600">{shown.length + lostOld.length}</span>
               <button onClick={() => setView('open')} aria-label="Show open estimates" className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-brand-100">×</button>
             </span>
           ) : (
@@ -147,23 +145,23 @@ export function EstimatesPage() {
       <div>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
-          OPEN_PATH.map((b) => {
-            const rows = open.filter((e) => bucketOf(e) === b).sort((a, c) => (a.due && c.due ? (isoFromLabel(a.due) || '').localeCompare(isoFromLabel(c.due) || '') : 0))
+          (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
+            const rows = open.filter((e) => catOf(e) === k).sort((a, b) => STEP_RANK(a) - STEP_RANK(b))
             if (!rows.length) return null
             return (
-              <section key={b} data-est-group={b}>
-                <Group label={PATH_WORD[b]} count={rows.length} tone={B_TONE[b]} right={b === 'sent' ? <span className="text-[0.8125rem] font-semibold tnum text-muted">{fmtMoney(rows.reduce((n, e) => n + estAmount(e), 0))}</span> : undefined} />
+              <section key={k} data-est-group={k}>
+                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} right={k === 'sent' ? <span className="text-[0.8125rem] font-semibold tnum text-muted">{fmtMoney(rows.reduce((n, e) => n + estAmount(e), 0))}</span> : undefined} />
                 {rows.map((e) => <EstRow key={e.id} e={e} />)}
               </section>
             )
           })}
         {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
-          <div key={l.name} className={cn('min-h-[3.75rem] border-t border-line-2 py-2.5 opacity-70', EST_COLS, 'px-5 max-sm:px-4')}>
-            <div className="min-w-0"><div className="truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div><div className="truncate text-[0.78125rem] text-muted">{l.client}</div></div>
+          <div key={l.name} className={cn('min-h-[3.25rem] border-t border-line-2 py-2.5 opacity-70', EST_COLS, 'px-5 max-sm:px-4')}>
+            <div className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div>
             <div className="min-w-0"><span className="line-clamp-2 text-[0.8125rem] text-muted">{l.reason}</span></div>
             <div className="text-[0.8125rem] text-ink-2 max-lg:hidden">Lost {l.date}</div>
-            <div className="text-right text-faint max-xl:hidden">—</div>
+            <div className="text-right text-faint">—</div>
           </div>
         ))}
         {!shown.length && !lostOld.length && (list.length
@@ -175,7 +173,7 @@ export function EstimatesPage() {
 }
 
 /* Estimate · Who has it · Date · Amount — the same columns, spacing and header as Projects. No status column: the
-   group it's under (or the bubble you picked) already says it, in the path's own word. */
+   group it's under (or the bubble you picked) already says it. The job's name only — no number or client under it. */
 const EST_COLS = 'grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_9rem_8rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_8.5rem_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7.5rem] max-md:grid-cols-1 max-md:gap-1.5'
 function EstHead() {
   return (
@@ -195,7 +193,6 @@ function EstRow({ e }: { e: Estimate }) {
   /* inside the company the number that matters is the one being checked */
   const amt = b === 'takeoff' || b === 'review' || b === 'final' ? revTotal(curRev(e)) : estAmount(e)
   const nx = nextOf(s, e)
-  const rev = curRev(e).n
   const c = catOf(e)
   const turn = holderOf(e)
   const me = meOf(s.role)
@@ -207,12 +204,9 @@ function EstRow({ e }: { e: Estimate }) {
       data-est={e.id}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[3.75rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
+      className={cn('min-h-[3.5rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
     >
-      <div className="min-w-0">
-        <div className="truncate text-[0.90625rem] font-semibold text-ink">{j.name}</div>
-        <div className="truncate text-[0.78125rem] text-muted"><span className="tnum">{e.id}</span> · {j.client}{rev > 1 && OPEN_C.includes(c) && c !== 'request' ? <span className={c === 'revision' ? 'font-semibold text-warn-700' : ''}> · Revision {rev}</span> : ''}<span className="md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
-      </div>
+      <div className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink" title={`${e.id} · ${j.client}`}>{j.name}<span className="font-normal text-muted md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
       <div className="min-w-0">
         {turn ? (
           <span className="flex min-w-0 items-center gap-2.5">
@@ -428,7 +422,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       {/* the name, where it stands, the total and the buttons */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{j.name}</h2>
-        <Status tone={estTone(e)} className="min-w-0 shrink-0 max-sm:hidden">{estWord(e)}</Status>
+        <Status tone={CAT[catOf(e)].tone} className="min-w-0 shrink-0 max-sm:hidden">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
         <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted max-md:hidden">{e.id}</span>
         {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
         <span className="ml-auto flex shrink-0 items-center gap-2">
@@ -737,9 +731,11 @@ function AreaAdder({ e }: { e: Estimate }) {
   /* the floor the last room went on — the next one usually goes there too */
   const meta = curRev(e).areas || []
   const [floor, setFloor] = React.useState<string>(() => meta[meta.length - 1]?.floor || '')
-  const add = (name: string) => { const p = presets.find((x) => x.name === name); if (p) estAddArea(e.id, p.name, p.surfaces, floor || undefined) }
+  /* an area that's outside (front steps, a porch) goes under Outside */
+  const fl = (name: string) => (isOutside(name) ? 'Outside' : floor || undefined)
+  const add = (name: string) => { const p = presets.find((x) => x.name === name); if (p) estAddArea(e.id, p.name, p.surfaces, fl(p.name)) }
   /* a new one: it goes on this estimate, and on the company's list for the next one */
-  const addOwn = (name: string) => { const keys = guessSurfaces(name, presets); addCompanyArea(name, keys); estAddArea(e.id, name, keys, floor || undefined) }
+  const addOwn = (name: string) => { const keys = guessSurfaces(name, presets); addCompanyArea(name, keys); estAddArea(e.id, name, keys, fl(name)) }
   return (
     <div className="mt-4 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3" data-area-adder>
       <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add an area<span className="font-normal text-muted">— it comes with its usual surfaces</span></div>

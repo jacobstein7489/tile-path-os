@@ -1,15 +1,69 @@
 import * as React from 'react'
-import { Ban, CheckCircle2, ChevronRight, PackageX, HelpCircle, ArrowLeftRight, Camera, ClipboardList, MapPin, Repeat, Signal, Wifi, BatteryFull, Sparkles, Hammer, Check, Wrench } from 'lucide-react'
+import { Ban, CheckCircle2, ChevronRight, PackageX, HelpCircle, ArrowLeftRight, Camera, ClipboardList, MapPin, Repeat, Signal, Wifi, BatteryFull, Sparkles, Hammer, Check, Wrench, CalendarClock } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
-import { useStore, meOf } from '@/tileos/store'
-import { PEOPLE } from '@/tileos/data/model'
+import { useStore, meOf, type Store } from '@/tileos/store'
+import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { Logo } from '@/tileos/components/shell/shell'
 import { cn } from '@/tileos/lib/utils'
 import { GROUTS, tileOf } from '@/tileos/data/jobs'
-import { shiftText, TODAY, dayShort } from '@/tileos/lib/today'
+import { shiftText, TODAY, dayShort, labelFromIso } from '@/tileos/lib/today'
 import { setPunch } from './flows'
+import { answerIPO } from './flows2'
+import { tracksFor } from './tracks'
+
+/* ---------------- coming up: his next jobs, before they're on his Today ---------------- */
+/** where one of his next jobs is, in one line — so nobody has to call him to say "we're waiting for the tile":
+ *  his start day once he's booked; else waiting for the tile (and the day it comes); else ready, the office books
+ *  his days; else how far getting ready is */
+export function comingWords(s: Store, job: Job, me: PersonKey): { text: string; tone: 'ok' | 'warn' | 'info' | 'muted' } {
+  const b = s.bookings.find((x) => x.jobId === job.id && x.crew === me && x.start > TODAY && x.label !== 'Return visit')
+  if (b) return { text: `You start ${dayShort(b.start)}`, tone: 'ok' }
+  if (job.hold?.shortage) return { text: 'On hold — waiting for the tile', tone: 'warn' }
+  const tracks = tracksFor(s, job)
+  /* the tile isn't all here: the day it comes (or was due), or that some of it is still missing */
+  const d = tracks.find((t) => t.key === 'tile')?.steps.find((v) => v.key === 'delivered')
+  if (d && d.state !== 'done' && d.state !== 'na') {
+    if (d.state === 'bad') return { text: 'Waiting for the rest of the tile', tone: 'warn' }
+    if (d.due) return { text: d.due >= TODAY ? `Waiting for the tile — it comes ${labelFromIso(d.due).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}` : `Waiting for the tile — it was due ${labelFromIso(d.due)}`, tone: 'warn' }
+    return { text: 'Waiting for the tile — no delivery date yet', tone: 'warn' }
+  }
+  const open = tracks.filter((t) => t.state !== 'done').length
+  if (!open) return { text: 'Ready — the office books your days', tone: 'info' }
+  return { text: `Getting ready · ${tracks.length - open} of ${tracks.length} parts done`, tone: 'muted' }
+}
+const COMING_TONE = { ok: 'text-ok-700', warn: 'text-warn-700', info: 'text-brand-700', muted: 'text-muted' }
+const COMING_DOT = { ok: 'bg-ok-500', warn: 'bg-warn-500', info: 'bg-brand-500', muted: 'bg-[#c9c2b6]' }
+/** his next jobs: every one he has a PO on that isn't on today and isn't finished — a PO still waiting for his yes
+ *  has the button for it */
+function ComingUp({ me, today }: { me: PersonKey; today: string[] }) {
+  const s = useStore()
+  const latest = new Map<string, (typeof s.ipos)[number]>()
+  s.ipos.forEach((p) => { if (p.crew === me) latest.set(p.jobId, p) })
+  const list = [...latest.values()]
+    .filter((p) => (p.status === 'Sent' || p.status === 'Accepted') && s.jobs[p.jobId] && !today.includes(p.jobId) && !['installation', 'punch', 'closeout', 'complete'].includes(s.jobs[p.jobId].stage))
+    .map((p) => ({ p, job: s.jobs[p.jobId], w: comingWords(s, s.jobs[p.jobId], me) }))
+  if (!list.length) return null
+  return (
+    <>
+      <div className="mb-2 mt-5 flex items-center gap-2 px-1 text-[0.9375rem] font-bold text-ink"><CalendarClock className="h-4 w-4 text-brand-600" />Coming up<span className="text-[0.8125rem] font-semibold text-muted">{list.length}</span></div>
+      <div className="flex flex-col gap-2" data-coming-up>
+        {list.map(({ p, job, w }) => {
+          const total = p.lines.reduce((a, l) => a + (l.amount || 0), 0)
+          return (
+            <div key={p.id} className="rounded-2xl bg-white p-3.5 shadow-card" data-coming={job.id} data-coming-tone={w.tone}>
+              <div className="text-[0.90625rem] font-semibold text-ink">{job.name}</div>
+              <div className="truncate text-[0.78125rem] text-muted">{p.id}{total ? ` · ${fmtMoney(total)}` : ''} · {p.status === 'Accepted' ? 'you said yes' : 'waiting for your yes'}</div>
+              <div className={cn('mt-2 flex items-center gap-2 text-[0.84375rem] font-semibold', COMING_TONE[w.tone])} data-coming-words><span className={cn('h-2 w-2 shrink-0 rounded-full', COMING_DOT[w.tone])} />{w.text}</div>
+              {p.status === 'Sent' && <Button full size="sm" variant="primary" className="mt-3" icon={<Check />} onClick={() => answerIPO(p.id, true, undefined, { fromCrew: true })} data-coming-yes>Yes, I’ll do it</Button>}
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
 
 export function CrewView() {
   const s = useStore()
@@ -43,7 +97,7 @@ export function CrewView() {
             <span className="absolute left-1/2 top-3 h-6 w-28 -translate-x-1/2 rounded-full bg-[#0D1628]" />
             <span className="flex items-center gap-1"><Signal className="h-3.5 w-3.5" /><Wifi className="h-3.5 w-3.5" /><BatteryFull className="h-4 w-4" /></span>
           </div>
-          <div className="scroll-soft h-[calc(100%-2.25rem)] overflow-y-auto px-4 pb-28 max-md:h-auto max-md:overflow-visible max-md:pb-[calc(11rem+env(safe-area-inset-bottom,0))] max-md:pt-3">
+          <div className="scroll-soft h-[calc(100%-2.25rem)] overflow-y-auto px-4 pb-40 max-md:h-auto max-md:overflow-visible max-md:pb-[calc(11rem+env(safe-area-inset-bottom,0))] max-md:pt-3">
             <div className="mb-3 flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-3.5 py-2.5 md:hidden">
               <span className="min-w-0 flex-1 text-[0.8125rem] font-medium text-brand-800">Demo · what {PEOPLE[me].short} sees on his phone</span>
               <Button size="xs" variant="secondary" icon={<Repeat className="h-3.5 w-3.5" />} onClick={() => s.open({ t: 'roles' })}>Switch login</Button>
@@ -152,6 +206,8 @@ export function CrewView() {
               ))}
             </div>
             </>}
+
+            <ComingUp me={me} today={booked.map((b) => b.jobId)} />
           </div>
           <div className="absolute inset-x-0 bottom-0 border-t border-line bg-white/95 px-4 pb-6 pt-3 backdrop-blur max-md:fixed max-md:z-30 max-md:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))]">
             <div className="grid grid-cols-4 gap-1.5">

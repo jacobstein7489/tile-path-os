@@ -78,9 +78,10 @@ function projectInView(s: ReturnType<typeof useStore.getState>) {
 }
 const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled: 1, punch: 2, ready: 3, verification: 4, setup: 5, awarded: 6, proposal: 7, followup: 7, estimating: 8, request: 9, closeout: 10, complete: 11 }
 
-/* + New — everything your login adds, in color, all on one screen (no "More"): the project on top (the one you're in,
- * or pick one), then what goes on the job site, then the paperwork, then starting something new. What your login adds
- * most comes first in each. */
+/* + New — everything your login adds, on one screen (no "More"): the project on top (the one you're in, or pick one),
+ * then three parts, each with its own soft color and every choice the same size: what happens on the job site (warm),
+ * the paperwork and calls (blue), starting something new (green). Problem is red — red is for problems. What your login
+ * adds most comes first in each part. */
 type Group = 'site' | 'office'
 const ADD: (Pick & { c: TileColor; g: Group })[] = [
   { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, c: 'orange', g: 'site', m: (j) => ({ t: 'need', jobId: j }) },
@@ -132,7 +133,7 @@ export const PART_TINT: Record<Part | 'bad', { bg: string; fg: string; dot: stri
 }
 const partOf = (k: string): Part => KIND[k]?.g || 'office'
 
-/** a choice on + New: a white card with its icon in its part's soft color; Problem is red (red is for problems) */
+/** a choice on + New: a white card with its icon in its part's soft color, every one the same size; Problem is red */
 function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
   const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
   return (
@@ -142,13 +143,13 @@ function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () =
       title={x.h}
       data-new={x.k}
       data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
-      className={cn('group flex min-w-0 items-center gap-3 rounded-[0.75rem] border border-line bg-white text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[4rem] px-3 py-2.5' : 'min-h-11 px-2.5 py-1.5')}
+      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[3.75rem] py-2' : 'min-h-12 py-1.5')}
     >
-      <span className={cn('inline-flex shrink-0 items-center justify-center transition', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]')} style={{ background: tint.bg, color: tint.fg }}>
-        <x.i className={big ? 'h-[1.125rem] w-[1.125rem]' : 'h-[0.9375rem] w-[0.9375rem]'} strokeWidth={2.1} />
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition" style={{ background: tint.bg, color: tint.fg }}>
+        <x.i className="h-4 w-4" strokeWidth={2.1} />
       </span>
       <span className="min-w-0 leading-tight">
-        <span className={cn('block font-semibold text-ink', big ? 'text-[0.90625rem]' : 'text-[0.8125rem]')}>{x.l}</span>
+        <span className="block text-[0.84375rem] font-semibold text-ink">{x.l}</span>
         {big && <span className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted max-sm:hidden">{x.h}</span>}
       </span>
     </button>
@@ -171,10 +172,9 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const ok = (x: { k: string }) => allowedFor(role, x.k)
   const top = TOP[role] || TOP.owner!
   const rank = (k: string) => { const i = top.indexOf(k); return i < 0 ? 99 : i }
-  /* the quick ones: what your login adds most */
-  const quick = ADD.filter(ok).filter((x) => rank(x.k) < 4).sort((a, b) => rank(a.k) - rank(b.k))
-  const rest = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !quick.includes(x)).sort((a, b) => rank(a.k) - rank(b.k))
-  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: rest(g) })).filter((x) => x.list.length)
+  /* each part in its own place — what your login adds most first in it */
+  const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x)).sort((a, b) => rank(a.k) - rank(b.k))
+  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
   const starts = STARTS.filter(ok)
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
@@ -183,10 +183,6 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   return (
     <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick the project, or not — each one asks'}>
       <ProjectPick value={jobId} onChange={setJobId} />
-      <section className="mt-4" data-new-group="quick">
-        <div className={head}>Quick</div>
-        <div className="grid grid-cols-2 gap-2">{quick.map((y) => <Choice key={y.k} x={y} big onClick={() => go(y)} />)}</div>
-      </section>
       {groups.map((x) => (
         <section key={x.g} className="mt-4" data-new-group={x.g}>
           <div className={head}>{dot(x.g)}{x.label}</div>
@@ -194,9 +190,9 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
         </section>
       ))}
       {starts.length > 0 && (
-        <section className="mt-4 border-t border-line-2 pt-4" data-new-group="start">
+        <section className="mt-4" data-new-group="start">
           <div className={head}>{dot('start')}Start something new</div>
-          <div className="grid grid-cols-4 gap-1.5 max-md:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+          <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
         </section>
       )}
     </Modal>

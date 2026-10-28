@@ -8,7 +8,7 @@ import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/com
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { FLOORS, uniqueArea, sortAreas, guessSurfaces } from '@/tileos/data/areas'
+import { FLOORS, uniqueArea, sortAreas, guessSurfaces, isOutside } from '@/tileos/data/areas'
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday, dow, dayShort } from '@/tileos/lib/today'
 import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, addCompanyArea, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
@@ -102,7 +102,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
   const [floor, setFloor] = React.useState('1st floor')
   const fl = floor || undefined
   const put = (list: PickedArea[]) => onChange(sortAreas(list, presets.map((p) => p.name)))
-  const add = (name: string, surfaces: string[]) => put([...areas, { name: uniqueArea(name, areas.map((a) => a.name)), floor: fl, surfaces }])
+  const add = (name: string, surfaces: string[]) => put([...areas, { name: uniqueArea(name, areas.map((a) => a.name)), floor: isOutside(name) ? 'Outside' : fl, surfaces }])
   const set = (a0: PickedArea, p: Partial<PickedArea>) => put(areas.map((a) => (a === a0 ? { ...a, ...p } : a)))
   const groups = Array.from(new Set(areas.map((a) => a.floor || ''))).map((f) => ({ floor: f, list: areas.filter((a) => (a.floor || '') === f) }))
   return (

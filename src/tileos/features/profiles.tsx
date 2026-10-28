@@ -14,7 +14,7 @@ import { PEOPLE, STAGE_LABEL, fmtMoney, type PersonKey, type Tone, type Job } fr
 import { CUSTOMERS, TILES, tileOf } from '@/tileos/data/jobs'
 import { allSubs } from '@/tileos/data/directory'
 import { curRev, revTotal, estAmount, type Estimate } from '@/tileos/data/estimates'
-import { estWord, estTone } from './estimates'
+import { estLabel as estLabelOf } from './estimates'
 import { dayLabel, timeLabel, CAL_TODAY } from '@/tileos/data/calendar'
 import { jobMoney } from './job/money-tab'
 import { crewFree } from './upcoming'
@@ -135,8 +135,7 @@ function OpenRow({ icon, title, sub, right, tone = 'neutral', onClick }: { icon:
     </button>
   )
 }
-/** where an estimate is — the same words as the estimate's path and the Estimates page */
-const estLabel = (_s: Store, e: Estimate) => ({ label: estWord(e), tone: estTone(e) })
+const estLabel = (_s: Store, e: Estimate) => estLabelOf(e)
 const estWhen = (e: Estimate) => (e.status === 'approved' ? `Approved ${e.approvedOn}` : e.status === 'sent' ? `Follow up ${e.followUp || 'Thu'}` : e.due ? `Due ${e.due}` : '')
 const EstList = ({ s, ests }: { s: Store; ests: Estimate[] }) => (
   <List

@@ -162,7 +162,7 @@ export const TASKS0: Task[] = [
   },
   {
     id: 't-est-b2', jobId: 'b2', title: 'Start the takeoff', type: 'Pricing', owner: 'office', for: ['office'],
-    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'Request · all documents in',
+    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'New request · all documents in',
     action: { label: 'Open estimate', kind: 'estimate:E-1047' }, log: [L('Sep 28', 'office', 'Request logged · all documents in')],
   },
   {

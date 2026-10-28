@@ -6,6 +6,7 @@ import { keepFiles } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Role } from '@/tileos/data/model'
 import { curRev, revTotal, teamOf, openNotes, bucketOf, EST_STEP, EST_TEAM0, type Estimate, type EstStep, type EstLine, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { AREA_PRESETS, SURFACES, customSurface, uniqueArea, sortAreas, type AreaPreset, type SurfaceDef } from '@/tileos/data/areas'
+import { QB_SURFACE_ITEMS } from '@/tileos/data/qbitems'
 import { estSend, newLine } from './flows2'
 import { isoFromLabel, md } from '@/tileos/lib/today'
 
@@ -323,10 +324,11 @@ const STEP_ROLE: Partial<Record<PersonKey, Role>> = { ys: 'owner', takeoff: 'tak
 export function linesForArea(s: Pick<Store, 'rules' | 'items'>, area: string, keys: string[]): EstLine[] {
   return keys.map((k) => {
     const d = surfaceOf(s, k)
-    const it = s.items.find((i) => i.id === d.itemId)
+    /* a surface added since the company's pick was saved (risers): its QuickBooks item, when that's on the list */
+    const it = s.items.find((i) => i.id === d.itemId) || s.items.find((i) => i.id === QB_SURFACE_ITEMS[k])
     const each = it?.unit === 'EA' || it?.unit === 'LS'
     /* an item that isn't on the list any more: the line stays, priced at $0 for the estimator */
-    return newLine(area, d.itemId, each ? 1 : 0, it?.price || 0, d.label)
+    return newLine(area, it?.id || d.itemId, each ? 1 : 0, it?.price || 0, d.label)
   })
 }
 

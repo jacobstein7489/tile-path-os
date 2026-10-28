@@ -11,6 +11,7 @@ import * as DM from '@radix-ui/react-dropdown-menu'
 import { cn } from '@/tileos/lib/utils'
 import { SearchField, Avatar } from './core'
 import type { Tone, PersonKey } from '@/tileos/data/model'
+import { scrollHere } from './overlay'
 
 /** side padding inside a card; rows line up with it */
 export const PX = 'px-5 max-sm:px-4'
@@ -193,7 +194,7 @@ export function Filter<T extends string>({
         </button>
       </DM.Trigger>
       <DM.Portal>
-        <DM.Content align="start" sideOffset={6} className="scroll-soft z-[300] max-h-[min(26.25rem,70vh)] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-pop animate-pop-in" style={{ width }}>
+        <DM.Content {...scrollHere} align="start" sideOffset={6} className="scroll-soft z-[300] max-h-[min(26.25rem,70vh)] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-pop animate-pop-in" style={{ width }}>
           {[{ key: 'all' as const, label: allLabel }, ...options].map((o) => (
             <DM.Item
               key={o.key}
@@ -427,7 +428,7 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
 export type Bubble = { key: string; label: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
-export function Bubbles({ items, arrows, wrap, dense }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** many bubbles (an estimate's whole path): a little narrower, so they fit on a laptop */ dense?: boolean }) {
+export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boolean; wrap?: boolean }) {
   return (
     <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5')} role="tablist">
       {items.map((b, i) => {
@@ -442,17 +443,14 @@ export function Bubbles({ items, arrows, wrap, dense }: { items: Bubble[]; arrow
               onClick={b.onClick}
               disabled={!b.onClick}
               className={cn(
-                'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
-                dense ? 'min-w-[8rem]' : 'min-w-[9.375rem]',
+                'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
                 b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              {dense ? <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: b.on ? 'rgba(255,255,255,.5)' : c.solid, opacity: b.on ? 1 : 0.7 }} aria-hidden /> : (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
-                  {b.icon}
-                </span>
-              )}
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+                {b.icon}
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">
                   <span className={cn('display-num text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>

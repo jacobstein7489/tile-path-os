@@ -16,6 +16,7 @@ import { KIND, PART_TINT } from './newpicker'
 import { insidePeople } from './steps-ui'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { isOff } from './active'
+import { scrollHere } from '@/tileos/components/ui/overlay'
 
 /** the top of the form: the kind's icon in its color, the project, and what it is */
 export function FormHead({ k, kicker, title, right }: { k: string; kicker?: React.ReactNode; title?: React.ReactNode; right?: React.ReactNode }) {
@@ -112,7 +113,7 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
         </label>
       </PO.Anchor>
       <PO.Portal>
-        <PO.Content align="start" sideOffset={6} collisionPadding={12} onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => { if (input.current?.contains(e.target as Node)) e.preventDefault() }}
+        <PO.Content {...scrollHere} align="start" sideOffset={6} collisionPadding={12} onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => { if (input.current?.contains(e.target as Node)) e.preventDefault() }}
           className="z-[320] w-[var(--radix-popover-trigger-width)] min-w-[18rem] overflow-hidden rounded-[0.75rem] border border-line bg-white p-1 shadow-pop outline-none animate-pop-in" role="listbox" aria-label="Projects">
           {!words.length && <div className="px-2.5 pb-1 pt-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.05em] text-faint">On the go — or type to find another</div>}
           {shown.map((j, i) => (
@@ -181,7 +182,7 @@ export function ClientField({ value, onChange, placeholder = 'Type the client or
         </label>
       </PO.Anchor>
       <PO.Portal>
-        <PO.Content align="start" sideOffset={6} collisionPadding={12} onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => { if (input.current?.contains(e.target as Node)) e.preventDefault() }}
+        <PO.Content {...scrollHere} align="start" sideOffset={6} collisionPadding={12} onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => { if (input.current?.contains(e.target as Node)) e.preventDefault() }}
           className="z-[320] w-[var(--radix-popover-trigger-width)] min-w-[16rem] overflow-hidden rounded-[0.75rem] border border-line bg-white p-1 shadow-pop outline-none animate-pop-in" role="listbox" aria-label="Clients">
           {opts.map((c, i) => (
             <button key={c.id + c.name} type="button" role="option" aria-selected={i === hi} onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(c)} className={cn('flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left', i === hi ? 'bg-wash-2' : '')}>

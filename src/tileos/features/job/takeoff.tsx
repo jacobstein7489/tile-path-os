@@ -1,10 +1,11 @@
-/* What a project needs, worked out from the scope — checked against what's ordered and on site. Both on the same
- * columns: what · we need · ordered · here · where it's at.
- *   Tile: each tile on the project — what our takeoff needs (with the extra for cuts), what the GC (or we) ordered
- *   Setting materials: what goes under and around the tile — from the square feet and how each wall and floor is set
- * Tap a material to see exactly how it was worked out. */
+/* What has to come to the job, checked against what's ordered and what's here. Both on the same columns:
+ * what · we need · ordered · here · where it's at.
+ *   Tile: every tile — its picture, its grout, where it goes, who orders it; what our takeoff needs (with the extra for
+ *     cuts) and what's ordered and here. A search box on top.
+ *   Our materials: what we buy for the job — thinset, grout, boards, membranes, metal edges — from the square feet and
+ *     what each wall and floor is set on. Tap one to see how it was worked out. */
 import * as React from 'react'
-import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search } from 'lucide-react'
 import { logTileOrder } from '../flows2'
 import { useStore } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -13,7 +14,7 @@ import { SearchSelect } from '@/tileos/components/ui/select'
 import { ItemThumb } from '../items'
 import { addMat, setMatQty, removeMat, restoreMat } from '../matedit'
 import { Status } from '@/tileos/components/ui/page'
-import { TileImg } from '@/tileos/components/ui/swatch'
+import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { needWithWaste } from '@/tileos/data/work'
 import { tilesOf, tileOf, GROUTS } from '@/tileos/data/jobs'
@@ -45,11 +46,24 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const checks = s.checks.filter((c) => c.jobId === job.id)
-  const tags = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
+  const all = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
+  const [q, setQ] = React.useState('')
+  const whereOf = (tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === tag).map((x) => `${r.name} ${x.name.toLowerCase()}`))
+  const ws = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const tags = ws.length ? all.filter((tag) => { const t = tileOf(job.id, tag); const hay = [tag, t?.name, t?.size, t?.supplier, t?.grout && GROUTS[t.grout]?.name, ...whereOf(tag)].filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => hay.includes(w)) }) : all
   return (
-    <Section title="Tile" count={tags.length} right={tags.length ? 'We need includes the extra for cuts' : undefined}>
+    <Section
+      title="Tile"
+      count={all.length}
+      action={all.length > 2 ? (
+        <label className="relative block w-[15rem] max-sm:w-[10rem]">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
+        </label>
+      ) : undefined}
+    >
       <div>
-        {tags.length > 0 && <Heads first="Tile" />}
+        {all.length > 0 && <Heads first="Tile — its grout, where it goes" />}
         {tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
@@ -67,12 +81,16 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             : short && !simple ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
-            <div key={tag} className={cn(QGRID, 'min-h-[3rem] border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4')}>
+            <div key={tag} data-tile={tag} className={cn(QGRID, 'min-h-[3.25rem] border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4')}>
               <span className="flex min-w-0 items-center gap-3">
-                <TileImg tile={t} size={32} radius={7} />
-                <span className="min-w-0">
+                <TileImg tile={t} size={36} radius={8} />
+                <span className="min-w-0 leading-tight">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink"><span className="tnum">{tag}</span> · {t?.name || 'Tile'}{t?.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}</span>
-                  <span className="block truncate text-[0.78125rem] text-muted">{c ? `${c.where} · ${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}` : uses.length ? `${uses.length} wall${uses.length === 1 ? '' : 's'} and floors · ${who === 'We' ? 'we order it' : `the ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}` : 'Not on a wall or floor yet'}</span>
+                  <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.75rem] text-ink-2">
+                    {t?.grout ? <><GroutDot grout={t.grout} /><span className="shrink-0">{GROUTS[t.grout]?.name || t.grout}</span><span className="text-faint">·</span></> : null}
+                    <span className={cn('min-w-0 truncate', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
+                  </span>
+                  <span className="mt-0.5 block truncate text-[0.71875rem] text-faint">{c ? `${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}` : `${who === 'We' ? 'We order it' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}`}</span>
                 </span>
               </span>
               <span className="text-right max-sm:hidden">
@@ -88,12 +106,14 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             </div>
           )
         })}
-        {!tags.length && (
+        {!all.length && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
             <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered.</span>
             <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         )}
+        {all.length > 0 && !tags.length && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No tile matches “{q}”.</div>}
+        {all.length > 0 && <div className="border-t border-line-2 px-5 py-2 text-[0.75rem] text-faint max-sm:px-4">We need includes the extra for cuts.</div>}
       </div>
     </Section>
   )
@@ -112,9 +132,9 @@ export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onSc
   const shownCount = t.lines.length
   return (
     <Section
-      title="Setting materials"
+      title="Our materials"
       count={t.counted || shownCount ? shownCount : undefined}
-      right={t.counted ? <span className="max-md:hidden">From {t.counted} walls and floors · {t.sf.toLocaleString('en-US')} SF{save.mode === 'sample' ? ' · sample' : ''}</span> : undefined}
+      sub={<>What we buy for the job — thinset, grout, boards and membranes, metal edges. Worked out from {t.counted ? `${t.counted} walls and floors (${t.sf.toLocaleString('en-US')} SF)` : 'the square feet'} and what each one is set on{save.mode === 'sample' ? ' · sample amounts' : ''}.</>}
       action={simple ? undefined : <>
         {canEdit && <AddMaterial jobId={job.id} />}
         {miss.length > 0

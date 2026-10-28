@@ -25,6 +25,7 @@ import { installerOf } from '../upcoming'
 import { Circle } from '@/tileos/components/ui/page'
 import { roomsOf, ROOM_WORD, STEP_SHORT, type RoomView, type RoomCheck, type ChipTone } from '../tracks'
 import { roomMedia } from '../field'
+import { poRatio } from '../poratio'
 import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
 import { PrintScopeButton } from './scopedoc'
@@ -44,14 +45,14 @@ function Part({ title, sub, right, children, id }: { title: string; sub?: React.
 }
 const LINK = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50'
 
-export type JobTab = 'scope' | 'tiles' | 'people' | 'files'
+export type JobTab = 'scope' | 'people' | 'files'
 /** the job, one section at a time — no long scroll: Scope of work · Tiles · People · Documents */
 /** one part of the job, full width under the project's tabs: the scope of work (every room and its walls and floors),
  *  the tiles, the people, the documents */
 export function JobPart({ job, open, tab, onStep }: { job: Job; open: (v: BoardView) => void; tab: JobTab; /** something still open: the step on its track that gets it */ onStep?: (k: string) => void }) {
   return (
     <div data-details data-job-tab={tab} className="@container min-w-0">
-      {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} open={open} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
+      {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'people' ? <PeoplePart job={job} open={open} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
     </div>
   )
 }
@@ -212,77 +213,6 @@ function ChangeOrders({ job }: { job: Job }) {
   )
 }
 
-/* ---------------- Tiles: one list, with a search box — what's missing opens its step ---------------- */
-/** picture · the tile and where it goes · grout and joint · how much (paperwork against what we need) · on site */
-const TILE_COLS = 'grid grid-cols-[2.75rem_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(0,1fr)] items-center gap-4'
-function TilesPart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) {
-  const s = useStore()
-  const [q, setQ] = React.useState('')
-  const tiles = Object.values(s.tiles[job.id] || {}).sort(byTag)
-  const flat = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.map((x) => ({ room: r.name, x })))
-  const whereOf = (t: Tile) => flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)
-  const used = tiles.filter((t) => whereOf(t).length)
-  const all = used.length ? [...used, ...tiles.filter((t) => !used.includes(t))] : tiles
-  const find = q.trim().toLowerCase()
-  const list = find ? all.filter((t) => `${t.tag} ${t.name} ${t.size || ''} ${t.grout ? GROUTS[t.grout]?.name || t.grout : ''} ${t.supplier || ''} ${whereOf(t).join(' ')}`.toLowerCase().includes(find)) : all
-  return (
-    <section data-detail="tiles" className="px-5 pb-8 pt-4 max-sm:px-3">
-      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <h3 className="text-[1rem] font-semibold text-ink">Tiles <span className="ml-1 text-[0.875rem] font-medium tnum text-faint">{tiles.length}</span></h3>
-        <span className="min-w-0 truncate text-[0.8125rem] text-muted max-sm:hidden">where each one goes, its grout, how much — and whether it’s here</span>
-        {tiles.length > 0 && (
-          <label className="relative ml-auto block w-[17rem] max-sm:w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-9 pr-3 text-[0.84375rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
-          </label>
-        )}
-      </header>
-      {!tiles.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
-      {tiles.length > 0 && (
-        <div data-tile-list className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-          <div className={cn(TILE_COLS, 'border-b border-line-2 bg-wash px-5 py-2 text-[0.75rem] font-semibold text-muted max-md:hidden')}>
-            <span />
-            <span>Tile · where it goes</span>
-            <span>Grout</span>
-            <span>How much</span>
-            <span>On site</span>
-          </div>
-          {list.map((t) => <TileRow key={t.tag} job={job} t={t} where={whereOf(t)} onStep={onStep} />)}
-          {!list.length && <div className="px-5 py-4 text-[0.84375rem] text-muted">No tile matches “{q}”.</div>}
-        </div>
-      )}
-    </section>
-  )
-}
-function TileRow({ job, t, where, onStep }: { job: Job; t: Tile; where: string[]; onStep?: (k: string) => void }) {
-  const s = useStore()
-  const g = t.grout ? GROUTS[t.grout] : undefined
-  const pic = !!(t.photo || t.swatch)
-  const pick = () => onStep?.('tile')
-  const q = paperQty(s, job.id, t)
-  const c = s.checks.find((x) => x.jobId === job.id && x.tag === t.tag)
-  const unit = q.unit === 'boxes' ? 'boxes' : 'SF'
-  const qty = q.have != null
-    ? <><b className="font-semibold text-ink">{q.have.toLocaleString('en-US')} {unit}</b> on the paperwork{q.need != null ? <span className="text-muted"> · need {q.need.toLocaleString('en-US')}</span> : null}{q.short > 0 ? <b className="block font-semibold text-bad-600">{q.short.toLocaleString('en-US')} short</b> : null}</>
-    : q.need != null ? <>Need <b className="font-semibold text-ink">{q.need.toLocaleString('en-US')} {unit}</b><span className="block text-warn-700">not on the paperwork yet</span></> : <span className="text-faint">—</span>
-  const here = c ? (c.received >= c.ordered ? { t: `On site · ${c.received} ${c.unit}`, c: 'font-medium text-[#2c8a5b]' } : c.received > 0 ? { t: `Short · ${c.received} of ${c.ordered} ${c.unit}`, c: 'font-semibold text-bad-600' } : { t: c.eta ? `Coming ${c.eta.replace(/^\w+,\s*/, '')}` : 'Ordered · no date yet', c: 'text-warn-700' }) : { t: 'Not ordered yet', c: 'text-muted' }
-  return (
-    <div data-tile={t.tag} className={cn(TILE_COLS, 'border-t border-line-2 px-5 py-2.5 text-[0.8125rem] first:border-t-0 max-md:grid-cols-[2.75rem_minmax(0,1fr)] max-md:gap-x-3 max-md:gap-y-1 max-sm:px-3')}>
-      {pic ? <TileImg tile={t} size={44} radius={9} /> : <button onClick={pick} aria-label={`Picture of ${t.tag}`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.5625rem] border border-dashed border-[#c9ced6] text-faint hover:border-brand-300 hover:text-brand-600 max-md:row-span-3"><Camera className="h-5 w-5" /></button>}
-      <span className="min-w-0 leading-snug">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.tag} {t.name}<span className="font-normal text-muted">{t.size ? ` · ${t.size}` : ''}</span></span>
-        <span className={cn('block truncate text-[0.75rem]', where.length ? 'text-ink-2' : 'text-warn-700')}>{where.length ? where.join(', ') : 'Not on a wall or floor yet'}</span>
-      </span>
-      <span className="min-w-0 leading-snug max-md:col-start-2">
-        {g ? <span className="inline-flex max-w-full items-center gap-1.5 font-medium text-ink-2"><GroutDot grout={t.grout} /><span className="truncate">{g.name}</span></span> : <button onClick={pick} className="font-semibold text-warn-700 hover:underline">No grout yet</button>}
-        {t.joint && <span className="block text-[0.75rem] text-muted">{t.joint} joint</span>}
-      </span>
-      <span className="min-w-0 leading-snug text-ink-2 max-md:col-start-2" data-tile-qty>{qty}</span>
-      <span className={cn('min-w-0 truncate max-md:col-start-2', here.c)} data-tile-here>{here.t}</span>
-    </div>
-  )
-}
-
 /* ---------------- People: everyone on the job, to reach out to ---------------- */
 type Reachable = { phone?: string; email?: string; more?: Reach[] }
 const telHref = (v: string) => `tel:${v.replace(/ext.*$/i, '').replace(/[^\d+]/g, '')}`
@@ -317,6 +247,22 @@ function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone }:
       </span>
       <ReachButtons r={r} who={name} onMessage={onMessage} />
     </div>
+  )
+}
+/** the installer's PO, under his name — where it is, what it comes to against our estimate (for whoever sees money),
+ *  his days; tap it to open the PO, or send one when there's none yet */
+function InstallerPO({ job }: { job: Job }) {
+  const s = useStore()
+  const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
+  const money = !['site', 'crew', 'client'].includes(s.role)
+  const b = s.bookings.find((x) => x.jobId === job.id && x.label !== 'Return visit')
+  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="text-left font-medium text-warn-700 hover:underline">No PO yet — send his PO</button>
+  const r = poRatio(s, ipo)
+  const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'sent — waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'draft — not sent'
+  return (
+    <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} data-installer-po={ipo.id} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700">
+      <b className="font-semibold">His PO {ipo.id}</b> · {word}{money && r.total ? <> · {fmtMoney(r.total)}{r.sold ? <span className={r.over ? 'font-semibold text-bad-600' : 'text-muted'}> ({r.pct}% of our estimate)</span> : null}</> : null}{b ? <span className="text-muted"> · {labelFromIso(b.start)} – {labelFromIso(b.end)}</span> : null}
+    </button>
   )
 }
 const initialsOf = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
@@ -357,7 +303,7 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
           ? <Contact initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? <span className="text-muted">{designer.contact}</span> : undefined} onName={() => s.open({ t: 'designer', id: designer.id })} />
           : <div className="border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-muted first:border-t-0 max-sm:px-3">No designer on file for this client.</div>}
         {crew
-          ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<span className="text-muted">{ipo ? `${ipo.id} · ${ipo.status === 'Accepted' ? 'accepted' : ipo.status.toLowerCase()}` : 'No PO yet'}</span>} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />
+          ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<InstallerPO job={job} />} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />
           : <div className="border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-warn-700 max-sm:px-3">No installer picked yet.</div>}
         {stores.length > 0 && <div className="border-t border-line-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">Suppliers</div>}
         {stores.map((x) => <Contact key={x.name} initials={initialsOf(x.name)} tone="bg-[#f6ecdc] text-[#7a4a0c]" name={x.name} role="Supplier" r={x.info || {}} sub={x.info?.supplies ? <span className="text-muted">{x.info.supplies}</span> : undefined} />)}

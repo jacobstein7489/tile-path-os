@@ -1,7 +1,9 @@
-/* Projects — won work only (estimates live in Estimates). This is the game plan, as a list:
- * every project with where it stands — for the ones getting ready, its checklist (what's done, what's open,
- * who has each open step); for the ones being installed, how far along and what's holding anything up.
- * Filters on top; the default shows everything that isn't finished. */
+/* Projects — won work only (estimates live in Estimates). Plain rows, the same shape as Estimates:
+ *   Project · Where it stands · Who has it · Dates · Contract
+ * Where it stands: getting ready as five small circles (one for each part — done, going, a problem) and how many are
+ * done, with a problem under it in red only when there is one; installing, how far it is; touch-ups, how many are
+ * open. Who has it: the one person the project waits on now and what they do next — the initials in a circle, like
+ * everywhere else. No status column: the group it's under already says it. */
 import * as React from 'react'
 import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
@@ -12,8 +14,9 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
-import { stepsFor, isGettingReady, companySteps } from './steps'
-import { tracksFor, phaseOf, bookingOf, type TrackView } from './tracks'
+import { stepsFor, isGettingReady, companySteps, type StepView } from './steps'
+import { tracksFor, phaseOf, bookingOf, stepShort, type TrackView } from './tracks'
+import { stepWords } from './steps-ui'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
@@ -129,100 +132,83 @@ export function ProjectsPage() {
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
-/* Project · Where it stands · Installer · Dates · Contract — no status column: the group it's under already says it */
-const COLS = 'grid grid-cols-[minmax(0,1.15fr)_8.75rem_minmax(0,1.5fr)_8rem_7.5rem_9.375rem] items-center gap-6 max-2xl:grid-cols-[minmax(0,1.1fr)_8.75rem_minmax(0,1.5fr)_8rem_7.5rem] max-xl:grid-cols-[minmax(0,1fr)_8.25rem_minmax(0,1.4fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
+/* Project · Where it stands · Who has it · Dates · Contract */
+const COLS = 'grid grid-cols-[minmax(0,1.05fr)_minmax(0,1.25fr)_minmax(0,1.25fr)_8.5rem_8rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
 
 function ListHead() {
   return (
     <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX, STICKY_HEAD)}>
       <span>Project</span>
-      <span className="max-lg:hidden">Status</span>
       <span>Where it stands</span>
-      <span className="max-xl:hidden">Installer</span>
-      <span className="max-lg:hidden">Dates</span>
-      <span className="max-2xl:hidden">Contract · billed</span>
+      <span>Who has it</span>
+      <span>Dates</span>
+      <span className="text-right max-xl:hidden">Contract</span>
     </div>
   )
 }
 
-/** what we billed so far, as a slim bar under the contract */
+/** the contract and how much of it is billed — two plain lines */
 function MoneyCell({ j }: { j: Job }) {
   const b = billingOf(j)
   const contract = (b.contract || j.contract || 0) + (b.changes || 0)
-  if (!contract) return <span className="text-[0.8125rem] text-faint">—</span>
+  if (!contract) return <span className="block text-right text-[0.8125rem] text-faint">—</span>
   return (
-    <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[0.84375rem] font-semibold tnum text-ink">{fmtMoney(contract)}</span>
-        <span className="text-[0.75rem] font-medium tnum text-muted">{b.billedPct || 0}%</span>
-      </div>
-      <div className="mt-1.5 flex h-1 overflow-hidden rounded-full bg-wash-2">
-        <span className="h-full bg-ok-500" style={{ width: `${b.paidPct || 0}%` }} />
-        <span className="h-full bg-brand-300" style={{ width: `${Math.max(0, (b.billedPct || 0) - (b.paidPct || 0))}%` }} />
-      </div>
+    <div className="min-w-0 text-right leading-tight">
+      <span className="block text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(contract)}</span>
+      <span className="mt-0.5 block text-[0.75rem] tnum text-muted">{b.billedPct ? `${b.billedPct}% billed` : 'Nothing billed yet'}</span>
     </div>
   )
 }
 
-/** one slim bar and a few words — the same shape for every kind of project */
-function Progress({ pct, tone, label, sub, subTone }: { pct: number; tone: 'brand' | 'ok' | 'warn'; label: React.ReactNode; sub?: React.ReactNode; subTone?: 'bad' | 'warn' }) {
-  const bar = tone === 'ok' ? 'bg-ok-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-brand-500'
+/** one part of getting ready, as a small circle: ✓ done · a ring that fills as its steps get done · ! a problem */
+function PartDot({ t }: { t: TrackView }) {
+  if (t.state === 'done') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
+  if (t.state === 'bad') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
+  const r = 6, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
   return (
-    <div className="min-w-0">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="h-1.5 w-[5.5rem] shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', bar)} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>
-        <span className="truncate text-[0.8125rem] font-medium tnum text-ink-2">{label}</span>
-      </div>
-      {sub && <div className={cn('mt-0.5 truncate pl-[6.125rem] text-[0.78125rem] max-md:pl-0', subTone === 'bad' ? 'font-medium text-bad-600' : subTone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{sub}</div>}
-    </div>
-  )
-}
-/** getting ready's five parts, by name — a green check when one is done, red with a problem, amber waiting, an open
- *  ring still to do: the same parts, in the same order, as on the project */
-/** each part of getting ready as a small ring that fills as its steps get done — a ✓ when they all are, a red ! for a
- *  problem — with its name and how many of its steps are done ("Design 1/5") */
-function PartRing({ t }: { t: TrackView }) {
-  if (t.state === 'done') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
-  if (t.state === 'bad') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
-  const r = 5.5, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0 -rotate-90">
-      <circle cx="7" cy="7" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2" />
-      {f > 0 && <circle cx="7" cy="7" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 -rotate-90">
+      <circle cx="8" cy="8" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2.2" />
+      {f > 0 && <circle cx="8" cy="8" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2.2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
     </svg>
   )
 }
-function TrackMarks({ tracks }: { tracks: TrackView[] }) {
+/** one slim bar and a few words — installing and touch-ups */
+function Progress({ pct, tone, label, sub, subTone }: { pct: number; tone: 'brand' | 'ok' | 'warn'; label: React.ReactNode; sub?: React.ReactNode; subTone?: 'bad' | 'warn' }) {
+  const bar = tone === 'ok' ? 'bg-ok-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-brand-500'
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-      {tracks.map((t) => (
-        <span key={t.key} data-mark={t.key} data-at={t.state} title={`${t.label} — ${t.state === 'done' ? 'all done' : t.state === 'bad' ? 'a problem' : `${t.done} of ${t.total} done${t.state === 'wait' ? ' · waiting' : ''}`}${t.lead && t.state !== 'done' ? ` · next: ${t.lead.short}` : ''}`} className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[0.78125rem]', t.state === 'done' ? 'text-ink-2' : t.state === 'bad' ? 'font-semibold text-bad-600' : 'text-ink-2')}>
-          <PartRing t={t} />
-          <span data-mark-name>{t.label}</span>
-          {t.state !== 'done' && <span className="tnum text-[0.71875rem] text-faint" data-mark-count>{t.done}/{t.total}</span>}
-        </span>
-      ))}
-    </span>
+    <div className="min-w-0 leading-tight">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', bar)} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>
+        <span className="truncate text-[0.8125rem] font-medium tnum text-ink">{label}</span>
+      </div>
+      {sub && <div className={cn('mt-1 truncate text-[0.75rem]', subTone === 'bad' ? 'font-semibold text-bad-600' : subTone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{sub}</div>}
+    </div>
   )
 }
 
-/** where it stands, in one cell — the checklist while it's getting ready, the work once crews are on it */
+/** where it stands, in one cell */
 function StandsCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   if (t === 'coming') {
-    /* the same as the project's own line: getting ready's tracks done, of how many — and the first problem */
     const tracks = tracksFor(s, j)
-    const done = tracks.filter((t) => t.state === 'done').length
-    const bad = tracks.filter((t) => t.state === 'bad')
+    const done = tracks.filter((x) => x.state === 'done').length
+    const bad = tracks.filter((x) => x.state === 'bad')
     const first = bad[0]?.lead
-    const sub = first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined
+    const problem = first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined
     return (
-      <div className="min-w-0" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} done`}>
-        {done === tracks.length
-          ? <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[#2c8a5b]"><span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>Getting ready — all done</span>
-          : <TrackMarks tracks={tracks} />}
-        {sub && <div className="mt-0.5 truncate text-[0.78125rem] font-medium text-bad-600">{sub}</div>}
+      <div className="min-w-0 leading-tight" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} done`}>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex shrink-0 items-center gap-1">
+            {tracks.map((x) => (
+              <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className="inline-flex">
+                <PartDot t={x} /><span className="sr-only" data-mark-name>{x.label}</span><span className="sr-only" data-mark-count>{x.done}/{x.total}</span>
+              </span>
+            ))}
+          </span>
+          <span className={cn('truncate text-[0.8125rem] font-medium', done === tracks.length ? 'text-[#2c8a5b]' : 'text-ink')}>{done === tracks.length ? 'All ready for the crew' : `${done} of ${tracks.length} parts ready`}</span>
+        </div>
+        {problem && <div className="mt-1 truncate text-[0.75rem] font-semibold text-bad-600">{problem}</div>}
       </div>
     )
   }
@@ -236,15 +222,14 @@ function StandsCell({ j }: { j: Job }) {
   if (t === 'touchups' || t === 'repairs') {
     const all = s.punch.filter((p) => p.jobId === j.id)
     const open = all.filter((p) => p.status !== 'verified')
-    const booking = s.bookings.find((b) => b.jobId === j.id && b.end >= TODAY)
     const hold = s.ready.find((r) => r.jobId === j.id && r.kind === 'hold')
     return (
       <Progress
         pct={all.length ? ((all.length - open.length) / all.length) * 100 : 100}
         tone="warn"
-        label={open.length ? `${open.length} touch-up${open.length > 1 ? 's' : ''} open` : t === 'repairs' ? j.scope || 'Repair' : 'All touch-ups verified'}
-        sub={hold ? `Return on hold — ${hold.warn?.toLowerCase()}` : booking ? `${PEOPLE[booking.crew as PersonKey]?.short} back ${md(booking.start)}` : 'Return visit not booked'}
-        subTone={hold ? 'bad' : undefined}
+        label={open.length ? `${open.length} touch-up${open.length > 1 ? 's' : ''} open` : t === 'repairs' ? j.scope || 'Repair' : 'All touch-ups checked'}
+        sub={hold ? `Return on hold — ${hold.warn?.toLowerCase()}` : undefined}
+        subTone="bad"
       />
     )
   }
@@ -252,20 +237,58 @@ function StandsCell({ j }: { j: Job }) {
   return <span className="text-[0.8125rem] text-muted">{b.billedPct >= 100 ? 'Billed in full' : `${b.billedPct || 0}% billed`}{j.stageDates?.closeout ? ` · closed ${j.stageDates.closeout}` : ''}</span>
 }
 
+/** who the project waits on now, and what they do — while getting ready the most pressing open step (a problem, then
+ *  what's late, then what's due first); once the crew is on it, the installer */
+function WhoCell({ j, crew }: { j: Job; crew?: PersonKey }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const t = typeOf(j)
+  const person = (p: PersonKey | undefined, top: React.ReactNode, sub?: React.ReactNode, subCls?: string) => (
+    <span className="flex min-w-0 items-center gap-2.5" data-who>
+      {p && PEOPLE[p] ? <Avatar who={p} size={28} /> : <span className="inline-flex h-7 w-7 shrink-0 rounded-full border border-dashed border-[#d6cfc3]" />}
+      <span className="min-w-0 leading-tight">
+        <span className={cn('block truncate text-[0.84375rem]', p === me ? 'font-semibold text-ink' : 'font-medium text-ink')}>{top}</span>
+        {sub && <span className={cn('mt-0.5 block truncate text-[0.75rem]', subCls || 'text-muted')}>{sub}</span>}
+      </span>
+    </span>
+  )
+  const name = (p?: PersonKey) => (!p ? '' : p === me ? 'You' : PEOPLE[p]?.short || PEOPLE[p]?.name || '')
+  if (t === 'coming') {
+    const steps = stepsFor(s, j)
+    const open = steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
+    const rank = (v: StepView) => (v.state === 'bad' ? 0 : v.state === 'now' && v.due && v.due < TODAY ? 1 : v.state === 'now' ? 2 : 3)
+    const v = [...open].sort((a, b) => rank(a) - rank(b) || (a.due || '9999').localeCompare(b.due || '9999'))[0]
+    if (!v) {
+      if (phaseOf(s, j) === 'crew') return person(undefined, <span className="text-ink-2">Schedule the crew</span>, 'All five parts are ready', 'font-medium text-[#2c8a5b]')
+      return <span className="text-[0.8125rem] text-muted">Waiting for the next step</span>
+    }
+    const w = stepWords(s, j, v, me)
+    return person(v.owner, name(v.owner), <>{stepShort(s, j, v)} · <span className={w.tone}>{w.text.replace(/^Your turn · /, '').replace(/^Your turn$/, 'your turn')}</span></>)
+  }
+  if (t === 'progress') return crew ? person(crew, name(crew), 'Installing') : <span className="text-[0.8125rem] text-faint">No installer</span>
+  if (t === 'touchups' || t === 'repairs') {
+    const booking = s.bookings.find((b) => b.jobId === j.id && b.end >= TODAY)
+    const back = booking?.crew as PersonKey | undefined
+    return back ? person(back, name(back), `Back ${md(booking!.start)}`) : person(undefined, <span className="font-medium text-warn-700">Return visit not booked</span>)
+  }
+  if (t === 'hold') return person(undefined, <span className="text-ink-2">On hold</span>, j.hold?.shortage ? 'Waiting for the tile' : undefined)
+  return <span className="text-[0.8125rem] text-faint">—</span>
+}
+
 function DatesCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   const iso = s.prep[j.id]?.targetISO
   if (t === 'coming') {
-    /* the day's come: say the site's ready only if the site check says so — otherwise it's late, in red */
-    const siteBad = !!iso && iso <= TODAY && stepsFor(s, j).some((x) => x.key === 'heights' && x.state === 'bad')
-    return <span className="text-[0.8125rem] text-muted">{iso ? (iso <= TODAY ? (siteBad ? <span className="font-semibold text-bad-600">Late · was {md(iso)}</span> : <span className="font-medium text-ok-700">Site ready</span>) : <>Start <span className="font-medium text-ink-2">{md(iso)}</span></>) : 'Start to set'}</span>
+    const b = bookingOf(s, j)
+    if (b) return <span className="block text-[0.8125rem] leading-tight text-muted">Starts <span className="font-medium text-ink-2">{md(b.start)}</span></span>
+    return <span className="block text-[0.8125rem] leading-tight text-muted">{iso ? (iso < TODAY ? <span className="font-medium text-warn-700">Was to start {md(iso)}</span> : <>Start <span className="font-medium text-ink-2">{md(iso)}</span></>) : 'Start not set'}</span>
   }
   const start = j.dates?.start || s.prep[j.id]?.started
   return (
     <span className="block min-w-0 text-[0.8125rem] leading-tight text-muted">
       {start && <span className="block truncate">Started {start}</span>}
-      {j.dates?.finish && t !== 'done' && <span className="block truncate">Finish <span className="font-medium text-ink-2">{j.dates.finish}</span></span>}
+      {j.dates?.finish && t !== 'done' && <span className="mt-0.5 block truncate">Finish <span className="font-medium text-ink-2">{j.dates.finish}</span></span>}
       {!start && !j.dates?.finish && '—'}
     </span>
   )
@@ -273,33 +296,23 @@ function DatesCell({ j }: { j: Job }) {
 
 function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
-  const t = typeOf(j)
-  /* getting ready until all its tracks are done; then ready for the crew; then the crew is scheduled */
-  const ph = t === 'coming' ? phaseOf(s, j) : null
-  const booked = t === 'coming' && (j.stage === 'scheduled' || !!bookingOf(s, j))
-  const status = j.hold ? 'On hold' : t === 'coming' ? (ph === 'ready' ? 'Getting ready' : booked ? 'Crew scheduled' : 'Ready for the crew') : STAGE_LABEL[j.stage]
-  const tone = j.hold ? 'bad' : t === 'coming' ? (ph === 'ready' ? 'vio' : 'info') : TYPE_TONE[t]
   return (
     <div
       role="button"
       tabIndex={0}
+      data-project={j.id}
       onClick={() => s.open({ t: 'job', id: j.id })}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) s.open({ t: 'job', id: j.id }) }}
-      className={cn('min-h-[3.5rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] max-md:gap-1.5', COLS, PX)}
+      className={cn('min-h-[3.75rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] max-md:gap-1.5', COLS, PX)}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-[0.875rem] font-semibold text-ink">{j.name}{j.kind === 'repair' && <span className="ml-2 align-[0.0625rem] text-[0.75rem] font-semibold text-[#b83a5e]">Repair</span>}</div>
-          <div className="truncate text-[0.78125rem] text-muted">{j.client}</div>
-        </div>
+      <div className="min-w-0 leading-tight">
+        <div className="truncate text-[0.9375rem] font-semibold text-ink">{j.name}{j.kind === 'repair' && <span className="ml-2 align-[0.0625rem] text-[0.75rem] font-semibold text-[#b83a5e]">Repair</span>}</div>
+        <div className="mt-0.5 truncate text-[0.78125rem] text-muted">{j.client}</div>
       </div>
-      <div className="min-w-0 max-lg:hidden"><Status tone={tone}>{status}</Status></div>
       <div className="min-w-0"><StandsCell j={j} /></div>
-      <div className="min-w-0 max-xl:hidden">
-        {crew ? <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] font-medium text-ink-2"><Avatar who={crew} size={24} /><span className="truncate">{PEOPLE[crew].short}</span></span> : <span className="text-[0.8125rem] text-faint">{t === 'done' ? '—' : 'Not booked'}</span>}
-      </div>
+      <div className="min-w-0 max-lg:hidden"><WhoCell j={j} crew={crew} /></div>
       <div className="min-w-0 max-lg:hidden"><DatesCell j={j} /></div>
-      <div className="min-w-0 max-2xl:hidden"><MoneyCell j={j} /></div>
+      <div className="min-w-0 max-xl:hidden"><MoneyCell j={j} /></div>
     </div>
   )
 }

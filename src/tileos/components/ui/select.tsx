@@ -2,6 +2,7 @@
  * clients, items) instead of a wall of options. */
 import * as React from 'react'
 import * as PO from '@radix-ui/react-popover'
+import { scrollHere } from './overlay'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 
@@ -67,6 +68,7 @@ export function SearchSelect({
       </PO.Trigger>
       <PO.Portal>
         <PO.Content
+          {...scrollHere}
           align="start"
           sideOffset={6}
           collisionPadding={12}
@@ -162,7 +164,7 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
         </button>
       </PO.Trigger>
       <PO.Portal>
-        <PO.Content align="start" sideOffset={6} collisionPadding={12} className="z-[320] overflow-hidden rounded-[0.75rem] border border-line bg-white shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }} onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; (el.querySelector('input') || el.querySelector<HTMLElement>('button'))?.focus() }}>
+        <PO.Content {...scrollHere} align="start" sideOffset={6} collisionPadding={12} className="z-[320] overflow-hidden rounded-[0.75rem] border border-line bg-white shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }} onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; (el.querySelector('input') || el.querySelector<HTMLElement>('button'))?.focus() }}>
           {searchable && (
             <label className="flex h-11 items-center gap-2.5 border-b border-line-2 px-3">
               <Search className="h-4 w-4 shrink-0 text-faint" />

@@ -7,6 +7,7 @@ import * as PO from '@radix-ui/react-popover'
 import { X, ChevronDown } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 import { Mic, canListen, addSaid } from './mic'
+import { scrollHere } from './overlay'
 
 export function SuggestInput({
   value, onChange, onPick, onEnter, suggestions, label, placeholder, listLabel = 'The usual ones', max = 6, className, autoFocus = true,
@@ -83,6 +84,7 @@ export function SuggestInput({
       </PO.Anchor>
       <PO.Portal>
         <PO.Content
+          {...scrollHere}
           role="presentation"
           align="start"
           side="bottom"

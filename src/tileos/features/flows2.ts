@@ -300,7 +300,7 @@ export function setIPOLines(ipoId: string, lines: IPOLine[], o: { revise?: boole
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised — revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
   }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. He accepts it again from his phone.` } : undefined)
 }
-export function answerIPO(ipoId: string, ok: boolean, reason?: string) {
+export function answerIPO(ipoId: string, ok: boolean, reason?: string, o: { fromCrew?: boolean } = {}) {
   const p0 = S().ipos.find((p) => p.id === ipoId)
   if (!p0) return
   S().commit((s) => {
@@ -313,7 +313,7 @@ export function answerIPO(ipoId: string, ok: boolean, reason?: string) {
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'ipo:' + ipoId || t.action?.kind === 'ipoaccept:' + ipoId).map((t) => t.id), ok ? 'Accepted' : 'Rejected')
     if (!ok) newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} turned down ${s.jobs[p.jobId]?.name} — pick another installer`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: reason || p.id, action: { label: 'Open game plan', kind: 'upcoming' } })
     addHist(s, p.jobId, { who: p.crew, kind: 'schedule', title: `${PEOPLE[p.crew].name} ${ok ? 'accepted' : 'turned down'} ${p.id}`, detail: reason, ref: { t: 'ipo', id: p.id } })
-  }, ok ? `${PEOPLE[p0.crew].name} accepted ${p0.id}` : `${PEOPLE[p0.crew].name} turned it down`, ok ? { close: true, sub: 'Next: put him on the calendar from the Schedule.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'Accepted', state: 'done' }, { label: 'On the calendar', state: 'now' }] } : { close: true, sub: 'Pick another installer — it’s on your Today.' })
+  }, o.fromCrew ? (ok ? `You said yes to ${p0.id}` : `You turned down ${p0.id}`) : ok ? `${PEOPLE[p0.crew].name} accepted ${p0.id}` : `${PEOPLE[p0.crew].name} turned it down`, o.fromCrew ? { close: true, sub: ok ? 'The office books your days once it’s ready — they show here.' : 'The office knows.' } : ok ? { close: true, sub: 'Next: put him on the calendar from the Schedule.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'Accepted', state: 'done' }, { label: 'On the calendar', state: 'now' }] } : { close: true, sub: 'Pick another installer — it’s on your Today.' })
 }
 
 /* ================= materials, priced from our items ================= */

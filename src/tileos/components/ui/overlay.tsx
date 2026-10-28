@@ -93,13 +93,21 @@ export function Modal({
   )
 }
 
+/** a dropdown sits outside the window it opens from (on top of everything), and the window keeps the page behind it
+ *  from scrolling — which also stopped a long list in the dropdown from scrolling with the wheel or a finger. These
+ *  keep the scroll inside the dropdown, so its list scrolls like any other. */
+export const scrollHere = {
+  onWheel: (e: React.WheelEvent) => e.stopPropagation(),
+  onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
+}
+
 /* ---------------- Menus ---------------- */
 export function Menu({ trigger, children, align = 'end', width = 248 }: { trigger: React.ReactNode; children: React.ReactNode; align?: 'start' | 'end' | 'center'; width?: number }) {
   return (
     <DM.Root modal={false}>
       <DM.Trigger asChild>{trigger}</DM.Trigger>
       <DM.Portal>
-        <DM.Content align={align} sideOffset={6} collisionPadding={12} className="scroll-soft z-[300] max-h-[min(28.75rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto overscroll-contain rounded-[0.625rem] border border-line bg-white p-1 shadow-pop animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <DM.Content {...scrollHere} align={align} sideOffset={6} collisionPadding={12} className="scroll-soft z-[300] max-h-[min(28.75rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto overscroll-contain rounded-[0.625rem] border border-line bg-white p-1 shadow-pop animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </DM.Content>
       </DM.Portal>
@@ -150,7 +158,7 @@ export function Pop({ trigger, children, align = 'start', side = 'bottom', width
     <PO.Root open={open} onOpenChange={onOpenChange}>
       <PO.Trigger asChild>{trigger}</PO.Trigger>
       <PO.Portal>
-        <PO.Content align={align} side={side} sideOffset={6} collisionPadding={16} className="z-[300] rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} className="z-[300] rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </PO.Content>
       </PO.Portal>

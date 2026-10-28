@@ -195,9 +195,9 @@ export function LinkButton({ children, onClick, className }: { children: React.R
 }
 
 /* ---------------- Tabs ---------------- */
-export function UnderlineTabs<T extends string>({ value, onChange, items, className, size = 'md' }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: string; /** a shorter name on a phone */ short?: string; count?: number; tone?: Tone }[]; className?: string; size?: 'md' | 'sm' }) {
+export function UnderlineTabs<T extends string>({ value, onChange, items, className, size = 'md' }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: string; /** a shorter name on a phone */ short?: string; count?: number; tone?: Tone }[]; className?: string; /** lg: a window's main parts (a project) — bigger words, more room between them */ size?: 'lg' | 'md' | 'sm' }) {
   return (
-    <div className={cn('no-scrollbar flex items-center overflow-x-auto', !className?.includes('border-b-0') && 'shadow-[inset_0_-0.0625rem_0_var(--color-line)]', className)} role="tablist">
+    <div className={cn('no-scrollbar flex items-center overflow-x-auto', size === 'lg' && 'max-sm:justify-between max-sm:gap-3', !className?.includes('border-b-0') && 'shadow-[inset_0_-0.0625rem_0_var(--color-line)]', className)} role="tablist">
       {items.map((it) => {
         const on = it.key === value
         return (
@@ -207,14 +207,15 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
             aria-selected={on}
             onClick={() => onChange(it.key)}
             className={cn(
-              'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-0.5 font-semibold transition-colors [&+&]:ml-6 max-sm:[&+&]:ml-5',
-              size === 'md' ? 'h-11 text-[0.875rem]' : 'h-10 text-[0.84375rem]',
+              'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-0.5 font-semibold transition-colors',
+              /* a window's main parts: on a phone they spread across the width, so all of them show */
+              size === 'lg' ? 'h-12 text-[0.96875rem] [&+&]:ml-8 max-sm:text-[0.875rem] max-sm:[&+&]:ml-0' : size === 'md' ? 'h-11 text-[0.875rem] [&+&]:ml-6 max-sm:[&+&]:ml-5' : 'h-10 text-[0.84375rem] [&+&]:ml-6 max-sm:[&+&]:ml-5',
               on ? 'text-ink' : 'text-muted hover:text-ink-2',
             )}
           >
             {it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}
             {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-brand-50 text-brand-700') : 'bg-wash-2 text-muted')}>{it.count}</span>}
-            <span className={cn('absolute inset-x-0 bottom-0 h-[0.125rem] rounded-full transition-colors', on ? 'bg-brand-600' : 'bg-transparent')} />
+            <span className={cn('absolute inset-x-0 bottom-0 rounded-full transition-colors', size === 'lg' ? 'h-[0.1875rem]' : 'h-[0.125rem]', on ? 'bg-brand-600' : 'bg-transparent')} />
           </button>
         )
       })}

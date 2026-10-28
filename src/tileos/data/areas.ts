@@ -1,14 +1,16 @@
 /* The areas and surfaces an estimate starts from — written the way Cobblestone's scope paper reads: a floor, then the
  * rooms on it, then each surface with its quantity. The company keeps its own list (Settings → Checklists); anyone can
  * type a new area or surface on the spot. */
-export const FLOORS = ['1st floor', '2nd floor', '3rd floor', 'Attic floor', 'Basement']
+export const FLOORS = ['1st floor', '2nd floor', '3rd floor', 'Attic floor', 'Basement', 'Outside']
+/** an area that's outside the house — front steps, a porch, a patio: it goes under Outside */
+export const isOutside = (name: string) => /exterior|outside|outdoor|porch|patio|deck|stoop|walkway|driveway|pool|front steps|back steps/i.test(name)
 /** the proper order of floors on every list and paper — whatever order they were picked in */
 export function floorRank(f?: string): number {
   if (!f) return 99
   const i = FLOORS.findIndex((x) => x.toLowerCase() === f.toLowerCase())
   if (i >= 0) return i
   const l = f.toLowerCase()
-  return /1st|first|ground|main/.test(l) ? 0 : /2nd|second/.test(l) ? 1 : /3rd|third/.test(l) ? 2 : /4th|fourth/.test(l) ? 2.5 : /attic|roof/.test(l) ? 3 : /basement|cellar|lower/.test(l) ? 4 : 50
+  return /1st|first|ground|main/.test(l) ? 0 : /2nd|second/.test(l) ? 1 : /3rd|third/.test(l) ? 2 : /4th|fourth/.test(l) ? 2.5 : /attic|roof/.test(l) ? 3 : /basement|cellar|lower/.test(l) ? 4 : isOutside(l) ? 5 : 50
 }
 
 export interface SurfaceDef { key: string; label: string; itemId: string }
@@ -33,6 +35,7 @@ export const SURFACES: SurfaceDef[] = [
   { key: 'kneewall', label: 'Knee wall', itemId: 'i-wall' },
   { key: 'tubapron', label: 'Tub apron', itemId: 'i-wall' },
   { key: 'steps', label: 'Steps', itemId: 'i-floor' },
+  { key: 'risers', label: 'Risers', itemId: 'i-wall' },
   { key: 'border', label: 'Border', itemId: 'i-border' },
   { key: 'selflevel', label: 'Self-level', itemId: 'i-prep' },
   { key: 'showerdrain', label: 'Shower drain', itemId: 'i-drain' },
@@ -54,6 +57,7 @@ export const AREA_PRESETS: AreaPreset[] = [
   { name: 'Kids bathroom', surfaces: ['floor', 'tubwalls', 'niche', 'saddle', 'metals', 'wp'] },
   { name: 'Basement', surfaces: ['floor', 'under'] },
   { name: 'Lobby', surfaces: ['floor', 'base'] },
+  { name: 'Exterior stairs', surfaces: ['steps', 'risers', 'floor', 'metals'] },
 ]
 
 /** the usual surfaces for a room you typed yourself — a bathroom comes with its niche, waterproofing, saddle and
@@ -72,12 +76,13 @@ export function guessSurfaces(name: string, presets: AreaPreset[] = AREA_PRESETS
   if (/kitchen|kitchenette|pantry|bar\b/.test(n)) return like(/kitchen/, ['floor', 'splash'])
   if (/laundry|utility/.test(n)) return like(/laundry/, ['floor', 'splash', 'saddle'])
   if (/mud/.test(n)) return like(/mudroom/, ['floor'])
+  /* stairs before the hallway — "entry steps" are steps: the treads, the risers, the landing, the nosing */
+  if (/stair|steps|stoop/.test(n)) return like(/stairs/, ['steps', 'risers', 'floor', 'metals'])
   if (/foyer|hall|entry|vestibule|corridor|landing/.test(n)) return like(/foyer/, ['floor', 'saddle'])
   if (/basement|cellar/.test(n)) return like(/basement/, ['floor', 'under'])
   if (/lobby|common|amenity/.test(n)) return like(/lobby/, ['floor', 'base'])
   if (/fireplace|accent|feature wall/.test(n)) return ['accent']
   if (/backsplash/.test(n)) return ['splash']
-  if (/stair|steps/.test(n)) return ['steps']
   if (/dining|family|living|den|office|bedroom|room|great/.test(n)) return ['floor', 'under']
   return ['floor']
 }

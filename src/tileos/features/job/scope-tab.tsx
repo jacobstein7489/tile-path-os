@@ -38,8 +38,9 @@ export function tileStatus(s: Pick<Store, 'checks' | 'shortages' | 'rooms'>, job
   const sh = s.shortages.find((x) => x.jobId === jobId && x.tag === tag && x.step !== 'received')
   if (sh) return { tone: 'bad', label: sh.step === 'short' ? `${sh.qty} ${sh.unit} short` : `Reordered · ${sh.eta || 'coming'}` }
   const c = s.checks.find((y) => y.jobId === jobId && y.tag === tag)
-  const sf = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === tag).reduce((n, x) => n + (x.sf || 0), 0)
-  if (!c) return sf ? { tone: 'warn', label: 'Not ordered yet' } : { tone: 'neutral', label: 'Not on a wall or floor yet' }
+  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === tag)
+  const sf = on.reduce((n, x) => n + (x.sf || 0), 0)
+  if (!c) return sf ? { tone: 'warn', label: 'Not ordered yet' } : on.length ? { tone: 'neutral', label: 'No square feet yet' } : { tone: 'neutral', label: 'Not on a wall or floor yet' }
   const need = needWithWaste(c)
   if (c.ordered < need) return { tone: 'bad', label: `Order is ${need - c.ordered} ${c.unit} short` }
   if (c.received >= c.ordered) return { tone: 'ok', label: 'On site' }

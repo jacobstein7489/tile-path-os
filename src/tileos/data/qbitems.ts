@@ -120,6 +120,7 @@ export const QB_SURFACE_ITEMS: Record<string, string> = {
   "kneewall": "qb-knee-wall",
   "tubapron": "qb-tub-apron",
   "steps": "qb-steps",
+  "risers": "qb-riser",
   "border": "qb-border-floor",
   "selflevel": "qb-self-leval",
   "showerdrain": "qb-shower-drain-install"
