@@ -82,3 +82,16 @@ export function Who({ who, className, size = 24 }: { who?: PersonKey; className?
     </span>
   )
 }
+
+/** a computer-sized window (the project's two sides side by side) */
+export function useWide() {
+  const [wide, setWide] = React.useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true))
+  React.useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const f = () => setWide(mq.matches)
+    f()
+    mq.addEventListener('change', f)
+    return () => mq.removeEventListener('change', f)
+  }, [])
+  return wide
+}

@@ -34,10 +34,11 @@ export const STATUS_BOOK: { page: string; items: StatusDef[] }[] = [
   {
     page: 'Estimates',
     items: [
-      { label: 'New request', color: 'violet', means: 'Came in — nobody started the takeoff yet' },
-      { label: 'Estimating', color: 'blue', means: 'Inside: takeoff → office review → final review. Shows whose turn it is' },
-      { label: 'Pending approval', color: 'cyan', means: 'Sent to the client — waiting for a yes or no' },
-      { label: 'Revision needed', color: 'amber', means: 'The client asked for changes — back to the estimator' },
+      { label: 'Request', color: 'violet', means: 'Came in — the plans and papers, before the takeoff' },
+      { label: 'Takeoff', color: 'blue', means: 'Measuring and pricing from the plans. A revision comes back here and says “Revision 2”' },
+      { label: 'Office review', color: 'blue', means: 'The estimator checks the takeoff — notes go back pinned to the room' },
+      { label: 'Final review', color: 'blue', means: 'The last look before it goes out — approve and send' },
+      { label: 'Sent', color: 'cyan', means: 'With the client — waiting for a yes or no; it comes back to follow up' },
       { label: 'Approved', color: 'green', means: 'Won — it becomes a project' },
       { label: 'Lost', color: 'slate', means: 'Went to someone else, or dropped' },
     ],

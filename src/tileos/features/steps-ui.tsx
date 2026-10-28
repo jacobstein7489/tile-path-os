@@ -8,9 +8,10 @@ import { Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/til
 import { Path } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
-import { labelFromIso, md } from '@/tileos/lib/today'
+import { labelFromIso, md, TODAY } from '@/tileos/lib/today'
 import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, markTileOrdered, checkInTile, addJobStep, removeJobStep, emptySpot, type StepView, type StepState } from './steps'
 import { REAL } from '@/tileos/lib/save'
+import { stepShort } from './tracks'
 
 /** the people a step can belong to: everyone inside with a login */
 export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
@@ -44,6 +45,79 @@ export function StepIcon({ state, size = 26 }: { state: StepState; size?: number
   if (state === 'na') return <span style={box} className="inline-flex shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><Minus className={ic} strokeWidth={2.4} /></span>
   return <span style={box} className="inline-flex shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#c9c2b7] bg-white" />
 }
+
+/** where a step is, in a few words — the same words everywhere */
+export function stepWords(s: Store, job: Job, v: StepView, me: PersonKey): { text: string; tone: string } {
+  const day = (iso: string) => (iso === TODAY ? 'today' : labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso))
+  const mine = v.owner === me
+  switch (v.state) {
+    case 'done': return { text: v.doneOn ? `Done ${v.doneOn}` : 'Done', tone: 'text-muted' }
+    case 'na': return { text: 'Not needed on this project', tone: 'text-faint' }
+    case 'bad': return { text: `Problem${mine ? ' · your turn' : ''}`, tone: 'font-semibold text-bad-600' }
+    case 'later': {
+      const before = v.waitsKey ? stepsFor(s, job).find((x) => x.key === v.waitsKey) : undefined
+      const name = before ? stepShort(s, job, before) : v.waitsFor
+      return { text: name ? `After ${name}` : 'Not yet', tone: 'text-muted' }
+    }
+    case 'wait': {
+      if (['delivered', 'matin'].includes(v.key)) return { text: v.due ? `Coming ${day(v.due)}` : 'On the way', tone: 'text-warn-700' }
+      if (['design', 'walk'].includes(v.key)) return { text: v.due ? `Set for ${day(v.due)}` : 'Set', tone: 'text-warn-700' }
+      const rec = s.stepRecs[job.id]?.[v.key]
+      const task = v.taskId ? s.tasks.find((x) => x.id === v.taskId) : undefined
+      const ipo = v.key === 'confirmed' ? [...s.ipos].reverse().find((x) => x.jobId === job.id) : undefined
+      const on = rec?.wait?.on || task?.waitingOn || (v.key === 'qty' ? 'the store’s new paperwork' : ipo ? PEOPLE[ipo.crew]?.short : '')
+      const back = v.due ? (v.due <= TODAY ? ' · follow up today' : ` · back ${day(v.due)}`) : ''
+      return { text: `${on ? `Waiting on ${on}` : 'Waiting'}${back}`, tone: 'text-warn-700' }
+    }
+    default: {
+      if (v.due && v.due < TODAY) return { text: `Late · was due ${labelFromIso(v.due)}`, tone: 'font-semibold text-bad-600' }
+      if (mine) return { text: `Your turn${v.due ? ` · due ${day(v.due)}` : ''}`, tone: 'font-semibold text-brand-700' }
+      return { text: v.due ? `Due ${day(v.due)}` : 'To do', tone: 'text-ink-2' }
+    }
+  }
+}
+
+/** the mark before a step: ✓ done · blue, yours to do · ● someone's to do · ◷ waiting · ! a problem · ◌ not yet */
+function RowMark({ v, mine }: { v: StepView; mine: boolean }) {
+  if (v.state === 'now' && mine) return <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-brand-600 shadow-[0_0_0_0.1875rem_rgba(38,80,207,.14)]"><span className="h-2 w-2 rounded-full bg-white" /></span>
+  return <StepIcon state={v.state} size={22} />
+}
+
+/** one step on a list (Where it stands, a part's window): mark · name, and where it's up to under it · whose it is,
+ *  initials in a circle */
+export function StepLine({ job, v, me, on, onPick, title }: { job: Job; v: StepView; me: PersonKey; on: boolean; onPick: () => void; /** its whole name, on hover */ title?: string }) {
+  const s = useStore()
+  const mine = v.owner === me && (v.state === 'now' || v.state === 'bad')
+  const who = (v.state === 'done' ? v.doneBy || v.owner : v.owner) as PersonKey
+  const w = stepWords(s, job, v, me)
+  const quiet = v.state === 'done' || v.state === 'later' || v.state === 'na'
+  return (
+    <button
+      type="button"
+      data-step={v.key}
+      data-state={v.state}
+      data-mine={mine || undefined}
+      data-on={on || undefined}
+      aria-current={on || undefined}
+      onClick={onPick}
+      title={title}
+      className={cn('flex w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition max-sm:px-3', on ? 'bg-[#eef2fd] shadow-[inset_0.1875rem_0_0_#2650cf]' : 'hover:bg-[#faf8f5]')}
+    >
+      <RowMark v={v} mine={mine} />
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className={cn('block truncate text-[0.875rem]', on ? 'font-bold text-ink' : quiet ? 'font-medium text-ink-2' : 'font-semibold text-ink', mine && !on && 'text-brand-800')}>{stepShort(s, job, v)}</span>
+        <span data-step-words className={cn('mt-0.5 block truncate text-[0.75rem]', w.tone)}>{w.text}</span>
+      </span>
+      {PEOPLE[who] && (
+        <span data-who className="flex w-[8.25rem] shrink-0 items-center gap-2 max-sm:w-auto">
+          <Avatar who={who} size={24} className={cn(quiet && 'opacity-80')} />
+          <span className={cn('min-w-0 truncate text-[0.8125rem] max-sm:sr-only', who === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{who === me ? 'You' : PEOPLE[who]?.short || PEOPLE[who]?.name}</span>
+        </span>
+      )}
+    </button>
+  )
+}
+
 
 const STATE_WORD: Record<StepState, string> = { done: 'Done', now: 'To do', wait: 'Waiting', later: 'Not yet', bad: 'Problem', na: 'Not needed' }
 

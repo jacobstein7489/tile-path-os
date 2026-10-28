@@ -897,6 +897,12 @@ function EmailTab() {
         </form>
       </Card>
       <Card>
+        <div className="px-6 pb-5 pt-4 max-sm:px-4" data-invite-mail>
+          <div className="text-[0.90625rem] font-semibold text-ink">Invites and password emails</div>
+          <p className="mt-1 text-[0.84375rem] leading-snug text-muted">They go out through Lovable’s mail service — today from Lovable’s own address, not @cobblestonenj.com, so a company mailbox can put them in Spam or quarantine. To send them from your address, with the Cobblestone logo: in Lovable, <b className="font-semibold text-ink-2">More → Emails → add cobblestonenj.com</b> (turn on “Show as sent from @cobblestonenj.com”), then <b className="font-semibold text-ink-2">Customize auth emails</b>. Its <b className="font-semibold text-ink-2">Analytics and logs</b> show every email — sent, delivered or bounced. A copy (Cc) can’t go on these — the log is where you see each one went out. Email not landing? On Team, ··· → Invite gives a one-time link to text instead.</p>
+        </div>
+      </Card>
+      <Card>
         <div className="px-6 pb-5 pt-4 max-sm:px-4">
         <div className="text-[0.90625rem] font-semibold text-ink">Today, QuickBooks sends the estimates and invoices</div>
         <p className="mt-1 text-[0.84375rem] leading-snug text-muted">Until QuickBooks and your Google email are connected (Settings → Connections), set the same copy in QuickBooks: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages → “Copy (Cc) new invoices to address”</b>. QuickBooks sends everything from one company email — once Tile OS sends them, each kind comes from its own address above.</p>

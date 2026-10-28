@@ -13,7 +13,8 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, STAGE_LABEL, fmtMoney, type PersonKey, type Tone, type Job } from '@/tileos/data/model'
 import { CUSTOMERS, TILES, tileOf } from '@/tileos/data/jobs'
 import { allSubs } from '@/tileos/data/directory'
-import { EST_STATUS, curRev, revTotal, estAmount, bucketOf, EST_STEP, type Estimate } from '@/tileos/data/estimates'
+import { curRev, revTotal, estAmount, type Estimate } from '@/tileos/data/estimates'
+import { estWord, estTone } from './estimates'
 import { dayLabel, timeLabel, CAL_TODAY } from '@/tileos/data/calendar'
 import { jobMoney } from './job/money-tab'
 import { crewFree } from './upcoming'
@@ -134,11 +135,8 @@ function OpenRow({ icon, title, sub, right, tone = 'neutral', onClick }: { icon:
     </button>
   )
 }
-const estLabel = (s: Store, e: Estimate) => {
-  const b = bucketOf(e)
-  if (b === 'takeoff' || b === 'review' || b === 'final') return { label: `${e.status === 'revision' ? 'Revision needed' : 'Estimating'} · ${EST_STEP[b].label}`, tone: e.status === 'revision' ? 'warn' as const : EST_STEP[b].tone }
-  return { label: EST_STATUS[e.status].label, tone: EST_STATUS[e.status].tone }
-}
+/** where an estimate is — the same words as the estimate's path and the Estimates page */
+const estLabel = (_s: Store, e: Estimate) => ({ label: estWord(e), tone: estTone(e) })
 const estWhen = (e: Estimate) => (e.status === 'approved' ? `Approved ${e.approvedOn}` : e.status === 'sent' ? `Follow up ${e.followUp || 'Thu'}` : e.due ? `Due ${e.due}` : '')
 const EstList = ({ s, ests }: { s: Store; ests: Estimate[] }) => (
   <List

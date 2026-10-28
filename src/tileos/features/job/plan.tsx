@@ -27,7 +27,7 @@ import { installerOf } from '../upcoming'
 import { matBy } from '../flows'
 import { materialStatus } from '../takeoff'
 import { poRatio } from '../poratio'
-import { CAT, catOf } from '../estimates'
+import { estWord, estTone } from '../estimates'
 import { billingOf } from './money-tab'
 import { tileStatus } from './scope-tab'
 import { budgetOf } from './ratio'
@@ -526,7 +526,6 @@ export function EstimateAndChanges({ job }: { job: Job }) {
 function EstRow({ e }: { e: Estimate }) {
   const s = useStore()
   const r = curRev(e)
-  const c = CAT[catOf(e)]
   return (
     <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_7.5rem_7rem_auto] items-center gap-3 border-t border-line-2 px-5 py-3 first:border-t-0 max-md:grid-cols-[2.25rem_minmax(0,1fr)_auto] max-sm:px-4">
       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><FileText className="h-[1.125rem] w-[1.125rem]" /></span>
@@ -534,7 +533,7 @@ function EstRow({ e }: { e: Estimate }) {
         <span className="block truncate text-[0.90625rem] font-semibold text-ink">{e.id}{e.revs.length > 1 ? ` · Revision ${r?.n}` : ''}</span>
         <span className="block truncate text-[0.78125rem] text-muted">{r?.lines.length || 0} lines{e.approvedOn ? ` · approved ${e.approvedOn}` : ''}</span>
       </span>
-      <span className="flex justify-end max-md:hidden"><Word tone={c.tone}>{c.label}</Word></span>
+      <span className="flex justify-end max-md:hidden"><Word tone={estTone(e)}>{estWord(e)}</Word></span>
       <span className="text-right text-[0.9375rem] font-semibold tnum text-ink max-md:hidden">{fmtMoney(revTotal(r))}</span>
       <span className="flex justify-end"><Button size="sm" onClick={() => s.open({ t: 'estimate', id: e.id })}>Open the estimate</Button></span>
     </div>

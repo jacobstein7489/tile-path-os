@@ -7,13 +7,13 @@
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
 import { PrintSheetsButton, sheetRows } from '../roomsheets'
-import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Grid2x2, Lock, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
-import { GROUTS, byTag, filesFor, tilesOf, surfacePct, SURF_LABEL, type Tile } from '@/tileos/data/jobs'
+import { PEOPLE, fmtMoney, crewInfo, type Job, type PersonKey, type Reach } from '@/tileos/data/model'
+import { GROUTS, byTag, filesFor, tilesOf, surfacePct, floorsOf, type Tile } from '@/tileos/data/jobs'
 import { METHODS } from '@/tileos/data/takeoff'
 import { methodOf } from '../takeoff'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
@@ -27,19 +27,18 @@ import { roomsOf, ROOM_WORD, STEP_SHORT, type RoomView, type RoomCheck, type Chi
 import { roomMedia } from '../field'
 import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
+import { PrintScopeButton } from './scopedoc'
 
-/** a part of the details: its title and what it is in one line, one link on the right */
+/** a part of the job: its title (and what it is) on the left, its links on the right — then one white sheet */
 function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
   return (
-    <section data-detail={id} className="px-5 py-3.5 max-sm:px-4">
-      <header className="mb-2.5 flex min-w-0 items-start gap-2">
-        <span className="min-w-0 flex-1 leading-tight">
-          <h4 className="text-[0.96875rem] font-semibold text-ink">{title}</h4>
-          {sub && <span className="mt-0.5 block text-[0.78125rem] text-muted">{sub}</span>}
-        </span>
-        {right && <span className="flex shrink-0 items-center gap-1">{right}</span>}
+    <section data-detail={id} className="px-5 pb-8 pt-4 max-sm:px-3">
+      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 className="text-[1rem] font-semibold text-ink">{title}</h3>
+        {sub && <span className="min-w-0 truncate text-[0.8125rem] text-muted">{sub}</span>}
+        {right && <span className="ml-auto flex shrink-0 items-center gap-1">{right}</span>}
       </header>
-      {children}
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white px-3 py-2 shadow-card">{children}</div>
     </section>
   )
 }
@@ -52,22 +51,29 @@ export type JobTab = 'scope' | 'tiles' | 'people' | 'files'
 export function JobPart({ job, open, tab, onStep }: { job: Job; open: (v: BoardView) => void; tab: JobTab; /** something still open: the step on its track that gets it */ onStep?: (k: string) => void }) {
   return (
     <div data-details data-job-tab={tab} className="@container min-w-0">
-      {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
+      {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} open={open} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
     </div>
   )
 }
 
-/* ---------------- Scope of work: every room, where it really is — tap one for its walls and floors ---------------- */
-const CHIP: Record<ChipTone, string> = { bad: 'bg-bad-50 text-bad-700', warn: 'bg-[#fbf2e1] text-warn-700', todo: 'bg-wash-2 text-muted', ok: 'bg-ok-50 text-ok-700' }
-function RoomRing({ r, inField }: { r: RoomView; inField: boolean }) {
-  const st = r.state === 'done' ? 'done' : r.state === 'stopped' ? 'bad' : r.state === 'installing' ? 'now' : r.state === 'ready' ? 'done' : 'later'
-  return <Circle st={{ key: r.room.name, label: r.room.name, state: st, pct: r.state === 'installing' ? Math.max(r.pct, 6) : 0, center: inField ? `${r.pct}%` : '' }} size={38} />
+/* ---------------- Scope of work: laid out like the estimate's paper ----------------
+ * A green band for each floor, a grey line for each room (its square feet and where it is: ready, what's missing, how
+ * far the crew is, done), and under it every wall and floor — its tile, grout and layout, what it's set on, its square
+ * feet. Tap a room for its page (walls and floors, the daily log, photos). Change orders are their own tab here. */
+const PAPER_GREEN = '#2c4a3e'
+const PAPER_GRAY = '#efece5'
+/** surface · tile · grout and layout · set on · SF (· how far, once the crew is in) */
+const PAPER_COLS = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem] items-center gap-4'
+const PAPER_COLS_FIELD = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem_6.5rem] items-center gap-4'
+function roomWord(r: RoomView): { text: string; cls: string } {
+  if (r.state === 'done') return { text: 'Done', cls: 'font-semibold text-[#2c8a5b]' }
+  if (r.state === 'installing') return { text: `${r.pct}% in`, cls: 'font-semibold text-brand-700' }
+  if (r.state === 'ready') return { text: 'Ready', cls: 'font-semibold text-[#2c8a5b]' }
+  const c = r.chips[0]
+  if (!c) return { text: r.state === 'notstarted' ? 'Not started' : '', cls: 'text-muted' }
+  return { text: c.text, cls: c.tone === 'bad' ? 'font-semibold text-bad-600' : c.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted' }
 }
-const CHECK_MARK: Record<RoomCheck['state'], React.ReactNode> = {
-  ok: <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>,
-  todo: <span className="inline-flex h-4 w-4 shrink-0 rounded-full border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white" />,
-  bad: <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#d7342a] text-[0.625rem] font-black text-white">!</span>,
-}
+type ScopeView = 'scope' | 'changes'
 function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const s = useStore()
   const steps = stepsFor(s, job)
@@ -78,109 +84,174 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const ready = rooms.filter((r) => r.state === 'ready').length
   const done = rooms.filter((r) => r.state === 'done').length
   const confirmed = ['done', 'na'].includes(steps.find((v) => v.key === 'change')?.state || '') || inField
+  const cos = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
+  const [view, setView] = React.useState<ScopeView>('scope')
+  const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(s.role)
+  const cols = inField ? PAPER_COLS_FIELD : PAPER_COLS
+  const groups = floorsOf(rooms.map((r) => r.room))
+  const viewOf = (name: string) => rooms.find((r) => r.room.name === name)!
   return (
-    <Part
-      id="scope"
-      title="Scope of work"
-      sub={rooms.length ? <><b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? <> · <span className="whitespace-nowrap">estimate {est.id}</span></> : ''}</> : 'Every room from the approved estimate'}
-      right={rooms.length ? <span className="flex items-center gap-1"><PrintSheetsButton job={job} size="sm" variant="ghost">Room sheets</PrintSheetsButton><button onClick={() => open({ t: 'scope' })} className={LINK}><Grid2x2 className="h-3.5 w-3.5" />Every wall & floor</button></span> : undefined}
-    >
-      {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
-      <div className="flex flex-col gap-1.5 @[60rem]:block @[60rem]:columns-2 @[60rem]:gap-3 @[60rem]:[&>*]:mb-3 @[60rem]:[&>*]:break-inside-avoid">
-        {rooms.map((r) => {
-          /* only what needs a look on the row (a problem, waiting, ready) — what's still to come is inside the room */
-          const chips = r.state === 'ready' ? [{ tone: 'ok' as ChipTone, text: 'Ready' }] : r.chips.filter((c) => c.tone !== 'todo')
-          /* every room open — its walls and floors right there; tap the room for its page (log, photos) */
-          return (
-            <div key={r.room.name} data-room={r.room.name} data-room-state={r.state} className="overflow-hidden rounded-xl border border-[#ece7de] bg-white">
-              <button onClick={() => open({ t: 'room', name: r.room.name })} className="flex w-full min-w-0 items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[#fbfaf7] max-sm:flex-wrap max-sm:gap-2" data-room-head>
-                <RoomRing r={r} inField={inField} />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.room.name}</span>
-                  <span className={cn('block truncate text-[0.75rem]', r.state === 'installing' ? 'text-brand-700' : r.state === 'done' ? 'text-[#2c8a5b]' : 'text-muted')}>{ROOM_WORD[r.state] ? `${ROOM_WORD[r.state]} · ` : ''}{r.sub}</span>
-                </span>
-                {chips.length > 0 && (
-                  <span className="flex min-w-0 max-w-[52%] shrink items-center justify-end gap-1 max-sm:ml-[3.125rem] max-sm:max-w-none max-sm:basis-full max-sm:justify-start" data-chips>
-                    {chips.slice(0, 2).map((c) => <span key={c.text} data-chip={c.tone} title={c.text} className={cn('min-w-0 truncate rounded-full px-2 py-0.5 text-[0.71875rem] font-semibold', CHIP[c.tone])}>{c.text}</span>)}
-                    {chips.length > 2 && <span title={chips.slice(2).map((c) => c.text).join(' · ')} className="shrink-0 rounded-full bg-wash-2 px-1.5 py-0.5 text-[0.71875rem] font-semibold text-muted">+{chips.length - 2}</span>}
-                  </span>
-                )}
-                <ChevronRight className="h-4 w-4 shrink-0 text-faint max-sm:hidden" />
-              </button>
-              <RoomBody job={job} r={r} inField={inField} onOpen={(tab) => open({ t: 'room', name: r.room.name, tab })} />
+    <section data-detail="scope" className="px-5 pb-8 pt-4 max-sm:px-3">
+      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <Segmented<ScopeView> value={view} onChange={setView} items={[
+          { key: 'scope', label: 'Scope of work' },
+          { key: 'changes', label: <>Change orders<span className="ml-1 font-medium text-muted">{cos.length || ''}</span></> },
+        ]} />
+        {view === 'scope' && rooms.length > 0 && (
+          <span className="min-w-0 truncate text-[0.8125rem] text-muted">
+            <b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? ` · estimate ${est.id}` : ''}
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {view === 'scope' && rooms.length > 0 && <>
+            <PrintSheetsButton job={job} size="sm" variant="ghost">Room sheets</PrintSheetsButton>
+            <PrintScopeButton jobId={job.id} className={LINK} />
+            {canEdit && <button onClick={() => open({ t: 'scope' })} className={LINK} data-edit-walls><Pencil className="h-3.5 w-3.5" />Every wall & floor</button>}
+          </>}
+          {view === 'changes' && s.role !== 'accounting' && s.role !== 'client' && <button onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className={LINK}><Plus className="h-3.5 w-3.5" />Client wants a change</button>}
+        </span>
+      </header>
+      {view === 'changes' ? <ChangeOrders job={job} /> : (
+        <>
+          {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
+          {rooms.length > 0 && (
+            <div data-paper className="overflow-clip rounded-[0.875rem] border border-[#e4ded3] bg-white shadow-card">
+              {groups.map((g) => (
+                <section key={g.floor}>
+                  <div className={cn(cols, 'sticky top-0 z-[2] px-5 py-1.5 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-md:flex max-md:justify-between max-sm:px-3')} style={{ background: PAPER_GREEN }}>
+                    <span className="truncate uppercase tracking-[0.04em]">{g.floor}</span>
+                    <span className="max-md:hidden">Tile</span>
+                    <span className="max-md:hidden">Grout · layout</span>
+                    <span className="max-md:hidden">Set on</span>
+                    <span className="text-right">SF</span>
+                    {inField && <span className="text-right max-md:hidden">Done</span>}
+                  </div>
+                  {g.rooms.map((room) => {
+                    const r = viewOf(room.name)
+                    const w = roomWord(r)
+                    const more = r.chips.filter((c) => c.tone === 'bad' || c.tone === 'warn').length - (r.chips[0] && (r.chips[0].tone === 'bad' || r.chips[0].tone === 'warn') ? 1 : 0)
+                    return (
+                      <div key={room.name} data-room={room.name} data-room-state={r.state}>
+                        <button onClick={() => open({ t: 'room', name: room.name })} data-room-head className="flex w-full min-w-0 items-center gap-3 px-5 py-1.5 text-left transition hover:brightness-[0.97] max-sm:px-3" style={{ background: PAPER_GRAY }}>
+                          <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{room.name}</span>
+                          {r.sf > 0 && <span className="shrink-0 text-[0.78125rem] font-medium tnum text-muted">{r.sf.toLocaleString('en-US')} SF</span>}
+                          {room.note && <span className="min-w-0 truncate text-[0.78125rem] text-muted max-sm:hidden">| {room.note}</span>}
+                          <span data-room-why className={cn('ml-auto min-w-0 truncate text-right text-[0.78125rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}{more > 0 ? <span className="font-medium text-muted"> +{more}</span> : null}</span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+                        </button>
+                        {room.surfaces.map((x) => {
+                          const t = tilesOf(job.id).find((y) => y.tag === x.tile)
+                          const sh = sheetRows(job.id, { ...room, surfaces: [x] })[0]
+                          const m = methodOf(room.name, x)
+                          const setOn = sh ? sh.setOn : x.sf ? METHODS[m.key]?.short || m.key : ''
+                          const layout = sh ? sh.layout.replace(/\s*·\s*best start.*$/i, '') : ''
+                          const pct = surfacePct(x)
+                          return (
+                            <div key={x.name} data-surface-row={x.name} className={cn(cols, 'border-t border-[#f1ede7] px-5 py-1.5 text-[0.8125rem] first:border-t-0 max-md:flex max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-0.5 max-sm:px-3')}>
+                              <span className="min-w-0 truncate font-semibold text-ink max-md:basis-full">{x.name}</span>
+                              <span className="flex min-w-0 items-center gap-2">
+                                {t ? <TileImg tile={t} size={22} radius={5} /> : null}
+                                <span className={cn('min-w-0 truncate', t ? 'text-ink-2' : 'text-warn-700')}>{t ? <><b className="font-semibold text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : x.tile || 'No tile yet'}</span>
+                              </span>
+                              <span className="min-w-0 truncate text-ink-2">{sh ? <>{sh.grout ? <span className="inline-flex items-center gap-1 align-middle"><GroutDot grout={sh.groutKey} />{sh.grout}</span> : <span className="text-warn-700">No grout yet</span>}{layout ? <span className={sh.layoutSuggested ? 'text-muted' : ''}> · {layout}{sh.layoutSuggested ? ' (suggested)' : ''}</span> : null}</> : <span className="text-faint">—</span>}</span>
+                              <span className={cn('min-w-0 truncate', sh?.setAuto ? 'text-muted' : 'text-ink-2')}>{setOn || <span className="text-faint">—</span>}{sh?.setAuto ? ' (suggested)' : ''}</span>
+                              <span className="text-right font-medium tnum text-ink max-md:ml-auto">{x.sf ? x.sf.toLocaleString('en-US') : '—'}</span>
+                              {inField && <span className={cn('text-right text-[0.78125rem] max-md:hidden', x.state === 'done' ? 'font-semibold text-[#2c8a5b]' : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'font-semibold text-bad-600' : x.state === 'working' ? 'font-medium text-brand-700' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'Stopped' : 'Not yet'}</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </section>
+              ))}
+              <div className="flex items-center justify-between gap-3 border-t border-[#ebe6dd] px-5 py-2.5 text-[0.8125rem] max-sm:px-3">
+                <span className="text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {rooms.reduce((n, r) => n + r.room.surfaces.length, 0)} walls and floors</span>
+                <span className="rounded-md px-3 py-1 font-semibold tnum text-white" style={{ background: PAPER_GREEN }}>{sf.toLocaleString('en-US')} SF</span>
+              </div>
             </div>
-          )
-        })}
-      </div>
-      {rooms.length > 0 && confirmed && <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#f6f3ee] px-3 py-2 text-[0.78125rem] text-muted" data-scope-locked><Lock className="h-3.5 w-3.5 shrink-0 text-faint" />The scope is set — a change goes through a change order.</div>}
-    </Part>
+          )}
+          {rooms.length > 0 && confirmed && <div className="mt-3 flex items-center gap-2 px-1 text-[0.78125rem] text-muted" data-scope-locked><Lock className="h-3.5 w-3.5 shrink-0 text-faint" />The scope is set — a change goes through a change order.</div>}
+        </>
+      )}
+    </section>
   )
 }
-/** a room, open: what it still needs before the crew (or how far it is), and every wall and floor — its tile, square
- *  feet, layout and what it's set on */
-function RoomBody({ job, r, inField, onOpen }: { job: Job; r: RoomView; inField: boolean; onOpen: (tab: 'log' | 'photos') => void }) {
+
+/** change orders on the job — what changed from the contract, and where each one is. Prices for whoever sees money. */
+function ChangeOrders({ job }: { job: Job }) {
   const s = useStore()
-  const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.room.name)).length
-  const photos = roomMedia(s.diary[job.id], r.room.name).length
+  const money = !['site', 'crew', 'client'].includes(s.role)
+  const list = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
+  const before = job.before?.changes || 0
+  if (!list.length && !before) return <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted" data-no-changes>No change orders — the job is as the estimate.</div>
   return (
-    <div className="border-t border-line-2 bg-[#fcfbf9] px-3 pb-2.5 pt-2" data-room-body>
-      {/* only what's wrong — what's still to come is on each wall and floor below */}
-      {r.checks.some((c) => c.state === 'bad') && (
-        <div className="mb-2 flex flex-wrap gap-x-3.5 gap-y-1" data-room-checks>
-          {r.checks.filter((c) => c.state === 'bad').map((c) => (
-            <span key={c.label} data-check={c.state} className="flex min-w-0 items-center gap-1.5 text-[0.78125rem]">
-              {CHECK_MARK[c.state]}
-              <span className={cn('truncate', c.state === 'bad' ? 'font-semibold text-bad-700' : c.state === 'ok' ? 'text-ink-2' : 'text-muted')}>{c.label}{c.note && c.state !== 'ok' ? ` — ${c.note}` : ''}</span>
+    <div data-changes className="overflow-hidden rounded-[0.875rem] border border-[#e4ded3] bg-white shadow-card">
+      {list.map((m) => {
+        const words = m.state === 'paid' ? { t: 'Paid', c: 'text-[#2c8a5b]' } : m.step < 0 ? { t: 'Waiting for the client’s OK', c: 'text-warn-700' } : m.step >= 1 ? { t: 'Billed', c: 'text-ink-2' } : { t: 'Approved', c: 'text-[#2c8a5b]' }
+        const where = m.meta ? [m.meta.room, m.meta.surface].filter(Boolean).join(' · ') : ''
+        return (
+          <button key={m.id} data-change={m.id} onClick={() => (money ? s.open({ t: 'money', id: m.id }) : undefined)} disabled={!money} className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_7rem] items-center gap-4 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 enabled:hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-3">
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span>
+              <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{[m.ref, where, m.meta?.from && m.meta?.to ? `${m.meta.from} → ${m.meta.to}` : '', m.meta?.meeting ? 'from the design meeting' : ''].filter(Boolean).join(' · ') || m.note || '—'}</span>
             </span>
-          ))}
+            <span className={cn('text-right text-[0.8125rem] font-semibold', words.c)}>{words.t}</span>
+            <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{money ? (m.amount ? fmtMoney(m.amount) : '—') : ''}</span>
+          </button>
+        )
+      })}
+      {before > 0 && money && (
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_7rem] items-center gap-4 border-t border-line-2 px-5 py-2.5 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-3">
+          <span className="min-w-0 leading-tight"><span className="block truncate text-[0.875rem] font-semibold text-ink">Changes approved before Tile OS</span><span className="mt-0.5 block truncate text-[0.75rem] text-muted">Put in with what was already billed</span></span>
+          <span className="text-right text-[0.8125rem] font-semibold text-[#2c8a5b]">Approved</span>
+          <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(before)}</span>
         </div>
       )}
-      <div className="overflow-hidden rounded-lg border border-[#ece7de] bg-white">
-        {r.room.surfaces.map((x) => {
-          const t = tilesOf(job.id).find((y) => y.tag === x.tile)
-          const sh = sheetRows(job.id, { ...r.room, surfaces: [x] })[0]
-          const m = methodOf(r.room.name, x)
-          /* what it's set on first, then the grout and the layout — the same words as the room sheet */
-          const said = sh
-            ? [`${/^on /i.test(sh.setOn) ? sh.setOn : `On ${sh.setOn.charAt(0).toLowerCase()}${sh.setOn.slice(1)}`}${sh.setAuto ? ' (suggested)' : ''}`, sh.grout ? `${sh.grout} grout` : 'grout not picked', `${sh.layout.replace(/\s*·\s*best start.*$/i, '')}${sh.layoutSuggested ? ' (suggested)' : ''}`]
-            : [x.sf ? `On ${(METHODS[m.key]?.short || m.key).toLowerCase()}` : '']
-          return (
-            <div key={x.name} data-surface-row={x.name} className="flex min-w-0 items-center gap-2.5 border-t border-line-2 px-2.5 py-1.5 first:border-t-0">
-              <TileImg tile={t} size={26} radius={6} />
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-[0.8125rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {t ? `${t.tag} ${t.name}` : x.tile || 'no tile yet'}{x.sf ? ` · ${x.sf} SF` : ''}</span></span>
-                <span className="block truncate text-[0.71875rem] text-muted">{[...said, inField ? (x.state === 'working' ? `${surfacePct(x)}% in` : SURF_LABEL[x.state]) : ''].filter(Boolean).join(' · ')}</span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
-      {(entries > 0 || photos > 0)
-        ? (
-          <div className="mt-2 flex justify-end gap-1" data-room-links>
-            {entries > 0 && <button onClick={() => onOpen('log')} className={LINK}><History className="h-3.5 w-3.5" />Daily log · {entries}</button>}
-            {photos > 0 && <button onClick={() => onOpen('photos')} className={LINK}><ImageIcon className="h-3.5 w-3.5" />Photos · {photos}</button>}
-          </div>
-        )
-        : inField ? <div className="mt-2 text-right text-[0.75rem] text-faint">No daily log or photos for this room yet</div> : null}
     </div>
   )
 }
 
-/* ---------------- Tiles: read only — what's missing opens its step ---------------- */
+/* ---------------- Tiles: one list, with a search box — what's missing opens its step ---------------- */
+/** picture · the tile and where it goes · grout and joint · how much (paperwork against what we need) · on site */
+const TILE_COLS = 'grid grid-cols-[2.75rem_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(0,1fr)] items-center gap-4'
 function TilesPart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) {
   const s = useStore()
+  const [q, setQ] = React.useState('')
   const tiles = Object.values(s.tiles[job.id] || {}).sort(byTag)
   const flat = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.map((x) => ({ room: r.name, x })))
-  const used = tiles.filter((t) => flat.some((f) => f.x.tile === t.tag))
-  const list = used.length ? [...used, ...tiles.filter((t) => !used.includes(t))] : tiles
+  const whereOf = (t: Tile) => flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)
+  const used = tiles.filter((t) => whereOf(t).length)
+  const all = used.length ? [...used, ...tiles.filter((t) => !used.includes(t))] : tiles
+  const find = q.trim().toLowerCase()
+  const list = find ? all.filter((t) => `${t.tag} ${t.name} ${t.size || ''} ${t.grout ? GROUTS[t.grout]?.name || t.grout : ''} ${t.supplier || ''} ${whereOf(t).join(' ')}`.toLowerCase().includes(find)) : all
   return (
-    <Part id="tiles" title="Tiles" sub={tiles.length ? `${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'} — where each goes, its grout, how much, and whether it’s here` : 'Every tile on the job'}>
-      {!tiles.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
-      <div className="flex flex-col gap-1.5 @[60rem]:grid @[60rem]:grid-cols-2 @[60rem]:gap-2">
-        {list.map((t) => <TileRow key={t.tag} job={job} t={t} where={flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)} onStep={onStep} />)}
-      </div>
-    </Part>
+    <section data-detail="tiles" className="px-5 pb-8 pt-4 max-sm:px-3">
+      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 className="text-[1rem] font-semibold text-ink">Tiles <span className="ml-1 text-[0.875rem] font-medium tnum text-faint">{tiles.length}</span></h3>
+        <span className="min-w-0 truncate text-[0.8125rem] text-muted max-sm:hidden">where each one goes, its grout, how much — and whether it’s here</span>
+        {tiles.length > 0 && (
+          <label className="relative ml-auto block w-[17rem] max-sm:w-full">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-9 pr-3 text-[0.84375rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
+          </label>
+        )}
+      </header>
+      {!tiles.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
+      {tiles.length > 0 && (
+        <div data-tile-list className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
+          <div className={cn(TILE_COLS, 'border-b border-line-2 bg-wash px-5 py-2 text-[0.75rem] font-semibold text-muted max-md:hidden')}>
+            <span />
+            <span>Tile · where it goes</span>
+            <span>Grout</span>
+            <span>How much</span>
+            <span>On site</span>
+          </div>
+          {list.map((t) => <TileRow key={t.tag} job={job} t={t} where={whereOf(t)} onStep={onStep} />)}
+          {!list.length && <div className="px-5 py-4 text-[0.84375rem] text-muted">No tile matches “{q}”.</div>}
+        </div>
+      )}
+    </section>
   )
 }
 function TileRow({ job, t, where, onStep }: { job: Job; t: Tile; where: string[]; onStep?: (k: string) => void }) {
@@ -191,32 +262,68 @@ function TileRow({ job, t, where, onStep }: { job: Job; t: Tile; where: string[]
   const q = paperQty(s, job.id, t)
   const c = s.checks.find((x) => x.jobId === job.id && x.tag === t.tag)
   const unit = q.unit === 'boxes' ? 'boxes' : 'SF'
-  const qty = q.have != null ? <>{q.have.toLocaleString('en-US')} {unit} on the paperwork{q.need != null ? <> · we need {q.need.toLocaleString('en-US')}{q.short > 0 ? <b className="font-semibold text-bad-600"> — {q.short.toLocaleString('en-US')} short</b> : ''}</> : null}</> : q.need != null ? <>We need {q.need.toLocaleString('en-US')} {unit} · <span className="text-warn-700">not on the paperwork yet</span></> : null
-  const here = c ? (c.received >= c.ordered ? { t: `On site — ${c.received} ${c.unit}`, c: 'text-[#2c8a5b]' } : c.received > 0 ? { t: `Short — ${c.received} of ${c.ordered} ${c.unit} here`, c: 'font-semibold text-bad-600' } : { t: c.eta ? `Coming ${c.eta.replace(/^\w+,\s*/, '')}` : 'Ordered — no date yet', c: 'text-warn-700' }) : null
+  const qty = q.have != null
+    ? <><b className="font-semibold text-ink">{q.have.toLocaleString('en-US')} {unit}</b> on the paperwork{q.need != null ? <span className="text-muted"> · need {q.need.toLocaleString('en-US')}</span> : null}{q.short > 0 ? <b className="block font-semibold text-bad-600">{q.short.toLocaleString('en-US')} short</b> : null}</>
+    : q.need != null ? <>Need <b className="font-semibold text-ink">{q.need.toLocaleString('en-US')} {unit}</b><span className="block text-warn-700">not on the paperwork yet</span></> : <span className="text-faint">—</span>
+  const here = c ? (c.received >= c.ordered ? { t: `On site · ${c.received} ${c.unit}`, c: 'font-medium text-[#2c8a5b]' } : c.received > 0 ? { t: `Short · ${c.received} of ${c.ordered} ${c.unit}`, c: 'font-semibold text-bad-600' } : { t: c.eta ? `Coming ${c.eta.replace(/^\w+,\s*/, '')}` : 'Ordered · no date yet', c: 'text-warn-700' }) : { t: 'Not ordered yet', c: 'text-muted' }
   return (
-    <div data-tile={t.tag} className="flex items-start gap-3 rounded-xl border border-[#ece7de] bg-white px-2.5 py-2">
-      {pic ? <TileImg tile={t} size={46} radius={9} /> : <button onClick={pick} aria-label={`Picture of ${t.tag}`} className="inline-flex h-[2.875rem] w-[2.875rem] shrink-0 items-center justify-center rounded-[0.5625rem] border border-dashed border-[#c9ced6] text-faint hover:border-brand-300 hover:text-brand-600"><Camera className="h-5 w-5" /></button>}
-      <div className="min-w-0 flex-1 leading-snug">
-        <div className="truncate text-[0.875rem] font-semibold text-ink">{t.tag} {t.name}<span className="font-normal text-muted">{t.size ? ` · ${t.size}` : ''}</span></div>
-        <div className={cn('truncate text-[0.75rem]', where.length ? 'text-ink-2' : 'text-warn-700')}>{where.length ? where.join(', ') : 'Not on a wall or floor yet'}</div>
-        {qty && <div className="truncate text-[0.75rem] text-muted" data-tile-qty>{qty}</div>}
-        {here && <div className={cn('truncate text-[0.75rem]', here.c)} data-tile-here>{here.t}</div>}
-      </div>
-      <span className="flex shrink-0 flex-col items-end gap-0.5 text-[0.78125rem]">
-        {g ? <span className="inline-flex items-center gap-1.5 font-medium text-ink-2"><GroutDot grout={t.grout} />{g.name}</span> : <button onClick={pick} className="font-semibold text-warn-700 hover:underline">No grout yet</button>}
-        {t.joint && <span className="text-muted">{t.joint} joint</span>}
+    <div data-tile={t.tag} className={cn(TILE_COLS, 'border-t border-line-2 px-5 py-2.5 text-[0.8125rem] first:border-t-0 max-md:grid-cols-[2.75rem_minmax(0,1fr)] max-md:gap-x-3 max-md:gap-y-1 max-sm:px-3')}>
+      {pic ? <TileImg tile={t} size={44} radius={9} /> : <button onClick={pick} aria-label={`Picture of ${t.tag}`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.5625rem] border border-dashed border-[#c9ced6] text-faint hover:border-brand-300 hover:text-brand-600 max-md:row-span-3"><Camera className="h-5 w-5" /></button>}
+      <span className="min-w-0 leading-snug">
+        <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.tag} {t.name}<span className="font-normal text-muted">{t.size ? ` · ${t.size}` : ''}</span></span>
+        <span className={cn('block truncate text-[0.75rem]', where.length ? 'text-ink-2' : 'text-warn-700')}>{where.length ? where.join(', ') : 'Not on a wall or floor yet'}</span>
       </span>
+      <span className="min-w-0 leading-snug max-md:col-start-2">
+        {g ? <span className="inline-flex max-w-full items-center gap-1.5 font-medium text-ink-2"><GroutDot grout={t.grout} /><span className="truncate">{g.name}</span></span> : <button onClick={pick} className="font-semibold text-warn-700 hover:underline">No grout yet</button>}
+        {t.joint && <span className="block text-[0.75rem] text-muted">{t.joint} joint</span>}
+      </span>
+      <span className="min-w-0 leading-snug text-ink-2 max-md:col-start-2" data-tile-qty>{qty}</span>
+      <span className={cn('min-w-0 truncate max-md:col-start-2', here.c)} data-tile-here>{here.t}</span>
     </div>
   )
 }
 
-/* ---------------- People: who's on the job, how to reach them, and what each one has on it now ---------------- */
-type Has = { key: string; what: string; state: 'now' | 'wait' | 'bad'; when: string; late?: boolean; go: () => void }
-function PeoplePart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) {
+/* ---------------- People: everyone on the job, to reach out to ---------------- */
+type Reachable = { phone?: string; email?: string; more?: Reach[] }
+const telHref = (v: string) => `tel:${v.replace(/ext.*$/i, '').replace(/[^\d+]/g, '')}`
+const smsHref = (v: string) => `sms:${v.replace(/ext.*$/i, '').replace(/[^\d+]/g, '')}`
+/** the round buttons on the right: call, text, email — each only when there's a number or an address */
+function ReachButtons({ r, who, onMessage }: { r: Reachable; who: string; onMessage?: () => void }) {
+  const phone = r.phone || r.more?.find((x) => x.kind === 'phone' && x.value)?.value
+  const email = r.email || r.more?.find((x) => x.kind === 'email' && x.value)?.value
+  const btn = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-2 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 [&_svg]:h-4 [&_svg]:w-4'
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      {onMessage && <button onClick={onMessage} aria-label={`Message ${who}`} title="Message on this project" className={btn}><MessageCircle /></button>}
+      {phone && <a href={telHref(phone)} aria-label={`Call ${who}`} title={`Call ${phone}`} className={btn}><Phone /></a>}
+      {phone && <a href={smsHref(phone)} aria-label={`Text ${who}`} title={`Text ${phone}`} className={cn(btn, 'max-sm:hidden')}><MessageCircle /></a>}
+      {email && <a href={`mailto:${email}`} aria-label={`Email ${who}`} title={`Email ${email}`} className={btn}><Mail /></a>}
+    </span>
+  )
+}
+/** a person on the job: initials in a circle, their name, who they are, and every way to reach them */
+function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string }) {
+  const lines = [...(r.phone ? [r.phone] : []), ...(r.email ? [r.email] : []), ...(r.more || []).filter((x) => x.value).map((x) => `${x.value}${x.label ? ` (${x.label})` : ''}`)]
+  return (
+    <div data-person={role} className="flex min-w-0 items-center gap-3.5 border-t border-line-2 px-5 py-3 first:border-t-0 max-sm:px-3">
+      {who ? <Avatar who={who} size={38} /> : <span className={cn('inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="flex min-w-0 items-baseline gap-2">
+          {onName ? <button onClick={onName} className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink hover:text-brand-700 hover:underline">{name}</button> : <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{name}</span>}
+          <span className="shrink-0 text-[0.75rem] font-medium text-muted">{role}</span>
+        </span>
+        <span className="mt-0.5 block truncate text-[0.78125rem] text-muted">{lines.length ? lines.join(' · ') : <span className="text-faint">No phone or email yet</span>}</span>
+        {sub && <span className="mt-0.5 block truncate text-[0.75rem]">{sub}</span>}
+      </span>
+      <ReachButtons r={r} who={name} onMessage={onMessage} />
+    </div>
+  )
+}
+const initialsOf = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => void; onStep?: (k: string) => void }) {
   const s = useStore()
   const me = meOf(s.role)
   const client = s.clients[job.clientId]
-  const contact = client?.contacts?.[0]
   const designer = s.designers.find((d) => d.clients.includes(job.clientId))
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
@@ -224,73 +331,56 @@ function PeoplePart({ job, onStep }: { job: Job; onStep?: (k: string) => void })
   const start = job.dates?.start || (b ? labelFromIso(b.start) : s.prep[job.id]?.targetISO ? labelFromIso(s.prep[job.id]!.targetISO!) : undefined)
   const finish = job.dates?.finish || (b ? labelFromIso(b.end) : undefined)
   const next = s.events.filter((e) => e.jobId === job.id && e.date >= TODAY).sort((a, b2) => (a.date + a.start).localeCompare(b2.date + b2.start))[0]
-  /* our people, each with what they have open on this job now */
+  /* the stores on the job: who sends the tile, who our materials come from */
+  const storeNames = Array.from(new Set([...Object.values(s.tiles[job.id] || {}).map((t) => t.supplier).filter(Boolean) as string[], ...s.pos.filter((p) => p.jobId === job.id).map((p) => p.supplier)]))
+  const stores = storeNames.map((n) => ({ name: n, info: s.suppliers.find((x) => x.name === n) }))
+  /* ours: whoever has something open on this job — what it is, so you know why you'd call */
   const steps = stepsFor(s, job).filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
   const tasks = s.tasks.filter((t) => t.jobId === job.id && t.state !== 'done' && !t.step)
-  const ours = Array.from(new Set([...steps.map((v) => v.owner), ...tasks.map((t) => t.owner)])).filter((p) => p && PEOPLE[p])
-  /* each of ours, what they have on this job: what it is, where it stands, when — tap one and it opens */
-  const has = (p: PersonKey): Has[] => [
-    ...steps.filter((v) => v.owner === p).map((v): Has => ({ key: 's:' + v.key, what: todoOf(v), state: v.state === 'bad' ? 'bad' : v.state === 'wait' ? 'wait' : 'now', when: v.state === 'wait' ? (v.due ? `waiting · back ${labelFromIso(v.due)}` : 'waiting') : v.due ? (v.due < TODAY ? `was due ${labelFromIso(v.due)}` : `due ${labelFromIso(v.due)}`) : '', late: !!v.due && v.due < TODAY && v.state !== 'wait', go: () => onStep?.(v.key) })),
-    ...tasks.filter((t) => t.owner === p).map((t): Has => ({ key: 't:' + t.id, what: t.title, state: t.tone === 'bad' ? 'bad' : t.state === 'waiting' ? 'wait' : 'now', when: t.state === 'waiting' ? `waiting${t.followUp ? ` · back ${t.followUp}` : ''}` : t.due ? `due ${t.due}` : '', go: () => s.open({ t: 'task', id: t.id }) })),
-  ]
-  const [openP, setOpenP] = React.useState<PersonKey | null>(null)
-  const call = (phone?: string, label = '') => phone ? <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} aria-label={`Call ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Phone className="h-3.5 w-3.5" /></a> : null
-  const mail = (email?: string, label = '') => email ? <a href={`mailto:${email}`} aria-label={`Email ${label}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700"><Mail className="h-3.5 w-3.5" /></a> : null
-  const row = (label: string, value: React.ReactNode, sub?: React.ReactNode, who?: PersonKey, end?: React.ReactNode) => (
-    <div className="flex min-h-10 items-center gap-2.5 border-t border-line-2 px-3 py-1.5 first:border-t-0" data-person={label}>
-      {who ? <Avatar who={who} size={28} /> : <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.6875rem] font-bold text-muted">{label.charAt(0)}</span>}
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-faint">{label}</span>
-        <span className="block truncate text-[0.84375rem] font-medium text-ink">{value}{sub ? <span className="font-normal text-muted"> · {sub}</span> : null}</span>
-      </span>
-      {end}
-    </div>
-  )
+  const ours = Array.from(new Set([...steps.map((v) => v.owner), ...tasks.map((t) => t.owner)])).filter((p) => p && PEOPLE[p] && p !== crew)
+  const memberOf = (p: PersonKey) => s.team.find((m) => m.key === p)
+  const crewReach = crew ? { phone: crewInfo[crew]?.phone || memberOf(crew)?.phone, email: crewInfo[crew]?.email || memberOf(crew)?.email, more: crewInfo[crew]?.more || memberOf(crew)?.more } : {}
+  const chat = () => open({ t: 'chat' })
   return (
-    <Part id="people" title="People" sub="Who’s on this job, how to reach them — and what each of ours has on it now">
-      <div className="overflow-hidden rounded-xl border border-[#ece7de] bg-white">
-        {row('Client', <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="hover:text-brand-700 hover:underline">{job.client}</button>, contact ? `${contact.name}${contact.role ? `, ${contact.role.toLowerCase()}` : ''}` : undefined, undefined, <span className="flex gap-1">{mail(contact?.email || client?.email, 'the client')}{call(contact?.phone || client?.phone, 'the client')}</span>)}
-        {row('Designer', designer ? designer.name : <span className="text-muted">None on file</span>, undefined, undefined, call(designer?.phone, 'the designer'))}
-        {row('Installer', crew ? PEOPLE[crew]?.name : <span className="text-warn-700">Not picked yet</span>, crew && ipo ? `${ipo.id} ${ipo.status === 'Accepted' ? 'accepted' : ipo.status.toLowerCase()}` : undefined, crew)}
-      </div>
-      <div className="mb-1.5 mt-3.5 text-[0.75rem] font-semibold uppercase tracking-[0.04em] text-faint">Ours — what each has now</div>
-      <div className="overflow-hidden rounded-xl border border-[#ece7de] bg-white" data-ours>
-        {!ours.length && <div className="px-3 py-2.5 text-[0.8125rem] text-muted">Nothing open on this job.</div>}
+    <section data-detail="people" className="px-5 pb-8 pt-4 max-sm:px-3">
+      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 className="text-[1rem] font-semibold text-ink">People</h3>
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2"><CalendarDays className="h-3.5 w-3.5 text-faint" />{start ? <>Start <b className="font-semibold text-ink">{start}</b>{finish ? <> · finish <b className="font-semibold text-ink">{finish}</b></> : null}</> : 'No start date yet'}</span>
+        {next && <button onClick={() => s.open({ t: 'event', id: next.id })} className="inline-flex min-w-0 items-center gap-1.5 text-left text-[0.8125rem] text-ink-2 hover:text-brand-700"><span className="text-muted">· Next:</span><b className="truncate font-semibold text-ink">{next.title}</b><span className="shrink-0">{labelFromIso(next.date)} {timeLabel(next.start)}</span></button>}
+      </header>
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card" data-contacts>
+        <div className="bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">The client</div>
+        <Contact initials={initialsOf(job.client)} tone="bg-[#e3ece6] text-[#2c4a3e]" name={job.client} role="Client" r={{ phone: client?.phone, email: client?.email, more: client?.more }} onName={() => s.open({ t: 'customer', id: job.clientId })} />
+        {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
+        <div className="border-t border-line-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">Designer and installer</div>
+        {designer
+          ? <Contact initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? <span className="text-muted">{designer.contact}</span> : undefined} onName={() => s.open({ t: 'designer', id: designer.id })} />
+          : <div className="border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-muted first:border-t-0 max-sm:px-3">No designer on file for this client.</div>}
+        {crew
+          ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<span className="text-muted">{ipo ? `${ipo.id} · ${ipo.status === 'Accepted' ? 'accepted' : ipo.status.toLowerCase()}` : 'No PO yet'}</span>} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />
+          : <div className="border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-warn-700 max-sm:px-3">No installer picked yet.</div>}
+        {stores.length > 0 && <div className="border-t border-line-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">Suppliers</div>}
+        {stores.map((x) => <Contact key={x.name} initials={initialsOf(x.name)} tone="bg-[#f6ecdc] text-[#7a4a0c]" name={x.name} role="Supplier" r={x.info || {}} sub={x.info?.supplies ? <span className="text-muted">{x.info.supplies}</span> : undefined} />)}
+        {ours.length > 0 && <div className="border-t border-line-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">Our team on this job</div>}
         {ours.map((p) => {
-          const list = has(p)
-          const on = openP === p
+          const mine = steps.filter((v) => v.owner === p)
+          const theirs = tasks.filter((t) => t.owner === p)
+          const what = [...mine.map((v) => todoOf(v)), ...theirs.map((t) => t.title)]
+          const m = memberOf(p)
           return (
-            <div key={p} data-our={p} className="border-t border-line-2 first:border-t-0">
-              <button onClick={() => setOpenP(on ? null : p)} aria-expanded={on} className="flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left transition hover:bg-[#fbfaf7]">
-                <Avatar who={p} size={28} />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[0.84375rem] font-semibold text-ink">{p === me ? 'You' : PEOPLE[p]?.name}<span className="font-normal text-muted">{PEOPLE[p]?.roleLabel ? ` · ${PEOPLE[p]?.roleLabel}` : ''}</span></span>
-                  {!on && <span className="block truncate text-[0.75rem] text-muted">{list.slice(0, 2).map((x) => x.what).join(' · ')}{list.length > 2 ? ` · +${list.length - 2}` : ''}</span>}
-                </span>
-                <span className={cn('shrink-0 rounded-full px-1.5 text-[0.71875rem] font-bold tnum', list.some((x) => x.state === 'bad' || x.late) ? 'bg-bad-50 text-bad-700' : 'bg-wash-2 text-ink-2')}>{list.length}</span>
-                <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', on && 'rotate-180')} />
-              </button>
-              {on && (
-                <div className="border-t border-line-2 bg-[#fcfbf9] py-1" data-our-list>
-                  {list.map((x) => (
-                    <button key={x.key} onClick={x.go} data-has={x.key} className="flex w-full min-w-0 items-center gap-2.5 py-1.5 pl-[3.25rem] pr-3 text-left transition hover:bg-[#f4f1ec]">
-                      <span className={cn('h-2 w-2 shrink-0 rounded-full', x.state === 'bad' ? 'bg-[#d7342a]' : x.state === 'wait' ? 'bg-[#d98c0b]' : p === me ? 'bg-[#2650cf]' : 'bg-[#3f4654]')} />
-                      <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink">{x.what}</span>
-                      {x.when && <span className={cn('shrink-0 text-[0.75rem]', x.late || x.state === 'bad' ? 'font-semibold text-bad-600' : x.state === 'wait' ? 'text-warn-700' : 'text-muted')}>{x.when}</span>}
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-faint" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Contact
+              key={p}
+              who={p}
+              name={p === me ? 'You' : PEOPLE[p]?.name || p}
+              role={PEOPLE[p]?.roleLabel || 'Team'}
+              r={{ phone: m?.phone, email: m?.email, more: m?.more }}
+              sub={what.length ? <button onClick={() => (mine[0] ? onStep?.(mine[0].key) : theirs[0] && s.open({ t: 'task', id: theirs[0].id }))} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700"><b className="font-semibold">{what.length} open</b> · {what.slice(0, 2).join(' · ')}{what.length > 2 ? ` · +${what.length - 2}` : ''}</button> : undefined}
+              onMessage={p !== me ? chat : undefined}
+            />
           )
         })}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2 text-[0.8125rem]">
-        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#f6f3ee] px-2.5 py-1.5 text-ink-2"><CalendarDays className="h-3.5 w-3.5 text-faint" />{start ? <>Start <b className="font-semibold text-ink">{start}</b>{finish ? <> · finish <b className="font-semibold text-ink">{finish}</b></> : null}</> : 'No start date yet'}</span>
-        {next && <button onClick={() => s.open({ t: 'event', id: next.id })} className="inline-flex min-w-0 items-center gap-1.5 rounded-lg bg-[#f6f3ee] px-2.5 py-1.5 text-left text-ink-2 hover:bg-[#efebe4]"><span className="text-muted">Next:</span><b className="truncate font-semibold text-ink">{next.title}</b><span className="shrink-0">· {labelFromIso(next.date)} {timeLabel(next.start)}</span></button>}
-      </div>
-    </Part>
+    </section>
   )
 }
 
@@ -298,7 +388,6 @@ function PeoplePart({ job, onStep }: { job: Job; onStep?: (k: string) => void })
 function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => void; onStep?: (k: string) => void }) {
   const s = useStore()
   const save = useSaveStatus()
-  const money = !['site', 'crew'].includes(s.role)
   const files = s.files.filter((f) => f.jobId === job.id)
   const sample = save.mode === 'sample' && save.where !== 'cloud' ? filesFor(job.id).filter((d) => d.current) : []
   const add = React.useRef<HTMLInputElement>(null)
@@ -394,7 +483,6 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
         )}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-1 gap-y-1 border-t border-line-2 pt-2">
-        {money && <button onClick={() => open({ t: 'orders' })} className={LINK}><Package className="h-3.5 w-3.5" />All the orders</button>}
         <button onClick={() => open({ t: 'log' })} className={LINK}><History className="h-3.5 w-3.5" />What happened</button>
       </div>
     </Part>

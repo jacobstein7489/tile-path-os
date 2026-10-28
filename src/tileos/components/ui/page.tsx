@@ -15,7 +15,7 @@ import type { Tone, PersonKey } from '@/tileos/data/model'
 /** side padding inside a card; rows line up with it */
 export const PX = 'px-5 max-sm:px-4'
 /** a list's column-name row: it stays pinned under the toolbar while the rows scroll */
-export const STICKY_HEAD = 'sticky top-[calc(var(--app-top,0px)+var(--bar,0px))] z-[5]'
+export const STICKY_HEAD = 'sticky top-[calc(var(--app-top,0px)+var(--bar,0px))] lg:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] z-[5]'
 /** side padding of the page itself */
 export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
 /** a list's toolbar on a phone: one row you swipe sideways (the filters, the search), instead of four rows stacked.
@@ -42,9 +42,21 @@ export function Page({
   /** render the children as they are, without the main card */
   bare?: boolean
 }) {
-  /* how tall the pinned toolbar is, so the column names pin right under it */
+  /* how tall the pinned parts are — the page's head (its name and its bubbles) and the toolbar — so each pins right
+     under the one above it, and the column names under both */
+  const headRef = React.useRef<HTMLDivElement>(null)
   const barRef = React.useRef<HTMLDivElement>(null)
+  const [head, setHead] = React.useState(0)
   const [bar, setBar] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const el = headRef.current
+    if (!el) { setHead(0); return }
+    const set = () => setHead(el.offsetHeight)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   React.useLayoutEffect(() => {
     const el = barRef.current
     if (!el) { setBar(0); return }
@@ -57,25 +69,29 @@ export function Page({
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
       {/* a big screen is used, not left empty on both sides — only a very wide one gets margins */}
-      <div className="mx-auto w-full max-w-[160rem]">
-        {/* on a phone the bar on top already says which page this is — so no title here, only the line under it (when
-            there is one: Today's "1 overdue" opens what's late) and the page's button */}
-        <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && 'max-sm:hidden', PAGE_PX)}>
-          <div className={cn('min-w-0', !sub && 'max-sm:hidden')}>
-            <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:hidden">{title}</h1>
-            {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}
-          </div>
-          {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
-        </header>
+      <div className="mx-auto w-full max-w-[160rem]" style={{ '--head': head + 'px' } as React.CSSProperties}>
+        {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
+            the bubbles — and the toolbar right under them */}
+        <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
+          {/* on a phone the bar on top already says which page this is — so no title here, only the line under it
+              (when there is one: Today's "1 overdue" opens what's late) and the page's button */}
+          <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && 'max-sm:hidden', PAGE_PX)}>
+            <div className={cn('min-w-0', !sub && 'max-sm:hidden')}>
+              <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:hidden">{title}</h1>
+              {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}
+            </div>
+            {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
+          </header>
+          {top && <div className={cn('pb-3.5', PAGE_PX)}>{top}</div>}
+        </div>
         <div className={cn('flex flex-col gap-3.5', PAGE_PX)}>
-          {top}
           <div className={cn('flex items-start gap-4', aside && 'max-xl:flex-col max-xl:items-stretch')}>
             {bare ? (
               <div className="min-w-0 flex-1">{children}</div>
             ) : (
               <section className="min-w-0 flex-1 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-sheet" style={{ '--bar': bar + 'px' } as React.CSSProperties}>
                 {(tabs || toolbar) && (
-                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX, PHONE_BAR)}>
+                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] lg:top-[calc(var(--app-top,0px)+var(--head,0px))] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX, PHONE_BAR)}>
                     {tabs && <ChipTabs value={tab as string} onChange={(k) => onTab?.(k)} items={tabs} />}
                     {toolbar}
                   </div>
@@ -411,7 +427,7 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
 export type Bubble = { key: string; label: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
-export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boolean; wrap?: boolean }) {
+export function Bubbles({ items, arrows, wrap, dense }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** many bubbles (an estimate's whole path): a little narrower, so they fit on a laptop */ dense?: boolean }) {
   return (
     <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5')} role="tablist">
       {items.map((b, i) => {
@@ -426,14 +442,17 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               onClick={b.onClick}
               disabled={!b.onClick}
               className={cn(
-                'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
+                'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
+                dense ? 'min-w-[8rem]' : 'min-w-[9.375rem]',
                 b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
-                {b.icon}
-              </span>
+              {dense ? <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: b.on ? 'rgba(255,255,255,.5)' : c.solid, opacity: b.on ? 1 : 0.7 }} aria-hidden /> : (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+                  {b.icon}
+                </span>
+              )}
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">
                   <span className={cn('display-num text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
@@ -502,7 +521,7 @@ export function Table({ children, minWidth, className, auto }: { children: React
 const EDGE = 'first:pl-6 last:pr-6 max-sm:first:pl-4 max-sm:last:pr-4'
 export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
   return (
-    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-wash px-3 text-[0.75rem] font-semibold text-muted xl:sticky xl:top-[calc(var(--app-top,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
+    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-wash px-3 text-[0.75rem] font-semibold text-muted xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
       {children}
     </th>
   )

@@ -138,7 +138,7 @@ export const TASKS0: Task[] = [
     log: [L('Sep 23', 'system', 'Review for scheduling · master bath held for the designer')],
   },
   {
-    id: 't-heights-mdrive', jobId: 'mdrive', step: 'mdrive:heights',  title: 'Check the wall heights at Mark Drive', type: 'Field', owner: 'ys', for: ['owner', 'pm', 'site'],
+    id: 't-heights-mdrive', jobId: 'mdrive', step: 'mdrive:heights',  title: 'Check the wall heights at Mark Drive', type: 'Field', owner: 'yakov', for: ['owner', 'pm', 'site'],
     state: 'now', due: 'Wed', tone: 'info', where: 'Kitchen · primary bath', blocks: 'Wall tile at Mark Drive',
     detail: 'Floors are released. The wall tile waits until the heights are measured on site — backsplash to the cabinets, shower to the ceiling or 84″.',
     action: { label: 'Record the heights', kind: 'heights-mdrive' },
@@ -162,7 +162,7 @@ export const TASKS0: Task[] = [
   },
   {
     id: 't-est-b2', jobId: 'b2', title: 'Start the takeoff', type: 'Pricing', owner: 'office', for: ['office'],
-    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'New request · all documents in',
+    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'Request · all documents in',
     action: { label: 'Open estimate', kind: 'estimate:E-1047' }, log: [L('Sep 28', 'office', 'Request logged · all documents in')],
   },
   {

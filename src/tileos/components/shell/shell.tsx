@@ -174,7 +174,7 @@ export function DesktopTopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const me = meOf(role)
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 bg-canvas/90 px-7 backdrop-blur-md max-xl:px-6 max-lg:hidden">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 bg-canvas px-7 max-xl:px-6 max-lg:hidden">
       <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
         <Search className="h-4 w-4" />
         <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>
@@ -298,7 +298,7 @@ export function TopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const title = NAV[activeNav(route.page)]?.label || ({ flow: 'How it works', settings: 'Settings' } as Record<string, string>)[route.page] || 'Cobblestone'
   return (
-    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white/95 px-4 backdrop-blur-md lg:hidden">
+    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white px-4 lg:hidden">
       <button onClick={() => go(homeOf(role))} aria-label="Home" className="shrink-0">
         <Logo size={30} />
       </button>

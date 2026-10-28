@@ -141,4 +141,5 @@ export function TripButtons({ t, size = 'sm', onDone }: { t: Task; size?: 'sm' |
 }
 /** every button at the end of a list row: one size and look — Done, Dropped off, Send update, Open it, all the same width
  *  (a long label is cut short rather than making its button wider) */
-export const ROW_BTN = 'w-[11rem] shrink-0 justify-center overflow-hidden whitespace-nowrap'
+/** the one button on a Today row: the same width on every row, and light — the page isn't a wall of boxes */
+export const ROW_BTN = 'h-8 w-[10.5rem] shrink-0 justify-center overflow-hidden whitespace-nowrap border-transparent bg-[#f3f0ea] px-3 text-[0.8125rem] font-semibold text-ink shadow-none hover:border-transparent hover:bg-[#ebe6de] max-xl:w-[9.5rem]'

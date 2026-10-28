@@ -47,21 +47,21 @@ export function reactTo(jobId: string, id: string, emoji: string) {
     if (!r[emoji].length) delete r[emoji]
   })
 }
+/** a message that's really something to do: the task form opens with it filled in — say who does it and when, and it
+ *  lands on their Today, linked back to the message */
 export function messageToTask(jobId: string, id: string) {
-  const st0 = S()
-  const m = st0.messages[jobId]?.find((x) => x.id === id)
+  const m = S().messages[jobId]?.find((x) => x.id === id)
   if (!m) return
-  const me = meOf(st0.role)
-  st0.commit(
-    (s) => {
-      const x = s.messages[jobId].find((y) => y.id === id)!
-      x.became = 'task'
-      newTask(s, { jobId, title: m.text.length > 70 ? m.text.slice(0, 68) + '…' : m.text, detail: `From ${PEOPLE[m.who]?.name || 'someone'} in the project messages, ${m.date} ${m.time}.`, type: 'Field', owner: me, for: [s.role], state: 'now', due: 'Today', tone: 'info', where: 'From a message' })
-      addHist(s, jobId, { who: me, kind: 'question', title: 'A message became a task', detail: m.text })
-    },
-    'It’s a task now',
-    { sub: 'On your Today, linked to the message.' },
-  )
+  S().open({ t: 'newtask', jobId, fromMsg: id })
+}
+/** the task from a message was added: the message says so, and the project's history has it */
+export function markMessageTask(jobId: string, id: string) {
+  S().commit((s) => {
+    const x = s.messages[jobId]?.find((y) => y.id === id)
+    if (!x) return
+    x.became = 'task'
+    addHist(s, jobId, { who: meOf(s.role), kind: 'question', title: 'A message became a task', detail: x.text })
+  }, undefined, { undo: false })
 }
 /** messages from someone else that I haven't opened yet — the count on the project */
 export const unreadOf = (s: { messages: Record<string, Msg[]>; role: Role; seen?: Record<string, { n: number }> }, jobId: string) => {

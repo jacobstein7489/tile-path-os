@@ -1,11 +1,10 @@
 /* The project — one window that fills the screen, the same shape as the estimate:
  *   on top (in the header) the line, like the estimate's path — Approved · Getting ready · Crew scheduled · Installing ·
- *     Touch-ups · Closed — with the billing alongside it;
- *   left: what's going on now — getting ready's five tracks and the open issues; once the crew is in, the issues, the
- *     changes, more tile and the touch-ups;
- *   right: the job, one section at a time — Scope of work (every room and where it is) · Tiles · People · Documents.
- * Everything fits on one screen. On a phone, one side at a time. A room, the conversation, a file, the money open in
- * the same window, with Back on top. */
+ *     Touch-ups · Closed;
+ *   under it the project's parts, one tab at a time: Where it stands (getting ready, part by part, and the step you
+ *     picked beside it) · Scope of work (like the estimate's paper) · Tiles · Orders (the installer's PO, the tile, our
+ *     materials and metals, the deliveries) · Billing · People · Documents.
+ * A room, the conversation, a file open in the same window, with Back on top. On a phone, one side at a time. */
 import * as React from 'react'
 import { PrintSheetsButton } from '../roomsheets'
 import { ChevronRight } from 'lucide-react'
@@ -24,7 +23,7 @@ import { FilesTab, HistoryTab } from './files'
 import { ScopeTab } from './scope-tab'
 import { POsTab } from './pos-tab'
 import { MoneyTab } from './money-tab'
-import { ProjectNow, type OpenTrack } from './standing'
+import { Stands, type OpenTrack } from './standing'
 import { JobPart, type JobTab } from './details'
 import { IN_FIELD_STAGES, stepsFor } from '../steps'
 import { tracksFor } from '../tracks'
@@ -32,8 +31,8 @@ import { tracksFor } from '../tracks'
 /** something opened on the project: a room, the conversation, a file, the money… */
 export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' }
 
-/** a link that opens something on the project right away (the scope of work, the money) */
-export const viewFromTab = (tab?: string): BoardView => (tab === 'scope' ? { t: 'scope' } : tab === 'money' || tab === 'billing' || tab === 'estimate' ? { t: 'money' } : null)
+/** a link that opens something on the project right away (what happened, every wall and floor) */
+export const viewFromTab = (tab?: string): BoardView => (tab === 'history' || tab === 'log' ? { t: 'log' } : tab === 'walls' ? { t: 'scope' } : null)
 
 /** the track a step is on, opened on that step — for "Your turn", Today and a missing paper on the job side */
 export function trackOfStep(s: Store, job: Job, k: string): OpenTrack {
@@ -127,9 +126,17 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
 /* ---------------- the body: what's going on now on the left, the job on the right ---------------- */
 /** the project's parts, one at a time, each the full width: Where it stands (what's next, getting ready, the open
  *  issues) · Scope of work · Tiles · People · Documents. It opens on Where it stands. */
-export type BoardTab = 'stands' | JobTab
-const LINK_TAB: Record<string, BoardTab> = { tiles: 'tiles', people: 'people', files: 'files', docs: 'files', documents: 'files' }
-export const tabFromLink = (tab?: string): BoardTab => (tab && LINK_TAB[tab]) || 'stands'
+export type BoardTab = 'stands' | 'orders' | 'billing' | JobTab
+const LINK_TAB: Record<string, BoardTab> = {
+  scope: 'scope', rooms: 'scope', tiles: 'tiles', orders: 'orders', pos: 'orders', deliveries: 'orders',
+  money: 'billing', billing: 'billing', estimate: 'billing', people: 'people', files: 'files', docs: 'files', documents: 'files',
+}
+/** who sees the money — billing is its own tab, never on top of the work */
+export const seesMoney = (role: string) => !['site', 'crew', 'client'].includes(role)
+export const tabFromLink = (tab?: string, role: string = useStore.getState().role): BoardTab => {
+  const t = (tab && LINK_TAB[tab]) || 'stands'
+  return t === 'billing' && !seesMoney(role) ? 'stands' : t
+}
 
 export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, setTab }: {
   job: Job
@@ -153,38 +160,33 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
   const rooms = (s.rooms[job.id] || []).length
   const tiles = Object.keys(s.tiles[job.id] || {}).length
   const files = s.files.filter((f) => f.jobId === job.id).length
+  const money = seesMoney(s.role)
+  const at: BoardTab = tab === 'billing' && !money ? 'stands' : tab
   const pick = (t: BoardTab) => { setTab(t); if (t !== 'stands') setOpen(null) }
+  const sheet = (body: React.ReactNode) => <div data-side="job" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3">{body}</div>
   return (
     <div className="flex h-full min-h-0 flex-col">
       <UnderlineTabs<BoardTab>
-        value={tab}
+        value={at}
         onChange={pick}
         className="shrink-0 bg-white px-5 max-sm:px-4 max-sm:[&>button+button]:ml-4"
         items={[
           { key: 'stands', label: 'Where it stands', short: 'Status' },
           { key: 'scope', label: 'Scope of work', short: 'Scope', count: rooms || undefined },
           { key: 'tiles', label: 'Tiles', count: tiles || undefined },
+          { key: 'orders', label: 'Orders' },
+          ...(money ? [{ key: 'billing' as BoardTab, label: 'Billing' }] : []),
           { key: 'people', label: 'People' },
           { key: 'files', label: 'Documents', short: 'Docs', count: files || undefined },
         ]}
       />
-      <div ref={top} data-board-tab={tab} className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', tab === 'stands' ? 'bg-[#f4f1ec]' : 'bg-white')}>
-        {tab === 'stands'
-          ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-6 pt-4 max-sm:px-2.5"><ProjectNow job={job} open={open} setOpen={setOpen} onStep={onStep} /></div>
-          : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={tab} open={setView} onStep={onStep} /></div>}
+      <div ref={top} data-board-tab={at} className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', at === 'stands' ? 'bg-[#f4f1ec] lg:overflow-hidden' : 'bg-[#f7f5f1]')}>
+        {at === 'stands'
+          ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-6 pt-4 max-sm:px-2.5 lg:h-full lg:pb-0"><Stands job={job} open={open} setOpen={setOpen} onStep={onStep || (() => {})} setView={setView} /></div>
+          : at === 'orders' ? sheet(<POsTab job={job} onScope={() => setView({ t: 'scope' })} />)
+            : at === 'billing' ? sheet(<MoneyTab job={job} />)
+              : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={at} open={setView} onStep={onStep} /></div>}
       </div>
     </div>
   )
-}
-
-/** a desktop-sized window */
-export function useWide() {
-  const [wide, setWide] = React.useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true))
-  React.useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)')
-    const f = () => setWide(mq.matches)
-    mq.addEventListener('change', f)
-    return () => mq.removeEventListener('change', f)
-  }, [])
-  return wide
 }

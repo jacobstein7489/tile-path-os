@@ -17,7 +17,7 @@ const WIDTHS = {
   full: 'w-[min(93.75rem,calc(100vw-2.5rem))]',
 }
 /** pinned list headers inside a window sit at the top of its scrolling area */
-const INSIDE = { '--app-top': '0px', '--bar': '0px' } as React.CSSProperties
+const INSIDE = { '--app-top': '0px', '--bar': '0px', '--head': '0px' } as React.CSSProperties
 export function Modal({
   level = 0, size = 'md', onClose, title, sub, header, children, footer, bodyClass, tall, className,
 }: {

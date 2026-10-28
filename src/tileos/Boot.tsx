@@ -18,6 +18,35 @@ type Phase =
   | { k: 'ready' }
 
 const sb = supabase as any
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/* who's let in: their login types. A look-up that fails (the server busy for a moment right after an update, a sign-in
+ * being refreshed), or that comes back empty for someone this browser has already seen let in, is asked again with
+ * the sign-in refreshed — "you're not on the team yet" only ever comes from a clean, empty answer. */
+const MEMBER_KEY = 'tileos-member'
+const remembered = (uid: string) => { try { return localStorage.getItem(MEMBER_KEY) === uid } catch { return false } }
+const remember = (uid: string) => { try { localStorage.setItem(MEMBER_KEY, uid) } catch { /* private window */ } }
+type Found = { ok: true; roles: string[]; name?: string } | { ok: false; error: any }
+async function lookUp(uid: string): Promise<Found> {
+  let lastErr: any = null
+  let name: string | undefined
+  for (let i = 0; i < 5; i++) {
+    if (i) { await pause([0, 500, 1200, 2500, 4000][i]); await supabase.auth.getSession().catch(() => null) }
+    const [r, p] = await Promise.all([
+      sb.from('user_roles').select('role').eq('user_id', uid),
+      sb.from('profiles').select('full_name').eq('user_id', uid).maybeSingle(),
+    ])
+    name = p?.data?.full_name || name
+    if (r.error) { lastErr = r.error; continue }
+    lastErr = null
+    const roles: string[] = (r.data || []).map((x: any) => x.role)
+    if (roles.length) return { ok: true, roles, name }
+    /* empty: once more for anyone (the sign-in may not have been ready yet), a few more for someone let in before */
+    if (i === 0 || (remembered(uid) && i < 4)) continue
+    return { ok: true, roles: [], name }
+  }
+  return lastErr ? { ok: false, error: lastErr } : { ok: true, roles: [], name }
+}
 
 /* signed out by itself after a while away: 12 hours with no tap or key on Tile OS (overnight, a computer left on at the
  * office) — the next time, it asks for the password and pops up the day. While someone's using it, it never does. */
@@ -128,12 +157,11 @@ export default function Boot() {
     started.current = user.id
     setPhase({ k: 'loading' })
     /* let in = has a role; the first person to sign up was made the admin by the database */
-    const [{ data: roles }, { data: profile }] = await Promise.all([
-      sb.from('user_roles').select('role').eq('user_id', user.id),
-      sb.from('profiles').select('full_name').eq('user_id', user.id).maybeSingle(),
-    ])
-    const appRoles: string[] = (roles || []).map((r: any) => r.role)
-    const name = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
+    const found = await lookUp(user.id)
+    if (!found.ok) { started.current = null; setPhase({ k: 'problem', why: 'network', detail: found.error?.message }); return }
+    const appRoles = found.roles
+    if (appRoles.length) remember(user.id)
+    const name = found.name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
     /* from a link: a password first, then the app — for the link's person, whoever was signed in here before */
     if (ARRIVED && !askedPassword) {
       askedPassword = true
@@ -149,7 +177,9 @@ export default function Boot() {
     const admin = appRoles.includes('admin')
     const sample = admin && wantsSampleLook()
     if (!sample) { try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ } }
-    const res = sample ? startSample(user, { admin, name, appRoles }) : await startCloud(user, { admin, name, appRoles })
+    let res = sample ? startSample(user, { admin, name, appRoles }) : await startCloud(user, { admin, name, appRoles })
+    /* the company's data didn't load (the server busy for a moment): twice more before saying so */
+    for (let i = 0; i < 2 && !res.ok && res.why === 'network'; i++) { await pause(1500 * (i + 1)); res = await startCloud(user, { admin, name, appRoles }) }
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
     setPhase({ k: 'ready' })
@@ -166,6 +196,20 @@ export default function Boot() {
     })
     return () => { live = false; sub.subscription.unsubscribe() }
   }, [begin])
+
+  /* waiting to be let in: look again every 20 seconds — the page opens the app by itself the moment they're in */
+  React.useEffect(() => {
+    if (phase.k !== 'waiting') return
+    const t = setInterval(() => {
+      void supabase.auth.getSession().then(async ({ data }) => {
+        const u = data.session?.user
+        if (!u) return
+        const f = await lookUp(u.id)
+        if (f.ok && f.roles.length) { started.current = null; void begin(data.session) }
+      })
+    }, 20_000)
+    return () => clearInterval(t)
+  }, [phase.k, begin])
 
   /* while it's open: every tap or key keeps it signed in; 12 hours with neither signs out by itself */
   React.useEffect(() => {

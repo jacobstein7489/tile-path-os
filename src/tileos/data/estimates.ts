@@ -7,10 +7,10 @@ import type { Room } from './jobs'
 
 export type EstStatus = 'request' | 'estimating' | 'sent' | 'revision' | 'approved' | 'lost'
 export const EST_STATUS: Record<EstStatus, { label: string; tone: Tone }> = {
-  request: { label: 'New request', tone: 'neutral' },
+  request: { label: 'Request', tone: 'neutral' },
   estimating: { label: 'Estimating', tone: 'info' },
-  sent: { label: 'Pending approval', tone: 'info' },
-  revision: { label: 'Revision needed', tone: 'warn' },
+  sent: { label: 'Sent', tone: 'info' },
+  revision: { label: 'Revision', tone: 'warn' },
   approved: { label: 'Approved', tone: 'ok' },
   lost: { label: 'Lost', tone: 'neutral' },
 }

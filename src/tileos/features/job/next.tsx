@@ -1,9 +1,10 @@
-/* What's next on the project — on top of Where it stands, the one thing to do now, next to what it's about:
- *   getting ready: your turn on a step (its button opens it), or whose turn it is (Remind them);
- *   then: schedule the crew, start the job, the daily update, the return visit, the final invoice.
+/* What's next on the project — on Where it stands, the one thing to do now, next to what it's about:
+ *   getting ready (on a phone — on a computer the step itself is open): your turn on a step, or whose turn it is;
+ *   then: schedule the crew, start the job, the return visit, the final invoice. Installing has nothing to press here:
+ *   the daily update is on the site manager's Today.
  * It used to be a bar at the bottom of the window, away from everything it was about. */
 import * as React from 'react'
-import { ArrowRight, CalendarDays, Play, ClipboardList, Receipt, Hourglass } from 'lucide-react'
+import { ArrowRight, CalendarDays, Play, Receipt, Hourglass, Check } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Pop } from '@/tileos/components/ui/overlay'
@@ -60,12 +61,14 @@ export function NextUp({ job, onStep }: { job: Job; onStep: (k: string) => void 
     return booked
       ? <Card tone="mine" mark={<Mark tone="mine"><Play /></Mark>} top="Next" title="Start the job" sub="Getting ready is done and the crew is on the calendar" action={<Button variant="primary" icon={<Play />} onClick={() => startProject(job.id)}>Start the job</Button>} />
       : <Card tone="mine" mark={<Mark tone="mine"><CalendarDays /></Mark>} top="Next" title="Schedule the crew" sub="All five parts of getting ready are done" action={<Button variant="primary" icon={<CalendarDays />} data-schedule-crew onClick={() => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }}>Schedule the crew</Button>} />
-  if (phase === 'install')
-    return <Card tone="calm" mark={<Mark tone="calm"><ClipboardList /></Mark>} top="Every day" title="The daily update" sub="What the crew tiled today, room by room" action={<Button variant="primary" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button>} />
+  /* installing: nothing to press here — the daily update is on the site manager's Today, every day */
+  if (phase === 'install') return null
   if (phase === 'punch')
     return <Card tone="mine" mark={<Mark tone="mine"><CalendarDays /></Mark>} top="Next" title="Book the return visit" sub="For the touch-ups" action={<Button variant="primary" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: job.id })}>Book the return visit</Button>} />
   if (job.stage === 'closeout' && finalBill)
     return <Card tone="mine" mark={<Mark tone="mine"><Receipt /></Mark>} top="Next" title="The final invoice" action={<Button variant="primary" icon={<Receipt />} onClick={() => s.open({ t: 'money', id: finalBill.id })}>Final invoice</Button>} />
+  if (job.stage === 'complete')
+    return <Card tone="calm" mark={<Mark tone="calm"><Check /></Mark>} top="Closed" title="This project is done" sub={job.dates?.finish ? `Finished ${job.dates.finish} · paid and closed` : 'Paid and closed'} />
   return null
 }
 

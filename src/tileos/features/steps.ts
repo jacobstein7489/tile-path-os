@@ -147,6 +147,8 @@ export interface StepView {
   named?: boolean
   /** a question added on one project: the part of the checklist it's in */
   group?: string
+  /** the real app: nobody has this part's login yet ("Estimator") — the step went to whoever covers it (the admin) */
+  cover?: string
 }
 
 /** the parts of getting a project ready, in the order they read on the project */
@@ -562,11 +564,13 @@ export function stepsFor(s: Store, j: Job): StepView[] {
        happened says there's a problem (that has to be fixed, not answered away) */
     if (rec.no && !rec.na) raw = { ...raw, state: 'bad', note: rec.no.note ? `No — ${rec.no.note}` : `No — ${PEOPLE[rec.no.by]?.short || 'someone'} said it isn’t` }
     else if (rec.done && !['done', 'bad', 'na'].includes(raw.state)) raw = { state: 'done', note: rec.note || 'Done' }
-    const owner = realOwner(s, (raw.owner || task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey)
+    const asked = (raw.owner || task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey
+    const owner = realOwner(s, asked)
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
       after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',
       no: rec.no && !rec.na ? rec.no : undefined, group: d.group, named: d.named,
+      cover: owner !== asked && emptySpot(s, asked) ? SPOT[asked] : undefined,
     }
     /* a task already open for this step: its button and its words win */
     if (task && view.state !== 'done') {

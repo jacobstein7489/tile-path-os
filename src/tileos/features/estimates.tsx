@@ -1,6 +1,8 @@
-/* Estimates — where every project starts. Six words for where one stands: New request · Estimating · Pending approval ·
- * Revision needed · Approved · Lost. Inside "Estimating" it goes Takeoff → Office review → Final review, then to the client. Whose turn it is lives on the estimate, so nobody's tasks change hands; review notes are pinned
- * to the room they're about and go back as a checklist. Approved, it becomes a project. */
+/* Estimates — where every project starts. One set of words everywhere, the estimate's own path:
+ *   Request → Takeoff → Office review → Final review → Sent → Approved (or Lost).
+ * The bubbles on top, the groups on the list and the estimate's header all say the same thing. A revision goes back
+ * to its step and says "Revision 2". Whose turn it is lives on the estimate, so nobody's tasks change hands; review
+ * notes are pinned to the room they're about and go back as a checklist. Approved, it becomes a project. */
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
 import { Mail, Plus, Trash2, Send, Check, X, Inbox, FileText, ChevronDown, FileClock, FileCheck2, FileX2, CalendarDays, Building2, UserRound, Ruler, ClipboardCheck, BadgeCheck, Undo2, MessageSquarePlus, Sparkles, StickyNote, ArrowRight, Upload, Printer, MoreHorizontal, Layers, Receipt, Users, History, GitCompareArrows, Loader2, ChevronRight } from 'lucide-react'
@@ -29,21 +31,29 @@ import { ActivityRow } from './activity'
 
 const OPEN_B: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent']
 const ownerish = (s: Store) => s.role === 'owner' || s.role === 'pm'
-const B_TONE: Record<EstBucket, Tone> = { request: 'neutral', takeoff: 'info', review: 'vio', final: 'warn', sent: 'info', approved: 'ok', lost: 'neutral' }
+/** one colour per part of the path, the same on the bubbles, the groups and the estimate's header: grey for a request,
+ *  blue while it's being priced inside, violet with the client, green once it's won */
+const B_TONE: Record<EstBucket, Tone> = { request: 'neutral', takeoff: 'info', review: 'info', final: 'info', sent: 'vio', approved: 'ok', lost: 'neutral' }
 const B_ICON: Record<EstBucket, React.ReactNode> = { request: <Inbox />, takeoff: <Ruler />, review: <ClipboardCheck />, final: <BadgeCheck />, sent: <FileClock />, approved: <FileCheck2 />, lost: <FileX2 /> }
 
-/* the six statuses everyone sees */
+/* the statuses an estimate keeps (its record) — on screen it's always the path's word (estWord) */
 export type EstCat = 'request' | 'estimating' | 'revision' | 'sent' | 'approved' | 'lost'
 const OPEN_C: EstCat[] = ['request', 'estimating', 'revision', 'sent']
 export const catOf = (e: Estimate): EstCat => e.status
 export const CAT: Record<EstCat, { label: string; tone: Tone; icon: React.ReactNode }> = {
-  request: { label: 'New request', tone: 'neutral', icon: <Inbox /> },
+  request: { label: 'Request', tone: 'neutral', icon: <Inbox /> },
   estimating: { label: 'Estimating', tone: 'info', icon: <Ruler /> },
-  revision: { label: 'Revision needed', tone: 'warn', icon: <Undo2 /> },
-  sent: { label: 'Pending approval', tone: 'vio', icon: <FileClock /> },
+  revision: { label: 'Revision', tone: 'warn', icon: <Undo2 /> },
+  sent: { label: 'Sent', tone: 'vio', icon: <FileClock /> },
   approved: { label: 'Approved', tone: 'ok', icon: <FileCheck2 /> },
   lost: { label: 'Lost', tone: 'neutral', icon: <FileX2 /> },
 }
+/** the path, the same words as the estimate's circles */
+export const PATH_WORD: Record<EstBucket, string> = { request: 'Request', takeoff: 'Takeoff', review: 'Office review', final: 'Final review', sent: 'Sent', approved: 'Approved', lost: 'Lost' }
+const PATH_COLOR: Record<EstBucket, 'violet' | 'blue' | 'green' | 'slate'> = { request: 'slate', takeoff: 'blue', review: 'blue', final: 'blue', sent: 'violet', approved: 'green', lost: 'slate' }
+/** where an estimate is, in the path's word — "Office review", "Takeoff · Revision 2", "Sent" */
+export const estWord = (e: Estimate): string => `${PATH_WORD[bucketOf(e)]}${e.status === 'revision' ? ` · Revision ${curRev(e).n}` : ''}`
+export const estTone = (e: Estimate): Tone => (e.status === 'revision' ? 'warn' : B_TONE[bucketOf(e)])
 const STEP_RANK = (e: Estimate) => ['takeoff', 'review', 'final'].indexOf(bucketOf(e))
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
@@ -52,16 +62,17 @@ function nextOf(s: Store, e: Estimate): { text: string; tone?: 'bad' | 'warn' } 
   const missing = p?.docs.filter((d) => d.status === 'missing').map((d) => d.name.toLowerCase()) || []
   const b = bucketOf(e)
   const notes = openNotes(e).length
-  if (b === 'request') return missing.length ? { text: `Waiting for the ${missing.join(' and ')}`, tone: 'warn' } : { text: aiDraftFor(e.jobId) ? 'Plans are in — start the takeoff' : 'Start the takeoff' }
+  if (b === 'request') return missing.length ? { text: `Waiting for the ${missing.join(' and ')}`, tone: 'warn' } : { text: 'Plans are in — send it to the takeoff' }
   if (b === 'takeoff') {
     if (e.backTo) return { text: `Fix ${plural(notes, 'note')} — back to ${PEOPLE[teamOf(e)[e.backTo]].short}`, tone: 'warn' }
     if (p?.takeoff?.question) return { text: `Waiting on the ${p.takeoff.question.waitingOn.toLowerCase()}`, tone: 'warn' }
-    return { text: curRev(e).lines.length ? (notes ? `${plural(notes, 'thing')} to check` : 'Finish — ready for review') : 'Start the takeoff' }
+    if (e.status === 'revision') return { text: 'Make the client’s changes', tone: 'warn' }
+    return { text: curRev(e).lines.length ? (notes ? `${plural(notes, 'thing')} to check` : 'Finish the takeoff') : 'Do the takeoff' }
   }
-  if (b === 'review') return { text: 'Check the takeoff' }
+  if (b === 'review') return { text: 'Review the takeoff' }
   if (b === 'final') return { text: 'Approve and send' }
   if (b === 'sent') return { text: `Follow up ${e.followUp || 'Thu'}`, tone: e.followUp === 'Today' ? 'warn' : undefined }
-  if (b === 'approved') return { text: 'Project' }
+  if (b === 'approved') return { text: 'It’s a project' }
   return { text: '—' }
 }
 const whenOf = (e: Estimate) => {
@@ -72,7 +83,8 @@ const whenOf = (e: Estimate) => {
   return e.due ? `Due ${e.due}` : '—'
 }
 
-type EstView = 'open' | EstCat
+type EstView = 'open' | EstBucket
+const OPEN_PATH: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent']
 export function EstimatesPage() {
   const s = useStore()
   const q0 = s.route.q?.status as string | undefined
@@ -86,30 +98,30 @@ export function EstimatesPage() {
     const j = s.jobs[e.jobId]
     return (client === 'all' || j.clientId === client) && (who === 'all' || turn(e) === who) && (!q || `${e.id} ${j.name} ${j.client}`.toLowerCase().includes(q.toLowerCase()))
   }
-  const of = (c: EstCat) => list.filter((e) => catOf(e) === c)
-  const open = list.filter((e) => OPEN_C.includes(catOf(e)) && match(e))
-  const shown = view === 'open' ? open : list.filter((e) => catOf(e) === view && match(e)).sort((a, b) => b.id.localeCompare(a.id))
+  const of = (b: EstBucket) => list.filter((e) => bucketOf(e) === b)
+  const open = list.filter((e) => OPEN_PATH.includes(bucketOf(e)) && match(e))
+  const shown = view === 'open' ? open : list.filter((e) => bucketOf(e) === view && match(e)).sort((a, b) => b.id.localeCompare(a.id))
   const lostOld = view === 'lost' ? s.lost.filter((l) => !shown.some((e) => s.jobs[e.jobId]?.name === l.name) && (!q || l.name.toLowerCase().includes(q.toLowerCase()))) : []
   const pipeline = of('sent').reduce((n, e) => n + estAmount(e), 0)
   const clients = Array.from(new Set(list.map((e) => s.jobs[e.jobId].clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || s.jobs[list.find((e) => s.jobs[e.jobId].clientId === id)!.jobId].client }))
   const pick = (v: EstView) => () => setView(view === v ? 'open' : v)
   const me = meOf(s.role)
-  const mine = of('estimating').concat(of('revision')).filter((e) => turnOf(e) === me).length
+  const mineAt = (b: EstBucket) => of(b).filter((e) => turnOf(e) === me).length
+  const revs = (b: EstBucket) => of(b).filter((e) => e.status === 'revision').length
+  const subOf = (b: EstBucket) => (b === 'sent' ? (pipeline ? fmtMoney(pipeline) : undefined) : mineAt(b) ? `${mineAt(b)} yours` : revs(b) ? `${revs(b)} revision${revs(b) > 1 ? 's' : ''}` : undefined)
   return (
     <Page
       title="Estimates"
-      sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> pending approval{smp(' · sample amounts')}</>}
+      sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> sent — waiting for a yes{smp(' · sample amounts')}</>}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
       top={
         <Bubbles
           arrows
+          dense
           items={[
-            { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request') },
-            { key: 'estimating', label: CAT.estimating.label, count: of('estimating').length, sub: mine ? `${mine} your turn` : undefined, icon: CAT.estimating.icon, color: 'blue', on: view === 'estimating', onClick: pick('estimating') },
-            { key: 'sent', label: CAT.sent.label, count: of('sent').length, sub: pipeline ? fmtMoney(pipeline) : undefined, icon: CAT.sent.icon, color: 'cyan', on: view === 'sent', onClick: pick('sent') },
-            { key: 'revision', label: CAT.revision.label, count: of('revision').length, icon: CAT.revision.icon, color: 'amber', on: view === 'revision', onClick: pick('revision') },
-            { key: 'approved', label: CAT.approved.label, count: of('approved').length, icon: CAT.approved.icon, color: 'green', on: view === 'approved', onClick: pick('approved'), gapBefore: true },
-            { key: 'lost', label: CAT.lost.label, count: of('lost').length + s.lost.length, icon: CAT.lost.icon, color: 'slate', on: view === 'lost', onClick: pick('lost'), plainBefore: true },
+            ...OPEN_PATH.map((b) => ({ key: b, label: PATH_WORD[b], count: of(b).length, sub: subOf(b), icon: B_ICON[b], color: PATH_COLOR[b], on: view === b, onClick: pick(b) })),
+            { key: 'approved', label: PATH_WORD.approved, count: of('approved').length, icon: B_ICON.approved, color: PATH_COLOR.approved, on: view === 'approved', onClick: pick('approved'), gapBefore: true },
+            { key: 'lost', label: PATH_WORD.lost, count: of('lost').length + s.lost.length, icon: B_ICON.lost, color: PATH_COLOR.lost, on: view === 'lost', onClick: pick('lost'), plainBefore: true },
           ]}
         />
       }
@@ -117,7 +129,7 @@ export function EstimatesPage() {
         <>
           {view !== 'open' ? (
             <span className="inline-flex h-9 items-center gap-2 rounded-full border border-brand-600 bg-brand-50 pl-3.5 pr-1.5 text-[0.84375rem] font-semibold text-brand-700">
-              {CAT[view].label} <span className="text-brand-600">{shown.length + lostOld.length}</span>
+              {PATH_WORD[view]} <span className="text-brand-600">{shown.length + lostOld.length}</span>
               <button onClick={() => setView('open')} aria-label="Show open estimates" className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-brand-100">×</button>
             </span>
           ) : (
@@ -135,12 +147,12 @@ export function EstimatesPage() {
       <div>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
-          (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
-            const rows = open.filter((e) => catOf(e) === k).sort((a, b) => STEP_RANK(a) - STEP_RANK(b))
+          OPEN_PATH.map((b) => {
+            const rows = open.filter((e) => bucketOf(e) === b).sort((a, c) => (a.due && c.due ? (isoFromLabel(a.due) || '').localeCompare(isoFromLabel(c.due) || '') : 0))
             if (!rows.length) return null
             return (
-              <section key={k}>
-                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} right={k === 'sent' ? <span className="text-[0.8125rem] font-semibold tnum text-muted">{fmtMoney(rows.reduce((n, e) => n + estAmount(e), 0))}</span> : undefined} />
+              <section key={b} data-est-group={b}>
+                <Group label={PATH_WORD[b]} count={rows.length} tone={B_TONE[b]} right={b === 'sent' ? <span className="text-[0.8125rem] font-semibold tnum text-muted">{fmtMoney(rows.reduce((n, e) => n + estAmount(e), 0))}</span> : undefined} />
                 {rows.map((e) => <EstRow key={e.id} e={e} />)}
               </section>
             )
@@ -149,7 +161,6 @@ export function EstimatesPage() {
         {lostOld.map((l) => (
           <div key={l.name} className={cn('min-h-[3.75rem] border-t border-line-2 py-2.5 opacity-70', EST_COLS, 'px-5 max-sm:px-4')}>
             <div className="min-w-0"><div className="truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div><div className="truncate text-[0.78125rem] text-muted">{l.client}</div></div>
-            <div className="max-lg:hidden"><Status tone="neutral">Lost</Status></div>
             <div className="min-w-0"><span className="line-clamp-2 text-[0.8125rem] text-muted">{l.reason}</span></div>
             <div className="text-[0.8125rem] text-ink-2 max-lg:hidden">Lost {l.date}</div>
             <div className="text-right text-faint max-xl:hidden">—</div>
@@ -164,16 +175,15 @@ export function EstimatesPage() {
 }
 
 /* Estimate · Who has it · Date · Amount — the same columns, spacing and header as Projects. No status column: the
-   group it's under (or the bubble you picked) already says it; the step and the revision are words under the name. */
-const EST_COLS = 'grid grid-cols-[minmax(0,1.25fr)_10.5rem_minmax(0,1.4fr)_8rem_7.5rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_10rem_minmax(0,1.3fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] max-md:grid-cols-1 max-md:gap-1.5'
+   group it's under (or the bubble you picked) already says it, in the path's own word. */
+const EST_COLS = 'grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_9rem_8rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_8.5rem_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7.5rem] max-md:grid-cols-1 max-md:gap-1.5'
 function EstHead() {
   return (
     <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-md:hidden', EST_COLS, 'px-5 max-sm:px-4', STICKY_HEAD)}>
       <span>Estimate</span>
-      <span className="max-lg:hidden">Status</span>
       <span>Who has it</span>
       <span className="max-lg:hidden">Date</span>
-      <span className="text-right max-xl:hidden">Amount</span>
+      <span className="text-right">Amount</span>
     </div>
   )
 }
@@ -187,38 +197,35 @@ function EstRow({ e }: { e: Estimate }) {
   const nx = nextOf(s, e)
   const rev = curRev(e).n
   const c = catOf(e)
-  const step = b === 'takeoff' || b === 'review' || b === 'final' ? EST_STEP[b].label : ''
   const turn = holderOf(e)
+  const me = meOf(s.role)
   const date = whenOf(e)
   return (
     <div
       role="button"
       tabIndex={0}
+      data-est={e.id}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
       className={cn('min-h-[3.75rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
     >
       <div className="min-w-0">
         <div className="truncate text-[0.90625rem] font-semibold text-ink">{j.name}</div>
-        <div className="truncate text-[0.78125rem] text-muted"><span className="tnum">{e.id}</span> · {j.client}{rev > 1 && OPEN_C.includes(c) && c !== 'request' ? ` · Revision ${rev}` : ''}<span className="md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
-      </div>
-      <div className="min-w-0 max-lg:hidden">
-        <Status tone={CAT[c].tone}>{CAT[c].label}</Status>
-        {step && <div className="mt-1 truncate pl-1 text-[0.75rem] font-medium text-muted">{step}</div>}
+        <div className="truncate text-[0.78125rem] text-muted"><span className="tnum">{e.id}</span> · {j.client}{rev > 1 && OPEN_C.includes(c) && c !== 'request' ? <span className={c === 'revision' ? 'font-semibold text-warn-700' : ''}> · Revision {rev}</span> : ''}<span className="md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
       </div>
       <div className="min-w-0">
         {turn ? (
           <span className="flex min-w-0 items-center gap-2.5">
             <span className="max-md:hidden"><Avatar who={turn} size={28} /></span>
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-[0.84375rem] font-medium text-ink">{PEOPLE[turn].short}{e.since && (b === 'takeoff' || b === 'review' || b === 'final') && <span className="font-normal text-muted"> · since {e.since}</span>}</span>
+              <span className={cn('block truncate text-[0.84375rem]', turn === me ? 'font-semibold text-ink' : 'font-medium text-ink')}>{turn === me ? 'You' : PEOPLE[turn].short}{e.since && (b === 'takeoff' || b === 'review' || b === 'final') && <span className="font-normal text-muted"> · since {e.since}</span>}</span>
               <span className={cn('block truncate text-[0.78125rem]', nx.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{nx.text}</span>
             </span>
           </span>
         ) : <span className="truncate text-[0.8125rem] text-muted">{nx.text}</span>}
       </div>
       <div className={cn('truncate text-[0.8125rem] max-lg:hidden', /Today|late/.test(date) ? 'font-semibold text-warn-700' : 'text-ink-2')}>{date}</div>
-      <div className="text-right max-xl:hidden">
+      <div className="text-right max-md:text-left">
         <span className={cn('text-[0.90625rem] font-semibold tnum', amt ? 'text-ink' : 'font-normal text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
         {e.status === 'approved' && (() => {
           const jm = jobMoney(j)
@@ -421,7 +428,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       {/* the name, where it stands, the total and the buttons */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{j.name}</h2>
-        <Status tone={CAT[catOf(e)].tone} className="min-w-0 shrink-0 max-sm:hidden">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
+        <Status tone={estTone(e)} className="min-w-0 shrink-0 max-sm:hidden">{estWord(e)}</Status>
         <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted max-md:hidden">{e.id}</span>
         {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
         <span className="ml-auto flex shrink-0 items-center gap-2">

@@ -1,11 +1,7 @@
-/* The project window — the line on top (where the project is, like the estimate's path, with the billing alongside),
- * then two sides (job/board): what's going on now on the left (getting ready's five tracks and the open issues; once
- * the crew is in, the issues, changes, more tile and touch-ups), the job's details on the right (the scope of work —
- * every room and where it is — the tiles, the people, the documents).
- *   header: the project, where it stands in one word, the client and the address, the installer and the dates; on the
- *           right the conversation, + Add, and ··· (its details, delete). Under it the line and the billing.
- *   footer: the one thing to do now — your turn on a track, or what the project needs (schedule the crew, start it,
- *           the daily update…). The crew can't be scheduled until getting ready is done. */
+/* The project window — the header on top (the project, the client and the address, the installer and the dates, the
+ * line like the estimate's path), then the project's parts one tab at a time (job/board): Where it stands · Scope of
+ * work · Tiles · Orders · Billing · People · Documents. Billing has its own tab — it never sits on top of the work;
+ * the contract in the header opens it. */
 import * as React from 'react'
 import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock } from 'lucide-react'
 import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
@@ -29,9 +25,10 @@ import { projectStatus } from '../statuses'
 import { todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
 import { ProjectBoard, viewFromTab, tabFromLink, trackOfStep, type BoardView, type BoardTab } from './board'
-import { ProjectLine, BillingStrip, type OpenTrack } from './standing'
+import { ProjectLine, type OpenTrack } from './standing'
 import { tracksFor, phaseOf, bookingOf, TRACKS, type TrackKey } from '../tracks'
 import { pictureOf } from '../progressbill'
+import { ScopeDoc } from './scopedoc'
 import { md } from '@/tileos/lib/today'
 
 export { floorsOf }
@@ -46,7 +43,7 @@ export function sectionOf(job: Job): PTab {
 }
 
 /** a link that names a track ("installer", "orders"…) opens that track on the step it's on */
-const TAB_TRACK: Record<string, TrackKey> = { installer: 'installer', orders: 'materials', materials: 'materials', pos: 'materials', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope' }
+const TAB_TRACK: Record<string, TrackKey> = { installer: 'installer', materials: 'materials', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope' }
 function openFromTab(job: Job | undefined, tab?: string): OpenTrack {
   if (!job || !tab) return null
   const s = useStore.getState()
@@ -90,7 +87,7 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
     )
   }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => st.setView({ t: 'money' })} />} bodyClass="p-0 overflow-hidden">
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => { st.setView(null); st.setTab('billing') }} />} bodyClass="p-0 overflow-hidden">
       <ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} tab={st.tab} setTab={st.setTab} />
     </Modal>
   )
@@ -102,7 +99,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
   const pricing = ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)
   return (
     <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
-      <ProjectHeader job={job} mode="page" pricing={pricing} onChat={() => st.setView({ t: 'chat' })} onMoney={() => st.setView({ t: 'money' })} />
+      <ProjectHeader job={job} mode="page" pricing={pricing} onChat={() => st.setView({ t: 'chat' })} onMoney={() => { st.setView(null); st.setTab('billing') }} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
           <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} tab={st.tab} setTab={st.setTab} /></div>
@@ -122,7 +119,7 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
 
 /** the header, the same as an estimate's: the name and where it stands, the client and the address, the installer and
  *  the dates; on the right the contract (for whoever sees money), the conversation, + Add and ··· */
-export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void; /** the billing strip opens the money in place */ onMoney?: () => void }) {
+export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void; /** the contract opens the Billing tab */ onMoney?: () => void }) {
   const s = useStore()
   const role = s.role
   const status = headStatus(s, job)
@@ -153,7 +150,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
         {(pricing || status.tone === 'bad') && <span className="min-w-0 shrink-0 max-sm:hidden">{statusChip}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          {pic && pic.contract > 0 && <span className="text-[0.8125rem] text-muted max-md:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</span>}
+          {pic && pic.contract > 0 && <button onClick={onMoney} disabled={!onMoney} data-contract className="rounded-md px-1.5 py-0.5 text-[0.8125rem] text-muted transition hover:bg-wash enabled:cursor-pointer max-md:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</button>}
           {!pricing && onChat && (
             <Button size="sm" icon={<MessageCircle />} onClick={onChat} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden">
               <span>Messages</span>
@@ -175,8 +172,8 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
         {pic && pic.contract > 0 && <span className="md:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
       </div>
-      {/* where it is, like the estimate's path — and the billing alongside it, never in the way */}
-      {!pricing && onMoney && <><ProjectLine className="mt-3" job={job} /><BillingStrip className="mt-2" job={job} onOpen={onMoney} /></>}
+      {/* where it is, like the estimate's path */}
+      {!pricing && onChat && <ProjectLine className="mt-3" job={job} />}
     </div>
   )
 }
@@ -236,7 +233,7 @@ export function RoomModal({ jobId, room, view, surface, level }: { jobId: string
   )
 }
 
-/* ================= a printable scope of work, in Cobblestone's document style ================= */
+/* ================= a printable scope of work, in Cobblestone's document style (job/scopedoc) ================= */
 export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; estId?: string; print?: boolean; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
@@ -246,7 +243,6 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
   const est = estId ? s.estimates.find((e) => e.id === estId) : s.estimates.find((e) => e.jobId === jobId && e.status === 'approved')
   if (!job) return null
   const fromEst = !rooms.length && est ? (est.revs.find((r) => r.status === 'draft') || est.revs[est.revs.length - 1]) : undefined
-  const GREEN = '#2c4a3e'
   return (
     <Modal
       level={level}
@@ -262,46 +258,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
         </>
       }
     >
-      {fromEst && est ? <EstimatePaper e={est} rev={fromEst} prices={false} innerRef={doc} /> : (
-      <div ref={doc} className="mx-auto max-w-[47.5rem] bg-white px-10 py-9 font-[Helvetica,Arial,sans-serif] text-[#222] shadow-card max-sm:px-4">
-        <div className="flex items-baseline justify-between">
-          <div className="text-[1.75rem] font-bold tracking-[0.01em]" style={{ color: GREEN }}>COBBLESTONE</div>
-          <div className="text-[0.8125rem] font-bold tracking-[0.04em]" style={{ color: GREEN }}>SCOPE OF WORK</div>
-        </div>
-        <div className="mt-4 text-[0.875rem] font-bold">{job.name} | {job.address}</div>
-        <div className="mt-0.5 flex justify-between text-[0.75rem] text-[#444]">
-          <span>{job.client}</span>
-          <span>{est ? `Estimate ${est.id}` : 'Scope'} | {est?.approvedOn || (fromEst ? fromEst.date : '') || job.stageDates?.won || ''}</span>
-        </div>
-        <div className="mt-6">
-          {floorsOf(rooms).map((g) => (
-            <section key={g.floor} className="mb-5">
-              <div className="flex justify-between px-2 py-2 text-[0.75rem] font-bold uppercase text-white" style={{ background: GREEN }}>
-                <span>{g.floor}</span><span>Quantity</span>
-              </div>
-              {g.rooms.map((r) => (
-                <div key={r.name}>
-                  <div className="mt-1 bg-[#efece5] px-2 py-1.5 text-[0.71875rem] font-bold uppercase">{r.name}{r.note ? <span className="normal-case"> | {r.note}</span> : null}</div>
-                  {r.surfaces.map((x) => {
-                    const t = tileOf(jobId, x.tile)
-                    const what = /floor/i.test(x.name) ? 'Floor tile' : /wall|splash|wainscot/i.test(x.name) ? 'Wall tile' : x.name
-                    return (
-                      <div key={x.name} className="flex justify-between px-2 py-[0.1875rem] text-[0.71875rem]">
-                        <span>{x.name} — {what}{t ? ` ${t.size.replace(/\s/g, '').toUpperCase()} (${t.tag} ${t.name})` : ''}{x.height ? ` · ${x.height}` : ''}</span>
-                        <span className="tnum">{x.sf ? `${x.sf} SF` : '1 EA'}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </section>
-          ))}
-        </div>
-        <div className="mt-8 flex justify-between border-t border-[#ddd] pt-2 text-[0.625rem] text-[#666]">
-          <span>Scope reference{est ? ` — based on estimate ${est.id}` : ''}</span><span>1</span>
-        </div>
-      </div>
-      )}
+      <ScopeDoc jobId={jobId} estId={estId} innerRef={doc} />
     </Modal>
   )
 }

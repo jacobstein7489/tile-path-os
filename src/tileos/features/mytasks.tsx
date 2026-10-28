@@ -2,7 +2,6 @@
  * then what can be done any time. Tomorrow and Later are the same, a day at a time. Every row: when · what ·
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
-import { InboxStrip } from './inbox'
 import * as React from 'react'
 import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge, BellRing } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
@@ -32,6 +31,7 @@ import { checkIns, checkInDays, reportOn, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
+import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField } from './formkit'
 
 const TODAY_ISO = TODAY
@@ -102,8 +102,12 @@ function taskBucket(t: Task): Bucket {
 /** a task's title without the project tacked on the end — the project has its own column */
 const cleanTitle = (title: string, job?: Job) => (job ? title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '') : title)
 
-/* ---------------- one row, the same for everything: when · what · project · the one button ---------------- */
-const GRID = 'grid grid-cols-[6rem_minmax(0,1fr)_minmax(9.375rem,13.75rem)_11.5rem] items-center gap-6 max-xl:grid-cols-[5.5rem_minmax(0,1fr)_10.625rem] max-md:grid-cols-[4.125rem_minmax(0,1fr)_auto] max-md:gap-3'
+/* ---------------- one row, the same for everything: when · what · project · the one button ----------------
+ * Calm on purpose: no icon on every row, no "Anytime" written out (an empty time is anytime), and the button is a
+ * light one — the row says what it is, the button says what to do. */
+const GRID = 'grid grid-cols-[5.5rem_minmax(0,1fr)_minmax(9.375rem,13.75rem)_10.5rem] items-center gap-6 max-xl:grid-cols-[5rem_minmax(0,1fr)_9.5rem] max-md:grid-cols-[4.125rem_minmax(0,1fr)_auto] max-md:gap-3'
+/** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
+const TBTN = ROW_BTN
 function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick, done, leaving, owner }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
 }) {
@@ -115,9 +119,9 @@ function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       className={cn('group/row min-h-[3.5rem] border-t border-line-2 py-2.5 transition-colors', GRID, PX, onClick && 'cursor-pointer hover:bg-[#f7f5f0]', leaving && 'row-out')}
     >
-      <span className={cn('truncate text-[0.84375rem] tnum', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when}</span>
-      <span className="flex min-w-0 items-center gap-3">
-        {icon && <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] [&_svg]:h-4 [&_svg]:w-4 max-md:hidden', done ? 'bg-ok-50 text-ok-600' : 'bg-wash-2 text-ink-2')}>{done ? <Check strokeWidth={2.6} /> : icon}</span>}
+      <span className={cn('truncate text-[0.84375rem] tnum', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when === 'Anytime' ? '' : when}</span>
+      <span className="flex min-w-0 items-center gap-3" data-has-icon={icon ? '' : undefined}>
+        {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <span className="min-w-0">
           <span className={cn('block truncate text-[0.875rem] font-semibold leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
           <span className="flex min-w-0 items-center gap-2 text-[0.78125rem] leading-[1.125rem] text-muted">
@@ -169,15 +173,15 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       when={w.text}
       whenTone={w.tone}
       action={
-        theirs && !(done && (s.role === 'owner' || s.role === 'pm')) ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-        : done ? <Button size="sm" className={ROW_BTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
-          : follow ? <Button size="sm" className={ROW_BTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>Follow up</Button>
-          : stepTask ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-          : act ? <Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
-            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
+        theirs && !(done && (s.role === 'owner' || s.role === 'pm')) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+        : done ? <Button size="sm" className={TBTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
+          : follow ? <Button size="sm" className={TBTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>Follow up</Button>
+          : stepTask ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+          : act ? <Button size="sm" className={cn(TBTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
+            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
             : isRequest(t) && t.state === 'now' ? <TripButtons t={t} onDone={() => setLeaving(true)} />
-            : t.state === 'now' ? <Button size="sm" className={ROW_BTN} icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
-              : <Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
+            : t.state === 'now' ? <Button size="sm" className={TBTN} icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
+              : <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
       }
     />
   )
@@ -196,7 +200,7 @@ function StepRowToday({ job, v, showOwner, when }: { job: Job; v: StepView; show
       project={job.name}
       when={when?.text ?? 'Anytime'}
       whenTone={when?.tone ?? 'quiet'}
-      action={<Button size="sm" className={cn(ROW_BTN, 'max-w-full')} onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}><span className="truncate">{v.action?.label || 'Open'}</span></Button>}
+      action={<Button size="sm" className={cn(TBTN, 'max-w-full')} onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}><span className="truncate">{v.action?.label || 'Open'}</span></Button>}
     />
   )
 }
@@ -214,7 +218,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
       project={job.name}
       when="End of day"
       whenTone="strong"
-      action={<Button size="sm" className={ROW_BTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
+      action={<Button size="sm" className={TBTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
     />
   )
 }
@@ -235,7 +239,7 @@ function PayRow() {
       project="Company"
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" className={ROW_BTN} onClick={go}>Review the week</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go}>Review the week</Button>}
     />
   )
 }
@@ -261,7 +265,7 @@ function CheckInSection({ items }: { items: PlateItem[] }) {
             owner={who}
             when={`${c.late} ${c.late === 1 ? 'day' : 'days'} late`}
             whenTone="bad"
-            action={<Button size="sm" className={ROW_BTN} onClick={() => open(who)}>Check in</Button>}
+            action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
           />
         </div>
       ))}
@@ -285,7 +289,7 @@ function BillRow() {
       project="Company"
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" className={ROW_BTN} onClick={go}>Bill the week</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go}>Bill the week</Button>}
     />
   )
 }
@@ -303,7 +307,7 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
       project={job?.name || 'Company'}
       when={hourLabel(e.start)}
       whenTone="strong"
-      action={<Button size="sm" className={ROW_BTN} onClick={open}>Open</Button>}
+      action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
     />
   )
 }
@@ -501,13 +505,11 @@ export function MyTasksPage() {
     return (
       <React.Fragment key={iso}>
         {lateRows.length > 0 && (
-          <section data-day="overdue" className="bg-[#fffafa]">
+          <section data-day="overdue">
             <Group label="Overdue" count={lateRows.length} tone="bad" hint="from before today" />
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
-        {/* a gap between what's late and the day itself — two blocks, not one list */}
-        {lateRows.length > 0 && (rows.length > 0 || !lateRows.length) && <div aria-hidden className="h-4 border-y border-line bg-canvas" />}
         {(rows.length > 0 || !lateRows.length) && (
           <section data-day={iso}>
             <Group label={dayHead(iso)} count={rows.length} tone="info" hint={iso === TOMORROW ? dayLongFull(iso) : undefined} />
@@ -614,7 +616,6 @@ export function MyTasksPage() {
       sub={<>{TODAY_LABEL}<span className="mx-2 text-faint">·</span>{today.length ? `${today.length} to do today` : 'Nothing due today'}{late.length ? <><span className="mx-2 text-faint">·</span><button onClick={() => s.open({ t: 'late' })} className="font-semibold text-bad-600 underline decoration-bad-200 underline-offset-2 hover:decoration-bad-500">{late.length} overdue</button></> : null}{meetingsToday ? <><span className="mx-2 text-faint">·</span>{meetingsToday} {meetingsToday === 1 ? 'meeting' : 'meetings'}</> : null}</>}
       actions={<Button icon={<Plus />} onClick={() => s.open({ t: 'newtask' })}>New task</Button>}
       top={<>
-        <InboxStrip />
         <Bubbles
           items={[
             { key: 'today', label: 'Today', count: today.length, sub: late.length ? `${late.length} overdue` : meetingsToday ? `${meetingsToday} ${meetingsToday === 1 ? 'meeting' : 'meetings'}` : undefined, subBad: late.length > 0, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
@@ -629,7 +630,7 @@ export function MyTasksPage() {
         <div className="flex w-full flex-wrap items-center gap-2">
           {inside && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
           {/* one person's list — the admin and the office see what's on anyone's plate */}
-          {(all || boss) && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
+          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={all ? [{ key: 'person', label: 'By person', icon: <UserRound /> }, { key: 'job', label: 'By project', icon: <Building2 /> }, { key: 'time', label: 'By time', icon: <Clock3 /> }] : [{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
           <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
@@ -640,10 +641,10 @@ export function MyTasksPage() {
       <div>
         {boss && all && view === 'today' && <TeamToday who={who} pick={(p) => setWho(p)} />}
         {pinned.length > 0 && view === 'today' && (
-          <div className={cn('border-b border-line bg-[#fdf9f1] py-1.5', PX)}>
+          <div className={cn('border-b border-line-2 py-1', PX)} data-pinned>
             {pinned.map((t) => (
               <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 rounded-lg py-1.5 text-left">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] bg-warn-100 text-warn-700"><Megaphone className="h-4 w-4" /></span>
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f6efe2] text-warn-700"><Megaphone className="h-3.5 w-3.5" /></span>
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink">{cleanTitle(t.title, s.jobs[t.jobId])}</span>
                   <span className="block truncate text-[0.78125rem] text-muted">For everyone · {PEOPLE[t.owner].short} has it · {s.jobs[t.jobId]?.name}{t.log.length ? ` · ${t.log[t.log.length - 1].text}` : ''}</span>
@@ -948,10 +949,11 @@ const COMMON_TASKS: { t: string; for: Role[] }[] = [
   { t: 'Send the deposit invoice', for: ['owner', 'office', 'accounting'] },
   { t: 'Call the client about the open invoice', for: ['owner', 'office', 'accounting'] },
 ]
-export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }) {
+export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?: string; /** made from this message on the project: it starts filled in */ fromMsg?: string }) {
   const s = useStore()
   const me = meOf(s.role)
-  const [title, setTitle] = React.useState('')
+  const msg = fromMsg && jobId ? s.messages[jobId]?.find((x) => x.id === fromMsg) : undefined
+  const [title, setTitle] = React.useState(() => (msg ? (msg.text.length > 70 ? msg.text.slice(0, 68).trimEnd() + '…' : msg.text) : ''))
   const [job, setJob] = React.useState<string>(jobId || '')
   const [owner, setOwner] = React.useState<PersonKey>(me)
   const [due, setDue] = React.useState('Tomorrow')
@@ -982,7 +984,8 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
     const j = s.jobs[job]
     const clean = (j && heard ? withoutProject(title.trim(), j) : title.trim()) || title.trim()
     const role = s.team.find((m) => m.key === owner)?.role
-    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
+    if (msg && jobId) markMessageTask(jobId, msg.id)
     s.close()
   }
   /* the same frame as every + New: a box with a dropdown look */
@@ -1004,6 +1007,12 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
         </>
       }
     >
+      {msg && (
+        <div className="mb-3 flex min-w-0 items-start gap-2.5 rounded-xl bg-[#f6f3ee] px-3 py-2.5 text-[0.8125rem]" data-from-msg>
+          <Avatar who={msg.who} size={24} />
+          <span className="min-w-0 leading-snug"><b className="font-semibold text-ink">{PEOPLE[msg.who]?.name || 'Someone'}</b> <span className="text-muted">· {msg.time}</span><span className="mt-0.5 block text-ink-2">{msg.text}</span></span>
+        </div>
+      )}
       <FormRow label="What needs to be done?">
         <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Type it or say it" listLabel="The usual ones — tap to pick" />
         {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
