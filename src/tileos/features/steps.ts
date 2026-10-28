@@ -986,7 +986,8 @@ export function setFloorLevel(jobId: string, room: string, high: number, low: nu
     if (w?.tone === 'warn') r.surfaces.filter((sf) => isFloor(sf.name)).forEach((sf) => { if (!sf.method || sf.method === 'slab') sf.method = 'slu' })
     const rec = (st.stepRecs[jobId] ||= {}).level
     if (rec?.done) { delete rec.done; delete rec.by }
-  }, 'Floor saved')
+    /* no pop-up for each number — the row says what it means (flat, self-leveler, the GC's) right away */
+  }, undefined, { undo: false })
 }
 /** the height the laser line is set at, off the floor at the door — the same on every floor so the numbers compare */
 export const LASER_AT = 48
@@ -1000,7 +1001,7 @@ export function setLaser(jobId: string, where: string, at?: number) {
     const p = (st.prep[jobId] ||= {})
     if (where.trim() || h) p.laser = { where: where.trim(), date: TODAY, by: me(), ...(h ? { at: h } : {}) }
     else delete p.laser
-  }, where.trim() || h ? 'Laser line noted' : 'Laser line cleared')
+  }, undefined, { undo: false })
 }
 /** a floor is too far out for us: the office hears it, with the numbers, to take up with the GC */
 export function sendFloorProblems(jobId: string) {
