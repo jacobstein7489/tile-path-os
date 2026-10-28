@@ -7,6 +7,7 @@ import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, UserRound
 import { useStore, meOf, NOW, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
+import { BAND } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { keepFiles, openFile } from '@/tileos/lib/files'
 import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
@@ -30,6 +31,7 @@ async function addMedia(p: PunchItem, list: File[]) {
 const isVideo = (f?: FileRec) => !!f && (/^video\//.test(f.type) || /\.(mov|mp4|m4v|webm|3gp)$/i.test(f.name))
 
 /** the list itself — to do, fixed-to-check, checked — the same on the project page and in its own window */
+/** the list, edge to edge — each group a band, each touch-up a line (in a window, it fills the window's width) */
 export function TouchupsList({ job }: { job: Job }) {
   const s = useStore()
   const jobId = job.id
@@ -52,11 +54,11 @@ export function TouchupsList({ job }: { job: Job }) {
       {open.length > 0 && <Part label="To do" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {done.length > 0 && (
-        <div className="mt-4">
-          <button onClick={() => setShowDone(!showDone)} className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-muted hover:text-ink">
+        <div>
+          <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'w-full px-5 text-left text-[0.8125rem] font-semibold text-muted hover:text-ink max-sm:px-4')}>
             {showDone ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}{done.length} checked
           </button>
-          {showDone && <div className="mt-2 overflow-hidden rounded-[0.75rem] border border-line">{done.map((p) => <TouchupLine key={p.id} p={p} />)}</div>}
+          {showDone && done.map((p) => <TouchupLine key={p.id} p={p} />)}
         </div>
       )}
     </>
@@ -87,20 +89,21 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
         </>
       }
     >
-      <TouchupsList job={job} />
+      <div className="-mx-6 -my-5 max-sm:-mx-4"><TouchupsList job={job} /></div>
     </Modal>
   )
 }
 function Part({ label, n, children }: { label: string; n: number; children: React.ReactNode }) {
   return (
-    <div className="mb-4 last:mb-0">
-      <div className="mb-1.5 flex items-center gap-2 text-[0.75rem] font-semibold text-ink-2">{label}<span className="font-semibold text-muted">{n}</span></div>
-      <div className="overflow-hidden rounded-[0.75rem] border border-line">{children}</div>
+    <div>
+      <div className={cn(BAND, 'px-5 max-sm:px-4')}><span className="text-[0.8125rem] font-semibold text-ink-2">{label}</span><span className="text-[0.8125rem] font-medium tnum text-faint">{n}</span></div>
+      {children}
     </div>
   )
 }
 
-/** one touch-up: what and where, who does it, its photos and videos, what it's waiting on, and the one button */
+/** one touch-up, one line: what it is, where and who, what it's waiting on — then the one button (Done, then Checked),
+ *  a camera for a photo or a video, and ··· for the rest. Its photos, if it has any, in a small row under it. */
 function TouchupLine({ p }: { p: PunchItem }) {
   const s = useStore()
   const pick = React.useRef<HTMLInputElement>(null)
@@ -112,19 +115,25 @@ function TouchupLine({ p }: { p: PunchItem }) {
   const set = (patch: Partial<PunchItem>, msg: string) => s.commit((st) => { const x = st.punch.find((y) => y.id === p.id); if (x) Object.assign(x, patch) }, msg)
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c))
   const people: PersonKey[] = [...crews, ...(['yakov', 'ys'] as PersonKey[]).filter((k) => PEOPLE[k])]
+  const where = [p.where !== 'To place' ? p.where : '', PEOPLE[p.owner]?.short].filter(Boolean).join(' · ')
+  const note = p.note ? <span className={cn('inline-flex min-w-0 items-center gap-1', waiting ? 'text-warn-700' : 'text-ink-2')}>{waiting && <Hourglass className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{p.note}</span></span> : null
   return (
-    <div data-touchup={p.id} className="border-t border-line-2 px-4 py-3 first:border-t-0">
-      <div className="flex items-start gap-3">
-        <span className={cn('mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-ok-500 text-white' : p.status === 'verify' ? 'bg-brand-600 text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{(done || p.status === 'verify') && <Check className="h-3 w-3" strokeWidth={3} />}</span>
-        <span className="min-w-0 flex-1">
-          <span className={cn('block text-[0.90625rem] font-semibold leading-snug', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{p.text}</span>
-          <span className="block truncate text-[0.78125rem] text-muted">{[p.where !== 'To place' ? p.where : '', PEOPLE[p.owner]?.short].filter(Boolean).join(' · ')}</span>
-          {p.note && <span className={cn('mt-0.5 inline-flex items-center gap-1 text-[0.78125rem] font-medium', waiting ? 'text-warn-700' : 'text-ink-2')}>{waiting && <Hourglass className="h-3.5 w-3.5" />}{p.note}</span>}
-        </span>
-        <span className="flex shrink-0 items-center gap-1.5">
+    <div data-touchup={p.id} className="border-t border-line-2 px-5 py-2.5 max-sm:px-4">
+      {/* what it is, and its buttons — then where, who and what it waits on, in gray under it */}
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-ok-500 text-white' : p.status === 'verify' ? 'bg-brand-600 text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{(done || p.status === 'verify') && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+        <span title={p.text} className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium max-md:line-clamp-2 max-md:whitespace-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{p.text}</span>
+        <span className="flex shrink-0 items-center gap-1">
+          {!done && (
+            <>
+              <input ref={pick} type="file" accept="image/*,video/*" multiple className="hidden" aria-label={`Photos or videos of ${p.text}`} onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) void addMedia(p, l) }} />
+              <button type="button" onClick={() => pick.current?.click()} aria-label={`Add a photo or video of ${p.text}`} title="Add a photo or video" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink max-md:hidden"><Camera className="h-4 w-4" /></button>
+            </>
+          )}
           {(p.status === 'open' || p.status === 'working') && <Button size="sm" icon={<Check />} onClick={() => setPunch(p.id, 'verify')}>Done</Button>}
           {p.status === 'verify' && <Button size="sm" variant="primary" icon={<Check />} onClick={() => setPunch(p.id, 'verified')}>Checked</Button>}
           <Menu align="end" width={250} trigger={<button aria-label={`More for ${p.text}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+            {!done && <MenuItem icon={<Camera className="h-4 w-4" />} onSelect={() => pick.current?.click()}>Add a photo or video</MenuItem>}
             {!done && <MenuItem icon={<Hourglass className="h-4 w-4" />} onSelect={() => setWaitOpen(true)}>{waiting ? 'Change what it’s waiting on' : 'It’s waiting on something'}</MenuItem>}
             {waiting && <MenuItem icon={<Check className="h-4 w-4" />} onSelect={() => set({ note: undefined }, 'Not waiting any more')}>Not waiting any more</MenuItem>}
             {!done && (
@@ -140,22 +149,17 @@ function TouchupLine({ p }: { p: PunchItem }) {
           </Menu>
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 pl-8">
-        {media.map((f) => (
-          <button key={f.id} onClick={() => void openFile(f)} aria-label={`Open ${f.name}`} className="relative h-14 w-14 overflow-hidden rounded-lg border border-line-2 bg-wash-2">
-            {f.thumb ? <img src={f.thumb} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center bg-ink text-white">{isVideo(f) ? <Play className="h-5 w-5" /> : <Camera className="h-5 w-5" />}</span>}
-            {isVideo(f) && f.thumb && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white"><Play className="h-5 w-5" /></span>}
-          </button>
-        ))}
-        {!done && (
-          <>
-            <input ref={pick} type="file" accept="image/*,video/*" multiple className="hidden" aria-label={`Photos or videos of ${p.text}`} onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) void addMedia(p, l) }} />
-            <button type="button" onClick={() => pick.current?.click()} className={cn('inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#d1cbc0] text-[0.78125rem] font-semibold text-muted transition hover:border-brand-300 hover:text-brand-700', media.length ? 'h-14 w-14 justify-center' : 'h-8 px-2.5')}>
-              <Camera className="h-4 w-4" />{media.length ? '' : 'Photo or video'}
+      {(where || note) && <div className="mt-0.5 flex min-w-0 items-center gap-1.5 pl-8 text-[0.75rem] text-muted">{where && <span className="min-w-0 shrink truncate">{where}</span>}{where && note && <span>·</span>}{note}</div>}
+      {media.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-8">
+          {media.map((f) => (
+            <button key={f.id} onClick={() => void openFile(f)} aria-label={`Open ${f.name}`} className="relative h-11 w-11 overflow-hidden rounded-lg border border-line-2 bg-wash-2">
+              {f.thumb ? <img src={f.thumb} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center bg-ink text-white">{isVideo(f) ? <Play className="h-4 w-4" /> : <Camera className="h-4 w-4" />}</span>}
+              {isVideo(f) && f.thumb && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white"><Play className="h-4 w-4" /></span>}
             </button>
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
       {waitOpen && (
         <div className="mt-2 flex flex-wrap items-center gap-2 pl-8">
           <input autoFocus value={wait} onChange={(e) => setWait(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && wait.trim()) { set({ note: `Waiting on ${wait.trim().replace(/^waiting on /i, '')}` }, 'Waiting'); setWaitOpen(false); setWait('') } }} placeholder="What it’s waiting on — e.g. the tile delivery" className="h-9 min-w-[15rem] flex-1 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50" />

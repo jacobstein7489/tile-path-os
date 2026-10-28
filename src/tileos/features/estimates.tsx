@@ -11,7 +11,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, type CircleState } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -108,15 +108,14 @@ export function EstimatesPage() {
   return (
     <Page
       title="Estimates"
-      sub={<><span className="font-semibold text-ink">{fmtMoney(pipeline)}</span> pending approval{smp(' · sample amounts')}</>}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
       top={
         <Bubbles
           arrows
           items={[
             { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request') },
-            { key: 'estimating', label: CAT.estimating.label, count: of('estimating').length, sub: mine ? `${mine} your turn` : undefined, icon: CAT.estimating.icon, color: 'blue', on: view === 'estimating', onClick: pick('estimating') },
-            { key: 'sent', label: CAT.sent.label, count: of('sent').length, sub: pipeline ? fmtMoney(pipeline) : undefined, icon: CAT.sent.icon, color: 'cyan', on: view === 'sent', onClick: pick('sent') },
+            { key: 'estimating', label: CAT.estimating.label, count: of('estimating').length, icon: CAT.estimating.icon, color: 'blue', on: view === 'estimating', onClick: pick('estimating') },
+            { key: 'sent', label: CAT.sent.label, count: of('sent').length, icon: CAT.sent.icon, color: 'cyan', on: view === 'sent', onClick: pick('sent') },
             { key: 'revision', label: CAT.revision.label, count: of('revision').length, icon: CAT.revision.icon, color: 'amber', on: view === 'revision', onClick: pick('revision') },
             { key: 'approved', label: CAT.approved.label, count: of('approved').length, icon: CAT.approved.icon, color: 'green', on: view === 'approved', onClick: pick('approved'), gapBefore: true },
             { key: 'lost', label: CAT.lost.label, count: of('lost').length + s.lost.length, icon: CAT.lost.icon, color: 'slate', on: view === 'lost', onClick: pick('lost'), plainBefore: true },
@@ -125,17 +124,16 @@ export function EstimatesPage() {
       }
       toolbar={
         <>
-          {view !== 'open' ? (
+          {/* the bubble on top says which ones these are — no title in here; a picked one can be cleared */}
+          {view !== 'open' && (
             <span className="inline-flex h-9 items-center gap-2 rounded-full border border-brand-600 bg-brand-50 pl-3.5 pr-1.5 text-[0.84375rem] font-semibold text-brand-700">
               {CAT[view].label} <span className="text-brand-600">{shown.length + lostOld.length}</span>
               <button onClick={() => setView('open')} aria-label="Show open estimates" className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-brand-100">×</button>
             </span>
-          ) : (
-            <span className="bar-title text-[0.9375rem] font-semibold text-ink">Open estimates <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{open.length}</span></span>
           )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
-            <Filter icon={<UserRound />} label="Who has it" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
+            <Filter icon={<UserRound />} label="Whose turn" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
             <ClearFilters show={client !== 'all' || who !== 'all' || !!q} onClear={() => { setClient('all'); setWho('all'); setQ('') }} />
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search estimates" />
           </div>
@@ -150,18 +148,18 @@ export function EstimatesPage() {
             if (!rows.length) return null
             return (
               <section key={k} data-est-group={k}>
-                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} right={k === 'sent' ? <span className="text-[0.8125rem] font-semibold tnum text-muted">{fmtMoney(rows.reduce((n, e) => n + estAmount(e), 0))}</span> : undefined} />
+                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} />
                 {rows.map((e) => <EstRow key={e.id} e={e} />)}
               </section>
             )
           })}
         {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
-          <div key={l.name} className={cn('min-h-[3.25rem] border-t border-line-2 py-2.5 opacity-70', EST_COLS, 'px-5 max-sm:px-4')}>
+          <div key={l.name} title={l.reason} className={cn('min-h-[2.75rem] border-t border-line-2 py-2 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
             <div className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div>
-            <div className="min-w-0"><span className="line-clamp-2 text-[0.8125rem] text-muted">{l.reason}</span></div>
-            <div className="text-[0.8125rem] text-ink-2 max-lg:hidden">Lost {l.date}</div>
-            <div className="text-right text-faint">—</div>
+            <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
+            <div className="text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
+            <div className="text-right text-faint max-md:hidden">—</div>
           </div>
         ))}
         {!shown.length && !lostOld.length && (list.length
@@ -172,20 +170,17 @@ export function EstimatesPage() {
   )
 }
 
-/* One line per estimate, in light lines like the Projects table: Estimate · Who has it · Next · Date · Amount. No
-   status column: the group it's under (or the bubble you picked) already says it. The job's name only. On a phone:
-   the name and the amount, then whose it is and what's next. */
-const EST_COLS = 'grid grid-cols-[minmax(0,1.3fr)_10.5rem_minmax(0,1.5fr)_8.5rem_7.5rem] max-xl:grid-cols-[minmax(0,1.2fr)_10rem_minmax(0,1.3fr)_7.5rem] max-md:block'
-const EST_CELL = 'flex min-w-0 items-center px-4'
+/* One line per estimate, four things, no lines between them: Estimate · Whose turn · Date · Amount. No status column
+   and no "next" — the group it's under says where it is, and whose turn it is says who moves it (what they do is
+   inside, and when you point at the row). On a phone: the name and the amount, then whose turn and the date. */
+const EST_COLS = 'grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_8rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] max-md:block'
 function EstHead() {
-  const h = 'flex h-9 min-w-0 items-center px-4'
   return (
-    <div className={cn('divide-x divide-line-2 border-y border-line-2 bg-wash text-[0.75rem] font-semibold text-muted', EST_COLS, STICKY_HEAD, 'max-md:hidden')}>
-      <span className={cn(h, 'pl-5')}>Estimate</span>
-      <span className={h}>Who has it</span>
-      <span className={h}>Next</span>
-      <span className={cn(h, 'max-xl:hidden')}>Date</span>
-      <span className={cn(h, 'justify-end')}>Amount</span>
+    <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
+      <span>Estimate</span>
+      <span>Whose turn</span>
+      <span className="max-lg:hidden">Date</span>
+      <span className="text-right">Amount</span>
     </div>
   )
 }
@@ -201,29 +196,29 @@ function EstRow({ e }: { e: Estimate }) {
   const turn = holderOf(e)
   const me = meOf(s.role)
   const date = whenOf(e)
+  const late = /Today|late/.test(date)
   const who = turn ? (
-    <span className="flex min-w-0 items-center gap-2"><Avatar who={turn} size={22} /><span className={cn('truncate text-[0.8125rem]', turn === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{turn === me ? 'You' : PEOPLE[turn].short}</span></span>
+    <span className="flex min-w-0 items-center gap-2"><Avatar who={turn} size={20} /><span className={cn('truncate text-[0.8125rem]', turn === me ? 'font-medium text-ink' : 'text-ink-2')}>{turn === me ? 'You' : PEOPLE[turn].short}</span></span>
   ) : <span className="text-[0.8125rem] text-faint">—</span>
-  const next = <span className={cn('truncate text-[0.84375rem]', nx.tone === 'warn' ? 'font-medium text-warn-700' : 'text-ink')}>{nx.text}</span>
-  const money = <span className={cn('text-[0.84375rem] font-semibold tnum', amt ? 'text-ink' : 'font-normal text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
+  const money = <span className={cn('text-[0.8125rem] tnum', amt ? 'font-medium text-ink' : 'text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
   return (
     <div
       role="button"
       tabIndex={0}
       data-est={e.id}
+      title={`${nx.text} · ${j.client}`}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[2.875rem] cursor-pointer divide-x divide-line-2 border-b border-line-2 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none max-md:divide-x-0 max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
+      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
-      <div className={cn(EST_CELL, 'pl-5 max-md:hidden')}><span className="truncate text-[0.90625rem] font-semibold text-ink" title={`${e.id} · ${j.client}`}>{j.name}</span></div>
-      <div className={cn(EST_CELL, 'max-md:hidden')}>{who}</div>
-      <div className={cn(EST_CELL, 'max-md:hidden')}>{next}</div>
-      <div className={cn(EST_CELL, 'max-xl:hidden')}><span className={cn('truncate text-[0.8125rem]', /Today|late/.test(date) ? 'font-semibold text-warn-700' : 'text-ink-2')}>{date}</span></div>
-      <div className={cn(EST_CELL, 'justify-end max-md:hidden')}>{money}</div>
+      <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink max-md:hidden">{j.name}</span>
+      <span className="min-w-0 max-md:hidden">{who}</span>
+      <span className={cn('truncate text-[0.8125rem] max-lg:hidden', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span>
+      <span className="text-right max-md:hidden">{money}</span>
       {/* a phone: two short lines */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-center gap-3"><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
-        <div className="mt-1 flex min-w-0 items-center gap-2"><span className="flex min-w-0 flex-1">{next}</span>{turn && <span className="shrink-0">{who}</span>}</div>
+        <div className="mt-1 flex min-w-0 items-center gap-2">{turn && <span className="min-w-0">{who}</span>}<span className={cn('ml-auto shrink-0 text-[0.75rem]', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span></div>
       </div>
     </div>
   )

@@ -108,6 +108,26 @@ export function Page({
   )
 }
 
+/** a panel that fills the window from where it starts down to the bottom, on a computer (it grows past it when what's
+ *  in it needs more) — so a page with panels side by side fills the screen, evenly */
+export function useFill<T extends HTMLElement>(pad = 28, from = 1280) {
+  const ref = React.useRef<T>(null)
+  React.useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const set = () => {
+      if (window.innerWidth < from) { el.style.minHeight = ''; return }
+      const top = el.getBoundingClientRect().top + window.scrollY
+      el.style.minHeight = Math.max(320, window.innerHeight - top - pad) + 'px'
+    }
+    set()
+    const t = setTimeout(set, 120)
+    window.addEventListener('resize', set)
+    return () => { clearTimeout(t); window.removeEventListener('resize', set) }
+  }, [pad, from])
+  return ref
+}
+
 /** a white card with an optional bold title */
 export function Card({ title, count, right, sub, children, className, pad = true, id }: { title?: React.ReactNode; count?: number | string; right?: React.ReactNode; sub?: React.ReactNode; children?: React.ReactNode; className?: string; pad?: boolean; id?: string }) {
   return (
@@ -129,8 +149,9 @@ export function Card({ title, count, right, sub, children, className, pad = true
   )
 }
 
+/** a count next to a name: just the number, quiet (red only for problems) */
 export function CountPill({ children, tone = 'info' }: { children: React.ReactNode; tone?: Tone }) {
-  return <span className={cn('inline-flex h-[1.375rem] min-w-[1.375rem] items-center justify-center rounded-full px-1.5 text-[0.75rem] font-bold tnum', tone === 'bad' ? 'bg-bad-50 text-bad-600' : tone === 'neutral' ? 'bg-wash-2 text-muted' : 'bg-brand-50 text-brand-600')}>{children}</span>
+  return <span className={cn('text-[0.8125rem] font-medium tnum', tone === 'bad' ? 'text-bad-600' : 'text-faint')}>{children}</span>
 }
 
 /** tabs as chips — the one you're on is blue */
@@ -231,16 +252,19 @@ export function ToolbarSearch({ value, onChange, placeholder }: { value: string;
 const DOT: Record<Tone, string> = { bad: 'bg-bad-500', warn: 'bg-warn-500', ok: 'bg-ok-500', info: 'bg-brand-600', vio: 'bg-vio-500', neutral: 'bg-faint' }
 const HALO: Record<Tone, string> = { bad: 'bg-bad-50', warn: 'bg-warn-50', ok: 'bg-ok-50', info: 'bg-brand-50', vio: 'bg-vio-50', neutral: 'bg-wash-2' }
 
-/** a group heading inside a card (Overdue, Today, Coming up…): a dot, the name and a count */
-export function Group({ label, count, tone = 'info', open = true, onToggle, hint, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
+/** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
+ *  (or band's) line — every line in a list is the same one line. */
+export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
+/** a group inside a list (Overdue, Today, On hold, Getting ready…): a light band the full width, with the same line
+ *  above it as every row — so the lines never change. The name and how many; a quiet link on the right if any. */
+export const BAND = 'flex h-9 items-center gap-2 border-t border-line-2 bg-[#f7f5f1]'
+export function Group({ label, count, tone = 'info', open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className={cn('flex items-center gap-2.5 pb-1.5 pt-3', PX)}>
-      <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-center gap-2.5 text-left disabled:cursor-default">
-        <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', HALO[tone])}><span className={cn('h-2 w-2 rounded-full', DOT[tone])} /></span>
-        <span className={cn('truncate text-[0.8125rem] font-semibold', tone === 'bad' ? 'text-bad-700' : 'text-ink')}>{label}</span>
-        {count !== undefined && <CountPill tone={tone === 'bad' ? 'bad' : tone === 'neutral' ? 'neutral' : 'info'}>{count}</CountPill>}
-        {hint && <span className="ml-1 truncate text-[0.78125rem] text-faint max-md:hidden">{hint}</span>}
-        {onToggle && (open ? <ChevronDown className="h-4 w-4 text-faint" /> : <ChevronRight className="h-4 w-4 text-faint" />)}
+    <div className={cn(BAND, PX)} data-group-tone={tone} data-band>
+      <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-baseline gap-2 text-left disabled:cursor-default">
+        <span className="truncate text-[0.8125rem] font-semibold text-ink-2">{label}</span>
+        {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
+        {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
       </button>
       {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
     </div>
@@ -451,11 +475,9 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
+              {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1">
-                <span className="flex items-baseline gap-2">
-                  <span className={cn('display-num text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
-                  {b.sub && <span className={cn('truncate whitespace-nowrap text-[0.75rem] font-semibold', b.on ? 'text-white/80' : b.subBad ? 'text-bad-600' : 'text-muted')}>{b.sub}</span>}
-                </span>
+                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
                 <span className={cn('block truncate text-[0.75rem] font-medium leading-4', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>
               </span>
             </button>
@@ -519,7 +541,7 @@ export function Table({ children, minWidth, className, auto }: { children: React
 const EDGE = 'first:pl-6 last:pr-6 max-sm:first:pl-4 max-sm:last:pr-4'
 export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
   return (
-    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-wash px-3 text-[0.75rem] font-semibold text-muted xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
+    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.75rem] font-medium text-faint xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
       {children}
     </th>
   )
@@ -549,16 +571,14 @@ const FIRST = 'pl-6 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone = 'info', hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('whitespace-nowrap border-b border-line-2 pb-2.5 pt-5', FIRST)}>
-        <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2.5 text-left disabled:cursor-default">
-          <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full', HALO[tone])}><span className={cn('h-2 w-2 rounded-full', DOT[tone])} /></span>
-          <span className={cn('text-[0.875rem] font-bold', tone === 'bad' ? 'text-bad-700' : 'text-ink')}>{label}</span>
-          {count !== undefined && <CountPill tone={tone === 'bad' ? 'bad' : 'info'}>{count}</CountPill>}
-          {hint && <span className="ml-1 text-[0.78125rem] font-normal text-faint">{hint}</span>}
-          {onToggle && (open ? <ChevronDown className="h-4 w-4 text-faint" /> : <ChevronRight className="h-4 w-4 text-faint" />)}
+      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#f7f5f1] py-0', FIRST)} data-group-tone={tone} data-band>
+        <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-baseline gap-2 text-left disabled:cursor-default">
+          <span className="text-[0.8125rem] font-semibold text-ink-2">{label}</span>
+          {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
+          {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f7f5f1] max-md:hidden" />}
     </tr>
   )
 }
@@ -583,32 +603,38 @@ export function EmptyRow({ colSpan, title, sub, action }: { colSpan: number; tit
 const CHIP: Record<Tone, string> = {
   bad: 'bg-bad-50 text-bad-700', warn: 'bg-warn-50 text-warn-700', ok: 'bg-ok-50 text-ok-700', info: 'bg-brand-50 text-brand-700', vio: 'bg-vio-50 text-vio-600', neutral: 'bg-wash-2 text-ink-2',
 }
+/** where something stands, in a word or two: a small dot and the words in its color — no pill behind it. Red only for a
+ *  problem. */
+const WORD: Record<Tone, string> = { bad: 'text-bad-600', warn: 'text-warn-700', ok: 'text-ok-700', info: 'text-brand-700', vio: 'text-vio-600', neutral: 'text-ink-2' }
 export function Status({ tone = 'neutral', children, className, plain }: { tone?: Tone; children: React.ReactNode; className?: string; plain?: boolean }) {
   return (
-    <span className={cn('inline-flex h-6 min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[0.78125rem] font-semibold', plain ? CHIP.neutral : CHIP[tone], className)}>
+    <span className={cn('inline-flex h-6 min-w-0 max-w-full items-center gap-1.5 whitespace-nowrap text-[0.8125rem] font-medium', plain ? WORD.neutral : WORD[tone], className)}>
       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', DOT[plain ? 'neutral' : tone])} />
       <span className="truncate">{children}</span>
     </span>
   )
 }
+/* the old soft pills — kept for the few things that are a tag, not a state */
+export const PILL = CHIP
 
 /* ---------------- a switch between ways of seeing a list ----------------
  * Mine / Everyone, By time / By project: easy to see (the one you're on is dark), and it never moves — nothing next to
  * it appears or changes width when you switch. */
 export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; short?: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
   return (
-    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] border border-[#d6d0c6] bg-white p-[0.1875rem] shadow-xs', className)}>
+    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] bg-[#efebe4] p-[0.1875rem]', className)}>
       {items.map((it) => {
         const on = it.key === value
+        /* the one you're on is white, lifted a little — calm, like a light switch; no blue */
         return (
           <button
             key={String(it.key)}
             role="tab"
             aria-selected={on}
             onClick={() => onChange(it.key)}
-            className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:shrink-0 max-sm:[&_svg]:hidden', on ? 'bg-brand-600 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.2)]' : 'text-ink-2 hover:bg-wash hover:text-ink')}
+            className={cn('inline-flex h-[1.875rem] items-center gap-1.5 whitespace-nowrap rounded-[0.4375rem] px-3 text-[0.8125rem] font-semibold transition-colors max-sm:px-2.5 [&_svg]:hidden', on ? 'bg-white text-ink shadow-[0_0.0625rem_0.1875rem_rgba(16,24,40,.12)]' : 'text-muted hover:text-ink')}
           >
-            {it.icon}{it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-white/70' : 'text-muted')}>{it.count}</span>}
+            {it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}{it.count != null && <span className={cn('text-[0.75rem] tnum', on ? 'text-muted' : 'text-faint')}>{it.count}</span>}
           </button>
         )
       })}

@@ -7,7 +7,7 @@ import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, B
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch } from '@/tileos/components/ui/page'
+import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -102,22 +102,47 @@ function taskBucket(t: Task): Bucket {
 /** a task's title without the project tacked on the end — the project has its own column */
 const cleanTitle = (title: string, job?: Job) => (job ? title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '') : title)
 
-/* ---------------- one row, the same for everything, one line: when · what · project · (whose) · the button ----------------
- * Calm on purpose, in light columns like a table: no icon on every row, no second line of small print (it's in the
- * task's window), no "Anytime" written out (an empty time is anytime), and a light button — the row says what it is,
- * the button says what to do. Everyone's list has a column for whose it is. */
-const GRID = 'grid grid-cols-[7rem_minmax(0,1fr)_minmax(10rem,14rem)_11.75rem] max-xl:grid-cols-[6.5rem_minmax(0,1fr)_minmax(8rem,11rem)_10.75rem] max-md:grid-cols-[5rem_minmax(0,1fr)]'
-const GRID_WHO = 'grid grid-cols-[7rem_minmax(0,1fr)_minmax(10rem,14rem)_9rem_11.75rem] max-xl:grid-cols-[6.5rem_minmax(0,1fr)_minmax(8rem,11rem)_8rem_10.75rem] max-md:grid-cols-[5rem_minmax(0,1fr)]'
-const CELL = 'flex min-w-0 items-center px-4 max-md:px-3'
-/** everyone's list shows whose each row is, in its own column */
+/* ---------------- one row, the same for everything: what · project · when ----------------
+ * Calm on purpose: no lines between columns, no icon on every row, no small print under the title (it's in the task's
+ * window) and no button on every row — on a computer the row's one button shows when you point at it; on a phone you
+ * tap the row and its window has the button. Red only for what's late or a problem. Everyone's list says whose it is. */
 const WhoCol = React.createContext(false)
+/** grouped by project: the project is the group's name — the rows don't say it again */
+const InJob = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
-function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick, done, leaving, owner }: {
+/** the row's button floats in on the right when you point at the row (a mouse) — never on a phone or a tablet */
+const HOVER_ACT = 'pointer-events-none absolute inset-y-0 right-0 hidden items-center pl-12 pr-5 opacity-0 transition-opacity duration-100 max-sm:pr-4 [@media(hover:hover)]:md:flex group-hover/row:opacity-100 group-focus-visible/row:opacity-100 group-has-[:focus-visible]/row:opacity-100'
+const HOVER_BG = { background: 'linear-gradient(90deg, rgba(247,245,240,0), #f7f5f0 2.75rem)' }
+/** the columns: what · (whose, on everyone's list) · project (not when grouped by project) · when — the same on the
+ *  column names on top and on every row, so everything lines up, and they share the whole width */
+export const todoCols = (who: boolean, inJob: boolean) =>
+  who
+    ? inJob ? 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1fr)_7rem]'
+    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem]'
+/** the column names over a Today list */
+function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
+  return (
+    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} data-todo-head>
+      <span>What</span>
+      {who && <span>Whose</span>}
+      {!inJob && <span>Project</span>}
+      <span className="text-right">When</span>
+    </div>
+  )
+}
+function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
 }) {
   const who = React.useContext(WhoCol)
+  const inJob = React.useContext(InJob)
   const me = meOf(useStore((x) => x.role))
+  const w = when === 'Anytime' ? '' : when
+  /* grouped by project, the group's name says it — it's still on the row for a screen reader */
+  const quiet = inJob ? project : undefined
+  if (inJob) project = undefined
+  const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
+  const ownerName = owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : ''
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -125,20 +150,25 @@ function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       title={typeof detail === 'string' && detail ? detail : undefined}
-      className={cn('group/row min-h-[2.875rem] divide-x divide-line-2 border-t border-line-2 transition-colors', who ? GRID_WHO : GRID, onClick && 'cursor-pointer hover:bg-[#f7f5f0]', leaving && 'row-out')}
+      data-todo
+      className={cn('group/row relative min-h-[2.75rem] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', todoCols(who, inJob), PX, onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0]', leaving && 'row-out')}
     >
-      <span className={cn(CELL, 'pl-5 max-md:pl-4 max-md:pr-2')}><span className={cn('truncate text-[0.8125rem] leading-tight tnum max-md:whitespace-normal', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when === 'Anytime' ? '' : when}</span></span>
-      <span className={cn(CELL, 'gap-2.5 py-2')} data-has-icon={icon ? '' : undefined}>
+      <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
-        <span className="min-w-0">
-          <span className={cn('block truncate text-[0.875rem] font-semibold leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
-          {/* on a phone the project (and whose it is) go under the title — there's no room for their columns */}
-          {(project || (who && owner)) && <span className="hidden min-w-0 truncate text-[0.75rem] text-muted max-md:block">{[who && owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : '', project].filter(Boolean).join(' · ')}</span>}
-        </span>
-      </span>
-      <span className={cn(CELL, 'max-md:hidden')}><span className="truncate text-[0.8125rem] text-ink-2">{project}</span></span>
-      {who && <span className={cn(CELL, 'max-md:hidden')}>{owner && PEOPLE[owner] ? <span className="flex min-w-0 items-center gap-2"><Avatar who={owner} size={22} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{owner === me ? 'You' : PEOPLE[owner]?.short}</span></span> : null}</span>}
-      <span className={cn(CELL, 'justify-center px-2.5 max-md:hidden')} onClick={(e) => e.stopPropagation()}>{action}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
+            {/* on a phone the time sits at the end of the title's line, and the project goes under it */}
+            {w && <span className={cn('shrink-0 text-[0.75rem] tnum md:hidden', whenCls)}>{w}</span>}
+          </div>
+          {(project || (who && owner)) && <div className="mt-0.5 truncate text-[0.75rem] text-muted md:hidden">{[who && owner ? ownerName : '', project].filter(Boolean).join(' · ')}</div>}
+        </div>
+      </div>
+      {who && <span className="flex min-w-0 items-center gap-2 max-md:hidden">{owner && PEOPLE[owner] ? <><Avatar who={owner} size={20} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-medium text-ink' : 'text-ink-2')}>{ownerName}</span></> : null}</span>}
+      {!inJob && <span className="min-w-0 truncate text-[0.8125rem] text-muted max-md:hidden">{project}</span>}
+      {quiet && <span className="sr-only">{quiet}</span>}
+      <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', whenCls)}>{w}</span>
+      {action && <div className={HOVER_ACT} style={HOVER_BG} onClick={(e) => e.stopPropagation()}><span className="pointer-events-auto flex items-center gap-2">{action}</span></div>}
     </div>
   )
 }
@@ -513,7 +543,7 @@ export function MyTasksPage() {
       <React.Fragment key={iso}>
         {lateRows.length > 0 && (
           <section data-day="overdue">
-            <Group label="Overdue" count={lateRows.length} tone="bad" />
+            <Group label="Overdue" count={lateRows.length} tone="bad" right={<button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button>} />
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
@@ -545,17 +575,16 @@ export function MyTasksPage() {
       const rows = items.filter((x) => jobOfItem(x) === id)
       const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
       return (
-        <section key={id || 'none'} aria-label={j ? j.name : 'Not on a project'}>
-          <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f5f0] py-2 first:border-t-0', PX)}>
+        <InJob.Provider key={id || 'none'} value><section aria-label={j ? j.name : 'Not on a project'}>
+          <div className={cn(BAND, PX)} data-band>
             {j ? (
-              <button onClick={() => s.open({ t: 'job', id })} className="group min-w-0 flex-1 truncate text-left text-[0.90625rem] font-bold text-ink hover:text-brand-700">{j.name}</button>
-            ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Not on a project</span>}
-            <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
-            {j && <Button size="xs" icon={<ListPlus />} onClick={() => s.open({ t: 'new', jobId: id })}>Log</Button>}
+              <button onClick={() => s.open({ t: 'job', id })} className="min-w-0 truncate text-left text-[0.8125rem] font-semibold text-ink-2 hover:text-brand-700">{j.name}</button>
+            ) : <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink-2">Not on a project</span>}
+            <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{rows.length + ts.length}</span>
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
-        </section>
+        </section></InJob.Provider>
       )
     })
   }
@@ -575,13 +604,13 @@ export function MyTasksPage() {
       const person = PEOPLE[p as PersonKey]
       return (
         <section key={p || 'none'} aria-label={person?.name || 'Nobody yet'} data-person-group={p || 'none'}>
-          <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f5f0] py-2 first:border-t-0', PX)}>
-            {person && <Avatar who={p as PersonKey} size={28} />}
+          <div className={cn(BAND, PX)} data-band>
+            {person && <Avatar who={p as PersonKey} size={20} />}
             {person ? (
-              <button onClick={() => setWho(p)} className="group min-w-0 flex-1 truncate text-left text-[0.90625rem] font-bold text-ink hover:text-brand-700" title={`Only ${person.short}’s list`}>{person.name}</button>
-            ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Nobody yet</span>}
-            {lateN > 0 && <span className="shrink-0 text-[0.78125rem] font-semibold text-bad-600">{lateN} late</span>}
-            <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
+              <button onClick={() => setWho(p)} className="min-w-0 truncate text-left text-[0.8125rem] font-semibold text-ink-2 hover:text-brand-700" title={`Only ${person.short}’s list`}>{person.name}</button>
+            ) : <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink-2">Nobody yet</span>}
+            <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{rows.length + ts.length}</span>
+            {lateN > 0 && <span className="shrink-0 text-[0.75rem] font-medium text-bad-600">{lateN} late</span>}
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} />)}
@@ -612,12 +641,15 @@ export function MyTasksPage() {
   const [doneN, setDoneN] = React.useState(40)
   /* for everyone — once, on top (not again in the day's list) */
   const pinnedRows = pinned.filter((t) => !shownToday.some((x) => x.t?.id === t.id))
+  /* whose each row is: on everyone's list — unless it's grouped by person already */
+  const whoCol = all && !(grouping === 'person' && view !== 'done')
+  /* the column names show over a list that has rows */
+  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
   return (
     <Page
       title={`${greeting()}, ${PEOPLE[me].short}`}
-      sub={<>{TODAY_LABEL}<span className="mx-2 text-faint">·</span>{today.length ? `${today.length} to do today` : 'Nothing due today'}{late.length ? <><span className="mx-2 text-faint">·</span><button onClick={() => s.open({ t: 'late' })} className="font-semibold text-bad-600 underline decoration-bad-200 underline-offset-2 hover:decoration-bad-500">{late.length} overdue</button></> : null}{meetingsToday ? <><span className="mx-2 text-faint">·</span>{meetingsToday} {meetingsToday === 1 ? 'meeting' : 'meetings'}</> : null}</>}
-      actions={<Button icon={<Plus />} onClick={() => s.open({ t: 'newtask' })}>New task</Button>}
+      sub={TODAY_LABEL}
       top={<>
         <Bubbles
           items={[
@@ -642,9 +674,9 @@ export function MyTasksPage() {
       }
     >
       {/* whose each row is: on everyone's list — unless it's grouped by person already */}
-      <WhoCol.Provider value={all && !(grouping === 'person' && view !== 'done')}>
+      <WhoCol.Provider value={whoCol}>
       <div>
-        {boss && all && view === 'today' && <TeamToday who={who} pick={(p) => setWho(p)} />}
+        {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')}><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
         {pinnedRows.length > 0 && view === 'today' && (
           <section data-pinned>
@@ -740,8 +772,8 @@ function FollowedUp({ t, onDone }: { t: Task; onDone: () => void }) {
 function NowLine({ min }: { min: number }) {
   return (
     <div className={cn('relative flex items-center gap-2 border-t border-line-2 py-1', PX)} aria-label="Now">
-      <span className="text-[0.71875rem] font-semibold text-bad-600 tnum">Now · {timeLabel(min - (min % 5))}</span>
-      <span className="h-px flex-1 bg-bad-300" />
+      <span className="text-[0.6875rem] font-semibold text-brand-600 tnum">Now {timeLabel(min - (min % 5))}</span>
+      <span className="h-px flex-1 bg-brand-200" />
     </div>
   )
 }

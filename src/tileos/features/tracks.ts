@@ -213,6 +213,23 @@ export function issuesOf(s: Store, job: Job): Task[] {
 }
 export const issueKind = (t: Task) => (isRequest(t) ? 'Needed on site' : t.tone === 'bad' ? 'Problem' : t.type === 'Pricing' ? 'Change' : t.state === 'waiting' ? 'Waiting' : 'To do')
 
+/** what's wrong on the project right now: a step that hit a problem ("No water on site") and any problem raised on it —
+ *  the same list on Projects (the red "1 problem") and on the project (Open items) */
+export function problemsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)): { key: string; text: string; step?: string; task?: string }[] {
+  const tasks = issuesOf(s, job).filter((t) => t.tone === 'bad')
+  const titles = tasks.map((t) => t.title.toLowerCase().slice(0, 24))
+  const out: { key: string; text: string; step?: string; task?: string }[] = tasks.map((t) => ({ key: t.id, text: t.title, task: t.id }))
+  /* tile that came short and was reported: it's its own item (reordered, coming) — the delivery isn't a second problem */
+  const shortOpen = s.shortages.some((x) => x.jobId === job.id && x.step !== 'received')
+  steps.filter((v) => v.state === 'bad').forEach((v) => {
+    const note = (v.note || '').toLowerCase()
+    /* a step that's red because of a problem already on the list (the tile that came broken) isn't a second problem */
+    if (titles.some((x) => note.includes(x)) || /^\d+ problems — /.test(v.note || '') || (v.key === 'delivered' && shortOpen)) return
+    out.unshift({ key: 's:' + v.key, text: (v.note || v.label).split(' · ')[0].replace(/^No — /, ''), step: v.key })
+  })
+  return out
+}
+
 /* ================= the rooms ================= */
 export type RoomState = 'notready' | 'ready' | 'installing' | 'stopped' | 'done' | 'notstarted'
 export type ChipTone = 'bad' | 'warn' | 'todo' | 'ok'

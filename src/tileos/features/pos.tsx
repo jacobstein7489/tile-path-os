@@ -79,7 +79,7 @@ export function POsPage() {
   return (
     <Page
       title="Purchase orders"
-      sub={tab === 'calc' ? `${fmtMoney(calcTotal)} to order${smp(' · sample prices')}` : smp('Sample amounts') || undefined}
+      sub={tab === 'calc' ? `${fmtMoney(calcTotal)} to order` : undefined}
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newpo' })}>New PO</Button>}
       top={
         <Bubbles

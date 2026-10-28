@@ -9,27 +9,28 @@
  *       under them the step you picked, with its work — only its person does it; anyone else can remind them.
  *     On a computer the part is beside the list, and the part that's up next is open from the start. On a phone the
  *       list is the page; a part opens on its own with Back on top.
- *     Once the crew is in, what's next (the crew, the installing, the touch-ups) is beside the list instead.
- *   Under the parts: the open issues, and tile that came short. */
+ *     Under the parts: the open items.
+ *   Once getting ready is done it isn't shown any more (it's done): what's next and the stage (the crew, the
+ *     installing, the touch-ups), and beside it the open items — anything still open, each thing once. */
 import * as React from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Truck, HardHat, CalendarDays, Receipt, TriangleAlert, ListTodo, Package, X } from 'lucide-react'
 import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
-import { Circles, Circle, ProgressRing, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
+import { Circles, Circle, ProgressRing, BAND, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
-import { labelFromIso, TODAY } from '@/tileos/lib/today'
+import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
 import { stepsFor, type StepView } from '../steps'
 import { StepIcon, stepWords } from '../steps-ui'
-import { StepInline, PartPath, TITLE } from '../stepwin'
+import { StepInline, PartPath, TITLE, todoOf } from '../stepwin'
 import { NextUp } from './next'
 import { nextOn } from './plan'
 import { installerOf } from '../upcoming'
 import { TouchupsList } from '../touchups'
 import { allowedFor } from '../newpicker'
 import { firstName, useWide } from './kit'
-import { tracksFor, lineOf, phaseOf, stepShort, moneyLine, issuesOf, issueKind, bookingOf, roomsOf, type TrackView, type TrackKey, type Phase } from '../tracks'
+import { tracksFor, lineOf, phaseOf, stepShort, moneyLine, issuesOf, issueKind, bookingOf, roomsOf, problemsOf, type TrackView, type TrackKey, type Phase } from '../tracks'
 import type { BoardView } from './board'
 
 /** the part that's open on Where it stands, and the step picked in it */
@@ -102,27 +103,50 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
     if (!wide) right.current?.closest('[data-board-tab]')?.scrollTo?.({ top: 0 })
   }, [key, wide])
   const booked = job.stage === 'scheduled' || !!bookingOf(s, job)
+  const left = openStepsOf(s, job, steps, phase)
+  /* every column is one panel that fills the window — the last card in a column takes the rest of its height */
+  const COL = 'scroll-soft flex min-w-0 flex-col gap-3 lg:h-full lg:overflow-y-auto lg:pb-6 [&>*]:shrink-0 lg:[&>*:last-child]:grow'
+  /* getting ready is done: no Getting ready list any more. What's next across the top; under it the stage (the crew,
+     the installing, the touch-ups) and what's still open on the project, side by side, the same size — each thing
+     once. A step opened from Open items shows in place of the stage. */
+  if (phase !== 'ready') {
+    const punch = s.punch.some((p) => p.jobId === job.id && p.status !== 'verified')
+    const hasStage = phase === 'crew' || phase === 'install' || phase === 'punch' || punch
+    return (
+      <div data-phase={phase} className="flex min-w-0 flex-col gap-3 lg:h-full lg:gap-4">
+        {!v && <NextUp job={job} onStep={onStep} />}
+        <div className={cn('flex min-w-0 flex-col gap-3 lg:grid lg:min-h-0 lg:flex-1 lg:gap-4', (hasStage || v) && 'lg:grid-cols-2')}>
+          {(hasStage || v) && (
+            <div ref={right} data-stands-main className={COL}>
+              {v && t
+                ? <PartPane job={job} t={t} v={v} back="Back to the project" onStep={(k) => setOpen({ track: t.key, step: k })} onGo={pick} onBack={!wide ? () => setOpen(null) : undefined} onClose={wide ? () => setOpen(null) : undefined} onDone={() => setOpen(null)} />
+                : <Stage job={job} phase={phase} setView={setView} />}
+            </div>
+          )}
+          <div data-stands-side className={cn(COL, v && 'max-lg:hidden')}><OpenIssues job={job} steps={left} onStep={pick} fill /></div>
+        </div>
+      </div>
+    )
+  }
+  /* getting ready: two panels, the same size — the parts (and anything else open, under them) and the part you picked */
   return (
-    <div data-phase={phase} className="flex min-w-0 flex-col gap-3 lg:grid lg:h-full lg:grid-cols-[24rem_minmax(0,1fr)] lg:gap-4 xl:grid-cols-[26.5rem_minmax(0,1fr)] 2xl:grid-cols-[28.5rem_minmax(0,1fr)]">
-      {/* the parts, the open issues, more tile — they stay put */}
-      <div data-stands-list className={cn('scroll-soft flex min-w-0 flex-col gap-3 lg:h-full lg:overflow-y-auto lg:pb-6 lg:pr-0.5 [&>*]:shrink-0', v && 'max-lg:hidden')}>
-        <Parts job={job} tracks={tracks} at={v ? sel?.track : undefined} onPick={(x) => setOpen(partOpen(x))} />
-        <OpenIssues job={job} />
-        <MoreTile job={job} />
+    <div data-phase={phase} className="flex min-w-0 flex-col gap-3 lg:grid lg:h-full lg:grid-cols-2 lg:gap-4">
+      <div data-stands-list className={cn(COL, v && 'max-lg:hidden')}>
+        <Parts job={job} tracks={tracks} at={v ? sel?.track : undefined} onPick={(x) => setOpen(partOpen(x))}><OpenIssues job={job} band /></Parts>
       </div>
       {/* the part that's open — or what's next */}
-      <div ref={right} data-stands-main className={cn('scroll-soft flex min-w-0 flex-col gap-3 lg:h-full lg:overflow-y-auto lg:pb-6 [&>*]:shrink-0', !v && 'max-lg:order-first')}>
+      <div ref={right} data-stands-main className={cn(COL, !v && 'max-lg:order-first')}>
         {v && t ? (
           <>
-            {phase === 'ready' && booked && wide && <NextUp job={job} onStep={onStep} />}
+            {booked && wide && <NextUp job={job} onStep={onStep} />}
             <PartPane
               job={job}
               t={t}
               v={v}
               onStep={(k) => setOpen({ track: t.key, step: k })}
               onGo={pick}
-              /* on a phone: back to the parts. Once the crew is in: back to what's next. While getting ready on a
-                 computer there's always a part open — pick another on the left. */
+              /* on a phone: back to the parts. While getting ready on a computer there's always a part open — pick
+                 another on the left. */
               onBack={!wide ? () => setOpen(null) : undefined}
               onClose={wide && !auto ? () => setOpen(null) : undefined}
               onDone={() => setOpen(null)}
@@ -136,6 +160,15 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
   )
 }
 
+/** once getting ready is done: its steps that are still open (a problem, something left to do) — they go on Open items,
+ *  except the ones that are already there another way (tile that came short is its own item) */
+function openStepsOf(s: Store, job: Job, steps: StepView[], phase: Phase): StepView[] {
+  if (phase === 'ready') return []
+  const inPart = new Set(tracksFor(s, job, steps).flatMap((t) => t.steps.map((v) => v.key)))
+  const listed = new Set(problemsOf(s, job, steps).map((p) => p.step).filter(Boolean))
+  return steps.filter((v) => inPart.has(v.key) && ['bad', 'now', 'wait'].includes(v.state) && (v.state !== 'bad' || listed.has(v.key)))
+}
+
 /* ---------------- getting ready: one line for each part ---------------- */
 /** a part's mark: the same circle as everywhere — ✓ done, ! a problem, a ring that fills as its steps get done (blue
  *  when the step it's on is yours, amber while it waits on someone outside) */
@@ -143,7 +176,7 @@ function partCircle(t: TrackView, mine: boolean): CircleStep {
   const state: CircleState = t.state === 'done' ? 'done' : t.state === 'bad' ? 'bad' : t.state === 'wait' ? 'wait' : t.state === 'now' ? (mine ? 'now' : 'todo') : 'later'
   return { key: t.key, label: t.label, state, pct: t.total ? Math.max(8, Math.round((t.done / t.total) * 100)) : 0 }
 }
-function Parts({ job, tracks, at, onPick }: { job: Job; tracks: TrackView[]; at?: TrackKey; onPick: (t: TrackView) => void }) {
+function Parts({ job, tracks, at, onPick, children }: { job: Job; tracks: TrackView[]; at?: TrackKey; onPick: (t: TrackView) => void; /** what else is open, under the parts in the same panel */ children?: React.ReactNode }) {
   const s = useStore()
   const me = meOf(s.role)
   const n = tracks.length
@@ -195,19 +228,20 @@ function Parts({ job, tracks, at, onPick }: { job: Job; tracks: TrackView[]; at?
           )
         })}
       </div>
+      {children}
     </section>
   )
 }
 
 /* ---------------- a part, open: its steps as circles, the picked one under them ---------------- */
-function PartPane({ job, t, v, onStep, onGo, onBack, onClose, onDone }: { job: Job; t: TrackView; v: StepView; onStep: (k: string) => void; onGo: (k: string) => void; onBack?: () => void; onClose?: () => void; onDone: () => void }) {
+function PartPane({ job, t, v, onStep, onGo, onBack, onClose, onDone, back = 'Getting ready' }: { job: Job; t: TrackView; v: StepView; onStep: (k: string) => void; onGo: (k: string) => void; onBack?: () => void; onClose?: () => void; onDone: () => void; back?: string }) {
   const list = t.steps.filter((x) => x.state !== 'na' || x.key === v.key)
   const title = v.named ? v.label : TITLE[v.key] || v.label
   return (
     <section data-step-view={v.key} data-step-track={t.key} className="min-w-0 overflow-hidden rounded-[0.875rem] border border-line bg-white">
       {onBack && (
         <button onClick={onBack} data-back className="flex w-full items-center gap-1 border-b border-line-2 px-3 py-2.5 text-left text-[0.875rem] font-semibold text-ink-2 hover:bg-wash">
-          <ChevronLeft className="h-4 w-4" />Getting ready
+          <ChevronLeft className="h-4 w-4" />{back}
         </button>
       )}
       <header className="flex min-w-0 items-baseline gap-2.5 px-5 pt-4 max-sm:px-4">
@@ -227,16 +261,24 @@ function PartPane({ job, t, v, onStep, onGo, onBack, onClose, onDone }: { job: J
   )
 }
 
-/* ---------------- right, once the crew is in: what's next ---------------- */
+/* ---------------- what's next, and the stage ---------------- */
 function Now({ job, phase, onStep, setView }: { job: Job; phase: Phase; onStep: (k: string) => void; setView: (v: BoardView) => void }) {
+  return (
+    <>
+      <NextUp job={job} onStep={onStep} />
+      <Stage job={job} phase={phase} setView={setView} />
+    </>
+  )
+}
+/** the stage the project is at: the crew, the installing, the touch-ups */
+function Stage({ job, phase, setView }: { job: Job; phase: Phase; setView: (v: BoardView) => void }) {
   const s = useStore()
   const punch = s.punch.some((p) => p.jobId === job.id && p.status !== 'verified')
   return (
     <>
-      <NextUp job={job} onStep={onStep} />
       {phase === 'crew' && <CrewCard job={job} />}
       {phase === 'install' && <Installing job={job} setView={setView} />}
-      {(phase === 'punch' || (phase === 'install' && punch)) && <TouchupsCard job={job} />}
+      {(phase === 'punch' || punch) && <TouchupsCard job={job} />}
     </>
   )
 }
@@ -317,79 +359,73 @@ function Installing({ job, setView }: { job: Job; setView: (v: BoardView) => voi
   )
 }
 
-/* ---------------- open items: anything else open on the project — problems first, then what's needed on site,
- * then what someone has to do — each one someone's. They're added with the project's one + Add, on top. ---------------- */
+/* ---------------- open items: anything else open on the project — problems first, then what we wait on, then what
+ * someone has to do — each one someone's, one line each: what it is, when, whose. Nothing open: nothing shown. They're
+ * added with the project's one + Add, on top. ---------------- */
 /** "Today", "This week", "Before Fri" read in a sentence: today, this week, before Fri */
 const dayWord = (d: string) => d.replace(/^(Today|Tomorrow|This|Next|Every|By|Before)\b/, (w) => w.toLowerCase())
-export function OpenIssues({ job, className }: { job: Job; className?: string }) {
+export function OpenIssues({ job, className, steps = [], onStep, band, fill }: { job: Job; className?: string; /** getting ready's steps still open (once it's done) */ steps?: StepView[]; onStep?: (k: string) => void; /** under the parts, in the same panel: a band and its lines */ band?: boolean; /** its own panel beside the stage — there even when nothing's open */ fill?: boolean }) {
   const s = useStore()
   const me = meOf(s.role)
   const list = issuesOf(s, job)
   const [all, setAll] = React.useState(false)
-  const shown = all ? list : list.slice(0, 4)
-  /* problems first (issuesOf sorts them) */
-  const bad = list.some((t) => t.tone === 'bad')
-  /* nothing open: one quiet line — not a box saying so */
-  if (!list.length) return (
-    <section data-issues data-none className={cn('flex min-w-0 items-center gap-2 rounded-[0.875rem] border border-line bg-white px-4 py-2.5 max-sm:px-3', className)}>
-      <h4 className="shrink-0 text-[0.9375rem] font-semibold text-ink">Open items</h4>
-      <span className="min-w-0 truncate text-[0.8125rem] text-muted">none</span>
-    </section>
+  const n = list.length + steps.length
+  if (!n && !fill) return null
+  /* problems first: a step's problem, then the rest (issuesOf sorts them) */
+  const stepRows = [...steps].sort((a, b) => Number(b.state === 'bad') - Number(a.state === 'bad'))
+  const max = all || fill ? 99 : 6
+  const shownSteps = stepRows.slice(0, max)
+  const shown = list.slice(0, Math.max(0, max - shownSteps.length))
+  const who = (p: PersonKey) => (
+    <span className="flex shrink-0 items-center gap-2" title={p === me ? 'You' : PEOPLE[p]?.name}>
+      <Avatar who={p} size={22} />
+      <span className={cn('w-[4.5rem] truncate text-[0.8125rem] max-sm:sr-only', p === me ? 'font-medium text-ink' : 'text-ink-2')}>{p === me ? 'You' : firstName(p)}</span>
+    </span>
   )
-  return (
-    <section data-issues className={cn('overflow-hidden rounded-[0.875rem] border bg-white', bad ? 'border-bad-200' : 'border-line', className)}>
-      <header className="flex min-w-0 items-center gap-2 px-4 pb-1.5 pt-3 max-sm:px-3">
-        <h4 className={cn('shrink-0 text-[0.9375rem] font-semibold', bad ? 'text-bad-700' : 'text-ink')}>Open items</h4>
-        <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{list.length}</span>
-      </header>
-      <div className="px-1.5 pb-1.5">
-        {shown.map((t) => {
-          const waiting = t.state === 'waiting'
-          const due = waiting ? (t.followUp ? `back ${dayWord(t.followUp)}` : '') : t.due ? (/^(today|tomorrow|this |next |every |by |before )/i.test(t.due) ? dayWord(t.due) : `due ${t.due}`) : ''
-          const words = waiting ? `Waiting on ${t.waitingOn || 'them'}${due ? ` · ${due}` : ''}` : `${issueKind(t)}${due ? ` · ${due}` : ''}`
-          return (
-            <button key={t.id} data-issue={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-1.5 text-left transition hover:bg-[#f6f3ee]">
-              {isRequest(t) ? <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-[#fff1e3] text-[#c2410c]"><Truck className="h-3 w-3" /></span> : <StepIcon state={t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now'} size={22} />}
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.title}</span>
-                <span className={cn('mt-0.5 block truncate text-[0.75rem]', t.tone === 'bad' ? 'font-semibold text-bad-600' : waiting ? 'text-warn-700' : 'text-muted')}>{words}{t.where ? <span className="font-normal text-muted"> · {t.where}</span> : null}</span>
-              </span>
-              <span className="flex w-[8.25rem] shrink-0 items-center gap-2 max-sm:w-auto">
-                <Avatar who={t.owner} size={24} />
-                <span className={cn('min-w-0 truncate text-[0.8125rem] max-sm:sr-only', t.owner === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{t.owner === me ? 'You' : firstName(t.owner)}</span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      {list.length > shown.length && <button onClick={() => setAll(true)} className="flex w-full items-center justify-center gap-1 border-t border-line-2 px-4 py-2 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50/40">{list.length - shown.length} more<ChevronDown className="h-3.5 w-3.5" /></button>}
-    </section>
-  )
-}
-
-/* ---------------- tile that came up short — reordered, coming, back to work ---------------- */
-function MoreTile({ job }: { job: Job }) {
-  const s = useStore()
-  const list = s.shortages.filter((x) => x.jobId === job.id && x.step !== 'received')
-  if (!list.length) return null
-  return (
-    <section data-more-tile className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="flex items-center gap-2 px-4 pb-1.5 pt-3 max-sm:px-3">
-        <h4 className="text-[0.9375rem] font-semibold text-ink">More tile</h4>
-        <span className="text-[0.8125rem] font-medium tnum text-faint">{list.length}</span>
-      </header>
-      <div className="px-1.5 pb-1.5">
-        {list.map((x) => (
-          <button key={x.id} onClick={() => s.open({ t: 'short', id: x.id })} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-1.5 text-left transition hover:bg-[#f6f3ee]">
-            <span className={cn('inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full', x.stops ? 'bg-bad-50 text-bad-600' : 'bg-[#fbf3e3] text-warn-700')}><Package className="h-3 w-3" /></span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.tag} · {x.qty} {x.unit} short</span>
-              <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{x.surfaces.map((y) => `${y.room} ${y.surface.toLowerCase()}`).join(', ')}{x.stops ? <b className="font-semibold text-bad-600"> · the crew is stopped</b> : null}</span>
-            </span>
-            <span className="max-w-[40%] shrink-0 truncate text-right text-[0.78125rem] font-semibold text-warn-700">{x.step === 'reordered' ? (x.eta ? `Coming ${x.eta.replace(/^\w+,\s*/, '')}` : `Reordered${x.orderedFrom ? ` · ${x.orderedFrom}` : ''}`) : <span className="text-bad-600">Not reordered yet</span>}</span>
+  const ROW = 'flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition hover:bg-[#f7f5f0] max-sm:px-3'
+  const rows = (
+    <>
+      {shownSteps.map((v) => (
+        <button key={'s:' + v.key} data-issue={'step:' + v.key} title={v.note} onClick={() => onStep?.(v.key)} className={ROW}>
+          <StepIcon state={v.state === 'bad' ? 'bad' : v.state === 'wait' ? 'wait' : 'now'} size={20} />
+          <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink">{v.state === 'bad' && v.note ? v.note.split(' · ')[0].replace(/^No — /, '') : todoOf(v)}</span>
+          {who(v.owner)}
+        </button>
+      ))}
+      {shown.map((t) => {
+        const waiting = t.state === 'waiting'
+        const lateDue = !waiting && !!t.due && (/late/i.test(t.due) || (isoFromLabel(t.due) || '9') < TODAY)
+        const when = waiting ? (t.followUp ? `back ${dayWord(t.followUp)}` : 'waiting') : t.due ? (/late/i.test(t.due) ? t.due : lateDue ? `due ${t.due}` : dayWord(t.due)) : ''
+        return (
+          <button key={t.id} data-issue={t.id} title={[issueKind(t), t.waitingOn ? `waiting on ${t.waitingOn}` : '', t.where].filter(Boolean).join(' · ')} onClick={() => s.open({ t: 'task', id: t.id })} className={ROW}>
+            {isRequest(t) ? <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff1e3] text-[#c2410c]"><Truck className="h-3 w-3" /></span> : <StepIcon state={t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now'} size={20} />}
+            <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink">{t.title}</span>
+            {when && <span className={cn('shrink-0 text-[0.75rem]', lateDue ? 'font-medium text-bad-600' : 'text-muted')}>{when}</span>}
+            {who(t.owner)}
           </button>
-        ))}
+        )
+      })}
+      {n > shownSteps.length + shown.length && <button onClick={() => setAll(true)} className="flex w-full items-center justify-center gap-1 border-t border-line-2 px-4 py-2 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50/40">{n - shownSteps.length - shown.length} more<ChevronDown className="h-3.5 w-3.5" /></button>}
+    </>
+  )
+  /* under the parts: a band like every group, then its lines */
+  if (band) return (
+    <div data-issues className={className}>
+      <div className={cn(BAND, 'px-4 max-sm:px-3')}>
+        <span className="text-[0.8125rem] font-semibold text-ink-2">Open items</span>
+        <span className="text-[0.8125rem] font-medium tnum text-faint">{n}</span>
       </div>
+      {rows}
+    </div>
+  )
+  return (
+    <section data-issues data-none={!n || undefined} className={cn('flex min-w-0 flex-col overflow-hidden rounded-[0.875rem] border border-line bg-white', className)}>
+      <header className="flex min-h-12 min-w-0 shrink-0 items-center gap-2 px-4 max-sm:px-3">
+        <h4 className="shrink-0 text-[0.9375rem] font-semibold text-ink">Open items</h4>
+        <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{n}</span>
+      </header>
+      {rows}
+      {!n && <div className="border-t border-line-2 px-4 py-6 text-center text-[0.84375rem] text-muted max-sm:px-3">Nothing else open on this project.</div>}
     </section>
   )
 }
@@ -399,11 +435,11 @@ function TouchupsCard({ job }: { job: Job }) {
   const canAdd = !['accounting', 'client', 'crew'].includes(s.role)
   return (
     <section data-touchups className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="flex items-center gap-2 border-b border-line-2 px-5 py-3">
-        <h3 className="text-[1rem] font-semibold text-ink">Touch-ups</h3>
-        {canAdd && <button onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" />Add</button>}
+      <header className="flex min-h-12 items-center gap-2 px-5 max-sm:px-4">
+        <h3 className="text-[0.9375rem] font-semibold text-ink">Touch-ups</h3>
+        {canAdd && <button onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" />Add</button>}
       </header>
-      <div className="px-5 pb-3 pt-2"><TouchupsList job={job} /></div>
+      <TouchupsList job={job} />
     </section>
   )
 }

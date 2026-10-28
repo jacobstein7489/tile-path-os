@@ -169,7 +169,7 @@ export function InboxPage() {
               const on = view === k
               const n = k === 'new' ? unreadN : k === 'updates' ? updN : k === 'away' ? all.filter((c) => c.away).length : 0
               if (k === 'away' && !n) return null
-              return <button key={k} onClick={() => setView(k)} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-bad-500 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
+              return <button key={k} onClick={() => setView(k)} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
             })}
           </div>
           <div className="scroll-soft min-h-0 flex-1 overflow-y-auto">
@@ -186,7 +186,7 @@ export function InboxPage() {
                         <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
                         <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
                       </span>
-                      {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-bad-500" aria-label="New" />}
+                      {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="New" />}
                     </button>
                   )
                 })}
@@ -202,11 +202,11 @@ export function InboxPage() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem]', c.unread ? 'font-bold text-ink' : 'font-semibold text-ink')}>{c.name}</span>
-                        <span className={cn('shrink-0 text-[0.75rem] tnum', c.unread ? 'font-semibold text-bad-600' : 'text-muted')}>{c.when}</span>
+                        <span className={cn('shrink-0 text-[0.75rem] tnum', c.unread ? 'font-semibold text-brand-700' : 'text-muted')}>{c.when}</span>
                       </span>
                       <span className="flex items-center gap-2">
                         <span className={cn('min-w-0 flex-1 truncate text-[0.8125rem]', c.unread ? 'font-medium text-ink-2' : 'text-muted')}>{c.preview}</span>
-                        {c.unread > 0 && <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-bad-500 px-1.5 text-[0.71875rem] font-bold tnum text-white">{c.unread}</span>}
+                        {c.unread > 0 && <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[0.71875rem] font-bold tnum text-white">{c.unread}</span>}
                       </span>
                     </span>
                   </button>

@@ -163,7 +163,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
       </span>
       <span className="flex justify-end max-lg:hidden" onClick={(e) => e.stopPropagation()}>
         {r.state === 'running' ? <span className="text-[0.8125rem] text-muted">Approve it Monday</span>
-          : r.state === 'ready' || r.state === 'nobill' ? <Button size="sm" variant="primary" icon={<Check />} onClick={() => approvePay(r.crew, weekKey)}>Approve {fmtMoney(r.owe)}</Button>
+          : r.state === 'ready' || r.state === 'nobill' ? <Button size="sm" icon={<Check />} onClick={() => approvePay(r.crew, weekKey)}>Approve {fmtMoney(r.owe)}</Button>
             : r.state === 'check' || r.state === 'asked' ? <Button size="sm" onClick={open}>See the difference</Button>
               : <span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-ok-700"><Check className="h-4 w-4" />{st.label} {r.rec?.date}</span>}
       </span>

@@ -14,7 +14,7 @@ import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 /** Cobblestone's green — the bands on the scope of work */
 export const GREEN = '#2c4a3e'
-export const SHEET = 'overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card'
+export const SHEET = 'overflow-hidden rounded-[0.875rem] border border-line bg-white'
 /** a person's first name — "Mordcha", not "Mordcha Shapiro" */
 export const firstName = (p?: PersonKey) => (p ? PEOPLE[p]?.short || PEOPLE[p]?.name || '' : '')
 
@@ -23,9 +23,9 @@ export function Section({ title, count, sub, right, action, children, className,
     <section id={id} className={cn(SHEET, className)}>
       {title && (
         <>
-          <header className="flex min-h-[3.25rem] items-center gap-2 border-b border-[#f1ede7] px-5 py-2 max-sm:px-4">
-            <h3 className="min-w-0 truncate text-[1rem] font-semibold tracking-[-0.005em] text-ink">{title}</h3>
-            {count != null && <span className="shrink-0 text-[0.875rem] font-medium tnum text-faint">{count}</span>}
+          <header className="flex min-h-[3.25rem] flex-wrap items-center gap-2 px-5 py-2 max-sm:px-4">
+            <h3 className="min-w-0 shrink-0 text-[0.9375rem] font-semibold text-ink">{title}</h3>
+            {count != null && <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
             <span className="flex-1" />
             {right && <span className="min-w-0 shrink truncate text-[0.8125rem] text-muted">{right}</span>}
             {action && <div className="flex shrink-0 items-center gap-1.5">{action}</div>}
@@ -38,10 +38,11 @@ export function Section({ title, count, sub, right, action, children, className,
   )
 }
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
-/** a grey band inside a sheet — a room, a person, a group */
+/** a group inside a sheet — a room, a person, a group: a light band the full width, with the same line above it as
+ *  every row, so the lines never change */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn('flex items-center gap-2 bg-[#f4f1eb] px-5 py-1.5 text-[0.78125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')}>
-    <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-semibold text-muted">{count}</span>}
+  <div className={cn('flex h-9 items-center gap-2 border-t border-line-2 bg-[#f7f5f1] px-5 text-[0.8125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')} data-band>
+    <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-medium tnum text-faint">{count}</span>}
     {right != null && <span className="ml-auto shrink-0 tnum">{right}</span>}
   </div>
 )
@@ -66,7 +67,7 @@ export function Strip({ stats, footer }: { stats: Stat[]; footer?: React.ReactNo
 }
 /** where something stands, in a word — no pill: red only for a problem, Cobblestone green when it's done */
 export const Word = ({ tone, children, className }: { tone?: string; children: React.ReactNode; className?: string }) => (
-  <span className={cn('whitespace-nowrap text-[0.8125rem] font-semibold', tone === 'bad' ? 'text-bad-600' : tone === 'ok' ? 'text-[#2c4a3e]' : 'text-ink-2', className)}>{children}</span>
+  <span className={cn('whitespace-nowrap text-[0.8125rem] font-medium', tone === 'bad' ? 'text-bad-600' : tone === 'ok' ? 'text-[#2c8a5b]' : 'text-ink-2', className)}>{children}</span>
 )
 /** the to-do grid: mark · what (and a line under it) · who · when · one button */
 export const ROW = 'grid grid-cols-[1.75rem_minmax(0,1fr)_8.75rem_7.25rem_5.75rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-md:grid-cols-[1.75rem_minmax(0,1fr)_5.75rem] max-sm:px-4'

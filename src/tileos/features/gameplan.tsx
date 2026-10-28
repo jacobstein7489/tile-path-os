@@ -1,13 +1,14 @@
 /* Schedule — the calendar, and only the calendar (the game plan lives in Projects → Getting ready):
- *   week / 2 weeks: one row per crew (who's working where); month: a regular month, like Google Calendar.
- * Projects that are ready but not booked sit right on the calendar, on the day they can start (dashed) — click to book.
- * On hold shows in red. A clash (one crew, two places) gets a red ring. The header never moves. */
+ *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
+ *     while it waits for his OK or is only planned; striped when the project is on hold). Month: a regular month.
+ *   Under it, the projects ready to book — one line each; tap one to pick the installer.
+ * No legend, no counts on top, no second line on the bars. On a phone: one line per crew — what he's on, or free. */
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays, Plus, TriangleAlert, PauseCircle, CalendarX2, Users, HardHat, CalendarCheck2, CalendarPlus } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
 import { Avatar, Button, Segmented } from '@/tileos/components/ui/core'
 import { Tip, Pop, Modal } from '@/tileos/components/ui/overlay'
-import { Page, Card, Bubbles } from '@/tileos/components/ui/page'
+import { Page, Card, Bubbles, useFill } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, CREW_BLOCK, type PersonKey, type Job } from '@/tileos/data/model'
 import { addBusinessDays } from './flows'
@@ -55,89 +56,121 @@ function lanesOf<T extends { start: string; end: string }>(items: T[]) {
   return lanes
 }
 
-/* one look for every item, in both views */
+/* one look for every item, in both views: one calm color for the crews' work — not a color per crew */
 function look(it: Item, clash: boolean) {
-  const c = it.crew ? CREW_BLOCK[it.crew] : undefined
-  if (it.hold) return { className: cn('border border-bad-200 text-bad-700', clash && 'ring-2 ring-bad-500 ring-offset-1'), style: { background: 'repeating-linear-gradient(135deg, #fff1f0 0 6px, #ffe2df 6px 12px)', boxShadow: 'inset 3px 0 0 #d92d20' } as React.CSSProperties }
+  const ring = clash && 'ring-2 ring-bad-500 ring-offset-1'
+  if (it.hold) return { className: cn('border border-[#ecd6d2] text-[#8f2f24]', ring), style: { background: 'repeating-linear-gradient(135deg, #fbf3f1 0 6px, #f6e6e2 6px 12px)' } as React.CSSProperties }
   if (it.kind === 'tobook') return { className: 'border border-dashed border-[#bcc3cc] bg-white text-ink-2', style: {} }
-  if (it.kind === 'planned' || it.kind === 'pending') return { className: cn('border border-dashed bg-white', clash && 'ring-2 ring-bad-500 ring-offset-1'), style: { borderColor: c?.bar, color: c?.text } as React.CSSProperties }
-  return { className: cn('border border-transparent', clash && 'ring-2 ring-bad-500 ring-offset-1'), style: { background: c?.bg, color: c?.text, boxShadow: `inset 3px 0 0 ${c?.bar}` } as React.CSSProperties }
+  if (it.kind === 'planned' || it.kind === 'pending') return { className: cn('border border-dashed border-[#9fb3e6] bg-white text-[#1f3d8f]', ring), style: {} }
+  return { className: cn('border border-[#dbe3f8] bg-[#eef2fc] text-[#1f3d8f]', ring), style: {} }
 }
 const sub = (it: Item) => (it.hold ? `On hold · ${it.hold}` : it.kind === 'tobook' ? 'Ready to book — pick an installer' : it.kind === 'planned' ? `${PEOPLE[it.crew!].short} · planned, not booked` : it.kind === 'pending' ? `Waiting for ${PEOPLE[it.crew!].short} to confirm` : `${PEOPLE[it.crew!].short} · ${it.label}`)
 
 type Focus = 'all' | 'working' | 'free' | 'tobook' | 'hold'
 export function GamePlanPage() {
   const s = useStore()
-  const [focus, setFocus] = React.useState<Focus>('all')
-  const [view, setViewRaw] = React.useState<View>(() => { try { return (localStorage.getItem('gp-view') as View) || 'week' } catch { return 'week' } })
+  const [viewRaw, setViewRaw] = React.useState<View>(() => { try { const v = localStorage.getItem('gp-view') as View; return v === 'month' ? 'month' : 'week' } catch { return 'week' } })
   const [anchor, setAnchor] = React.useState(TODAY)
   const setView = (v: View) => { setViewRaw(v); setAnchor(TODAY); try { localStorage.setItem('gp-view', v) } catch { /* private window */ } }
+  /* a phone always shows the week, as one line per crew — a month of little bars is no use there */
+  const [phone, setPhone] = React.useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches)
+  React.useEffect(() => { const mq = window.matchMedia('(max-width: 767px)'); const f = () => setPhone(mq.matches); mq.addEventListener('change', f); return () => mq.removeEventListener('change', f) }, [])
+  const view = phone ? 'week' : viewRaw
   const shift = (n: number) => {
     if (view === 'month') { const d = new Date(anchor.slice(0, 7) + '-15T12:00:00'); d.setMonth(d.getMonth() + n); setAnchor(d.toISOString().slice(0, 10)) }
-    else setAnchor(addDays(mondayOf(anchor), n * (view === 'week' ? 7 : 14)))
+    else setAnchor(addDays(mondayOf(anchor), n * 7))
   }
   const items = itemsOf(s)
+  const fill = useFill<HTMLDivElement>()
   const clashes = CREWS.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY)).length > 1)
-  const days = view === 'month' ? [] : Array.from({ length: view === 'week' ? 5 : 10 }, (_, i) => addDays(mondayOf(anchor), Math.floor(i / 5) * 7 + (i % 5)))
+  const days = view === 'month' ? [] : Array.from({ length: 5 }, (_, i) => addDays(mondayOf(anchor), i))
   const range = view === 'month' ? fmt(anchor.slice(0, 7) + '-01', { month: 'long', year: 'numeric' }) : `${fmt(days[0], { month: 'short', day: 'numeric' })} – ${fmt(days[days.length - 1], { month: days[0].slice(5, 7) === days[days.length - 1].slice(5, 7) ? undefined : 'short', day: 'numeric' })}`
-  const noDate = undated(s)
-  /* this week, for the counts on top */
-  const wkA = mondayOf(TODAY)
-  const wkZ = addDays(wkA, 4)
-  const busyWk = new Set(items.filter((i) => i.crew && (i.kind === 'booked' || i.kind === 'pending') && i.start <= wkZ && i.end >= wkA).map((i) => i.crew))
-  const n = { working: busyWk.size, free: CREWS.filter((c) => !busyWk.has(c)).length, tobook: items.filter((i) => i.kind === 'tobook').length + noDate.length, hold: new Set(items.filter((i) => i.hold).map((i) => i.jobId)).size }
-  const pick = (k: Focus) => () => setFocus(focus === k ? 'all' : k)
   return (
     <Page
       title="Schedule"
       bare
-      top={
-        <Bubbles
-          items={[
-            { key: 'all', label: 'All crews', count: CREWS.length, icon: <Users />, color: 'slate', on: focus === 'all', onClick: () => setFocus('all') },
-            { key: 'working', label: 'Working this week', count: n.working, icon: <HardHat />, color: 'green', on: focus === 'working', onClick: pick('working'), gapBefore: true },
-            { key: 'free', label: 'Free this week', count: n.free, icon: <CalendarCheck2 />, color: 'teal', on: focus === 'free', onClick: pick('free') },
-            { key: 'tobook', label: 'Ready to book', count: n.tobook, icon: <CalendarPlus />, color: 'violet', on: focus === 'tobook', onClick: pick('tobook') },
-            { key: 'hold', label: 'On hold', count: n.hold, icon: <PauseCircle />, color: 'red', on: focus === 'hold', onClick: pick('hold') },
-          ]}
-        />
-      }
-    >
-      <Card pad={false} className="overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3 max-sm:px-3">
+      actions={
+        <div className="flex w-full flex-wrap items-center gap-2" data-sched-bar>
           <div className="flex items-center rounded-[0.625rem] border border-line bg-white">
             <button aria-label="Back" onClick={() => shift(-1)} className="inline-flex h-9 w-9 items-center justify-center rounded-l-[0.625rem] text-ink-2 hover:bg-wash"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="inline-flex h-9 min-w-[9.375rem] items-center justify-center gap-2 border-x border-line px-3 text-[0.875rem] font-semibold text-ink"><CalendarDays className="h-4 w-4 text-muted" />{range}</span>
+            <span className="inline-flex h-9 min-w-[8.5rem] items-center justify-center border-x border-line px-3 text-[0.875rem] font-semibold text-ink">{range}</span>
             <button aria-label="Forward" onClick={() => shift(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-r-[0.625rem] text-ink-2 hover:bg-wash"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <Button size="sm" onClick={() => setAnchor(TODAY)}>Today</Button>
-          <div className="mx-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.78125rem] font-medium text-muted max-xl:hidden">
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-5 rounded-[0.25rem] bg-[#FEF2E7] shadow-[inset_0.1875rem_0_0_#D66A16]" />Booked</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-5 rounded-[0.25rem] border border-dashed border-[#D66A16] bg-white" />Planned</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-5 rounded-[0.25rem] border border-dashed border-[#bcc3cc] bg-white" />Ready to book</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-5 rounded-[0.25rem]" style={{ background: 'repeating-linear-gradient(135deg, #fcf0ee 0 3px, #f6d5cf 3px 6px)', boxShadow: 'inset 3px 0 0 #c03a2d' }} />On hold</span>
-            {clashes.length > 0 && <span className="inline-flex items-center gap-1.5 text-bad-600"><TriangleAlert className="h-3.5 w-3.5" />{clashes.map((c) => PEOPLE[c].short).join(', ')} booked in two places</span>}
-          </div>
-          <div className="ml-auto flex items-center gap-2 max-sm:ml-0 max-sm:w-full">
-            {noDate.length > 0 && (
-              <Pop align="end" width={340} trigger={<button className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[0.625rem] border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash max-md:hidden"><CalendarX2 className="h-3.5 w-3.5" />{noDate.length} ready, no start date</button>}>
-                <div className="text-[0.8125rem] font-semibold text-ink">Ready, waiting for a start date</div>
-                <div className="mt-2 flex flex-col">
-                  {noDate.map((r) => (
-                    <button key={r.j.id} onClick={() => s.open({ t: 'job', id: r.j.id })} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-left hover:bg-wash">
-                      <span className="min-w-0"><span className="block truncate text-[0.84375rem] font-semibold text-ink">{r.j.name}</span><span className="block truncate text-[0.75rem] text-muted">{r.j.client}</span></span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-                    </button>
-                  ))}
-                </div>
-              </Pop>
-            )}
-            <Segmented value={view} onChange={setView} className="h-9 max-sm:w-full max-sm:[&>button]:flex-1 max-sm:[&>button]:justify-center [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: '2weeks', label: '2 weeks' }, { key: 'month', label: 'Month' }]} />
-          </div>
+          <Button size="sm" className="h-9" onClick={() => setAnchor(TODAY)}>Today</Button>
+          <Segmented value={view} onChange={setView} className="ml-auto h-9 max-md:hidden [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }]} />
         </div>
-        {view === 'month' ? <MonthGrid anchor={anchor} items={items} clashes={clashes} focus={focus} /> : <CrewRows days={days} items={items} clashes={clashes} focus={focus} />}
-      </Card>
+      }
+    >
+      {/* the week and what's ready to book, side by side, filling the screen — nothing to scroll to */}
+      <div ref={fill} className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-stretch">
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
+          {clashes.length > 0 && <div className="flex items-center gap-1.5 border-b border-line-2 px-5 py-2 text-[0.8125rem] font-medium text-bad-600 max-sm:px-3"><TriangleAlert className="h-3.5 w-3.5" />{clashes.map((c) => PEOPLE[c].short).join(', ')} booked in two places</div>}
+          {view === 'month'
+            ? <MonthGrid anchor={anchor} items={items} clashes={clashes} />
+            : <>
+                <div className="flex min-h-0 flex-1 flex-col max-md:hidden"><CrewRows days={days} items={items} clashes={clashes} /></div>
+                <div className="md:hidden"><CrewList days={days} items={items} clashes={clashes} /></div>
+              </>}
+        </section>
+        <ReadyList />
+      </div>
     </Page>
+  )
+}
+
+/** the projects ready for a crew that nobody's booked for yet — one line each; tap one to pick the installer. Beside
+ *  the week, the same height. */
+function ReadyList() {
+  const s = useStore()
+  const dated = itemsOf(s).filter((i) => i.kind === 'tobook').sort((a, b) => a.start.localeCompare(b.start))
+  const rows = [...dated.map((i) => ({ id: i.jobId, when: i.start })), ...undated(s).map((r) => ({ id: r.j.id, when: '' }))].filter((x) => s.jobs[x.id])
+  return (
+    <section data-ready-list className="flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
+      <header className="flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-line-2 px-5">
+        <h2 className="text-[0.9375rem] font-semibold text-ink">Ready to book</h2>
+        <span className="text-[0.8125rem] font-medium tnum text-faint">{rows.length}</span>
+      </header>
+      {rows.map((x) => {
+        const j = s.jobs[x.id]
+        return (
+          <button key={x.id} onClick={() => s.open({ t: 'book', jobId: x.id })} data-ready-row={x.id} title={`${j.client} — pick the installer`} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition hover:bg-[#f7f5f0]">
+            <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
+            <span className="shrink-0 text-[0.8125rem] text-muted">{x.when ? fmt(x.when, { month: 'short', day: 'numeric' }) : 'No date'}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+          </button>
+        )
+      })}
+      {!rows.length && <div className="px-5 py-6 text-[0.84375rem] text-muted">Every ready project has an installer.</div>}
+    </section>
+  )
+}
+
+/** a phone: one line per crew — what he's on this week (or free); tap it for the booking */
+function CrewList({ days, items, clashes }: { days: string[]; items: Item[]; clashes: PersonKey[] }) {
+  const s = useStore()
+  const first = days[0]
+  const last = days[days.length - 1]
+  const crews = CREWS.filter((c) => items.some((i) => i.crew === c && i.end >= first && i.start <= last) || !isOff(s, 'crew', c))
+  return (
+    <div data-crew-list>
+      {crews.map((c) => {
+        const mine = items.filter((i) => i.crew === c && i.end >= first && i.start <= last).sort((a, b) => a.start.localeCompare(b.start))
+        const it = mine[0]
+        const job = it ? s.jobs[it.jobId] : undefined
+        return (
+          <button key={c} onClick={() => (it ? openItem(s, it) : s.open({ t: 'assign', crew: c, start: TODAY }))} className="flex min-h-[3.25rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left first:border-t-0">
+            <Avatar who={c} size={28} />
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[c].name}</span>
+              <span className={cn('block truncate text-[0.75rem]', clashes.includes(c) ? 'font-medium text-bad-600' : it?.hold ? 'text-[#8f2f24]' : 'text-muted')}>
+                {it ? `${job?.name}${it.hold ? ' · on hold' : it.kind === 'pending' ? ' · waiting for his OK' : it.kind === 'planned' ? ' · planned' : ''} · ${fmt(it.start, { month: 'short', day: 'numeric' })} – ${fmt(it.end, { month: 'short', day: 'numeric' })}${mine.length > 1 ? ` · +${mine.length - 1}` : ''}` : 'Free this week'}
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -150,103 +183,83 @@ function openItem(s: Store, it: Item) {
 }
 
 /* ================= week / two weeks: one row per crew ================= */
-function CrewRows({ days, items, clashes, focus = 'all' }: { days: string[]; items: Item[]; clashes: PersonKey[]; focus?: Focus }) {
+function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
   const cols = days.length
   const first = days[0]
   const last = days[cols - 1]
-  const toBook = items.filter((i) => i.kind === 'tobook' && i.end >= first && i.start <= last)
-  const all: { key: string; crew?: PersonKey; items: Item[] }[] = [...(toBook.length ? [{ key: 'tobook', items: toBook }] : []), ...CREWS.map((c) => ({ key: c, crew: c, items: items.filter((i) => i.crew === c && i.end >= first && i.start <= last) })).filter((r) => r.items.length || !isOff(useStore.getState(), 'crew', r.crew))]
-  const booked = (r: (typeof all)[number]) => r.items.some((i) => i.kind === 'booked' || i.kind === 'pending')
-  const rows = all.filter((r) => focus === 'all' ? true : focus === 'tobook' ? !r.crew || r.items.some((i) => i.kind === 'planned') : !r.crew ? false : focus === 'working' ? booked(r) : focus === 'free' ? !booked(r) : r.items.some((i) => i.hold))
+  const rows = CREWS.map((c) => ({ key: c, crew: c, items: items.filter((i) => i.crew === c && i.end >= first && i.start <= last) })).filter((r) => r.items.length || !isOff(useStore.getState(), 'crew', r.crew))
   return (
-    <div className="scroll-soft overflow-x-auto [--crew:12.5rem] max-sm:[--crew:6.75rem]">
-      <div style={{ minWidth: `calc(var(--crew) + ${cols * (cols > 5 ? 84 : 112)}px)` }}>
-        <div className="grid border-b border-line bg-wash/60" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
-          <div className="sticky left-0 z-[3] flex items-end bg-[#faf8f5] px-5 pb-2.5 pt-3 text-[0.78125rem] font-semibold text-muted max-sm:px-3">Crew</div>
-          {days.map((d, i) => (
-            <div key={d} className={cn('min-w-0 border-l py-2 text-center', dow(d) === 1 && i > 0 ? 'border-l-line' : 'border-l-line-2')}>
-              <div className="truncate text-[0.71875rem] font-semibold text-muted">{fmt(d, { weekday: 'short' })}{i === 0 || dow(d) === 1 ? ` · ${fmt(d, { month: 'short' })}` : ''}</div>
-              <div className={cn('mx-auto mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-[0.90625rem] font-bold tnum', d === TODAY ? 'bg-brand-600 text-white' : 'text-ink')}>{Number(d.slice(8))}</div>
-            </div>
-          ))}
-        </div>
-        {rows.map((row) => {
-          const lanes = lanesOf(row.items)
-          const busy = new Set<string>()
-          row.items.forEach((b) => days.forEach((d) => d >= b.start && d <= b.end && busy.add(d)))
-          const crew = row.crew
-          const now = crew && s.bookings.find((b) => b.crew === crew && b.start <= TODAY && b.end >= TODAY)
-          const clash = !!crew && clashes.includes(crew)
-          const laneH = 54
-          const h = Math.max(1, lanes.length) * laneH + 12
-          return (
-            <div key={row.key} className={cn('grid border-b border-line-2 last:border-0', !crew && 'bg-[#faf8f5]')} style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
-              {crew ? (
-                <button onClick={() => s.open({ t: 'sub', id: crew })} className="sticky left-0 z-[3] flex items-center gap-3 bg-white px-5 py-2 text-left hover:bg-wash max-sm:gap-2 max-sm:px-3 max-sm:shadow-[0.0625rem_0_0_var(--color-line-2)]">
-                  <Avatar who={crew} size={30} className="max-sm:hidden" />
-                  <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[crew].name}</span>
-                    {clash ? <span className="mt-0.5 inline-flex items-center gap-1 text-[0.75rem] font-semibold text-bad-600"><TriangleAlert className="h-3 w-3" />Clash</span>
-                      : <span className={cn('mt-0.5 block truncate text-[0.75rem]', now ? 'text-muted' : 'font-semibold text-ok-700')}>{now ? `${now.workers || 2} people · till ${fmt(now.end, { month: 'short', day: 'numeric' })}` : 'Free now'}</span>}
-                  </span>
-                </button>
-              ) : (
-                <div className="sticky left-0 z-[3] flex items-center gap-3 bg-[#faf8f5] px-5 py-2 max-sm:px-3">
-                  <span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#bcc3cc] text-muted max-sm:hidden"><Plus className="h-4 w-4" /></span>
-                  <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-[0.875rem] font-semibold text-ink">Ready to book</span>
-                    <span className="mt-0.5 block truncate text-[0.75rem] text-muted">No installer yet</span>
-                  </span>
-                </div>
-              )}
-              <div className="relative min-w-0" style={{ gridColumn: `2 / span ${cols}`, height: h }}>
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
-                  {days.map((d, i) => (
-                    <div key={d} className={cn('group relative border-l', dow(d) === 1 && i > 0 ? 'border-l-line' : 'border-l-line-2', d === TODAY && 'bg-brand-50/50')}>
-                      {crew && !busy.has(d) && d >= TODAY && (
-                        <button aria-label={`Book ${PEOPLE[crew].name} from ${d}`} onClick={() => s.open({ t: 'assign', crew, start: d })} className="absolute inset-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-transparent text-[0.75rem] font-semibold text-faint opacity-0 transition group-hover:border-[#CDD4DE] group-hover:opacity-100 hover:bg-wash hover:text-brand-600">
-                          <Plus className="h-3.5 w-3.5" />Book
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {lanes.map((lane, li) => lane.map((b) => {
-                  const si = days.findIndex((d) => d >= b.start)
-                  let ei = -1
-                  days.forEach((d, i) => d <= b.end && (ei = i))
-                  if (si < 0 || ei < si) return null
-                  const job = s.jobs[b.jobId]
-                  const span = ei - si + 1
-                  const lk = look(b, clash && b.end >= TODAY)
-                  return (
-                    <Tip key={b.id} label={`${job?.name} · ${sub(b)} · ${fmt(b.start, { month: 'short', day: 'numeric' })} – ${fmt(b.end, { month: 'short', day: 'numeric' })}`}>
-                      <button onClick={() => openItem(s, b)} className={cn('absolute flex min-w-0 flex-col justify-center overflow-hidden rounded-lg px-2.5 text-left transition hover:brightness-[.97]', lk.className)} style={{ ...lk.style, left: `calc(${(si / cols) * 100}% + 3px)`, width: `calc(${(span / cols) * 100}% - 6px)`, top: 6 + li * laneH, height: laneH - 6 }}>
-                        <span className="flex min-w-0 items-center gap-1.5 leading-tight">
-                          {b.hold && <PauseCircle className="h-3.5 w-3.5 shrink-0" />}
-                          <span className="truncate text-[0.8125rem] font-semibold">{job?.name}</span>
-                          {b.kind === 'booked' && !b.hold && job?.pct !== undefined && span >= 2 && <span className="ml-auto shrink-0 text-[0.6875rem] font-bold tnum opacity-80">{job.pct}%</span>}
-                          {b.end > last && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />}
-                        </span>
-                        <span className="mt-0.5 truncate text-[0.71875rem] leading-tight opacity-80">{b.hold ? `On hold · ${b.hold}` : b.kind === 'tobook' ? 'Pick an installer' : b.kind === 'planned' ? 'Planned — not booked yet' : b.kind === 'pending' ? 'Waiting to confirm' : b.label}</span>
+    <div className="flex flex-1 flex-col [--crew:12rem]" data-crew-rows>
+      <div className="grid border-b border-line-2" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
+        <div />
+        {days.map((d) => (
+          <div key={d} className="min-w-0 py-2.5 text-center">
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.8125rem] tnum', d === TODAY ? 'bg-brand-600 font-semibold text-white' : 'text-muted')}>{fmt(d, { weekday: 'short' })} {Number(d.slice(8))}</span>
+          </div>
+        ))}
+      </div>
+      {rows.map((row) => {
+        const lanes = lanesOf(row.items)
+        const busy = new Set<string>()
+        row.items.forEach((b) => days.forEach((d) => d >= b.start && d <= b.end && busy.add(d)))
+        const crew = row.crew
+        const clash = clashes.includes(crew)
+        const laneH = 44
+        const h = Math.max(1, lanes.length) * laneH + 8
+        return (
+          <div key={row.key} className="grid flex-1 border-b border-line-2 last:border-0" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))`, minHeight: h }} data-crew-row={crew}>
+            <button onClick={() => s.open({ t: 'sub', id: crew })} className="flex min-w-0 items-center gap-2.5 px-5 py-2 text-left hover:bg-wash">
+              <Avatar who={crew} size={26} />
+              <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[crew].name}</span>
+              {clash && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-bad-600" aria-label="Booked in two places" />}
+            </button>
+            <div className="relative min-w-0" style={{ gridColumn: `2 / span ${cols}` }}>
+              <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
+                {days.map((d) => (
+                  <div key={d} className={cn('group relative', d === TODAY && 'bg-brand-50/40')}>
+                    {!busy.has(d) && d >= TODAY && (
+                      <button aria-label={`Book ${PEOPLE[crew].name} from ${d}`} onClick={() => s.open({ t: 'assign', crew, start: d })} className="absolute inset-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-transparent text-[0.75rem] font-semibold text-faint opacity-0 transition group-hover:border-[#CDD4DE] group-hover:opacity-100 hover:bg-wash hover:text-brand-600">
+                        <Plus className="h-3.5 w-3.5" />Book
                       </button>
-                    </Tip>
-                  )
-                }))}
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* the bars sit in the middle of the row, however tall the row grows */}
+              <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ height: h }}>
+              {lanes.map((lane, li) => lane.map((b) => {
+                const si = days.findIndex((d) => d >= b.start)
+                let ei = -1
+                days.forEach((d, i) => d <= b.end && (ei = i))
+                if (si < 0 || ei < si) return null
+                const job = s.jobs[b.jobId]
+                const span = ei - si + 1
+                const lk = look(b, clash && b.end >= TODAY)
+                const tag = b.hold ? 'on hold' : b.kind === 'pending' ? 'waiting for his OK' : b.kind === 'planned' ? 'planned' : ''
+                return (
+                  <Tip key={b.id} label={`${job?.name} · ${sub(b)} · ${fmt(b.start, { month: 'short', day: 'numeric' })} – ${fmt(b.end, { month: 'short', day: 'numeric' })}`}>
+                    <button onClick={() => openItem(s, b)} data-bar={b.jobId} className={cn('pointer-events-auto absolute flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-left transition hover:brightness-[.97]', lk.className)} style={{ ...lk.style, left: `calc(${(si / cols) * 100}% + 3px)`, width: `calc(${(span / cols) * 100}% - 6px)`, top: 6 + li * laneH, height: laneH - 8 }}>
+                      {b.hold && <PauseCircle className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="truncate text-[0.8125rem] font-semibold">{job?.name}</span>
+                      {tag && <span className="shrink-0 truncate text-[0.75rem] font-medium opacity-75">· {tag}</span>}
+                      {b.end > last && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />}
+                    </button>
+                  </Tip>
+                )
+              }))}
               </div>
             </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 /* ================= month: a regular month, like Google Calendar ================= */
-function MonthGrid({ anchor, items: all, clashes, focus = 'all' }: { anchor: string; items: Item[]; clashes: PersonKey[]; focus?: Focus }) {
+function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
-  const items = all.filter((i) => focus === 'all' || focus === 'free' ? true : focus === 'working' ? i.kind === 'booked' || i.kind === 'pending' : focus === 'tobook' ? i.kind === 'tobook' || i.kind === 'planned' : !!i.hold)
   const m = anchor.slice(0, 7)
   const first = m + '-01'
   const start = addDays(first, -dow(first))
@@ -259,7 +272,7 @@ function MonthGrid({ anchor, items: all, clashes, focus = 'all' }: { anchor: str
   const MAX = 6
   return (
     <div>
-      <div className="grid grid-cols-7 border-b border-line bg-wash/60">
+      <div className="grid grid-cols-7 border-b border-line-2">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2')}>{d}</div>)}
       </div>
       {weeks.map((wk) => {

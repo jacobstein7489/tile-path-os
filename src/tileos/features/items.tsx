@@ -71,7 +71,6 @@ export function ItemsPage() {
   return (
     <Page
       title="Items"
-      sub={smp('Sample prices') || undefined}
       actions={<div className="flex items-center gap-2">
         <Button icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}><span className="max-sm:hidden">Import from QuickBooks</span><span className="sm:hidden">Import</span></Button>
         {canChangeItems(s.role) && <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}

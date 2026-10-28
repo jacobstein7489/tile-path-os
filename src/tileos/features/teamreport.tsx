@@ -308,7 +308,7 @@ export function TeamReportPage() {
         {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} open={open === r.who} onToggle={() => setOpen(open === r.who ? null : r.who)} ci={ci.find((g) => g.who === r.who)?.items.length || 0} days={Number(days)} />)}
       </div>
       <p className={cn('border-t border-line-2 py-3 text-[0.78125rem] leading-relaxed text-muted', PX)}>
-        On time = done by the day it was set for (work days, Monday to Friday). Something moved to a later day after it was already late counts from the day it was first set for. Waiting on someone outside doesn’t count against anyone — a missed follow-up does. Fewer than 3 things: not enough to say yet.
+        On time = done by the day it was set for (work days). Waiting on someone outside doesn’t count against anyone.
       </p>
     </Page>
   )
@@ -328,7 +328,7 @@ function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal
           <span className="min-w-0">
             <span className="flex items-baseline gap-2"><span className="truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[r.who]?.name}</span><span className="truncate text-[0.75rem] text-muted max-sm:hidden">{PEOPLE[r.who]?.roleLabel}</span></span>
             <span className="mt-0.5 block truncate text-[0.8125rem] text-muted tnum">
-              {r.set ? <>{r.onTime} of {r.set} on time{r.late ? <> · <span className="font-semibold text-bad-600">{r.late} late</span></> : null}{r.early ? ` · ${r.early} early` : ''}</> : 'Nothing set for a day in these days'}
+              {r.set ? <>{r.onTime} of {r.set} on time{r.late ? ` · ${r.late} late` : ''}{r.early ? ` · ${r.early} early` : ''}</> : 'Nothing set for a day in these days'}
               <span className="lg:hidden">{r.lateNow ? <> · <span className="font-semibold text-bad-600">{r.lateNow} late now</span></> : null}</span>
             </span>
           </span>

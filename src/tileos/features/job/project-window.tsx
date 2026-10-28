@@ -117,8 +117,8 @@ function headStatus(s: Store, job: Job): { tone: Tone; label: string; onClick?: 
   return { tone: st.tone, label: st.label }
 }
 
-/** the header, the same as an estimate's: the name and where it stands, the client and the address, the installer and
- *  the dates; on the right the contract (for whoever sees money), the conversation, + Add and ··· */
+/** the header, the same as an estimate's: the name (and "On hold" when it is), the client and the address, the
+ *  installer and the dates; on the right the conversation, + Add and ···. No money up here — it's in Billing. */
 export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Job; mode: 'modal' | 'page'; pricing?: boolean; onChat?: () => void; /** the contract opens the Billing tab */ onMoney?: () => void }) {
   const s = useStore()
   const role = s.role
@@ -127,8 +127,6 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
   const me = meOf(role)
   const msgs = s.messages[job.id] || []
   const unread = msgs.slice(s.seen?.[`${job.id}|${me}`]?.n || 0).filter((m) => m.who !== me).length
-  const money = !['site', 'crew'].includes(role)
-  const pic = money && !pricing ? pictureOf(s, job.id) : null
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
   /* ··· holds only what changes the project itself — everything else is on the project, one tap away */
@@ -150,7 +148,6 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
         {(pricing || status.tone === 'bad') && <span className="min-w-0 shrink-0 max-sm:hidden">{statusChip}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          {pic && pic.contract > 0 && <button onClick={onMoney} disabled={!onMoney} data-contract className="rounded-md px-1.5 py-0.5 text-[0.8125rem] text-muted transition hover:bg-wash enabled:cursor-pointer max-md:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(pic.contract + pic.changes)}</b> contract{pic.billed > 0 ? <> · <span className="tnum">{fmtMoney(pic.paid)}</span> paid</> : ''}</button>}
           {!pricing && onChat && (
             <Button size="sm" icon={<MessageCircle />} onClick={onChat} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden">
               <span>Messages</span>
@@ -170,7 +167,6 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
           ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span>{dates && <span>· {dates}</span>}</button>
           : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
         {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
-        {pic && pic.contract > 0 && <span className="md:hidden">{fmtMoney(pic.contract + pic.changes)}</span>}
       </div>
       {/* where it is, like the estimate's path */}
       {!pricing && onChat && <ProjectLine className="mt-3" job={job} />}

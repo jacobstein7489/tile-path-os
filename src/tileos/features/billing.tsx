@@ -54,7 +54,7 @@ export function BillingPage() {
   return (
     <Page
       title="Billing"
-      sub={tab === 'todo' || tab === 'waiting' ? <>{sub[tab]}{smp(' · sample amounts')}</> : smp('Sample amounts') || undefined}
+      sub={tab === 'todo' || tab === 'waiting' ? sub[tab] : undefined}
       actions={<Button icon={<RefreshCw />} onClick={() => setSynced('just now')}>QuickBooks synced {synced}</Button>}
       top={
         <Bubbles

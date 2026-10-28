@@ -17,7 +17,7 @@ import { Section, Empty, Word } from './kit'
 /** where a materials PO is, in plain words */
 const poWord = (step: number, eta?: string) =>
   step <= 0 ? 'Draft — not sent' : step === 1 ? 'Waiting to confirm' : step === 2 ? (eta ? `Coming ${eta}` : 'Confirmed') : step === 3 ? 'Delivered' : step === 4 ? 'Delivered · bill came in' : 'Paid'
-const COLS = 'grid grid-cols-[2rem_minmax(0,1fr)_7rem_11.5rem] items-center gap-4 max-sm:grid-cols-[2rem_minmax(0,1fr)_auto] max-sm:gap-3'
+const COLS = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_minmax(13rem,auto)] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_minmax(11rem,auto)] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
   if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} />
@@ -31,8 +31,8 @@ export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }
             key={p.id}
             onClick={() => s.open({ t: 'po', id: p.id })}
             icon={<Package />}
-            title={`${p.supplier} · ${p.id}`}
-            sub={`${p.what} · ${p.lines.length} line${p.lines.length === 1 ? '' : 's'}`}
+            title={`${p.id} · ${p.supplier}`}
+            sub={p.what}
             amount={p.amount}
             status={<Word tone={/cancelled/i.test(p.note) ? undefined : p.late ? 'bad' : p.step >= 3 ? 'ok' : undefined}>{/cancelled/i.test(p.note) ? 'Cancelled' : p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word>}
           />
@@ -43,20 +43,20 @@ export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }
 }
 /** the window with the same (from a link that asks for the orders) */
 export const POsTab = MaterialsTab
-/** one PO on a project: what, how much, where it's at */
-function PORow({ onClick, icon, title, sub, amount, status }: { onClick: () => void; icon: React.ReactNode; title: string; sub: React.ReactNode; amount: number; status: React.ReactNode }) {
+/** one PO on a project, one line: which order · what's on it · how much · where it's at */
+function PORow({ onClick, title, sub, amount, status }: { onClick: () => void; icon?: React.ReactNode; title: string; sub: React.ReactNode; amount?: number; status: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4')}>
-      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
-      <span className="min-w-0">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink">{title}</span>
-        <span className="block truncate text-[0.78125rem] text-muted">{sub}</span>
+    <button onClick={onClick} data-po-row className={cn(COLS, 'min-h-12 w-full border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-wash-2 text-muted"><Package className="h-3.5 w-3.5" /></span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-[0.875rem] text-ink">{title}</span>
+          <span className="hidden truncate text-[0.75rem] text-muted max-lg:block">{sub}{amount != null ? ` · ${fmtMoney(amount)}` : ''}</span>
+        </span>
       </span>
-      <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(amount)}</span>
-      <span className="justify-self-end text-right">
-        <span className="hidden text-[0.875rem] font-semibold tnum text-ink max-sm:block">{fmtMoney(amount)}</span>
-        {status}
-      </span>
+      <span className="min-w-0 truncate text-[0.8125rem] text-muted max-lg:hidden">{sub}</span>
+      <span className="text-right text-[0.8125rem] tnum text-ink-2 max-lg:hidden">{amount != null ? fmtMoney(amount) : ''}</span>
+      <span className="justify-self-end text-right">{status}</span>
     </button>
   )
 }
@@ -75,15 +75,7 @@ function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
     <div className="flex flex-col gap-4">
       <Section title="On the way" count={coming.length} right={late ? <span className="font-semibold text-bad-600">{late} late</span> : tags.length ? `Tile: ${here} of ${tags.length} here${short ? ` · ${short} short` : ''}` : undefined}>
         {coming.map((p) => (
-          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className={cn(COLS, 'min-h-[3rem] w-full border-t border-line-2 px-5 py-2 text-left transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4')}>
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-4 [&_svg]:w-4"><Package /></span>
-            <span className="min-w-0">
-              <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.what}</span>
-              <span className="block truncate text-[0.78125rem] text-muted">{p.supplier} · {p.lines.length} line{p.lines.length === 1 ? '' : 's'}</span>
-            </span>
-            <span className="max-sm:hidden" />
-            <span className="justify-self-end"><Word tone={p.late ? 'bad' : undefined}>{p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word></span>
-          </button>
+          <PORow key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} title={p.what} sub={p.supplier} status={<Word tone={p.late ? 'bad' : undefined}>{p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word>} />
         ))}
         {!coming.length && <Empty>Nothing on the way to this project.</Empty>}
       </Section>
