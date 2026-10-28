@@ -57,11 +57,11 @@ const FOR: Record<string, Role[]> = {
   question: ['owner', 'pm', 'office', 'site', 'estimator'],
   change: ['owner', 'pm', 'office', 'site', 'estimator'],
   shortage: ['owner', 'pm', 'office', 'site', 'materials'],
-  delivery: ['owner', 'pm', 'office', 'site', 'materials'],
+  delivery: ['site', 'materials'],
   decision: ['owner', 'pm', 'office', 'site', 'estimator', 'takeoff'],
   call: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'site', 'materials', 'accounting'],
   problem: ['owner', 'pm', 'office', 'site', 'materials', 'estimator'],
-  payment: ['owner', 'office', 'accounting'],
+  payment: ['accounting'],
   newreq: ['owner', 'pm', 'office', 'takeoff', 'estimator'],
   newproject: ['owner', 'pm', 'office'],
   newrepair: ['owner', 'pm', 'office'],
@@ -85,7 +85,7 @@ const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled:
 type Group = 'site' | 'office'
 const ADD: (Pick & { c: TileColor; g: Group })[] = [
   { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, c: 'orange', g: 'site', m: (j) => ({ t: 'need', jobId: j }) },
-  { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready', i: TriangleAlert, c: 'red', g: 'site', job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
+  { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready · anything that holds the job up', i: TriangleAlert, c: 'red', g: 'site', job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
   { k: 'punch', l: 'Touch-ups', h: 'A list for the crew, with photos', i: Sparkles, c: 'violet', g: 'site', m: (j) => ({ t: 'punchnew', jobId: j }) },
   { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, c: 'blue', g: 'site', m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
   { k: 'delivery', l: 'Delivery arrived', h: 'Tile or materials landed on site', i: PackageCheck, c: 'teal', g: 'site', m: (j) => ({ t: 'record', type: 'delivery', jobId: j }) },
@@ -93,13 +93,16 @@ const ADD: (Pick & { c: TileColor; g: Group })[] = [
   { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, c: 'amber', g: 'site', m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
   { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, c: 'blue', g: 'office', m: (j) => ({ t: 'newtask', jobId: j }) },
   { k: 'note', l: 'Note', h: 'A call, a decision — anything to remember', i: StickyNote, c: 'amber', g: 'office', job: true, m: (j) => ({ t: 'note', jobId: j! }) },
-  { k: 'meeting', l: 'Meeting or walkthrough', h: 'A day, a time, who’s in it', i: CalendarPlus, c: 'indigo', g: 'office', m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
+  { k: 'meeting', l: 'Meeting', h: 'A meeting or a walkthrough — a day, a time, who’s in it', i: CalendarPlus, c: 'indigo', g: 'office', m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
   { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: FileText, c: 'cyan', g: 'office', m: (j) => ({ t: 'newpo', jobId: j }) },
-  { k: 'change', l: 'Client asked for a change', h: 'Height, tile, layout or extra work', i: ArrowLeftRight, c: 'violet', g: 'office', m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
+  { k: 'change', l: 'Change order', h: 'The client wants something different — height, tile, layout, extra work', i: ArrowLeftRight, c: 'violet', g: 'office', m: (j) => ({ t: 'record', type: 'change', jobId: j }) },
   { k: 'decision', l: 'Decision made', h: 'The designer, GC or client answered', i: Gavel, c: 'slate', g: 'office', m: (j) => ({ t: 'record', type: 'decision', jobId: j }) },
   { k: 'call', l: 'Call or follow-up', h: 'Spoke with someone, or no answer', i: Phone, c: 'green', g: 'office', m: (j) => ({ t: 'record', type: 'call', jobId: j }) },
   { k: 'payment', l: 'Payment received', h: 'A check or transfer came in', i: Wallet, c: 'green', g: 'office', m: (j) => ({ t: 'record', type: 'payment', jobId: j }) },
 ]
+/** on + New these are part of another choice (their own forms stay, where they're opened from): damaged or wrong and
+ *  a site question are a Problem; a call and a decision are a Note */
+const FOLDED = new Set(['shortage', 'question', 'decision', 'call'])
 /** what each login adds most — first in its group */
 const TOP: Partial<Record<Role, string[]>> = {
   owner: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
@@ -108,7 +111,7 @@ const TOP: Partial<Record<Role, string[]>> = {
   site: ['daily', 'need', 'problem', 'punch', 'delivery', 'task'],
   materials: ['need', 'delivery', 'problem', 'po', 'task'],
   accounting: ['payment', 'task', 'note'],
-  estimator: ['task', 'note', 'meeting', 'decision'],
+  estimator: ['task', 'note', 'meeting', 'change'],
   takeoff: ['task', 'note', 'meeting'],
 }
 const STARTS: (Pick & { c: TileColor })[] = [
@@ -173,7 +176,7 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const top = TOP[role] || TOP.owner!
   const rank = (k: string) => { const i = top.indexOf(k); return i < 0 ? 99 : i }
   /* each part in its own place — what your login adds most first in it */
-  const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x)).sort((a, b) => rank(a.k) - rank(b.k))
+  const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !FOLDED.has(x.k)).sort((a, b) => rank(a.k) - rank(b.k))
   const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
   const starts = STARTS.filter(ok)
   /* each form asks for the project itself (typed) if it isn't picked here */

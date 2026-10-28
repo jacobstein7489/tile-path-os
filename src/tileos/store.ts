@@ -68,7 +68,7 @@ export interface Rules {
   /** what we pay the installer should stay under this share of the estimate — the line on the PO meter (50 = half) */
   laborPct?: number
   /** the emails Tile OS sends: who each kind comes from, and who's copied on every one (Settings → Email) */
-  email?: { estimates?: string; invoices?: string; other?: string; cc?: string[] }
+  email?: { estimates?: string; invoices?: string; other?: string; /** copied on every email */ cc?: string[]; /** copied on that kind only */ ccEstimates?: string[]; ccInvoices?: string[]; ccOther?: string[] }
 }
 
 export interface Data {

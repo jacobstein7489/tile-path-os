@@ -172,16 +172,20 @@ export function EstimatesPage() {
   )
 }
 
-/* Estimate · Who has it · Date · Amount — the same columns, spacing and header as Projects. No status column: the
-   group it's under (or the bubble you picked) already says it. The job's name only — no number or client under it. */
-const EST_COLS = 'grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_9rem_8rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_8.5rem_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7.5rem] max-md:grid-cols-1 max-md:gap-1.5'
+/* One line per estimate, in light lines like the Projects table: Estimate · Who has it · Next · Date · Amount. No
+   status column: the group it's under (or the bubble you picked) already says it. The job's name only. On a phone:
+   the name and the amount, then whose it is and what's next. */
+const EST_COLS = 'grid grid-cols-[minmax(0,1.3fr)_10.5rem_minmax(0,1.5fr)_8.5rem_7.5rem] max-xl:grid-cols-[minmax(0,1.2fr)_10rem_minmax(0,1.3fr)_7.5rem] max-md:block'
+const EST_CELL = 'flex min-w-0 items-center px-4'
 function EstHead() {
+  const h = 'flex h-9 min-w-0 items-center px-4'
   return (
-    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-md:hidden', EST_COLS, 'px-5 max-sm:px-4', STICKY_HEAD)}>
-      <span>Estimate</span>
-      <span>Who has it</span>
-      <span className="max-lg:hidden">Date</span>
-      <span className="text-right">Amount</span>
+    <div className={cn('divide-x divide-line-2 border-y border-line-2 bg-wash text-[0.75rem] font-semibold text-muted', EST_COLS, STICKY_HEAD, 'max-md:hidden')}>
+      <span className={cn(h, 'pl-5')}>Estimate</span>
+      <span className={h}>Who has it</span>
+      <span className={h}>Next</span>
+      <span className={cn(h, 'max-xl:hidden')}>Date</span>
+      <span className={cn(h, 'justify-end')}>Amount</span>
     </div>
   )
 }
@@ -197,6 +201,11 @@ function EstRow({ e }: { e: Estimate }) {
   const turn = holderOf(e)
   const me = meOf(s.role)
   const date = whenOf(e)
+  const who = turn ? (
+    <span className="flex min-w-0 items-center gap-2"><Avatar who={turn} size={22} /><span className={cn('truncate text-[0.8125rem]', turn === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{turn === me ? 'You' : PEOPLE[turn].short}</span></span>
+  ) : <span className="text-[0.8125rem] text-faint">—</span>
+  const next = <span className={cn('truncate text-[0.84375rem]', nx.tone === 'warn' ? 'font-medium text-warn-700' : 'text-ink')}>{nx.text}</span>
+  const money = <span className={cn('text-[0.84375rem] font-semibold tnum', amt ? 'text-ink' : 'font-normal text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
   return (
     <div
       role="button"
@@ -204,28 +213,17 @@ function EstRow({ e }: { e: Estimate }) {
       data-est={e.id}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[3.5rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', EST_COLS, 'px-5 max-sm:px-4', c === 'lost' && 'opacity-70')}
+      className={cn('min-h-[2.875rem] cursor-pointer divide-x divide-line-2 border-b border-line-2 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none max-md:divide-x-0 max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
-      <div className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink" title={`${e.id} · ${j.client}`}>{j.name}<span className="font-normal text-muted md:hidden">{amt ? ` · ${fmtMoney(amt)}` : ''}</span></div>
-      <div className="min-w-0">
-        {turn ? (
-          <span className="flex min-w-0 items-center gap-2.5">
-            <span className="max-md:hidden"><Avatar who={turn} size={28} /></span>
-            <span className="min-w-0 leading-tight">
-              <span className={cn('block truncate text-[0.84375rem]', turn === me ? 'font-semibold text-ink' : 'font-medium text-ink')}>{turn === me ? 'You' : PEOPLE[turn].short}{e.since && (b === 'takeoff' || b === 'review' || b === 'final') && <span className="font-normal text-muted"> · since {e.since}</span>}</span>
-              <span className={cn('block truncate text-[0.78125rem]', nx.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{nx.text}</span>
-            </span>
-          </span>
-        ) : <span className="truncate text-[0.8125rem] text-muted">{nx.text}</span>}
-      </div>
-      <div className={cn('truncate text-[0.8125rem] max-lg:hidden', /Today|late/.test(date) ? 'font-semibold text-warn-700' : 'text-ink-2')}>{date}</div>
-      {/* on a phone the amount is on the name's line — not again under it */}
-      <div className="text-right max-md:hidden">
-        <span className={cn('text-[0.90625rem] font-semibold tnum', amt ? 'text-ink' : 'font-normal text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
-        {e.status === 'approved' && (() => {
-          const jm = jobMoney(j)
-          return <span className="mt-0.5 block text-[0.71875rem] font-medium tnum text-muted">{jm.billedPct}% invoiced</span>
-        })()}
+      <div className={cn(EST_CELL, 'pl-5 max-md:hidden')}><span className="truncate text-[0.90625rem] font-semibold text-ink" title={`${e.id} · ${j.client}`}>{j.name}</span></div>
+      <div className={cn(EST_CELL, 'max-md:hidden')}>{who}</div>
+      <div className={cn(EST_CELL, 'max-md:hidden')}>{next}</div>
+      <div className={cn(EST_CELL, 'max-xl:hidden')}><span className={cn('truncate text-[0.8125rem]', /Today|late/.test(date) ? 'font-semibold text-warn-700' : 'text-ink-2')}>{date}</span></div>
+      <div className={cn(EST_CELL, 'justify-end max-md:hidden')}>{money}</div>
+      {/* a phone: two short lines */}
+      <div className="hidden min-w-0 max-md:block">
+        <div className="flex min-w-0 items-center gap-3"><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
+        <div className="mt-1 flex min-w-0 items-center gap-2"><span className="flex min-w-0 flex-1">{next}</span>{turn && <span className="shrink-0">{who}</span>}</div>
       </div>
     </div>
   )
@@ -234,18 +232,17 @@ function EstRow({ e }: { e: Estimate }) {
 /* ================= one estimate ================= */
 /* the estimate's documents, the client's copy, every revision, who does what and what happened open in the window
  * itself, with "Back to the estimate" on top — never a window on a window */
-type EstPanel = null | { t: 'doc'; doc: string } | { t: 'paper'; prices?: boolean } | { t: 'revs' } | { t: 'team' } | { t: 'log' } | { t: 'same' }
+type EstPanel = null | { t: 'doc'; doc: string } | { t: 'paper'; prices?: boolean } | { t: 'revs' } | { t: 'log' } | { t: 'same' }
 const GREEN = '#2c4a3e'
 const GRAY = '#efece5'
 /** scope · qty · unit · rate · amount · (remove) — the same columns on the green bands, the rooms and every line */
 const SHEET_GRID = 'grid grid-cols-[minmax(0,1fr)_5.25rem_2.75rem_6.25rem_6.75rem_2.25rem] items-center'
 
-/** the job itself, beside the estimate — in the same spot as on a project: its papers (plans, spec book, finish
- *  schedule — each one here, or missing), who does what, the client. None of it is a step: it's here or it isn't.
- *  Tap a paper and it opens right in the window; a missing one takes its file. */
-function EstJob({ e, onDoc, onTeam, className }: { e: Estimate; onDoc: (doc: string) => void; onTeam?: () => void; className?: string }) {
+/** the estimate's documents — plans, spec book, finish schedule — in one slim line over the estimate: each one here
+ *  (tap it and it opens right in the window) or missing (tap it and add the file). The client is in the header; who
+ *  does each step is set once, in Settings → Who does what. */
+function EstDocs({ e, onDoc }: { e: Estimate; onDoc: (doc: string) => void }) {
   const s = useStore()
-  const j = s.jobs[e.jobId]
   const docs = s.pricing[e.jobId]?.docs || []
   const add = React.useRef<HTMLInputElement>(null)
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -257,66 +254,23 @@ function EstJob({ e, onDoc, onTeam, className }: { e: Estimate; onDoc: (doc: str
     setBusy(null)
     onDoc(doc)
   }
-  const team = teamOf(e)
-  const b = bucketOf(e)
-  const nowKey: keyof EstTeam | null = b === 'takeoff' || b === 'review' || b === 'final' ? b : b === 'sent' ? 'follow' : null
-  const me = meOf(s.role)
-  const here = docs.filter((d) => d.status !== 'missing').length
-  const row = 'flex w-full min-w-0 items-center gap-3 rounded-[0.625rem] px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]'
-  const head = 'text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint'
-  if (!j) return null
+  if (!docs.length) return null
+  const chip = 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-[0.5625rem] border px-2.5 text-[0.8125rem] font-semibold transition'
   return (
-    <aside data-side="job" data-est-job className={cn('scroll-soft min-h-0 min-w-0 border-line bg-white lg:overflow-y-auto lg:border-l', className)}>
-      <section className="px-4 pb-2.5 pt-4" aria-label="Documents">
-        <header className="mb-1 flex items-center gap-2 px-2"><h4 className={head}>Documents</h4>{docs.length > 0 && <span className="ml-auto text-[0.75rem] text-muted">{here} of {docs.length} here</span>}</header>
-        <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
-        {docs.map((d) =>
-          d.status === 'missing' ? (
-            <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className={row}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] border border-dashed border-warn-300 bg-[#fffaf0] text-warn-700">{busy === d.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.875rem] font-semibold text-ink">{d.name}</span>
-                <span className="block truncate text-[0.75rem] font-medium text-warn-700">missing — tap to add it</span>
-              </span>
-            </button>
-          ) : (
-            <button key={d.name} data-doc={d.name} onClick={() => onDoc(d.name)} title={`Open the ${d.name.toLowerCase()}`} className={row}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-brand-50 text-brand-600"><FileText className="h-4 w-4" /></span>
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-center gap-1.5 text-[0.875rem] font-semibold text-ink"><span className="truncate">{d.name}</span><Check className="h-3.5 w-3.5 shrink-0 text-ok-600" strokeWidth={3} /></span>
-                <span className="block truncate text-[0.75rem] text-muted">{d.note || 'Here'}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-            </button>
-          ),
-        )}
-        {!docs.length && <div className="px-2 py-2 text-[0.8125rem] text-muted">No documents yet.</div>}
-      </section>
-      <section className="border-t border-line-2 px-4 pb-2.5 pt-3" aria-label="Who does what">
-        <header className="mb-1 flex items-center gap-2 px-2"><h4 className={head}>Who does what</h4>{onTeam && <button onClick={onTeam} className="ml-auto text-[0.78125rem] font-semibold text-brand-700 hover:underline">Change</button>}</header>
-        {TEAM_KEYS.map((k) => (
-          <div key={k} className="flex min-w-0 items-center gap-3 px-2 py-1.5" data-team={k}>
-            <Avatar who={team[k]} size={28} />
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[0.84375rem] font-semibold text-ink">{team[k] === me ? 'You' : PEOPLE[team[k]]?.name}</span>
-              <span className="block truncate text-[0.75rem] text-muted">{TEAM_LABEL[k]}</span>
-            </span>
-            {nowKey === k && <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 text-[0.6875rem] font-bold text-white">Now</span>}
-          </div>
-        ))}
-      </section>
-      <section className="border-t border-line-2 px-4 pb-4 pt-3" aria-label="Client">
-        <header className="mb-1 px-2"><h4 className={head}>Client</h4></header>
-        <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className={row}>
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] bg-wash-2 text-ink-2"><Building2 className="h-4 w-4" /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.875rem] font-semibold text-ink">{j.client}</span>
-            <span className="block truncate text-[0.75rem] text-muted">{j.address}</span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-        </button>
-      </section>
-    </aside>
+    <div className="mb-3 flex flex-wrap items-center gap-1.5" data-est-docs aria-label="Documents">
+      <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
+      {docs.map((d) =>
+        d.status === 'missing' ? (
+          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className={cn(chip, 'border-dashed border-warn-300 bg-[#fffaf0] text-warn-700 hover:bg-warn-50')}>
+            {busy === d.name ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}<span className="truncate">{d.name} · missing</span>
+          </button>
+        ) : (
+          <button key={d.name} data-doc={d.name} onClick={() => onDoc(d.name)} title={`Open the ${d.name.toLowerCase()}${d.note ? ` — ${d.note}` : ''}`} className={cn(chip, 'border-line bg-white text-ink hover:border-[#cfc8bc]')}>
+            <FileText className="h-3.5 w-3.5 text-brand-600" /><span className="truncate">{d.name}</span><Check className="h-3.5 w-3.5 text-ok-600" strokeWidth={3} />
+          </button>
+        ),
+      )}
+    </div>
   )
 }
 
@@ -351,8 +305,6 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const e = s.estimates.find((x) => x.id === id)
   const [revN, setRevN] = React.useState<number | null>(null)
   const [panel, setPanel] = React.useState<EstPanel>(null)
-  /* on a phone: the estimate, or the job (its documents, who does what, the client) */
-  const [side, setSide] = React.useState<'est' | 'job'>('est')
   const paperRef = React.useRef<HTMLDivElement>(null)
   const [noteAt, setNoteAt] = React.useState<string | null>(null)
   const [takeoffBy, setTakeoffBy] = React.useState<PersonKey>(() => { const x = s.estimates.find((y) => y.id === id); return x ? teamOf(x).takeoff : 'takeoff' })
@@ -379,7 +331,6 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const me = meOf(s.role)
   /* everyone acts for themselves; the owner can act for anyone */
   const canAct = ownerish(s) || (b === 'request' ? s.role === 'office' : turn === me)
-  const canTeam = (ownerish(s) || s.role === 'office') && !['approved', 'lost'].includes(st)
   const back = () => setPanel(null)
 
   const order: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent', 'approved']
@@ -397,12 +348,11 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     sent: sent?.sentOn,
     approved: e.approvedOn,
   }
-  /* who did it — the one in the estimate's own log; else whoever has that step */
-  const doneBy = (k: string) => { const w = doneLog(k)?.who; return w && w !== 'system' && PEOPLE[w] ? PEOPLE[w].short : undefined }
-  const people = [
-    PEOPLE[e.log[0]?.who]?.short && e.log[0]?.who !== 'system' ? PEOPLE[e.log[0].who].short : PEOPLE[team.follow].short,
-    PEOPLE[team.takeoff].short, PEOPLE[team.review].short, PEOPLE[team.final].short, PEOPLE[team.follow].short, undefined,
-  ]
+  /* whose each step is — the one who did it (from the estimate's own log), else whoever has that step: their
+     initials on the path */
+  const person = (w?: string) => (w && w !== 'system' && PEOPLE[w as PersonKey] ? (w as PersonKey) : undefined)
+  const has: Record<string, PersonKey | undefined> = { request: person(e.log[0]?.who) || team.follow, takeoff: team.takeoff, review: team.review, final: team.final, sent: team.follow, approved: undefined }
+  const whoOf = (k: string, done: boolean) => (done && person(doneLog(k)?.who)) || has[k]
   const path = [
     { key: 'request', label: 'Request' },
     { key: 'takeoff', label: cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : 'Takeoff' },
@@ -414,8 +364,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     const s0 = state(i)
     const cs: CircleState = s0 === 'done' ? 'done' : s0 === 'current' ? 'now' : s0 === 'blocked' ? 'bad' : 'later'
     const date = s0 === 'done' ? doneOn[p.key] : s0 === 'current' && e.since && p.key !== 'sent' ? `since ${e.since}` : s0 === 'current' && p.key === 'sent' ? sent?.sentOn : st === 'approved' && p.key === 'approved' ? e.approvedOn : undefined
-    const sub = s0 === 'done' ? [doneBy(p.key) || people[i], date ? date.replace(/^Done\s*/, '') : ''].filter(Boolean).join(' · ') || 'Done' : [people[i], date].filter(Boolean).join(' · ') || undefined
-    return { key: p.key, label: p.label, state: cs, sub, center: String(i + 1) }
+    const sub = s0 === 'done' ? (date ? date.replace(/^Done\s*/, '') : 'Done') : date
+    return { key: p.key, label: p.label, state: cs, sub, center: String(i + 1), who: whoOf(p.key, s0 === 'done') }
   })
 
   const header = (
@@ -440,7 +390,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           )}
         </span>
       </div>
-      {/* who it's for, where, when it's due (its documents are on the right, with the job) */}
+      {/* who it's for, where, when it's due */}
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
           <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
@@ -598,7 +548,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
 
   const desk = (
     <div className="min-h-full bg-[#f3f0ea]" data-desk>
-      <div className="mx-auto w-full max-w-[64rem] px-6 pb-8 pt-3 max-sm:px-2 max-sm:pt-2">
+      <div className="mx-auto w-full max-w-[72rem] px-6 pb-8 pt-3 max-sm:px-2 max-sm:pt-2">
+        <EstDocs e={e} onDoc={(doc) => setPanel({ t: 'doc', doc })} />
         {/* review notes: how many are checked off, and a note for the whole estimate */}
         {notes.length > 0 && (
           <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
@@ -665,11 +616,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         <PanelBar title="Every revision" sub={`${e.revs.length} so far`} onBack={back} back="Back to the estimate" />
         <div className="mx-auto max-w-[52rem] px-6 py-5 max-sm:px-3"><RevisionsPanel e={e} onShow={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} /></div>
       </div>
-    ) : panel?.t === 'team' ? (
-      <div className="min-h-full" data-panel="team">
-        <PanelBar title="Who does what" sub="on this estimate" onBack={back} back="Back to the estimate" />
-        <div className="mx-auto max-w-[30rem] px-6 py-5 max-sm:px-3"><TeamSlots compact team={team} now={inside ? (b as keyof EstTeam) : b === 'sent' ? 'follow' : null} onChange={(k, p) => setEstTeam(e.id, k, p)} /></div>
-      </div>
+
     ) : panel?.t === 'same' ? (
       <div className="min-h-full" data-panel="same">
         <PanelBar title="Which project is it for?" sub={`${e.id} was made as “${j.name}”`} onBack={back} back="Back to the estimate" />
@@ -688,19 +635,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
 
   return (
     <Modal level={level} size="full" tall onClose={s.close} title={`${e.id} · ${j.name}`} header={header} footer={footer} bodyClass="p-0 lg:overflow-hidden">
-      {panel ? (
-        <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
-      ) : (
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-line bg-white px-4 py-2 lg:hidden">
-            <Segmented value={side} onChange={setSide} items={[{ key: 'est', label: 'The estimate' }, { key: 'job', label: 'The job' }]} className="w-full [&>button]:flex-1" />
-          </div>
-          <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_21rem]">
-            <div className={cn('scroll-soft min-h-0 min-w-0 lg:overflow-y-auto', side !== 'est' && 'max-lg:hidden')} data-est-body>{body}</div>
-            <EstJob e={e} className={cn(side !== 'job' && 'max-lg:hidden')} onDoc={(doc) => setPanel({ t: 'doc', doc })} onTeam={canTeam ? () => setPanel({ t: 'team' }) : undefined} />
-          </div>
-        </div>
-      )}
+      <div className="scroll-soft h-full min-h-0 lg:overflow-y-auto" data-est-body>{body}</div>
     </Modal>
   )
 }

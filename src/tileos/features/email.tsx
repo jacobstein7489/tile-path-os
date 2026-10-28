@@ -21,7 +21,9 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
   /* who each kind comes from, and who's copied on every one — Settings → Email */
   const mail = s.rules.email || {}
   const fromBox = (addr: string | undefined, fallback: string) => (addr ? `Cobblestone Tile <${addr}>` : fallback)
-  const cc = mail.cc || []
+  /* who's copied: on that kind of email (Settings → Email), and anyone copied on every one */
+  const ccKey = what.kind === 'po' ? 'ccOther' : what.kind === 'invoice' ? 'ccInvoices' : 'ccEstimates'
+  const cc = Array.from(new Set([...(mail.cc || []), ...(mail[ccKey] || [])]))
   let from = '', to = '', subject = '', greeting = '', body: React.ReactNode = null, doc: React.ReactNode = null, buttons: React.ReactNode = null, attach = ''
 
   if (what.kind === 'po') {

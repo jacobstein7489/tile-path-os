@@ -64,8 +64,10 @@ export function JobPart({ job, open, tab, onStep }: { job: Job; open: (v: BoardV
 const PAPER_GREEN = '#2c4a3e'
 const PAPER_GRAY = '#efece5'
 /** surface · tile · grout and layout · set on · SF (· how far, once the crew is in) */
-const PAPER_COLS = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem] items-center gap-4'
-const PAPER_COLS_FIELD = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem_6.5rem] items-center gap-4'
+const PAPER_COLS = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem] items-stretch'
+const PAPER_COLS_FIELD = 'grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_4.5rem_6.5rem] items-stretch'
+/** a cell of the paper: its own column, a light line between the columns */
+const PC = '[&>span]:flex [&>span]:min-w-0 [&>span]:items-center [&>span]:px-3 [&>span]:py-1.5 [&>span:first-child]:pl-5 max-sm:[&>span:first-child]:pl-3'
 function roomWord(r: RoomView): { text: string; cls: string } {
   if (r.state === 'done') return { text: 'Done', cls: 'font-semibold text-[#2c8a5b]' }
   if (r.state === 'installing') return { text: `${r.pct}% in`, cls: 'font-semibold text-brand-700' }
@@ -98,11 +100,6 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           { key: 'scope', label: 'Scope of work' },
           { key: 'changes', label: <>Change orders<span className="ml-1 font-medium text-muted">{cos.length || ''}</span></> },
         ]} />
-        {view === 'scope' && rooms.length > 0 && (
-          <span className="min-w-0 truncate text-[0.8125rem] text-muted">
-            <b className="font-semibold text-ink-2">{inField ? `${done} of ${rooms.length} rooms done` : `${ready} of ${rooms.length} rooms ready`}</b>{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}{est ? ` · estimate ${est.id}` : ''}
-          </span>
-        )}
         <span className="ml-auto flex shrink-0 items-center gap-1">
           {view === 'scope' && rooms.length > 0 && <>
             <PrintSheetsButton job={job} size="sm" variant="ghost">Room sheets</PrintSheetsButton>
@@ -119,13 +116,13 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
             <div data-paper className="overflow-clip rounded-[0.875rem] border border-[#e4ded3] bg-white shadow-card">
               {groups.map((g) => (
                 <section key={g.floor}>
-                  <div className={cn(cols, 'sticky top-0 z-[2] px-5 py-1.5 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-md:flex max-md:justify-between max-sm:px-3')} style={{ background: PAPER_GREEN }}>
-                    <span className="truncate uppercase tracking-[0.04em]">{g.floor}</span>
-                    <span className="max-md:hidden">Tile</span>
-                    <span className="max-md:hidden">Grout · layout</span>
-                    <span className="max-md:hidden">Set on</span>
-                    <span className="text-right">SF</span>
-                    {inField && <span className="text-right max-md:hidden">Done</span>}
+                  <div className={cn(cols, PC, 'sticky top-0 z-[2] divide-x divide-white/15 text-[0.75rem] font-semibold tracking-[0.01em] text-white max-md:flex max-md:justify-between')} style={{ background: PAPER_GREEN }}>
+                    <span className="uppercase tracking-[0.04em]"><span className="truncate">{g.floor}</span></span>
+                    <span className="max-md:!hidden">Tile</span>
+                    <span className="max-md:!hidden">Grout · layout</span>
+                    <span className="max-md:!hidden">Set on</span>
+                    <span className="justify-end">SF</span>
+                    {inField && <span className="justify-end max-md:!hidden">Done</span>}
                   </div>
                   {g.rooms.map((room) => {
                     const r = viewOf(room.name)
@@ -148,16 +145,16 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                           const layout = sh ? sh.layout.replace(/\s*·\s*best start.*$/i, '') : ''
                           const pct = surfacePct(x)
                           return (
-                            <div key={x.name} data-surface-row={x.name} className={cn(cols, 'border-t border-[#f1ede7] px-5 py-1.5 text-[0.8125rem] first:border-t-0 max-md:flex max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-0.5 max-sm:px-3')}>
-                              <span className="min-w-0 truncate font-semibold text-ink max-md:basis-full">{x.name}</span>
-                              <span className="flex min-w-0 items-center gap-2">
+                            <div key={x.name} data-surface-row={x.name} className={cn(cols, PC, 'divide-x divide-[#f1ede7] border-t border-[#f1ede7] text-[0.8125rem] first:border-t-0 max-md:flex max-md:flex-wrap max-md:divide-x-0 max-md:px-3 max-md:py-1.5 max-md:[&>span]:p-0 max-md:[&>span]:pr-3')}>
+                              <span className="font-semibold text-ink max-md:basis-full"><span className="truncate">{x.name}</span></span>
+                              <span className="gap-2">
                                 {t ? <TileImg tile={t} size={22} radius={5} /> : null}
                                 <span className={cn('min-w-0 truncate', t ? 'text-ink-2' : 'text-warn-700')}>{t ? <><b className="font-semibold text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : x.tile || 'No tile yet'}</span>
                               </span>
-                              <span className="min-w-0 truncate text-ink-2">{sh ? <>{sh.grout ? <span className="inline-flex items-center gap-1 align-middle"><GroutDot grout={sh.groutKey} />{sh.grout}</span> : <span className="text-warn-700">No grout yet</span>}{layout ? <span className={sh.layoutSuggested ? 'text-muted' : ''}> · {layout}{sh.layoutSuggested ? ' (suggested)' : ''}</span> : null}</> : <span className="text-faint">—</span>}</span>
-                              <span className={cn('min-w-0 truncate', sh?.setAuto ? 'text-muted' : 'text-ink-2')}>{setOn || <span className="text-faint">—</span>}{sh?.setAuto ? ' (suggested)' : ''}</span>
-                              <span className="text-right font-medium tnum text-ink max-md:ml-auto">{x.sf ? x.sf.toLocaleString('en-US') : '—'}</span>
-                              {inField && <span className={cn('text-right text-[0.78125rem] max-md:hidden', x.state === 'done' ? 'font-semibold text-[#2c8a5b]' : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'font-semibold text-bad-600' : x.state === 'working' ? 'font-medium text-brand-700' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'Stopped' : 'Not yet'}</span>}
+                              <span className="text-ink-2" title={sh?.layoutSuggested ? 'The layout is suggested' : undefined}><span className="min-w-0 truncate">{sh ? <>{sh.grout ? <span className="inline-flex items-center gap-1 align-middle"><GroutDot grout={sh.groutKey} />{sh.grout}</span> : <span className="text-warn-700">No grout yet</span>}{layout ? <span className={sh.layoutSuggested ? 'text-muted' : ''}> · {layout}</span> : null}</> : <span className="text-faint">—</span>}</span></span>
+                              <span className={sh?.setAuto ? 'text-muted' : 'text-ink-2'} title={sh?.setAuto ? 'Suggested' : undefined}><span className="min-w-0 truncate">{setOn || <span className="text-faint">—</span>}</span></span>
+                              <span className="justify-end font-medium tnum text-ink max-md:ml-auto">{x.sf ? x.sf.toLocaleString('en-US') : '—'}</span>
+                              {inField && <span className={cn('justify-end text-[0.78125rem] max-md:!hidden', x.state === 'done' ? 'font-semibold text-[#2c8a5b]' : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'font-semibold text-bad-600' : x.state === 'working' ? 'font-medium text-brand-700' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : ['blocked', 'waitmat', 'hold'].includes(x.state) ? 'Stopped' : 'Not yet'}</span>}
                             </div>
                           )
                         })}
@@ -172,7 +169,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
               </div>
             </div>
           )}
-          {rooms.length > 0 && confirmed && <div className="mt-3 flex items-center gap-2 px-1 text-[0.78125rem] text-muted" data-scope-locked><Lock className="h-3.5 w-3.5 shrink-0 text-faint" />The scope is set — a change goes through a change order.</div>}
+          {rooms.length > 0 && confirmed && <div className="mt-3 flex items-center gap-2 px-1 text-[0.78125rem] text-muted" data-scope-locked><Lock className="h-3.5 w-3.5 shrink-0 text-faint" />Set — a change goes through a change order.</div>}
         </>
       )}
     </section>
@@ -221,7 +218,7 @@ const smsHref = (v: string) => `sms:${v.replace(/ext.*$/i, '').replace(/[^\d+]/g
 function ReachButtons({ r, who, onMessage }: { r: Reachable; who: string; onMessage?: () => void }) {
   const phone = r.phone || r.more?.find((x) => x.kind === 'phone' && x.value)?.value
   const email = r.email || r.more?.find((x) => x.kind === 'email' && x.value)?.value
-  const btn = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-2 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 [&_svg]:h-4 [&_svg]:w-4'
+  const btn = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-2 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem]'
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       {onMessage && <button onClick={onMessage} aria-label={`Message ${who}`} title="Message on this project" className={btn}><MessageCircle /></button>}
@@ -231,21 +228,26 @@ function ReachButtons({ r, who, onMessage }: { r: Reachable; who: string; onMess
     </span>
   )
 }
-/** a person on the job: initials in a circle, their name, who they are, and every way to reach them */
+/** a person on the job, one line in light columns: who (initials in a circle) · what they are on this job · phone ·
+ *  email · the buttons to reach them */
+const PEOPLE_COLS = 'grid grid-cols-[minmax(0,1.25fr)_minmax(0,1.35fr)_10rem_minmax(0,1.2fr)_8.5rem] max-xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_8.5rem] max-md:grid-cols-[minmax(0,1fr)_auto]'
 function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string }) {
-  const lines = [...(r.phone ? [r.phone] : []), ...(r.email ? [r.email] : []), ...(r.more || []).filter((x) => x.value).map((x) => `${x.value}${x.label ? ` (${x.label})` : ''}`)]
+  const phone = r.phone || r.more?.find((x) => x.kind === 'phone' && x.value)?.value
+  const email = r.email || r.more?.find((x) => x.kind === 'email' && x.value)?.value
+  const cell = 'flex min-w-0 items-center px-4 text-[0.8125rem]'
   return (
-    <div data-person={role} className="flex min-w-0 items-center gap-3.5 border-t border-line-2 px-5 py-3 first:border-t-0 max-sm:px-3">
-      {who ? <Avatar who={who} size={38} /> : <span className={cn('inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-full text-[0.8125rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="flex min-w-0 items-baseline gap-2">
-          {onName ? <button onClick={onName} className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink hover:text-brand-700 hover:underline">{name}</button> : <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{name}</span>}
-          <span className="shrink-0 text-[0.75rem] font-medium text-muted">{role}</span>
+    <div data-person={role} className={cn(PEOPLE_COLS, 'min-h-12 divide-x divide-line-2 border-t border-line-2 max-md:divide-x-0')}>
+      <span className="flex min-w-0 items-center gap-2.5 py-2 pl-5 pr-4 max-sm:pl-3">
+        {who ? <Avatar who={who} size={26} /> : <span className={cn('inline-flex h-[1.625rem] w-[1.625rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
+        <span className="min-w-0 leading-tight">
+          {onName ? <button onClick={onName} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700 hover:underline">{name}</button> : <span className="block truncate text-[0.875rem] font-semibold text-ink">{name}</span>}
+          <span className="hidden truncate text-[0.75rem] text-muted max-md:block">{role}</span>
         </span>
-        <span className="mt-0.5 block truncate text-[0.78125rem] text-muted">{lines.length ? lines.join(' · ') : <span className="text-faint">No phone or email yet</span>}</span>
-        {sub && <span className="mt-0.5 block truncate text-[0.75rem]">{sub}</span>}
       </span>
-      <ReachButtons r={r} who={name} onMessage={onMessage} />
+      <span className={cn(cell, 'gap-1.5 max-md:hidden')}><span className="shrink-0 font-medium text-ink-2">{role}</span>{sub && <><span className="shrink-0 text-faint">·</span><span className="min-w-0 truncate">{sub}</span></>}</span>
+      <span className={cn(cell, 'tnum text-ink-2 max-xl:hidden')}><span className="truncate">{phone || <span className="text-faint">—</span>}</span></span>
+      <span className={cn(cell, 'text-ink-2 max-xl:hidden')}><span className="truncate">{email || <span className="text-faint">—</span>}</span></span>
+      <span className="flex items-center justify-end px-3"><ReachButtons r={r} who={name} onMessage={onMessage} /></span>
     </div>
   )
 }
@@ -256,12 +258,12 @@ function InstallerPO({ job }: { job: Job }) {
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const money = !['site', 'crew', 'client'].includes(s.role)
   const b = s.bookings.find((x) => x.jobId === job.id && x.label !== 'Return visit')
-  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="text-left font-medium text-warn-700 hover:underline">No PO yet — send his PO</button>
+  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left font-medium text-warn-700 hover:underline">No PO yet — send it</button>
   const r = poRatio(s, ipo)
-  const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'sent — waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'draft — not sent'
+  const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'not sent'
   return (
-    <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} data-installer-po={ipo.id} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700">
-      <b className="font-semibold">His PO {ipo.id}</b> · {word}{money && r.total ? <> · {fmtMoney(r.total)}{r.sold ? <span className={r.over ? 'font-semibold text-bad-600' : 'text-muted'}> ({r.pct}% of our estimate)</span> : null}</> : null}{b ? <span className="text-muted"> · {labelFromIso(b.start)} – {labelFromIso(b.end)}</span> : null}
+    <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} data-installer-po={ipo.id} title={[money && r.total && r.sold ? `${r.pct}% of our estimate` : '', b ? `${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''].filter(Boolean).join(' · ') || undefined} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700">
+      PO {ipo.id} · {word}{money && r.total ? <> · <span className={r.over ? 'font-semibold text-bad-600' : ''}>{fmtMoney(r.total)}</span></> : null}
     </button>
   )
 }
@@ -294,7 +296,7 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
         <span className="inline-flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2"><CalendarDays className="h-3.5 w-3.5 text-faint" />{start ? <>Start <b className="font-semibold text-ink">{start}</b>{finish ? <> · finish <b className="font-semibold text-ink">{finish}</b></> : null}</> : 'No start date yet'}</span>
         {next && <button onClick={() => s.open({ t: 'event', id: next.id })} className="inline-flex min-w-0 items-center gap-1.5 text-left text-[0.8125rem] text-ink-2 hover:text-brand-700"><span className="text-muted">· Next:</span><b className="truncate font-semibold text-ink">{next.title}</b><span className="shrink-0">{labelFromIso(next.date)} {timeLabel(next.start)}</span></button>}
       </header>
-      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card" data-contacts>
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card [&>[data-person]:first-child]:border-t-0" data-contacts>
         <div className="bg-[#f4f1eb] px-5 py-1.5 text-[0.75rem] font-semibold text-ink-2 max-sm:px-3">The client</div>
         <Contact initials={initialsOf(job.client)} tone="bg-[#e3ece6] text-[#2c4a3e]" name={job.client} role="Client" r={{ phone: client?.phone, email: client?.email, more: client?.more }} onName={() => s.open({ t: 'customer', id: job.clientId })} />
         {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
@@ -320,7 +322,7 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
               name={p === me ? 'You' : PEOPLE[p]?.name || p}
               role={PEOPLE[p]?.roleLabel || 'Team'}
               r={{ phone: m?.phone, email: m?.email, more: m?.more }}
-              sub={what.length ? <button onClick={() => (mine[0] ? onStep?.(mine[0].key) : theirs[0] && s.open({ t: 'task', id: theirs[0].id }))} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700"><b className="font-semibold">{what.length} open</b> · {what.slice(0, 2).join(' · ')}{what.length > 2 ? ` · +${what.length - 2}` : ''}</button> : undefined}
+              sub={what.length ? <button onClick={() => (mine[0] ? onStep?.(mine[0].key) : theirs[0] && s.open({ t: 'task', id: theirs[0].id }))} title={what.join(' · ')} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700">{what.length} open</button> : undefined}
               onMessage={p !== me ? chat : undefined}
             />
           )

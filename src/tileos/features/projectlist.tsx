@@ -1,15 +1,12 @@
-/* Projects — won work only (estimates live in Estimates). Plain rows, the same shape as Estimates:
- *   Project · Where it stands · Who has it · Dates · Contract
- * Where it stands: getting ready as five small circles (one for each part — done, going, a problem) and how many are
- * done, with a problem under it in red only when there is one; installing, how far it is; touch-ups, how many are
- * open. Who has it: the one person the project waits on now and what they do next — the initials in a circle, like
- * everywhere else. No status column: the group it's under already says it. */
+/* Projects — won work only (estimates live in Estimates). A plain table, one line per project:
+ *   Project · Client · Where it stands · Next · Who · Start · Contract
+ * No status column: the group it's under already says it. Red only for a problem. */
 import * as React from 'react'
 import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, ProgressRing, EmptyState, Status, Bubbles, DateTile, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -132,170 +129,143 @@ export function ProjectsPage() {
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
-/* Project · Where it stands · Who has it · Dates · Contract */
-const COLS = 'grid grid-cols-[minmax(0,1.05fr)_minmax(0,1.25fr)_minmax(0,1.25fr)_8.5rem_8rem] items-center gap-6 max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] max-md:grid-cols-1'
+/* One line per project, in light lines like a table — a column for each thing, never two lines in a cell:
+ *   Project · Client · Where it stands · Next · Who · Start · Contract
+ * Where it stands: the five parts of getting ready as small circles and how many are done; installing, how far; touch-
+ * ups, how many are open. Next: the one thing the project waits on — in red only when it's a problem. On a phone each
+ * project is two short lines: its name and where it stands, then what's next and whose it is. */
+const COLS = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_9rem_minmax(0,1.5fr)_9.5rem_5.75rem_7.5rem] max-xl:grid-cols-[minmax(0,1.3fr)_9rem_minmax(0,1.4fr)_9.5rem] max-md:block'
+/** a cell: one line, its own column, a light line between the columns */
+const CELL = 'flex min-w-0 items-center px-4 max-md:px-0'
+const LINES = 'divide-x divide-line-2 max-md:divide-x-0'
+const HEAD = 'flex h-9 min-w-0 items-center px-4'
 
 function ListHead() {
   return (
-    <div className={cn('border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', COLS, PX, STICKY_HEAD)}>
-      <span>Project</span>
-      <span>Where it stands</span>
-      <span>Who has it</span>
-      <span>Dates</span>
-      <span className="text-right max-xl:hidden">Contract</span>
-    </div>
-  )
-}
-
-/** the contract and how much of it is billed — two plain lines */
-function MoneyCell({ j }: { j: Job }) {
-  const b = billingOf(j)
-  const contract = (b.contract || j.contract || 0) + (b.changes || 0)
-  if (!contract) return <span className="block text-right text-[0.8125rem] text-faint">—</span>
-  return (
-    <div className="min-w-0 text-right leading-tight">
-      <span className="block text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(contract)}</span>
-      <span className="mt-0.5 block text-[0.75rem] tnum text-muted">{b.billedPct ? `${b.billedPct}% billed` : 'Nothing billed yet'}</span>
+    <div className={cn('border-y border-line-2 bg-wash text-[0.75rem] font-semibold text-muted', COLS, LINES, STICKY_HEAD, 'max-md:hidden')}>
+      <span className={cn(HEAD, 'pl-5')}>Project</span>
+      <span className={cn(HEAD, 'max-xl:hidden')}>Client</span>
+      <span className={HEAD}>Where it stands</span>
+      <span className={HEAD}>Next</span>
+      <span className={HEAD}>Who</span>
+      <span className={cn(HEAD, 'max-xl:hidden')}>Start</span>
+      <span className={cn(HEAD, 'justify-end max-xl:hidden')}>Contract</span>
     </div>
   )
 }
 
 /** one part of getting ready, as a small circle: ✓ done · a ring that fills as its steps get done · ! a problem */
 function PartDot({ t }: { t: TrackView }) {
-  if (t.state === 'done') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
-  if (t.state === 'bad') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
-  const r = 6, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
+  if (t.state === 'done') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2 w-2" strokeWidth={4} /></span>
+  if (t.state === 'bad') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#d7342a] text-[0.5rem] font-black text-white">!</span>
+  const r = 5.2, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 -rotate-90">
-      <circle cx="8" cy="8" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2.2" />
-      {f > 0 && <circle cx="8" cy="8" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2.2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0 -rotate-90">
+      <circle cx="7" cy="7" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2" />
+      {f > 0 && <circle cx="7" cy="7" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
     </svg>
   )
 }
-/** one slim bar and a few words — installing and touch-ups */
-function Progress({ pct, tone, label, sub, subTone }: { pct: number; tone: 'brand' | 'ok' | 'warn'; label: React.ReactNode; sub?: React.ReactNode; subTone?: 'bad' | 'warn' }) {
-  const bar = tone === 'ok' ? 'bg-ok-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-brand-500'
+/** a slim bar and a few words — installing and touch-ups */
+function Bar({ pct, tone, label }: { pct: number; tone: 'ok' | 'warn'; label: string }) {
   return (
-    <div className="min-w-0 leading-tight">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', bar)} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>
-        <span className="truncate text-[0.8125rem] font-medium tnum text-ink">{label}</span>
-      </div>
-      {sub && <div className={cn('mt-1 truncate text-[0.75rem]', subTone === 'bad' ? 'font-semibold text-bad-600' : subTone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')}>{sub}</div>}
-    </div>
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', tone === 'ok' ? 'bg-ok-500' : 'bg-warn-500')} style={{ width: `${Math.max(4, Math.min(100, pct))}%` }} /></span>
+      <span className="truncate text-[0.8125rem] font-medium tnum text-ink">{label}</span>
+    </span>
   )
 }
 
-/** where it stands, in one cell */
+/** where it stands, in a few characters */
 function StandsCell({ j }: { j: Job }) {
   const s = useStore()
   const t = typeOf(j)
   if (t === 'coming') {
     const tracks = tracksFor(s, j)
     const done = tracks.filter((x) => x.state === 'done').length
-    const bad = tracks.filter((x) => x.state === 'bad')
-    const first = bad[0]?.lead
-    const problem = first ? `${bad[0].label}: ${(first.note || first.short).replace(/^No — /, '')}${bad.length > 1 ? ` · +${bad.length - 1} more` : ''}` : undefined
+    const all = done === tracks.length
     return (
-      <div className="min-w-0 leading-tight" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} done`}>
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex shrink-0 items-center gap-1">
-            {tracks.map((x) => (
-              <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className="inline-flex">
-                <PartDot t={x} /><span className="sr-only" data-mark-name>{x.label}</span><span className="sr-only" data-mark-count>{x.done}/{x.total}</span>
-              </span>
-            ))}
-          </span>
-          <span title={done === tracks.length ? 'Every part is ready — book the crew' : `${done} of ${tracks.length} parts ready`} className={cn('truncate text-[0.8125rem] font-medium', done === tracks.length ? 'text-[#2c8a5b]' : 'text-ink')}>{done === tracks.length ? `All ${tracks.length} ready` : `${done} of ${tracks.length} ready`}</span>
-        </div>
-        {problem && <div className="mt-1 truncate text-[0.75rem] font-semibold text-bad-600">{problem}</div>}
-      </div>
+      <span className="flex min-w-0 items-center gap-2" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} parts done`} title={all ? 'Every part is ready — book the crew' : `${done} of ${tracks.length} parts ready`}>
+        <span className="flex shrink-0 items-center gap-[0.1875rem]">
+          {tracks.map((x) => (
+            <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className="inline-flex">
+              <PartDot t={x} /><span className="sr-only" data-mark-name>{x.label}</span><span className="sr-only" data-mark-count>{x.done}/{x.total}</span>
+            </span>
+          ))}
+        </span>
+        <span className={cn('truncate text-[0.8125rem] font-medium tnum', all ? 'text-[#2c8a5b]' : 'text-ink-2')}>{all ? 'Ready' : `${done}/${tracks.length}`}</span>
+      </span>
     )
   }
-  if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">{j.hold?.reason}</span></span>
-  const rooms = s.rooms[j.id] || []
-  if (t === 'progress') {
-    const blocked = rooms.flatMap((r) => r.surfaces.filter((x) => ['blocked', 'waitmat', 'hold'].includes(x.state)).map((x) => `${r.name} ${x.name.toLowerCase()}`))
-    const left = rooms.filter((r) => (r.pct ?? 0) < 100).length
-    return <Progress pct={j.pct ?? 0} tone="ok" label={<>{j.pct ?? 0}% installed<span className="font-normal text-muted"> · {left ? `${left} of ${rooms.length} rooms left` : 'all rooms tiled'}</span></>} sub={blocked.length ? `Waiting: ${blocked.slice(0, 2).join(', ')}${blocked.length > 2 ? ` +${blocked.length - 2}` : ''}` : undefined} subTone="warn" />
-  }
+  if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] font-medium text-bad-600"><PauseCircle className="h-4 w-4 shrink-0" /><span className="truncate">On hold</span></span>
+  if (t === 'progress') return <Bar pct={j.pct ?? 0} tone="ok" label={`${j.pct ?? 0}%`} />
   if (t === 'touchups' || t === 'repairs') {
     const all = s.punch.filter((p) => p.jobId === j.id)
     const open = all.filter((p) => p.status !== 'verified')
-    const hold = s.ready.find((r) => r.jobId === j.id && r.kind === 'hold')
-    return (
-      <Progress
-        pct={all.length ? ((all.length - open.length) / all.length) * 100 : 100}
-        tone="warn"
-        label={open.length ? `${open.length} touch-up${open.length > 1 ? 's' : ''} open` : t === 'repairs' ? j.scope || 'Repair' : 'All touch-ups checked'}
-        sub={hold ? `Return on hold — ${hold.warn?.toLowerCase()}` : undefined}
-        subTone="bad"
-      />
-    )
+    if (t === 'repairs' && !all.length) return <span className="truncate text-[0.8125rem] font-medium text-ink-2">Repair</span>
+    return <Bar pct={all.length ? ((all.length - open.length) / all.length) * 100 : 100} tone="warn" label={open.length ? `${open.length} open` : 'All checked'} />
   }
   const b = billingOf(j)
-  return <span className="text-[0.8125rem] text-muted">{b.billedPct >= 100 ? 'Billed in full' : `${b.billedPct || 0}% billed`}{j.stageDates?.closeout ? ` · closed ${j.stageDates.closeout}` : ''}</span>
+  return <span className="truncate text-[0.8125rem] text-muted">{b.billedPct >= 100 ? 'Billed' : `${b.billedPct || 0}% billed`}</span>
 }
 
-/** who the project waits on now, and what they do — while getting ready the most pressing open step (a problem, then
- *  what's late, then what's due first); once the crew is on it, the installer */
-function WhoCell({ j, crew }: { j: Job; crew?: PersonKey }) {
-  const s = useStore()
-  const me = meOf(s.role)
+/** what the project waits on now, and whose it is — while getting ready the most pressing open step (a problem first,
+ *  then what's late, then what's due first); once the crew is on it, the installer */
+function nextOf(s: Store, j: Job, crew?: PersonKey): { what: string; who?: PersonKey; bad?: boolean; title?: string } {
   const t = typeOf(j)
-  const person = (p: PersonKey | undefined, top: React.ReactNode, sub?: React.ReactNode, subCls?: string) => (
-    <span className="flex min-w-0 items-center gap-2.5" data-who>
-      {p && PEOPLE[p] ? <Avatar who={p} size={28} /> : <span className="inline-flex h-7 w-7 shrink-0 rounded-full border border-dashed border-[#d6cfc3]" />}
-      <span className="min-w-0 leading-tight">
-        <span className={cn('block truncate text-[0.84375rem]', p === me ? 'font-semibold text-ink' : 'font-medium text-ink')}>{top}</span>
-        {sub && <span className={cn('mt-0.5 block truncate text-[0.75rem]', subCls || 'text-muted')}>{sub}</span>}
-      </span>
-    </span>
-  )
-  const name = (p?: PersonKey) => (!p ? '' : p === me ? 'You' : PEOPLE[p]?.short || PEOPLE[p]?.name || '')
   if (t === 'coming') {
-    const steps = stepsFor(s, j)
-    const open = steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait')
+    /* every part ready: the crew is next (the deposit is a warning, not a stop) */
+    const tracks = tracksFor(s, j)
+    if (tracks.every((x) => x.state === 'done')) return { what: bookingOf(s, j) ? 'Crew booked' : 'Book the crew' }
+    const inPart = new Set(tracks.flatMap((x) => x.steps.map((v) => v.key)))
+    const open = stepsFor(s, j).filter((v) => inPart.has(v.key) && (v.state === 'now' || v.state === 'bad' || v.state === 'wait'))
     const rank = (v: StepView) => (v.state === 'bad' ? 0 : v.state === 'now' && v.due && v.due < TODAY ? 1 : v.state === 'now' ? 2 : 3)
     const v = [...open].sort((a, b) => rank(a) - rank(b) || (a.due || '9999').localeCompare(b.due || '9999'))[0]
-    if (!v) {
-      if (phaseOf(s, j) === 'crew') return person(undefined, <span className="text-ink-2">Schedule the crew</span>, 'All five parts are ready', 'font-medium text-[#2c8a5b]')
-      return <span className="text-[0.8125rem] text-muted">Waiting for the next step</span>
-    }
-    const w = stepWords(s, j, v, me)
-    return person(v.owner, name(v.owner), <>{stepShort(s, j, v)} · <span className={w.tone}>{w.text.replace(/^Your turn · /, '').replace(/^Your turn$/, 'your turn')}</span></>)
+    if (!v) return { what: phaseOf(s, j) === 'crew' ? 'Book the crew' : '—' }
+    /* a problem says what it is — "No water on site", not just the step */
+    const what = v.state === 'bad' && v.note ? v.note.split(' · ')[0].replace(/^No — /, '') : stepShort(s, j, v)
+    return { what, who: v.owner, bad: v.state === 'bad', title: v.note }
   }
-  if (t === 'progress') return crew ? person(crew, name(crew), 'Installing') : <span className="text-[0.8125rem] text-faint">No installer</span>
+  if (t === 'progress') return { what: 'Installing', who: crew }
   if (t === 'touchups' || t === 'repairs') {
     const booking = s.bookings.find((b) => b.jobId === j.id && b.end >= TODAY)
-    const back = booking?.crew as PersonKey | undefined
-    return back ? person(back, name(back), `Back ${md(booking!.start)}`) : person(undefined, <span className="font-medium text-warn-700">Return visit not booked</span>)
+    return booking ? { what: `Back ${md(booking.start)}`, who: booking.crew as PersonKey } : { what: 'Book the return visit' }
   }
-  if (t === 'hold') return person(undefined, <span className="text-ink-2">On hold</span>, j.hold?.shortage ? 'Waiting for the tile' : undefined)
-  return <span className="text-[0.8125rem] text-faint">—</span>
+  if (t === 'hold') return { what: j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason || 'On hold', bad: true }
+  return { what: '—' }
 }
 
-function DatesCell({ j }: { j: Job }) {
+function WhoCell({ who }: { who?: PersonKey }) {
   const s = useStore()
-  const t = typeOf(j)
-  const iso = s.prep[j.id]?.targetISO
-  if (t === 'coming') {
-    const b = bookingOf(s, j)
-    if (b) return <span className="block text-[0.8125rem] leading-tight text-muted">Starts <span className="font-medium text-ink-2">{md(b.start)}</span></span>
-    return <span className="block text-[0.8125rem] leading-tight text-muted">{iso ? (iso < TODAY ? <span className="font-medium text-warn-700">Was to start {md(iso)}</span> : <>Start <span className="font-medium text-ink-2">{md(iso)}</span></>) : 'Start not set'}</span>
-  }
-  const start = j.dates?.start || s.prep[j.id]?.started
+  const me = meOf(s.role)
+  if (!who || !PEOPLE[who]) return <span className="text-[0.8125rem] text-faint">—</span>
   return (
-    <span className="block min-w-0 text-[0.8125rem] leading-tight text-muted">
-      {start && <span className="block truncate">Started {start}</span>}
-      {j.dates?.finish && t !== 'done' && <span className="mt-0.5 block truncate">Finish <span className="font-medium text-ink-2">{j.dates.finish}</span></span>}
-      {!start && !j.dates?.finish && '—'}
+    <span className="flex min-w-0 items-center gap-2" data-who>
+      <Avatar who={who} size={22} />
+      <span className={cn('truncate text-[0.8125rem]', who === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{who === me ? 'You' : PEOPLE[who]?.short || PEOPLE[who]?.name}</span>
     </span>
   )
+}
+
+/** the day the crew starts (amber once it's passed and they haven't) — or the day they started */
+function startOf(s: Store, j: Job): { text: string; late?: boolean } {
+  if (typeOf(j) === 'coming') {
+    const b = bookingOf(s, j)
+    if (b) return { text: md(b.start) }
+    const iso = s.prep[j.id]?.targetISO
+    return iso ? { text: md(iso), late: iso < TODAY } : { text: '—' }
+  }
+  const b = bookingOf(s, j)
+  return { text: j.dates?.start || (b ? md(b.start) : s.prep[j.id]?.started || '—') }
 }
 
 function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
+  const n = nextOf(s, j, crew)
+  const st = startOf(s, j)
+  const b = billingOf(j)
+  const contract = (b.contract || j.contract || 0) + (b.changes || 0)
+  const nextCell = <span title={n.title} className={cn('flex min-w-0 items-center gap-1.5 text-[0.84375rem]', n.bad ? 'font-semibold text-bad-600' : 'text-ink')}>{n.bad && <TriangleAlert className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{n.what}</span></span>
   return (
     <div
       role="button"
@@ -303,16 +273,27 @@ function ProjectRow({ j, crew }: { j: Job; crew?: PersonKey }) {
       data-project={j.id}
       onClick={() => s.open({ t: 'job', id: j.id })}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) s.open({ t: 'job', id: j.id }) }}
-      className={cn('min-h-[3.75rem] cursor-pointer border-t border-line-2 py-2.5 transition-colors hover:bg-[#f7f5f0] max-md:gap-1.5', COLS, PX)}
+      className={cn('min-h-[2.875rem] cursor-pointer border-b border-line-2 transition-colors hover:bg-[#f7f5f0] max-md:px-4 max-md:py-2.5', COLS, LINES)}
     >
-      <div className="min-w-0 leading-tight">
-        <div className="truncate text-[0.9375rem] font-semibold text-ink">{j.name}{j.kind === 'repair' && <span className="ml-2 align-[0.0625rem] text-[0.75rem] font-semibold text-[#b83a5e]">Repair</span>}</div>
-        <div className="mt-0.5 truncate text-[0.78125rem] text-muted">{j.client}</div>
+      {/* a computer: a column for each */}
+      <div className={cn(CELL, 'pl-5 max-md:hidden')}><span className="truncate text-[0.90625rem] font-semibold text-ink">{j.name}</span>{j.kind === 'repair' && <span className="ml-2 shrink-0 text-[0.75rem] font-semibold text-[#b83a5e]">Repair</span>}</div>
+      <div className={cn(CELL, 'max-xl:hidden')}><span className="truncate text-[0.8125rem] text-muted">{j.client}</span></div>
+      <div className={cn(CELL, 'max-md:hidden')}><StandsCell j={j} /></div>
+      <div className={cn(CELL, 'max-md:hidden')}>{nextCell}</div>
+      <div className={cn(CELL, 'max-md:hidden')}><WhoCell who={n.who} /></div>
+      <div className={cn(CELL, 'max-xl:hidden')}><span className={cn('truncate text-[0.8125rem] tnum', st.late ? 'font-medium text-warn-700' : 'text-ink-2')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span></div>
+      <div className={cn(CELL, 'justify-end max-xl:hidden')}><span className={cn('text-[0.84375rem] font-semibold tnum', contract ? 'text-ink' : 'font-normal text-faint')}>{contract ? fmtMoney(contract) : '—'}</span></div>
+      {/* a phone: two short lines */}
+      <div className="hidden min-w-0 max-md:block">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
+          <span className="shrink-0"><StandsCell j={j} /></span>
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+          <span className="min-w-0 flex-1">{nextCell}</span>
+          {n.who && PEOPLE[n.who] && <span className="shrink-0"><WhoCell who={n.who} /></span>}
+        </div>
       </div>
-      <div className="min-w-0"><StandsCell j={j} /></div>
-      <div className="min-w-0 max-lg:hidden"><WhoCell j={j} crew={crew} /></div>
-      <div className="min-w-0 max-lg:hidden"><DatesCell j={j} /></div>
-      <div className="min-w-0 max-xl:hidden"><MoneyCell j={j} /></div>
     </div>
   )
 }

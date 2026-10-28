@@ -24,18 +24,21 @@ import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty, Group, Word } from './kit'
 
-const HEAD = 'border-b border-line-2 px-5 py-1.5 text-[0.71875rem] font-semibold text-muted max-sm:px-4'
-/** the same columns for the tile and the materials: what · we need · ordered · here · where it's at */
-const QGRID = 'grid grid-cols-[minmax(0,1fr)_6.5rem_5.5rem_5.5rem_15rem] items-center gap-4 max-lg:grid-cols-[minmax(0,1fr)_6rem_5.5rem_12rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-3'
+const HEAD = 'border-b border-line-2 bg-wash text-[0.71875rem] font-semibold text-muted'
+/** the same columns for the tile and the materials, in light lines: what · we need · ordered · here · where it's at */
+const QGRID = 'grid grid-cols-[minmax(0,1fr)_6.5rem_5.5rem_5.5rem_18rem] items-stretch divide-x divide-line-2 max-lg:grid-cols-[minmax(0,1fr)_6rem_5.5rem_15rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:divide-x-0'
+/** a cell: its own column, one line */
+const QC = 'flex min-w-0 items-center px-3'
+const QFIRST = 'flex min-w-0 items-center gap-3 py-1.5 pl-5 pr-3 max-sm:pl-4'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
 function Heads({ first }: { first: string }) {
   return (
-    <div className={cn(QGRID, HEAD)}>
-      <span>{first}</span>
-      <span className="text-right max-sm:hidden">We need</span>
-      <span className="text-right max-sm:hidden">Ordered</span>
-      <span className="text-right max-lg:hidden">Here</span>
-      <span className="text-right">Where it’s at</span>
+    <div className={cn(QGRID, HEAD, '[&>span]:h-8')}>
+      <span className={cn(QFIRST, 'py-0')}>{first}</span>
+      <span className={cn(QC, 'justify-end max-sm:hidden')} title="With the extra for cuts">We need</span>
+      <span className={cn(QC, 'justify-end max-sm:hidden')}>Ordered</span>
+      <span className={cn(QC, 'justify-end max-lg:hidden')}>Here</span>
+      <span className={cn(QC, 'justify-end')}>Where it’s at</span>
     </div>
   )
 }
@@ -55,7 +58,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
     <Section
       title="Tile"
       count={all.length}
-      action={all.length > 2 ? (
+      action={all.length > 6 ? (
         <label className="relative block w-[15rem] max-sm:w-[10rem]">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
@@ -81,25 +84,21 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             : short && !simple ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
-            <div key={tag} data-tile={tag} className={cn(QGRID, 'min-h-[3.25rem] border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4')}>
-              <span className="flex min-w-0 items-center gap-3">
-                <TileImg tile={t} size={36} radius={8} />
+            <div key={tag} data-tile={tag} className={cn(QGRID, 'min-h-12 border-t border-line-2 first:border-t-0')} title={c ? `${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}` : `${who === 'We' ? 'We order it' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}`}>
+              <span className={QFIRST}>
+                <TileImg tile={t} size={32} radius={7} />
                 <span className="min-w-0 leading-tight">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink"><span className="tnum">{tag}</span> · {t?.name || 'Tile'}{t?.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}</span>
                   <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.75rem] text-ink-2">
                     {t?.grout ? <><GroutDot grout={t.grout} /><span className="shrink-0">{GROUTS[t.grout]?.name || t.grout}</span><span className="text-faint">·</span></> : null}
                     <span className={cn('min-w-0 truncate', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
                   </span>
-                  <span className="mt-0.5 block truncate text-[0.71875rem] text-faint">{c ? `${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}` : `${who === 'We' ? 'We order it' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}`}</span>
                 </span>
               </span>
-              <span className="text-right max-sm:hidden">
-                <span className="block text-[0.875rem] font-semibold tnum text-ink">{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
-                {boxes > 0 && <span className="block text-[0.75rem] tnum text-muted">{boxes} boxes</span>}
-              </span>
-              <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{c ? num(c.ordered) : '—'}</span>
-              <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{c ? num(c.received) : '—'}</span>
-              <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2.5 gap-y-1">
+              <span className={cn(QC, 'justify-end max-sm:hidden')} title={boxes > 0 ? `${boxes} boxes` : undefined}><span className="text-[0.875rem] font-semibold tnum text-ink">{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span></span>
+              <span className={cn(QC, 'justify-end text-[0.84375rem] tnum text-ink-2 max-sm:hidden')}>{c ? num(c.ordered) : '—'}</span>
+              <span className={cn(QC, 'justify-end text-[0.84375rem] tnum text-ink-2 max-lg:hidden')}>{c ? num(c.received) : '—'}</span>
+              <span className={cn(QC, 'justify-end gap-2.5')}>
                 <Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word>
                 {action && <Button size="xs" variant={short ? 'primary' : 'outline'} onClick={action.run}>{action.label}</Button>}
               </span>
@@ -113,7 +112,6 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
           </div>
         )}
         {all.length > 0 && !tags.length && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No tile matches “{q}”.</div>}
-        {all.length > 0 && <div className="border-t border-line-2 px-5 py-2 text-[0.75rem] text-faint max-sm:px-4">We need includes the extra for cuts.</div>}
       </div>
     </Section>
   )
@@ -134,7 +132,6 @@ export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onSc
     <Section
       title="Our materials"
       count={t.counted || shownCount ? shownCount : undefined}
-      sub={<>What we buy for the job — thinset, grout, boards and membranes, metal edges. Worked out from {t.counted ? `${t.counted} walls and floors (${t.sf.toLocaleString('en-US')} SF)` : 'the square feet'} and what each one is set on{save.mode === 'sample' ? ' · sample amounts' : ''}.</>}
       action={simple ? undefined : <>
         {canEdit && <AddMaterial jobId={job.id} />}
         {miss.length > 0
@@ -202,41 +199,23 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
   const colors = l.itemId === 'm-grout' ? Array.from(new Set(l.uses.map((u) => s.rooms[jobId]?.find((r) => r.name === u.room)?.surfaces.find((x) => x.name === u.surface)?.grout).filter(Boolean) as string[])).map((g) => GROUTS[g]?.name || g) : []
   return (
     <div className="border-t border-line-2">
-      <div className={cn(QGRID, 'min-h-[3.25rem] w-full px-5 py-1.5 transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
-        <button onClick={onToggle} className="flex min-w-0 items-center gap-3 text-left" aria-expanded={open}>
-          <ItemThumb item={it} size={38} />
-          <span className="min-w-0">
-            <span className="flex items-center gap-1.5 text-[0.875rem] font-medium text-ink"><span className="truncate">{it?.name || l.itemId}</span><ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-faint transition', open && 'rotate-180')} /></span>
-            <span className="block truncate text-[0.78125rem] text-muted"><span className="font-semibold text-ink-2 sm:hidden">{qtyLabel(l.need, unit)} · </span>{colors.length ? `${colors.join(', ')} · ` : ''}{where}{sf && !exact && !l.manual ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>
-          </span>
-        </button>
-        <span className={cn('text-right', editing ? 'max-sm:col-span-2 max-sm:row-start-2 max-sm:text-left' : 'max-sm:hidden')}>
-          {editing ? (
-            <span className="inline-flex items-center gap-1">
-              <input autoFocus aria-label={`How many ${it?.name || ''}`} inputMode="numeric" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveQty(); if (e.key === 'Escape') setEditing(false) }} onBlur={saveQty} className="h-8 w-[4.5rem] rounded-lg border border-brand-300 px-2 text-right text-[0.875rem] font-semibold tnum outline-none ring-2 ring-brand-100" />
-            </span>
-          ) : (
-            <span className="block">
-              <span className="block text-[0.875rem] font-semibold tnum text-ink">{qtyLabel(l.need, unit)}</span>
-              {l.edited != null && <span className="block text-[0.71875rem] text-muted">changed · worked out {l.edited}</span>}
-            </span>
-          )}
-        </span>
-        <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{num(l.have)}</span>
-        <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{num(l.onSite)}</span>
-        <span className="flex items-center justify-end gap-1.5">
-          {l.toOrder > 0 ? <Word className="text-ink">To order {l.toOrder.toLocaleString('en-US')}</Word> : l.onSite >= l.need ? <Word tone="ok">On site</Word> : <Word>Coming</Word>}
-          {canEdit && (
-            <Menu align="end" width={240} trigger={<button aria-label={`Change ${it?.name || 'this material'}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
-              <MenuItem icon={<Pencil />} onSelect={() => { setQ(String(l.need)); setEditing(true) }}>Change how many</MenuItem>
-              {l.edited != null && <MenuItem icon={<RotateCcw />} onSelect={() => setMatQty(jobId, l.itemId, null)}>Back to the worked-out {l.edited}</MenuItem>}
-              <MenuItem icon={<Trash2 />} onSelect={() => removeMat(jobId, l.itemId)}>Take it off the list</MenuItem>
-            </Menu>
-          )}
-        </span>
-      </div>
-      {open && (
-        <div className="bg-wash px-5 pb-3 pl-[4.25rem] pt-1.5 max-sm:px-4">
+      <div className={cn(QGRID, 'min-h-12 w-full transition-colors hover:bg-[#f7f5f0]')}>
+        <Pop
+          open={open}
+          onOpenChange={(o) => { if (o !== open) onToggle() }}
+          align="start"
+          width={360}
+          trigger={
+            <button className={cn(QFIRST, 'text-left')} aria-expanded={open} title="How it’s worked out">
+              <ItemThumb item={it} size={32} />
+              <span className="min-w-0">
+                <span className="block truncate text-[0.875rem] font-medium text-ink">{it?.name || l.itemId}</span>
+                <span className="block truncate text-[0.75rem] text-muted"><span className="font-semibold text-ink-2 sm:hidden">{qtyLabel(l.need, unit)} · </span>{colors.length ? `${colors.join(', ')} · ` : ''}{where}{sf && !exact && !l.manual ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>
+              </span>
+            </button>
+          }
+        >
+          <div className="text-[0.75rem] font-semibold text-muted">How it’s worked out</div>
           {l.uses.map((u, i) => (
             <div key={i} className="flex items-baseline justify-between gap-4 py-[0.1875rem] text-[0.78125rem]">
               <span className="min-w-0 text-ink-2">{u.room === 'Added by hand' ? <b className="font-semibold text-ink">Added by hand</b> : <b className="font-semibold text-ink">{u.room} · {u.surface.toLowerCase()}</b>}{u.room === 'Added by hand' ? (u.surface ? ` — ${u.surface}` : '') : ` — ${u.note}`}</span>
@@ -248,8 +227,32 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
             <span className="tnum">{qtyLabel(l.need, unit)}</span>
           </div>
           {l.refs.length > 0 && <div className="mt-1 text-[0.75rem] text-muted">Covered by {l.refs.join(', ')}</div>}
-        </div>
-      )}
+        </Pop>
+        <span className={cn(QC, 'justify-end', editing ? 'max-sm:col-span-2 max-sm:row-start-2 max-sm:justify-start' : 'max-sm:hidden')}>
+          {editing ? (
+            <span className="inline-flex items-center gap-1">
+              <input autoFocus aria-label={`How many ${it?.name || ''}`} inputMode="numeric" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveQty(); if (e.key === 'Escape') setEditing(false) }} onBlur={saveQty} className="h-8 w-[4.5rem] rounded-lg border border-brand-300 px-2 text-right text-[0.875rem] font-semibold tnum outline-none ring-2 ring-brand-100" />
+            </span>
+          ) : (
+            <span className="block">
+              <span className="block text-[0.875rem] font-semibold tnum text-ink">{qtyLabel(l.need, unit)}</span>
+              {l.edited != null && <span className="block text-[0.71875rem] text-muted">changed · worked out {l.edited}</span>}
+            </span>
+          )}
+        </span>
+        <span className={cn(QC, 'justify-end text-[0.84375rem] tnum text-ink-2 max-sm:hidden')}>{num(l.have)}</span>
+        <span className={cn(QC, 'justify-end text-[0.84375rem] tnum text-ink-2 max-lg:hidden')}>{num(l.onSite)}</span>
+        <span className={cn(QC, 'justify-end gap-1.5')}>
+          {l.toOrder > 0 ? <Word className="text-ink">To order {l.toOrder.toLocaleString('en-US')}</Word> : l.onSite >= l.need ? <Word tone="ok">On site</Word> : <Word>Coming</Word>}
+          {canEdit && (
+            <Menu align="end" width={240} trigger={<button aria-label={`Change ${it?.name || 'this material'}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+              <MenuItem icon={<Pencil />} onSelect={() => { setQ(String(l.need)); setEditing(true) }}>Change how many</MenuItem>
+              {l.edited != null && <MenuItem icon={<RotateCcw />} onSelect={() => setMatQty(jobId, l.itemId, null)}>Back to the worked-out {l.edited}</MenuItem>}
+              <MenuItem icon={<Trash2 />} onSelect={() => removeMat(jobId, l.itemId)}>Take it off the list</MenuItem>
+            </Menu>
+          )}
+        </span>
+      </div>
     </div>
   )
 }

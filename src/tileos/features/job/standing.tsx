@@ -317,7 +317,8 @@ function Installing({ job, setView }: { job: Job; setView: (v: BoardView) => voi
   )
 }
 
-/* ---------------- open issues: anything that comes up, each one someone's ---------------- */
+/* ---------------- open items: anything else open on the project — problems first, then what's needed on site,
+ * then what someone has to do — each one someone's. They're added with the project's one + Add, on top. ---------------- */
 /** "Today", "This week", "Before Fri" read in a sentence: today, this week, before Fri */
 const dayWord = (d: string) => d.replace(/^(Today|Tomorrow|This|Next|Every|By|Before)\b/, (w) => w.toLowerCase())
 export function OpenIssues({ job, className }: { job: Job; className?: string }) {
@@ -326,30 +327,20 @@ export function OpenIssues({ job, className }: { job: Job; className?: string })
   const list = issuesOf(s, job)
   const [all, setAll] = React.useState(false)
   const shown = all ? list : list.slice(0, 4)
-  const canAdd = !['client', 'accounting', 'crew'].includes(s.role)
+  /* problems first (issuesOf sorts them) */
   const bad = list.some((t) => t.tone === 'bad')
-  const addMenu = canAdd && (
-    <Menu align="end" width={280} trigger={<button aria-label="Add an issue" className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><Plus className="h-3.5 w-3.5" />Add</button>}>
-      <MenuLabel>An issue on {job.name}</MenuLabel>
-      <MenuItem icon={<TriangleAlert className="h-4 w-4" />} hint="Tile wrong, broken or short · site not ready" onSelect={() => s.open({ t: 'problem', jobId: job.id })}>A problem</MenuItem>
-      <MenuItem icon={<Truck className="h-4 w-4" />} hint="Material or a tool, brought to the job" onSelect={() => s.open({ t: 'need', jobId: job.id })}>Need something on site</MenuItem>
-      {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} hint="A question to answer, something to chase" onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>Something for someone to do</MenuItem>}
-    </Menu>
-  )
   /* nothing open: one quiet line — not a box saying so */
   if (!list.length) return (
     <section data-issues data-none className={cn('flex min-w-0 items-center gap-2 rounded-[0.875rem] border border-line bg-white px-4 py-2.5 max-sm:px-3', className)}>
-      <h4 className="shrink-0 text-[0.9375rem] font-semibold text-ink">Open issues</h4>
+      <h4 className="shrink-0 text-[0.9375rem] font-semibold text-ink">Open items</h4>
       <span className="min-w-0 truncate text-[0.8125rem] text-muted">none</span>
-      {addMenu}
     </section>
   )
   return (
     <section data-issues className={cn('overflow-hidden rounded-[0.875rem] border bg-white', bad ? 'border-bad-200' : 'border-line', className)}>
       <header className="flex min-w-0 items-center gap-2 px-4 pb-1.5 pt-3 max-sm:px-3">
-        <h4 className={cn('shrink-0 text-[0.9375rem] font-semibold', bad ? 'text-bad-700' : 'text-ink')}>Open issues</h4>
+        <h4 className={cn('shrink-0 text-[0.9375rem] font-semibold', bad ? 'text-bad-700' : 'text-ink')}>Open items</h4>
         <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{list.length}</span>
-        {addMenu}
       </header>
       <div className="px-1.5 pb-1.5">
         {shown.map((t) => {

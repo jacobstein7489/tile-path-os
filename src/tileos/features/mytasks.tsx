@@ -102,37 +102,43 @@ function taskBucket(t: Task): Bucket {
 /** a task's title without the project tacked on the end — the project has its own column */
 const cleanTitle = (title: string, job?: Job) => (job ? title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '') : title)
 
-/* ---------------- one row, the same for everything: when · what · project · the one button ----------------
- * Calm on purpose: no icon on every row, no "Anytime" written out (an empty time is anytime), and the button is a
- * light one — the row says what it is, the button says what to do. */
-const GRID = 'grid grid-cols-[5.5rem_minmax(0,1fr)_minmax(9.375rem,13.75rem)_10.5rem] items-center gap-6 max-xl:grid-cols-[5rem_minmax(0,1fr)_9.5rem] max-md:grid-cols-[4.125rem_minmax(0,1fr)_auto] max-md:gap-3'
+/* ---------------- one row, the same for everything, one line: when · what · project · (whose) · the button ----------------
+ * Calm on purpose, in light columns like a table: no icon on every row, no second line of small print (it's in the
+ * task's window), no "Anytime" written out (an empty time is anytime), and a light button — the row says what it is,
+ * the button says what to do. Everyone's list has a column for whose it is. */
+const GRID = 'grid grid-cols-[7rem_minmax(0,1fr)_minmax(10rem,14rem)_11.75rem] max-xl:grid-cols-[6.5rem_minmax(0,1fr)_minmax(8rem,11rem)_10.75rem] max-md:grid-cols-[5rem_minmax(0,1fr)]'
+const GRID_WHO = 'grid grid-cols-[7rem_minmax(0,1fr)_minmax(10rem,14rem)_9rem_11.75rem] max-xl:grid-cols-[6.5rem_minmax(0,1fr)_minmax(8rem,11rem)_8rem_10.75rem] max-md:grid-cols-[5rem_minmax(0,1fr)]'
+const CELL = 'flex min-w-0 items-center px-4 max-md:px-3'
+/** everyone's list shows whose each row is, in its own column */
+const WhoCol = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 function TodoRow({ when, whenTone, icon, title, detail, project, action, onClick, done, leaving, owner }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
 }) {
+  const who = React.useContext(WhoCol)
+  const me = meOf(useStore((x) => x.role))
   return (
     <div
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
-      className={cn('group/row min-h-[3.5rem] border-t border-line-2 py-2.5 transition-colors', GRID, PX, onClick && 'cursor-pointer hover:bg-[#f7f5f0]', leaving && 'row-out')}
+      title={typeof detail === 'string' && detail ? detail : undefined}
+      className={cn('group/row min-h-[2.875rem] divide-x divide-line-2 border-t border-line-2 transition-colors', who ? GRID_WHO : GRID, onClick && 'cursor-pointer hover:bg-[#f7f5f0]', leaving && 'row-out')}
     >
-      <span className={cn('truncate text-[0.84375rem] tnum', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when === 'Anytime' ? '' : when}</span>
-      <span className="flex min-w-0 items-center gap-3" data-has-icon={icon ? '' : undefined}>
+      <span className={cn(CELL, 'pl-5 max-md:pl-4 max-md:pr-2')}><span className={cn('truncate text-[0.8125rem] leading-tight tnum max-md:whitespace-normal', whenTone === 'bad' ? 'font-semibold text-bad-600' : whenTone === 'warn' ? 'font-semibold text-warn-700' : whenTone === 'strong' ? 'font-semibold text-ink' : 'text-faint')}>{when === 'Anytime' ? '' : when}</span></span>
+      <span className={cn(CELL, 'gap-2.5 py-2')} data-has-icon={icon ? '' : undefined}>
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <span className="min-w-0">
           <span className={cn('block truncate text-[0.875rem] font-semibold leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
-          <span className="flex min-w-0 items-center gap-2 text-[0.78125rem] leading-[1.125rem] text-muted">
-            {owner && <span className="inline-flex shrink-0 items-center gap-1 font-medium text-ink-2"><Avatar who={owner} size={16} />{PEOPLE[owner]?.short}</span>}
-            {project && <span className="truncate xl:hidden">{project}</span>}
-            {detail && <span className={cn('truncate', project && 'max-xl:hidden')}>{detail}</span>}
-          </span>
+          {/* on a phone the project (and whose it is) go under the title — there's no room for their columns */}
+          {(project || (who && owner)) && <span className="hidden min-w-0 truncate text-[0.75rem] text-muted max-md:block">{[who && owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : '', project].filter(Boolean).join(' · ')}</span>}
         </span>
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 truncate text-[0.8125rem] text-ink-2 max-xl:hidden">{project && <><Building2 className="h-3.5 w-3.5 shrink-0 text-faint" /><span className="truncate">{project}</span></>}</span>
-      <span className="flex justify-end max-md:hidden" onClick={(e) => e.stopPropagation()}>{action}</span>
+      <span className={cn(CELL, 'max-md:hidden')}><span className="truncate text-[0.8125rem] text-ink-2">{project}</span></span>
+      {who && <span className={cn(CELL, 'max-md:hidden')}>{owner && PEOPLE[owner] ? <span className="flex min-w-0 items-center gap-2"><Avatar who={owner} size={22} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{owner === me ? 'You' : PEOPLE[owner]?.short}</span></span> : null}</span>}
+      <span className={cn(CELL, 'justify-center px-2.5 max-md:hidden')} onClick={(e) => e.stopPropagation()}>{action}</span>
     </div>
   )
 }
@@ -254,7 +260,7 @@ function CheckInSection({ items }: { items: PlateItem[] }) {
   const open = (who: PersonKey) => s.open({ t: 'checkin', who })
   return (
     <section data-day="checkin" data-checkins>
-      <Group label="Check in on the team" count={rows.length} tone="neutral" hint={`not done ${checkInDays(s)}+ work days after its day`} />
+      <Group label="Check in on the team" count={rows.length} tone="neutral" />
       {rows.map(({ who, c }) => (
         <div key={c.key} data-checkin-row={who}>
           <TodoRow
@@ -262,6 +268,7 @@ function CheckInSection({ items }: { items: PlateItem[] }) {
             icon={<UserRoundCheck />}
             title={c.title}
             detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
+            project={[PEOPLE[who]?.short, c.jobName].filter(Boolean).join(' · ')}
             owner={who}
             when={`${c.late} ${c.late === 1 ? 'day' : 'days'} late`}
             whenTone="bad"
@@ -506,13 +513,13 @@ export function MyTasksPage() {
       <React.Fragment key={iso}>
         {lateRows.length > 0 && (
           <section data-day="overdue">
-            <Group label="Overdue" count={lateRows.length} tone="bad" hint="from before today" />
+            <Group label="Overdue" count={lateRows.length} tone="bad" />
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
         {(rows.length > 0 || !lateRows.length) && (
           <section data-day={iso}>
-            <Group label={dayHead(iso)} count={rows.length} tone="info" hint={iso === TOMORROW ? dayLongFull(iso) : undefined} />
+            <Group label={dayHead(iso)} count={rows.length} tone="info" />
             {timed.map((x, i) => (
               <React.Fragment key={x.key}>
                 {i === nowAt && <NowLine min={nowMin} />}
@@ -541,10 +548,7 @@ export function MyTasksPage() {
         <section key={id || 'none'} aria-label={j ? j.name : 'Not on a project'}>
           <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f5f0] py-2 first:border-t-0', PX)}>
             {j ? (
-              <button onClick={() => s.open({ t: 'job', id })} className="group min-w-0 flex-1 text-left">
-                <span className="block truncate text-[0.90625rem] font-bold text-ink group-hover:text-brand-700">{j.name}</span>
-                <span className="block truncate text-[0.75rem] text-muted">{[j.address, j.client].filter(Boolean).join(' · ')}</span>
-              </button>
+              <button onClick={() => s.open({ t: 'job', id })} className="group min-w-0 flex-1 truncate text-left text-[0.90625rem] font-bold text-ink hover:text-brand-700">{j.name}</button>
             ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Not on a project</span>}
             <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
             {j && <Button size="xs" icon={<ListPlus />} onClick={() => s.open({ t: 'new', jobId: id })}>Log</Button>}
@@ -574,10 +578,7 @@ export function MyTasksPage() {
           <div className={cn('flex items-center gap-3 border-t border-line bg-[#f7f5f0] py-2 first:border-t-0', PX)}>
             {person && <Avatar who={p as PersonKey} size={28} />}
             {person ? (
-              <button onClick={() => setWho(p)} className="group min-w-0 flex-1 text-left" title={`Only ${person.short}’s list`}>
-                <span className="block truncate text-[0.90625rem] font-bold text-ink group-hover:text-brand-700">{person.name}</span>
-                <span className="block truncate text-[0.75rem] text-muted">{person.roleLabel || ''}</span>
-              </button>
+              <button onClick={() => setWho(p)} className="group min-w-0 flex-1 truncate text-left text-[0.90625rem] font-bold text-ink hover:text-brand-700" title={`Only ${person.short}’s list`}>{person.name}</button>
             ) : <span className="min-w-0 flex-1 text-[0.90625rem] font-bold text-ink">Nobody yet</span>}
             {lateN > 0 && <span className="shrink-0 text-[0.78125rem] font-semibold text-bad-600">{lateN} late</span>}
             <span className="shrink-0 text-[0.78125rem] font-semibold tnum text-muted">{rows.length + ts.length}</span>
@@ -609,6 +610,8 @@ export function MyTasksPage() {
   const doneDay = (t: Task) => t.doneOn || (t.doneAt === 'Just now' || t.doneAt === 'Today' ? TODAY : isoFromLabel(t.doneAt) || '')
   const shownDone = done.filter((t) => (job === 'all' || t.jobId === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(t) : t.owner === who))).sort((a, b) => doneDay(b).localeCompare(doneDay(a)))
   const [doneN, setDoneN] = React.useState(40)
+  /* for everyone — once, on top (not again in the day's list) */
+  const pinnedRows = pinned.filter((t) => !shownToday.some((x) => x.t?.id === t.id))
 
   return (
     <Page
@@ -618,11 +621,11 @@ export function MyTasksPage() {
       top={<>
         <Bubbles
           items={[
-            { key: 'today', label: 'Today', count: today.length, sub: late.length ? `${late.length} overdue` : meetingsToday ? `${meetingsToday} ${meetingsToday === 1 ? 'meeting' : 'meetings'}` : undefined, subBad: late.length > 0, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
-            { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length, sub: dayShort(TOMORROW).split(', ')[0], icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
-            { key: 'later', label: 'Later', count: later.length, sub: nextLater ? `next ${dayShort(nextLater).split(', ')[0]}` : undefined, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
+            { key: 'today', label: 'Today', count: today.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
+            { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
+            { key: 'later', label: 'Later', count: later.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
             { key: 'waiting', label: 'Waiting on others', count: waiting.length + waitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
-            { key: 'done', label: 'Done', count: done.length, sub: doneToday ? `${doneToday} today` : undefined, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
+            { key: 'done', label: 'Done', count: done.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
           ]}
         />
       </>}
@@ -638,29 +641,23 @@ export function MyTasksPage() {
         </div>
       }
     >
+      {/* whose each row is: on everyone's list — unless it's grouped by person already */}
+      <WhoCol.Provider value={all && !(grouping === 'person' && view !== 'done')}>
       <div>
         {boss && all && view === 'today' && <TeamToday who={who} pick={(p) => setWho(p)} />}
-        {pinned.length > 0 && view === 'today' && (
-          <div className={cn('border-b border-line-2 py-1', PX)} data-pinned>
-            {pinned.map((t) => (
-              <button key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 rounded-lg py-1.5 text-left">
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f6efe2] text-warn-700"><Megaphone className="h-3.5 w-3.5" /></span>
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{cleanTitle(t.title, s.jobs[t.jobId])}</span>
-                  <span className="block truncate text-[0.78125rem] text-muted">For everyone · {PEOPLE[t.owner].short} has it · {s.jobs[t.jobId]?.name}{t.log.length ? ` · ${t.log[t.log.length - 1].text}` : ''}</span>
-                </span>
-                <span className="flex shrink-0 -space-x-1.5 max-sm:hidden"><Avatar who={t.owner} size={24} ring />{followersOf(t).slice(0, 3).map((p) => <Avatar key={p} who={p} size={24} ring />)}</span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-              </button>
-            ))}
-          </div>
+        {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
+        {pinnedRows.length > 0 && view === 'today' && (
+          <section data-pinned>
+            <Group label="For everyone" count={pinnedRows.length} tone="warn" />
+            {pinnedRows.map((t) => <TaskRow key={t.id} t={t} showOwner={all} when={{ text: 'Anytime', tone: 'quiet' }} />)}
+          </section>
         )}
 
         {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>
-            <Group label="No day set" count={undated.length} tone="neutral" hint="still yours — give it a day, or do it when you can" />
+            <Group label="No day set" count={undated.length} tone="neutral" />
             {undated.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
@@ -676,7 +673,7 @@ export function MyTasksPage() {
         {view === 'later' && grouping === 'person' && byPerson(shownLater)}
         {view === 'later' && grouping === 'time' && anyDay.length > 0 && (
           <section>
-            <Group label="This week" count={anyDay.length} tone="info" hint="any day this week" />
+            <Group label="This week" count={anyDay.length} tone="info" />
             {anyDay.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
@@ -689,7 +686,7 @@ export function MyTasksPage() {
         )}
         {view === 'later' && grouping === 'time' && aside.length > 0 && (
           <section>
-            <Group label="Set aside" count={aside.length} tone="neutral" hint="you put these off — they come back on their date" />
+            <Group label="Set aside" count={aside.length} tone="neutral" />
             {aside.map((x) => <PlateRow key={x.key} x={x} showOwner={all} />)}
           </section>
         )}
@@ -697,7 +694,6 @@ export function MyTasksPage() {
 
         {view === 'waiting' && (shownWaiting.length > 0 || shownWaitSteps.length > 0) && (
           <>
-            <div className={cn('border-b border-line-2 bg-wash py-2.5 text-[0.8125rem] text-muted', PX)}>Things someone else owes {all ? 'the team' : 'you'} — the store, the GC, a supplier, a client. Each one comes back to {all ? 'its owner’s' : 'your'} Today on its date; following up sets the next date — it isn’t done until it comes.</div>
             {grouping === 'job' ? byProject([], shownWaiting) : grouping === 'person' ? byPerson([], shownWaiting) : shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
             {shownWaitSteps.map(({ job: j, v }) => <StepRowToday key={`w:${j.id}:${v.key}`} job={j} v={v} showOwner={all} when={waitWhen(v)} />)}
           </>
@@ -708,6 +704,7 @@ export function MyTasksPage() {
         {view === 'done' && shownDone.length > doneN && <button onClick={() => setDoneN(doneN + 40)} className={cn('w-full border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-brand-50/40', PX)}>Show older — {shownDone.length - doneN} more</button>}
         {view === 'done' && !shownDone.length && <EmptyState icon={<Check />} title="Nothing done yet" sub="Finished tasks stay here for the record." />}
       </div>
+      </WhoCol.Provider>
     </Page>
   )
 }

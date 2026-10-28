@@ -16,7 +16,8 @@ import { companySteps, addCompanyStep, removeCompanyStep, setCompanyStepOwner, s
 import { TRACKS, STEP_SHORT } from './tracks'
 import { insidePeople } from './steps-ui'
 import { STATUS_BOOK } from './statuses'
-import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, removeCompanyArea, setCompanyAreaSurfaces, addCompanySurface, removeCompanySurface } from './estflow'
+import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, removeCompanyArea, setCompanyAreaSurfaces, addCompanySurface, removeCompanySurface, TEAM_KEYS, TEAM_LABEL } from './estflow'
+import type { EstTeam } from '@/tileos/data/estimates'
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
@@ -44,15 +45,15 @@ const SECTIONS: { group: string; items: { key: Section; label: string; sub: stri
     { key: 'access', label: 'What each login sees', sub: 'The pages each login opens', about: 'The pages each type of login opens. Turn a page on or off for everyone with that login.', icon: Eye },
   ] },
   { group: 'How the work flows', items: [
-    { key: 'checklist', label: 'Who does what', sub: 'Every step, and who has it', about: 'Getting a project ready, part by part: who has each step. Rename one, turn one off, or add your own.', icon: ListChecks },
-    { key: 'estimates', label: 'Estimates', sub: 'Steps, areas, surfaces', about: 'Who does each estimate step, the areas a new estimate offers, and your own surfaces.', icon: Layers },
+    { key: 'checklist', label: 'Who does what', sub: 'Estimates and projects', about: 'Who does each step — an estimate’s, and getting a project ready. When the step before it is done, it lands on their Today.', icon: ListChecks },
+    { key: 'estimates', label: 'Estimates', sub: 'Areas and surfaces', about: 'The areas a new estimate offers, and your own surfaces.', icon: Layers },
     { key: 'autos', label: 'Automations', sub: 'What runs by itself', about: 'What lands on each person’s Today by itself — turn any of it off, or add your own reminders.', icon: CornerDownRight },
   ] },
   { group: 'Company', items: [
     { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
     { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', about: 'What each material covers. Every project’s material list is worked out from these — set them to how your crews really work.', icon: Calculator },
     { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', about: 'Tile OS runs the operation; these keep the paperwork and conversations in one place.', icon: Plug },
-    { key: 'email', label: 'Email', sub: 'Who sends, who’s copied', about: 'Who each kind of email comes from, and who gets a copy of every one.', icon: Mail },
+    { key: 'email', label: 'Email', sub: 'Who sends, who’s copied', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
     { key: 'practice', label: 'Practice and samples', sub: 'Try it without real work', about: 'Learn on a practice project, or open the sample projects — nothing reaches a client or QuickBooks.', icon: RotateCcw },
     { key: 'startover', label: 'Start over', sub: 'Clear the projects', about: 'Delete every project, estimate, client and task at once. The team, logins, items and settings stay.', icon: Trash2 },
   ] },
@@ -496,8 +497,37 @@ function ChecklistTab() {
     .filter((p) => p.key !== 'other' || p.list.length)
   return (
     <div className="flex flex-col gap-4" data-steps-settings>
-      <p className="max-w-[46rem] text-[0.84375rem] leading-snug text-muted">The steps between the client’s yes and the crew’s first day. Each one is someone’s — when the steps before it are done, it lands on their Today, by itself. Rename a step, turn one off, or add your own under its part.</p>
+      <EstimateSteps />
       {parts.map((p) => <PartSteps key={p.key} part={p.key} label={p.label} list={p.list} all={steps} />)}
+    </div>
+  )
+}
+
+/** an estimate's steps, in the same rows as a project's: who does the takeoff, the office review, the final review and
+ *  the follow-up — by name. Every new estimate goes to these people; nothing to set on each one. */
+const EST_STEP_AFTER: Record<keyof EstTeam, string> = { takeoff: 'When the plans come in', review: 'After the takeoff', final: 'After the office review', follow: 'After it’s sent to the client' }
+function EstimateSteps() {
+  const s = useStore()
+  const team = companyTeam(s)
+  return (
+    <div data-steps-part="estimates">
+      <Card pad={false} className="overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3 max-sm:px-4">
+          <h3 className="text-[0.96875rem] font-semibold text-ink">Estimates</h3>
+          <span className="text-[0.8125rem] text-muted">{TEAM_KEYS.length} steps</span>
+        </div>
+        {TEAM_KEYS.map((k, i) => (
+          <div key={k} className="grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)] max-sm:px-4" data-est-step={k}>
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-wash-2 text-[0.71875rem] font-semibold tnum text-ink-2">{i + 1}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-[0.875rem] font-semibold text-ink">{TEAM_LABEL[k]}</span>
+              <span className="flex items-center gap-1 truncate text-[0.78125rem] text-muted"><CornerDownRight className="h-3 w-3 shrink-0" />{EST_STEP_AFTER[k]}</span>
+            </span>
+            <span className="max-sm:col-start-2 max-sm:row-start-2"><OwnerPick value={team[k]} onChange={(p) => setCompanyTeam(k, p as PersonKey)} label={TEAM_LABEL[k]} /></span>
+            <span className="max-sm:hidden" />
+          </div>
+        ))}
+      </Card>
     </div>
   )
 }
@@ -613,10 +643,6 @@ function EstimateDefaults() {
         </form>
       </Card>
       <div className="flex flex-col gap-4">
-        <Card pad={false}>
-          <CardHeader title="Who does each estimate step" sub="New estimates start with these people. Change anyone on one estimate from inside it." />
-          <div className="border-t border-line-2 px-5 py-4"><TeamSlots compact team={team} onChange={(k, p) => setCompanyTeam(k, p)} /></div>
-        </Card>
         <Card pad={false}>
           <CardHeader title="Your own surfaces" sub="On the surface list everywhere — priced like the closest item, or at $0 for the estimator to price." />
           <div className="flex flex-wrap gap-1.5 border-t border-line-2 px-5 py-3">
@@ -831,12 +857,19 @@ function ConnectionsTab() {
   )
 }
 
-/* ================= email: who each kind of email comes from, and who's copied on every one ================= */
+/* ================= email: who each kind of email comes from, and who's copied — one small table ================= */
 const EMAIL_OK = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim())
 function setEmailRule(patch: NonNullable<Rules['email']>, msg?: string) {
   useStore.getState().commit((st) => { st.rules.email = { ...(st.rules.email || {}), ...patch } }, msg || 'Saved')
 }
-function FromRow({ k, title, sub, placeholder }: { k: 'estimates' | 'invoices' | 'other'; title: string; sub: string; placeholder: string }) {
+type MailKind = 'estimates' | 'invoices' | 'other'
+const MAIL_KINDS: { k: MailKind; title: string; sub: string; from: string; cc: 'ccEstimates' | 'ccInvoices' | 'ccOther' }[] = [
+  { k: 'estimates', title: 'Estimates', sub: 'Estimates and revisions to the client', from: 'estimating@cobblestonenj.com', cc: 'ccEstimates' },
+  { k: 'invoices', title: 'Invoices', sub: 'Invoices, progress bills, payment reminders', from: 'accounting@cobblestonenj.com', cc: 'ccInvoices' },
+  { k: 'other', title: 'Everything else', sub: 'Purchase orders, tile orders, the installer’s PO', from: 'office@cobblestonenj.com', cc: 'ccOther' },
+]
+/** who a kind of email comes from — replies go back there; empty, it comes from the person who sends it */
+function FromCell({ k, title, placeholder }: { k: MailKind; title: string; placeholder: string }) {
   const s = useStore()
   const saved = s.rules.email?.[k] || ''
   const [v, setV] = React.useState(saved)
@@ -844,70 +877,68 @@ function FromRow({ k, title, sub, placeholder }: { k: 'estimates' | 'invoices' |
   const bad = !!v.trim() && !EMAIL_OK(v)
   const save = () => { const t = v.trim(); if (t === saved || bad) return; setEmailRule({ [k]: t || undefined }, t ? `${title} come from ${t}` : `${title}: back to the person who sends them`) }
   return (
-    <Rule title={title} sub={sub}>
-      <span className="flex flex-col items-end gap-1">
-        <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder={placeholder} aria-label={`${title} come from`} className={cn('w-[19rem] max-md:w-full', bad && 'border-bad-300')} data-email-from={k} />
-        {bad && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
-      </span>
-    </Rule>
+    <span className="flex w-full flex-col gap-1">
+      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder={placeholder} aria-label={`${title} come from`} className={cn('w-full', bad && 'border-bad-300')} data-email-from={k} />
+      {bad && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
+    </span>
+  )
+}
+/** who's copied on a kind of email — one address or a few, with commas */
+function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEstimates' | 'ccInvoices' | 'ccOther' }) {
+  const s = useStore()
+  const saved = (s.rules.email?.[field] || []).join(', ')
+  const [v, setV] = React.useState(saved)
+  React.useEffect(() => setV(saved), [saved])
+  const list = Array.from(new Set(v.split(/[,;\s]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)))
+  const bad = list.some((x) => !EMAIL_OK(x))
+  const save = () => {
+    if (bad || list.join(', ') === saved) return
+    setEmailRule({ [field]: list.length ? list : undefined }, list.length ? `${title}: ${list.join(', ')} copied` : `${title}: nobody copied`)
+  }
+  return (
+    <span className="flex w-full flex-col gap-1">
+      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
+      {bad && <span className="text-[0.75rem] font-medium text-bad-600">One of these isn’t an email address</span>}
+    </span>
   )
 }
 function EmailTab() {
   const s = useStore()
-  const cc = s.rules.email?.cc || []
-  const [add, setAdd] = React.useState('')
-  const put = () => {
-    const list = add.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean)
-    if (!list.length || list.some((x) => !EMAIL_OK(x))) return
-    const next = Array.from(new Set([...cc, ...list].map((x) => x.toLowerCase())))
-    setEmailRule({ cc: next }, list.length === 1 ? `${list[0]} is copied on every email now` : `${list.length} copied on every email now`)
-    setAdd('')
-  }
-  const bad = !!add.trim() && add.split(/[,;\s]+/).filter(Boolean).some((x) => !EMAIL_OK(x))
+  const every = s.rules.email?.cc || []
+  const cell = 'flex min-w-0 items-center px-4 py-3 max-md:px-4 max-md:py-1.5'
   return (
     <div className="flex flex-col gap-4" data-email-settings>
-      <Card pad={false}>
-        <div className="border-b border-line-2 px-6 py-3.5 max-sm:px-4">
-          <div className="text-[0.96875rem] font-semibold text-ink">Who each email comes from</div>
-          <div className="text-[0.8125rem] text-muted">Replies go back to that address. Leave one empty and it comes from the person who sends it.</div>
+      <Card pad={false} className="overflow-hidden">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] divide-x divide-line-2 border-b border-line-2 bg-wash text-[0.75rem] font-semibold text-muted max-md:hidden">
+          <span className="px-5 py-2">Email</span>
+          <span className="px-4 py-2">Comes from — replies go back there</span>
+          <span className="px-4 py-2">Copy (Cc)</span>
         </div>
-        <div className="divide-y divide-line-2">
-          <FromRow k="estimates" title="Estimates" sub="Estimates and revisions to the client" placeholder="estimating@cobblestonenj.com" />
-          <FromRow k="invoices" title="Invoices" sub="Invoices, progress bills, payment reminders" placeholder="accounting@cobblestonenj.com" />
-          <FromRow k="other" title="Everything else" sub="Purchase orders, tile orders, the installer’s PO" placeholder="office@cobblestonenj.com" />
-        </div>
-      </Card>
-      <Card pad={false}>
-        <div className="border-b border-line-2 px-6 py-3.5 max-sm:px-4">
-          <div className="text-[0.96875rem] font-semibold text-ink">Always copied</div>
-          <div className="text-[0.8125rem] text-muted">These addresses get a copy (Cc) of every email Tile OS sends — estimates, invoices, purchase orders.</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 px-6 py-3.5 max-sm:px-4" data-email-cc>
-          {cc.map((e) => (
-            <span key={e} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-wash-2 pl-3 pr-1 text-[0.8125rem] font-medium text-ink-2" data-cc={e}>
-              <Mail className="h-3.5 w-3.5 text-faint" />{e}
-              <button aria-label={`Stop copying ${e}`} onClick={() => setEmailRule({ cc: cc.filter((x) => x !== e) }, `${e} isn’t copied any more`)} className="inline-flex h-6 w-6 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3.5 w-3.5" /></button>
+        {MAIL_KINDS.map((m) => (
+          <div key={m.k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] divide-x divide-line-2 border-b border-line-2 last:border-b-0 max-md:block max-md:divide-x-0 max-md:py-2" data-email-kind={m.k}>
+            <span className={cn(cell, 'block pl-5 max-md:pl-4')}>
+              <span className="block text-[0.875rem] font-semibold text-ink">{m.title}</span>
+              <span className="block truncate text-[0.78125rem] text-muted">{m.sub}</span>
             </span>
-          ))}
-          {!cc.length && <span className="text-[0.8125rem] text-muted">Nobody yet.</span>}
-        </div>
-        <form className="flex flex-wrap items-center gap-2 border-t border-line-2 px-6 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); put() }}>
-          <TextInput value={add} onChange={(e) => setAdd(e.target.value)} placeholder="Add an address — or a few, with commas" aria-label="Add an address to copy" className={cn('min-w-[16rem] flex-1', bad && 'border-bad-300')} data-cc-add />
-          <Button type="submit" icon={<Plus />} disabled={!add.trim() || bad}>Add</Button>
-        </form>
+            <span className={cell}><FromCell k={m.k} title={m.title} placeholder={m.from} /></span>
+            <span className={cell}><CcCell k={m.k} title={m.title} field={m.cc} /></span>
+          </div>
+        ))}
+        {every.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-muted max-sm:px-4" data-email-every>
+            Copied on every email:
+            {every.map((e) => (
+              <span key={e} className="inline-flex h-7 items-center gap-1 rounded-full bg-wash-2 pl-2.5 pr-1 font-medium text-ink-2" data-cc={e}>
+                {e}
+                <button aria-label={`Stop copying ${e}`} onClick={() => setEmailRule({ cc: every.filter((x) => x !== e) }, `${e} isn’t copied any more`)} className="inline-flex h-5 w-5 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3 w-3" /></button>
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
-      <Card>
-        <div className="px-6 pb-5 pt-4 max-sm:px-4" data-invite-mail>
-          <div className="text-[0.90625rem] font-semibold text-ink">Invites and password emails</div>
-          <p className="mt-1 text-[0.84375rem] leading-snug text-muted">They go out through Lovable’s mail service — today from Lovable’s own address, not @cobblestonenj.com, so a company mailbox can put them in Spam or quarantine. To send them from your address, with the Cobblestone logo: in Lovable, <b className="font-semibold text-ink-2">More → Emails → add cobblestonenj.com</b> (turn on “Show as sent from @cobblestonenj.com”), then <b className="font-semibold text-ink-2">Customize auth emails</b>. Its <b className="font-semibold text-ink-2">Analytics and logs</b> show every email — sent, delivered or bounced. A copy (Cc) can’t go on these — the log is where you see each one went out. Email not landing? On Team, ··· → Invite gives a one-time link to text instead.</p>
-        </div>
-      </Card>
-      <Card>
-        <div className="px-6 pb-5 pt-4 max-sm:px-4">
-        <div className="text-[0.90625rem] font-semibold text-ink">Today, QuickBooks sends the estimates and invoices</div>
-        <p className="mt-1 text-[0.84375rem] leading-snug text-muted">Until QuickBooks and your Google email are connected (Settings → Connections), set the same copy in QuickBooks: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages → “Copy (Cc) new invoices to address”</b>. QuickBooks sends everything from one company email — once Tile OS sends them, each kind comes from its own address above.</p>
-        </div>
-      </Card>
+      <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
+        Leave “Comes from” empty and it comes from the person who sends it. Every email is also kept on its project. Today QuickBooks still sends the estimates and invoices itself — set the same copy there: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages</b>. Invites and password emails go out through Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+      </p>
     </div>
   )
 }

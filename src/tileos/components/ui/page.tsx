@@ -687,6 +687,8 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
  * the words under each, in groups with a name over them (the project — every part of the job). ================= */
 export type CircleState = 'done' | 'now' | 'wait' | 'bad' | 'later' | 'todo'
 export type CircleStep = { key: string; label: string; sub?: string; state: CircleState; pct?: number; center?: React.ReactNode; mine?: boolean; attrs?: Record<string, string>
+  /** whose step it is — their initials in a small circle before the line under the name */
+  who?: PersonKey
   /** a gate: it can't start until what's before it is done — a dashed ring with a lock */
   lock?: boolean }
 export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
@@ -749,7 +751,12 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
                 <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={here ? sz + 6 : sz} on={on} solid={here} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
                   <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
-                  {(st.sub || here) && <span className={cn('block max-w-[12rem] truncate text-[0.71875rem]', here ? 'font-semibold text-brand-700' : st.lock ? 'text-[#8b8478]' : C_SUB[st.state])}>{here ? ['Now', st.sub].filter(Boolean).join(' · ') : st.sub}</span>}
+                  {(st.sub || here || st.who) && (
+                    <span className={cn('flex max-w-[12rem] items-center gap-1 text-[0.71875rem]', here ? 'font-semibold text-brand-700' : st.lock ? 'text-[#8b8478]' : C_SUB[st.state])} data-who={st.who}>
+                      {st.who && <Avatar who={st.who} size={16} />}
+                      <span className="truncate">{here ? ['Now', st.sub].filter(Boolean).join(' · ') : st.sub}</span>
+                    </span>
+                  )}
                 </span>
                 {/* the part that's open below — underlined, like a tab */}
                 {on && onPick && <span aria-hidden data-picked className="absolute -bottom-[0.625rem] left-0 right-1 h-[0.1875rem] rounded-t-full bg-brand-600 max-sm:right-0" />}

@@ -1,6 +1,6 @@
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { ArrowRight, Receipt, Package, HardHat, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, Receipt, Package, HardHat, TrendingUp, CheckCircle2, Plus } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { Card, CardHeader, Button, Pill, Avatar, IconCircle, TextInput } from '@/tileos/components/ui/core'
 import { MiniSteps, StackBar } from '@/tileos/components/ui/progress'
@@ -11,7 +11,7 @@ import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileo
 import { pictureOf, LAST_WEEK } from '../progressbill'
 import { InstallerPOCard } from '../field'
 import { Section, Empty, Strip } from './kit'
-import { EstimateAndChanges } from './plan'
+import { curRev, revTotal } from '@/tileos/data/estimates'
 
 /** a project's money in one place: contract (with approved changes), invoiced and paid so far */
 export function jobMoney(job: Job) {
@@ -58,52 +58,115 @@ export function MoneyRow({ m, showJob }: { m: MoneyItem; showJob?: boolean }) {
   )
 }
 
+/* Billing on a project — plain, in light lines: the numbers in one row (and the one button: bill what's installed),
+ * the bills (each one's invoice and where it is), the estimate and its changes. */
+const T_HEAD = 'grid divide-x divide-line-2 border-b border-line-2 bg-wash text-[0.75rem] font-semibold text-muted max-md:hidden [&>span]:flex [&>span]:h-9 [&>span]:min-w-0 [&>span]:items-center [&>span]:px-4 [&>span:first-child]:pl-5'
+const T_ROW = 'grid w-full divide-x divide-line-2 border-b border-line-2 text-left transition-colors last:border-b-0 hover:bg-[#f8f6f2] max-md:divide-x-0'
+const T_CELL = 'flex min-w-0 items-center px-4 py-2.5'
+const BILL_COLS = 'grid-cols-[minmax(0,1.6fr)_8rem_minmax(0,1.2fr)_8rem] max-md:grid-cols-[minmax(0,1fr)_auto]'
+const CHANGE_COLS = 'grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_8rem] max-md:grid-cols-[minmax(0,1fr)_auto]'
+function TableCard({ title, count, right, children, ...rest }: { title: string; count?: number; right?: React.ReactNode; children: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+  return (
+    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card" {...rest}>
+      <header className="flex min-h-12 items-center gap-2 border-b border-line-2 px-5 py-2 max-sm:px-4">
+        <h3 className="text-[0.96875rem] font-semibold text-ink">{title}</h3>
+        {count !== undefined && <span className="text-[0.8125rem] font-semibold tnum text-faint">{count}</span>}
+        {right && <span className="ml-auto flex items-center gap-2">{right}</span>}
+      </header>
+      {children}
+    </section>
+  )
+}
+/** where a bill is, in a word or two */
+function billWhere(m: MoneyItem): { text: string; cls: string } {
+  if (m.state === 'paid') return { text: `Paid${m.date ? ` ${m.date}` : ''}`, cls: 'font-semibold text-[#2c8a5b]' }
+  if (m.paid) return { text: `${fmtMoney(m.paid)} paid`, cls: 'text-ink-2' }
+  const steps = MONEY_STEPS[m.kind]
+  if (m.step < 0 || m.state === 'upcoming') return { text: m.due || 'Later', cls: 'text-muted' }
+  return { text: steps[m.step] || '—', cls: 'text-ink-2' }
+}
 export function MoneyTab({ job }: { job: Job }) {
   const s = useStore()
   const b = billingOf(job)
-  const items = s.money.filter((m) => m.jobId === job.id)
-  const pos = s.pos.filter((p) => p.jobId === job.id)
-  const paid = b.paid
-  const billed = b.billed
-  const under = Math.max(0, b.installedPct - b.billedPct)
-
-  const unpaid = Math.max(0, b.billedPct - b.paidPct)
-  const est = s.estimates.find((e) => e.jobId === job.id && e.status === 'approved') || s.estimates.find((e) => e.jobId === job.id)
-  const parts = [
-    { pct: b.paidPct, color: '#2c4a3e', label: 'Paid' },
-    { pct: unpaid, color: '#7f9c8f', label: 'Billed, not paid' },
-    { pct: Math.max(0, under), color: '#cfdcd5', label: 'Installed, not billed' },
+  const bills = s.money.filter((m) => m.jobId === job.id && m.kind !== 'change')
+  const cos = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
+  const ests = s.estimates.filter((e) => e.jobId === job.id)
+  const before = job.before?.changes || 0
+  const canChange = s.role !== 'accounting'
+  const numbers = [
+    { label: 'Contract', value: fmtMoney(b.contract + b.changes), title: b.changes ? `With ${fmtMoney(b.changes)} of approved changes` : undefined },
+    { label: 'Billed', value: fmtMoney(b.billed), sub: `${b.billedPct}%` },
+    { label: 'Paid', value: fmtMoney(b.paid) },
+    { label: 'Retainage held', value: fmtMoney(b.retainage), title: `${s.rules.retainage}% · released at closeout` },
   ]
   return (
-    <div className="flex flex-col gap-4">
-      <Strip
-        stats={[
-          { label: 'Contract now', value: fmtMoney(b.contract + b.changes), sub: est ? `Estimate ${fmtMoney(b.contract)} · ${est.id}` : smp('Sample amounts') || 'The approved estimate and its changes' },
-          { label: 'Approved changes', value: `+${fmtMoney(b.changes)}`, sub: b.pending ? `${fmtMoney(b.pending)} waiting for a yes` : 'Nothing waiting' },
-          { label: 'Billed to date', value: fmtMoney(billed), sub: `${b.billedPct}% · ${fmtMoney(paid)} paid` },
-          { label: 'Retainage held', value: fmtMoney(b.retainage), sub: `${s.rules.retainage}% · released at closeout` },
-        ]}
-        footer={
-          <div className="w-full">
-            {/* where the money is, in one bar: paid, billed, installed but not billed yet */}
-            <div className="flex h-2.5 overflow-hidden rounded-full bg-[#ece8e1]" title={`${b.installedPct}% installed`}>
-              {parts.map((x) => x.pct > 0 && <span key={x.label} style={{ width: `${x.pct}%`, background: x.color }} />)}
+    <div className="flex flex-col gap-4" data-billing-tab>
+      {/* the numbers, in one row — and the one thing to do */}
+      <div className="flex items-stretch overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card max-md:flex-col" data-money-strip>
+        <div className="grid flex-1 grid-cols-4 divide-x divide-line-2 max-md:grid-cols-2">
+          {numbers.map((n) => (
+            <div key={n.label} className="min-w-0 px-5 py-3 max-sm:px-4" title={n.title}>
+              <div className="text-[0.75rem] font-medium text-muted">{n.label}</div>
+              <div className="mt-0.5 truncate text-[1.125rem] font-semibold tnum text-ink">{n.value}{n.sub && <span className="ml-1.5 text-[0.8125rem] font-medium text-muted">{n.sub}</span>}</div>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.78125rem] text-ink-2">
-              {parts.map((x) => <span key={x.label} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: x.color }} />{x.label} <b className="font-semibold tnum text-ink">{x.pct}%</b></span>)}
-              <span className="text-muted">{b.installedPct}% installed</span>
-              {b.toBill > 0 && <Button size="sm" variant="primary" className="ml-auto max-sm:ml-0" onClick={() => s.open({ t: 'progress', jobId: job.id, week: LAST_WEEK.key })}>Bill {fmtMoney(b.toBill)} now</Button>}
-            </div>
-          </div>
-        }
-      />
-      <Section title="Bills" count={items.filter((m) => m.kind !== 'change').length} right="They go out from QuickBooks">
-        <div>
-          {items.filter((m) => m.kind !== 'change').map((m) => <MoneyRow key={m.id} m={m} />)}
-          {!items.filter((m) => m.kind !== 'change').length && <Empty>Nothing billed on this project yet.</Empty>}
+          ))}
         </div>
-      </Section>
-      <EstimateAndChanges job={job} />
+        {b.toBill > 0 && (
+          <div className="flex items-center border-l border-line-2 px-4 max-md:border-l-0 max-md:border-t max-md:py-3">
+            <Button variant="primary" className="max-md:w-full" onClick={() => s.open({ t: 'progress', jobId: job.id, week: LAST_WEEK.key })}>Bill {fmtMoney(b.toBill)} now</Button>
+          </div>
+        )}
+      </div>
+
+      <TableCard title="Bills" count={bills.length} right={<span className="text-[0.78125rem] text-muted">Sent from QuickBooks</span>} data-bills>
+        {bills.length > 0 && <div className={cn(T_HEAD, BILL_COLS)}><span>Bill</span><span>Invoice</span><span>Where it is</span><span className="justify-end">Amount</span></div>}
+        {bills.map((m) => {
+          const w = billWhere(m)
+          return (
+            <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className={cn(T_ROW, BILL_COLS)} data-bill={m.id}>
+              <span className={cn(T_CELL, 'pl-5 max-sm:pl-4')}>
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span>
+                  <span className={cn('hidden truncate text-[0.75rem] max-md:block', w.cls)}>{m.ref ? (m.ref.startsWith('#') ? m.ref : `#${m.ref}`) : m.state === 'upcoming' ? 'Later' : 'Not invoiced yet'} · {w.text}</span>
+                </span>
+              </span>
+              <span className={cn(T_CELL, 'max-md:hidden')}><span className={cn('truncate text-[0.8125rem]', m.ref ? 'text-ink-2' : 'text-faint')}>{m.ref ? (m.ref.startsWith('#') ? m.ref : `#${m.ref}`) : m.state === 'upcoming' ? 'Later' : 'Not invoiced yet'}</span></span>
+              <span className={cn(T_CELL, 'max-md:hidden')}><span className={cn('truncate text-[0.8125rem]', w.cls)}>{w.text}</span>{m.action && m.state !== 'paid' && <span className="ml-auto shrink-0 pl-3 text-[0.8125rem] font-semibold text-brand-700">{m.action} →</span>}</span>
+              <span className={cn(T_CELL, 'justify-end')}><span className="text-[0.875rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : '—'}</span></span>
+            </button>
+          )
+        })}
+        {!bills.length && <div className="px-5 py-3 text-[0.84375rem] text-muted">Nothing billed on this project yet.</div>}
+      </TableCard>
+
+      <TableCard title="Estimate and changes" count={ests.length + cos.length + (before ? 1 : 0)} right={canChange ? <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button> : undefined} data-changes-table>
+        {ests.map((e) => {
+          const r = curRev(e)
+          return (
+            <button key={e.id} onClick={() => s.open({ t: 'estimate', id: e.id })} className={cn(T_ROW, CHANGE_COLS)} data-est-line={e.id}>
+              <span className={cn(T_CELL, 'pl-5 max-sm:pl-4')}><span className="truncate text-[0.875rem] font-semibold text-ink">Estimate {e.id}{e.revs.length > 1 ? ` · revision ${r?.n}` : ''}</span></span>
+              <span className={cn(T_CELL, 'max-md:hidden')}><span className="truncate text-[0.8125rem] text-ink-2">{e.status === 'approved' ? `Approved${e.approvedOn ? ` ${e.approvedOn}` : ''}` : 'Not approved yet'}</span></span>
+              <span className={cn(T_CELL, 'justify-end')}><span className="text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(revTotal(r))}</span></span>
+            </button>
+          )
+        })}
+        {cos.map((m) => (
+          <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className={cn(T_ROW, CHANGE_COLS)} data-co-line={m.id}>
+            <span className={cn(T_CELL, 'pl-5 max-sm:pl-4')}><span className="truncate text-[0.875rem] font-semibold text-ink">{m.title}</span></span>
+            <span className={cn(T_CELL, 'max-md:hidden')}><span className={cn('truncate text-[0.8125rem]', m.step < 0 ? 'text-warn-700' : 'text-ink-2')}>{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for the client’s yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</span></span>
+            <span className={cn(T_CELL, 'justify-end')}><span className="text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span></span>
+          </button>
+        ))}
+        {before > 0 && (
+          <div className={cn(T_ROW, CHANGE_COLS, 'hover:bg-transparent')}>
+            <span className={cn(T_CELL, 'pl-5 max-sm:pl-4')}><span className="truncate text-[0.875rem] font-semibold text-ink">Changes approved before Tile OS</span></span>
+            <span className={cn(T_CELL, 'max-md:hidden')}><span className="text-[0.8125rem] text-ink-2">Approved</span></span>
+            <span className={cn(T_CELL, 'justify-end')}><span className="text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(before)}</span></span>
+          </div>
+        )}
+        {!ests.length && !cos.length && !before && <div className="px-5 py-3 text-[0.84375rem] text-muted">No estimate in the system for this project — it was priced before Tile OS.</div>}
+      </TableCard>
+
       <div className="flex flex-wrap items-center gap-2 px-1 text-[0.8125rem] text-muted">
         {job.before?.billed || job.before?.paid
           ? <>Before Tile OS: <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.paid)}</b> paid — counted in.</>
