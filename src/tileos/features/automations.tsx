@@ -68,18 +68,12 @@ export function AutomationsTab() {
   const custom = s.tasks.filter((t) => t.repeat && t.state !== 'done')
   return (
     <Card pad={false} className="overflow-hidden">
-      <CardHeader
-        icon={<IconCircle tone="info" size={34}><Repeat className="h-4 w-4" /></IconCircle>}
-        title="Automations — what lands on each person’s Today by itself"
-        sub="The system’s own hand-offs and reminders run by themselves — turn any of them off. Your own are repeating reminders in your words: they land on someone’s Today on schedule."
-        action={<Button size="sm" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newauto' })}>New reminder</Button>}
-      />
       {Array.from(new Set([...peopleOf(s), ...AUTOS.map((a) => a.who(s)), ...custom.map((t) => t.owner)])).map((p) => {
         const autos = AUTOS.filter((a) => a.who(s) === p)
         const mine = custom.filter((t) => t.owner === p)
         if (!autos.length && !mine.length) return null
         return (
-          <section key={p}>
+          <section key={p} className="[&:first-child>div:first-child]:border-t-0">
             <div className="flex items-center gap-2.5 border-t border-line bg-wash px-5 py-2 max-sm:px-4">
               <Avatar who={p} size={24} />
               <span className="text-[0.84375rem] font-semibold text-ink">{PEOPLE[p]?.name || p}</span>

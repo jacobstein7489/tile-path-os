@@ -13,7 +13,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
 import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
-import { FLOORS, sortAreas } from '@/tileos/data/areas'
+import { FLOORS, sortAreas, guessSurfaces } from '@/tileos/data/areas'
 import { printNode } from '@/tileos/lib/print'
 import { EstimatePaper, paperGroups, paperText } from './estpaper'
 import { DocPanel, PanelBar } from './docview'
@@ -21,8 +21,9 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
+import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, addCompanyArea, surfaceOf, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
 import { insidePeople } from './steps-ui'
+import { SearchSelect } from '@/tileos/components/ui/select'
 import { jobMoney } from './job/money-tab'
 import { ActivityRow } from './activity'
 
@@ -553,7 +554,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
         {!ls.length && !gone.length && <div className="px-5 py-2 text-[0.8125rem] text-muted max-sm:px-3">No tile here yet{editable ? ' — add a surface' : ''}</div>}
         {editable && (
-          <div className={cn('flex-wrap items-center gap-1.5 px-5 pb-2 pt-1 max-sm:flex max-sm:px-3', ls.length ? 'hidden group-focus-within/room:flex group-hover/room:flex pointer-coarse:flex' : 'flex')} data-add-row>
+          <div className="flex flex-wrap items-center gap-1.5 px-5 pb-2 pt-1 max-sm:px-3" data-add-row>
             <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
             <ItemPicker label="Item" onPick={(it) => estEditLines(e.id, (L) => [...L, newLine(a, it.id, it.unit === 'LS' ? 1 : 100, it.price)])} />
           </div>
@@ -725,16 +726,30 @@ function AreaMenu({ e, area }: { e: Estimate; area: string }) {
 }
 function AreaAdder({ e }: { e: Estimate }) {
   const s = useStore()
-  const [own, setOwn] = React.useState('')
+  const presets = companyAreas(s)
+  /* the floor the last room went on — the next one usually goes there too */
+  const meta = curRev(e).areas || []
+  const [floor, setFloor] = React.useState<string>(() => meta[meta.length - 1]?.floor || '')
+  const add = (name: string) => { const p = presets.find((x) => x.name === name); if (p) estAddArea(e.id, p.name, p.surfaces, floor || undefined) }
+  /* a new one: it goes on this estimate, and on the company's list for the next one */
+  const addOwn = (name: string) => { const keys = guessSurfaces(name, presets); addCompanyArea(name, keys); estAddArea(e.id, name, keys, floor || undefined) }
   return (
-    <div className="mt-4 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3">
+    <div className="mt-4 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3" data-area-adder>
       <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add an area<span className="font-normal text-muted">— it comes with its usual surfaces</span></div>
-      <div className="flex flex-wrap gap-1.5">
-        {companyAreas(s).map((p) => <button key={p.name} type="button" onClick={() => estAddArea(e.id, p.name, p.surfaces)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700"><Plus className="h-3.5 w-3.5" />{p.name}</button>)}
-        <form className="inline-flex" onSubmit={(x) => { x.preventDefault(); if (!own.trim()) return; estAddArea(e.id, own.trim(), ['floor']); setOwn('') }}>
-          <input value={own} onChange={(x) => setOwn(x.target.value)} placeholder="Your own area…" aria-label="Your own area" className="h-8 w-[9.375rem] rounded-l-full border border-r-0 border-line bg-white px-3 text-[0.8125rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none" />
-          <button type="submit" disabled={!own.trim()} className="inline-flex h-8 items-center rounded-r-full border border-line bg-wash px-2.5 text-[0.78125rem] font-semibold text-ink-2 disabled:text-faint">Add</button>
-        </form>
+      <div className="grid grid-cols-[11rem_minmax(0,22rem)] gap-2 max-sm:grid-cols-1">
+        <SearchSelect label="Floor" value={floor} onChange={setFloor} emptyLabel="No floor" options={FLOORS.map((f) => ({ key: f, label: f }))} search={false} width={220} plain />
+        <SearchSelect
+          label="Area"
+          value=""
+          onChange={add}
+          placeholder="Pick or type an area…"
+          options={presets.map((p) => ({ key: p.name, label: p.name, hint: `Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}` }))}
+          search
+          searchPlaceholder="Type an area — Kitchen, Mikvah…"
+          width={380}
+          onCreate={addOwn}
+          createLabel={(t) => `Add “${t}” — kept for next time`}
+        />
       </div>
     </div>
   )
@@ -1016,26 +1031,31 @@ function NumIn({ value, onChange, label, money }: { value: number; onChange: (n:
   )
 }
 
-/** pick one of our QuickBooks items */
+/** pick one of our QuickBooks items: type to find it; not on the list — add it as a new item (its price goes on the
+ *  line, and it's on Items for next time) */
 export function ItemPicker({ onPick, label = 'Add item', types }: { onPick: (it: Store['items'][number]) => void; label?: string; types?: ('labor' | 'material' | 'other')[] }) {
   const s = useStore()
   const groups = (['labor', 'material', 'other'] as const).filter((t) => !types || types.includes(t))
+  const options = groups.flatMap((t) => s.items.filter((i) => i.type === t && i.id !== 'o-room').map((i) => ({ key: i.id, label: i.name, hint: `${t === 'other' ? 'Other' : ITEM_TYPE_LABEL[t]} · ${i.price ? `${fmtMoney(i.price, { cents: i.price % 1 !== 0 })} / ${i.unit}` : `priced on the line · ${i.unit}`}${i.vendor ? ' · ' + i.vendor : ''}` })))
+  const create = (name: string) => {
+    const type = types?.length === 1 ? types[0] : /install|labor|setting|demo|prep|grouting|waterproofing|leveling/i.test(name) ? 'labor' : 'material'
+    const it = { id: 'n' + Date.now().toString(36), name, type, unit: type === 'labor' || /tile|stone|marble|mosaic/i.test(name) ? 'SF' : 'EA', price: 0, cost: 0, qb: name } as Store['items'][number]
+    s.commit((st) => { st.items.push(it) }, `${name} — a new item`, { sub: 'Put its price on the line. It’s on Items now, for next time.' })
+    onPick(it)
+  }
   return (
-    <Menu
-      align="start"
-      width={340}
-      trigger={<button className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.84375rem] font-medium text-brand-700 hover:bg-brand-50"><Plus className="h-4 w-4" />{label}</button>}
-    >
-      {groups.map((t, gi) => (
-        <React.Fragment key={t}>
-          {gi > 0 && <MenuSep />}
-          <MenuLabel>{t === 'other' ? 'Other' : ITEM_TYPE_LABEL[t]} · from QuickBooks</MenuLabel>
-          {s.items.filter((i) => i.type === t && i.id !== 'o-room').map((i) => (
-            <MenuItem key={i.id} onSelect={() => onPick(i)} hint={`${fmtMoney(i.price, { cents: i.price % 1 !== 0 })} / ${i.unit}${i.vendor ? ' · ' + i.vendor : ''}`}>{i.name}</MenuItem>
-          ))}
-        </React.Fragment>
-      ))}
-    </Menu>
+    <SearchSelect
+      label={label}
+      value=""
+      onChange={(k) => { const it = useStore.getState().items.find((x) => x.id === k); if (it) onPick(it) }}
+      options={options}
+      search
+      searchPlaceholder="Search the items…"
+      width={400}
+      onCreate={create}
+      createLabel={(t) => `Add “${t}” as a new item`}
+      trigger={<button type="button" aria-label={label} data-item-picker className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[0.84375rem] font-medium text-brand-700 hover:bg-brand-50"><Plus className="h-4 w-4" />{label}</button>}
+    />
   )
 }
 

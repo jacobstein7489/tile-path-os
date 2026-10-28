@@ -4,14 +4,14 @@ import * as React from 'react'
 import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Chip } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { FLOORS, uniqueArea, sortAreas, guessSurfaces } from '@/tileos/data/areas'
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday, dow, dayShort } from '@/tileos/lib/today'
-import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
+import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, addCompanyArea, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
 import { isOff } from './active'
 import { insidePeople } from './steps-ui'
 import { FormHead, FormRow, ClientField } from './formkit'
@@ -94,47 +94,33 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces' }: { have
 }
 
 const baseName = (n: string) => n.replace(/ #\d+$/, '')
-/** pick the floor, tick the rooms on it (tap again to take one off), then tick each room's surfaces.
- *  The list below always reads in order: by floor, then the way the company's list reads. */
+/** pick the floor, then the rooms on it from the list (type to find one — a new one is kept for next time), then
+ *  tick each room's surfaces. The list below always reads in order: by floor, then the way the company's list reads. */
 export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange: (a: PickedArea[]) => void }) {
   const s = useStore()
   const presets = companyAreas(s)
   const [floor, setFloor] = React.useState('1st floor')
-  const [own, setOwn] = React.useState('')
   const fl = floor || undefined
   const put = (list: PickedArea[]) => onChange(sortAreas(list, presets.map((p) => p.name)))
   const add = (name: string, surfaces: string[]) => put([...areas, { name: uniqueArea(name, areas.map((a) => a.name)), floor: fl, surfaces }])
-  const onFloor = (n: string) => areas.filter((a) => baseName(a.name) === n && (a.floor || '') === floor)
-  const toggle = (p: { name: string; surfaces: string[] }) => {
-    const here = onFloor(p.name)
-    if (here.length) { const last = here[here.length - 1]; put(areas.filter((a) => a !== last)) }
-    else add(p.name, [...p.surfaces])
-  }
   const set = (a0: PickedArea, p: Partial<PickedArea>) => put(areas.map((a) => (a === a0 ? { ...a, ...p } : a)))
   const groups = Array.from(new Set(areas.map((a) => a.floor || ''))).map((f) => ({ floor: f, list: areas.filter((a) => (a.floor || '') === f) }))
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-[0.78125rem] font-semibold text-muted">Floor</span>
-        {[...FLOORS, ''].map((f) => (
-          <button key={f || 'none'} type="button" aria-pressed={floor === f} onClick={() => setFloor(f)} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold transition', floor === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c6bfb4]')}>{f || 'No floor'}</button>
-        ))}
-      </div>
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {presets.map((p) => {
-          const n = onFloor(p.name).length
-          return (
-            <Tip key={p.name} label={`Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}`}>
-              <button type="button" aria-pressed={n > 0} onClick={() => toggle(p)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-medium transition', n ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:text-brand-700')}>
-                {n ? <Check className="h-3.5 w-3.5" strokeWidth={2.6} /> : <Plus className="h-3.5 w-3.5" />}{p.name}{n > 1 && <span className="text-[0.75rem] font-semibold">×{n}</span>}
-              </button>
-            </Tip>
-          )
-        })}
-        <form className="inline-flex" onSubmit={(e) => { e.preventDefault(); if (!own.trim()) return; add(own.trim(), guessSurfaces(own.trim(), presets)); setOwn('') }}>
-          <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Your own area…" aria-label="Your own area" className="h-8 w-[9.375rem] rounded-l-full border border-r-0 border-line bg-white px-3 text-[0.8125rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none" />
-          <button type="submit" disabled={!own.trim()} className="inline-flex h-8 items-center rounded-r-full border border-line bg-wash px-2.5 text-[0.78125rem] font-semibold text-ink-2 disabled:text-faint">Add</button>
-        </form>
+      <div className="grid grid-cols-[11rem_minmax(0,22rem)] gap-2 max-sm:grid-cols-1" data-area-builder>
+        <SearchSelect label="Floor" value={floor} onChange={setFloor} emptyLabel="No floor" options={FLOORS.map((f) => ({ key: f, label: f }))} search={false} width={220} plain />
+        <SearchSelect
+          label="Area"
+          value=""
+          onChange={(n) => { const p = presets.find((x) => x.name === n); if (p) add(p.name, [...p.surfaces]) }}
+          placeholder="Pick or type an area…"
+          options={presets.map((p) => ({ key: p.name, label: p.name, hint: `Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}` }))}
+          search
+          searchPlaceholder="Type an area — Kitchen, Mikvah…"
+          width={380}
+          onCreate={(n) => { const keys = guessSurfaces(n, presets); addCompanyArea(n, keys); add(n, keys) }}
+          createLabel={(t) => `Add “${t}” — kept for next time`}
+        />
       </div>
       {areas.length > 0 ? (
         <div className="mt-4 overflow-hidden rounded-[0.75rem] border border-line">
@@ -170,7 +156,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then tap its rooms — each comes with its usual surfaces (a bathroom brings its niche, waterproofing, saddle and metals). Untick what it doesn’t have.</div>
+        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then an area from the list — each comes with its usual surfaces (a bathroom brings its niche, waterproofing, saddle and metals). Take off what it doesn’t have.</div>
       )}
     </div>
   )

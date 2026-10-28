@@ -61,7 +61,7 @@ export function TestDataTab() {
       </Card>
       <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
         <Card>
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 p-5">
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><Eraser className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <div className="text-[0.9375rem] font-semibold text-ink">Start fresh</div>
@@ -71,7 +71,7 @@ export function TestDataTab() {
           </div>
         </Card>
         <Card>
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 p-5">
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><RotateCcw className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <div className="text-[0.9375rem] font-semibold text-ink">Bring back the sample</div>

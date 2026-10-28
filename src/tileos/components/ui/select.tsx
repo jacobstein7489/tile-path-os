@@ -8,7 +8,7 @@ import { cn } from '@/tileos/lib/utils'
 export type SelectOption = { key: string; label: string; hint?: string; group?: string; lead?: React.ReactNode }
 
 export function SearchSelect({
-  value, options, onChange, placeholder = 'Pick one', searchPlaceholder = 'Type to search…', className, width = 360, autoOpen, emptyLabel, icon, search, label, onCreate, createLabel, footer, plain,
+  value, options, onChange, placeholder = 'Pick one', searchPlaceholder = 'Type to search…', className, width = 360, autoOpen, emptyLabel, icon, search, label, onCreate, createLabel, footer, plain, trigger,
 }: {
   value: string
   options: SelectOption[]
@@ -32,6 +32,8 @@ export function SearchSelect({
   footer?: { label: string; onClick: () => void }
   /** the closed field shows just the name, not its hint — for small rounded pickers */
   plain?: boolean
+  /** a button of your own instead of the field ("+ Item") — the same searchable list opens from it */
+  trigger?: React.ReactNode
 }) {
   const searchable = search ?? options.length > 8
   const [open, setOpen] = React.useState(!!autoOpen)
@@ -54,14 +56,14 @@ export function SearchSelect({
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        {trigger || <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {cur?.lead && <span className="inline-flex shrink-0">{cur.lead}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !cur && !(emptyLabel && value === '') && 'text-faint')}>
             {cur ? <>{cur.label}{cur.hint && !plain && <span className="ml-2 text-[0.78125rem] text-muted">{cur.hint}</span>}</> : emptyLabel && value === '' ? emptyLabel : placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
-        </button>
+        </button>}
       </PO.Trigger>
       <PO.Portal>
         <PO.Content

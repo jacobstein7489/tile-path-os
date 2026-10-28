@@ -1,6 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
+import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -21,7 +21,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
-import { REAL, type WaitingPerson, appUrl } from '@/tileos/lib/save'
+import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'testdata' | 'startover'
@@ -32,25 +32,32 @@ const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0
 /* one thing at a time: a list of the parts on the left (on a phone, across the top), the part you picked on the right */
 type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'startover'
 const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', practice: 'practice', testdata: 'practice', startover: 'startover' }
-const SECTIONS: { group: string; items: { key: Section; label: string; sub: string; icon: React.ElementType }[] }[] = [
+/** each group has its own soft color — the icons in the list and the header say which group you're in */
+const GROUP_TINT: Record<string, { bg: string; fg: string }> = {
+  People: { bg: '#ebf1fd', fg: '#2c53c0' },
+  'How the work flows': { bg: '#f1edfd', fg: '#6347c7' },
+  Company: { bg: '#e5f4f0', fg: '#167565' },
+}
+const SECTIONS: { group: string; items: { key: Section; label: string; sub: string; about: string; icon: React.ElementType }[] }[] = [
   { group: 'People', items: [
-    { key: 'team', label: 'Team', sub: 'Who signs in — invite, change, remove', icon: Users },
-    { key: 'access', label: 'What each login sees', sub: 'The pages each login type opens', icon: Eye },
+    { key: 'team', label: 'Team', sub: 'Invite, change, remove', about: 'Everyone signs in with their own email and sees only their part. Invite them — they make their own password.', icon: Users },
+    { key: 'access', label: 'What each login sees', sub: 'The pages each login opens', about: 'The pages each type of login opens. Turn a page on or off for everyone with that login.', icon: Eye },
   ] },
   { group: 'How the work flows', items: [
-    { key: 'checklist', label: 'Who does what', sub: 'Getting ready, step by step, and who has each', icon: ListChecks },
-    { key: 'estimates', label: 'Estimates', sub: 'Who does each step, the areas, your surfaces', icon: Layers },
-    { key: 'autos', label: 'Automations', sub: 'What the system does by itself', icon: CornerDownRight },
+    { key: 'checklist', label: 'Who does what', sub: 'Every step, and who has it', about: 'Getting a project ready, part by part: who has each step. Rename one, turn one off, or add your own.', icon: ListChecks },
+    { key: 'estimates', label: 'Estimates', sub: 'Steps, areas, surfaces', about: 'Who does each estimate step, the areas a new estimate offers, and your own surfaces.', icon: Layers },
+    { key: 'autos', label: 'Automations', sub: 'What runs by itself', about: 'What lands on each person’s Today by itself — turn any of it off, or add your own reminders.', icon: CornerDownRight },
   ] },
   { group: 'Company', items: [
-    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste, check-ins', icon: ShieldCheck },
-    { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', icon: Calculator },
-    { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', icon: Plug },
-    { key: 'email', label: 'Email', sub: 'Who sends what · always copied', icon: Mail },
-    { key: 'practice', label: 'Practice project', sub: 'A project to learn on', icon: RotateCcw },
-    { key: 'startover', label: 'Start over', sub: 'Clear every project, estimate and task', icon: Trash2 },
+    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
+    { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', about: 'What each material covers. Every project’s material list is worked out from these — set them to how your crews really work.', icon: Calculator },
+    { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', about: 'Tile OS runs the operation; these keep the paperwork and conversations in one place.', icon: Plug },
+    { key: 'email', label: 'Email', sub: 'Who sends, who’s copied', about: 'Who each kind of email comes from, and who gets a copy of every one.', icon: Mail },
+    { key: 'practice', label: 'Practice and samples', sub: 'Try it without real work', about: 'Learn on a practice project, or open the sample projects — nothing reaches a client or QuickBooks.', icon: RotateCcw },
+    { key: 'startover', label: 'Start over', sub: 'Clear the projects', about: 'Delete every project, estimate, client and task at once. The team, logins, items and settings stay.', icon: Trash2 },
   ] },
 ]
+const groupOf = (k: Section) => SECTIONS.find((g) => g.items.some((x) => x.key === k))!.group
 
 export function SettingsPage() {
   const s = useStore()
@@ -58,18 +65,24 @@ export function SettingsPage() {
   /* a link to one part of Settings (Who does what, from a step's ···) opens it even when Settings is already open */
   React.useEffect(() => { const t = SECTION_OF[s.route.tab as Tab]; if (t) setTab(t) }, [s.route.tab])
   const cur = SECTIONS.flatMap((g) => g.items).find((x) => x.key === tab)!
+  /* the one button each part has, next to its name */
+  const action = tab === 'team' ? <Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>
+    : tab === 'autos' ? <Button size="sm" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newauto' })}>New reminder</Button>
+    : tab === 'numbers' ? <Button size="sm" variant="ghost" icon={<RotateCcw className="h-4 w-4" />} onClick={() => s.commit((st) => { st.rules.mat = { ...MAT_RULES0 } }, 'Material numbers back to standard', { undo: false })}>Standard numbers</Button>
+    : null
   return (
     <Page title="Settings" sub="The team, how the work flows, and the company’s rules — one part at a time." bare>
       <div className="grid grid-cols-[15.5rem_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
         <nav aria-label="Settings" className="sticky top-4 flex flex-col gap-4 max-lg:static max-lg:-mx-1 max-lg:flex-row max-lg:gap-1.5 max-lg:overflow-x-auto max-lg:px-1 max-lg:pb-1 no-scrollbar">
           {SECTIONS.map((g) => (
             <div key={g.group} className="flex flex-col gap-0.5 max-lg:contents">
-              <div className="px-3 pb-1 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden">{g.group}</div>
+              <div className="flex items-center gap-2 px-3 pb-1 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden"><span className="h-1.5 w-1.5 rounded-full" style={{ background: GROUP_TINT[g.group].fg }} />{g.group}</div>
               {g.items.map((it) => {
                 const on = tab === it.key
+                const tint = GROUP_TINT[g.group]
                 return (
                   <button key={it.key} onClick={() => setTab(it.key)} aria-current={on ? 'page' : undefined} data-section={it.key} className={cn('flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition max-lg:shrink-0 max-lg:rounded-full max-lg:border max-lg:py-1.5', on ? 'bg-white text-ink shadow-card max-lg:border-brand-300 max-lg:bg-brand-50 max-lg:shadow-none' : 'text-ink-2 hover:bg-white/70 max-lg:border-line max-lg:bg-white')}>
-                    <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg max-lg:hidden', on ? 'bg-brand-50 text-brand-600' : 'bg-wash-2 text-muted')}><it.icon className="h-4 w-4" /></span>
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition max-lg:hidden" style={{ background: tint.bg, color: tint.fg, opacity: on ? 1 : 0.85 }}><it.icon className="h-4 w-4" /></span>
                     <span className="min-w-0 leading-tight">
                       <span className={cn('block truncate text-[0.875rem]', on ? 'font-semibold' : 'font-medium')}>{it.label}</span>
                       <span className="block truncate text-[0.71875rem] text-muted max-lg:hidden">{it.sub}</span>
@@ -81,9 +94,13 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="min-w-0" data-settings-section={tab}>
-          <div className="mb-3 max-lg:hidden">
-            <h2 className="text-[1.1875rem] font-semibold text-ink">{cur.label}</h2>
-            <div className="text-[0.84375rem] text-muted">{cur.sub}</div>
+          <div className="mb-4 flex items-start gap-3.5 max-lg:mb-3" data-settings-head>
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl max-sm:hidden" style={{ background: GROUP_TINT[groupOf(tab)].bg, color: GROUP_TINT[groupOf(tab)].fg }}><cur.icon className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{cur.label}</h2>
+              <div className="mt-0.5 max-w-[46rem] text-[0.84375rem] leading-snug text-muted">{cur.about}</div>
+            </div>
+            {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
           </div>
           {tab === 'team' && <TeamTab />}
           {tab === 'access' && <AccessTab />}
@@ -94,11 +111,27 @@ export function SettingsPage() {
           {tab === 'numbers' && <NumbersTab />}
           {tab === 'connections' && <ConnectionsTab />}
           {tab === 'email' && <EmailTab />}
-          {tab === 'practice' && <div className="flex flex-col gap-6"><PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+          {tab === 'practice' && <div className="flex flex-col gap-6">{REAL.cloud && REAL.admin && <SampleCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
           {tab === 'startover' && <StartOverCard />}
         </div>
       </div>
     </Page>
+  )
+}
+
+/** the sample projects: a whole made-up company to try everything on — nothing saved, the company's own work untouched */
+function SampleCard() {
+  return (
+    <Card>
+      <div className="flex items-start gap-4 p-5" data-sample-card>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: GROUP_TINT.Company.bg, color: GROUP_TINT.Company.fg }}><FlaskConical className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-semibold text-ink">Sample projects</div>
+          <div className="mt-0.5 max-w-[44rem] text-[0.84375rem] leading-snug text-muted">A whole made-up company — every kind of project and estimate, at every point — to try anything. Nothing there is saved, nothing goes out, and your own projects aren’t touched. “Back to my projects” on top brings you back.</div>
+          <Button className="mt-4" variant="primary" icon={<FlaskConical />} onClick={lookAtSample}>Open the sample projects</Button>
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -119,11 +152,10 @@ function TeamTab() {
   }, [emails])
   return (
     <Standings.Provider value={standings}>
-    <div className="flex max-w-[56rem] flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {REAL.people && REAL.admin && <WaitingToJoin />}
       <Card pad={false}>
-        <CardHeader icon={<IconCircle tone="info" size={34}><Users className="h-4 w-4" /></IconCircle>} title="The team" sub="Everyone signs in with their own email and password, and sees only their part. Invite them — they make their own password." action={<Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>} />
-        <div className="border-t border-line-2">
+        <div>
           {s.team.filter((m) => m.role !== 'crew').map((m) => <MemberRow key={m.key} k={m.key} />)}
         </div>
       </Card>
@@ -238,13 +270,13 @@ function MemberRow({ k }: { k: PersonKey }) {
           {admin ? (
             <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 text-[0.8125rem] font-semibold text-brand-700"><ShieldCheck className="h-4 w-4" />Admin</span>
           ) : (
-            <Menu align="end" width={300} trigger={<button className="inline-flex h-8 max-w-[9.375rem] shrink-0 items-center gap-1.5 truncate rounded-lg border border-line px-2.5 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash">{short(m.role)}</button>}>
+            <Menu align="end" width={300} trigger={<button className="inline-flex h-8 max-w-[9.375rem] shrink-0 items-center gap-1.5 truncate rounded-lg border border-line px-2.5 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash max-sm:max-w-[6.5rem] max-sm:px-2 max-sm:text-[0.75rem]">{short(m.role)}</button>}>
               <MenuLabel>Login type — decides what they see</MenuLabel>
               {LOGINS.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} checked={m.role === r.key} hint={r.sees} onSelect={() => updateMember(k, { role: r.key }, `${PEOPLE[k].name} is now ${short(r.key)}`)}>{short(r.key)}</MenuItem>)}
             </Menu>
           )}
           {!admin && !m.uid && m.role !== 'client'
-            ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} onClick={() => s.open({ t: 'invite', key: k })}>{m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'}</Button>
+            ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} aria-label={m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'} onClick={() => s.open({ t: 'invite', key: k })}><span className="max-sm:hidden">{m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'}</span></Button>
             : <span className="w-[4.75rem] text-right max-sm:hidden"><Pill tone="ok" size="sm">{m.uid ? 'Signs in' : 'Active'}</Pill></span>}
           <Menu align="end" width={220} trigger={<button aria-label={`More for ${PEOPLE[k].name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2">⋯</button>}>
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>
@@ -702,9 +734,8 @@ function RulesTab() {
   const r = s.rules
   const set = (fn: (x: typeof r) => void) => s.commit((st) => fn(st.rules), 'Company rule saved', { undo: false })
   return (
-    <Card pad={false} className="max-w-[57.5rem]">
-      <CardHeader icon={<IconCircle tone="info" size={34}><ShieldCheck className="h-4 w-4" /></IconCircle>} title="Company rules" sub="Change a rule once — every project follows it." />
-      <div className="flex flex-col divide-y divide-line-2 border-t border-line-2">
+    <Card pad={false}>
+      <div className="flex flex-col divide-y divide-line-2">
         <Rule title="Who orders our materials" sub="Gets the calculated order when setup is done, sends it, and takes the deliveries.">
           <Segmented value={r.matBy === 'materials' ? 'office' : ((r.matBy || 'yakov') as string)} onChange={(v) => set((x) => (x.matBy = v as PersonKey))} items={[{ key: 'yakov', label: 'Site manager' }, { key: 'office', label: 'Office' }]} />
         </Rule>
@@ -749,13 +780,7 @@ function NumbersTab() {
   const r = s.rules
   return (
     <Card pad={false}>
-      <CardHeader
-        icon={<IconCircle tone="info" size={34}><Calculator className="h-4 w-4" /></IconCircle>}
-        title="Material numbers"
-        sub="What each material covers. Every project’s material list is worked out from these — set them to how your crews really work."
-        action={<Button size="sm" variant="ghost" icon={<RotateCcw className="h-4 w-4" />} onClick={() => s.commit((st) => { st.rules.mat = { ...MAT_RULES0 } }, 'Material numbers back to standard', { undo: false })}>Standard numbers</Button>}
-      />
-      <div className="grid grid-cols-2 gap-x-10 gap-y-5 border-t border-line-2 px-6 pb-6 pt-4 max-md:grid-cols-1 max-sm:px-4">
+      <div className="grid grid-cols-2 gap-x-10 gap-y-5 px-6 pb-6 pt-5 max-md:grid-cols-1 max-sm:px-4">
         {MAT_RULE_ROWS.map((g) => (
           <div key={g.group} className="min-w-0">
             <div className="mb-1 text-[0.75rem] font-semibold text-muted">{g.group}</div>
@@ -778,8 +803,7 @@ function NumbersTab() {
 function ConnectionsTab() {
   return (
     <Card pad={false}>
-      <CardHeader icon={<IconCircle tone="info" size={34}><Plug className="h-4 w-4" /></IconCircle>} title="Connections" sub="Tile OS runs the operation; these keep the paperwork and conversations in one place." />
-      <div className="grid grid-cols-3 gap-3 px-6 pb-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:px-4">
+      <div className="grid grid-cols-3 gap-3 p-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:p-4">
         {[
           { i: BookOpen, t: 'QuickBooks Online', d: 'Items, invoices, bills and payments. Tile OS creates them and reads back what’s paid.', on: !REAL.cloud },
           { i: Mail, t: 'Gmail', d: 'Estimates, POs and invoices go out from your address. Replies land on the right project.', on: false },
@@ -873,8 +897,10 @@ function EmailTab() {
         </form>
       </Card>
       <Card>
+        <div className="px-6 pb-5 pt-4 max-sm:px-4">
         <div className="text-[0.90625rem] font-semibold text-ink">Today, QuickBooks sends the estimates and invoices</div>
         <p className="mt-1 text-[0.84375rem] leading-snug text-muted">Until QuickBooks and your Google email are connected (Settings → Connections), set the same copy in QuickBooks: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages → “Copy (Cc) new invoices to address”</b>. QuickBooks sends everything from one company email — once Tile OS sends them, each kind comes from its own address above.</p>
+        </div>
       </Card>
     </div>
   )
@@ -917,10 +943,10 @@ function StartOverCard() {
   const s = useStore()
   const n = Object.keys(s.jobs).length + s.estimates.length + Object.keys(s.clients).length
   const admin = REAL.cloud ? !!REAL.admin : s.role === 'owner'
-  if (!admin) return <Card><div className="text-[0.875rem] text-muted">Only the admin can start over.</div></Card>
+  if (!admin) return <Card><div className="p-5 text-[0.875rem] text-muted">Only the admin can start over.</div></Card>
   return (
     <Card>
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 p-5">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><Trash2 className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-semibold text-ink">Start over</div>
