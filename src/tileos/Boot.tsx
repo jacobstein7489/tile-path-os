@@ -4,8 +4,8 @@ import * as React from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import App from './App'
-import { REAL } from './lib/save'
-import { startCloud, stopCloud, type CloudProblem } from './lib/cloud'
+import { REAL, wantsSampleLook } from './lib/save'
+import { startCloud, startSample, stopCloud, type CloudProblem } from './lib/cloud'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
 
 type Phase =
@@ -96,7 +96,7 @@ export default function Boot() {
     stopCloud()
     started.current = null
     hold.current = null
-    try { localStorage.removeItem(IDLE_KEY) } catch { /* fine */ }
+    try { localStorage.removeItem(IDLE_KEY); sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ }
     await supabase.auth.signOut()
     location.hash = ''
     location.reload()
@@ -144,9 +144,12 @@ export default function Boot() {
       return
     }
     if (!appRoles.length) { setPhase({ k: 'waiting', email: user.email || '', name }); return }
-    /* only the company's own data — no sample to look at */
-    try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ }
-    const res = await startCloud(user, { admin: appRoles.includes('admin'), name, appRoles })
+    /* the admin asked for the sample projects (Try it with sample projects): a made-up company to try everything on —
+       nothing is saved, and the company's own data isn't even loaded. Everyone else opens the company's own data. */
+    const admin = appRoles.includes('admin')
+    const sample = admin && wantsSampleLook()
+    if (!sample) { try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ } }
+    const res = sample ? startSample(user, { admin, name, appRoles }) : await startCloud(user, { admin, name, appRoles })
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
     setPhase({ k: 'ready' })

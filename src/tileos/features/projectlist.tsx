@@ -12,7 +12,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
-import { stepsFor, isGettingReady } from './steps'
+import { stepsFor, isGettingReady, companySteps } from './steps'
 import { tracksFor, phaseOf, bookingOf, type TrackView } from './tracks'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -380,8 +380,22 @@ export function NewRepairModal({ level }: { level: number }) {
 }
 
 /* ================= a new project, straight away — won without an estimate here, or brought in from before ================= */
+/* a project that's already under way when it goes into Tile OS (measured and priced before, waiting for the tile):
+ * pick where it's at, and everything before is checked off — "before Tile OS" — so only what's left lands on lists */
+type At = 'new' | 'tile' | 'ready'
+const AT_OPTIONS: { key: At; label: string; hint: string }[] = [
+  { key: 'new', label: 'Just won — start from the beginning', hint: 'Every step of getting ready' },
+  { key: 'tile', label: 'Measured and priced — waiting for the tile', hint: 'What’s left: the tile delivery, the installer, our materials' },
+  { key: 'ready', label: 'The tile is here — ready for the installer', hint: 'What’s left: the installer’s PO, our materials, the crew' },
+]
+/** what's still open at each point — the rest was done before Tile OS */
+const OPEN_AT: Record<Exclude<At, 'new'>, string[]> = {
+  tile: ['order', 'delivered', 'installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
+  ready: ['installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
+}
 export function NewProjectModal({ level }: { level: number }) {
   const s = useStore()
+  const [at, setAt] = React.useState<At>('new')
   const [clientId, setClientId] = React.useState('')
   const [name, setName] = React.useState('')
   const [address, setAddress] = React.useState('')
@@ -412,7 +426,22 @@ export function NewProjectModal({ level }: { level: number }) {
         st.money.unshift({ id: 'dep-' + id, jobId: id, kind: 'deposit', title: `Deposit ${pct}%`, amount: amt, step: 0, state: 'todo', due: 'Today', dueTone: 'warn', note: 'Created with the project.', log: [{ date: NOW, who: 'system', text: 'Deposit required — created with the project' }], action: 'Create invoice' } as any)
       }
       addHist(st, id, { who: meOf(st.role), kind: 'pricing', title: 'Project created', detail: amount ? `Contract ${fmtMoney(amount)}` : undefined })
-    }, `${finalName} is set up`, { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] })
+      /* already under way: what came before is checked off; the room sheets aren't needed (it started without them) */
+      if (at !== 'new') {
+        const open = OPEN_AT[at]
+        const recs = (st.stepRecs[id] ||= {})
+        companySteps(st).forEach((d) => {
+          if (open.includes(d.key)) return
+          recs[d.key] = d.key === 'sheets' ? { na: true } : { done: NOW, by: meOf(st.role), note: 'Done before Tile OS' }
+        })
+        st.jobs[id].headline = at === 'tile' ? 'Under way · waiting for the tile' : 'Under way · tile is here'
+        st.jobs[id].issues = []
+        st.jobs[id].next = at === 'tile' ? { text: 'Get the tile delivery date', owner: 'office', due: 'Today' } : { text: 'Send the installer his PO', owner: 'ys', due: 'Today' }
+        addHist(st, id, { who: meOf(st.role), kind: 'field', title: `Entered under way — ${AT_OPTIONS.find((x) => x.key === at)!.label.toLowerCase()}`, detail: 'What came before is checked off as done before Tile OS' })
+      }
+    }, `${finalName} is set up`, at === 'new'
+      ? { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] }
+      : { sub: 'What came before is checked off. Only what’s left is on people’s lists.', to: [...(at === 'tile' ? [{ who: 'office' as PersonKey, what: `Tile delivery date · ${finalName}` }] : []), { who: 'ys' as PersonKey, what: `Installer’s PO · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] })
     s.close()
     setTimeout(() => s.open({ t: 'job', id }), 60)
   }
@@ -441,6 +470,9 @@ export function NewProjectModal({ level }: { level: number }) {
       </FormRow>
       <FormRow label="Address">
         <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 42 Orchard St, Brooklyn" />
+      </FormRow>
+      <FormRow label="Where it’s at" hint={AT_OPTIONS.find((x) => x.key === at)!.hint}>
+        <SearchSelect label="Where it’s at" value={at} onChange={(k) => setAt((k || 'new') as At)} search={false} options={AT_OPTIONS.map((x) => ({ key: x.key, label: x.label }))} plain />
       </FormRow>
       {!more && (
         <button onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">

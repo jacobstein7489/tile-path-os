@@ -358,6 +358,34 @@ export function stopCloud() {
   synced = null
 }
 
+/* ---------------- the admin's sample projects: try everything, nothing saved ---------------- */
+/* A made-up company — every kind of project and estimate, at every point — to click through and test. The company's
+ * own data isn't loaded, nothing here goes up to the database, no emails or invites go out, and no files are kept.
+ * "Back to my projects" (the bar on top) opens the company's own data again. */
+export function startSample(user: User, opts: { admin: boolean; name: string; appRoles: string[] }): StartResult {
+  stopCloud()
+  const data = initialData()
+  ensureTiles(data as any)
+  seedCounters(JSON.stringify(data))
+  ID.sfx = '.' + CLIENT.slice(0, 4)
+  useStore.getState().replaceData(data)
+  REAL.cloud = false
+  REAL.sampleView = true
+  REAL.admin = opts.admin
+  REAL.email = user.email || undefined
+  REAL.people = undefined
+  REAL.invite = undefined
+  REAL.inviteLink = undefined
+  REAL.inviteStatus = undefined
+  REAL.removeAccess = undefined
+  REAL.testEmail = undefined
+  REAL.files = undefined
+  REAL.ai = askAI
+  setSaveStatus({ where: 'none', mode: 'sample', saving: false, problem: undefined })
+  const member = linkMember(user, opts)
+  return { ok: true, member }
+}
+
 /* ---------------- the company's AI and file storage ---------------- */
 const AI_WORDS: Record<string, string> = {
   nokey: 'AI isn’t switched on for the app yet. In Lovable, ask: “Turn on Lovable AI for this project.”',

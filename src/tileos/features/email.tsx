@@ -75,7 +75,10 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     const ref = m.ref || '#draft'
     const due = (m.amount || 0) - (m.paid || 0)
     from = fromBox(mail.invoices, `${PEOPLE.accounting?.name || 'Accounting'} · Cobblestone Tile`)
-    to = ap ? `${ap.name} · ${c?.name}` : c?.name || j?.client || ''
+    to = ap ? `${ap.name || ap.role} · ${c?.name}` : c?.name || j?.client || ''
+    /* a billing email on the client or one of its people (Clients → their page): the invoice goes there too */
+    const billing = Array.from(new Set([...(c?.more || []), ...(c?.contacts || []).flatMap((x) => x.more || [])].filter((r) => r.kind === 'email' && /billing/i.test(r.label || '')).map((r) => r.value)))
+    if (billing.length) to = `${to}, ${billing.join(', ')}`
     subject = `Invoice ${ref} · ${j?.name} · ${m.title}`
     attach = `Invoice ${ref}.pdf`
     greeting = `Hello${ap ? ` ${ap.name.split(' ')[0]}` : ''},`

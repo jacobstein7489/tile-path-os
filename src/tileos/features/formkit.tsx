@@ -12,7 +12,7 @@ import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, STAGE_LABEL, type Job, type PersonKey } from '@/tileos/data/model'
 import { addDays, dayShort, dow, TODAY, labelFromIso } from '@/tileos/lib/today'
-import { KIND, TILE_COLORS } from './newpicker'
+import { KIND, PART_TINT } from './newpicker'
 import { insidePeople } from './steps-ui'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { isOff } from './active'
@@ -20,12 +20,13 @@ import { isOff } from './active'
 /** the top of the form: the kind's icon in its color, the project, and what it is */
 export function FormHead({ k, kicker, title, right }: { k: string; kicker?: React.ReactNode; title?: React.ReactNode; right?: React.ReactNode }) {
   const kind = KIND[k]
-  const c = TILE_COLORS[kind?.c || 'slate']
+  /* the same soft color as on + New: the job site warm, the paperwork blue, something new green, a problem red */
+  const c = PART_TINT[k === 'problem' ? 'bad' : kind?.g || 'office']
   const I = kind?.i
   return (
     <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pr-14" data-form-head={k}>
       <div className="flex items-center gap-3">
-        {I && <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.6875rem] text-white" style={{ background: c.solid }}><I className="h-5 w-5" /></span>}
+        {I && <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.6875rem]" style={{ background: c.bg, color: c.fg }}><I className="h-5 w-5" /></span>}
         <div className="min-w-0">
           <div className="truncate text-[0.8125rem] font-medium text-muted">{kicker || 'New'}</div>
           <h2 className="truncate text-[1.25rem] font-bold tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{title || kind?.l}</h2>

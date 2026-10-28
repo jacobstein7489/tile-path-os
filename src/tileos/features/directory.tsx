@@ -16,6 +16,8 @@ import { ITEM_TYPE_LABEL, type ItemType } from '@/tileos/data/items'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, PAY_STATE, payRow } from './pay'
 import { TODAY, MONDAY, addDays } from '@/tileos/lib/today'
+import { MoreReach, cleanReach, reachOk } from './reach'
+import type { Reach } from '@/tileos/data/model'
 
 const DONE = ['complete']
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
@@ -82,7 +84,7 @@ export function ClientsPage() {
   return (
     <Page
       title="Clients"
-      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'importclients' })} data-import-clients>Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button></>}
+      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'importclients' })} data-import-clients data-import="client">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button></>}
       top={
         <Bubbles
           items={[
@@ -154,7 +156,7 @@ export function DesignersPage() {
   return (
     <Page
       title="Designers"
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'designerform' })}>New designer</Button>}
+      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'designer' })} data-import="designer">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'designerform' })}>New designer</Button></>}
       top={
         <Bubbles
           items={[
@@ -222,7 +224,7 @@ export function SubsPage() {
   return (
     <Page
       title="Installers"
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'installerform' })}>New installer</Button>}
+      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'installer' })} data-import="installer">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'installerform' })}>New installer</Button></>}
       top={
         <Bubbles
           items={[
@@ -297,7 +299,7 @@ export function SuppliersPage() {
   return (
     <Page
       title="Suppliers"
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'supplierform' })}>New supplier</Button>}
+      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'supplier' })} data-import="supplier">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'supplierform' })}>New supplier</Button></>}
       top={
         <Bubbles
           items={[
@@ -476,12 +478,12 @@ function RowBtn({ title, sub, right, onClick }: { title: string; sub?: string; r
 export function SupplierFormModal({ name, level }: { name?: string; level: number }) {
   const s = useStore()
   const cur = name ? s.suppliers.find((x) => x.name === name) : undefined
-  const [f, setF] = React.useState<SupplierInfo>(() => cur ? { ...cur } : { name: '', supplies: '', contact: '', phone: '', email: '' })
+  const [f, setF] = React.useState<SupplierInfo>(() => cur ? { ...cur, more: (cur.more || []).map((r) => ({ ...r })) } : { name: '', supplies: '', contact: '', phone: '', email: '', more: [] })
   const set = (p: Partial<SupplierInfo>) => setF((v) => ({ ...v, ...p }))
   const clash = !!f.name.trim() && f.name.trim() !== name && s.suppliers.some((x) => x.name.toLowerCase() === f.name.trim().toLowerCase())
-  const ok = !!f.name.trim() && !clash
+  const ok = !!f.name.trim() && !clash && reachOk(f.more)
   const save = () => {
-    const rec: SupplierInfo = { name: f.name.trim(), supplies: (f.supplies || '').trim(), contact: f.contact?.trim() || undefined, phone: f.phone?.trim() || undefined, email: f.email?.trim() || undefined, note: f.note?.trim() || undefined }
+    const rec: SupplierInfo = { name: f.name.trim(), supplies: (f.supplies || '').trim(), contact: f.contact?.trim() || undefined, phone: f.phone?.trim() || undefined, email: f.email?.trim() || undefined, more: cleanReach(f.more), note: f.note?.trim() || undefined }
     s.commit((x) => {
       if (cur) {
         const i = x.suppliers.findIndex((y) => y.name === cur.name)
@@ -495,41 +497,54 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
       } else x.suppliers.push(rec)
     }, cur ? `${rec.name} saved` : `${rec.name} added`, { close: true })
   }
-  const field = (label: string, el: React.ReactNode) => (
-    <label className="block min-w-0"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">{label}</span>{el}</label>
-  )
   return (
     <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New supplier'} sub="Who we buy from — the name shows on every PO" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the supplier'}</Button></>}>
       <div className="flex flex-col gap-3.5">
-        {field('Name', <TextInput data-autofocus aria-label="Supplier name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Infinity" className="h-10" />)}
+        {formField('Name', <TextInput data-autofocus aria-label="Supplier name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Infinity" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That supplier is already on the list.</div>}
-        {field('What we buy from them', <TextInput aria-label="What we buy from them" value={f.supplies} onChange={(e) => set({ supplies: e.target.value })} placeholder="e.g. Setting materials — thinset, grout, membranes" className="h-10" />)}
+        {formField('What we buy from them', <TextInput aria-label="What we buy from them" value={f.supplies} onChange={(e) => set({ supplies: e.target.value })} placeholder="e.g. Setting materials — thinset, grout, membranes" className="h-10" />)}
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {field('Who to call', <TextInput aria-label="Contact name" value={f.contact || ''} onChange={(e) => set({ contact: e.target.value })} placeholder="Name of the rep" className="h-10" />)}
-          {field('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}
+          {formField('Who to call', <TextInput aria-label="Contact name" value={f.contact || ''} onChange={(e) => set({ contact: e.target.value })} placeholder="Name of the rep" className="h-10" />)}
+          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}
         </div>
-        {field('Email — where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
+        {formField('Email — where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
+        <MoreBlock value={f.more} onChange={(more) => set({ more })} />
       </div>
     </Modal>
   )
 }
 
-/* ================= a new designer, a new installer ================= */
+/* ================= a designer, an installer — new, or changing one that's there ================= */
 const formField = (label: string, el: React.ReactNode) => (
   <label className="block min-w-0"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">{label}</span>{el}</label>
 )
-export function DesignerFormModal({ level }: { level: number }) {
+/** more phones and emails — a cell besides the office line, a billing address */
+function MoreBlock({ value, onChange }: { value: Reach[] | undefined; onChange: (v: Reach[]) => void }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">More phones and emails</div>
+      <MoreReach value={value} onChange={onChange} />
+    </div>
+  )
+}
+export function DesignerFormModal({ id, level }: { id?: string; level: number }) {
   const s = useStore()
-  const [f, setF] = React.useState({ name: '', contact: '', phone: '', email: '', notes: '' })
+  const cur = id ? s.designers.find((d) => d.id === id) : undefined
+  const [f, setF] = React.useState(() => ({ name: cur?.name || '', contact: cur?.contact || '', phone: cur?.phone || '', email: cur?.email || '', notes: cur?.notes || '', more: (cur?.more || []).map((r) => ({ ...r })) as Reach[] }))
   const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }))
-  const clash = !!f.name.trim() && s.designers.some((d) => d.name.toLowerCase() === f.name.trim().toLowerCase())
-  const ok = !!f.name.trim() && !clash
+  const clash = !!f.name.trim() && s.designers.some((d) => d.id !== id && d.name.toLowerCase() === f.name.trim().toLowerCase())
+  const ok = !!f.name.trim() && !clash && reachOk(f.more)
   const save = () => {
-    const id = 'd' + Date.now().toString(36)
-    s.commit((x) => { x.designers.push({ id, name: f.name.trim(), contact: f.contact.trim(), phone: f.phone.trim(), email: f.email.trim(), clients: [], notes: f.notes.trim() }) }, `${f.name.trim()} added`, { close: true })
+    const rec = { name: f.name.trim(), contact: f.contact.trim(), phone: f.phone.trim(), email: f.email.trim(), notes: f.notes.trim(), more: cleanReach(f.more) }
+    if (cur) {
+      s.commit((x) => { const d = x.designers.find((y) => y.id === cur.id); if (d) Object.assign(d, rec) }, `${rec.name} saved`, { close: true })
+      return
+    }
+    const nid = 'd' + Date.now().toString(36)
+    s.commit((x) => { x.designers.push({ id: nid, ...rec, clients: [] }) }, `${rec.name} added`, { close: true })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title="New designer" sub="The firm, who to talk to, and how to reach them" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>Add the designer</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New designer'} sub="The firm, who to talk to, and how to reach them" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the designer'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Firm', <TextInput data-autofocus aria-label="Firm" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Ivy Lane Interiors" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That designer is already on the list.</div>}
@@ -538,26 +553,39 @@ export function DesignerFormModal({ level }: { level: number }) {
           {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
           {formField('Email', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="studio@designer.com" className="h-10" />)}
         </div>
+        <MoreBlock value={f.more} onChange={(more) => set({ more })} />
         {formField('Notes', <TextInput aria-label="Notes" value={f.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Answers by email within a week" className="h-10" />)}
       </div>
     </Modal>
   )
 }
-export function InstallerFormModal({ level }: { level: number }) {
+export function InstallerFormModal({ id, level }: { id?: PersonKey; level: number }) {
   const s = useStore()
-  const [f, setF] = React.useState({ name: '', phone: '', email: '', region: '', trade: 'Tile installation' })
+  /* an installer that's there: his details live on the team list (a standing crew gets his spot the first time) */
+  const mem = id ? s.team.find((m) => m.key === id) : undefined
+  const info = id ? allSubs().find((x) => x.crew === id) : undefined
+  const [f, setF] = React.useState(() => ({ name: id ? PEOPLE[id]?.name || '' : '', phone: mem?.phone || '', email: mem?.email || '', region: mem?.region ?? info?.region ?? '', trade: mem?.trade || info?.trade || 'Tile installation', more: (mem?.more || []).map((r) => ({ ...r })) as Reach[] }))
   const set = (p: Partial<typeof f>) => setF((v) => ({ ...v, ...p }))
-  const taken = !!f.name.trim() && Object.values(PEOPLE).some((p) => p.crew && p.name.toLowerCase() === f.name.trim().toLowerCase())
-  const ok = !!f.name.trim() && !taken
+  const taken = !!f.name.trim() && Object.values(PEOPLE).some((p) => p.crew && p.key !== id && p.name.toLowerCase() === f.name.trim().toLowerCase())
+  const ok = !!f.name.trim() && !taken && reachOk(f.more)
   const save = () => {
-    const key = ('c' + Date.now().toString(36)) as PersonKey
     const [first, ...rest] = f.name.trim().split(/\s+/)
+    const patch = { first, last: rest.join(' ') || undefined, phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, more: cleanReach(f.more), trade: f.trade.trim() || 'Tile installation', region: f.region.trim() || undefined }
+    if (id) {
+      s.commit((x) => {
+        const m = x.team.find((y) => y.key === id)
+        if (m) Object.assign(m, patch)
+        else x.team.push({ key: id, ...patch, role: 'crew', status: 'active' })
+      }, `${f.name.trim()} saved`, { close: true })
+      return
+    }
+    const key = ('c' + Date.now().toString(36)) as PersonKey
     s.commit((x) => {
-      x.team.push({ key, first, last: rest.join(' ') || undefined, phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, role: 'crew', status: 'active', trade: f.trade.trim() || 'Tile installation', region: f.region.trim() || undefined })
+      x.team.push({ key, ...patch, role: 'crew', status: 'active' })
     }, `${f.name.trim()} added`, { close: true, sub: 'He shows on the schedule, the installer list and when you pick who installs a job.' })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title="New installer" sub="He shows up on the schedule, in Installer pay, and when you pick who installs a job" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>Add the installer</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={id ? PEOPLE[id]?.name || 'Installer' : 'New installer'} sub={id ? 'His phone, email and where he works' : 'He shows up on the schedule, in Installer pay, and when you pick who installs a job'} footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{id ? 'Save' : 'Add the installer'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Name', <TextInput data-autofocus aria-label="Installer name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Marco" className="h-10" />)}
         {taken && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">There’s already an installer with that name.</div>}
@@ -565,6 +593,7 @@ export function InstallerFormModal({ level }: { level: number }) {
           {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
           {formField('Email (for his POs and his phone app)', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@email.com" className="h-10" />)}
         </div>
+        <MoreBlock value={f.more} onChange={(more) => set({ more })} />
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {formField('What he does', <TextInput aria-label="Trade" value={f.trade} onChange={(e) => set({ trade: e.target.value })} className="h-10" />)}
           {formField('Where he works (optional)', <TextInput aria-label="Area" value={f.region} onChange={(e) => set({ region: e.target.value })} placeholder="e.g. New Jersey" className="h-10" />)}

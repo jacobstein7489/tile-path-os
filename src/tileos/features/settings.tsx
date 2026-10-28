@@ -223,34 +223,17 @@ function MemberRow({ k }: { k: PersonKey }) {
   /* in the real app: the invite went out (the account exists) but they haven't signed in yet */
   const sentNotIn = !m.uid && !!st && !st.signedIn
   const inAt = m.uid ? st?.signedIn : undefined
-  const [edit, setEdit] = React.useState(false)
-  const [first, setFirst] = React.useState(m.first)
-  const [last, setLast] = React.useState(m.last || '')
-  const [email, setEmail] = React.useState(m.email || '')
   const admin = m.role === 'owner'
-  const save = () => {
-    if (!first.trim()) return
-    updateMember(k, { first: first.trim(), last: last.trim() || undefined, email: email.trim() || undefined }, `Saved — it shows as ${[first.trim(), last.trim()].filter(Boolean).join(' ')} everywhere`)
-    setEdit(false)
-  }
+  const extra = (m.more || []).length + (m.phone ? 1 : 0)
+  const edit = () => s.open({ t: 'member', key: k })
   return (
-    <div className={cn('flex items-center gap-3 border-b border-line-2 px-6 py-2.5 last:border-0 max-sm:gap-2.5 max-sm:px-4', m.status === 'off' && 'opacity-50')}>
+    <div className={cn('flex items-center gap-3 border-b border-line-2 px-6 py-2.5 last:border-0 max-sm:gap-2.5 max-sm:px-4', m.status === 'off' && 'opacity-50')} data-member={k}>
       <Avatar who={k} size={34} />
-      {edit ? (
-        <form className="flex min-w-0 flex-1 flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); save() }}>
-          <TextInput autoFocus value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" className="h-9 w-[9.375rem]" />
-          <TextInput value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name" className="h-9 w-[9.375rem]" />
-          <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email to sign in" className="h-9 w-[13.75rem]" />
-          <Button size="sm" variant="primary" type="submit" icon={<Check />}>Save</Button>
-          <Button size="sm" variant="ghost" type="button" onClick={() => setEdit(false)}>Cancel</Button>
-        </form>
-      ) : (
-        <button onClick={() => setEdit(true)} className="group min-w-0 flex-1 text-left">
-          <span className="flex min-w-0 items-center gap-2 truncate text-[0.875rem] font-semibold text-ink"><span className="truncate">{PEOPLE[k].name}</span><Pencil className="h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" /></span>
-          <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet — click to add'}{sentNotIn ? <span className="text-warn-700"> · invite went out {dayOf(st!.invited || st!.made) || m.invited} — not opened yet</span> : inAt ? ` · last signed in ${dayOf(inAt)}` : m.uid ? '' : m.invited && standings && !st ? <span className="text-warn-700"> · invited {m.invited} — no account yet, send it again</span> : ''}</span>
-        </button>
-      )}
-      {!edit && (
+      <button onClick={edit} className="group min-w-0 flex-1 text-left">
+        <span className="flex min-w-0 items-center gap-2 truncate text-[0.875rem] font-semibold text-ink"><span className="truncate">{PEOPLE[k].name}</span><Pencil className="h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" /></span>
+        <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet — click to add'}{extra ? ` · +${extra} ${extra === 1 ? 'phone or email' : 'phones and emails'}` : ''}{sentNotIn ? <span className="text-warn-700"> · invite went out {dayOf(st!.invited || st!.made) || m.invited} — not opened yet</span> : inAt ? ` · last signed in ${dayOf(inAt)}` : m.uid ? '' : m.invited && standings && !st ? <span className="text-warn-700"> · invited {m.invited} — no account yet, send it again</span> : ''}</span>
+      </button>
+      {(
         <>
           {admin ? (
             <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 text-[0.8125rem] font-semibold text-brand-700"><ShieldCheck className="h-4 w-4" />Admin</span>
@@ -266,7 +249,7 @@ function MemberRow({ k }: { k: PersonKey }) {
           <Menu align="end" width={220} trigger={<button aria-label={`More for ${PEOPLE[k].name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2">⋯</button>}>
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>
             {!admin && !m.uid && <MenuItem icon={<Send className="h-4 w-4" />} onSelect={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invite again' : 'Invite them'}</MenuItem>}
-            <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => setEdit(true)}>Rename</MenuItem>
+            <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={edit}>Change the details</MenuItem>
             {!admin && <MenuItem danger onSelect={() => removeMember(k)} hint="Their login stops working">Remove from the team</MenuItem>}
           </Menu>
         </>

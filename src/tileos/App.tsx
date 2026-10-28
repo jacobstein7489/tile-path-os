@@ -23,8 +23,10 @@ import { PortalView } from '@/tileos/features/portal'
 import { NewClientModal } from '@/tileos/features/clientform'
 import { BillingPage } from '@/tileos/features/billing'
 import { ProjectsPage, NewRepairModal, NewProjectModal } from '@/tileos/features/projectlist'
+import { MemberModal } from '@/tileos/features/memberform'
+import { ContactModal } from '@/tileos/features/contactform'
 import { NewPickerModal } from '@/tileos/features/newpicker'
-import { ImportClientsModal } from '@/tileos/features/importclients'
+import { ImportClientsModal, ImportModal } from '@/tileos/features/importclients'
 import { FreshModal } from './features/testdata'
 import { DeleteModal } from '@/tileos/features/cleanup-ui'
 import { NewEstimateModal } from '@/tileos/features/estnew'
@@ -124,8 +126,10 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'sub': return <InstallerProfile id={m.id} level={level} />
     case 'supplier': return <SupplierProfile id={m.id} level={level} />
     case 'supplierform': return <SupplierFormModal name={m.name} level={level} />
-    case 'designerform': return <DesignerFormModal level={level} />
-    case 'installerform': return <InstallerFormModal level={level} />
+    case 'designerform': return <DesignerFormModal id={m.id} level={level} />
+    case 'installerform': return <InstallerFormModal id={m.id} level={level} />
+    case 'contact': return <ContactModal clientId={m.clientId} index={m.index} level={level} />
+    case 'member': return <MemberModal k={m.key} level={level} />
     case 'item': return <ItemModal id={m.id} level={level} />
     case 'newitem': return <NewItemModal level={level} />
     case 'importitems': return <ImportItemsModal level={level} />
@@ -136,6 +140,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'readytobook': return <ReadyToBookModal level={level} />
     case 'newclient': return <NewClientModal level={level} id={m.id} />
     case 'importclients': return <ImportClientsModal level={level} />
+    case 'import': return <ImportModal kind={m.kind} level={level} />
     case 'payweek': return <PayWeekModal level={level} />
     case 'progress': return <ProgressModal jobId={m.jobId} week={m.week} level={level} />
     case 'incoming': return <IncomingModal keys={m.keys} level={level} />
@@ -282,8 +287,8 @@ export default function App() {
 function SampleBar() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-[#2c4a3e] px-4 py-2 text-[0.8125rem] text-white/90">
-      <span><b className="font-semibold text-white">Sample projects</b> — made-up jobs, so every page has something on it. Nothing you do here is saved.</span>
-      <button onClick={leaveSample} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Start with my own projects</button>
+      <span><b className="font-semibold text-white">Sample projects</b> — made-up jobs to try everything on. Nothing here is saved, and your own projects aren’t touched.</span>
+      <button onClick={leaveSample} data-leave-sample className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to my projects</button>
     </div>
   )
 }

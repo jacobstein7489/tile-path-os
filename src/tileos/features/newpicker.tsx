@@ -117,22 +117,34 @@ const STARTS: (Pick & { c: TileColor })[] = [
   { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, c: 'violet', m: () => ({ t: 'newclient' }) },
 ]
 
-/** every kind of thing you add — its name, what it's for, its icon and color — the same on + New and on its form */
-export const KIND: Record<string, { l: string; h: string; i: React.ElementType; c: TileColor }> = Object.fromEntries([...ADD, ...STARTS].map((x) => [x.k, { l: x.l, h: x.h, i: x.i, c: x.c }]))
+/** every kind of thing you add — its name, what it's for, its icon, its color and its part — the same on + New and
+ *  on its form */
+export const KIND: Record<string, { l: string; h: string; i: React.ElementType; c: TileColor; g: Part }> = Object.fromEntries([...ADD.map((x) => ({ ...x, g: x.g as Part })), ...STARTS.map((x) => ({ ...x, g: 'start' as Part }))].map((x) => [x.k, { l: x.l, h: x.h, i: x.i, c: x.c, g: x.g }]))
 
-/** a choice on + New: a white card with a quiet gray icon — one calm color for all of them; only Problem is red (red
- *  is for problems). The icon turns blue under the pointer. */
+/** one soft color per part of + New, so you know where you are at a glance: the job site warm, the paperwork blue,
+ *  starting something new green. Red only for Problem. */
+type Part = Group | 'start'
+export const PART_TINT: Record<Part | 'bad', { bg: string; fg: string; dot: string }> = {
+  site: { bg: '#fcf1de', fg: '#a2600c', dot: '#d58a14' },
+  office: { bg: '#ebf1fd', fg: '#2c53c0', dot: '#3b66dc' },
+  start: { bg: '#e6f4ec', fg: '#1b7443', dot: '#2a9459' },
+  bad: { bg: '#fdecea', fg: '#c4311f', dot: '#d9402e' },
+}
+const partOf = (k: string): Part => KIND[k]?.g || 'office'
+
+/** a choice on + New: a white card with its icon in its part's soft color; Problem is red (red is for problems) */
 function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
-  const bad = x.k === 'problem'
+  const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
   return (
     <button
       type="button"
       onClick={onClick}
       title={x.h}
       data-new={x.k}
+      data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
       className={cn('group flex min-w-0 items-center gap-3 rounded-[0.75rem] border border-line bg-white text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[4rem] px-3 py-2.5' : 'min-h-11 px-2.5 py-1.5')}
     >
-      <span className={cn('inline-flex shrink-0 items-center justify-center transition', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]', bad ? 'bg-bad-50 text-bad-600' : 'bg-wash-2 text-ink-2 group-hover:bg-brand-50 group-hover:text-brand-700')}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center transition', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]')} style={{ background: tint.bg, color: tint.fg }}>
         <x.i className={big ? 'h-[1.125rem] w-[1.125rem]' : 'h-[0.9375rem] w-[0.9375rem]'} strokeWidth={2.1} />
       </span>
       <span className="min-w-0 leading-tight">
@@ -166,7 +178,8 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const starts = STARTS.filter(ok)
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
-  const head = 'mb-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
+  const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
+  const dot = (p: Part) => <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PART_TINT[p].dot }} />
   return (
     <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick the project, or not — each one asks'}>
       <ProjectPick value={jobId} onChange={setJobId} />
@@ -176,13 +189,13 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       </section>
       {groups.map((x) => (
         <section key={x.g} className="mt-4" data-new-group={x.g}>
-          <div className={head}>{x.label}</div>
+          <div className={head}>{dot(x.g)}{x.label}</div>
           <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
         </section>
       ))}
       {starts.length > 0 && (
         <section className="mt-4 border-t border-line-2 pt-4" data-new-group="start">
-          <div className={head}>Start something new</div>
+          <div className={head}>{dot('start')}Start something new</div>
           <div className="grid grid-cols-4 gap-1.5 max-md:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
         </section>
       )}

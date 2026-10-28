@@ -1,7 +1,7 @@
-import { CREWS, crewInfo } from './model'
+import { CREWS, crewInfo, type Reach } from './model'
 /* The people and companies we work with besides clients: designers, subs (our installers) and suppliers.
  * Designers here are sample firms. Subs are the crews Cobblestone actually uses. */
-export interface Designer { id: string; name: string; contact: string; phone: string; email: string; clients: string[]; notes: string }
+export interface Designer { id: string; name: string; contact: string; phone: string; email: string; /** more phones and emails */ more?: Reach[]; clients: string[]; notes: string }
 export const DESIGNERS0: Designer[] = [
   { id: 'ivy', name: 'Ivy Lane Interiors', contact: 'Lead designer', phone: '(516) 555-0141', email: 'studio@ivylane.design', clients: ['wilkinson', 'forest'], notes: 'Layout answers take about a week. Send questions by email with photos.' },
   { id: 'north', name: 'Studio North Design', contact: 'Project designer', phone: '(732) 555-0172', email: 'hello@studionorth.design', clients: ['greentree'], notes: 'Phase 2 tile selection is theirs.' },
@@ -22,10 +22,10 @@ export const SUBS0: SubInfo[] = [
 
 /** every installer: the standing crews and the ones added on the Installers page */
 export function allSubs(): SubInfo[] {
-  return [...SUBS0, ...CREWS.filter((c) => !SUBS0.some((x) => x.crew === c)).map((c) => ({ crew: c, trade: crewInfo[c]?.trade || 'Tile installation', region: crewInfo[c]?.region }))]
+  return [...SUBS0.map((x) => (crewInfo[x.crew] ? { ...x, trade: crewInfo[x.crew].trade || x.trade, region: crewInfo[x.crew].region ?? x.region } : x)), ...CREWS.filter((c) => !SUBS0.some((x) => x.crew === c)).map((c) => ({ crew: c, trade: crewInfo[c]?.trade || 'Tile installation', region: crewInfo[c]?.region }))]
 }
 
-export interface SupplierInfo { name: string; supplies: string; contact?: string; phone?: string; email?: string; note?: string }
+export interface SupplierInfo { name: string; supplies: string; contact?: string; phone?: string; email?: string; /** more phones and emails */ more?: Reach[]; note?: string }
 export const SUPPLIERS0: SupplierInfo[] = [
   { name: 'Infinity', supplies: 'Setting materials — thinset, membranes, grout, waterproofing, floor prep' },
   { name: 'Metal Works Inc.', supplies: 'Metal edges and trim' },

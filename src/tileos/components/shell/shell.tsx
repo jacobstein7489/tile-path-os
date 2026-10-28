@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
 import { Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
-import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
+import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -14,7 +14,7 @@ import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users, Gauge } from 'lucide-react'
+import { Eraser, Users, Gauge, FlaskConical, Undo2 } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
@@ -185,7 +185,7 @@ export function DesktopTopBar() {
           align="end"
           width={270}
           trigger={
-            <button className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cdc7bc]">
+            <button data-account-menu className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cdc7bc]">
               <Avatar who={me} size={28} />
               <span className="min-w-0 text-left leading-tight">
                 <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[me].name}</span>
@@ -210,9 +210,9 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   const nav = useNav()
   return (
     <>
-      {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="People, logins, what each one sees">Team and settings</MenuItem>}
-      {role === 'owner' && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'checklist' })} hint="Every step, and who has it">Who does what</MenuItem>}
+      {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="The team, the steps, the rules">Settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
+      {REAL.cloud && REAL.admin && !away && <MenuItem icon={<FlaskConical className="h-4 w-4" />} onSelect={lookAtSample} hint="Made-up projects to test — nothing saved">Try it with sample projects</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&
@@ -224,9 +224,8 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
             </MenuItem>
           )
         })}
-      <MenuItem icon={<Workflow className="h-4 w-4" />} onSelect={() => go({ page: 'flow' })} hint="The whole process, start to finish">How it works</MenuItem>
       {role === 'owner' && !REAL.cloud && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
-      {REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={leaveSample}>Start with my own projects</MenuItem>}
+      {REAL.sampleView && <MenuItem icon={<Undo2 className="h-4 w-4" />} onSelect={leaveSample} hint="Leave the sample projects">Back to my projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
     </>
@@ -283,9 +282,7 @@ export function BottomNav() {
               </MenuItem>
             )
           })}
-          <MenuSep />
-          <MenuItem icon={<Workflow className="h-4 w-4" />} onSelect={() => go({ page: 'flow' })}>How it works</MenuItem>
-          {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings' })}>Settings</MenuItem>}
+          {role === 'owner' && <><MenuSep /><MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings' })}>Settings</MenuItem></>}
         </Menu>
       </div>
     </nav>

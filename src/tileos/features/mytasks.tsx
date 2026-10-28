@@ -655,9 +655,7 @@ export function MyTasksPage() {
           </div>
         )}
 
-        {/* nothing yet: what's on the admin's own list (who does what) first, then where to start */}
-        {view === 'today' && !Object.keys(s.jobs).length && !s.tasks.length && role === 'owner' && <>{shownToday.length > 0 && dayBlock(TODAY, shownToday, true)}<CleanSlate /></>}
-        {view === 'today' && (Object.keys(s.jobs).length > 0 || s.tasks.length > 0 || role !== 'owner') && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>
@@ -736,35 +734,6 @@ function FollowedUp({ t, onDone }: { t: Task; onDone: () => void }) {
       <div className="mt-3 text-[0.875rem] font-semibold text-ink">Back on the list</div>
       <div className="mt-2"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
       <div className="mt-3 flex justify-end"><Button variant="primary" onClick={save}>Save</Button></div>
-    </div>
-  )
-}
-
-/** the first screen of a clean slate: where to start */
-function CleanSlate() {
-  const s = useStore()
-  const ours = s.items.filter((i) => i.id.startsWith('qb-')).length
-  const steps: { n: number; title: string; sub: string; btn: React.ReactNode }[] = [
-    { n: 1, title: 'Price a new project', sub: 'Upload the plans — it goes straight to the takeoff, and the estimate is built from there.', btn: <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button> },
-    { n: 2, title: ours ? `Your ${ours} QuickBooks items are in` : 'Bring in your QuickBooks items', sub: ours ? 'Check the units and add what you pay the installer — his PO and weekly pay come from it.' : 'Export Products and Services from QuickBooks and import the file.', btn: <Button onClick={() => s.go({ page: 'items' })}>Open Items</Button> },
-    REAL.cloud
-      ? { n: 3, title: 'Invite your team', sub: 'Each one gets an email, picks a password, and sees what their login allows. Settings → Team.', btn: <Button onClick={() => s.go({ page: 'settings', tab: 'team' } as any)}>Open Team</Button> }
-      : { n: 3, title: 'Run it to the end', sub: 'Send it, mark it won, get it ready, book the crew, send daily updates, approve pay, bill it. Everything you do is saved.', btn: <Button variant="ghost" onClick={() => s.go({ page: 'settings', tab: 'testdata' } as any)}>See the sample instead</Button> },
-  ]
-  return (
-    <div className={cn('py-8', PX)}>
-      <div className="text-[1.125rem] font-bold text-ink">{REAL.cloud ? 'Nothing here yet' : 'A clean slate'}</div>
-      <div className="mt-1 max-w-2xl text-[0.875rem] text-muted">{REAL.cloud ? 'No projects, estimates or tasks yet — the first estimate starts it. Your team, items and settings are in.' : 'No projects, estimates or tasks yet — this is where your own test starts. Your team, logins and settings are here.'}</div>
-      <div className="mt-6 grid grid-cols-3 gap-4 max-lg:grid-cols-1">
-        {steps.map((x) => (
-          <div key={x.n} className="flex flex-col rounded-2xl border border-line p-5">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-[0.875rem] font-bold text-brand-700">{x.n}</span>
-            <div className="mt-3 text-[0.9375rem] font-semibold text-ink">{x.title}</div>
-            <div className="mt-1 flex-1 text-[0.84375rem] leading-snug text-muted">{x.sub}</div>
-            <div className="mt-4">{x.btn}</div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

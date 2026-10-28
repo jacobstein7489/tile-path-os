@@ -160,7 +160,9 @@ export const ACCESS_PAGES: { key: string; label: string; group: string }[] = [
   { key: 'suppliers', label: 'Suppliers', group: 'People' },
 ]
 /** the people who sign in — the admin adds them, names them and picks their login */
-export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string; /** installers: what they do and where they work */ trade?: string; region?: string; /** the day the admin sent them the invite */ invited?: string }
+/** another way to reach someone — a cell besides the office line, a billing email — with what it's for */
+export interface Reach { kind: 'phone' | 'email'; value: string; label?: string }
+export interface Member { key: PersonKey; first: string; last?: string; email?: string; phone?: string; /** more phones and emails */ more?: Reach[]; role: Role; status: 'active' | 'invited' | 'off'; /** GC · Client logins: whose projects they see */ clientId?: string; /** the real app: the sign-in this person uses */ uid?: string; /** installers: what they do and where they work */ trade?: string; region?: string; /** the day the admin sent them the invite */ invited?: string }
 export const TEAM0: Member[] = [
   { key: 'ys', first: 'Yaakov', last: 'Stein', role: 'owner', status: 'active' },
   { key: 'yakov', first: 'Yakov', role: 'site', status: 'active' },
@@ -181,8 +183,10 @@ const CREW_COLORS: { bg: string; bar: string; text: string; av: [string, string]
   { bg: '#FFF4E5', bar: '#C77C12', text: '#734504', av: ['bg-[#fbe9cc]', 'text-[#734504]'] },
   { bg: '#EEF0FB', bar: '#5B63C9', text: '#2F3584', av: ['bg-[#e2e4f8]', 'text-[#2f3584]'] },
 ]
-export const crewInfo: Record<string, { trade: string; region?: string; phone?: string; email?: string }> = {}
+export const crewInfo: Record<string, { trade: string; region?: string; phone?: string; email?: string; more?: Reach[] }> = {}
 function applyCrews(team: Member[]) {
+  /* a standing crew whose details were changed on the Installers page: his phone, email, trade and area */
+  team.filter((m) => m.role === 'crew' && BASE_CREWS.includes(m.key)).forEach((m) => { crewInfo[m.key] = { trade: m.trade || 'Tile installation', region: m.region, phone: m.phone, email: m.email, more: m.more } })
   const added = team.filter((m) => m.role === 'crew' && m.status !== 'off' && !BASE_CREWS.includes(m.key))
   const keep = new Set([...BASE_CREWS, ...added.map((m) => m.key)])
   for (let i = CREWS.length - 1; i >= 0; i--) if (!keep.has(CREWS[i])) CREWS.splice(i, 1)
@@ -190,7 +194,7 @@ function applyCrews(team: Member[]) {
     if (!CREWS.includes(m.key)) CREWS.push(m.key)
     const c = CREW_COLORS[i % CREW_COLORS.length]
     if (!CREW_BLOCK[m.key]) CREW_BLOCK[m.key] = { bg: c.bg, bar: c.bar, text: c.text }
-    crewInfo[m.key] = { trade: m.trade || 'Tile installation', region: m.region, phone: m.phone, email: m.email }
+    crewInfo[m.key] = { trade: m.trade || 'Tile installation', region: m.region, phone: m.phone, email: m.email, more: m.more }
     const p = PEOPLE[m.key]
     if (p) { p.crew = true; p.roleLabel = 'Installer'; p.bg = c.av[0]; p.fg = c.av[1] }
   })
@@ -268,7 +272,9 @@ export interface Customer {
   phone: string
   email: string
   notes: string
-  contacts: { name: string; role: string; phone: string; email: string }[]
+  contacts: { name: string; role: string; phone: string; email: string; more?: Reach[] }[]
+  /** more phones and emails for the client — the office line, a cell, billing */
+  more?: Reach[]
   city?: string
   zip?: string
   country?: string

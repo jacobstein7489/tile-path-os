@@ -9,6 +9,8 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { FormHead, FormRow } from './formkit'
+import { MoreReach, cleanReach, reachOk } from './reach'
+import type { Reach } from '@/tileos/data/model'
 
 export function NewClientModal({ level, id: editId }: { level: number; id?: string }) {
   const s = useStore()
@@ -25,10 +27,11 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
   const [zip, setZip] = React.useState(was?.zip || '')
   const [country, setCountry] = React.useState(was?.country || 'United States')
   const [comment, setComment] = React.useState(was?.notes || '')
+  const [more, setMore] = React.useState<Reach[]>(() => was?.more ? was.more.map((r) => ({ ...r })) : [])
   const [card, setCard] = React.useState(!was)
   const person = [first.trim(), last.trim()].filter(Boolean).join(' ')
   const name = kind === 'company' ? company.trim() : person
-  const ok = editId ? !!name : !!name && !!first.trim() && /\S+@\S+\.\S+/.test(email)
+  const ok = (editId ? !!name : !!name && !!first.trim() && /\S+@\S+\.\S+/.test(email)) && reachOk(more)
   /* changing a client that's there: the details change everywhere it shows (its projects too) */
   const update = () => {
     if (!editId) return
@@ -41,6 +44,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       c.phone = phone.trim()
       c.email = email.trim()
       c.notes = comment.trim()
+      c.more = cleanReach(more)
       c.city = city.trim() || undefined
       c.zip = zip.trim() || undefined
       c.country = country
@@ -57,7 +61,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
     const id = 'c' + Date.now().toString(36)
     const client = {
       id, name, kind: kind === 'company' ? 'General contractor' : 'Homeowner', address: [street.trim(), city.trim(), zip.trim()].filter(Boolean).join(', '),
-      phone: phone.trim(), email: email.trim(), notes: comment.trim(), city: city.trim() || undefined, zip: zip.trim() || undefined, country,
+      phone: phone.trim(), email: email.trim(), more: cleanReach(more), notes: comment.trim(), city: city.trim() || undefined, zip: zip.trim() || undefined, country,
       contacts: [{ name: person, role: kind === 'company' ? 'Main contact' : 'Owner', phone: phone.trim(), email: email.trim() }],
       card: card ? { status: 'link-sent', sent: NOW } : undefined,
     }
@@ -96,6 +100,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
           <TextInput type="email" aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email — name@company.com" />
           <TextInput aria-label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone — (718) 555-0100" />
         </div>
+        <MoreReach className="mt-2" value={more} onChange={setMore} />
       </FormRow>
       <FormRow label="Address">
         <div className="grid grid-cols-[2fr_1.2fr_0.8fr_1.2fr] gap-2 max-md:grid-cols-2 max-sm:grid-cols-1">

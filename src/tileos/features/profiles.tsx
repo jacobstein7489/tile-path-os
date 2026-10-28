@@ -2,7 +2,7 @@
  * what's open with them right now, then everything we've ever done together, a tab at a time. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { Phone, Mail, MapPin, ChevronRight, CalendarDays, FileText, Building2, HardHat, Hourglass, Check, ShieldCheck, Truck, Package, Receipt, Footprints, Pencil, Trash2 } from 'lucide-react'
+import { Phone, Mail, MapPin, ChevronRight, CalendarDays, FileText, Building2, HardHat, Hourglass, Check, ShieldCheck, Truck, Package, Receipt, Footprints, Pencil, Trash2, UserPlus } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, type Store } from '@/tileos/store'
 import { Avatar, Button, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -19,6 +19,7 @@ import { jobMoney } from './job/money-tab'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, THIS_WEEK, PAY_STATE, PAID_EARLIER, payRow } from './pay'
 import { TODAY } from '@/tileos/lib/today'
+import { reachLines, ReachRows } from './reach'
 
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
 const shortDate = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -203,7 +204,7 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
       kind={`Client · ${c.kind}`}
       name={c.name}
       onEdit={() => s.open({ t: 'newclient', id })}
-      lines={[{ icon: <Phone />, text: c.phone, href: `tel:${c.phone}` }, { icon: <Mail />, text: c.email, href: `mailto:${c.email}` }, { icon: <MapPin />, text: c.address }]}
+      lines={[...(c.phone ? [{ icon: <Phone />, text: c.phone, href: `tel:${c.phone}` }] : []), ...(c.email ? [{ icon: <Mail />, text: c.email, href: `mailto:${c.email}` }] : []), ...reachLines(c.more), ...(c.address ? [{ icon: <MapPin />, text: c.address }] : [])]}
       kpis={[
         { label: 'Open projects', value: live.length, sub: `${won.length} won with us`, tab: 'projects' },
         { label: 'Estimates with them', value: out.length ? fmtMoney(out.reduce((n, e) => n + estAmount(e), 0)) : '—', sub: `${out.length} waiting · ${working.length} in the works`, tab: 'estimates' },
@@ -226,11 +227,11 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
             {!out.length && !working.length && !openMoney.length && !live.length && <div className="py-6 text-[0.875rem] text-muted">Nothing open with them right now.</div>}
           </Section>
           <div className="flex flex-col gap-6">
-            <Section title="Who we deal with">
-              {c.contacts.slice(0, 3).map((p) => (
-                <div key={p.name} className="border-b border-line-2 py-2 last:border-0">
-                  <div className="text-[0.875rem] font-medium text-ink">{p.name}</div>
-                  <div className="text-[0.78125rem] text-muted">{p.role} · {p.phone}</div>
+            <Section title="Who we deal with" right={<button onClick={() => setTab('people')} className="text-[0.78125rem] font-semibold text-brand-700 hover:underline">All {c.contacts.length}</button>}>
+              {c.contacts.slice(0, 3).map((p, i) => (
+                <div key={i} className="border-b border-line-2 py-2 last:border-0">
+                  <div className="text-[0.875rem] font-medium text-ink">{p.name || p.role}</div>
+                  <div className="text-[0.78125rem] text-muted">{[p.name ? p.role : '', p.phone || p.email, (p.more || []).length ? `+${(p.more || []).length} more` : ''].filter(Boolean).join(' · ')}</div>
                 </div>
               ))}
             </Section>
@@ -275,17 +276,18 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
         </div>
       )}
       {tab === 'people' && (
-        <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
-          {c.contacts.map((p) => (
-            <div key={p.name} className="rounded-xl border border-line p-4">
-              <div className="text-[0.9375rem] font-semibold text-ink">{p.name}</div>
-              <div className="text-[0.8125rem] text-muted">{p.role}</div>
-              <div className="mt-2 flex flex-col gap-1 text-[0.84375rem] text-ink-2">
-                <a href={`tel:${p.phone}`} className="inline-flex items-center gap-2 hover:text-brand-700"><Phone className="h-4 w-4 text-faint" />{p.phone}</a>
-                <a href={`mailto:${p.email}`} className="inline-flex items-center gap-2 hover:text-brand-700"><Mail className="h-4 w-4 text-faint" />{p.email}</a>
-              </div>
+        <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1" data-client-people>
+          {c.contacts.map((p, i) => (
+            <div key={i} className="group relative rounded-xl border border-line p-4" data-contact={i}>
+              <div className="pr-10 text-[0.9375rem] font-semibold text-ink">{p.name || p.role}</div>
+              <div className="text-[0.8125rem] text-muted">{p.name ? p.role : ''}{i === 0 ? `${p.name ? ' · ' : ''}Main contact` : ''}</div>
+              <ReachRows className="mt-2" phone={p.phone} email={p.email} more={p.more} />
+              <button onClick={() => s.open({ t: 'contact', clientId: id, index: i })} aria-label={`Change ${p.name || p.role}`} className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><Pencil className="h-4 w-4" /></button>
             </div>
           ))}
+          <button onClick={() => s.open({ t: 'contact', clientId: id })} data-add-contact className="flex min-h-[7rem] items-center justify-center gap-2 rounded-xl border border-dashed border-line text-[0.875rem] font-semibold text-ink-2 transition hover:border-[#d1cbc0] hover:bg-wash hover:text-ink">
+            <UserPlus className="h-4 w-4" />Add a person
+          </button>
         </div>
       )}
     </Profile>
@@ -317,7 +319,8 @@ export function DesignerProfile({ id, level }: { id: string; level: number }) {
       lead={<Initials name={d.name} color="#6938ef" />}
       kind={d.contact && d.contact !== 'Designer' ? `Designer · ${d.contact}` : 'Designer'}
       name={d.name}
-      lines={[{ icon: <Phone />, text: d.phone, href: `tel:${d.phone}` }, { icon: <Mail />, text: d.email, href: `mailto:${d.email}` }, { icon: <Building2 />, text: d.clients.map((c) => CUSTOMERS[c]?.name).join(' · ') }]}
+      onEdit={() => s.open({ t: 'designerform', id: d.id })}
+      lines={[...(d.phone ? [{ icon: <Phone />, text: d.phone, href: `tel:${d.phone}` }] : []), ...(d.email ? [{ icon: <Mail />, text: d.email, href: `mailto:${d.email}` }] : []), ...reachLines(d.more), ...(d.clients.length ? [{ icon: <Building2 />, text: d.clients.map((c) => CUSTOMERS[c]?.name).filter(Boolean).join(' · ') }] : [])]}
       kpis={[
         { label: 'Projects', value: won.length, sub: `${won.filter((j) => j.stage !== 'complete').length} open`, tab: 'projects' },
         { label: 'Waiting on them', value: waits.length || '—', sub: waits.length ? 'answers and selections' : 'Nothing open', tone: waits.length ? 'warn' : undefined, tab: 'overview' },
@@ -381,6 +384,8 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
   const s = useStore()
   const [tab, setTab] = React.useState('overview')
   const info = allSubs().find((x) => x.crew === id)
+  /* his phone, email and the rest — kept on the team list */
+  const mem = s.team.find((m) => m.key === id)
   if (!info) return null
   const bks = s.bookings.filter((b) => b.crew === id).sort((a, b) => a.start.localeCompare(b.start))
   const now = bks.find((b) => b.start <= TODAY && b.end >= TODAY)
@@ -401,7 +406,8 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
       lead={<Avatar who={id} size={56} />}
       kind={`Installer · ${info.trade}${info.region ? ` · ${info.region}` : ''}`}
       name={PEOPLE[id].name}
-      lines={[{ icon: <HardHat />, text: now ? `On ${s.jobs[now.jobId]?.name} · ${now.workers || 2} people` : 'Not on a job' }, { icon: <CalendarDays />, text: free ? (free.iso === TODAY ? 'Free now' : `Free from ${shortDate(free.iso)}`) : '' }].filter((l) => l.text)}
+      onEdit={['owner', 'pm', 'office'].includes(s.role) ? () => s.open({ t: 'installerform', id }) : undefined}
+      lines={[...(mem?.phone ? [{ icon: <Phone />, text: mem.phone, href: `tel:${mem.phone}` }] : []), ...(mem?.email ? [{ icon: <Mail />, text: mem.email, href: `mailto:${mem.email}` }] : []), ...reachLines(mem?.more), { icon: <HardHat />, text: now ? `On ${s.jobs[now.jobId]?.name} · ${now.workers || 2} people` : 'Not on a job' }, { icon: <CalendarDays />, text: free ? (free.iso === TODAY ? 'Free now' : `Free from ${shortDate(free.iso)}`) : '' }].filter((l) => l.text)}
       kpis={[
         { label: 'Working now', value: now ? s.jobs[now.jobId]?.name : 'Free', sub: now ? `${now.label} · till ${shortDate(now.end)}` : free?.iso === TODAY ? 'Ready for a job' : '', tab: 'schedule' },
         { label: 'Last week’s pay', value: last ? fmtMoney(last.calc.total) : '—', sub: last ? PAY_STATE[last.state].label : 'No work last week', tone: last?.state === 'check' ? 'bad' : undefined, tab: 'pay' },
@@ -530,7 +536,7 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
       lead={<Initials name={info.name} color="#0e9384" />}
       kind="Supplier"
       name={info.name}
-      lines={[{ icon: <Truck />, text: info.supplies || 'What we buy — not set' }, ...(info.contact || info.phone ? [{ icon: <Phone />, text: [info.contact, info.phone].filter(Boolean).join(' · '), href: info.phone ? `tel:${info.phone}` : undefined }] : []), ...(info.email ? [{ icon: <Mail />, text: info.email, href: `mailto:${info.email}` }] : [])]}
+      lines={[{ icon: <Truck />, text: info.supplies || 'What we buy — not set' }, ...(info.contact || info.phone ? [{ icon: <Phone />, text: [info.contact, info.phone].filter(Boolean).join(' · '), href: info.phone ? `tel:${info.phone}` : undefined }] : []), ...(info.email ? [{ icon: <Mail />, text: info.email, href: `mailto:${info.email}` }] : []), ...reachLines(info.more)]}
       footer={<Button className="ml-auto" icon={<Pencil />} onClick={() => s.open({ t: 'supplierform', name: info.name })}>Edit the supplier</Button>}
       kpis={pos.length ? [
         { label: 'Open POs', value: open.length || '—', sub: open.length ? fmtMoney(open.reduce((n, p) => n + p.amount, 0)) : 'Nothing on order', tab: 'pos' },
