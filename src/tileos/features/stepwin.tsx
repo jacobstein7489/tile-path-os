@@ -5,7 +5,7 @@
  * Back / Next walk through that part's steps. */
 import * as React from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
-import { useStore, meOf, type Store } from '@/tileos/store'
+import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
 import { Status, Path, Circles } from '@/tileos/components/ui/page'
@@ -20,7 +20,7 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
-import { insidePeople, StepIcon } from './steps-ui'
+import { insidePeople, StepIcon, TrackDot, DOT_LABEL } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
 import { confirmSetting } from './setting'
@@ -117,7 +117,7 @@ export const todoOf = (v: StepView) =>
     : v.key === 'qty' && v.state === 'bad' ? 'Send the revised quantities'
       : v.key === 'confirmed' && v.state !== 'later' && v.due && v.due <= TODAY ? 'Did the installer say yes?'
         : v.state === 'now' && v.due && v.due <= TODAY && /^Asked /.test(v.note || '') ? `Follow up · ${v.short.toLowerCase()}`
-          : TODO[v.key] || v.label
+          : v.named ? v.label : TODO[v.key] || v.label
 
 export function openStep(jobId: string, k: string) { useStore.getState().open({ t: 'step', jobId, k }) }
 
@@ -136,6 +136,70 @@ function dueWords(v: StepView): { text: string; late: boolean } | null {
   const d = labelFromIso(v.due)
   if (v.due < TODAY) return { text: `was due ${d}`, late: true }
   return { text: v.due === TODAY ? 'due today' : d === 'Tomorrow' ? 'due tomorrow' : `due ${d}`, late: false }
+}
+
+/** someone else's step: remind them — it pops up on their screen (and when it's late, it counts as checking in) */
+export function remindStep(job: Job, v: StepView) {
+  const st = useStore.getState()
+  const me = meOf(st.role)
+  st.commit((x) => {
+    const r = ((x.stepRecs[job.id] ||= {})[v.key] ||= {}) as any
+    r.nudge = { by: me, at: Date.now().toString(36), day: TODAY }
+    if (v.due && v.due < TODAY) r.checkIn = { by: me, day: TODAY }
+    addHist(x, job.id, { who: me, kind: 'setup', title: `${v.short}: reminded ${PEOPLE[v.owner]?.short || ''}` })
+  }, `Reminder sent to ${PEOPLE[v.owner]?.short || 'them'}`, { sub: 'It pops up on their screen, and it’s on their Today.', undo: false })
+}
+
+/** a step on its track's list, in one line: done when and by whom · whose turn and when · what it waits for */
+function stepLine(v: StepView, me: PersonKey): { text: string; tone: string } {
+  const who = (p?: PersonKey) => (!p ? '' : p === me ? 'You' : PEOPLE[p]?.short || '')
+  const due = dueWords(v)
+  switch (v.state) {
+    case 'done': return { text: `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${who(v.doneBy)}` : ''}`, tone: 'text-muted' }
+    case 'na': return { text: 'Not needed on this project', tone: 'text-faint' }
+    case 'later': return { text: `${who(v.owner)} · after ${v.waitsFor ? v.waitsFor.charAt(0).toLowerCase() + v.waitsFor.slice(1) : 'the step before'}`, tone: 'text-muted' }
+    case 'wait': return { text: `${who(v.owner)} · waiting${due ? ` · ${due.text}` : ''}`, tone: 'text-warn-700' }
+    case 'bad': return { text: `A problem · ${who(v.owner)}`, tone: 'font-semibold text-bad-600' }
+    default: return { text: `${v.owner === me ? 'Your turn' : `${who(v.owner)}’s turn`}${due ? ` · ${due.text}` : ''}`, tone: due?.late ? 'font-semibold text-bad-600' : v.owner === me ? 'font-semibold text-brand-700' : 'text-ink-2' }
+  }
+}
+
+/** a track's steps, top to bottom, like a checklist: each one a line (done when, whose turn, what it waits for); the
+ *  one that's open shows what's happening and its work right under it. Tap another to open it. */
+export function TrackSteps({ job, list, at, onPick, onGo, onClose, roomy }: { job: Job; list: StepView[]; at: string; onPick: (k: string) => void; onGo?: (k: string) => void; onClose?: () => void; roomy?: boolean }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const host = React.useMemo(() => ({ close: () => onClose?.() }), [onClose])
+  return (
+    <ol data-track-steps className="flex flex-col">
+      {list.map((x, i) => {
+        const on = x.key === at
+        const mine = x.owner === me && (x.state === 'now' || x.state === 'bad')
+        const line = stepLine(x, me)
+        return (
+          <li key={x.key} data-track-step={x.key} data-state={x.state} data-on={on || undefined} className={cn('border-b border-line-2 last:border-b-0', on ? 'bg-white' : 'bg-white')}>
+            <button type="button" onClick={() => onPick(x.key)} aria-expanded={on} title={TITLE[x.key] || x.label} className={cn('group flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition max-sm:px-3', on ? 'bg-[#faf8f5]' : 'hover:bg-[#fbfaf7]')}>
+              <span className="inline-flex w-5 shrink-0 justify-center"><TrackDot state={x.state} mine={mine} lead={on && mine} /></span>
+              <span className="min-w-0 flex-1">
+                <span className={cn('block truncate text-[0.90625rem] leading-snug', on ? 'font-bold text-ink' : cn('font-semibold', DOT_LABEL[x.state]), mine && !on && 'text-brand-700')}>
+                  <span className="mr-1.5 text-[0.75rem] font-semibold tnum text-faint">{i + 1}</span>{stepShort(s, job, x)}
+                </span>
+                {on
+                  ? (() => { const long = x.named ? x.label : TITLE[x.key] || x.label; return long.toLowerCase() !== stepShort(s, job, x).toLowerCase() && <span className="block truncate text-[0.78125rem] text-muted">{long}</span> })()
+                  : <span className={cn('block truncate text-[0.78125rem]', line.tone)} data-step-line>{line.text}</span>}
+              </span>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', on && 'rotate-180')} />
+            </button>
+            {on && (
+              <div className="px-4 pb-4 pl-12 max-sm:px-3" data-step-open={x.key}>
+                <StepHost.Provider value={host}><StepPanel job={job} v={x} roomy={roomy} goTo={onGo} /></StepHost.Provider>
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
 }
 
 /* ================= the window ================= */
@@ -195,7 +259,7 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
           </div>
           {sub && <div className="mt-0.5 text-[0.84375rem] leading-snug text-ink-2">{sub}</div>}
         </div>
-        {admin && !mine && open && v.state !== 'later' && <Button size="sm" className="shrink-0" onClick={() => setStepOwner(job.id, take, me)}>Take it over</Button>}
+        {!mine && open && v.state !== 'later' && <span className="flex shrink-0 items-center gap-1.5"><Button size="sm" onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>{admin && <Button size="sm" onClick={() => setStepOwner(job.id, take, me)}>Take it over</Button>}</span>}
         {/* not yet: straight to the step it waits for — nothing ends here */}
         {v.state === 'later' && v.waitsKey && goTo && <Button size="sm" className="shrink-0" iconRight={<ChevronRight />} onClick={() => goTo(v.waitsKey!)} data-go-waits={v.waitsKey}><span className="max-w-[13rem] truncate">Go to {v.waitsFor || 'the step before'}</span></Button>}
       </div>
@@ -220,14 +284,13 @@ function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boo
   return (
     <>
       <StepStatus job={job} v={v} me={me} mine={mine} admin={admin} onSite={onSite} take={take} goTo={goTo} />
-      {locked ? null : viewOnly && open ? (
-        <div className={gap} data-theirs>
-          <div className="mb-2 text-[0.75rem] font-semibold text-muted">What {name} does here</div>
-          <fieldset disabled className="m-0 min-w-0 border-0 p-0 opacity-70"><Body job={job} v={v} /></fieldset>
-        </div>
-      ) : (
-        <fieldset disabled={viewOnly} className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
-      )}
+      {/* the work is its person's: someone else's step says what's happening, and what happened — no greyed-out form to
+          scroll. A problem is the exception: everyone sees what's wrong (each problem opens; the buttons stay theirs). */}
+      {mine && !locked ? (
+        <fieldset className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
+      ) : v.state === 'bad' ? (
+        <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', gap)} data-problem-view><Body job={job} v={v} /></fieldset>
+      ) : null}
       {hist.length > 0 && (
         <div className={cn('border-t border-line-2 pt-3', gap)} data-step-history>
           <div className="mb-1 text-[0.75rem] font-semibold text-muted">What happened</div>
@@ -263,14 +326,11 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   /* only this track's steps (the deposit, on none, keeps its own part) */
   const tk = at ? trackOf(at) : null
   const list = at ? all.filter((x) => (tk ? trackOf(x) === tk : x.phase === at.phase) && (x.state !== 'na' || x.key === k)) : []
-  const i = list.findIndex((x) => x.key === k)
-  const v = list[i]
+  const v = list.find((x) => x.key === k)
   if (!job || !v) return null
-  const me = meOf(s.role)
   const go = (x?: StepView) => { if (x) s.swap({ t: 'step', jobId, k: x.key }) }
   const c = stepCounts(list)
   const part = (tk && TRACKS.find((t) => t.key === tk)?.label) || PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
-  const viewer = ['site', 'accounting', 'crew', 'client'].includes(s.role)
   return (
     <Modal
       level={level}
@@ -280,43 +340,11 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
       title={part}
       sub={`${job.name} · ${c.done === c.total ? 'all done' : `${c.done} of ${c.total} done`}${c.bad ? ` · ${c.bad} with a problem` : ''}`}
       bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
-      footer={<Foot job={job} v={v} prev={list[i - 1]} next={list[i + 1]} go={go} viewer={viewer} />}
     >
-      {list.length > 1 && <StepTabs list={list} at={v.key} go={go} me={me} job={job} />}
-      <div key={v.key} className="scroll-soft min-h-0 flex-1 overflow-y-auto px-7 py-5 max-md:px-5 max-sm:px-4 max-sm:py-4">
-        {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
-        <h3 className="font-display mt-0.5 mb-1 text-[1.3125rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{TITLE[v.key] || v.label}</h3>
-        <StepPanel job={job} v={v} roomy goTo={(k) => s.swap({ t: 'step', jobId, k })} />
+      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-step-view={v.key}>
+        <TrackSteps job={job} list={list} at={v.key} onPick={(k) => go(list.find((x) => x.key === k))} onGo={(k) => s.swap({ t: 'step', jobId, k })} onClose={s.close} roomy />
       </div>
     </Modal>
-  )
-}
-
-/** this track's steps across the top — the same path as an estimate, numbered 1, 2, 3: a check once a step is done,
- *  blue where it's your turn, a dark ring where it's someone else's, red for a problem, amber waiting. The step that's
- *  open is underlined. */
-export function StepTabs({ list, at, go, me, job }: { list: StepView[]; at: string; go: (x?: StepView) => void; me: PersonKey; job?: Job }) {
-  const s = useStore()
-  return (
-    <nav aria-label="Steps" className="shrink-0 border-b border-line bg-[#faf8f5] px-4 pb-1 pt-3 max-sm:px-1">
-      <Circles
-        at={at}
-        size={30}
-        onPick={(k) => go(list.find((x) => x.key === k))}
-        groups={[{
-          key: 'steps',
-          steps: list.map((x, i) => ({
-            key: x.key,
-            label: softWrap(job ? stepShort(s, job, x) : x.short),
-            state: x.state === 'done' || x.state === 'na' ? 'done' as const : x.state === 'bad' ? 'bad' as const : x.state === 'now' ? (x.owner === me ? 'now' as const : 'todo' as const) : x.state === 'wait' ? 'wait' as const : 'later' as const,
-            /* the same words as under the step on the project: whose it is, or the day it was done */
-            sub: x.state === 'done' ? x.doneOn || 'Done' : x.state === 'na' ? 'Not needed' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'Problem' : x.owner === me ? 'You' : PEOPLE[x.owner]?.short,
-            center: String(i + 1),
-            attrs: { 'data-tab': x.key },
-          })),
-        }]}
-      />
-    </nav>
   )
 }
 
@@ -351,19 +379,8 @@ function StepMore({ job, v }: { job: Job; v: StepView }) {
         </>
       )}
       <MenuSep />
-      <MenuItem icon={<Users className="h-4 w-4" />} hint="Who has each step, on every project" onSelect={() => s.open({ t: 'whowhat' })}>Who does what</MenuItem>
+      <MenuItem icon={<Users className="h-4 w-4" />} hint="Who has each step, on every project" onSelect={() => { s.closeAll(); s.go({ page: 'settings', tab: 'checklist' }) }}>Who does what</MenuItem>
     </Menu>
-  )
-}
-
-function Foot({ job, v, prev, next, go, viewer }: { job: Job; v: StepView; prev?: StepView; next?: StepView; go: (x?: StepView) => void; viewer?: boolean }) {
-  const s = useStore()
-  return (
-    <>
-      <span className="ml-auto" />
-      {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => go(prev)}>Back</Button>}
-      {next ? <Button iconRight={<ChevronRight />} onClick={() => go(next)}><span className="max-w-[12rem] truncate">Next: {stepShort(s, job, next)}</span></Button> : <Button onClick={s.close}>Close</Button>}
-    </>
   )
 }
 

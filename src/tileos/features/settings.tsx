@@ -1,8 +1,8 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, Send, Copy, Link2 } from 'lucide-react'
+import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X , ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
-import { useStore, signInAs } from '@/tileos/store'
+import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { DEPOSIT_WAY, type DepositWay } from './progressbill'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -12,7 +12,8 @@ import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, LOGIN_TYPES, type Role, type Person
 import { MAT_RULES0, MAT_RULE_ROWS } from '@/tileos/data/takeoff'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { addMember, updateMember, setAccess, resetAccess, removeMember } from './team'
-import { companySteps, addCompanyStep, removeCompanyStep, setCompanyStepOwner, BUILT_IN } from './steps'
+import { companySteps, addCompanyStep, removeCompanyStep, setCompanyStepOwner, setCompanyStepOff, renameCompanyStep, BUILT_IN, type StepDef } from './steps'
+import { TRACKS, STEP_SHORT } from './tracks'
 import { insidePeople } from './steps-ui'
 import { STATUS_BOOK } from './statuses'
 import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, removeCompanyArea, setCompanyAreaSurfaces, addCompanySurface, removeCompanySurface } from './estflow'
@@ -23,14 +24,14 @@ import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson, appUrl } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 
-type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'practice' | 'testdata'
+type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'testdata' | 'startover'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
 /* one thing at a time: a list of the parts on the left (on a phone, across the top), the part you picked on the right */
-type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'practice'
-const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', practice: 'practice', testdata: 'practice' }
+type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'startover'
+const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', practice: 'practice', testdata: 'practice', startover: 'startover' }
 const SECTIONS: { group: string; items: { key: Section; label: string; sub: string; icon: React.ElementType }[] }[] = [
   { group: 'People', items: [
     { key: 'team', label: 'Team', sub: 'Who signs in — invite, change, remove', icon: Users },
@@ -45,13 +46,17 @@ const SECTIONS: { group: string; items: { key: Section; label: string; sub: stri
     { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste, check-ins', icon: ShieldCheck },
     { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', icon: Calculator },
     { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', icon: Plug },
-    { key: 'practice', label: 'Practice project', sub: 'A project to learn on · start over', icon: RotateCcw },
+    { key: 'email', label: 'Email', sub: 'Who sends what · always copied', icon: Mail },
+    { key: 'practice', label: 'Practice project', sub: 'A project to learn on', icon: RotateCcw },
+    { key: 'startover', label: 'Start over', sub: 'Clear every project, estimate and task', icon: Trash2 },
   ] },
 ]
 
 export function SettingsPage() {
   const s = useStore()
   const [tab, setTab] = React.useState<Section>(() => SECTION_OF[(s.route.tab as Tab) || 'team'] || 'team')
+  /* a link to one part of Settings (Who does what, from a step's ···) opens it even when Settings is already open */
+  React.useEffect(() => { const t = SECTION_OF[s.route.tab as Tab]; if (t) setTab(t) }, [s.route.tab])
   const cur = SECTIONS.flatMap((g) => g.items).find((x) => x.key === tab)!
   return (
     <Page title="Settings" sub="The team, how the work flows, and the company’s rules — one part at a time." bare>
@@ -88,7 +93,9 @@ export function SettingsPage() {
           {tab === 'rules' && <RulesTab />}
           {tab === 'numbers' && <NumbersTab />}
           {tab === 'connections' && <ConnectionsTab />}
-          {tab === 'practice' && <div className="flex flex-col gap-6"><PracticeTab />{REAL.cloud && REAL.admin && <StartOverCard />}{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+          {tab === 'email' && <EmailTab />}
+          {tab === 'practice' && <div className="flex flex-col gap-6"><PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+          {tab === 'startover' && <StartOverCard />}
         </div>
       </div>
     </Page>
@@ -460,51 +467,98 @@ export function AddPersonModal({ level }: { level: number }) {
   )
 }
 
-/* ================= the getting-ready checklist: the steps every project goes through ================= */
+/* ================= who does what: the steps every project goes through, by part ================= */
+/* The same parts as on a project — Design, Tile, Site, Installer, Materials — each with its steps in order. Every step
+ * is someone's: pick who. Rename one (the new name shows everywhere), turn one off (it's off every project), or add your
+ * own under the part it belongs to. One place for all of it. */
+const PART_GROUP: Record<string, string> = { scope: 'design', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
 function ChecklistTab() {
   const s = useStore()
   const steps = companySteps(s)
-  const [label, setLabel] = React.useState('')
-  const [owner, setOwner] = React.useState<PersonKey>('yakov')
-  const [after, setAfter] = React.useState('rooms')
-  const ownerOf = (o: PersonKey | 'matBy') => (o === 'matBy' ? (s.rules.matBy || 'yakov') : o)
+  const parts = [...TRACKS.map((t) => ({ key: t.key as string, label: t.label, list: steps.filter((d) => t.steps.includes(d.key) || (d.group && (PART_GROUP[t.key] === d.group || d.group === t.key))) })),
+    { key: 'other', label: 'Your own', list: steps.filter((d) => !TRACKS.some((t) => t.steps.includes(d.key)) && !(d.group && Object.values(PART_GROUP).includes(d.group)) && d.key !== 'deposit') }]
+    .map((p) => ({ ...p, list: [...p.list].sort((a, b) => { const t = TRACKS.find((x) => x.key === p.key); return (t ? (t.steps.indexOf(a.key) + 1 || 99) - (t.steps.indexOf(b.key) + 1 || 99) : 0) }) }))
+    .filter((p) => p.key !== 'other' || p.list.length)
   return (
-    <div className="flex flex-col gap-4">
-    <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
-      <Card pad={false} className="overflow-hidden">
-        <CardHeader icon={<IconCircle tone="info" size={34}><ListChecks className="h-4 w-4" /></IconCircle>} title="Getting ready — every project" sub="The steps between the client’s yes and the crew’s first day, in order. Each one has an owner; when the steps before it are done, it lands on their Today." action={<Button size="sm" onClick={() => s.open({ t: 'whowhat' })}>Who does what</Button>} />
-        <div className="border-t border-line-2">
-          {steps.map((d, i) => (
-            <div key={d.key} className="grid grid-cols-[1.75rem_minmax(0,1fr)_12.5rem_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-0">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-wash-2 text-[0.71875rem] font-semibold tnum text-ink-2">{i + 1}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-[0.875rem] font-semibold text-ink">{d.label}{!BUILT_IN.has(d.key) && <span className="ml-2 align-[0.0625rem] text-[0.71875rem] font-medium text-brand-600">yours</span>}</span>
-                <span className="flex items-center gap-1 truncate text-[0.78125rem] text-muted">{d.after?.length ? <><CornerDownRight className="h-3 w-3" />After {d.after.map((k) => steps.find((x) => x.key === k)?.short.toLowerCase()).filter(Boolean).join(' and ')}</> : 'Starts the day it’s won'}{BUILT_IN.has(d.key) ? ' · checks itself off from what happens' : ' · its owner checks it off'}</span>
-              </span>
-              <Menu align="end" width={260} trigger={<button className="inline-flex h-9 min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash"><Avatar who={ownerOf(d.owner)} size={22} /><span className="truncate">{d.owner === 'matBy' ? 'Whoever orders materials' : PEOPLE[d.owner]?.name}</span></button>}>
-                <MenuLabel>Who has “{d.short}”</MenuLabel>
-                {d.key === 'materials' && <MenuItem checked={d.owner === 'matBy'} onSelect={() => setCompanyStepOwner(d.key, 'matBy')} hint="Company rules → who orders our materials">Whoever orders materials</MenuItem>}
-                {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={d.owner === p} hint={PEOPLE[p].roleLabel} onSelect={() => setCompanyStepOwner(d.key, p)}>{PEOPLE[p].name}</MenuItem>)}
-              </Menu>
-              {!BUILT_IN.has(d.key) ? <button aria-label={`Remove ${d.short}`} onClick={() => removeCompanyStep(d.key)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><Trash2 className="h-4 w-4" /></button> : <span />}
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card pad={false}>
-        <CardHeader title="Add a step" sub="It goes on every project that’s getting ready. For just one project, use Add a step inside the project." />
-        <form className="flex flex-col gap-3 border-t border-line-2 px-5 py-4" onSubmit={(e) => { e.preventDefault(); if (!label.trim()) return; addCompanyStep(label.trim(), owner, after); setLabel('') }}>
-          <Field label="What has to be checked"><TextInput value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Drain locations confirmed with the plumber" /></Field>
-          <Field label="Who does it">
-            <div className="flex flex-wrap gap-1.5">{insidePeople(s).map((p) => <Chip key={p} on={owner === p} onClick={() => setOwner(p)} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p].short}</Chip>)}</div>
-          </Field>
-          <Field label="It opens after">
-            <div className="flex flex-wrap gap-1.5">{steps.map((d) => <Chip key={d.key} on={after === d.key} onClick={() => setAfter(d.key)} className="h-8 px-2.5 text-[0.8125rem]">{d.short}</Chip>)}</div>
-          </Field>
-          <Button type="submit" variant="primary" icon={<Plus />} disabled={!label.trim()}>Add to the checklist</Button>
-        </form>
-      </Card>
+    <div className="flex flex-col gap-4" data-steps-settings>
+      <p className="max-w-[46rem] text-[0.84375rem] leading-snug text-muted">The steps between the client’s yes and the crew’s first day. Each one is someone’s — when the steps before it are done, it lands on their Today, by itself. Rename a step, turn one off, or add your own under its part.</p>
+      {parts.map((p) => <PartSteps key={p.key} part={p.key} label={p.label} list={p.list} all={steps} />)}
     </div>
+  )
+}
+
+function PartSteps({ part, label, list, all }: { part: string; label: string; list: StepDef[]; all: StepDef[] }) {
+  const s = useStore()
+  const [adding, setAdding] = React.useState(false)
+  const [name, setName] = React.useState('')
+  const [owner, setOwner] = React.useState<PersonKey>('yakov')
+  const on = list.filter((d) => !d.off).length
+  const add = () => { if (!name.trim()) return; const last = [...list].reverse().find((d) => !d.off) || list[list.length - 1]; addCompanyStep(name.trim(), owner, last?.key, PART_GROUP[part]); setName(''); setAdding(false) }
+  return (
+    <div data-steps-part={part}>
+    <Card pad={false} className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3 max-sm:px-4">
+        <h3 className="text-[0.96875rem] font-semibold text-ink">{label}</h3>
+        <span className="text-[0.8125rem] text-muted">{on} {on === 1 ? 'step' : 'steps'}</span>
+      </div>
+      {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} />)}
+      {part !== 'other' && (adding ? (
+        <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
+          <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen — e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
+          <OwnerPick value={owner} onChange={(p) => setOwner(p as PersonKey)} label={name || 'the new step'} />
+          <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>
+          <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
+        </form>
+      ) : (
+        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-[#fbfaf7] max-sm:px-4" data-add-step={part}><Plus className="h-4 w-4" />Add a step to {label}</button>
+      ))}
+    </Card>
+    </div>
+  )
+}
+
+/** who has a step — everyone inside with a login (materials can follow the company rule) */
+function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'matBy'; onChange: (p: PersonKey | 'matBy') => void; label: string; matRule?: boolean }) {
+  const s = useStore()
+  const who = value === 'matBy' ? (s.rules.matBy || 'yakov') : value
+  return (
+    <Menu align="end" width={260} trigger={<button type="button" className="inline-flex h-9 min-w-0 max-w-[13rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash"><Avatar who={who as PersonKey} size={22} /><span className="truncate">{value === 'matBy' ? 'Whoever orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+      <MenuLabel>Who has “{label}”</MenuLabel>
+      {matRule && <MenuItem checked={value === 'matBy'} onSelect={() => onChange('matBy')} hint="Company rules → who orders our materials">Whoever orders materials</MenuItem>}
+      {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={value === p} hint={PEOPLE[p].roleLabel} onSelect={() => onChange(p)}>{PEOPLE[p].name}</MenuItem>)}
+    </Menu>
+  )
+}
+
+/** one step: its number, its name (tap Rename to change it), after what it opens, who has it — and ··· */
+function StepSetting({ d, n, all }: { d: StepDef; n: number; all: StepDef[] }) {
+  const [editing, setEditing] = React.useState(false)
+  const [name, setName] = React.useState(d.short)
+  const shown = d.named ? d.short : STEP_SHORT[d.key] || d.short
+  const after = (d.after || []).map((k) => all.find((x) => x.key === k)).filter(Boolean).map((x) => (x!.named ? x!.short : STEP_SHORT[x!.key] || x!.short).toLowerCase())
+  const save = () => { if (name.trim() && name.trim() !== shown) renameCompanyStep(d.key, name.trim()); setEditing(false) }
+  return (
+    <div className={cn('grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_2.25rem] max-sm:px-4', d.off && 'bg-[#faf9f6]')} data-step-setting={d.key} data-off={d.off || undefined}>
+      <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.71875rem] font-semibold tnum', d.off ? 'bg-wash text-faint' : 'bg-wash-2 text-ink-2')}>{n}</span>
+      {editing ? (
+        <form className="flex min-w-0 items-center gap-2" onSubmit={(e) => { e.preventDefault(); save() }}>
+          <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { setName(shown); setEditing(false) } }} aria-label={`New name for ${shown}`} className="min-w-0 flex-1" />
+          <Button type="submit" size="sm" variant="primary" icon={<Check />}>Save</Button>
+        </form>
+      ) : (
+        <span className="min-w-0">
+          <span className={cn('block truncate text-[0.875rem] font-semibold', d.off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{shown}{d.off && <span className="ml-2 text-[0.71875rem] font-medium text-muted no-underline [text-decoration:none]">off</span>}</span>
+          <span className="flex items-center gap-1 truncate text-[0.78125rem] text-muted">{d.off ? 'Not on any project — turn it back on from ···' : after.length ? <><CornerDownRight className="h-3 w-3 shrink-0" />After {after.join(' and ')}</> : 'Starts the day it’s won'}</span>
+        </span>
+      )}
+      <span className="max-sm:col-start-2 max-sm:row-start-2">{!d.off && <OwnerPick value={d.owner} onChange={(p) => setCompanyStepOwner(d.key, p)} label={shown} matRule={d.key === 'materials'} />}</span>
+      <Menu align="end" width={240} trigger={<button aria-label={`More for ${shown}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-ink max-sm:col-start-3 max-sm:row-start-1"><MoreHorizontal className="h-4 w-4" /></button>}>
+        <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setName(shown); setEditing(true) }}>Rename</MenuItem>
+        {d.off
+          ? <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setCompanyStepOff(d.key, false)}>Turn back on</MenuItem>
+          : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project — the steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
+        {!BUILT_IN.has(d.key) && d.custom && !STEP_SHORT[d.key] && <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeCompanyStep(d.key)}>Remove</MenuItem>}
+      </Menu>
     </div>
   )
 }
@@ -770,6 +824,79 @@ function ConnectionsTab() {
   )
 }
 
+/* ================= email: who each kind of email comes from, and who's copied on every one ================= */
+const EMAIL_OK = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim())
+function setEmailRule(patch: NonNullable<Rules['email']>, msg?: string) {
+  useStore.getState().commit((st) => { st.rules.email = { ...(st.rules.email || {}), ...patch } }, msg || 'Saved')
+}
+function FromRow({ k, title, sub, placeholder }: { k: 'estimates' | 'invoices' | 'other'; title: string; sub: string; placeholder: string }) {
+  const s = useStore()
+  const saved = s.rules.email?.[k] || ''
+  const [v, setV] = React.useState(saved)
+  React.useEffect(() => setV(saved), [saved])
+  const bad = !!v.trim() && !EMAIL_OK(v)
+  const save = () => { const t = v.trim(); if (t === saved || bad) return; setEmailRule({ [k]: t || undefined }, t ? `${title} come from ${t}` : `${title}: back to the person who sends them`) }
+  return (
+    <Rule title={title} sub={sub}>
+      <span className="flex flex-col items-end gap-1">
+        <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder={placeholder} aria-label={`${title} come from`} className={cn('w-[19rem] max-md:w-full', bad && 'border-bad-300')} data-email-from={k} />
+        {bad && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
+      </span>
+    </Rule>
+  )
+}
+function EmailTab() {
+  const s = useStore()
+  const cc = s.rules.email?.cc || []
+  const [add, setAdd] = React.useState('')
+  const put = () => {
+    const list = add.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean)
+    if (!list.length || list.some((x) => !EMAIL_OK(x))) return
+    const next = Array.from(new Set([...cc, ...list].map((x) => x.toLowerCase())))
+    setEmailRule({ cc: next }, list.length === 1 ? `${list[0]} is copied on every email now` : `${list.length} copied on every email now`)
+    setAdd('')
+  }
+  const bad = !!add.trim() && add.split(/[,;\s]+/).filter(Boolean).some((x) => !EMAIL_OK(x))
+  return (
+    <div className="flex flex-col gap-4" data-email-settings>
+      <Card pad={false}>
+        <div className="border-b border-line-2 px-6 py-3.5 max-sm:px-4">
+          <div className="text-[0.96875rem] font-semibold text-ink">Who each email comes from</div>
+          <div className="text-[0.8125rem] text-muted">Replies go back to that address. Leave one empty and it comes from the person who sends it.</div>
+        </div>
+        <div className="divide-y divide-line-2">
+          <FromRow k="estimates" title="Estimates" sub="Estimates and revisions to the client" placeholder="estimating@cobblestonenj.com" />
+          <FromRow k="invoices" title="Invoices" sub="Invoices, progress bills, payment reminders" placeholder="accounting@cobblestonenj.com" />
+          <FromRow k="other" title="Everything else" sub="Purchase orders, tile orders, the installer’s PO" placeholder="office@cobblestonenj.com" />
+        </div>
+      </Card>
+      <Card pad={false}>
+        <div className="border-b border-line-2 px-6 py-3.5 max-sm:px-4">
+          <div className="text-[0.96875rem] font-semibold text-ink">Always copied</div>
+          <div className="text-[0.8125rem] text-muted">These addresses get a copy (Cc) of every email Tile OS sends — estimates, invoices, purchase orders.</div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 px-6 py-3.5 max-sm:px-4" data-email-cc>
+          {cc.map((e) => (
+            <span key={e} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-wash-2 pl-3 pr-1 text-[0.8125rem] font-medium text-ink-2" data-cc={e}>
+              <Mail className="h-3.5 w-3.5 text-faint" />{e}
+              <button aria-label={`Stop copying ${e}`} onClick={() => setEmailRule({ cc: cc.filter((x) => x !== e) }, `${e} isn’t copied any more`)} className="inline-flex h-6 w-6 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3.5 w-3.5" /></button>
+            </span>
+          ))}
+          {!cc.length && <span className="text-[0.8125rem] text-muted">Nobody yet.</span>}
+        </div>
+        <form className="flex flex-wrap items-center gap-2 border-t border-line-2 px-6 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); put() }}>
+          <TextInput value={add} onChange={(e) => setAdd(e.target.value)} placeholder="Add an address — or a few, with commas" aria-label="Add an address to copy" className={cn('min-w-[16rem] flex-1', bad && 'border-bad-300')} data-cc-add />
+          <Button type="submit" icon={<Plus />} disabled={!add.trim() || bad}>Add</Button>
+        </form>
+      </Card>
+      <Card>
+        <div className="text-[0.90625rem] font-semibold text-ink">Today, QuickBooks sends the estimates and invoices</div>
+        <p className="mt-1 text-[0.84375rem] leading-snug text-muted">Until QuickBooks and your Google email are connected (Settings → Connections), set the same copy in QuickBooks: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages → “Copy (Cc) new invoices to address”</b>. QuickBooks sends everything from one company email — once Tile OS sends them, each kind comes from its own address above.</p>
+      </Card>
+    </div>
+  )
+}
+
 function Rule({ title, sub, children, stack }: { title: string; sub: string; children: React.ReactNode; stack?: boolean }) {
   if (stack)
     return (
@@ -806,6 +933,8 @@ function DecStepper({ value, step, min, max, onChange }: { value: number; step: 
 function StartOverCard() {
   const s = useStore()
   const n = Object.keys(s.jobs).length + s.estimates.length + Object.keys(s.clients).length
+  const admin = REAL.cloud ? !!REAL.admin : s.role === 'owner'
+  if (!admin) return <Card><div className="text-[0.875rem] text-muted">Only the admin can start over.</div></Card>
   return (
     <Card>
       <div className="flex items-start gap-4">

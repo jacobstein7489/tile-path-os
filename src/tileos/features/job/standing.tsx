@@ -17,8 +17,9 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
 import { stepsFor, type StepState, type StepView } from '../steps'
-import { StepIcon } from '../steps-ui'
-import { StepInline, StepTabs, TITLE } from '../stepwin'
+import { StepIcon, TrackDot, DOT_LABEL } from '../steps-ui'
+import { TrackSteps, TITLE } from '../stepwin'
+import { NextUp } from './next'
 import { installerOf } from '../upcoming'
 import { TouchupsList } from '../touchups'
 import { allowedFor } from '../newpicker'
@@ -71,7 +72,7 @@ export function BillingStrip({ job, onOpen, className }: { job: Job; onOpen: () 
 }
 
 /* ================= the left: what's going on now ================= */
-export function ProjectNow({ job, open, setOpen }: { job: Job; open: OpenTrack; setOpen: (o: OpenTrack) => void }) {
+export function ProjectNow({ job, open, setOpen, onStep }: { job: Job; open: OpenTrack; setOpen: (o: OpenTrack) => void; /** open a step on its track (what's next on top) */ onStep?: (k: string) => void }) {
   const s = useStore()
   const tracks = tracksFor(s, job, stepsFor(s, job))
   const phase = phaseOf(s, job, tracks)
@@ -84,6 +85,7 @@ export function ProjectNow({ job, open, setOpen }: { job: Job; open: OpenTrack; 
   const showTracks = phase === 'ready' || unfold
   return (
     <div className="flex flex-col gap-3" data-phase={phase}>
+      <NextUp job={job} onStep={onStep || jump} />
       {showTracks
         ? <Tracks job={job} tracks={tracks} setOpen={setOpen} onFold={phase !== 'ready' ? () => setUnfold(false) : undefined} />
         : <ReadyDone job={job} tracks={tracks} onOpen={() => setUnfold(true)} />}
@@ -145,7 +147,7 @@ function TrackRow({ job, t, me, onOpen }: { job: Job; t: TrackView; me: PersonKe
         return (
           <button key={v.key} data-step={v.key} data-state={v.state} data-mine={mine || undefined} onClick={() => onOpen(v.key)} title={`${TITLE[v.key] || v.label}${v.note ? ` — ${v.note}` : ''}`} className="group/step flex min-w-0 flex-col items-stretch rounded-lg py-0.5 text-left transition">
             <span className="flex items-center" aria-hidden>
-              <Dot state={v.state} mine={mine} lead={lead} />
+              <TrackDot state={v.state} mine={mine} lead={lead} />
               {!last && <span className={cn('mx-1.5 h-[0.125rem] min-w-0 flex-1 rounded-full', v.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
             </span>
             <span className={cn('mt-1.5 line-clamp-2 break-words pr-2 text-[0.8125rem] leading-[1.15rem] group-hover/step:underline group-hover/step:decoration-[#cfc8bc] group-hover/step:underline-offset-2 max-sm:line-clamp-3 max-sm:pr-1 max-sm:text-[0.75rem] max-sm:leading-[0.95rem]', DOT_LABEL[v.state], mine && 'text-brand-700', lead && 'font-bold')}><span className="max-sm:hidden">{stepShort(s, job, v)}</span><span className="sm:hidden">{softWrap(stepShort(s, job, v))}</span></span>
@@ -157,19 +159,6 @@ function TrackRow({ job, t, me, onOpen }: { job: Job; t: TrackView; me: PersonKe
   )
 }
 
-/* the marks on a track's path: ✓ done · blue your turn · dark ring someone's turn · amber waiting on someone outside ·
-   red a problem · a lock: not yet — it opens when the one before it is done */
-function Dot({ state, mine, lead }: { state: StepState; mine?: boolean; lead?: boolean }) {
-  const box = 'inline-flex h-[0.9375rem] w-[0.9375rem] shrink-0 items-center justify-center rounded-full'
-  if (state === 'done') return <span className={cn(box, 'bg-[#2c8a5b] text-white')}><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
-  if (state === 'bad') return <span className={cn(box, 'bg-[#d7342a] text-[0.625rem] font-black leading-none text-white')}>!</span>
-  if (state === 'now' && mine) return <span className={cn(box, 'bg-[#2650cf]', lead && 'shadow-[0_0_0_0.1875rem_rgba(38,80,207,.18)]')} />
-  if (state === 'now') return <span className={cn(box, 'border-2 border-[#3f4654] bg-white')}><span className="h-[0.3125rem] w-[0.3125rem] rounded-full bg-[#3f4654]" /></span>
-  if (state === 'wait') return <span className={cn(box, 'border-2 border-[#d98c0b] bg-white text-[#d98c0b]')}><Hourglass className="h-2 w-2" strokeWidth={3} /></span>
-  if (state === 'na') return <span className={cn(box, 'bg-wash-2 text-faint')}><Minus className="h-2.5 w-2.5" strokeWidth={3} /></span>
-  return <span className={cn(box, 'border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white text-[#a39b8e]')}><Lock className="h-2 w-2" strokeWidth={3} /></span>
-}
-const DOT_LABEL: Record<StepState, string> = { done: 'text-ink-2', now: 'font-semibold text-ink', bad: 'font-semibold text-bad-600', wait: 'font-medium text-warn-700', later: 'text-muted', na: 'text-faint line-through' }
 
 /** under a step on its track: whose it is and when — or the day it was done */
 export function stepWho(s: Store, job: Job, v: StepView, me: PersonKey): { text: string; tone: 'mine' | 'muted' | 'ink' | 'bad' | 'warn' } | null {
@@ -193,36 +182,23 @@ export function stepWho(s: Store, job: Job, v: StepView, me: PersonKey): { text:
 }
 const WHO_TONE: Record<string, string> = { mine: 'font-semibold text-brand-700', muted: 'text-muted', ink: 'font-medium text-ink-2', bad: 'font-semibold text-bad-600', warn: 'font-medium text-warn-700' }
 
-/** a step open on its own, in place of the tracks: the track's steps across the top (like the estimate's path), the
- *  step under them — whose it is, when, what finishes it — and Back to getting ready */
+/** a track open on its own, in place of the tracks: its steps top to bottom like a checklist — each one a line (done
+ *  when, whose turn, what it waits for) — and the one that's open shows what's happening and its work right under it.
+ *  Back to getting ready on top. */
 function StepPage({ job, t, k, onPick, onJump, onBack }: { job: Job; t: TrackView; k: string; onPick: (k: string) => void; onJump: (k: string) => void; onBack: () => void }) {
-  const s = useStore()
-  const me = meOf(s.role)
   const list = t.steps.filter((x) => x.state !== 'na' || x.key === k)
-  const i = Math.max(0, list.findIndex((x) => x.key === k))
-  const v = list[i]
+  const v = list.find((x) => x.key === k) || list[0]
   const top = React.useRef<HTMLElement>(null)
-  React.useEffect(() => { top.current?.scrollIntoView?.({ block: 'start' }) }, [k])
+  React.useEffect(() => { top.current?.scrollIntoView?.({ block: 'start' }) }, [t.key])
   if (!v) return null
-  const prev = list[i - 1]
-  const next = list[i + 1]
+  const done = list.filter((x) => x.state === 'done' || x.state === 'na').length
   return (
     <section ref={top} data-step-view={v.key} data-step-track={t.key} className="overflow-hidden rounded-[0.875rem] border border-line bg-white shadow-card">
       <header className="flex min-w-0 items-center gap-2 border-b border-line-2 px-2.5 py-2">
         <button onClick={onBack} data-back className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><ChevronLeft className="h-4 w-4" />Getting ready</button>
-        <span className="ml-auto truncate text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{t.label}</b> · {list.filter((x) => x.state === 'done').length} of {list.length} done</span>
+        <span className="ml-auto truncate text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{t.label}</b> · {done} of {list.length} done</span>
       </header>
-      {list.length > 1 && <StepTabs list={list} at={v.key} go={(x) => x && onPick(x.key)} me={me} job={job} />}
-      <div key={v.key} className="px-5 pb-5 pt-4 max-sm:px-3.5">
-        {list.length > 1 && <div className="text-[0.75rem] font-semibold text-muted">Step {i + 1} of {list.length}</div>}
-        <h3 className="font-display mb-1 mt-0.5 text-[1.1875rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{TITLE[v.key] || v.label}</h3>
-        <StepInline job={job} v={v} onClose={onBack} onGo={onJump} />
-      </div>
-      <footer className="flex items-center gap-2 border-t border-line-2 px-4 py-2.5">
-        {prev && <Button variant="ghost" icon={<ChevronLeft />} onClick={() => onPick(prev.key)}>Back</Button>}
-        <span className="ml-auto" />
-        {next ? <Button iconRight={<ChevronRight />} onClick={() => onPick(next.key)}><span className="max-w-[12rem] truncate">Next: {stepShort(s, job, next)}</span></Button> : <Button onClick={onBack}>Back to getting ready</Button>}
-      </footer>
+      <TrackSteps job={job} list={list} at={v.key} onPick={onPick} onGo={onJump} onClose={onBack} />
     </section>
   )
 }

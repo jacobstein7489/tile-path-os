@@ -10,7 +10,7 @@ import * as React from 'react'
 import { PrintSheetsButton } from '../roomsheets'
 import { ChevronRight } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
-import { Segmented } from '@/tileos/components/ui/core'
+import { Segmented, UnderlineTabs } from '@/tileos/components/ui/core'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { type Job } from '@/tileos/data/model'
@@ -25,7 +25,7 @@ import { ScopeTab } from './scope-tab'
 import { POsTab } from './pos-tab'
 import { MoneyTab } from './money-tab'
 import { ProjectNow, type OpenTrack } from './standing'
-import { JobPanel, type JobTab } from './details'
+import { JobPart, type JobTab } from './details'
 import { IN_FIELD_STAGES, stepsFor } from '../steps'
 import { tracksFor } from '../tracks'
 
@@ -125,38 +125,53 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
 }
 
 /* ---------------- the body: what's going on now on the left, the job on the right ---------------- */
-export function ProjectBoard({ job, open, setOpen, view, setView, onStep }: {
+/** the project's parts, one at a time, each the full width: Where it stands (what's next, getting ready, the open
+ *  issues) · Scope of work · Tiles · People · Documents. It opens on Where it stands. */
+export type BoardTab = 'stands' | JobTab
+const LINK_TAB: Record<string, BoardTab> = { tiles: 'tiles', people: 'people', files: 'files', docs: 'files', documents: 'files' }
+export const tabFromLink = (tab?: string): BoardTab => (tab && LINK_TAB[tab]) || 'stands'
+
+export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, setTab }: {
   job: Job
-  /** the track (and its step) open on the left */
+  /** the track (and its step) open on Where it stands */
   open: OpenTrack
   setOpen: (o: OpenTrack) => void
   view: BoardView
   setView: (v: BoardView) => void
   /** open a step on its track (a missing paper on the job side → the step that gets it) */
   onStep?: (k: string) => void
+  tab: BoardTab
+  setTab: (t: BoardTab) => void
 }) {
-  const [side, setSide] = React.useState<'stands' | 'job'>('stands')
-  const [tab, setTab] = React.useState<JobTab>('scope')
+  const s = useStore()
   const top = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view])
-  /* "Your turn" or a step picked on a phone: it's on the left side */
-  React.useEffect(() => { if (open) setSide('stands') }, [open])
+  React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view, tab])
   if (view) {
     const full = FULL.includes(view.t)
     return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
   }
+  const rooms = (s.rooms[job.id] || []).length
+  const tiles = Object.keys(s.tiles[job.id] || {}).length
+  const files = s.files.filter((f) => f.jobId === job.id).length
+  const pick = (t: BoardTab) => { setTab(t); if (t !== 'stands') setOpen(null) }
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-line bg-white px-4 py-2 lg:hidden">
-        <Segmented value={side} onChange={setSide} items={[{ key: 'stands', label: 'Where it stands' }, { key: 'job', label: 'The job' }]} className="w-full [&>button]:flex-1" />
-      </div>
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div ref={top} data-side="stands" className={cn('scroll-soft min-h-0 min-w-0 bg-[#f4f1ec] px-5 pb-5 pt-4 max-sm:px-2.5 lg:overflow-y-auto lg:border-r lg:border-line', side !== 'stands' && 'max-lg:hidden')}>
-          <ProjectNow job={job} open={open} setOpen={setOpen} />
-        </div>
-        <div data-side="job" className={cn('min-h-0 min-w-0 bg-white', side !== 'job' && 'max-lg:hidden')}>
-          <JobPanel job={job} open={setView} tab={tab} setTab={setTab} onStep={onStep} />
-        </div>
+      <UnderlineTabs<BoardTab>
+        value={tab}
+        onChange={pick}
+        className="shrink-0 bg-white px-5 max-sm:px-4 max-sm:[&>button+button]:ml-4"
+        items={[
+          { key: 'stands', label: 'Where it stands', short: 'Status' },
+          { key: 'scope', label: 'Scope of work', short: 'Scope', count: rooms || undefined },
+          { key: 'tiles', label: 'Tiles', count: tiles || undefined },
+          { key: 'people', label: 'People' },
+          { key: 'files', label: 'Documents', short: 'Docs', count: files || undefined },
+        ]}
+      />
+      <div ref={top} data-board-tab={tab} className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', tab === 'stands' ? 'bg-[#f4f1ec]' : 'bg-white')}>
+        {tab === 'stands'
+          ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-6 pt-4 max-sm:px-2.5"><ProjectNow job={job} open={open} setOpen={setOpen} onStep={onStep} /></div>
+          : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={tab} open={setView} onStep={onStep} /></div>}
       </div>
     </div>
   )

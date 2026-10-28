@@ -179,17 +179,27 @@ function Progress({ pct, tone, label, sub, subTone }: { pct: number; tone: 'bran
 }
 /** getting ready's five parts, by name — a green check when one is done, red with a problem, amber waiting, an open
  *  ring still to do: the same parts, in the same order, as on the project */
+/** each part of getting ready as a small ring that fills as its steps get done — a ✓ when they all are, a red ! for a
+ *  problem — with its name and how many of its steps are done ("Design 1/5") */
+function PartRing({ t }: { t: TrackView }) {
+  if (t.state === 'done') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
+  if (t.state === 'bad') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
+  const r = 5.5, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0 -rotate-90">
+      <circle cx="7" cy="7" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2" />
+      {f > 0 && <circle cx="7" cy="7" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
+    </svg>
+  )
+}
 function TrackMarks({ tracks }: { tracks: TrackView[] }) {
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
       {tracks.map((t) => (
-        <span key={t.key} data-mark={t.key} data-at={t.state} title={`${t.label} — ${t.state === 'done' ? 'done' : t.state === 'bad' ? 'a problem' : t.state === 'wait' ? 'waiting' : 'to do'}`} className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[0.78125rem]', t.state === 'done' ? 'text-ink-2' : t.state === 'bad' ? 'font-semibold text-bad-600' : 'text-muted')}>
-          {t.state === 'done'
-            ? <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
-            : t.state === 'bad'
-              ? <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
-              : <span className={cn('h-3.5 w-3.5 rounded-full border-[0.125rem] bg-white', t.state === 'wait' ? 'border-[#d98c0b]' : 'border-[#cfc8bc]')} />}
-          {t.label}
+        <span key={t.key} data-mark={t.key} data-at={t.state} title={`${t.label} — ${t.state === 'done' ? 'all done' : t.state === 'bad' ? 'a problem' : `${t.done} of ${t.total} done${t.state === 'wait' ? ' · waiting' : ''}`}${t.lead && t.state !== 'done' ? ` · next: ${t.lead.short}` : ''}`} className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[0.78125rem]', t.state === 'done' ? 'text-ink-2' : t.state === 'bad' ? 'font-semibold text-bad-600' : 'text-ink-2')}>
+          <PartRing t={t} />
+          <span data-mark-name>{t.label}</span>
+          {t.state !== 'done' && <span className="tnum text-[0.71875rem] text-faint" data-mark-count>{t.done}/{t.total}</span>}
         </span>
       ))}
     </span>

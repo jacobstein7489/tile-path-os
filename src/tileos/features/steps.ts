@@ -50,8 +50,12 @@ const S = () => useStore.getState()
 
 export type StepState = 'done' | 'now' | 'wait' | 'later' | 'bad' | 'na'
 export interface StepDef { key: string; label: string; short: string; owner: PersonKey | 'matBy'; after?: string[]; custom?: boolean; phase?: string
-  /** where a question added on one project sits on its checklist: 'design', 'site', 'installer', 'materials' */
-  group?: string }
+  /** where a question added on one project sits on its checklist: 'design', 'tile', 'site', 'installer', 'materials' */
+  group?: string
+  /** the company turned it off in Settings: not on any project (its steps after it don't wait for it) */
+  off?: boolean
+  /** the company gave it its own name in Settings — that name is used everywhere */
+  named?: boolean }
 export interface StepRec {
   done?: string; by?: PersonKey; owner?: PersonKey; due?: string; na?: boolean; note?: string
   /** the site check, one answer per thing looked at: yes, no (with what's wrong) or not needed here */
@@ -139,6 +143,8 @@ export interface StepView {
   phase: string
   /** answered "No" on the checklist */
   no?: { note?: string; by: PersonKey; at: string }
+  /** the company named it in Settings */
+  named?: boolean
   /** a question added on one project: the part of the checklist it's in */
   group?: string
 }
@@ -221,7 +227,9 @@ export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
     const x = saved.find((y) => y.key === d.key)
     if (!x) return d
     const moved = Object.entries(MOVED).find(([n, m]) => Number(n) > v && m[d.key]?.[0] === x.owner)
-    if (fresh) return { ...d, owner: moved ? d.owner : x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short }
+    /* the company's own name and on/off (Settings) stay as they set them */
+    if (x.named) return { ...d, owner: moved ? d.owner : x.owner, label: x.label || d.label, short: x.short || d.short, named: true, ...(x.off ? { off: true } : {}) }
+    if (fresh) return { ...d, owner: moved ? d.owner : x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short, ...(x.off ? { off: true } : {}) }
     return x.owner !== OLD_OWNER[d.key] ? { ...d, owner: x.owner } : d
   })
   const own = saved.filter((d) => !OURS.has(d.key)).map((d) => ({ ...d, custom: true, phase: d.phase || 'own' }))
@@ -537,6 +545,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
           : { state: 'now', due: rec.due, note: rec.note || (d.key === 'rough' ? 'Boxes, valves and drains where the layout needs them' : d.only ? 'Added for this project' : 'Your own step — check it off when it’s done'), action: { label: d.key === 'rough' ? 'Checked — all good' : 'Mark done', pick: 'check' } }
     }
     if (rec.na && raw.state !== 'done') raw = { state: 'na', note: 'Not needed on this project' }
+    if (d.off && raw.state !== 'done') raw = { state: 'na', note: 'Turned off in Settings — not on our projects' }
     /* waiting on someone outside: off the list until the day it's due back — then "did it come?" */
     if (rec.wait && raw.state !== 'done' && raw.state !== 'na') {
       const back = rec.wait.back
@@ -557,7 +566,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
       after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',
-      no: rec.no && !rec.na ? rec.no : undefined, group: d.group,
+      no: rec.no && !rec.na ? rec.no : undefined, group: d.group, named: d.named,
     }
     /* a task already open for this step: its button and its words win */
     if (task && view.state !== 'done') {
@@ -902,11 +911,15 @@ export function addJobStep(jobId: string, label: string, owner: PersonKey, after
 export function removeJobStep(jobId: string, key: string) {
   S().commit((st) => { st.jobSteps[jobId] = (st.jobSteps[jobId] || []).filter((d) => d.key !== key) }, 'Step removed')
 }
-export function addCompanyStep(label: string, owner: PersonKey, after?: string) {
+export function addCompanyStep(label: string, owner: PersonKey, after?: string, group?: string) {
   const key = slug(label)
   S().commit((st) => {
-    saveSteps(st, [...companySteps(st), { key, label, short: label.split(/\s+/).slice(0, 3).join(' '), owner, after: after ? [after] : ['rooms'], custom: true, phase: 'own' }])
+    saveSteps(st, [...companySteps(st), { key, label, short: label, owner, after: after ? [after] : ['rooms'], custom: true, phase: 'own', ...(group ? { group } : {}), named: true }])
   }, 'Added to every project’s checklist', { to: [{ who: owner, what: label }] })
+}
+/** turn a step off for every project — or back on */
+export function setCompanyStepOff(key: string, off: boolean) {
+  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, off: off || undefined } : d))) }, off ? 'Turned off — it’s not on any project now' : 'Back on every project')
 }
 export function removeCompanyStep(key: string) {
   S().commit((st) => { saveSteps(st, companySteps(st).filter((d) => d.key !== key)) }, 'Removed from the checklist')
@@ -914,8 +927,11 @@ export function removeCompanyStep(key: string) {
 export function setCompanyStepOwner(key: string, owner: PersonKey | 'matBy') {
   S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, owner } : d))) }, 'Saved — every project follows it')
 }
-export function renameCompanyStep(key: string, label: string) {
-  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, label, short: d.custom ? label.split(/\s+/).slice(0, 3).join(' ') : d.short } : d))) }, 'Renamed')
+/** the company's own name for a step — on the project, on Today, everywhere */
+export function renameCompanyStep(key: string, name: string) {
+  const n = name.trim()
+  if (!n) return
+  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, label: n, short: n, named: true } : d))) }, 'Renamed — every project shows the new name')
 }
 
 /* ---------------- floors: the high and the low point, and what that means ---------------- */

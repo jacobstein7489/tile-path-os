@@ -1,7 +1,7 @@
 /* The directory: clients, designers, subs (our installers), suppliers — and the items we buy and sell.
  * Same page every time: big header, filters on top, one list; every row opens the whole record. */
 import * as React from 'react'
-import { RefreshCw, Plus, Building2, PenTool, HardHat, Truck, Boxes, Hammer, Package, Shapes, FileClock, CircleDollarSign, Hourglass, CalendarCheck, HandCoins, AlarmClock, Archive, MoreHorizontal, ArchiveRestore } from 'lucide-react'
+import { RefreshCw, Plus, Upload, Building2, PenTool, HardHat, Truck, Boxes, Hammer, Package, Shapes, FileClock, CircleDollarSign, Hourglass, CalendarCheck, HandCoins, AlarmClock, Archive, MoreHorizontal, ArchiveRestore } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
 import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
@@ -58,7 +58,11 @@ const offBubble = (n: number, on: boolean, onClick: () => void) => ({ key: 'off'
 /* ================= clients ================= */
 export function ClientsPage() {
   const s = useStore()
-  const [tab, setTab] = React.useState<'all' | 'active' | 'estimates' | 'owe' | 'off'>('active')
+  type ClientTab = 'all' | 'active' | 'estimates' | 'owe' | 'off'
+  const linked = (t?: string): ClientTab | null => (t && ['all', 'active', 'estimates', 'owe', 'off'].includes(t) ? (t as ClientTab) : null)
+  const [tab, setTab] = React.useState<ClientTab>(() => linked(s.route.tab) || 'active')
+  /* a link to one view (after an import: All clients) opens it even when Clients is already open */
+  React.useEffect(() => { const t = linked(s.route.tab); if (t) setTab(t) }, [s.route.tab])
   const [kind, setKind] = React.useState('all')
   const [q, setQ] = React.useState('')
   const every = Object.values(CUSTOMERS)
@@ -78,7 +82,7 @@ export function ClientsPage() {
   return (
     <Page
       title="Clients"
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button>}
+      actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'importclients' })} data-import-clients>Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button></>}
       top={
         <Bubbles
           items={[

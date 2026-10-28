@@ -6,7 +6,7 @@ import * as React from 'react'
 import { Building2, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus, Package, FileText, Receipt, HardHat, Repeat, CheckCheck, BellDot } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
+import { Menu, MenuItem, MenuLabel, MenuSep } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { NOW } from '@/tileos/lib/today'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -103,6 +103,8 @@ function Face({ c }: { c: Convo }) {
   return <ProjectFace id={c.key} name={c.name} size={48} />
 }
 
+const PRICING_STAGES: string[] = ['request', 'estimating', 'proposal', 'followup']
+
 export function InboxPage() {
   const s = useStore()
   const all = conversations(s, true)
@@ -140,15 +142,25 @@ export function InboxPage() {
         {/* the conversations */}
         <div className={cn('flex min-h-0 min-w-0 flex-col border-r border-line-2 max-lg:border-r-0', cur && 'max-lg:hidden')}>
           <div className="flex items-center gap-2 border-b border-line-2 px-4 py-3">
-            <h1 className="font-display text-[1.25rem] font-semibold text-ink max-lg:hidden">Inbox</h1>
+            <h1 className="font-display text-[1.25rem] font-semibold text-ink max-lg:hidden">Messages</h1>
             <label className="relative ml-auto flex min-w-0 flex-1 items-center lg:max-w-[11rem]">
               <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-faint" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search the inbox" className="h-9 w-full rounded-full border border-line bg-wash pl-8 pr-3 text-[0.875rem] text-ink outline-none placeholder:text-faint focus:border-brand-300 focus:bg-white" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search the messages" className="h-9 w-full rounded-full border border-line bg-wash pl-8 pr-3 text-[0.875rem] text-ink outline-none placeholder:text-faint focus:border-brand-300 focus:bg-white" />
             </label>
             <Menu align="end" width={300} trigger={<button aria-label="New conversation" title="New conversation" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn transition hover:bg-brand-700"><MessageSquarePlus className="h-[1.125rem] w-[1.125rem]" /></button>}>
-              <MenuLabel>Write on a project</MenuLabel>
-              <div className="max-h-[18rem] overflow-y-auto">
-                {startable.map((j) => <MenuItem key={j.id} icon={<Building2 className="h-4 w-4" />} hint={j.client} onSelect={() => { const c = all.find((x) => x.key === j.id) || fresh(j.id); if (c) openConvo(c) }}>{j.name}</MenuItem>)}
+              <div className="max-h-[20rem] overflow-y-auto">
+                {/* the projects, then the estimates still being priced — each said for what it is (an estimate and its
+                    project can share a name) */}
+                {([['Projects', startable.filter((j) => !PRICING_STAGES.includes(j.stage))], ['Estimates', startable.filter((j) => PRICING_STAGES.includes(j.stage))]] as const).filter(([, l]) => l.length).map(([label, l], gi) => (
+                  <React.Fragment key={label}>
+                    {gi > 0 && <MenuSep />}
+                    <MenuLabel>{label}</MenuLabel>
+                    {l.map((j) => {
+                      const est = label === 'Estimates' ? s.estimates.find((e) => e.jobId === j.id) : undefined
+                      return <MenuItem key={j.id} icon={label === 'Estimates' ? <FileText className="h-4 w-4" /> : <Building2 className="h-4 w-4" />} hint={[est?.id, j.client].filter(Boolean).join(' · ')} onSelect={() => { const c = all.find((x) => x.key === j.id) || fresh(j.id); if (c) openConvo(c) }}>{j.name}</MenuItem>
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
             </Menu>
           </div>
@@ -242,7 +254,7 @@ export function InboxStrip() {
   return (
     <button onClick={() => s.go({ page: 'inbox' })} className="mb-3 flex w-full items-center gap-3 rounded-[0.875rem] border border-brand-100 bg-brand-50 px-4 py-2.5 text-left transition hover:bg-[#e8eefb]">
       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[0.8125rem] font-bold tnum text-white">{n}</span>
-      <span className="min-w-0 flex-1 text-[0.875rem] font-semibold text-brand-800">{n === 1 ? '1 new in your inbox' : `${n} new in your inbox`}</span>
+      <span className="min-w-0 flex-1 text-[0.875rem] font-semibold text-brand-800">{n === 1 ? '1 new message' : `${n} new messages`}</span>
       <span className="text-[0.8125rem] font-semibold text-brand-700">Open</span>
     </button>
   )

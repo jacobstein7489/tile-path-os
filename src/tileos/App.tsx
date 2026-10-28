@@ -24,6 +24,7 @@ import { NewClientModal } from '@/tileos/features/clientform'
 import { BillingPage } from '@/tileos/features/billing'
 import { ProjectsPage, NewRepairModal, NewProjectModal } from '@/tileos/features/projectlist'
 import { NewPickerModal } from '@/tileos/features/newpicker'
+import { ImportClientsModal } from '@/tileos/features/importclients'
 import { FreshModal } from './features/testdata'
 import { DeleteModal } from '@/tileos/features/cleanup-ui'
 import { NewEstimateModal } from '@/tileos/features/estnew'
@@ -134,6 +135,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'chat': return <MessagesModal jobId={m.jobId} level={level} />
     case 'readytobook': return <ReadyToBookModal level={level} />
     case 'newclient': return <NewClientModal level={level} id={m.id} />
+    case 'importclients': return <ImportClientsModal level={level} />
     case 'payweek': return <PayWeekModal level={level} />
     case 'progress': return <ProgressModal jobId={m.jobId} week={m.week} level={level} />
     case 'incoming': return <IncomingModal keys={m.keys} level={level} />

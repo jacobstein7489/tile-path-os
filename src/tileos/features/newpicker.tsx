@@ -120,9 +120,10 @@ const STARTS: (Pick & { c: TileColor })[] = [
 /** every kind of thing you add — its name, what it's for, its icon and color — the same on + New and on its form */
 export const KIND: Record<string, { l: string; h: string; i: React.ElementType; c: TileColor }> = Object.fromEntries([...ADD, ...STARTS].map((x) => [x.k, { l: x.l, h: x.h, i: x.i, c: x.c }]))
 
-/** a choice on + New: a white card, only the icon in its color (calm, like the filter bubbles) */
+/** a choice on + New: a white card with a quiet gray icon — one calm color for all of them; only Problem is red (red
+ *  is for problems). The icon turns blue under the pointer. */
 function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
-  const c = TILE_COLORS[x.c]
+  const bad = x.k === 'problem'
   return (
     <button
       type="button"
@@ -131,7 +132,7 @@ function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () =
       data-new={x.k}
       className={cn('group flex min-w-0 items-center gap-3 rounded-[0.75rem] border border-line bg-white text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[4rem] px-3 py-2.5' : 'min-h-11 px-2.5 py-1.5')}
     >
-      <span className={cn('inline-flex shrink-0 items-center justify-center text-white shadow-[0_0.125rem_0.375rem_-0.125rem_rgba(0,0,0,.25)] transition group-hover:scale-105', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]')} style={{ background: c.solid }}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center transition', big ? 'h-9 w-9 rounded-[0.625rem]' : 'h-7 w-7 rounded-[0.5rem]', bad ? 'bg-bad-50 text-bad-600' : 'bg-wash-2 text-ink-2 group-hover:bg-brand-50 group-hover:text-brand-700')}>
         <x.i className={big ? 'h-[1.125rem] w-[1.125rem]' : 'h-[0.9375rem] w-[0.9375rem]'} strokeWidth={2.1} />
       </span>
       <span className="min-w-0 leading-tight">

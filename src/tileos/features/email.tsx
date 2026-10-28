@@ -18,6 +18,10 @@ export type EmailWhat = { kind: 'po'; draft?: PODraft; poId?: string } | { kind:
 export function EmailModal({ what, level }: { what: EmailWhat; level: number }) {
   const s = useStore()
   const sender = (who: PersonKey) => `${PEOPLE[who]?.name || 'Cobblestone'} · Cobblestone Tile`
+  /* who each kind comes from, and who's copied on every one — Settings → Email */
+  const mail = s.rules.email || {}
+  const fromBox = (addr: string | undefined, fallback: string) => (addr ? `Cobblestone Tile <${addr}>` : fallback)
+  const cc = mail.cc || []
   let from = '', to = '', subject = '', greeting = '', body: React.ReactNode = null, doc: React.ReactNode = null, buttons: React.ReactNode = null, attach = ''
 
   if (what.kind === 'po') {
@@ -26,7 +30,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     const j = s.jobs[d.jobId]
     const id = d.id || 'PO-new'
     const total = d.lines.reduce((n, l) => n + l.n * l.price, 0)
-    from = sender(matBy(s))
+    from = fromBox(mail.other, sender(matBy(s)))
     to = `${d.supplier} · orders desk`
     subject = `${id} · ${j?.name} · needed ${d.neededBy}`
     attach = `${id}.pdf`
@@ -70,7 +74,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     const ap = c?.contacts.find((x) => /accounts payable/i.test(x.role)) || c?.contacts[0]
     const ref = m.ref || '#draft'
     const due = (m.amount || 0) - (m.paid || 0)
-    from = `${PEOPLE.accounting?.name || 'Accounting'} · Cobblestone Tile`
+    from = fromBox(mail.invoices, `${PEOPLE.accounting?.name || 'Accounting'} · Cobblestone Tile`)
     to = ap ? `${ap.name} · ${c?.name}` : c?.name || j?.client || ''
     subject = `Invoice ${ref} · ${j?.name} · ${m.title}`
     attach = `Invoice ${ref}.pdf`
@@ -93,7 +97,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     const c = CUSTOMERS[j?.clientId || '']
     const r = curRev(e)
     const areas = Array.from(new Set(r.lines.map((l) => l.area)))
-    from = sender('ys')
+    from = fromBox(mail.estimates, sender('ys'))
     to = c?.contacts[0] ? `${c.contacts[0].name} · ${c.name}` : j?.client || ''
     subject = `Estimate ${e.id}${r.n > 1 ? ` · revision ${r.n}` : ''} · ${j?.name}`
     attach = `Estimate ${e.id}.pdf · Scope of work.pdf`
@@ -129,6 +133,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
           <div className="mt-2 grid grid-cols-[3rem_1fr] gap-y-0.5 text-[0.8125rem]">
             <span className="text-muted">From</span><span className="truncate font-medium text-ink-2">{from}</span>
             <span className="text-muted">To</span><span className="truncate text-ink-2">{to}</span>
+            {cc.length > 0 && <><span className="text-muted">Cc</span><span className="truncate text-ink-2" data-email-cc-line>{cc.join(', ')}</span></>}
           </div>
         </div>
         <div className="bg-[#f1eee8] px-5 py-5 max-sm:px-3">

@@ -1,7 +1,7 @@
 /* The checklist on screen: the full list inside a project (Game plan tab), and a compact strip for the
  * Projects list. Every row: where it stands, the step, who has it, when, and the one button that does it. */
 import * as React from 'react'
-import { Check, X, Clock3, Minus, Plus, MoreHorizontal, ChevronDown, Truck, PackageCheck, PackageX, CalendarDays, CornerDownRight } from 'lucide-react'
+import { Check, X, Clock3, Minus, Plus, MoreHorizontal, ChevronDown, Truck, PackageCheck, PackageX, CalendarDays, CornerDownRight, Hourglass, Lock } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -18,6 +18,20 @@ export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
   const keys = s.team.filter((m) => m.status !== 'off' && m.role !== 'client' && m.role !== 'crew' && !(REAL.cloud && emptySpot(s, m.key))).map((m) => m.key)
   return Array.from(new Set(keys))
 }
+
+/* the marks on a track's path: ✓ done · blue your turn · dark ring someone's turn · amber waiting on someone outside ·
+   red a problem · a lock: not yet — it opens when the one before it is done */
+export function TrackDot({ state, mine, lead }: { state: StepState; mine?: boolean; lead?: boolean }) {
+  const box = 'inline-flex h-[0.9375rem] w-[0.9375rem] shrink-0 items-center justify-center rounded-full'
+  if (state === 'done') return <span className={cn(box, 'bg-[#2c8a5b] text-white')}><Check className="h-2.5 w-2.5" strokeWidth={3.6} /></span>
+  if (state === 'bad') return <span className={cn(box, 'bg-[#d7342a] text-[0.625rem] font-black leading-none text-white')}>!</span>
+  if (state === 'now' && mine) return <span className={cn(box, 'bg-[#2650cf]', lead && 'shadow-[0_0_0_0.1875rem_rgba(38,80,207,.18)]')} />
+  if (state === 'now') return <span className={cn(box, 'border-2 border-[#3f4654] bg-white')}><span className="h-[0.3125rem] w-[0.3125rem] rounded-full bg-[#3f4654]" /></span>
+  if (state === 'wait') return <span className={cn(box, 'border-2 border-[#d98c0b] bg-white text-[#d98c0b]')}><Hourglass className="h-2 w-2" strokeWidth={3} /></span>
+  if (state === 'na') return <span className={cn(box, 'bg-wash-2 text-faint')}><Minus className="h-2.5 w-2.5" strokeWidth={3} /></span>
+  return <span className={cn(box, 'border-[0.09375rem] border-dashed border-[#bfb8ad] bg-white text-[#a39b8e]')}><Lock className="h-2 w-2" strokeWidth={3} /></span>
+}
+export const DOT_LABEL: Record<StepState, string> = { done: 'text-ink-2', now: 'font-semibold text-ink', bad: 'font-semibold text-bad-600', wait: 'font-medium text-warn-700', later: 'text-muted', na: 'text-faint line-through' }
 
 /** where a step stands, the same mark everywhere: ✓ done · ● to do · ◷ waiting · ! problem · ○ not yet · – not needed */
 export function StepIcon({ state, size = 26 }: { state: StepState; size?: number }) {

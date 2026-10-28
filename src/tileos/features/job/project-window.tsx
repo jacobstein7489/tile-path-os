@@ -28,7 +28,7 @@ import { ScopeTab } from './scope-tab'
 import { projectStatus } from '../statuses'
 import { todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
-import { ProjectBoard, viewFromTab, trackOfStep, type BoardView } from './board'
+import { ProjectBoard, viewFromTab, tabFromLink, trackOfStep, type BoardView, type BoardTab } from './board'
 import { ProjectLine, BillingStrip, type OpenTrack } from './standing'
 import { tracksFor, phaseOf, bookingOf, TRACKS, type TrackKey } from '../tracks'
 import { pictureOf } from '../progressbill'
@@ -61,15 +61,18 @@ function openFromTab(job: Job | undefined, tab?: string): OpenTrack {
 function useProjectState(job: Job | undefined, initial?: string) {
   const [open, setOpen] = React.useState<OpenTrack>(() => openFromTab(job, initial))
   const [view, setView] = React.useState<BoardView>(() => (initial?.startsWith('step:') ? null : viewFromTab(initial)))
+  /* it opens on Where it stands — or on the part a link names (its tiles, people, documents) */
+  const [tab, setTab] = React.useState<BoardTab>(() => tabFromLink(initial))
   /* "Your turn", Today, a missing paper: its track opens on that step */
   const onStep = (k: string) => {
     if (!job) return
     const o = (TRACKS.some((t) => t.key === k) ? openFromTab(job, Object.keys(TAB_TRACK).find((x) => TAB_TRACK[x] === k)) : null) || trackOfStep(useStore.getState(), job, k)
     if (!o) return
     setView(null)
+    setTab('stands')
     setOpen(o)
   }
-  return { open, setOpen, view, setView, onStep }
+  return { open, setOpen, view, setView, onStep, tab, setTab }
 }
 
 /* ================= the window ================= */
@@ -87,8 +90,8 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
     )
   }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => st.setView({ t: 'money' })} />} footer={<ProjectFooter job={job} onStep={st.onStep} />} bodyClass="p-0 overflow-hidden">
-      <ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} />
+    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => st.setView({ t: 'money' })} />} bodyClass="p-0 overflow-hidden">
+      <ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} tab={st.tab} setTab={st.setTab} />
     </Modal>
   )
 }
@@ -102,8 +105,7 @@ export function ProjectPage({ job, tab: initial }: { job: Job; tab?: string }) {
       <ProjectHeader job={job} mode="page" pricing={pricing} onChat={() => st.setView({ t: 'chat' })} onMoney={() => st.setView({ t: 'money' })} />
       {pricing ? <div className="p-6"><PricingWorkspace job={job} /></div> : (
         <>
-          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} /></div>
-          <div className="flex items-center gap-3 border-t border-line px-6 py-3"><ProjectFooter job={job} onStep={st.onStep} /></div>
+          <div className="h-[min(48rem,calc(100dvh-14rem))] min-h-[24rem]"><ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} tab={st.tab} setTab={st.setTab} /></div>
         </>
       )}
     </div>
@@ -176,63 +178,6 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
       {/* where it is, like the estimate's path — and the billing alongside it, never in the way */}
       {!pricing && onMoney && <><ProjectLine className="mt-3" job={job} /><BillingStrip className="mt-2" job={job} onOpen={onMoney} /></>}
     </div>
-  )
-}
-
-/* ---------------- footer: the one thing to do now ---------------- */
-function ProjectFooter({ job, onStep }: { job: Job; onStep: (k: string) => void }) {
-  const s = useStore()
-  const tracks = tracksFor(s, job)
-  const phase = phaseOf(s, job, tracks)
-  const next = nextOn(s, job)
-  const viewer = ['client', 'crew'].includes(s.role)
-  const booked = job.stage === 'scheduled' || !!bookingOf(s, job)
-  const left = tracks.filter((t) => t.state !== 'done').length
-  const finalBill = s.money.find((m) => m.jobId === job.id && m.kind === 'final')
-  const turn = next
-    ? (next.mine
-      ? <Button variant="primary" data-your-turn className="max-w-[28rem] max-sm:max-w-none" icon={<ArrowRight />} onClick={() => onStep(next.v.key)}><span className="truncate">Your turn: {todoOf(next.v)}</span></Button>
-      : <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted"><Avatar who={next.v.owner} size={22} /><span className="truncate">{PEOPLE[next.v.owner]?.short}’s turn — {todoOf(next.v)}</span></span>)
-    : null
-  /* the one button: your turn while getting ready; then the crew, the start, the daily update, the return visit, the final
-     bill. A crew already on the calendar (booked from the schedule) can still start — but it says what's still open first. */
-  const main = viewer ? null
-    : phase === 'ready' ? (booked ? <StartJob job={job} open={tracks.filter((t) => t.state !== 'done')} /> : turn || <span className="text-[0.84375rem] text-muted">Waiting — each track comes back on someone’s list by itself</span>)
-      : phase === 'crew' ? (booked
-        ? <Button variant="primary" icon={<Play />} onClick={() => startProject(job.id)}>Start the job</Button>
-        : <Button variant="primary" icon={<CalendarDays />} data-schedule-crew onClick={() => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }}>Schedule the crew</Button>)
-        : phase === 'install' ? <Button variant="primary" icon={<ClipboardList />} onClick={() => s.open({ t: 'daily', jobId: job.id })}>Daily update</Button>
-          : phase === 'punch' ? <Button variant="primary" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: job.id })}>Book the return visit</Button>
-            : job.stage === 'closeout' && finalBill ? <Button variant="primary" icon={<Receipt />} onClick={() => s.open({ t: 'money', id: finalBill.id })}>Final invoice</Button>
-              : null
-  return (
-    <>
-      {phase === 'ready' && !booked
-        ? <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted max-md:hidden" data-gate-note><Lock className="h-3.5 w-3.5 shrink-0 text-faint" /><span className="truncate">The crew opens when all {tracks.length} are done — {left} to go</span></span>
-        : phase === 'ready' && booked && next
-          ? <span className="min-w-0 max-md:hidden">{next.mine ? <button onClick={() => onStep(next.v.key)} className="truncate text-[0.84375rem] font-semibold text-brand-700 hover:underline">Your turn: {todoOf(next.v)}</button> : <span className="truncate text-[0.84375rem] text-muted">{PEOPLE[next.v.owner]?.short}’s turn — {todoOf(next.v)}</span>}</span>
-          : null}
-      <span className="ml-auto flex min-w-0 items-center gap-2 max-sm:w-full max-sm:[&>button]:w-full">{main}</span>
-    </>
-  )
-}
-
-/** the crew is on the calendar but getting ready isn't all done: start it — after saying what's still open */
-function StartJob({ job, open }: { job: Job; open: { label: string; lead?: { short: string } }[] }) {
-  const [ask, setAsk] = React.useState(false)
-  if (!open.length) return <Button variant="primary" icon={<Play />} onClick={() => startProject(job.id)}>Start the job</Button>
-  return (
-    <Pop open={ask} onOpenChange={setAsk} align="end" side="top" width={340} trigger={<Button variant="primary" icon={<Play />}>Start the job</Button>}>
-      <div className="text-[0.9375rem] font-semibold text-ink">Getting ready isn’t done</div>
-      <ul className="mt-1.5 flex flex-col gap-0.5 text-[0.84375rem] text-ink-2" data-still-open>
-        {open.map((t) => <li key={t.label}><b className="font-semibold">{t.label}</b>{t.lead ? ` — ${t.lead.short.toLowerCase()}` : ''}</li>)}
-      </ul>
-      <p className="mt-2 text-[0.8125rem] text-muted">The crew is already on the calendar. Start anyway, and these stay open for whoever has them.</p>
-      <div className="mt-3 flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => setAsk(false)}>Not yet</Button>
-        <Button variant="primary" icon={<Play />} onClick={() => { setAsk(false); startProject(job.id) }}>Start anyway</Button>
-      </div>
-    </Pop>
   )
 }
 

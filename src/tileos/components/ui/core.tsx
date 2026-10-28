@@ -195,7 +195,7 @@ export function LinkButton({ children, onClick, className }: { children: React.R
 }
 
 /* ---------------- Tabs ---------------- */
-export function UnderlineTabs<T extends string>({ value, onChange, items, className, size = 'md' }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: string; count?: number; tone?: Tone }[]; className?: string; size?: 'md' | 'sm' }) {
+export function UnderlineTabs<T extends string>({ value, onChange, items, className, size = 'md' }: { value: T; onChange: (v: NoInfer<T>) => void; items: { key: NoInfer<T>; label: string; /** a shorter name on a phone */ short?: string; count?: number; tone?: Tone }[]; className?: string; size?: 'md' | 'sm' }) {
   return (
     <div className={cn('no-scrollbar flex items-center overflow-x-auto', !className?.includes('border-b-0') && 'shadow-[inset_0_-0.0625rem_0_var(--color-line)]', className)} role="tablist">
       {items.map((it) => {
@@ -212,7 +212,7 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
               on ? 'text-ink' : 'text-muted hover:text-ink-2',
             )}
           >
-            {it.label}
+            {it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}
             {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-brand-50 text-brand-700') : 'bg-wash-2 text-muted')}>{it.count}</span>}
             <span className={cn('absolute inset-x-0 bottom-0 h-[0.125rem] rounded-full transition-colors', on ? 'bg-brand-600' : 'bg-transparent')} />
           </button>

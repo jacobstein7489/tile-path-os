@@ -27,7 +27,7 @@ export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
   { key: 'materials', label: 'Materials', steps: ['materials', 'matin'] },
 ]
 /** a question added on one project sits in the track of the part it was added to */
-const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', site: 'site', installer: 'installer', materials: 'materials' }
+const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
 /** each step's name on its track's path — what has to happen, said plainly */
 export const STEP_SHORT: Record<string, string> = {
   design: 'Design meeting', change: 'Confirm scope', tile: 'Pick tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
@@ -50,6 +50,7 @@ export function stepShort(s: Store, job: Job, v: StepView) {
   if (v.key === 'fixes' && v.state === 'now') return 'Re-check on site'
   if (v.key === 'order' && v.state === 'bad') return 'Store ordered short'
   if (v.key === 'delivered' && v.state === 'bad') return s.tasks.some((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done') ? 'Tile came wrong' : 'Tile came short'
+  if (v.named) return v.short
   return (!v.custom || v.key === 'design' || v.key === 'change' || v.key === 'layouts' || v.key === 'walk' || v.key === 'sheets') && !v.only ? STEP_SHORT[v.key] || v.short : v.short
 }
 

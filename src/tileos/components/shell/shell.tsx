@@ -3,7 +3,7 @@ import markUrl from '@/tileos/assets/mark.svg'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
-import { Inbox, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
+import { Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
@@ -43,7 +43,7 @@ export function NewMenu({ trigger }: { trigger: React.ReactElement; align?: 'sta
 export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   today: { label: 'Today', icon: CalendarCheck },
   tasks: { label: 'Today', icon: CalendarCheck },
-  inbox: { label: 'Inbox', icon: Inbox },
+  inbox: { label: 'Messages', icon: MessageCircle },
   projects: { label: 'Projects', icon: Building2 },
   upcoming: { label: 'Schedule', icon: CalendarDays },
   schedule: { label: 'Schedule', icon: CalendarDays },
@@ -211,7 +211,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   return (
     <>
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="People, logins, what each one sees">Team and settings</MenuItem>}
-      {role === 'owner' && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => open({ t: 'whowhat' })} hint="Every step, and who has it">Who does what</MenuItem>}
+      {role === 'owner' && <MenuItem icon={<Users className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'checklist' })} hint="Every step, and who has it">Who does what</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />

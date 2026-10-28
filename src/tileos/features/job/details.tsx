@@ -47,25 +47,12 @@ const LINK = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.78
 
 export type JobTab = 'scope' | 'tiles' | 'people' | 'files'
 /** the job, one section at a time — no long scroll: Scope of work · Tiles · People · Documents */
-export function JobPanel({ job, open, tab, setTab, onStep }: { job: Job; open: (v: BoardView) => void; tab: JobTab; setTab: (t: JobTab) => void; /** something still open: the step on its track that gets it */ onStep?: (k: string) => void }) {
-  const s = useStore()
-  const tiles = Object.keys(s.tiles[job.id] || {}).length
-  const rooms = (s.rooms[job.id] || []).length
-  const files = s.files.filter((f) => f.jobId === job.id).length
-  const n = (x: number) => (x ? <span className="ml-1 font-medium text-muted">{x}</span> : null)
+/** one part of the job, full width under the project's tabs: the scope of work (every room and its walls and floors),
+ *  the tiles, the people, the documents */
+export function JobPart({ job, open, tab, onStep }: { job: Job; open: (v: BoardView) => void; tab: JobTab; /** something still open: the step on its track that gets it */ onStep?: (k: string) => void }) {
   return (
-    <div data-details className="@container flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-line-2 px-5 pb-3 pt-3.5 max-sm:px-4">
-        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:min-w-0 [&>button]:flex-1 [&>button]:justify-center [&>button]:whitespace-nowrap [&>button]:px-1.5" items={[
-          { key: 'scope', label: <><span className="hidden @[30rem]:inline">Scope of work</span><span className="@[30rem]:hidden">Scope</span>{n(rooms)}</> },
-          { key: 'tiles', label: <>Tiles{n(tiles)}</> },
-          { key: 'people', label: 'People' },
-          { key: 'files', label: <><span className="hidden @[30rem]:inline">Documents</span><span className="@[30rem]:hidden">Docs</span>{n(files)}</> },
-        ]} />
-      </div>
-      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto" data-job-tab={tab}>
-        {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
-      </div>
+    <div data-details data-job-tab={tab} className="@container min-w-0">
+      {tab === 'scope' ? <ScopePart job={job} open={open} /> : tab === 'tiles' ? <TilesPart job={job} onStep={onStep} /> : tab === 'people' ? <PeoplePart job={job} onStep={onStep} /> : <DocsPart job={job} open={open} onStep={onStep} />}
     </div>
   )
 }
@@ -99,7 +86,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
       right={rooms.length ? <span className="flex items-center gap-1"><PrintSheetsButton job={job} size="sm" variant="ghost">Room sheets</PrintSheetsButton><button onClick={() => open({ t: 'scope' })} className={LINK}><Grid2x2 className="h-3.5 w-3.5" />Every wall & floor</button></span> : undefined}
     >
       {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 @[60rem]:block @[60rem]:columns-2 @[60rem]:gap-3 @[60rem]:[&>*]:mb-3 @[60rem]:[&>*]:break-inside-avoid">
         {rooms.map((r) => {
           /* only what needs a look on the row (a problem, waiting, ready) — what's still to come is inside the room */
           const chips = r.state === 'ready' ? [{ tone: 'ok' as ChipTone, text: 'Ready' }] : r.chips.filter((c) => c.tone !== 'todo')
@@ -190,7 +177,7 @@ function TilesPart({ job, onStep }: { job: Job; onStep?: (k: string) => void }) 
   return (
     <Part id="tiles" title="Tiles" sub={tiles.length ? `${tiles.length} ${tiles.length === 1 ? 'tile' : 'tiles'} — where each goes, its grout, how much, and whether it’s here` : 'Every tile on the job'}>
       {!tiles.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] px-4 py-3 text-[0.84375rem] text-muted">No tile yet — it comes in with the tile paperwork.</div>}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 @[60rem]:grid @[60rem]:grid-cols-2 @[60rem]:gap-2">
         {list.map((t) => <TileRow key={t.tag} job={job} t={t} where={flat.filter((f) => f.x.tile === t.tag).map((f) => `${f.room} ${f.x.name.toLowerCase()}`)} onStep={onStep} />)}
       </div>
     </Part>
