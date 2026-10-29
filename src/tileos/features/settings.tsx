@@ -999,10 +999,22 @@ function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEst
     if (bad || list.join(', ') === saved) return
     setEmailRule({ [field]: list.length ? list : undefined }, list.length ? `${title}: ${list.join(', ')} copied` : `${title}: nobody copied`)
   }
+  const savedList = (s.rules.email?.[field] || [])
   return (
     <span className="flex w-full flex-col gap-1">
-      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
+      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody — or several, with commas" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
       {bad && <span className="text-[0.75rem] font-medium text-bad-600">One of these isn’t an email address</span>}
+      {/* each one copied, on its own — take one off with its × */}
+      {savedList.length > 1 && !bad && (
+        <span className="flex flex-wrap gap-1" data-cc-chips>
+          {savedList.map((e) => (
+            <span key={e} className="inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-wash-2 pl-2 pr-0.5 text-[0.75rem] font-medium text-ink-2">
+              <span className="truncate">{e}</span>
+              <button aria-label={`Stop copying ${e}`} onClick={() => setEmailRule({ [field]: savedList.filter((x) => x !== e).length ? savedList.filter((x) => x !== e) : undefined }, `${e} isn’t copied on ${title.toLowerCase()} any more`)} className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3 w-3" /></button>
+            </span>
+          ))}
+        </span>
+      )}
     </span>
   )
 }
@@ -1044,7 +1056,7 @@ function EmailTab() {
         )}
       </Card>
       <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        Leave “Comes from” empty and each email goes out from the person who sends it. Replies go back to that address. Estimates and invoices go out with QuickBooks’ PDF (invoices with its Pay button); a PO goes to the supplier, an installer’s PO to him. Every email is noted on its estimate, bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+        What you put in “Comes from” is used for that kind of email whoever sends it. Leave it empty and it comes from the person who sends it (an invite, from you). Replies go back to that address, and it gets its own copy of each estimate, invoice and PO it sends. Copy (Cc): as many addresses as you want, with commas between them. Estimates and invoices go out with QuickBooks’ PDF (invoices with its Pay button); a PO goes to the supplier, an installer’s PO to him. Every email is noted on its estimate, bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
       </p>
     </div>
   )

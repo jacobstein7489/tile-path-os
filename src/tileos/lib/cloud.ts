@@ -325,8 +325,8 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.invite = opts.admin ? async (p) => {
     const email = p.email.trim().toLowerCase()
     const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address — wait a moment and send it again' : m)
-    /* from the address Settings → Email has for "Everything else", when email is set up */
-    const from = useStore.getState().rules.email?.other
+    /* from the address Settings → Email has for "Everything else" — else from the admin sending it */
+    const from = useStore.getState().rules.email?.other || REAL.email
     const r = await sendInvite({ data: { email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl(), from: from ? `Cobblestone Tile <${from}>` : undefined } })
     if (!r.ok) throw new Error(say(r.why))
     if (r.already) return { what: 'already' as const }

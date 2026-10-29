@@ -79,7 +79,7 @@ async function inviteByOwnMail(admin: any, data: { email: string; name: string; 
 <p><a href="${esc(link)}" style="display:inline-block;background:#2650cf;color:#fff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px">Set your password and come in</a></p>
 <p style="color:#5b5f68;font-size:14px">The link works once. If the button doesn’t open, copy this into your browser:<br>${esc(link)}</p>
 </div>`;
-  const r = await sendMail({ from: data.from || "Cobblestone Tile <office@cobblestonenj.com>", to: [data.email], subject: "You’re invited to Cobblestone Tile OS", html, text: `Hi ${first},\n\nYou’re invited to Cobblestone Tile OS. Open this link, pick a password, and you’re in (it works once):\n${link}` });
+  const r = await sendMail({ copy: false, from: data.from || "Cobblestone Tile <office@cobblestonenj.com>", to: [data.email], subject: "You’re invited to Cobblestone Tile OS", html, text: `Hi ${first},\n\nYou’re invited to Cobblestone Tile OS. Open this link, pick a password, and you’re in (it works once):\n${link}` });
   if (!r.ok) throw new Error(r.why);
 }
 

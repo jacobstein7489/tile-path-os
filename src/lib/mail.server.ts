@@ -7,7 +7,7 @@ export const mailKey = () => (process.env["RESEND_API_KEY"] || "").trim();
 export const mailConfigured = () => !!mailKey();
 
 export type Attachment = { filename: string; content: string /* base64 */ };
-export type Mail = { from: string; to: string[]; cc?: string[]; bcc?: string[]; replyTo?: string[]; subject: string; html: string; text?: string; attachments?: Attachment[] };
+export type Mail = { from: string; to: string[]; cc?: string[]; bcc?: string[]; replyTo?: string[]; subject: string; html: string; text?: string; attachments?: Attachment[]; /** false: no copy to the sender (an invite — its link is theirs alone) */ copy?: boolean };
 
 const EMAIL = /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/;
 const clean = (list?: string[]) => Array.from(new Set((list || []).map((x) => String(x || "").trim().toLowerCase()).filter((x) => EMAIL.test(x)))).slice(0, 20);
@@ -47,7 +47,10 @@ export async function send(m: Mail): Promise<{ ok: true; id: string; from: strin
   }
   const body: Record<string, unknown> = { from, to, subject: m.subject.slice(0, 250), html: m.html };
   const cc = clean(m.cc).filter((x) => !to.includes(x));
-  const bcc = clean(m.bcc).filter((x) => !to.includes(x) && !cc.includes(x));
+  /* sent from here, it isn't in that inbox's Sent folder — so the address it comes from (or the person it stands for)
+     gets a copy, like QuickBooks' "send me a copy" */
+  const own = m.copy === false ? "" : (replyTo[0] || from.match(/<([^>]+)>/)?.[1] || from).trim().toLowerCase();
+  const bcc = clean([...(m.bcc || []), ...(EMAIL.test(own) ? [own] : [])]).filter((x) => !to.includes(x) && !cc.includes(x));
   if (cc.length) body.cc = cc;
   if (bcc.length) body.bcc = bcc;
   if (replyTo.length) body.reply_to = replyTo;
