@@ -386,6 +386,8 @@ export interface Tile {
   joint?: string
   /** square feet in a box, when known — so orders can be counted in boxes */
   boxSF?: number
+  /** its real size, measured off the tile ("23 1/2 × 47 1/4" for a 24 × 48) — layouts are drawn with it */
+  actual?: string
   note?: string
   /** how much the tile paperwork (the client's or the store's) has of it — checked against what we need */
   paper?: { qty: number; unit: 'SF' | 'boxes' }
@@ -444,6 +446,9 @@ export interface Surface {
   layout?: string
   /** measured size in inches, for the layout drawing */
   dims?: { w: number; h: number }
+  /** what's in the way on it — a window, a door, a niche, the tub, a vanity: no tile there, the tile is cut around it.
+   *  Inches from the left edge and up from the bottom (a wall: the floor · a floor: the door side) */
+  cutouts?: { id: string; kind: 'window' | 'door' | 'niche' | 'tub' | 'vanity' | 'other'; x: number; y: number; w: number; h: number }[]
   grout?: string
   joint?: string
   edge?: string
