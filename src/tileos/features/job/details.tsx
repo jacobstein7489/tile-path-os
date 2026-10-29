@@ -138,14 +138,14 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           </div>
           {groups.map((g) => (
             <section key={g.floor}>
-              {floors && <div className="flex h-9 items-center border-t border-line-2 bg-[#efece6] px-5 text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-ink-2 max-sm:px-3">{g.floor}</div>}
+              {floors && <div className="flex h-9 items-center border-t border-line bg-[#e9e9e6] px-5 text-[0.75rem] font-semibold uppercase tracking-[0.05em] text-ink-2 max-sm:px-3">{g.floor}</div>}
               {g.rooms.map((room) => {
                 const r = viewOf(room.name)
                 const w = roomWord(r)
                 return (
                   <div key={room.name} data-room={room.name} data-room-state={r.state}>
                     <button onClick={() => open({ t: 'room', name: room.name })} data-room-head className={cn(BAND, 'group w-full min-w-0 gap-3 px-5 text-left max-sm:px-3')}>
-                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink-2 group-hover:text-brand-700">{room.name}</span>
+                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink group-hover:text-brand-700">{room.name}</span>
                       {r.sf > 0 && <span className="shrink-0 text-[0.8125rem] tnum text-faint">{r.sf.toLocaleString('en-US')} SF</span>}
                       <span data-room-why className={cn('ml-auto min-w-0 truncate text-right text-[0.8125rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-faint" />

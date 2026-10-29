@@ -6,14 +6,15 @@ import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, Clipbo
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, BAND } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, Link } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
 import { stepsFor, companySteps } from './steps'
-import { tracksFor, bookingOf, problemsOf, TRACKS, type TrackView } from './tracks'
-import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
+import { tracksFor, bookingOf, problemsOf, readyPctOf, gateOpen, leadWords, stepShort, TRACKS, type TrackView } from './tracks'
+import { installerOf } from './upcoming'
+import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
@@ -111,16 +112,12 @@ export function ProjectsPage() {
               if (!rows.length) return null
               return (
                 <section key={t.key}>
-                  {t.key === 'coming' ? <ComingBand count={rows.length} /> : <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />}
+                  <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />
                   {rows.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
                 </section>
               )
             })
-          : <>
-              {/* only the ones getting ready: the band still names the circles */}
-              {view === 'coming' && list.length > 0 && <ComingBand count={list.length} />}
-              {list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
-            </>}
+          : list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
         {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
@@ -130,15 +127,19 @@ export function ProjectsPage() {
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
 /* One line per project, five columns that line up top to bottom and share the width:
- *   Project · Client · Where it stands · Holding it up · Start
- * Where it stands: getting ready, the five parts as circles under their names (the Getting ready band names them —
- * nothing to point at) and how many are done; installing, how far; touch-ups, how many are left to fix.
- * Holding it up: the one thing in the way right now, in plain words, and how many more — its own column, so they all
- * start at the same spot. Each group (On hold, Getting ready…) is a light band; every line is the same one line.
- * On a phone: the name and where it stands, then what's in the way — or what's left, or the client and the start. */
+ *   Project · Client · Design Tile Site Installer Materials · Now · Start
+ * The five parts of getting ready, as circles on one line, for every project — the same five, in the same place, under
+ * their names on top. Like a parcel's tracking line: the line between them is green as far as getting ready has got
+ * (its steps done, of all of them) and moves along as the work does; each circle says its part — ✓ done, a ring that
+ * fills, ! a problem.
+ * Now: always something — the step that's up (yours in blue), the crew's days, how far the installing is, the touch-ups
+ * left, why it's on hold. Problems are counted on the right of it ("2 problems"), never squeezed into the words: point
+ * at the count for the list, open the project for all of them.
+ * Each group (On hold, Getting ready…) is a gray band with its color dot. On a phone: the name and how far it is, then
+ * what's going on now. */
 const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_17.5rem_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_5rem] max-md:block'
 /** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
- *  (the widest name, Materials, fits), the same in the band and in every row */
+ *  (the widest name, Materials, fits), the same on top and in every row */
 const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
 
 function ListHead() {
@@ -146,84 +147,57 @@ function ListHead() {
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
       <span>Project</span>
       <span className="max-xl:hidden">Client</span>
-      <span>Where it stands</span>
-      <span>Holding it up</span>
+      <span className="flex min-w-0 items-center" data-part-names title="Where it stands — the five parts of getting ready">
+        {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem]')}>{t.label}</span>)}
+      </span>
+      <span>Now</span>
       <span className="text-right">Start</span>
     </div>
   )
 }
 
-/** the Getting ready band: its name and how many — and over the circles, what each one is */
-function ComingBand({ count }: { count: number }) {
-  return (
-    <div className={cn(BAND, COLS, 'pl-5 pr-5 max-md:flex max-md:px-4')} data-band data-group-tone="vio" data-coming-band>
-      <span className="inline-flex min-w-0 items-baseline gap-2">
-        <span className="truncate text-[0.8125rem] font-semibold text-ink-2">Getting ready</span>
-        <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>
-      </span>
-      <span className="max-xl:hidden" />
-      <span className="flex min-w-0 items-center max-md:hidden" data-part-names>
-        {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem] font-medium text-muted')}>{t.label}</span>)}
-      </span>
-      <span className="max-md:hidden" />
-      <span className="max-md:hidden" />
-    </div>
-  )
-}
-
 /** one part of getting ready, as a small circle: ✓ done · a ring that fills as its steps get done · ! a problem */
-function PartDot({ t }: { t: TrackView }) {
-  if (t.state === 'done') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2 w-2" strokeWidth={4} /></span>
-  if (t.state === 'bad') return <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#d7342a] text-[0.5rem] font-black text-white">!</span>
-  const r = 5.2, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
+function PartDot({ t }: { t?: TrackView }) {
+  /* a part this project doesn't have */
+  if (!t) return <span className="inline-flex h-4 w-4 rounded-full border-2 border-dashed border-[#ddd6cb] bg-white" />
+  if (t.state === 'done') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></span>
+  if (t.state === 'bad') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
+  const r = 6, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden className="shrink-0 -rotate-90">
-      <circle cx="7" cy="7" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2" />
-      {f > 0 && <circle cx="7" cy="7" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 -rotate-90">
+      <circle cx="8" cy="8" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2.25" />
+      {f > 0 && <circle cx="8" cy="8" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2.25" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
     </svg>
   )
 }
-/** a slim bar and a few words — installing and touch-ups */
-function Bar({ pct, label }: { pct: number; label: string }) {
-  return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-[#ece8e1]"><span className="block h-full rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(4, Math.min(100, pct))}%` }} /></span>
-      <span className="truncate text-[0.8125rem] tnum text-ink-2">{label}</span>
-    </span>
-  )
-}
+const partWords = (x: TrackView) => `${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`
 
-/** where it stands, in a few characters */
+/** where it stands: the five parts on one tracking line — the same for every project */
 function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */ words?: boolean }) {
   const s = useStore()
-  const t = typeOf(j)
-  if (t === 'coming') {
-    const tracks = tracksFor(s, j)
-    const done = tracks.filter((x) => x.state === 'done').length
-    const all = done === tracks.length
-    if (words) return <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{all ? 'Ready' : `${done} of ${tracks.length} ready`}</span>
-    return (
-      <span className="flex min-w-0 items-center gap-2" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} parts done`}>
-        <span className="flex shrink-0 items-center">
-          {tracks.map((x) => (
-            <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className={slot(x.key)}>
-              <PartDot t={x} /><span className="sr-only" data-mark-name>{x.label}</span><span className="sr-only" data-mark-count>{x.done}/{x.total}</span>
-            </span>
-          ))}
-        </span>
-      </span>
-    )
+  const tracks = tracksFor(s, j).filter((x) => x.key !== 'other')
+  const pct = readyPctOf(tracks)
+  const done = tracks.filter((x) => x.state === 'done').length
+  const all = !!tracks.length && done === tracks.length
+  if (words) {
+    const t = typeOf(j)
+    const w = t === 'progress' ? `${j.pct ?? 0}% in` : all ? (t === 'coming' ? 'Ready' : '') : `${done} of ${tracks.length} ready`
+    return w ? <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{w}</span> : null
   }
-  if (t === 'hold') return <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2"><PauseCircle className="h-4 w-4 shrink-0 text-faint" /><span className="truncate">{j.hold?.shortage ? 'Waiting for the tile' : 'On hold'}</span></span>
-  if (t === 'progress') return <Bar pct={j.pct ?? 0} label={`${j.pct ?? 0}% in`} />
-  if (t === 'touchups' || t === 'repairs') {
-    const all = s.punch.filter((p) => p.jobId === j.id)
-    const open = all.filter((p) => p.status !== 'verified')
-    if (t === 'repairs' && !all.length) return <span className="truncate text-[0.8125rem] text-ink-2">Repair</span>
-    return <span className="truncate text-[0.8125rem] tnum text-ink-2">{open.length ? `${open.length} to fix` : 'All checked'}</span>
-  }
-  const b = billingOf(j)
-  return <span className="truncate text-[0.8125rem] text-muted">{b.billedPct >= 100 ? 'Billed' : `${b.billedPct || 0}% billed`}</span>
+  return (
+    <span className="relative flex shrink-0 items-center" data-mini-line data-ready-pct={pct} aria-label={`Getting ready — ${done} of ${tracks.length} parts done, ${pct}% of the steps`}>
+      {/* the line, from the first circle's middle to the last one's — green as far as it's got */}
+      <Link pct={pct} className="absolute h-[0.1875rem]" style={{ left: '1.75rem', right: '1.75rem', top: 'calc(50% - 0.09375rem)' }} />
+      {TRACKS.map((tk) => {
+        const x = tracks.find((y) => y.key === tk.key)
+        return (
+          <span key={tk.key} data-mark={tk.key} data-at={x?.state || 'none'} title={x ? partWords(x) : `${tk.label} — not on this project`} className={cn(slot(tk.key), 'relative z-[1]')}>
+            <PartDot t={x} /><span className="sr-only" data-mark-name>{tk.label}</span>{x && <span className="sr-only" data-mark-count>{x.done}/{x.total}</span>}
+          </span>
+        )
+      })}
+    </span>
+  )
 }
 
 /** the day the crew starts (amber once it's passed and they haven't) — or the day they started */
@@ -238,13 +212,56 @@ function startOf(s: Store, j: Job): { text: string; late?: boolean } {
   return { text: j.dates?.start || (b ? md(b.start) : s.prep[j.id]?.started || '') }
 }
 
-/** what's holding it up — only when something is: the first thing in plain words (a small red mark, the words
- *  calm), and "· 3 more" when there are more (all of them inside, on Where it stands) */
-function HoldFlag({ list }: { list: { text: string }[] }) {
+/** what's going on with a project now, in a few words — always something */
+export type NowWords = { text: string; who?: string; when?: string; late?: boolean; tone?: 'mine' | 'wait' | 'quiet' }
+export function nowOf(s: Store, j: Job): NowWords {
+  const t = typeOf(j)
+  const me = meOf(s.role)
+  const b = bookingOf(s, j)
+  const crew = (b?.crew || j.crew || installerOf(s, j)) as PersonKey | undefined
+  const name = (p?: PersonKey) => (!p ? undefined : p === me ? 'You' : PEOPLE[p]?.short || undefined)
+  const day = (iso: string) => (iso === TODAY ? 'today' : iso < TODAY ? `was due ${md(iso)}` : labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : `by ${labelFromIso(iso)}`)
+  if (t === 'hold') return { text: j.hold?.shortage ? 'On hold — waiting for the tile' : j.hold?.reason ? `On hold — ${j.hold.reason.replace(/^./, (c) => c.toLowerCase())}` : 'On hold', tone: 'wait' }
+  if (t === 'progress') return { text: `Installing · ${j.pct ?? 0}% done`, who: name(crew) }
+  if (t === 'touchups' || t === 'repairs') {
+    const all = s.punch.filter((p) => p.jobId === j.id)
+    const open = all.filter((p) => p.status !== 'verified').length
+    if (t === 'repairs' && !all.length) return { text: 'Repair', who: name(crew) }
+    return { text: open ? `Touch-ups · ${open} to fix` : 'Touch-ups · all checked', who: name(crew) }
+  }
+  if (t === 'done') { const bl = billingOf(j); return { text: bl.billedPct >= 100 ? 'Finished · billed' : `Finished · ${bl.billedPct || 0}% billed`, tone: 'quiet' } }
+  /* getting ready: the step that's up — yours first, then the first one someone has to do (in the job's order), then
+     what it waits on */
+  const tracks = tracksFor(s, j)
+  if (gateOpen(tracks)) return b ? { text: `Crew booked · starts ${md(b.start)}`, who: name(b.crew as PersonKey) } : { text: 'Ready — book the crew', tone: 'mine' }
+  const open = tracks.filter((x) => x.state !== 'done' && x.lead)
+  const leads = open.map((x) => x.lead!)
+  const v = leads.find((x) => x.state === 'now' && x.owner === me) || leads.find((x) => x.state === 'now') || leads.find((x) => x.state === 'wait') || leads.find((x) => x.state === 'later') || leads[0]
+  if (!v) return { text: 'Getting ready' }
+  const step = stepShort(s, j, v)
+  if (v.state === 'wait') {
+    const w = leadWords(s, j, open.find((x) => x.lead === v)!)
+    return { text: `${step} · ${w.top.replace(/^./, (c) => c.toLowerCase())}`, tone: 'wait' }
+  }
+  if (v.state === 'later') return { text: step, who: name(v.owner), tone: 'quiet' }
+  const mine = v.owner === me
+  return { text: mine ? `${step} · your turn` : step, who: mine ? undefined : name(v.owner), when: v.due ? day(v.due) : undefined, late: !!v.due && v.due < TODAY, tone: mine ? 'mine' : undefined }
+}
+
+/** the problems on a project, counted — the list on hover, all of them on the project */
+function Problems({ list, small }: { list: { text: string }[]; small?: boolean }) {
   if (!list.length) return null
+  const words = `${list.length} ${list.length === 1 ? 'problem' : 'problems'}`
   return (
-    <span data-problems={list.length} title={list.map((p) => p.text).join(' · ')} className="inline-flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2">
-      <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-bad-500" /><span className="truncate">{list[0].text}</span>{list.length > 1 && <span className="shrink-0 text-faint">· {list.length - 1} more</span>}
+    <span data-problems={list.length} title={`${words}:\n${list.map((p) => `• ${p.text}`).join('\n')}`} aria-label={`${words}: ${list.map((p) => p.text).join('; ')}`} className={cn('inline-flex shrink-0 items-center gap-1 rounded-full bg-bad-50 font-semibold tnum text-bad-700', small ? 'h-5 px-1.5 text-[0.71875rem]' : 'h-[1.375rem] pl-1.5 pr-2 text-[0.75rem]')}>
+      <TriangleAlert className="h-3 w-3" />{words}
+    </span>
+  )
+}
+function NowLine({ w }: { w: NowWords }) {
+  return (
+    <span data-now-text className={cn('min-w-0 truncate text-[0.8125rem]', w.tone === 'mine' ? 'font-medium text-brand-700' : w.tone === 'quiet' ? 'text-muted' : w.tone === 'wait' ? 'text-warn-700' : 'text-ink-2')}>
+      {w.text}{w.who && <span className="text-muted"> · {w.who}</span>}{w.when && <span className={w.late ? 'font-medium text-bad-600' : 'text-muted'}> · {w.when}</span>}
     </span>
   )
 }
@@ -253,9 +270,7 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
   const st = startOf(s, j)
   const probs = problemsOf(s, j)
-  const flag = <HoldFlag list={probs} />
-  /* getting ready, on a phone: what's left, by name */
-  const left = typeOf(j) === 'coming' ? tracksFor(s, j).filter((x) => x.state !== 'done').map((x) => x.label) : []
+  const now = nowOf(s, j)
   const open = () => s.open({ t: 'job', id: j.id })
   return (
     <div
@@ -273,17 +288,17 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       </div>
       <span className="min-w-0 truncate text-[0.8125rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="min-w-0 max-md:hidden"><StandsCell j={j} /></div>
-      <div className="flex min-w-0 max-md:hidden">{flag}</div>
+      <div className="flex min-w-0 items-center gap-2 max-md:hidden" data-now><span className="flex min-w-0 flex-1"><NowLine w={now} /></span><Problems list={probs} /></div>
       <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', st.late ? 'font-medium text-warn-700' : 'text-muted')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span>
-      {/* a phone: the name and where it stands; under it the client and the start, in gray */}
+      {/* a phone: the name and how far it is; under it what's going on now, and the problems counted */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-center gap-3">
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
           <span className="shrink-0"><StandsCell j={j} words /></span>
         </div>
-        {/* under it: what's in the way, when something is — else what's left to get ready, or the client and the start */}
-        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[0.78125rem] text-muted">
-          {probs.length ? flag : left.length ? <span className="min-w-0 truncate" data-left>Left: {left.join(', ')}{st.text ? ` · starts ${st.text}` : ''}</span> : <span className="min-w-0 truncate">{[j.client, st.text && `starts ${st.text}`].filter(Boolean).join(' · ')}</span>}
+        <div className="mt-0.5 flex min-w-0 items-center gap-2" data-now>
+          <span className="flex min-w-0 flex-1"><NowLine w={now} /></span>
+          <Problems list={probs} small />
         </div>
       </div>
     </div>

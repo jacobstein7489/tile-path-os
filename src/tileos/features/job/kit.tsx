@@ -38,10 +38,10 @@ export function Section({ title, count, sub, right, action, children, className,
   )
 }
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
-/** a group inside a sheet — a room, a person, a group: a light band the full width, with the same line above it as
- *  every row, so the lines never change */
+/** a group inside a sheet — a room, a person, a group: a light gray band the full width (the same as every list's),
+ *  with the same line above it as every row, so the lines never change */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn('flex h-9 items-center gap-2 border-t border-line bg-white px-5 text-[0.8125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink-2')} data-band>
+  <div className={cn('flex h-9 items-center gap-2 border-t border-line bg-[#f3f3f1] px-5 text-[0.8125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink')} data-band>
     <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-medium tnum text-faint">{count}</span>}
     {right != null && <span className="ml-auto shrink-0 tnum">{right}</span>}
   </div>

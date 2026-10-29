@@ -252,6 +252,10 @@ html { font-size: 16px; }
 .animate-fade-in { animation: fade-in .15s ease both; }
 
 /* a row you can open: pointing at it shows a thin blue mark on its left edge — the line itself stays white */
+/* a tracking line grows into place from the left when it first shows */
+@keyframes line-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.line-grow { transform-origin: left center; animation: line-grow 700ms cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .line-grow { animation: none; } }
 .row-hover { transition: box-shadow 120ms ease; }
 .row-hover:hover, .row-hover:focus-visible { box-shadow: inset 3px 0 0 var(--color-brand-500); outline: none; }
 @media (hover: none) { .row-hover:hover { box-shadow: none; } }

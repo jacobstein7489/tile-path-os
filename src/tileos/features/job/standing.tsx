@@ -37,23 +37,21 @@ import type { BoardView } from './board'
 export type OpenTrack = { track: TrackKey; step: string } | null
 
 /* ================= the line ================= */
-/** where the project is — one line, like the estimate's: the step going on now is filled blue and says "Now" */
+/** where the project is — like a parcel's tracking line: the six stages evenly spaced on one line, each one's name and
+ *  where it's at under its circle, and the line green as far as the project has got — into the stage going on, as far
+ *  as that's got (getting ready: its steps done; installing: how much is in; touch-ups: how many are checked). On a
+ *  phone, the circles alone and the stage going on in words under them. */
 export function ProjectLine({ job, className }: { job: Job; className?: string }) {
   const s = useStore()
   const line = lineOf(s, job, tracksFor(s, job))
   const here = line.find((x) => x.state === 'now' || x.state === 'bad') || [...line].reverse().find((x) => x.state === 'done')
+  const steps = line.map((x, i) => ({ key: x.key, label: x.label, sub: x.sub, state: x.state, lock: x.lock, link: x.link, center: String(i + 1), attrs: { 'data-line': x.key, ...(x.lock ? { 'data-gate': 'locked' } : {}) } }))
   return (
-    <>
-      <Circles
-        layout="beside"
-        markNow
-        size={30}
-        className={className}
-        label="Where the project is"
-        groups={[{ key: 'line', steps: line.map((x, i) => ({ key: x.key, label: x.label, sub: x.sub, state: x.state, lock: x.lock, center: String(i + 1), attrs: { 'data-line': x.key, ...(x.lock ? { 'data-gate': 'locked' } : {}) } })) }]}
-      />
+    <div className={className} data-project-line>
+      <Circles size={28} className="max-sm:hidden" label="Where the project is" groups={[{ key: 'line', steps }]} />
+      <Circles layout="beside" markNow size={26} className="sm:hidden" label="Where the project is" groups={[{ key: 'line', steps }]} />
       {here && <div className="mt-1.5 truncate text-[0.8125rem] sm:hidden" data-line-now><b className={cn('font-semibold', here.state === 'bad' ? 'text-bad-600' : 'text-brand-700')}>{here.label}</b>{here.sub ? <span className="text-muted"> · {here.sub}</span> : null}</div>}
-    </>
+    </div>
   )
 }
 

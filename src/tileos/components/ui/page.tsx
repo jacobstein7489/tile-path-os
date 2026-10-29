@@ -255,14 +255,22 @@ const HALO: Record<Tone, string> = { bad: 'bg-bad-50', warn: 'bg-warn-50', ok: '
 /** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
  *  (or band's) line — every line in a list is the same one line. */
 export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
-/** a group inside a list (Overdue, Today, On hold, Getting ready…): a light band the full width, with the same line
- *  above it as every row — so the lines never change. The name and how many; a quiet link on the right if any. */
-export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-white'
-export function Group({ label, count, tone = 'info', open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
+/** a group inside a list (Overdue, Today, On hold, Getting ready…): a light gray band the full width — gray, never
+ *  yellow — so it reads as a heading and never as one more line of the list. The same line above it as every row, so
+ *  the lines never change. A dot in the group's own color (its bubble's color on top), the name and how many; a quiet
+ *  link on the right if any. */
+export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-[#f3f3f1]'
+/** each group's dot — the colors of the bubbles on top */
+export const BAND_DOT: Record<Tone, string> = { bad: '#d7342a', warn: '#d98c0b', ok: '#2c8a5b', info: '#2650cf', vio: '#6347c7', neutral: '#a09b92' }
+export function BandDot({ tone }: { tone?: Tone }) {
+  return tone ? <span aria-hidden data-band-dot={tone} className="h-2 w-2 shrink-0 self-center rounded-full" style={{ background: BAND_DOT[tone] }} /> : null
+}
+export function Group({ label, count, tone, open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className={cn(BAND, PX)} data-group-tone={tone} data-band>
+    <div className={cn(BAND, PX)} data-group-tone={tone || 'neutral'} data-band>
       <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-baseline gap-2 text-left disabled:cursor-default">
-        <span className="truncate text-[0.8125rem] font-semibold text-ink-2">{label}</span>
+        <BandDot tone={tone} />
+        <span className="truncate text-[0.8125rem] font-semibold text-ink">{label}</span>
         {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
         {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
       </button>
@@ -568,17 +576,18 @@ export function Td({ children, className, right, colSpan }: { children?: React.R
 /** a group heading inside a table.
  * It spans the columns with a second cell that phones hide, so hidden columns never come back as empty ones. */
 const FIRST = 'pl-6 max-sm:pl-4'
-export function GroupRow({ label, count, colSpan, open = true, onToggle, tone = 'info', hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
+export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-white py-0', FIRST)} data-group-tone={tone} data-band>
+      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#f3f3f1] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-baseline gap-2 text-left disabled:cursor-default">
-          <span className="text-[0.8125rem] font-semibold text-ink-2">{label}</span>
+          <BandDot tone={tone && tone !== 'neutral' ? tone : undefined} />
+          <span className="text-[0.8125rem] font-semibold text-ink">{label}</span>
           {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-white max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f3f3f1] max-md:hidden" />}
     </tr>
   )
 }
@@ -675,7 +684,8 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
         const on = at === st.key
         return (
           <li key={st.key} className="relative flex min-w-[5.75rem] flex-1 flex-col items-center text-center">
-            {i > 0 && <span className={cn('absolute top-[0.9375rem] h-[0.125rem] rounded-full', prevDone && st.state !== 'future' ? 'bg-ok-500' : prevDone ? 'bg-gradient-to-r from-ok-500 to-[#e5e0d7]' : 'bg-[#e5e0d7]')} style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
+            {/* the line to it, like a parcel's tracking: full once it's reached, halfway while it's on its way */}
+            {i > 0 && <Link pct={prevDone && st.state !== 'future' ? 100 : prevDone ? 50 : 0} className="absolute top-[0.90625rem] h-[0.1875rem]" style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
             <button
               onClick={st.onClick}
               disabled={!st.onClick}
@@ -716,12 +726,31 @@ export type CircleStep = { key: string; label: string; sub?: string; state: Circ
   /** whose step it is — their initials in a small circle before the line under the name */
   who?: PersonKey
   /** a gate: it can't start until what's before it is done — a dashed ring with a lock */
-  lock?: boolean }
+  lock?: boolean
+  /** while it's the one going on: how far it's got (0–100) — the line after it fills that far, like a parcel's
+   *  tracking line */
+  link?: number }
 export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
 /* blue is "your turn" (and where the project is) — someone else's open step is a dark ring: to do */
 const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd', todo: '#3f4654' }
 const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9', todo: '#e3e5e8' }
 const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint', todo: 'text-ink-2' }
+
+/** the line between two circles — like a parcel's tracking line: green as far as the work has got, gray after it. It
+ *  grows into place when it first shows, and moves along when the work does. */
+export function Link({ pct, className, style }: { pct: number; className?: string; style?: React.CSSProperties }) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)))
+  return (
+    <span aria-hidden data-link={p} className={cn('relative block overflow-hidden rounded-full bg-[#e5e0d7]', className)} style={style}>
+      {p > 0 && <span className="line-grow absolute inset-y-0 left-0 rounded-full bg-[#2c8a5b] transition-[width] duration-700 ease-out" style={{ width: `${p}%` }} />}
+    </span>
+  )
+}
+const REACHED: CircleState[] = ['done', 'now', 'todo', 'wait', 'bad']
+/** how far the line after a step has got: up to the next one once that's reached; while the step is the one going on,
+ *  as far as it's got */
+const linkAfter = (st: CircleStep, next?: CircleStep) =>
+  st.state === 'done' ? (next && !next.lock && REACHED.includes(next.state) ? 100 : st.link ?? 0) : st.state !== 'later' && !st.lock ? st.link ?? 0 : 0
 
 /** one circle: green and full with a check when done, red with ! for a problem, else a ring that fills */
 export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: number; on?: boolean; /** "where it's up to": filled blue, breathing */ solid?: boolean }) {
@@ -753,6 +782,9 @@ export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: nu
   )
 }
 
+/** a part's steps each get the same room, as if it had five — so the circles are as far apart in every part, and a
+ *  part with fewer steps sits in the middle */
+const EVEN = 5
 export function Circles({ groups, at, onPick, layout = 'below', size, label, className, markNow }: { groups: CircleGroup[]; at?: string; onPick?: (key: string) => void; layout?: 'below' | 'beside'; size?: number; label?: string; className?: string; /** where it's up to: the step going on now is filled blue, a little bigger, and says "Now" */ markNow?: boolean }) {
   const all = groups.flatMap((g) => g.steps)
   const rowRef = React.useRef<HTMLDivElement>(null)
@@ -772,11 +804,11 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
           const here = !!markNow && st.state === 'now'
           const Tag = onPick ? 'button' : 'span'
           return (
-            <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-1')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state} data-here={here || undefined}>
-              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 shrink-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90', st.lock && 'border border-dashed border-[#d6cfc3] bg-[#faf8f5] py-1 pl-1 pr-3 max-sm:pr-1')}>
+            <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-[1_1_0]')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state} data-here={here || undefined}>
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
                 <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={here ? sz + 6 : sz} on={on} solid={here} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
-                  <span className={cn('block whitespace-nowrap text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
+                  <span className={cn('block truncate text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
                   {(st.sub || here || st.who) && (
                     <span className={cn('flex max-w-[12rem] items-center gap-1 text-[0.71875rem]', here ? 'font-semibold text-brand-700' : st.lock ? 'text-[#8b8478]' : C_SUB[st.state])} data-who={st.who}>
                       {st.who && <Avatar who={st.who} size={16} />}
@@ -787,7 +819,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
                 {/* the part that's open below — underlined, like a tab */}
                 {on && onPick && <span aria-hidden data-picked className="absolute -bottom-[0.625rem] left-0 right-1 h-[0.1875rem] rounded-t-full bg-brand-600 max-sm:right-0" />}
               </Tag>
-              {i < all.length - 1 && <span className={cn('mx-2 h-[0.125rem] min-w-3 flex-1 rounded-full max-sm:mx-1', st.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} />}
+              {i < all.length - 1 && <Link pct={linkAfter(st, all[i + 1])} className="mx-2 h-[0.1875rem] min-w-3 flex-1 max-sm:mx-1" />}
             </li>
           )
         })}
@@ -807,15 +839,15 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
             {g.sub && <span className={cn('whitespace-nowrap text-[0.75rem]', g.subTone === 'bad' ? 'font-semibold text-bad-600' : 'text-muted')}>{g.sub}</span>}
             {g.label && g.steps.length > 1 && <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" />}
           </div>}
-          <ol className="flex items-start">
+          <ol className="flex items-start justify-center">
             {g.steps.map((st, i) => {
               const on = at === st.key
               return (
-                <li key={st.key} className="relative flex min-w-[4.75rem] flex-[1_1_0] flex-col items-center" data-state={st.state}>
-                  {i > 0 && <span className={cn('absolute h-[0.125rem] rounded-full', g.steps[i - 1].state === 'done' ? 'bg-[#2c8a5b]' : 'bg-[#e5e0d7]')} style={{ top: sz / 2 - 1, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
+                <li key={st.key} className="relative flex min-w-[4.75rem] flex-col items-center" style={{ flex: `0 1 ${100 / Math.max(EVEN, g.steps.length)}%` }} data-state={st.state}>
+                  {i > 0 && <Link pct={linkAfter(g.steps[i - 1], st)} className="absolute h-[0.1875rem]" style={{ top: sz / 2 - 1.5, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
                   <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
                     <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>
-                    <span title={st.label.replace(/\u00AD/g, '')} className={cn('mt-1.5 max-w-full truncate text-[0.75rem] font-semibold leading-[1.15] max-sm:line-clamp-3 max-sm:whitespace-normal', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
+                    <span title={st.label.replace(/\u00AD/g, '')} className={cn('mt-1.5 line-clamp-2 max-w-full whitespace-normal text-[0.75rem] font-semibold leading-[1.15] max-sm:line-clamp-3', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
                     {st.sub && <span title={st.sub} className={cn('mt-0.5 max-w-full truncate text-[0.6875rem] leading-tight', C_SUB[st.state])}>{st.sub}</span>}
                     <span className={cn('mt-1 h-[0.1875rem] w-6 rounded-full', on ? 'bg-brand-600' : 'bg-transparent')} />
                   </button>

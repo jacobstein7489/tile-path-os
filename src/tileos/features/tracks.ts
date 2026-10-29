@@ -101,6 +101,12 @@ export function tracksFor(s: Store, job: Job, all: StepView[] = stepsFor(s, job)
   return out
 }
 
+/** how far getting ready has got, 0–100: the steps done (or not needed) of all of them, across the parts */
+export function readyPctOf(tracks: TrackView[]): number {
+  const total = tracks.reduce((n, t) => n + t.total, 0)
+  return total ? Math.round((tracks.reduce((n, t) => n + t.done, 0) / total) * 100) : 0
+}
+
 /** the crew waits for every track; the deposit isn't one (a warning, not a stop) */
 export const gateOpen = (tracks: TrackView[]) => tracks.every((t) => t.state === 'done')
 
@@ -132,7 +138,7 @@ export function leadWords(s: Store, job: Job, t: TrackView): { who?: PersonKey; 
 /* ================= the line ================= */
 export type LineKey = 'approved' | 'ready' | 'crew' | 'install' | 'punch' | 'closed'
 export type LineState = 'done' | 'now' | 'later' | 'bad'
-export interface LineStep { key: LineKey; label: string; state: LineState; sub?: string; lock?: boolean }
+export interface LineStep { key: LineKey; label: string; state: LineState; sub?: string; lock?: boolean; /** while it's the stage going on: how far it's got (0–100) — the line after it fills that far */ link?: number }
 /** the part of the project the left side shows: getting ready, the crew, the installing, touch-ups, closing */
 export type Phase = 'ready' | 'crew' | 'install' | 'punch' | 'closed'
 
@@ -164,23 +170,25 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
   const openP = punch.filter((p) => p.status !== 'verified')
   const pct = st === 'installation' ? job.pct ?? 0 : 0
   const n = tracks.length
+  /* how far getting ready has got: its steps done, of all of them */
+  const readyPct = readyPctOf(tracks)
   return [
     { key: 'approved', label: 'Approved', state: 'done', sub: [won, est?.id].filter(Boolean).join(' · ') || 'Won' },
     inField || open
       ? { key: 'ready', label: 'Getting ready', state: 'done', sub: inField ? 'Done' : `All ${n} done` }
-      : { key: 'ready', label: 'Getting ready', state: bad ? 'bad' : 'now', sub: `${done} of ${n} done${bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}` },
+      : { key: 'ready', label: 'Getting ready', state: bad ? 'bad' : 'now', sub: `${done} of ${n} done${bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}`, link: readyPct },
     inField || booked
       ? { key: 'crew', label: 'Crew scheduled', state: 'done', sub: [crew ? PEOPLE[crew]?.short : '', start].filter(Boolean).join(' · ') || 'Scheduled' }
       : open
         ? { key: 'crew', label: 'Crew scheduled', state: 'now', sub: crew ? `${PEOPLE[crew]?.short} — pick the days` : 'Pick the days' }
         : { key: 'crew', label: 'Crew scheduled', state: 'later', lock: true, sub: `opens when all ${n} are done` },
     st === 'installation'
-      ? { key: 'install', label: 'Installing', state: 'now', sub: `${pct}%${crew ? ` · ${PEOPLE[crew]?.short}` : ''}` }
+      ? { key: 'install', label: 'Installing', state: 'now', sub: `${pct}%${crew ? ` · ${PEOPLE[crew]?.short}` : ''}`, link: pct }
       : inField
         ? { key: 'install', label: 'Installing', state: 'done', sub: job.dates?.finish ? `Done ${job.dates.finish}` : 'Done' }
         : { key: 'install', label: 'Installing', state: 'later', sub: start ? `${startIso && startIso < TODAY ? 'was to start' : 'starts'} ${start}` : undefined },
     st === 'punch'
-      ? { key: 'punch', label: 'Touch-ups', state: 'now', sub: openP.length ? `${openP.length} open` : 'None open' }
+      ? { key: 'punch', label: 'Touch-ups', state: 'now', sub: openP.length ? `${openP.length} open` : 'None open', link: punch.length ? Math.round(((punch.length - openP.length) / punch.length) * 100) : 0 }
       : ['closeout', 'complete'].includes(st)
         ? { key: 'punch', label: 'Touch-ups', state: 'done', sub: punch.length ? 'All checked' : 'None' }
         : { key: 'punch', label: 'Touch-ups', state: 'later' },
