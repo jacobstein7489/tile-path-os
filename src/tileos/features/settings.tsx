@@ -1044,7 +1044,7 @@ function EmailTab() {
         )}
       </Card>
       <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        Leave “Comes from” empty and each email goes out from the person who sends it. Replies go back to that address. Invoices go out with QuickBooks’ PDF and its Pay button; a PO goes to the supplier, an installer’s PO to him. Estimates aren’t emailed by Tile OS yet — Download PDF and send it yourself. Every email is noted on its bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+        Leave “Comes from” empty and each email goes out from the person who sends it. Replies go back to that address. Estimates and invoices go out with QuickBooks’ PDF (invoices with its Pay button); a PO goes to the supplier, an installer’s PO to him. Every email is noted on its estimate, bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
       </p>
     </div>
   )

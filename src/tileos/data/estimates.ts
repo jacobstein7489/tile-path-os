@@ -70,6 +70,8 @@ export interface Estimate {
    *  the first leads; also the company's own steps */
   people?: Record<string, PersonKey[]>
   notes?: EstNote[]
+  /** the estimate in QuickBooks (the real app, once it's connected): made when it first goes to the client */
+  qb?: { id?: string; sync?: string; doc?: string; customerId?: string; at?: string; emailed?: string; emailedTo?: string; error?: string }
 }
 
 export const curRev = (e: Estimate) => e.revs[e.revs.length - 1]

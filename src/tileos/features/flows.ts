@@ -11,7 +11,7 @@ import { surfacePct, tileOf } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
-import { qbLive, pushBill, pushPayment, emailBill } from './qbsync'
+import { qbLive, pushBill, pushPayment, emailBill, pushEstimate } from './qbsync'
 import { mailLive, emailPO, emailIPO } from './mailout'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText } from '@/tileos/lib/today'
@@ -323,6 +323,9 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
   })
   S().closeAll()
   setTimeout(() => S().open({ t: 'job', id: jobId }), 60)
+  /* the estimate that's in QuickBooks: marked accepted there */
+  const won = S().estimates.find((e) => e.jobId === jobId && e.status === 'approved')
+  if (won?.qb?.id && qbLive()) void pushEstimate(won.id, { accepted: true })
 }
 
 export function newRequest(d: { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; estimator: PersonKey | null }) {

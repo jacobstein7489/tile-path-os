@@ -17,6 +17,7 @@ import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/t
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
 import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, insideOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { FLOORS, sortAreas, guessSurfaces, isOutside } from '@/tileos/data/areas'
+import { qbLive } from './qbsync'
 import { printNode } from '@/tileos/lib/print'
 import { EstimatePaper, paperGroups, paperText } from './estpaper'
 import { DocPanel, PanelBar } from './docview'
@@ -1039,7 +1040,7 @@ export function EstSendModal({ id, sent, level }: { id: string; sent?: boolean; 
       tall
       onClose={s.close}
       title={sent ? `What ${j?.client || 'the client'} got` : `Send ${e.id} to ${j?.client || 'the client'}`}
-      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : REAL.cloud ? `Check it, Download PDF, and email it to ${to || 'them'} — Tile OS doesn’t email estimates yet. Then “Approve and send” marks it sent and starts the follow-up.` : 'This is exactly what they get — check it, then send it'}
+      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : REAL.cloud ? (qbLive() ? `“Approve and send” puts it in QuickBooks and emails it${to ? ` to ${to}` : ''} with QuickBooks’ PDF — then the follow-up starts.` : `QuickBooks isn’t connected, so Tile OS can’t email it: Download PDF and send it to ${to || 'them'}. “Approve and send” marks it sent and starts the follow-up.`) : 'This is exactly what they get — check it, then send it'}
       bodyClass="p-0"
       footer={
         <>

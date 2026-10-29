@@ -15,6 +15,7 @@ import { giveTo } from './estflow'
 import { peopleOn, namesOf, rolesOf, estSteps } from './estpeople'
 import { matBy, matFor } from './flows'
 import { mailLive, emailIPO } from './mailout'
+import { qbLive, pushEstimate } from './qbsync'
 import { shiftText, labelFromIso, workday, addDays, TODAY } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -98,6 +99,8 @@ export function estSend(estId: string) {
     if (!(s.rules.autoOff || []).includes('est-followup')) newTask(s, { jobId: e.jobId, title: `Follow up on ${e.id} · ${j?.name}`, type: 'Pricing', owner: fol, also: fols.length > 1 ? fols.slice(1) : undefined, for: fols.length ? rolesOf(s as any, fols) : [FOL_ROLE[fol] || 'office'], watch: ['owner'], state: 'waiting', waitingOn: 'Client', followUp: fu, tone: 'neutral', where: `Revision ${r.n} · ${fmtMoney(total)} · sent ${NOW}`, action: { label: 'Open estimate', kind: 'estimate:' + e.id } })
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `${e.id} revision ${r.n} sent · ${fmtMoney(total)}`, ref: { t: 'estimate', id: e.id } })
   }, `${e0.id} sent — it’s ${namesOf(fols.length ? fols : [fol], null, true)}’s now`, { close: true, sub: `${namesOf(fols.length ? fols : [fol])} ${fols.length > 1 ? 'follow' : 'follows'} up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu} — it’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [...estSteps(S()).map((x) => ({ who: peopleOn(S(), e0, x.key)[0], label: x.label, state: 'done' as const })), { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
+  /* QuickBooks connected: the estimate goes there and to the client by email, with QuickBooks' PDF */
+  if (qbLive()) void pushEstimate(estId, { email: true })
 }
 
 /** the client wants changes: a new revision, with each thing they asked for as a note to check off */

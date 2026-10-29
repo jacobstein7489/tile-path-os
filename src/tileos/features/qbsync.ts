@@ -10,7 +10,8 @@ import { showPop } from '@/tileos/lib/pop'
 import { NOW } from '@/tileos/lib/today'
 import { fmtMoney, PEOPLE, type Customer, type PersonKey } from '@/tileos/data/model'
 import type { MoneyItem } from '@/tileos/data/work'
-import type { InvoiceIn } from '@/lib/quickbooks'
+import { curRev, type Estimate, type EstRev } from '@/tileos/data/estimates'
+import type { InvoiceIn, EstimateIn } from '@/lib/quickbooks'
 import { applyPayment } from './flows'
 
 /* ---------------- where it stands ---------------- */
@@ -212,6 +213,94 @@ export async function emailBill(id: string, o: { reminder?: boolean; first?: boo
     closeTasks(st, st.tasks.filter((t) => t.id.startsWith(`remind-${id}-`) && t.state !== 'done').map((t) => t.id), 'Reminder sent')
   })
   showPop({ title: o.reminder ? `Reminder sent to ${to.emails[0]}` : `Invoice ${doc} sent to ${to.emails[0]}`, sub: o.first ? `It’s in QuickBooks too${m.qb.link ? ', with the Pay button in the email' : ''}.` : cc.length ? `Copied: ${cc.join(', ')}` : undefined })
+  return true
+}
+
+/* ---------------- estimates ---------------- */
+/** the estimate as QuickBooks gets it: one line per area — what's in it, and what the area comes to */
+function estimateOf(s: Store, e: Estimate, rev: EstRev, accepted: boolean): EstimateIn {
+  const j = s.jobs[e.jobId]
+  const c = j ? s.clients[j.clientId] : undefined
+  const to = estimateTo(s, e)
+  const it = (s.rules.qbItems || {}).progress
+  const areas = Array.from(new Set(rev.lines.map((l) => l.area)))
+  const lines = areas.map((a) => {
+    const ls = rev.lines.filter((l) => l.area === a)
+    const parts = ls.map((l) => {
+      const item = s.items.find((x) => x.id === l.itemId)
+      return `${l.desc || item?.name || 'Work'}${l.surface ? ` (${l.surface})` : ''} — ${l.qty.toLocaleString('en-US')} ${item?.unit || ''}`.trim()
+    })
+    return { amount: r2(ls.reduce((n, l) => n + l.qty * l.rate, 0)), description: `${a}: ${parts.join('; ')}`, ...(it ? { itemId: it.id } : {}) }
+  }).filter((l) => l.amount !== 0)
+  return {
+    qbId: e.qb?.id, sync: e.qb?.sync,
+    customer: { name: c?.name || j?.client || 'Client', email: to[0], address: c?.address || undefined, qbId: e.qb?.customerId || c?.qbId },
+    lines,
+    memo: [j?.name, j?.address, rev.n > 1 ? `Revision ${rev.n}` : ''].filter(Boolean).join(' · ') || undefined,
+    note: `From Tile OS · ${e.id}${rev.n > 1 ? ` revision ${rev.n}` : ''}`,
+    docNumber: e.id.replace(/^E-/, ''),
+    accepted,
+  }
+}
+/** who an estimate goes to: the client's first person with an email, else the client's email */
+export function estimateTo(s: Pick<Store, 'jobs' | 'clients'>, e: Estimate): string[] {
+  const j = s.jobs[e.jobId]
+  const c = j ? s.clients[j.clientId] : undefined
+  return Array.from(new Set([c?.contacts?.find((x) => EMAIL.test(x.email || ''))?.email, c?.email].map((x) => (x || '').trim().toLowerCase()).filter((x) => EMAIL.test(x)))).slice(0, 1)
+}
+/** put the estimate in QuickBooks (a revision changes the one there) and, `email`, send it to the client with
+ *  QuickBooks' PDF. `accepted`: the client said yes — it's marked accepted there. */
+export async function pushEstimate(estId: string, o: { email?: boolean; accepted?: boolean } = {}): Promise<boolean> {
+  if (!REAL.qb || !REAL.cloud) return false
+  if (!view.known || !view.connected) await refreshQb()
+  if (!view.connected) return false
+  const s = useStore.getState()
+  const e = s.estimates.find((x) => x.id === estId)
+  if (!e) return false
+  const rev = o.accepted ? [...e.revs].reverse().find((r) => r.status === 'approved') || curRev(e) : [...e.revs].reverse().find((r) => r.status === 'sent') || curRev(e)
+  const est = estimateOf(s, e, rev, !!o.accepted)
+  if (!est.lines.length) return false
+  const note = (text: string, patch: Partial<NonNullable<Estimate['qb']>> = {}) => useStore.setState((st: any) => { const x = st.estimates.find((y: Estimate) => y.id === estId); if (!x) return; x.qb = { ...(x.qb || {}), ...patch }; x.log.push(L('system', text)) })
+  const r = await REAL.qb.estimate(est).catch(() => ({ ok: false as const, why: 'offline' }))
+  if (!r.ok) {
+    note(`Not in QuickBooks yet — ${qbWords(r)}`, { error: qbWords(r) })
+    showPop({ title: o.email ? `${e.id} is marked sent — but it didn’t go out` : 'QuickBooks didn’t take the estimate', sub: `${qbWords(r)}.${o.email ? ' Download PDF and email it yourself this time.' : ''}`, tone: 'warn' })
+    return false
+  }
+  const fresh = !e.qb?.id
+  useStore.setState((st: any) => { const x = st.estimates.find((y: Estimate) => y.id === estId); const c = st.clients[st.jobs[e.jobId]?.clientId || '']; if (c && r.customerId && c.qbId !== r.customerId) c.qbId = r.customerId; if (x) x.qb = { ...(x.qb || {}), id: r.id, sync: r.sync, doc: r.doc, customerId: r.customerId, at: new Date().toISOString(), error: undefined } })
+  note(o.accepted ? 'Marked accepted in QuickBooks' : fresh ? `In QuickBooks as estimate ${r.doc ? '#' + r.doc : ''}` : `Updated in QuickBooks${rev.n > 1 ? ` · revision ${rev.n}` : ''}`)
+  if (!o.email) return true
+  /* the email: from the estimates address (else the person sending it), with QuickBooks' PDF */
+  const to = estimateTo(s, e)
+  const j = s.jobs[e.jobId]
+  if (!to.length) {
+    note('Not emailed — the client has no email')
+    showPop({ title: `${e.id} is in QuickBooks — not emailed`, sub: `${j?.client || 'The client'} has no email in Tile OS. Add one on their page, or send it from QuickBooks.`, tone: 'warn' })
+    return false
+  }
+  const mail = s.rules.email || {}
+  const me = byMe()
+  const mine = s.team.find((x) => x.key === me)
+  const fromAddr = mail.estimates || REAL.email || mine?.email
+  const name = PEOPLE[me]?.name || 'Cobblestone Tile'
+  const c = j ? s.clients[j.clientId] : undefined
+  const first = c?.contacts?.find((x) => (x.email || '').toLowerCase() === to[0])?.name?.split(' ')[0]
+  const total = rev.lines.reduce((n, l) => n + l.qty * l.rate, 0)
+  const html = `<div style="font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b18;max-width:560px">
+<p>Hello${first ? ` ${esc(first)}` : ''},</p>
+<p>Attached is our estimate <b>${esc(e.id)}</b>${rev.n > 1 ? ` (revision ${rev.n})` : ''} for <b>${esc(j?.name || 'the project')}</b> — ${esc(fmtMoney(total))}.</p>
+<p>Reply to approve it, or tell us what you’d like to change.</p>
+<p>Thank you,<br>${esc(name)}<br>Cobblestone Tile</p>
+</div>`
+  const sent = await REAL.qb.send({ id: r.id, kind: 'estimate', to: to[0], cc: Array.from(new Set([...(mail.cc || []), ...(mail.ccEstimates || [])])), from: fromAddr ? `${mail.estimates ? 'Cobblestone Tile' : `${name} · Cobblestone Tile`} <${fromAddr}>` : undefined, replyTo: fromAddr ? [fromAddr] : undefined, subject: `Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''} · ${j?.name || ''}`, html, file: `Estimate ${e.id}${rev.n > 1 ? `-R${rev.n}` : ''}.pdf` }).catch(() => ({ ok: false as const, why: 'offline' }))
+  if (!sent.ok) {
+    note(`The email didn’t go out — ${qbWords(sent)}`)
+    showPop({ title: `${e.id} is in QuickBooks — the email didn’t go out`, sub: `${qbWords(sent)}. Send it from QuickBooks, or Download PDF and email it.`, tone: 'warn' })
+    return false
+  }
+  note(`Emailed to ${to[0]}${sent.via === 'quickbooks' ? ' (sent by QuickBooks)' : ''}`, { emailed: new Date().toISOString(), emailedTo: to[0] })
+  showPop({ title: `${e.id} emailed to ${to[0]}`, sub: 'With the PDF from QuickBooks. It’s in QuickBooks too.' })
   return true
 }
 

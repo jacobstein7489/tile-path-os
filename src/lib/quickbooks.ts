@@ -206,25 +206,75 @@ export const qbPushInvoice = createServerFn({ method: "POST" })
     }
   });
 
-/** email the invoice to the client: from Tile OS (accounting's address, the Cc you set), with QuickBooks' own PDF
- *  and Pay button — or, without email set up, QuickBooks sends it itself */
+/** email the invoice (or the estimate) to the client: from Tile OS (the address and Cc in Settings → Email), with
+ *  QuickBooks' own PDF — and, on an invoice, its Pay button. Without email set up, QuickBooks sends it itself. */
 export const qbSendInvoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: { id: string; to: string; cc?: string[]; from?: string; replyTo?: string[]; subject?: string; html?: string; file?: string }) => {
+  .validator((d: { id: string; to: string; cc?: string[]; from?: string; replyTo?: string[]; subject?: string; html?: string; file?: string; kind?: "invoice" | "estimate" }) => {
     if (!d?.id || !/^\S+@\S+\.\S+$/.test(String(d.to || "").trim())) throw new Error("No email address for the client");
-    return d;
+    return { ...d, kind: d.kind === "estimate" ? ("estimate" as const) : ("invoice" as const) };
   })
   .handler(async ({ data, context }): Promise<{ ok: true; via: "tileos" | "quickbooks" } | { ok: false; why: string; detail?: string }> => {
     if (!(await roles(context)).length) return { ok: false, why: "denied" };
     try {
       if (mailConfigured() && data.from && data.html) {
-        const pdf = await api("GET", `/invoice/${encodeURIComponent(data.id)}/pdf`, undefined, { pdf: true });
-        const r = await sendMail({ from: data.from, to: [data.to], cc: data.cc, replyTo: data.replyTo, subject: data.subject || "Invoice", html: data.html, attachments: [{ filename: data.file || "invoice.pdf", content: toBase64(pdf) }] });
+        const pdf = await api("GET", `/${data.kind}/${encodeURIComponent(data.id)}/pdf`, undefined, { pdf: true });
+        const r = await sendMail({ from: data.from, to: [data.to], cc: data.cc, replyTo: data.replyTo, subject: data.subject || (data.kind === "estimate" ? "Estimate" : "Invoice"), html: data.html, attachments: [{ filename: data.file || `${data.kind}.pdf`, content: toBase64(pdf) }] });
         if (r.ok) return { ok: true, via: "tileos" };
         if (r.why !== "nokey") return { ok: false, why: "mail", detail: r.why };
       }
-      await api("POST", `/invoice/${encodeURIComponent(data.id)}/send`, "", { query: { sendTo: data.to.trim() }, contentType: "application/octet-stream" });
+      await api("POST", `/${data.kind}/${encodeURIComponent(data.id)}/send`, "", { query: { sendTo: data.to.trim() }, contentType: "application/octet-stream" });
       return { ok: true, via: "quickbooks" };
+    } catch (e) {
+      return { ok: false, ...plain(e) };
+    }
+  });
+
+/* ---------------- estimates ---------------- */
+export type EstimateIn = Omit<InvoiceIn, "findFirst" | "dueDate"> & { /** how long the price holds */ expires?: string; /** the client said yes */ accepted?: boolean };
+export type EstimateOut = { ok: true; id: string; sync: string; doc?: string; total: number; customerId: string } | { ok: false; why: string; detail?: string };
+/** the estimate in QuickBooks — made the first time it goes to the client, changed with each revision */
+export const qbPushEstimate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: EstimateIn) => {
+    if (!d || !d.customer?.name || !Array.isArray(d.lines) || !d.lines.length) throw new Error("Nothing on the estimate");
+    if (d.lines.some((l) => typeof l.amount !== "number" || !isFinite(l.amount))) throw new Error("A line has no amount");
+    return d;
+  })
+  .handler(async ({ data, context }): Promise<EstimateOut> => {
+    if (!(await roles(context)).length) return { ok: false, why: "denied" };
+    try {
+      const customerId = await customerFor(data.customer);
+      const Line: Record<string, unknown>[] = [];
+      for (const l of data.lines) {
+        const amt = Math.round(l.amount * 100) / 100;
+        Line.push({ Amount: amt, DetailType: "SalesItemLineDetail", Description: l.description.slice(0, 4000), SalesItemLineDetail: { ItemRef: { value: await itemFor(l) }, Qty: 1, UnitPrice: amt } });
+      }
+      const body: Record<string, unknown> = {
+        CustomerRef: { value: customerId },
+        Line,
+        ...(data.txnDate ? { TxnDate: data.txnDate } : {}),
+        ...(data.expires ? { ExpirationDate: data.expires } : {}),
+        ...(data.memo ? { CustomerMemo: { value: data.memo.slice(0, 1000) } } : {}),
+        ...(data.note ? { PrivateNote: data.note.slice(0, 4000) } : {}),
+        ...(data.customer.email ? { BillEmail: { Address: data.customer.email } } : {}),
+        ...(data.accepted ? { TxnStatus: "Accepted" } : {}),
+      };
+      if (!data.qbId && data.docNumber && (await usesCustomNumbers())) body.DocNumber = data.docNumber.replace(/^#/, "").slice(0, 21);
+      let est: any;
+      if (data.qbId) {
+        const upd = async (sync: string) => (await api("POST", "/estimate", { ...body, Id: data.qbId, SyncToken: sync, sparse: true })).Estimate;
+        try {
+          est = await upd(data.sync || "0");
+        } catch (e) {
+          if (!(e instanceof QbError) || e.why !== "stale") throw e;
+          const cur = await api("GET", `/estimate/${encodeURIComponent(data.qbId)}`);
+          est = await upd(String(cur.Estimate.SyncToken));
+        }
+      } else {
+        est = (await api("POST", "/estimate", body)).Estimate;
+      }
+      return { ok: true, id: String(est.Id), sync: String(est.SyncToken), doc: est.DocNumber || undefined, total: Number(est.TotalAmt || 0), customerId };
     } catch (e) {
       return { ok: false, ...plain(e) };
     }

@@ -10,7 +10,7 @@ import { seedRefs } from '@/tileos/lib/utils'
 import { TODAY, addDays, dow, labelFromIso } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import type { Role, PersonKey } from '@/tileos/data/model'
-import type { QbStatus, InvoiceIn, InvoiceOut } from '@/lib/quickbooks'
+import type { QbStatus, InvoiceIn, InvoiceOut, EstimateIn, EstimateOut } from '@/lib/quickbooks'
 import type { MailStatus, MailIn } from '@/lib/mail'
 
 export type SaveMode = 'sample' | 'fresh'
@@ -67,7 +67,8 @@ export const REAL: {
     disconnect: () => Promise<{ ok: boolean; why?: string }>
     items: () => Promise<{ ok: true; items: { id: string; name: string; type: string }[] } | { ok: false; why: string; detail?: string }>
     push: (inv: InvoiceIn) => Promise<InvoiceOut>
-    send: (d: { id: string; to: string; cc?: string[]; from?: string; replyTo?: string[]; subject?: string; html?: string; file?: string }) => Promise<{ ok: true; via: 'tileos' | 'quickbooks' } | { ok: false; why: string; detail?: string }>
+    send: (d: { id: string; to: string; cc?: string[]; from?: string; replyTo?: string[]; subject?: string; html?: string; file?: string; kind?: 'invoice' | 'estimate' }) => Promise<{ ok: true; via: 'tileos' | 'quickbooks' } | { ok: false; why: string; detail?: string }>
+    estimate: (est: EstimateIn) => Promise<EstimateOut>
     pay: (d: { invoiceId: string; customerId: string; amount: number; date?: string; ref?: string; note?: string }) => Promise<{ ok: true; id: string } | { ok: false; why: string; detail?: string }>
     pull: (ids: string[]) => Promise<{ ok: true; invoices: { id: string; balance: number; total: number; doc?: string; sync: string }[] } | { ok: false; why: string; detail?: string }>
   }
