@@ -385,7 +385,7 @@ export const OURMATS: OurMat[] = [
 /* ================= purchase orders (money out) ================= */
 export const PO_STEPS = ['Draft', 'Sent', 'Confirmed', 'Delivered', 'Bill in', 'Paid']
 export interface POLine { item: string; qty: string; itemId?: string; n?: number; price?: number }
-export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string }
+export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string; /** the last time Tile OS emailed it, and to whom */ mailed?: { at: string; to: string } }
 export const POS0: PO[] = [
   { id: 'PO-1045', jobId: '114', supplier: 'Infinity', what: 'Setting materials', amount: 1374, step: 1, date: 'Sep 26', eta: 'Asked for Oct 5', note: 'Sent Sep 26 · waiting for Infinity to confirm', lines: [{ item: 'Uncoupling membrane', qty: '2 rolls', itemId: 'm-membrane', n: 2, price: 315 }, { item: 'LFT thinset', qty: '16 bags', itemId: 'm-thinset', n: 16, price: 38 }, { item: 'Grout · Silverado', qty: '4 bags', itemId: 'm-grout', n: 4, price: 34 }], log: [L('Sep 26', 'materials', 'Sent to Infinity')] },
   { id: 'PO-1041', jobId: '119', supplier: 'Metal Works Inc.', what: 'JOLLY satin brass 10 mm', amount: 684, step: 2, date: 'Sep 9', eta: 'Tomorrow', note: '4 of 6 received · 2 ship tomorrow', lines: [{ item: 'Schluter JOLLY · satin brass · 10 mm · 8 ft', qty: '6', itemId: 'm-jolly', n: 6, price: 114 }], log: [L('Sep 9', 'materials', 'Sent'), L('Sep 10', 'materials', 'Confirmed'), L('Sep 25', 'materials', 'Received 4 of 6')] },
@@ -425,6 +425,29 @@ export interface MoneyItem {
   week?: string
   /** a progress bill made from the week's daily updates: how it adds up */
   bill?: BillBreakdown
+  /** the invoice in QuickBooks (the real app, once it's connected) */
+  qb?: QbLink
+}
+/** a bill's invoice in QuickBooks: which one it is, what's open on it there, and the payments that went each way —
+ *  so a payment is never counted twice */
+export interface QbLink {
+  id?: string; sync?: string; doc?: string; customerId?: string
+  /** the client's page to pay it online (QuickBooks Payments) */
+  link?: string
+  total?: number; balance?: number
+  /** payments recorded here that went to QuickBooks · paid in QuickBooks and brought here · recorded here before the
+   *  bill was in QuickBooks (an invoice accounting had made there already) */
+  sent?: number; fromQb?: number; before?: number
+  /** payments recorded here that haven't reached QuickBooks yet — they go again by themselves */
+  unsent?: { amount: number; how?: string; at: string }[]
+  /** when it last went to QuickBooks, and when it was last emailed to the client (and to whom) */
+  at?: string; emailed?: string; emailedTo?: string
+  /** what went wrong the last time it was put in QuickBooks */
+  error?: string
+  /** it was in QuickBooks already — linked to it, not made twice */
+  linked?: boolean
+  /** deleted in QuickBooks */
+  gone?: boolean
 }
 /** how a progress bill adds up — kept on the bill, so it reads the same later */
 export interface BillBreakdown {

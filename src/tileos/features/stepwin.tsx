@@ -19,6 +19,7 @@ import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jo
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
+import { mailLive, emailText } from './mailout'
 import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
@@ -674,6 +675,18 @@ function RevisedQty({ job, rows, onCancel }: { job: Job; rows: QtyRow[]; onCance
   const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(`${job.name} — revised tile quantities`)}&body=${encodeURIComponent(text)}`
   const copy = async () => { try { await navigator.clipboard.writeText(text); toast('Copied — paste it into your email') } catch { toast('Couldn’t copy — select the text and copy it') } }
   const sent = () => sendRevisedQty(job.id, { to: to.trim() || contact?.name || client?.name || 'the client', text })
+  /* the real app with email set up: it goes from Tile OS (Settings → Email: "Everything else"), not your mail app */
+  const [busy, setBusy] = React.useState(false)
+  const direct = mailLive()
+  const sendNow = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const r = await emailText({ to, subject: `${job.name} — revised tile quantities`, text })
+      if (!r.ok) { toast.error(r.why); return }
+      sent()
+    } finally { setBusy(false) }
+  }
   return (
     <section className="rounded-xl border border-brand-200 bg-brand-50/30 p-4 max-sm:p-3">
       <div className="text-[0.90625rem] font-semibold text-ink">Send the revised quantities</div>
@@ -685,8 +698,14 @@ function RevisedQty({ job, rows, onCancel }: { job: Job; rows: QtyRow[]; onCance
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <span className="ml-auto" />
         <Button icon={<Copy />} onClick={copy}>Copy</Button>
-        <a href={href} target="_blank" rel="noreferrer" onClick={() => setTimeout(sent, 50)} className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d9d3c9] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink shadow-xs hover:border-brand-300 hover:text-brand-700"><Mail className="h-4 w-4" />Email it</a>
-        <Button variant="primary" icon={<Check />} onClick={sent}>Mark it sent</Button>
+        {direct ? (
+          <Button variant="primary" icon={<Mail className="h-4 w-4" />} disabled={busy || !/@/.test(to)} onClick={sendNow}>{busy ? 'Sending…' : 'Send it'}</Button>
+        ) : (
+          <>
+            <a href={href} target="_blank" rel="noreferrer" onClick={() => setTimeout(sent, 50)} className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d9d3c9] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink shadow-xs hover:border-brand-300 hover:text-brand-700"><Mail className="h-4 w-4" />Email it</a>
+            <Button variant="primary" icon={<Check />} onClick={sent}>Mark it sent</Button>
+          </>
+        )}
       </div>
     </section>
   )

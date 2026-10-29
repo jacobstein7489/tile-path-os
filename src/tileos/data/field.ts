@@ -162,7 +162,7 @@ export const DIARY0: Record<string, DiaryEntry[]> = {
 /* ================= installer POs (what we pay the crew for this project) ================= */
 export interface IPOLine { item: string; qty: string; amount: number; itemId?: string; n?: number; rate?: number; room?: string }
 export interface IPOChange { co: string; text: string; qty: string; amount: number; status: 'pending' | 'sent' | 'accepted' }
-export interface IPO { id: string; jobId: string; crew: PersonKey; status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected'; date: string; lines: IPOLine[]; changes: IPOChange[]; log: LogLine[]; reason?: string; /** revision number once it's been changed after he had it */ rev?: number }
+export interface IPO { id: string; jobId: string; crew: PersonKey; status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected'; date: string; lines: IPOLine[]; changes: IPOChange[]; log: LogLine[]; reason?: string; /** revision number once it's been changed after he had it */ rev?: number; /** the last time Tile OS emailed it to him, and where */ mailed?: { at: string; to: string } }
 
 const LL = (date: string, who: PersonKey, text: string): LogLine => ({ date, who, text })
 export const IPOS0: IPO[] = [

@@ -1039,7 +1039,7 @@ export function EstSendModal({ id, sent, level }: { id: string; sent?: boolean; 
       tall
       onClose={s.close}
       title={sent ? `What ${j?.client || 'the client'} got` : `Send ${e.id} to ${j?.client || 'the client'}`}
-      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : 'This is exactly what they get — check it, then send it'}
+      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : REAL.cloud ? `Check it, Download PDF, and email it to ${to || 'them'} — Tile OS doesn’t email estimates yet. Then “Approve and send” marks it sent and starts the follow-up.` : 'This is exactly what they get — check it, then send it'}
       bodyClass="p-0"
       footer={
         <>

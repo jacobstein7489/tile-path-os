@@ -5,7 +5,9 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import App from './App'
 import { REAL, wantsSampleLook } from './lib/save'
+import { useStore } from './store'
 import { startCloud, startSample, stopCloud, type CloudProblem } from './lib/cloud'
+import { qbArrived } from './features/qbsync'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
 
 type Phase =
@@ -183,6 +185,13 @@ export default function Boot() {
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
     setPhase({ k: 'ready' })
+    /* back from QuickBooks (connecting it): open Settings → Connections and say how it went */
+    const qbBack = OPENED.hash.match(/^#\/settings\/(qb-[a-z]+|qb)\/connections/)
+    if (qbBack && !sample) {
+      OPENED.hash = ''
+      useStore.getState().go({ page: 'settings', id: 'qb', tab: 'connections' })
+      if (qbBack[1] !== 'qb') qbArrived(qbBack[1])
+    }
   }, [signOut])
 
   React.useEffect(() => {

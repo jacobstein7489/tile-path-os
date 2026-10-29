@@ -1,7 +1,7 @@
 /* What they get — the email exactly as the supplier or client sees it, sent from your connected Gmail.
  * Purchase orders carry Confirm / Can't make the date buttons, invoices a secure Pay button (QuickBooks Payments —
  * we never see or store card numbers), estimates Approve / Ask for changes. Their click updates Tile OS by itself. */
-import { smp } from '@/tileos/lib/save'
+import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
 import { Paperclip, Lock, Check, Mail } from 'lucide-react'
 import { useStore } from '@/tileos/store'
@@ -37,8 +37,10 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     subject = `${id} · ${j?.name} · needed ${d.neededBy}`
     attach = `${id}.pdf`
     greeting = `Hi ${d.supplier} team,`
-    body = <>Please confirm <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. One click below tells us — no need to reply.</>
-    buttons = (
+    body = REAL.cloud
+      ? <>Here is our purchase order <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. Please reply to confirm it and the delivery date.</>
+      : <>Please confirm <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. One click below tells us — no need to reply.</>
+    buttons = REAL.cloud ? null : (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Confirm the order</span>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d9d3c9] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Can’t make the date</span>
@@ -107,8 +109,10 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     subject = `Estimate ${e.id}${r.n > 1 ? ` · revision ${r.n}` : ''} · ${j?.name}`
     attach = `Estimate ${e.id}.pdf · Scope of work.pdf`
     greeting = 'Hello,'
-    body = <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Approve it, or tell us what to change — one click below.</>
-    buttons = (
+    body = REAL.cloud
+      ? <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Reply to approve it, or tell us what to change.</>
+      : <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Approve it, or tell us what to change — one click below.</>
+    buttons = REAL.cloud ? null : (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Approve</span>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d9d3c9] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Ask for changes</span>
@@ -127,7 +131,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
   }
 
   return (
-    <Modal level={level} size="lg" onClose={s.close} title="What they get" sub="Sent from your connected Gmail. Their click comes back here by itself.">
+    <Modal level={level} size="lg" onClose={s.close} title="What they get" sub={REAL.cloud ? 'What goes out from Tile OS. Replies go back to the address it comes from.' : 'Sent from your connected Gmail. Their click comes back here by itself.'}>
       <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-xs">
         <div className="flex items-center gap-2 border-b border-line-2 bg-[#f8f6f2] px-4 py-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#fda29b]" /><span className="h-2.5 w-2.5 rounded-full bg-[#fedf89]" /><span className="h-2.5 w-2.5 rounded-full bg-[#a6f4c5]" />
@@ -151,7 +155,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
             <p className="mt-2 text-[0.90625rem] leading-relaxed text-[#394150]">{body}</p>
             <div className="mt-4 flex flex-wrap gap-2">{buttons}</div>
             <div className="mt-6">{doc}</div>
-            <p className="mt-5 text-[0.8125rem] leading-relaxed text-[#66707f]">Questions? Reply to this email — it lands on the project in Tile OS.</p>
+            <p className="mt-5 text-[0.8125rem] leading-relaxed text-[#66707f]">{REAL.cloud ? 'Questions about it? Just reply to this email.' : 'Questions? Reply to this email — it lands on the project in Tile OS.'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 border-t border-line-2 px-5 py-3 text-[0.8125rem] text-muted max-sm:px-4">

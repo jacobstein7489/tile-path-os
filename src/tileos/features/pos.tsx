@@ -16,6 +16,7 @@ import { ipoTotal, poRatio, type Ratio } from './poratio'
 import { RatioMeter } from './stepwin'
 import { allSubs } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy } from './flows'
+import { mailLive, emailPO, emailIPO } from './mailout'
 import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
 import { METHODS } from '@/tileos/data/takeoff'
@@ -190,6 +191,7 @@ function changePO(id: string, lines: POLine[]) {
     p.log.push({ date: NOW, who: me, text: `Changed — ${fmtMoney(before)} → ${fmtMoney(p.amount)} · sent to ${p.supplier}` })
     addHist(st, p.jobId, { who: me, kind: 'material', title: `${p.id} changed — sent to ${p.supplier}`, detail: p.lines.map((l) => `${l.item} ${l.qty}`).join(' · '), ref: { t: 'po', id: p.id } })
   }, 'PO changed', { sub: 'The change went to the supplier — it waits for them to confirm again.' })
+  if (mailLive()) void emailPO(id, { changed: true })
 }
 
 export function MaterialPOModal({ id, level }: { id: string; level: number }) {
@@ -223,7 +225,8 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
         <div className="shrink-0 text-right max-md:text-left">
           <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(p.amount)}</div>
           <div className={cn('text-[0.8125rem]', p.late ? 'font-medium text-bad-700' : 'text-muted')}>{p.eta}</div>
-          {p.step >= 1 && <button onClick={() => s.open({ t: 'email', what: { kind: 'po', poId: p.id } })} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Mail className="h-3.5 w-3.5" />The email {p.supplier} got</button>}
+          {p.step >= 1 && !mailLive() && <button onClick={() => s.open({ t: 'email', what: { kind: 'po', poId: p.id } })} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Mail className="h-3.5 w-3.5" />The email {p.supplier} got</button>}
+          {p.step >= 1 && !cancelled && mailLive() && <MailedLine mailed={p.mailed} who={p.supplier} onSend={() => emailPO(p.id)} />}
         </div>
       </div>
       {cancelled ? <div className="mt-4 rounded-lg bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">{p.note}</div> : <Path className="mt-4" steps={steps} />}
@@ -476,6 +479,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
         <div className="shrink-0 text-right max-md:text-left">
           <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(total)}</div>
           <div className="text-[0.75rem] text-faint">What we pay {PEOPLE[p.crew].short}{smp(' · sample amounts')}</div>
+          {p.status !== 'Draft' && mailLive() && <MailedLine mailed={p.mailed} who={PEOPLE[p.crew].short} onSend={() => emailIPO(p.id)} />}
         </div>
       </div>
       <Path className="mt-4" steps={steps} />
@@ -817,5 +821,17 @@ function Num({ value, onChange, label, money }: { value: number; onChange: (n: n
       {money && <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[0.8125rem] text-faint">$</span>}
       <input aria-label={label} inputMode="decimal" value={v} onChange={(x) => setV(x.target.value)} onBlur={() => { const n = Number(v.replace(/[^0-9.]/g, '')); if (!isNaN(n)) onChange(n); else setV(String(value)) }} onKeyDown={(x) => { if (x.key === 'Enter') (x.target as HTMLInputElement).blur() }} className={cn('h-8 w-[4.75rem] rounded-md border border-transparent bg-wash px-2 text-right text-[0.875rem] tnum text-ink hover:border-line focus:border-brand-300 focus:bg-white focus:outline-none', money && 'pl-5')} />
     </span>
+  )
+}
+
+/** the real app: when Tile OS last emailed it, and a button to email it (again) */
+function MailedLine({ mailed, who, onSend }: { mailed?: { at: string; to: string }; who: string; onSend: () => Promise<boolean> }) {
+  const [busy, setBusy] = React.useState(false)
+  const when = mailed ? new Date(mailed.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+  return (
+    <div className="mt-1 flex flex-wrap items-center justify-end gap-x-2 text-[0.8125rem] max-md:justify-start" data-mailed={mailed ? 'yes' : 'no'}>
+      <span className="text-muted">{mailed ? `Emailed ${when} to ${mailed.to}` : `Not emailed to ${who} yet`}</span>
+      <button disabled={busy} onClick={async () => { setBusy(true); try { await onSend() } finally { setBusy(false) } }} className="inline-flex items-center gap-1 font-semibold text-brand-600 hover:underline disabled:text-faint"><Mail className="h-3.5 w-3.5" />{busy ? 'Sending…' : mailed ? 'Email it again' : 'Email it'}</button>
+    </div>
   )
 }

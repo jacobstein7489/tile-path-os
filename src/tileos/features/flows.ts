@@ -3,7 +3,7 @@
  * stage, tasks for the right people, money, materials, schedule, and history. */
 import { toast } from '@/tileos/lib/pop'
 import { isoOfDay, parseTime } from '@/tileos/data/calendar'
-import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc } from '@/tileos/store'
+import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
 import type { PersonKey, Stage, SwatchKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
 import type { Task, MoneyItem } from '@/tileos/data/work'
@@ -11,6 +11,8 @@ import { surfacePct, tileOf } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
+import { qbLive, pushBill, pushPayment, emailBill } from './qbsync'
+import { mailLive, emailPO, emailIPO } from './mailout'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -719,6 +721,8 @@ export function dailyUpdate(jobId: string, d: { who: PersonKey; rooms: string[];
 
 /* ================= money ================= */
 export function createInvoice(id: string) {
+  /* QuickBooks connected: the invoice goes there, and from there to the client by email (its number is QuickBooks') */
+  const live = qbLive()
   const ref = nextRef()
   S().commit((s) => {
     const m = s.money.find((x) => x.id === id)
@@ -729,48 +733,80 @@ export function createInvoice(id: string) {
     m.due = 'Sent today'
     m.dueTone = undefined
     m.action = 'Record payment'
-    m.log.push(L(me(), `Invoice ${ref} sent from QuickBooks`))
+    m.log.push(L(me(), live ? 'Invoiced · going to QuickBooks and the client' : `Invoice ${ref} sent from QuickBooks`))
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'money:' + id).map((t) => t.id), 'Invoiced')
     if (m.kind === 'deposit') setIssues(s, m.jobId, (iss) => iss.map((i) => (/deposit/i.test(i.text) ? { tone: 'warn', text: `Deposit invoiced ${ref} · not paid` } : i)))
     if (m.kind === 'final' || m.kind === 'retainage') setIssues(s, m.jobId, (iss) => iss.filter((i) => !/final invoice/i.test(i.text)))
-    addHist(s, m.jobId, { who: me(), kind: 'money', title: `${m.title} invoiced · ${ref}`, detail: m.amount ? fmtMoney(m.amount) : undefined })
-  }, `Invoice ${ref} sent`, { sub: 'Reminders go out by themselves until it’s paid.', flow: [{ who: 'accounting', label: 'Invoiced', state: 'done' }, { label: 'Client pays', state: 'now' }, { who: 'accounting', label: 'Paid', state: 'next' }] })
+    addHist(s, m.jobId, { who: me(), kind: 'money', title: `${m.title} invoiced`, detail: m.amount ? fmtMoney(m.amount) : undefined })
+  }, live ? 'Invoiced — going to QuickBooks' : `Invoice ${ref} sent`, live ? { sub: 'Then it’s emailed to the client with the Pay button.', undo: false } : { sub: 'Reminders go out by themselves until it’s paid.', flow: [{ who: 'accounting', label: 'Invoiced', state: 'done' }, { label: 'Client pays', state: 'now' }, { who: 'accounting', label: 'Paid', state: 'next' }] })
+  if (live) void pushBill(id, { email: true })
+}
+/** what a payment changes on a bill — on the store being changed (a payment recorded here, or one made in QuickBooks) */
+export function applyPayment(s: Store, id: string, amount: number, how?: string, who: PersonKey = me()) {
+  const m = s.money.find((x) => x.id === id)
+  if (!m || !m.amount) return
+  if (how) m.log.push({ date: NOW, who, text: `${how} · ${fmtMoney(amount)}` })
+  m.paid = Math.round(((m.paid || 0) + amount) * 100) / 100
+  if (m.paid >= m.amount - 0.005) {
+    m.state = 'paid'
+    m.step = 99
+    m.date = NOW
+    m.log.push({ date: NOW, who, text: `Paid in full · ${fmtMoney(amount)}` })
+    if (m.kind === 'deposit') setIssues(s, m.jobId, (iss) => iss.filter((i) => !/deposit/i.test(i.text)))
+    ;(m.bill?.cos || []).forEach((c) => {
+      const co = s.money.find((x) => x.id === c.id)
+      if (!co || co.state === 'paid') return
+      co.state = 'paid'
+      co.step = 99
+      co.date = NOW
+      co.log.push({ date: NOW, who, text: `Paid with ${m.title.split(' · ')[0]}` })
+    })
+  } else {
+    m.due = `${fmtMoney(m.amount - m.paid)} open`
+    m.log.push({ date: NOW, who, text: `${fmtMoney(amount)} received · ${fmtMoney(m.amount - m.paid)} still open` })
+  }
+  closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'money:' + id).map((t) => t.id), 'Paid')
+  addHist(s, m.jobId, { who, kind: 'money', title: `Payment received${m.ref ? ' · invoice ' + m.ref : ''} · ${m.title}`, detail: `${fmtMoney(amount)}${how ? ' · ' + how : ''}` })
 }
 export function recordPayment(id: string, amount: number, how?: string) {
   const m0 = S().money.find((x) => x.id === id)
   const left = m0?.amount ? m0.amount - (m0.paid || 0) - amount : 0
-  S().commit((s) => {
-    const m = s.money.find((x) => x.id === id)
-    if (!m || !m.amount) return
-    if (how) m.log.push(L(me(), `${how} · ${fmtMoney(amount)}`))
-    m.paid = (m.paid || 0) + amount
-    if (m.paid >= m.amount) {
-      m.state = 'paid'
-      m.step = 99
-      m.date = NOW
-      m.log.push(L(me(), `Paid in full · ${fmtMoney(amount)}`))
-      if (m.kind === 'deposit') setIssues(s, m.jobId, (iss) => iss.filter((i) => !/deposit/i.test(i.text)))
-      ;(m.bill?.cos || []).forEach((c) => {
-        const co = s.money.find((x) => x.id === c.id)
-        if (!co || co.state === 'paid') return
-        co.state = 'paid'
-        co.step = 99
-        co.date = NOW
-        co.log.push(L(me(), `Paid with ${m.title.split(' · ')[0]}`))
-      })
-    } else {
-      m.due = `${fmtMoney(m.amount - m.paid)} open`
-      m.log.push(L(me(), `${fmtMoney(amount)} received · ${fmtMoney(m.amount - m.paid)} still open`))
-    }
-    closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'money:' + id).map((t) => t.id), 'Paid')
-    addHist(s, m.jobId, { who: me(), kind: 'money', title: `Payment received${m.ref ? ' · invoice ' + m.ref : ''} · ${m.title}`, detail: `${fmtMoney(amount)}${how ? ' · ' + how : ''}` })
-  }, m0?.ref ? `${fmtMoney(amount)} recorded on invoice ${m0.ref}` : 'Payment recorded', { sub: left <= 0 ? 'Paid in full — it’s closed.' : `${fmtMoney(left)} still open — reminders keep going.`, close: true })
+  /* the bill's invoice is in QuickBooks: the payment goes there too (no Undo — QuickBooks has it) */
+  const live = qbLive() && !!m0?.qb?.id && !m0.qb.gone
+  S().commit((s) => applyPayment(s, id, amount, how), m0?.ref ? `${fmtMoney(amount)} recorded on invoice ${m0.ref}` : 'Payment recorded', { sub: (left <= 0 ? 'Paid in full — it’s closed.' : `${fmtMoney(left)} still open${live ? '' : ' — reminders keep going'}.`) + (live ? ' Going to QuickBooks too.' : ''), close: true, undo: live ? false : undefined })
+  if (live) void pushPayment(id, amount, how, { quietOk: true })
 }
 export function sendReminder(id: string) {
+  /* in QuickBooks: a real reminder email, with the invoice and its Pay button again */
+  const m = S().money.find((x) => x.id === id)
+  if (qbLive() && m?.qb?.id && !m.qb.gone) { void emailBill(id, { reminder: true }); return }
   S().commit((s) => {
     const m = s.money.find((x) => x.id === id)
     m?.log.push(L(me(), 'Reminder emailed to the client'))
   }, 'Reminder sent')
+}
+/** change a bill — what it's for and its amount. In QuickBooks, its invoice there changes the same way. */
+export function changeBill(id: string, p: { amount: number; title: string }) {
+  const m0 = S().money.find((x) => x.id === id)
+  if (!m0 || !(p.amount > 0)) return
+  const amount = Math.round(p.amount * 100) / 100
+  const title = p.title.trim() || m0.title
+  if (amount === m0.amount && title === m0.title) return
+  const live = qbLive() && !!m0.qb?.id && !m0.qb.gone
+  S().commit((s) => {
+    const m = s.money.find((x) => x.id === id)
+    if (!m) return
+    const was = m.amount || 0
+    const what = [amount !== was ? `Amount ${fmtMoney(was)} → ${fmtMoney(amount)}` : '', title !== m.title ? `now “${title}”` : ''].filter(Boolean).join(' · ')
+    m.amount = amount
+    m.title = title
+    const open = amount - (m.paid || 0)
+    if (m.state === 'paid' && open > 0.005) { m.state = 'waiting'; m.step = m.kind === 'progress' ? 3 : 1; m.date = undefined; m.action = 'Record payment' }
+    if (m.state !== 'paid' && m.paid) m.due = `${fmtMoney(open)} open`
+    m.log.push(L(me(), `Changed · ${what}`))
+    addHist(s, m.jobId, { who: me(), kind: 'money', title: `${m.title} changed`, detail: what })
+  }, 'Bill changed', live ? { sub: 'QuickBooks gets the change. Email it again if the client has the old one.', undo: false } : undefined)
+  if (live) void pushBill(id, { quietOk: true })
 }
 export function addToBill(id: string) {
   S().commit((s) => {
@@ -786,6 +822,7 @@ export function addToBill(id: string) {
   }, 'Added to the next bill')
 }
 export function requestRetainage(id: string) {
+  const live = qbLive()
   S().commit((s) => {
     const m = s.money.find((x) => x.id === id)
     if (!m) return
@@ -795,9 +832,13 @@ export function requestRetainage(id: string) {
     m.due = 'Requested today'
     m.action = 'Record payment'
     m.log.push(L(me(), 'Retainage release requested'))
-  }, 'Retainage release requested')
+  }, 'Retainage release requested', live ? { sub: 'Its invoice goes to QuickBooks and the client.', undo: false } : undefined)
+  if (live) void pushBill(id, { email: true })
 }
 export function advanceBill(id: string) {
+  /* the PM approved it: QuickBooks connected, its invoice goes there and to the GC by email */
+  const m0 = S().money.find((x) => x.id === id)
+  const live = qbLive() && m0?.step === 1
   S().commit((s) => {
     const m = s.money.find((x) => x.id === id)
     if (!m) return
@@ -812,7 +853,7 @@ export function advanceBill(id: string) {
       m.state = 'waiting'
       m.ref = nextRef()
       m.due = 'With the GC'
-      m.log.push(L(me(), `PM approved · invoice ${m.ref} sent from QuickBooks`))
+      m.log.push(L(me(), live ? 'PM approved · going to QuickBooks and the GC' : `PM approved · invoice ${m.ref} sent from QuickBooks`))
       closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'money:' + m.id).map((t) => t.id), 'Reviewed')
     } else if (m.step === 2) {
       m.step = 3
@@ -820,7 +861,8 @@ export function advanceBill(id: string) {
       m.log.push(L(me(), 'GC approved the pay application'))
     }
     addHist(s, m.jobId, { who: me(), kind: 'money', title: `${m.title} · ${['Draft', 'PM review', 'Sent', 'Approved'][Math.min(m.step, 3)]}` })
-  }, 'Progress bill moved forward')
+  }, live ? 'Approved — going to QuickBooks' : 'Progress bill moved forward', live ? { sub: 'Then it’s emailed to the GC with the Pay button.', undo: false } : undefined)
+  if (live) void pushBill(id, { email: true })
 }
 export function custPOReceived(id: string) {
   S().commit((s) => {
@@ -882,6 +924,8 @@ export function createPO(jobId: string, o: { supplier: string; lines: { item: st
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · ${o.what}`, detail: o.lines.map((l) => `${l.qty} ${l.item}`).join(', ') })
   }, `${id} sent to ${o.supplier}`, { sub: `Needed on site ${o.neededBy}. Materials follows up if they don’t confirm.`, flow: [{ who: matBy(S()), label: 'Sent', state: 'done' }, { label: o.supplier, state: 'now' }, { label: 'Delivered', state: 'next' }, { who: 'accounting', label: 'Bill', state: 'next' }] })
   S().close()
+  /* the real app: the PO goes to the supplier by email */
+  if (mailLive()) void emailPO(id)
   return id
 }
 export function confirmPO(id: string, eta: string) {
@@ -1277,6 +1321,8 @@ export function sendIPO(jobId: string) {
     newTask(s, { jobId, title: `${PEOPLE[crew].name} to accept the installer PO · ${s.jobs[jobId].name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[crew].name, followUp: 'Tomorrow', tone: 'info', where: id, action: { label: 'Mark accepted', kind: 'ipoaccept:' + id } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer PO ${id} sent to ${PEOPLE[crew].name}`, detail: lines.map((l) => `${l.item} · ${l.qty}`).join(' · ') })
   }, `Installer PO sent to ${PEOPLE[crew].name} — it comes back when he accepts`)
+  const sent = S().ipos.find((p) => p.jobId === jobId && p.crew === crew && p.status === 'Sent')
+  if (mailLive() && sent) void emailIPO(sent.id)
 }
 export function acceptIPO(ipoId: string, taskId?: string) {
   const ipo0 = S().ipos.find((p) => p.id === ipoId)

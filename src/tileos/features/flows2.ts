@@ -14,6 +14,7 @@ import { nextPO } from '@/tileos/lib/utils'
 import { giveTo } from './estflow'
 import { peopleOn, namesOf, rolesOf, estSteps } from './estpeople'
 import { matBy, matFor } from './flows'
+import { mailLive, emailIPO } from './mailout'
 import { shiftText, labelFromIso, workday, addDays, TODAY } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -266,6 +267,8 @@ export function bookInstaller(jobId: string, crew: PersonKey, o: { send: boolean
     if (o.send) newTask(s, { jobId, title: `${PEOPLE[crew].name} to accept ${id} · ${s.jobs[jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[crew].name, followUp: 'Tomorrow', tone: 'info', where: id, action: { label: 'Open PO', kind: 'ipo:' + id } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: o.send ? `${id} sent to ${PEOPLE[crew].name} · ${fmtMoney(total)}` : `${id} drafted for ${PEOPLE[crew].name}`, detail: 'Installer PO from the project scope', ref: { t: 'ipo', id } })
   }, o.send ? `PO sent to ${PEOPLE[crew].name}` : `Draft PO saved for ${PEOPLE[crew].name}`, o.send ? { sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] } : undefined)
+  /* the real app: his PO goes to him by email */
+  if (o.send && id && mailLive()) void emailIPO(id)
   return id
 }
 export function sendDraftIPO(ipoId: string) {
@@ -279,6 +282,7 @@ export function sendDraftIPO(ipoId: string) {
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(p.lines.reduce((n, l) => n + l.amount, 0))}`, ref: { t: 'ipo', id: p.id } })
   }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
+  if (mailLive()) void emailIPO(ipoId)
 }
 /** change the lines of an installer's PO. A draft simply changes; a PO he already has goes to him again as a new
  *  revision, and he accepts it again. */
@@ -302,6 +306,7 @@ export function setIPOLines(ipoId: string, lines: IPOLine[], o: { revise?: boole
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} revision ${rev} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised — revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
   }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. When he OKs it, record it on the PO.` } : undefined)
+  if (o.revise && mailLive()) void emailIPO(ipoId)
 }
 export function answerIPO(ipoId: string, ok: boolean, reason?: string, o: { fromCrew?: boolean } = {}) {
   const p0 = S().ipos.find((p) => p.id === ipoId)

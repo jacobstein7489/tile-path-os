@@ -18,6 +18,9 @@ import { showPop } from '@/tileos/lib/pop'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
 import { inviteLink, inviteStatus, sendInvite, removeAccess } from '@/lib/invite'
+import { qbStatus, qbConnect, qbDisconnect, qbItems, qbPushInvoice, qbSendInvoice, qbPayment, qbPull } from '@/lib/quickbooks'
+import { mailStatus, sendTileMail } from '@/lib/mail'
+import { startQbSync, stopQbSync } from '@/tileos/features/qbsync'
 import type { Member, Role } from '@/tileos/data/model'
 
 /* the generated database types don't know this table yet (Lovable regenerates them after the migration) */
@@ -322,7 +325,9 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.invite = opts.admin ? async (p) => {
     const email = p.email.trim().toLowerCase()
     const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address — wait a moment and send it again' : m)
-    const r = await sendInvite({ data: { email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl() } })
+    /* from the address Settings → Email has for "Everything else", when email is set up */
+    const from = useStore.getState().rules.email?.other
+    const r = await sendInvite({ data: { email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl(), from: from ? `Cobblestone Tile <${from}>` : undefined } })
     if (!r.ok) throw new Error(say(r.why))
     if (r.already) return { what: 'already' as const }
     return { what: r.resent ? 'resent' as const : 'sent' as const, at: r.sentAt || new Date().toISOString() }
@@ -338,8 +343,12 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   /* the company's AI reads paperwork; files go to the company's storage */
   REAL.ai = askAI
   REAL.files = files
+  /* QuickBooks: invoices and payments go there, payments made there come back. Email: POs to suppliers, invoices */
+  REAL.qb = { status: () => qbStatus(), connect: () => qbConnect(), disconnect: () => qbDisconnect(), items: () => qbItems(), push: (d) => qbPushInvoice({ data: d }), send: (d) => qbSendInvoice({ data: d }), pay: (d) => qbPayment({ data: d }), pull: (ids) => qbPull({ data: { ids } }) }
+  REAL.mail = { status: () => mailStatus(), send: (m) => sendTileMail({ data: m }) }
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: undefined })
   const member = linkMember(user, opts)
+  void startQbSync()
   if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
   /* whatever the clean start filled in (the first time: everything) goes up right away */
   schedule(30)
@@ -353,6 +362,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
 /* the tests (in development only) can hand in a change as if someone else made it */
 if (import.meta.env.DEV && typeof window !== 'undefined') (window as any).__tileosCloud = { receive, flush, applyNow: () => applyInbox(), client: CLIENT }
 export function stopCloud() {
+  stopQbSync()
   unsub?.(); unsub = null
   channel?.unsubscribe(); channel = null
   synced = null
@@ -380,6 +390,9 @@ export function startSample(user: User, opts: { admin: boolean; name: string; ap
   REAL.removeAccess = undefined
   REAL.testEmail = undefined
   REAL.files = undefined
+  REAL.qb = undefined
+  REAL.mail = undefined
+  stopQbSync()
   REAL.ai = askAI
   setSaveStatus({ where: 'none', mode: 'sample', saving: false, problem: undefined })
   const member = linkMember(user, opts)

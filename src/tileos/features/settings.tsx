@@ -26,6 +26,7 @@ import { WHAT as STEP_WHAT } from './stepwin'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/save'
+import { QbConnectCard, EmailCard, LaterList } from './qbui'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'testdata' | 'startover'
@@ -928,6 +929,8 @@ function NumbersTab() {
 }
 
 function ConnectionsTab() {
+  /* the real app: QuickBooks and email for real — connected or not, and exactly what's missing */
+  if (REAL.cloud && REAL.qb) return <div className="flex flex-col gap-4" data-connections><QbConnectCard /><EmailCard /><LaterList /></div>
   return (
     <Card pad={false}>
       <div className="grid grid-cols-3 gap-3 p-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:p-4">
@@ -1041,7 +1044,7 @@ function EmailTab() {
         )}
       </Card>
       <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        Leave “Comes from” empty and each email goes out from the person who sends it — the estimator from their own email, accounting from theirs. Every email is also kept on its project. QuickBooks still sends the estimates and invoices itself for now — set the same copy there: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages</b>. Invites and password emails go out through Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+        Leave “Comes from” empty and each email goes out from the person who sends it. Replies go back to that address. Invoices go out with QuickBooks’ PDF and its Pay button; a PO goes to the supplier, an installer’s PO to him. Estimates aren’t emailed by Tile OS yet — Download PDF and send it yourself. Every email is noted on its bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
       </p>
     </div>
   )

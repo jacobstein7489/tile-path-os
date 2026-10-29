@@ -10,7 +10,10 @@ import { cn, TONE } from '@/tileos/lib/utils'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
 import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, BILLING, type MoneyItem } from '@/tileos/data/work'
 import { MoneyRow, billingOf, jobMoney } from './job/money-tab'
-import { createInvoice, recordPayment, sendReminder, addToBill, requestRetainage, advanceBill, custPOReceived, confirmPO, receivePO, poNext, followUpPO, createPO } from './flows'
+import { createInvoice, recordPayment, sendReminder, addToBill, requestRetainage, advanceBill, custPOReceived, confirmPO, receivePO, poNext, followUpPO, createPO, changeBill } from './flows'
+import { REAL } from '@/tileos/lib/save'
+import { QbBillRow, QbHeaderStatus } from './qbui'
+import { qbLive } from './qbsync'
 
 type MTab = 'todo' | 'waiting' | 'upcoming' | 'purchases' | 'paid' | 'jobs'
 
@@ -32,9 +35,11 @@ export function MoneyPage() {
         title="Billing"
         sub="Deposits, progress bills, change orders, retainage and our purchase orders — where each one is at. QuickBooks keeps the invoices."
         actions={
-          <span className="inline-flex items-center gap-2 text-[0.84375rem] text-muted">
-            <span className="h-2 w-2 rounded-full bg-ok-500" /> QuickBooks synced 5 min ago{smp(' · sample amounts')}
-          </span>
+          REAL.cloud ? <QbHeaderStatus /> : (
+            <span className="inline-flex items-center gap-2 text-[0.84375rem] text-muted">
+              <span className="h-2 w-2 rounded-full bg-ok-500" /> QuickBooks synced 5 min ago{smp(' · sample amounts')}
+            </span>
+          )
         }
       />
       <StatStrip
@@ -172,6 +177,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const m = s.money.find((x) => x.id === id)
   const [amt, setAmt] = React.useState('')
+  const [editing, setEditing] = React.useState(false)
   if (!m) return null
   const job = s.jobs[m.jobId]
   const steps = MONEY_STEPS[m.kind]
@@ -321,8 +327,18 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
           </div>
         </div>
         <div className="flex flex-col gap-3 self-start rounded-2xl border border-line bg-wash/60 p-4 max-md:order-first max-md:self-stretch">
-          <div className="text-[0.84375rem] font-semibold text-muted">Next step</div>
-          {actions}
+          {editing ? (
+            <BillEdit m={m} onDone={() => setEditing(false)} />
+          ) : (
+            <>
+              <div className="text-[0.84375rem] font-semibold text-muted">Next step</div>
+              {actions}
+              <QbBillRow m={m} />
+              {m.amount && m.state !== 'paid' && m.kind !== 'custpo' && (
+                <button onClick={() => setEditing(true)} className="self-start text-[0.8125rem] font-semibold text-brand-600 hover:underline" data-bill-change>Change this bill</button>
+              )}
+            </>
+          )}
         </div>
       </div>
     </Modal>
@@ -481,5 +497,28 @@ export function NewPOModal({ jobId, prefill, level }: { jobId: string; prefill?:
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** change a bill in place of its next step: what it's for and the amount — QuickBooks gets the change */
+function BillEdit({ m, onDone }: { m: MoneyItem; onDone: () => void }) {
+  const [title, setTitle] = React.useState(m.title)
+  const [amount, setAmount] = React.useState(String(m.amount ?? ''))
+  const n = Number(amount.replace(/[^0-9.]/g, ''))
+  const ok = n > 0 && !!title.trim() && (n !== m.amount || title.trim() !== m.title)
+  const inQb = qbLive() && !!m.qb?.id && !m.qb.gone
+  return (
+    <div className="flex flex-col gap-3" data-bill-edit>
+      <div className="text-[0.84375rem] font-semibold text-muted">Change this bill</div>
+      <Field label="What it’s for"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} aria-label="What it’s for" /></Field>
+      <Field label="Amount"><TextInput inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount" /></Field>
+      {m.paid ? <div className="text-[0.78125rem] text-muted">{fmtMoney(m.paid)} is paid on it already.</div> : null}
+      {m.bill && n !== m.amount && <div className="text-[0.78125rem] leading-snug text-muted">The breakdown from the daily updates stays as it was; the bill goes out with the new amount.</div>}
+      <div className="flex gap-2">
+        <Button className="flex-1" variant="primary" disabled={!ok} onClick={() => { changeBill(m.id, { amount: n, title }); onDone() }}>Save</Button>
+        <Button className="flex-1" onClick={onDone}>Cancel</Button>
+      </div>
+      {inQb && <div className="text-[0.78125rem] text-muted">The invoice in QuickBooks changes the same way.</div>}
+    </div>
   )
 }

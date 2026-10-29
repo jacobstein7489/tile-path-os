@@ -10,6 +10,8 @@ import { seedRefs } from '@/tileos/lib/utils'
 import { TODAY, addDays, dow, labelFromIso } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import type { Role, PersonKey } from '@/tileos/data/model'
+import type { QbStatus, InvoiceIn, InvoiceOut } from '@/lib/quickbooks'
+import type { MailStatus, MailIn } from '@/lib/mail'
 
 export type SaveMode = 'sample' | 'fresh'
 type Meta = { v: number; day: string; at: number; mode: SaveMode; keys: Record<string, { gen: number; n: number }> }
@@ -57,6 +59,23 @@ export const REAL: {
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */
   files?: { put: (jobId: string, id: string, file: Blob, name: string) => Promise<string>; url: (path: string) => Promise<string>; remove: (path: string) => Promise<void> }
+  /** QuickBooks (the real app): is it connected, connect it (the admin), and every invoice and payment — the server
+   *  does the talking, the tokens never come to the browser */
+  qb?: {
+    status: () => Promise<QbStatus>
+    connect: () => Promise<{ ok: true; url: string } | { ok: false; why: string; detail?: string }>
+    disconnect: () => Promise<{ ok: boolean; why?: string }>
+    items: () => Promise<{ ok: true; items: { id: string; name: string; type: string }[] } | { ok: false; why: string; detail?: string }>
+    push: (inv: InvoiceIn) => Promise<InvoiceOut>
+    send: (d: { id: string; to: string; cc?: string[]; from?: string; replyTo?: string[]; subject?: string; html?: string; file?: string }) => Promise<{ ok: true; via: 'tileos' | 'quickbooks' } | { ok: false; why: string; detail?: string }>
+    pay: (d: { invoiceId: string; customerId: string; amount: number; date?: string; ref?: string; note?: string }) => Promise<{ ok: true; id: string } | { ok: false; why: string; detail?: string }>
+    pull: (ids: string[]) => Promise<{ ok: true; invoices: { id: string; balance: number; total: number; doc?: string; sync: string }[] } | { ok: false; why: string; detail?: string }>
+  }
+  /** email from the app itself (the real app, once it's set up in Lovable): purchase orders to suppliers, a test */
+  mail?: {
+    status: () => Promise<MailStatus>
+    send: (m: MailIn) => Promise<{ ok: true; id: string; from: string } | { ok: false; why: string }>
+  }
 } = { cloud: false, admin: true, home: 'owner' }
 /** the signed-in person, when they're on the team */
 const myKey = (team: { key: string }[]) => (REAL.me && team.some((m) => m.key === REAL.me) ? REAL.me : undefined)

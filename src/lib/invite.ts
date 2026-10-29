@@ -4,8 +4,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { send as sendMail, mailConfigured, esc } from "./mail.server";
 
-type Ask = { email: string; name: string; role: string; redirectTo?: string };
+type Ask = { email: string; name: string; role: string; redirectTo?: string; /** who the invite comes from (Settings → Email), when email is set up */ from?: string };
 export type Sent = { ok: true; already?: boolean; resent?: boolean; sentAt?: string } | { ok: false; why: string };
 export type Linked = { ok: true; link: string; already?: boolean } | { ok: false; why: string };
 const ROLES = new Set(["admin", "pm", "office_coordinator", "estimator", "site_manager", "accounting", "installer", "viewer"]);
@@ -14,7 +15,7 @@ const check = (d: Ask) => {
   const email = String(d?.email || "").trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("That email doesn’t look right");
   if (!ROLES.has(d.role)) throw new Error("Pick a login type");
-  return { email, name: String(d.name || "").slice(0, 120), role: d.role, redirectTo: typeof d.redirectTo === "string" ? d.redirectTo.slice(0, 300) : undefined };
+  return { email, name: String(d.name || "").slice(0, 120), role: d.role, redirectTo: typeof d.redirectTo === "string" ? d.redirectTo.slice(0, 300) : undefined, from: typeof d.from === "string" ? d.from.slice(0, 200) : undefined };
 };
 const isAdmin = async (context: any) => {
   const { data: mine } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
@@ -59,6 +60,29 @@ async function ready(admin: any, data: { email: string; name: string; role: stri
   return { u, fresh };
 }
 
+/** a one-time link straight into the app, which asks for a password — the same link "Get a link to text" gives */
+async function welcomeLink(admin: any, email: string, redirectTo?: string) {
+  const r = await admin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
+  if (r.error) throw r.error;
+  const hashed = r.data?.properties?.hashed_token;
+  const base = String(redirectTo || "https://cobblestone.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
+  return hashed ? `${base}/#/welcome?th=${encodeURIComponent(hashed)}&type=recovery` : (r.data?.properties?.action_link as string);
+}
+/** with email set up (Resend), the invite goes out from the company's own address — so it lands */
+async function inviteByOwnMail(admin: any, data: { email: string; name: string; redirectTo?: string; from?: string }) {
+  const link = await welcomeLink(admin, data.email, data.redirectTo);
+  if (!link) throw new Error("No link came back");
+  const first = (data.name || "").split(" ")[0] || "there";
+  const html = `<div style="font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;color:#1c1b18;max-width:520px">
+<p>Hi ${esc(first)},</p>
+<p>You’re invited to <b>Cobblestone Tile OS</b> — where we run our projects.</p>
+<p><a href="${esc(link)}" style="display:inline-block;background:#2650cf;color:#fff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px">Set your password and come in</a></p>
+<p style="color:#5b5f68;font-size:14px">The link works once. If the button doesn’t open, copy this into your browser:<br>${esc(link)}</p>
+</div>`;
+  const r = await sendMail({ from: data.from || "Cobblestone Tile <office@cobblestonenj.com>", to: [data.email], subject: "You’re invited to Cobblestone Tile OS", html, text: `Hi ${first},\n\nYou’re invited to Cobblestone Tile OS. Open this link, pick a password, and you’re in (it works once):\n${link}` });
+  if (!r.ok) throw new Error(r.why);
+}
+
 /* The invite goes out as the invite email ("You're invited to Tile OS") — never a password reset. Someone who was on
  * the team before and was taken off, or who never signed in, starts fresh: their old account is closed and a new
  * invite goes out, so what they get is always an invite. Someone already on the team who signs in gets nothing —
@@ -88,6 +112,24 @@ export const sendInvite = createServerFn({ method: "POST" })
         await admin.from("profiles").delete().eq("user_id", old.id);
         const { error: delErr } = await admin.auth.admin.deleteUser(old.id);
         if (delErr) return { ok: false, why: why(delErr) };
+      }
+      /* email set up (Resend): make the account and send our own invite from the company's address — it lands. If
+         that can't go out, the sign-in service sends its own invite. */
+      if (mailConfigured()) {
+        try {
+          const { u } = await ready(admin, data);
+          await inviteByOwnMail(admin, data);
+          if (data.name) await admin.from("profiles").update({ full_name: data.name }).eq("user_id", u.id);
+          return { ok: true, resent: !!old, sentAt: new Date().toISOString() };
+        } catch (e) {
+          console.warn("Own invite email failed — the sign-in service sends it instead", e);
+          const again = await findUser(admin, data.email);
+          if (again && !again.last_sign_in_at) {
+            await admin.from("user_roles").delete().eq("user_id", again.id);
+            await admin.from("profiles").delete().eq("user_id", again.id);
+            await admin.auth.admin.deleteUser(again.id);
+          }
+        }
       }
       const { data: inv, error } = await admin.auth.admin.inviteUserByEmail(data.email, { redirectTo: data.redirectTo, data: data.name ? { full_name: data.name } : {} });
       if (error) return { ok: false, why: why(error) };

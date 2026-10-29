@@ -72,6 +72,9 @@ export interface Rules {
   grouts?: Record<string, Grout>
   /** what we pay the installer should stay under this share of the estimate — the line on the PO meter (50 = half) */
   laborPct?: number
+  /** which QuickBooks product or service each kind of bill goes on (Settings → Connections) — none picked: QuickBooks'
+   *  own "Services" */
+  qbItems?: Partial<Record<'deposit' | 'progress' | 'final' | 'retainage' | 'change', { id: string; name: string }>>
   /** the emails Tile OS sends: who each kind comes from, and who's copied on every one (Settings → Email) */
   email?: { estimates?: string; invoices?: string; other?: string; /** copied on every email */ cc?: string[]; /** copied on that kind only */ ccEstimates?: string[]; ccInvoices?: string[]; ccOther?: string[] }
 }

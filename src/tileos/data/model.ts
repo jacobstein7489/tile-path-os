@@ -280,6 +280,8 @@ export interface Customer {
   country?: string
   /** a card on file goes through QuickBooks Payments' secure page — we only ever keep the brand and last 4 */
   card?: { status: 'link-sent' | 'on-file'; brand?: string; last4?: string; sent?: string }
+  /** the same client in QuickBooks (set the first time one of their invoices goes there) */
+  qbId?: string
 }
 
 export const fmtMoney = (n: number, opts: { cents?: boolean; compact?: boolean } = {}) => {

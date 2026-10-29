@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiQuickbooksCallbackRouteImport } from './routes/api/quickbooks/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiQuickbooksCallbackRoute = ApiQuickbooksCallbackRouteImport.update({
+  id: '/api/quickbooks/callback',
+  path: '/api/quickbooks/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/quickbooks/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/quickbooks/callback'
+  id: '__root__' | '/' | '/api/quickbooks/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiQuickbooksCallbackRoute: typeof ApiQuickbooksCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/quickbooks/callback': {
+      id: '/api/quickbooks/callback'
+      path: '/api/quickbooks/callback'
+      fullPath: '/api/quickbooks/callback'
+      preLoaderRoute: typeof ApiQuickbooksCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiQuickbooksCallbackRoute: ApiQuickbooksCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
