@@ -300,7 +300,7 @@ export function StepsSide({ job }: { job: Job }) {
       </header>
       <ol className="py-1">{steps.map((v) => <SideStep key={v.key} job={job} v={v} />)}</ol>
       {adding ? <AddStep job={job} steps={steps} onDone={() => setAdding(false)} compact /> : (
-        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-4 py-2.5 text-left text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink"><Plus className="h-4 w-4" />Add a step</button>
+        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-4 py-2.5 text-left text-[0.8125rem] font-semibold text-muted transition row-hover hover:text-ink"><Plus className="h-4 w-4" />Add a step</button>
       )}
     </section>
   )
@@ -312,7 +312,7 @@ function SideStep({ job, v }: { job: Job; v: StepView }) {
   return (
     <li>
       <Pop open={open} onOpenChange={setOpen} side="left" align="start" width={340} trigger={
-        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition hover:bg-[#f7f5f0]', open && 'bg-[#f3f5f8]')}>
+        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition row-hover', open && 'bg-[#f3f5f8]')}>
           <StepIcon state={v.state} size={20} />
           <span className="min-w-0 flex-1">
             <span className={cn('block truncate text-[0.84375rem] font-semibold leading-5', quiet ? 'text-muted' : v.state === 'later' ? 'text-ink-2' : 'text-ink')}>{v.short}</span>

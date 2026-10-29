@@ -216,7 +216,7 @@ function EstRow({ e }: { e: Estimate }) {
       title={`${nx.text} · ${j.client}`}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
+      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors row-hover focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
       <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink max-md:hidden">{j.name}</span>
       <span className="min-w-0 max-md:hidden">{who}</span>
@@ -1167,7 +1167,7 @@ function SameJob({ e, onDone }: { e: Estimate; onDone: () => void }) {
       <TextInput className="mt-4" aria-label="Find the project" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Find the project — name, client or address" />
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         {list.map(({ j, score }) => (
-          <button key={j.id} data-same={j.id} onClick={() => setPick(j.id)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f7f5f0]', pick === j.id && 'bg-brand-50/60')}>
+          <button key={j.id} data-same={j.id} onClick={() => setPick(j.id)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 row-hover', pick === j.id && 'bg-brand-50/60')}>
             <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', pick === j.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white')}>{pick === j.id && <Check className="h-3 w-3" strokeWidth={3} />}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[0.90625rem] font-semibold text-ink">{j.name}{score >= 2 && <span className="ml-2 rounded-full bg-ok-50 px-1.5 py-px text-[0.6875rem] font-semibold text-ok-700">Looks like the one</span>}</span>

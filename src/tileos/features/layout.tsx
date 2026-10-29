@@ -227,7 +227,7 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
               const sg = x.layout ? null : suggestLayout(job.id, x)
               const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
               return (
-                <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]" aria-label={`Layout — ${r.name} ${x.name}`}>
+                <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout — ${r.name} ${x.name}`}>
                   {tile ? <TileImg tile={tile} size={30} /> : <span className="h-[30px] w-[30px] shrink-0 rounded-md bg-wash-2" />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>

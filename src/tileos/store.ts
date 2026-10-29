@@ -70,6 +70,9 @@ export interface Rules {
   surfaceItems?: Record<string, string>
   /** grout colors the company added to the standard list */
   grouts?: Record<string, Grout>
+  /** each installer's own prices for the work (his page → Prices): installer → item → his rate. An item he has no
+   *  price for is paid at the item's standard rate (Items). His PO is drafted with these. */
+  crewRates?: Record<string, Record<string, number>>
   /** what we pay the installer should stay under this share of the estimate — the line on the PO meter (50 = half) */
   laborPct?: number
   /** which QuickBooks product or service each kind of bill goes on (Settings → Connections) — none picked: QuickBooks'

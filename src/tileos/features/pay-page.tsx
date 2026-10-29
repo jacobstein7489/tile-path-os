@@ -139,7 +139,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
   const st = PAY_STATE[r.state]
   const open = () => s.open({ t: 'pay', crew: r.crew, week: weekKey })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -176,7 +176,7 @@ function PaidLine({ r }: { r: PaidRow }) {
   const s = useStore()
   const open = () => s.open({ t: 'ipo', id: r.jobs[0].ipo })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 hover:bg-[#f7f5f0] max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -204,7 +204,7 @@ export function PayWeekModal({ level }: { level: number }) {
         {rows.map((r) => {
           const st = PAY_STATE[r.state]
           return (
-            <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f7f5f0]">
+            <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f3f2ef]">
               <Avatar who={r.crew} size={34} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{PEOPLE[r.crew].name}</span>

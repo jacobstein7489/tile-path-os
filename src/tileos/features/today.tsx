@@ -255,7 +255,7 @@ function DayRow({ t, showOwner, compact }: { t: Task; showOwner?: boolean; compa
   /* the when goes in front of the second line, only when it adds something */
   const when = done ? t.doneAt : t.state === 'waiting' ? `Back ${t.followUp} · ${t.waitingOn}` : t.due && t.due !== 'Today' ? t.due : ''
   return (
-    <div onClick={() => s.open({ t: 'task', id: t.id })} className={cn('group flex cursor-pointer items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors first:border-t-0 hover:bg-wash max-sm:px-4', compact && 'border-t-0 py-2', leaving && 'row-out')}>
+    <div onClick={() => s.open({ t: 'task', id: t.id })} className={cn('group flex cursor-pointer items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors first:border-t-0 row-hover max-sm:px-4', compact && 'border-t-0 py-2', leaving && 'row-out')}>
       <button
         aria-label={done ? 'Reopen' : 'Mark done'}
         onClick={(e) => {
@@ -299,7 +299,7 @@ function DailyRow({ it }: { it: DailyItem }) {
   const job = s.jobs[it.jobId]
   const last = s.diary[it.jobId]?.[0]
   return (
-    <div onClick={() => s.open({ t: 'daily', jobId: it.jobId })} className="group flex cursor-pointer items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors first:border-t-0 hover:bg-wash max-sm:px-4">
+    <div onClick={() => s.open({ t: 'daily', jobId: it.jobId })} className="group flex cursor-pointer items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors first:border-t-0 row-hover max-sm:px-4">
       <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full border-2 border-[#CBD3DE]" />
       <div className="min-w-0 flex-1">
         <div className="line-clamp-2 text-[0.90625rem] font-medium leading-snug text-ink">Send today’s update · {job.name}</div>
@@ -384,7 +384,7 @@ function OnSite() {
         const job = s.jobs[b.jobId]
         const sent = s.diary[b.jobId]?.[0]?.date === NOW
         return (
-          <button key={b.id} onClick={() => s.open({ t: 'job', id: job.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 hover:bg-wash">
+          <button key={b.id} onClick={() => s.open({ t: 'job', id: job.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 row-hover">
             <Avatar who={b.crew as PersonKey} size={28} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[0.875rem] font-semibold text-ink">{job.name}</span>
@@ -411,7 +411,7 @@ function PricingSoon() {
     <Card className="shrink-0 overflow-hidden">
       <PanelHead title="Pricing this week" right={<button onClick={() => s.go({ page: 'projects', q: { phase: 'pricing' } })} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">See all</button>} />
       {list.slice(0, 4).map((j) => (
-        <button key={j.id} onClick={() => s.open({ t: 'job', id: j.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 hover:bg-wash">
+        <button key={j.id} onClick={() => s.open({ t: 'job', id: j.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 row-hover">
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
             <span className="block truncate text-[0.78125rem] text-muted">{STAGE_LABEL[j.stage]} · {j.next.text}</span>
@@ -435,7 +435,7 @@ function Deliveries() {
     <Card className="shrink-0 overflow-hidden">
       <PanelHead title="Deliveries this week" />
       {rows.map((r, i) => (
-        <button key={i} onClick={() => (r.task ? s.open({ t: 'task', id: r.task }) : s.open({ t: 'job', id: r.job, tab: 'materials' }))} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 hover:bg-wash">
+        <button key={i} onClick={() => (r.task ? s.open({ t: 'task', id: r.task }) : s.open({ t: 'job', id: r.job, tab: 'materials' }))} className="flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left first-of-type:border-t-0 row-hover">
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.what}</span>
             <span className="block truncate text-[0.78125rem] text-muted">{s.jobs[r.job].name} · {r.from}</span>

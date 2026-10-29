@@ -151,7 +151,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
-      className={cn('group/row relative min-h-[2.75rem] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', todoCols(who, inJob), PX, onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0]', leaving && 'row-out')}
+      className={cn('group/row relative min-h-[2.75rem] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', todoCols(who, inJob), PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
@@ -695,7 +695,7 @@ export function MyTasksPage() {
           </section>
         )}
         {view === 'today' && shownToday.length > 0 && tomorrow.length > 0 && (
-          <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted hover:bg-wash hover:text-ink', PX)}>
+          <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted row-hover hover:text-ink', PX)}>
             <CalendarDays className="h-4 w-4" />{tomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
           </button>
         )}

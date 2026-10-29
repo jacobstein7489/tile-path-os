@@ -82,7 +82,7 @@ export function InstallerTab({ job }: { job: Job }) {
             const pics = e.rooms.reduce((n, r) => n + r.media.length, 0)
             const note = e.note || e.rooms.find((r) => r.note)?.note
             return (
-              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[2.875rem] w-full items-center gap-3 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 hover:bg-[#f7f5f0] max-sm:px-4">
+              <button key={e.id} onClick={() => s.open({ t: 'room', jobId: job.id, room: e.rooms[0]?.room, view: 'log' })} className="flex min-h-[2.875rem] w-full items-center gap-3 border-t border-line-2 px-5 py-1.5 text-left transition first:border-t-0 row-hover max-sm:px-4">
                 <span className="w-[3.5rem] shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{e.date}</span>
                 <Avatar who={e.who} size={22} plain />
                 <span className="min-w-0 flex-1">
@@ -124,7 +124,7 @@ export function InstallerTab({ job }: { job: Job }) {
                 <span className="font-semibold text-ink">Total{sample}</span>
                 <span className="font-bold tnum text-ink">{fmtMoney(total)}</span>
               </div>
-              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-ink hover:bg-wash"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
+              <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-ink row-hover"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
             </>
           ) : (
             <Empty>{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</Empty>

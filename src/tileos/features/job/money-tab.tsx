@@ -32,7 +32,7 @@ export function MoneyRow({ m, showJob }: { m: MoneyItem; showJob?: boolean }) {
   const steps = MONEY_STEPS[m.kind]
   const at = m.state === 'paid' ? steps.length - 1 : m.step
   return (
-    <button onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_7.5rem_11rem] items-center gap-6 border-b border-line-2 px-5 py-3 text-left transition-colors last:border-0 hover:bg-wash md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
+    <button onClick={() => s.open({ t: 'money', id: m.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_7.5rem_11rem] items-center gap-6 border-b border-line-2 px-5 py-3 text-left transition-colors last:border-0 row-hover md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
  <div className="min-w-0 md:max-xl:row-span-2 md:max-xl:self-center">
  <div className="flex items-center gap-2">
  <span className="text-[0.78125rem] font-medium text-muted">{MONEY_KIND_LABEL[m.kind]}</span>
@@ -77,7 +77,7 @@ function Sheet({ title, count, right, children, ...rest }: { title: string; coun
   )
 }
 /** one line: what · where it is · how much */
-const LINE = 'grid min-h-[2.75rem] w-full min-w-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] items-center gap-x-6 border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f5f0] max-sm:flex max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-0.5 max-sm:px-4'
+const LINE = 'grid min-h-[2.75rem] w-full min-w-0 grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] items-center gap-x-6 border-t border-line-2 px-5 py-2 text-left transition-colors row-hover max-sm:flex max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-0.5 max-sm:px-4'
 /** the column names over a sheet's lines */
 const HEAD = cn(HEAD_ROW, 'grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] gap-x-6 px-5 max-sm:hidden')
 /** on a phone: what and how much on the first line, where it is under them */
@@ -110,7 +110,7 @@ export function MoneyTab({ job }: { job: Job }) {
       <section className="rounded-[0.875rem] border border-line bg-white px-5 py-4 max-sm:px-4" data-money-strip>
         <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[1rem] text-ink-2"><b className="text-[1.125rem] font-semibold tnum text-ink">{fmtMoney(b.billed)}</b> billed of <span className="font-semibold tnum text-ink">{fmtMoney(contract)}</span><span className="text-faint"> · </span><span className="tnum">{fmtMoney(b.paid)}</span> paid</div>
+            <div className="text-[1rem] text-ink-2"><b className="text-[1.125rem] font-semibold tnum text-ink">{fmtMoney(b.billed)}</b> billed of <span className="font-semibold tnum text-ink">{fmtMoney(contract)}</span> <span className="font-semibold tnum text-ink" data-billed-pct>({pct}%)</span><span className="text-faint"> · </span><span className="tnum">{fmtMoney(b.paid)}</span> paid</div>
             <div className="mt-2 h-1.5 max-w-[32rem] overflow-hidden rounded-full bg-[#ece8e1]" title={`${pct}% billed · ${paidPct}% paid`}>
               <div className="relative h-full rounded-full bg-[#b9c7ee]" style={{ width: `${pct}%` }}><div className="absolute inset-y-0 left-0 rounded-full bg-brand-600" style={{ width: pct ? `${(paidPct / pct) * 100}%` : 0 }} /></div>
             </div>
@@ -140,7 +140,7 @@ export function MoneyTab({ job }: { job: Job }) {
         {ests.map((e) => {
           const r = curRev(e)
           return (
-            <button key={e.id} onClick={() => s.open({ t: 'estimate', id: e.id })} className={LINE} data-est-line={e.id}>
+            <button key={e.id} onClick={() => (e.revs.some((x) => x.sentOn) || e.status === 'approved' ? s.open({ t: 'estsend', id: e.id, sent: true }) : s.open({ t: 'estimate', id: e.id }))} className={LINE} data-est-line={e.id}>
               <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink">Estimate {e.id}{e.revs.length > 1 ? ` · revision ${r?.n}` : ''}</span>
               <span className={cn('min-w-0 shrink truncate text-[0.8125rem] text-muted', MID)}>{e.status === 'approved' ? `Approved${e.approvedOn ? ` ${e.approvedOn}` : ''}` : 'Not approved yet'}</span>
               <span className={AMT}>{fmtMoney(revTotal(r))}</span>
@@ -163,7 +163,7 @@ export function MoneyTab({ job }: { job: Job }) {
         )}
         {!ests.length && !cos.length && !before && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No estimate in the system for this project — it was priced before Tile OS.</div>}
         {(ests.length > 0 || cos.length > 0 || before > 0) && (
-          <div className="flex min-h-[2.75rem] items-center gap-4 border-t border-line-2 bg-[#f7f5f1] px-5 py-2 max-sm:px-4">
+          <div className="flex min-h-[2.75rem] items-center gap-4 border-t border-line bg-white px-5 py-2 max-sm:px-4">
             <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold text-ink-2">Contract</span>
             <span className="shrink-0 text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(contract)}</span>
           </div>
@@ -200,10 +200,14 @@ function InstallerSheet({ job }: { job: Job }) {
     </header>
   )
   if (!ipo) {
+    /* before there's a PO: what his PO should stay under, from what we sell the work for */
+    const r0 = poRatio(s, { jobId: job.id, lines: [], changes: [] })
+    const line = r0.line
+    const budget = r0.sold ? Math.floor((r0.sold * line) / 100) : 0
     return (
       <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet>
         {head(<Button size="sm" onClick={() => s.open({ t: 'installerwin', jobId: job.id })}>Pick the installer</Button>)}
-        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No installer PO yet — his PO is drafted from the scope, and it shows here next to the estimate.</div>
+        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4" data-ipo-budget>{budget ? <>No installer PO yet. At {line}% of the estimate, his PO should stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b> — it's drafted from the scope and shows here next to the estimate, line by line.</> : 'No installer PO yet — his PO is drafted from the scope, and it shows here next to the estimate.'}</div>
       </section>
     )
   }
@@ -253,7 +257,7 @@ function InstallerSheet({ job }: { job: Job }) {
       {cos.map((x) => row(x.c.co, `${x.c.co} · ${x.c.text}`, x.sold || null, x.c.amount, x.pct, x.c.status === 'pending' ? 'Waiting for the client’s yes — not counted yet' : x.c.qty))}
       {r.sold > 0 && rest > 0 && row('rest', 'The rest of the estimate', rest, null, undefined, 'Materials and the general lines — not his work')}
       {otherCOs > 0 && row('otherco', 'Other approved change orders', otherCOs, null, undefined, 'Not on his PO')}
-      <div className={cn(IPO_COLS, 'min-h-[2.75rem] border-t border-line-2 bg-[#f7f5f1] px-5 py-2 text-[0.875rem] font-semibold max-sm:px-4')} data-ipo-total>
+      <div className={cn(IPO_COLS, 'min-h-[2.75rem] border-t border-line bg-white px-5 py-2 text-[0.875rem] font-semibold max-sm:px-4')} data-ipo-total>
         <span className="min-w-0 text-ink-2">Total<span className="block truncate text-[0.75rem] font-normal text-muted sm:hidden">{r.sold ? `We sell it for ${fmtMoney(r.sold)} · his PO ${fmtMoney(r.total)}` : `His PO ${fmtMoney(r.total)}`}</span></span>
         <span className="text-right tnum text-ink max-sm:hidden">{r.sold ? fmtMoney(r.sold) : '—'}</span>
         <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney(r.total)}</span>

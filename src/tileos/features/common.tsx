@@ -76,7 +76,7 @@ export function TaskRow({ t, showJob = true, compact }: { t: Task; showJob?: boo
   return (
     <div
       onClick={() => open({ t: 'task', id: t.id })}
-      className={cn('group flex cursor-pointer items-center gap-4 border-b border-line-2 px-5 transition-colors last:border-0 hover:bg-wash max-sm:gap-3 max-sm:px-4', compact ? 'py-3' : 'py-3.5', leaving && 'row-out')}
+      className={cn('group flex cursor-pointer items-center gap-4 border-b border-line-2 px-5 transition-colors last:border-0 row-hover max-sm:gap-3 max-sm:px-4', compact ? 'py-3' : 'py-3.5', leaving && 'row-out')}
     >
       <button
         aria-label={done ? 'Reopen' : 'Mark done'}

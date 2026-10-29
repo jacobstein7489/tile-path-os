@@ -1428,7 +1428,7 @@ function TileProblems({ job }: { job: Job }) {
   return (
     <Block title={probs.length === 1 ? 'A problem' : `${probs.length} problems`}>
       {probs.map((t) => (
-        <OpenRow key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+        <OpenRow key={t.id} onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 row-hover">
           <StepIcon state="bad" size={22} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.title}</span>

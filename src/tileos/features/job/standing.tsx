@@ -240,7 +240,7 @@ function PartPane({ job, t, v, onStep, onGo, onBack, onClose, onDone, back = 'Ge
   return (
     <section data-step-view={v.key} data-step-track={t.key} className="min-w-0 overflow-hidden rounded-[0.875rem] border border-line bg-white">
       {onBack && (
-        <button onClick={onBack} data-back className="flex w-full items-center gap-1 border-b border-line-2 px-3 py-2.5 text-left text-[0.875rem] font-semibold text-ink-2 hover:bg-wash">
+        <button onClick={onBack} data-back className="flex w-full items-center gap-1 border-b border-line-2 px-3 py-2.5 text-left text-[0.875rem] font-semibold text-ink-2 row-hover">
           <ChevronLeft className="h-4 w-4" />{back}
         </button>
       )}
@@ -382,7 +382,7 @@ export function OpenIssues({ job, className, steps = [], onStep, band, fill }: {
       <span className={cn('w-[4.5rem] truncate text-[0.8125rem] max-sm:sr-only', p === me ? 'font-medium text-ink' : 'text-ink-2')}>{p === me ? 'You' : firstName(p)}</span>
     </span>
   )
-  const ROW = 'flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition hover:bg-[#f7f5f0] max-sm:px-3'
+  const ROW = 'flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition row-hover max-sm:px-3'
   const rows = (
     <>
       {shownSteps.map((v) => (

@@ -155,7 +155,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
                       return (
-                        <button key={x.name} data-surface-row={x.name} onClick={() => open({ t: 'room', name: room.name, surface: x.name })} title="Its tile, grout, layout and what it’s set on" className={cn(cols, 'w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition hover:bg-[#f7f5f0] max-sm:px-3')}>
+                        <button key={x.name} data-surface-row={x.name} onClick={() => open({ t: 'room', name: room.name, surface: x.name })} title="Its tile, grout, layout and what it’s set on" className={cn(cols, 'w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition row-hover max-sm:px-3')}>
                           <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}</span>
                           <span className="flex min-w-0 items-center gap-2 max-md:col-span-2 max-md:row-start-2">
                             {t ? <TileImg tile={t} size={20} radius={4} /> : null}
@@ -195,7 +195,7 @@ function ChangeOrders({ job }: { job: Job }) {
         const words = m.state === 'paid' ? { t: 'Paid', c: 'text-[#2c8a5b]' } : m.step < 0 ? { t: 'Waiting for the client’s OK', c: 'text-warn-700' } : m.step >= 1 ? { t: 'Billed', c: 'text-ink-2' } : { t: 'Approved', c: 'text-[#2c8a5b]' }
         const where = m.meta ? [m.meta.room, m.meta.surface].filter(Boolean).join(' · ') : ''
         return (
-          <button key={m.id} data-change={m.id} onClick={() => (money ? s.open({ t: 'money', id: m.id }) : undefined)} disabled={!money} title={[m.ref, where, m.meta?.from && m.meta?.to ? `${m.meta.from} → ${m.meta.to}` : ''].filter(Boolean).join(' · ') || undefined} className="flex w-full min-w-0 items-center gap-4 border-t border-line-2 px-5 py-2.5 text-left transition enabled:hover:bg-[#f7f5f0] max-sm:px-3">
+          <button key={m.id} data-change={m.id} onClick={() => (money ? s.open({ t: 'money', id: m.id }) : undefined)} disabled={!money} title={[m.ref, where, m.meta?.from && m.meta?.to ? `${m.meta.from} → ${m.meta.to}` : ''].filter(Boolean).join(' · ') || undefined} className="flex w-full min-w-0 items-center gap-4 border-t border-line-2 px-5 py-2.5 text-left transition enabled:row-hover max-sm:px-3">
             <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink">{m.title}</span>
             <span className={cn('shrink-0 text-[0.8125rem]', words.c)}>{words.t}</span>
           </button>

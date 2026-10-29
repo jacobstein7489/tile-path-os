@@ -619,7 +619,7 @@ function EstimateSteps() {
             <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
           </form>
         ) : (
-          <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-[#fbfaf7] max-sm:px-4" data-add-step="estimates"><Plus className="h-4 w-4" />Add a step to Estimates</button>
+          <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 row-hover max-sm:px-4" data-add-step="estimates"><Plus className="h-4 w-4" />Add a step to Estimates</button>
         )}
       </Card>
     </div>
@@ -649,7 +649,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
           <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
         </form>
       ) : (
-        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-[#fbfaf7] max-sm:px-4" data-add-step={part}><Plus className="h-4 w-4" />Add a step to {label}</button>
+        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 row-hover max-sm:px-4" data-add-step={part}><Plus className="h-4 w-4" />Add a step to {label}</button>
       ))}
     </Card>
     </div>

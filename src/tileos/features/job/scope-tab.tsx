@@ -170,7 +170,7 @@ export function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
         const st = tileStatus(s, job.id, t.tag)
         const grout = t.grout || uses.find((u) => u.x.grout)?.x.grout
         return (
-          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[2.75rem] w-full grid-cols-[2rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-3.5 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-md:grid-cols-[2rem_minmax(0,1fr)_4rem] max-sm:px-4">
+          <button key={t.tag} onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`Tile ${t.tag} ${t.name}`} className="grid min-h-[2.75rem] w-full grid-cols-[2rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-3.5 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 row-hover max-md:grid-cols-[2rem_minmax(0,1fr)_4rem] max-sm:px-4">
             <TileImg tile={t} size={30} radius={7} />
             <span className="min-w-0">
               <span className="block truncate text-[0.90625rem] font-semibold text-ink"><span className="tnum">{t.tag}</span> · {t.name}</span>
@@ -213,7 +213,7 @@ export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; comp
             return (
               <div key={r.name}>
                 {compact ? (
-                  <button onClick={() => setOpenRooms((o) => ({ ...o, [r.name]: !o[r.name] }))} aria-expanded={shown} aria-label={`Room ${r.name}`} className={cn('flex min-h-[3rem] w-full items-center gap-3 px-5 text-left transition hover:bg-[#f8f6f2] max-sm:px-4', shown ? 'bg-[#f4f1eb]' : 'border-t border-line-2')}>
+                  <button onClick={() => setOpenRooms((o) => ({ ...o, [r.name]: !o[r.name] }))} aria-expanded={shown} aria-label={`Room ${r.name}`} className={cn('flex min-h-[3rem] w-full items-center gap-3 px-5 text-left transition row-hover max-sm:px-4', shown ? 'bg-[#f4f1eb]' : 'border-t border-line-2')}>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.9375rem] font-semibold text-ink">{r.name}</span>
                       <span className={cn('block truncate text-[0.78125rem]', problems ? 'font-medium text-bad-600' : 'text-muted')}>{problems ? `${problems} ${problems === 1 ? 'wall or floor is' : 'walls or floors are'} waiting` : `${r.surfaces.length} ${r.surfaces.length === 1 ? 'wall or floor' : 'walls and floors'}${r.note ? ` · ${r.note}` : ''}`}</span>
@@ -250,7 +250,7 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
   const pct = surfacePct(x)
   const details = [x.grout ? `${GROUTS[x.grout]?.name} grout` : '', lay.pattern, METHODS[m.key]?.short ? `${METHODS[m.key].short}${m.auto ? ' (suggested)' : ''}` : '', x.height || ''].filter(Boolean)
   return (
-    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.5rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
+    <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.5rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 row-hover max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
       <span className="min-w-0 text-[0.875rem] font-semibold text-ink max-sm:col-span-1">{x.name}</span>
       <span className="flex min-w-0 items-center gap-2.5 max-sm:col-span-2 max-sm:row-start-2">
         {t ? <TileImg tile={t} size={22} radius={5} /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 rounded-md border border-dashed border-[#d1cbc0]" />}

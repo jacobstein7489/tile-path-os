@@ -114,7 +114,7 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
             {rows.length > 1 && <button type="button" aria-label={`Take off touch-up ${i + 1}`} onClick={() => removeRow(r.id)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>}
           </div>
         ))}
-        <button type="button" onClick={() => addRow()} className="flex w-full items-center gap-2 border-t border-line-2 px-3 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-[#f8f6f2]"><Plus className="h-4 w-4" />Another one</button>
+        <button type="button" onClick={() => addRow()} className="flex w-full items-center gap-2 border-t border-line-2 px-3 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 row-hover"><Plus className="h-4 w-4" />Another one</button>
       </div>
       </FormRow>
       {/* who does them and by when — the same two dropdowns as every form; who checks, when a crew does them */}

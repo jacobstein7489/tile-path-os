@@ -99,7 +99,7 @@ function POList() {
         const job = s.jobs[p.jobId]
         const cancelled = /cancelled/i.test(p.note)
         return (
-          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.5fr)_6.875rem_11rem] items-center gap-6 border-b border-line-2 px-6 py-4 text-left last:border-0 hover:bg-wash md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
+          <button key={p.id} onClick={() => s.open({ t: 'po', id: p.id })} className="grid w-full grid-cols-[minmax(0,1.6fr)_minmax(0,1.5fr)_6.875rem_11rem] items-center gap-6 border-b border-line-2 px-6 py-4 text-left last:border-0 row-hover md:max-xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:max-xl:gap-x-6 md:max-xl:gap-y-1.5 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-4 max-md:gap-y-3 max-sm:px-4">
             <div className="min-w-0 md:max-xl:row-span-2 md:max-xl:self-center">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-[0.90625rem] font-bold text-ink">{p.id}</span>

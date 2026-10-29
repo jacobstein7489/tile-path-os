@@ -1,6 +1,7 @@
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as DM from '@radix-ui/react-dropdown-menu'
+import * as CM from '@radix-ui/react-context-menu'
 import * as PO from '@radix-ui/react-popover'
 import * as TT from '@radix-ui/react-tooltip'
 import { Check } from 'lucide-react'
@@ -258,5 +259,26 @@ export function LaterPicker({ onSave, onCancel }: { onSave: (until: string) => v
         </Button>
       </div>
     </div>
+  )
+}
+
+/** a right-click menu (a long press on a phone) around anything — the same few things its ··· menu has */
+export type RightItem = { icon?: React.ReactNode; label: string; hint?: string; onSelect: () => void; danger?: boolean }
+export function RightMenu({ children, items }: { children: React.ReactNode; items: (RightItem | null | false | undefined)[] }) {
+  const list = items.filter(Boolean) as RightItem[]
+  return (
+    <CM.Root modal={false}>
+      <CM.Trigger asChild>{children}</CM.Trigger>
+      <CM.Portal>
+        <CM.Content collisionPadding={12} className="z-[300] min-w-[13.5rem] rounded-[0.625rem] border border-line bg-white p-1 shadow-pop animate-pop-in" data-right-menu>
+          {list.map((it) => (
+            <CM.Item key={it.label} onSelect={it.onSelect} className={cn('flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[0.875rem] outline-none data-[highlighted]:bg-wash-2', it.danger ? 'text-bad-600' : 'text-ink-2 data-[highlighted]:text-ink')}>
+              {it.icon && <span className="inline-flex w-5 justify-center text-muted">{it.icon}</span>}
+              <span className="min-w-0 flex-1"><span className="block truncate">{it.label}</span>{it.hint && <span className="block truncate text-[0.78125rem] text-muted">{it.hint}</span>}</span>
+            </CM.Item>
+          ))}
+        </CM.Content>
+      </CM.Portal>
+    </CM.Root>
   )
 }

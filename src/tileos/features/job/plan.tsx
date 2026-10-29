@@ -237,7 +237,7 @@ function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?
   /* on a phone the who and when move under the title */
   const lead = [!noWho && r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')
   return (
-    <button onClick={r.run} disabled={!r.run} className={cn(ROW, noWho && 'grid-cols-[1.75rem_minmax(0,1fr)_7.25rem_5.75rem]', 'w-full text-left transition-colors hover:bg-[#f8f6f2] disabled:cursor-default disabled:hover:bg-transparent max-md:grid-cols-[1.75rem_minmax(0,1fr)_auto]')} data-todo={r.key}>
+    <button onClick={r.run} disabled={!r.run} className={cn(ROW, noWho && 'grid-cols-[1.75rem_minmax(0,1fr)_7.25rem_5.75rem]', 'w-full text-left transition-colors row-hover disabled:cursor-default disabled:hover:bg-transparent max-md:grid-cols-[1.75rem_minmax(0,1fr)_auto]')} data-todo={r.key}>
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
       <span className="min-w-0">
         <span className="block text-[0.90625rem] font-semibold text-ink max-md:line-clamp-2 md:truncate">{r.title}</span>
@@ -340,7 +340,7 @@ export function Latest({ job }: { job: Job }) {
   return (
     <Section title="Latest" action={all.length > list.length ? <button onClick={() => s.open({ t: 'history', jobId: job.id })} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">All {all.length}</button> : undefined}>
       {list.map((h, i) => (
-        <button key={i} onClick={() => s.open({ t: 'activity', entry: h, jobId: job.id })} className="flex w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition-colors first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
+        <button key={i} onClick={() => s.open({ t: 'activity', entry: h, jobId: job.id })} className="flex w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition-colors first:border-t-0 row-hover max-sm:px-4">
           <span className="w-12 shrink-0 pt-px text-[0.75rem] font-medium tnum text-muted">{h.date === NOW ? 'Today' : h.date}</span>
           <span className="min-w-0 flex-1">
             <span className="line-clamp-2 block text-[0.84375rem] leading-snug text-ink">{h.title}</span>
@@ -422,7 +422,7 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
   return (
     <Section title="At a glance">
       {shownFacts.map((x) => (
-        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
+        <button key={x.label} onClick={() => setTab(x.tab)} className="group grid w-full grid-cols-[1rem_5.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 row-hover max-sm:px-4">
           <span className="mt-0.5 inline-flex text-faint transition group-hover:text-ink-2 [&_svg]:h-4 [&_svg]:w-4">{x.icon}</span>
           <span className="pt-px text-[0.8125rem] font-medium text-muted">{x.label}</span>
           <span className="min-w-0">
@@ -474,7 +474,7 @@ export function TilingCard({ job, setTab }: { job: Job; setTab: SetTab }) {
             const rsf = r.surfaces.reduce((n, x) => n + (takesTile(x.name) ? x.sf || 0 : 0), 0)
             const pct = r.pct ?? roomPct(r)
             return (
-              <button key={r.name} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name })} className="grid w-full grid-cols-[minmax(0,1fr)_3.5rem_4rem] items-center gap-2.5 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 hover:bg-[#f8f6f2] max-sm:px-4">
+              <button key={r.name} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.name })} className="grid w-full grid-cols-[minmax(0,1fr)_3.5rem_4rem] items-center gap-2.5 border-t border-line-2 px-5 py-2.5 text-left first:border-t-0 row-hover max-sm:px-4">
                 <span className="min-w-0">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.name}</span>
                   <span className="block truncate text-[0.78125rem] text-muted">{r.surfaces.filter((x) => takesTile(x.name)).map((x) => x.name.toLowerCase()).join(', ') || 'No walls or floors yet'}</span>
@@ -505,7 +505,7 @@ export function EstimateAndChanges({ job }: { job: Job }) {
       {ests.map((e) => <EstRow key={e.id} e={e} />)}
       {!ests.length && <Empty>No estimate in the system for this project — it was priced before Tile OS.</Empty>}
       {cos.map((m) => (
-        <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left hover:bg-[#f8f6f2] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
+        <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left row-hover max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-wash-2 text-ink-2 max-sm:hidden"><Pencil className="h-4 w-4" /></span>
           <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
           <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>

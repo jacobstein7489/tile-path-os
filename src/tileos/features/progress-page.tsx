@@ -117,7 +117,7 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
   const rooms = new Set(r.lines.map((l) => l.room)).size
   const billedPct = r.contract ? Math.min(100, Math.round((r.before / r.contract) * 100)) : 0
   return (
-    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3.5rem] cursor-pointer border-t border-line-2 bg-white py-2.5 transition-colors first:border-t-0 hover:bg-[#f7f5f0]', PX)}>
+    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3.5rem] cursor-pointer border-t border-line-2 bg-white py-2.5 transition-colors first:border-t-0 row-hover', PX)}>
       <span className="min-w-0">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{job.name}</span>
         <span className="block truncate text-[0.78125rem] text-muted">

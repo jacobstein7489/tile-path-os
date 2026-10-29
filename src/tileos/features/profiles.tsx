@@ -98,7 +98,7 @@ function List<T>({ rows, cols, onRow, empty, keyOf }: { rows: T[]; cols: Col<T>[
         {cols.map((c) => <span key={c.label} className={cn(c.right && 'text-right', hide(c))}>{c.label}</span>)}
       </div>
       {rows.map((r) => (
-        <button key={keyOf(r)} onClick={() => onRow?.(r)} disabled={!onRow} className="grid w-full items-center gap-3 border-b border-line-2 px-4 py-2.5 text-left text-[0.875rem] last:border-0 enabled:hover:bg-wash max-md:!grid-cols-[minmax(0,1fr)_auto]" style={{ gridTemplateColumns: tpl }}>
+        <button key={keyOf(r)} onClick={() => onRow?.(r)} disabled={!onRow} className="grid w-full items-center gap-3 border-b border-line-2 px-4 py-2.5 text-left text-[0.875rem] last:border-0 enabled:row-hover max-md:!grid-cols-[minmax(0,1fr)_auto]" style={{ gridTemplateColumns: tpl }}>
           {cols.map((c) => <span key={c.label} className={cn('min-w-0', c.right && 'text-right', hide(c))}>{c.cell(r)}</span>)}
         </button>
       ))}
@@ -415,6 +415,7 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
         { key: 'overview', label: 'Now' },
         { key: 'schedule', label: 'Schedule', count: bks.length },
         { key: 'pos', label: 'POs', count: ipos.length },
+        { key: 'prices', label: 'Prices' },
         { key: 'pay', label: 'Pay', count: weeks.length },
         { key: 'papers', label: 'Paperwork' },
       ]}
@@ -440,10 +441,18 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
               <div className="text-[1.375rem] font-bold tnum text-ink">{fmtMoney(earlier + paidWeeks)}</div>
               <div className="text-[0.78125rem] text-muted">Approved weekly pay and earlier payments in QuickBooks{smp(' · sample')}</div>
             </Section>
-            <Section title="Rates on his POs">
-              {Array.from(new Map(ipos.flatMap((p) => p.lines.filter((l) => l.rate).map((l) => [l.item, l.rate!] as const))).entries()).map(([item, rate]) => (
-                <div key={item} className="flex justify-between border-b border-line-2 py-1.5 text-[0.84375rem] last:border-0"><span className="truncate text-ink-2">{item.split(' — ')[0]}</span><span className="tnum text-ink">${rate}/SF</span></div>
-              ))}
+            <Section title="His prices">
+              {(() => {
+                const own = Object.entries(s.rules.crewRates?.[id] || {}).map(([itemId, rate]) => ({ it: s.items.find((i) => i.id === itemId), rate })).filter((x) => x.it)
+                return own.length ? (
+                  <>
+                    {own.map(({ it, rate }) => <div key={it!.id} className="flex justify-between gap-3 border-b border-line-2 py-1.5 text-[0.84375rem] last:border-0"><span className="truncate text-ink-2">{it!.name.split(' — ')[0]}</span><span className="shrink-0 tnum text-ink">{fmtMoney(rate, { cents: rate % 1 !== 0 })}/{it!.unit}</span></div>)}
+                    <button onClick={() => setTab('prices')} className="mt-2 text-[0.8125rem] font-semibold text-brand-700 hover:underline">All his prices</button>
+                  </>
+                ) : (
+                  <div className="text-[0.84375rem] leading-snug text-muted">The standard prices. <button onClick={() => setTab('prices')} className="font-semibold text-brand-700 hover:underline">Set his own</button> — his POs are drafted with them.</div>
+                )
+              })()}
             </Section>
           </div>
         </div>
@@ -490,6 +499,7 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
           ]}
         />
       )}
+      {tab === 'prices' && <CrewPrices crew={id} canEdit={['owner', 'pm', 'office'].includes(s.role)} />}
       {tab === 'papers' && (
         <div className="flex flex-col gap-3">
           {[{ name: 'Insurance certificate', sub: 'General liability · we’re listed as additional insured' }, { name: 'W-9', sub: 'For the 1099 at year end' }, { name: 'Workers’ comp', sub: 'Or a signed exemption' }].map((d, i) => (
@@ -598,5 +608,67 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
         />
       )}
     </Profile>
+  )
+}
+
+/* ================= an installer's own prices ================= */
+/** set or clear one of an installer's prices (empty = the standard price) */
+export function setCrewRate(crew: string, itemId: string, rate: number | null) {
+  const st = useStore.getState()
+  st.commit((x) => {
+    const all = { ...(x.rules.crewRates || {}) }
+    const his = { ...(all[crew] || {}) }
+    if (rate == null) delete his[itemId]
+    else his[itemId] = Math.round(rate * 100) / 100
+    if (Object.keys(his).length) all[crew] = his
+    else delete all[crew]
+    x.rules.crewRates = all
+  }, undefined, { undo: false })
+}
+/** every piece of installing work, the standard price, and his — one line each. His POs are drafted at his prices;
+ *  a line left empty is paid at the standard price (Items). */
+function CrewPrices({ crew, canEdit }: { crew: PersonKey; canEdit: boolean }) {
+  const s = useStore()
+  const labor = s.items.filter((i) => i.type === 'labor')
+  const his = s.rules.crewRates?.[crew] || {}
+  const set = Object.keys(his).length
+  return (
+    <div className="flex flex-col gap-3" data-crew-prices>
+      <p className="text-[0.84375rem] leading-snug text-muted">His POs are drafted at these prices. Leave one empty and it’s the standard price (Items).{set ? ` ${set} of his own.` : ''}</p>
+      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+        <div className="grid h-9 grid-cols-[minmax(0,1fr)_6.5rem_8rem] items-center gap-x-4 border-b border-line-2 px-4 text-[0.75rem] font-medium text-faint max-sm:grid-cols-[minmax(0,1fr)_7rem]"><span>Work</span><span className="text-right max-sm:hidden">Standard</span><span className="text-right">His price</span></div>
+        {labor.map((it) => <PriceRow key={it.id} crew={crew} it={it} his={his[it.id]} canEdit={canEdit} />)}
+      </div>
+    </div>
+  )
+}
+function PriceRow({ crew, it, his, canEdit }: { crew: PersonKey; it: { id: string; name: string; unit: string; cost: number }; his?: number; canEdit: boolean }) {
+  const [v, setV] = React.useState(his != null ? String(his) : '')
+  React.useEffect(() => setV(his != null ? String(his) : ''), [his])
+  const save = () => {
+    const t = v.trim().replace(/[$,]/g, '')
+    if (!t) { if (his != null) setCrewRate(crew, it.id, null); return }
+    const n = Number(t)
+    if (!isFinite(n) || n < 0) { setV(his != null ? String(his) : ''); return }
+    if (n !== his) setCrewRate(crew, it.id, n)
+  }
+  const diff = his != null && his !== it.cost
+  return (
+    <div className="grid min-h-[2.75rem] grid-cols-[minmax(0,1fr)_6.5rem_8rem] items-center gap-x-4 border-t border-line-2 px-4 py-1.5 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_7rem]" data-price-row={it.id}>
+      <span className="min-w-0">
+        <span className="block truncate text-[0.875rem] text-ink">{it.name}</span>
+        <span className="block text-[0.75rem] text-muted sm:hidden">Standard {fmtMoney(it.cost, { cents: it.cost % 1 !== 0 })}/{it.unit}</span>
+      </span>
+      <span className="text-right text-[0.84375rem] tnum text-muted max-sm:hidden">{fmtMoney(it.cost, { cents: it.cost % 1 !== 0 })}/{it.unit}</span>
+      <span className="flex items-center justify-end gap-1.5">
+        {canEdit ? (
+          <label className="relative block w-full max-w-[7rem]">
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-faint">$</span>
+            <input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder={String(it.cost)} aria-label={`His price for ${it.name}`} className={cn('h-8 w-full rounded-lg border bg-white pl-5 pr-9 text-right text-[0.84375rem] tnum outline-none focus:border-brand-300', diff ? 'border-brand-200 font-semibold text-ink' : 'border-line text-ink-2')} />
+            <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.75rem] text-faint">/{it.unit}</span>
+          </label>
+        ) : <span className="text-[0.84375rem] tnum text-ink">{his != null ? `${fmtMoney(his, { cents: his % 1 !== 0 })}/${it.unit}` : '—'}</span>}
+      </span>
+    </div>
   )
 }

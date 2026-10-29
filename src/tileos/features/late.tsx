@@ -167,7 +167,7 @@ function TodayRow({ x }: { x: PlateItem }) {
   const title = x.kind === 'meet' ? x.e!.title : titleOf(x)
   const open = () => { s.close(); x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : x.kind === 'meet' ? s.open({ t: 'event', id: x.e!.id }) : s.open({ t: 'task', id: x.t!.id }) }
   return (
-    <button onClick={open} className="flex w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+    <button onClick={open} className="flex w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 row-hover">
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">{x.kind === 'meet' ? <CalendarDays className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}</span>
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{title}</span>

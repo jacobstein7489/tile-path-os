@@ -13,6 +13,7 @@ import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
 import { qbLive, pushBill, pushPayment, emailBill, pushEstimate } from './qbsync'
 import { mailLive, emailPO, emailIPO } from './mailout'
+import { stepsFor } from './steps'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText } from '@/tileos/lib/today'
 
@@ -926,9 +927,10 @@ export function createPO(jobId: string, o: { supplier: string; lines: { item: st
       closeTasks(s, ['t-qty114'], 'Ordered the short tile')
       setIssues(s, jobId, (iss) => iss.filter((i) => !/short/i.test(i.text)))
     }
-    newTask(s, { jobId, title: `${id} · waiting for ${o.supplier} to confirm`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: o.what, action: { label: 'Mark confirmed', kind: 'po:' + id } })
+    /* whoever sent it gets the supplier's yes: it waits on their list and is back on their Today tomorrow */
+    newTask(s, { jobId, title: `${id} · get ${o.supplier}’s confirmation`, type: 'Materials', owner: me(), for: [s.role], state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[jobId]?.name || ''} · ${o.what}`, action: { label: 'Mark confirmed', kind: 'po:' + id } })
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · ${o.what}`, detail: o.lines.map((l) => `${l.qty} ${l.item}`).join(', ') })
-  }, `${id} sent to ${o.supplier}`, { sub: `Needed on site ${o.neededBy}. Materials follows up if they don’t confirm.`, flow: [{ who: matBy(S()), label: 'Sent', state: 'done' }, { label: o.supplier, state: 'now' }, { label: 'Delivered', state: 'next' }, { who: 'accounting', label: 'Bill', state: 'next' }] })
+  }, `${id} sent to ${o.supplier}`, { sub: `Needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
   S().close()
   /* the real app: the PO goes to the supplier by email */
   if (mailLive()) void emailPO(id)
@@ -952,7 +954,23 @@ export function confirmPO(id: string, eta: string) {
     closeTasks(s, s.tasks.filter((t) => t.title.startsWith(id) || t.action?.kind === 'po:' + id || (id === 'PO-1045' && t.id === 't-po1045')).map((t) => t.id), 'Confirmed')
     setIssues(s, p.jobId, (iss) => iss.filter((i) => !i.text.includes(id) && !/supplier has not confirmed/i.test(i.text)))
     addHist(s, p.jobId, { who: me(), kind: 'material', title: `${p.supplier} confirmed ${id}`, detail: `Arrives ${eta}` })
-  }, `${id} confirmed — arrives ${eta}`, { close: true, flow: [{ who: matBy(S()), label: 'Sent', state: 'done' }, { label: 'Confirmed', state: 'done' }, { label: `Arrives ${eta}`, state: 'now' }, { who: 'accounting', label: 'Bill', state: 'next' }] })
+    /* the day it comes: on the Today of whoever takes deliveries, to check it in (a project getting ready has its own
+       "materials delivered" step for this) */
+    if (!deliveryStepOn(s, p.jobId)) newTask(s, { jobId: p.jobId, title: `Check in ${id} from ${p.supplier}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: eta, tone: 'info', where: `${s.jobs[p.jobId]?.name || ''} · ${p.what}`, action: { label: 'Check it in', kind: 'po:' + id } })
+  }, `${id} confirmed — arrives ${eta}`, { close: true, to: [{ who: matBy(S()), what: `Check in ${id} when it comes — ${eta}` }] })
+}
+/** who gets what once a PO is out: the sender gets the supplier's yes, whoever takes deliveries checks it in */
+function poTo(id: string, supplier: string): { who: PersonKey; what: string }[] {
+  const out: { who: PersonKey; what: string }[] = [{ who: me(), what: `Confirm it with ${supplier} — tomorrow` }]
+  const rec = matBy(S())
+  out.push({ who: rec, what: `Check in ${id} the day it comes` })
+  return out
+}
+/** a project getting ready checks its materials in on its own step — no second task for it */
+function deliveryStepOn(s: Store, jobId: string): boolean {
+  const j = s.jobs[jobId]
+  if (!j) return false
+  try { return stepsFor(s, j).some((v) => v.key === 'matin' && v.state !== 'done' && v.state !== 'na') } catch { return false }
 }
 export function receivePO(id: string) {
   S().commit((s) => {
@@ -965,7 +983,7 @@ export function receivePO(id: string) {
     s.mats.forEach((m) => {
       if (m.po === id) m.status = 'delivered'
     })
-    closeTasks(s, s.tasks.filter((t) => (id === 'PO-1042' && t.id === 't-trim118') || (id === 'PO-1041' && t.id === 't-jolly') || (id === 'PO-1039' && t.id === 't-thinset')).map((t) => t.id), 'Delivered')
+    closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + id || (id === 'PO-1042' && t.id === 't-trim118') || (id === 'PO-1041' && t.id === 't-jolly') || (id === 'PO-1039' && t.id === 't-thinset')).map((t) => t.id), 'Delivered')
     const thinset828 = p.jobId === '828' && (id === 'PO-1039' || /thinset/i.test(p.what))
     setIssues(s, p.jobId, (iss) => iss.filter((i) => !i.text.includes(id) && !(id === 'PO-1042' && /trim/i.test(i.text)) && !(thinset828 && /thinset/i.test(i.text))))
     if (thinset828) {

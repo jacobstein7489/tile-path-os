@@ -137,7 +137,7 @@ function RoomsMini({ job, setTab }: { job: Job; setTab: (t: JobTab) => void }) {
         {rooms.map((r) => {
           const tone = roomTone(r)
           return (
-            <button key={r.name} onClick={() => setTab('rooms')} className="flex w-full items-center gap-3 border-b border-line-2 px-6 py-3 text-left last:border-0 hover:bg-wash">
+            <button key={r.name} onClick={() => setTab('rooms')} className="flex w-full items-center gap-3 border-b border-line-2 px-6 py-3 text-left last:border-0 row-hover">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{r.name}</span>
                 <span className={cn('block text-[0.78125rem] font-medium', tone === 'neutral' ? 'text-muted' : TONE[tone].strong)}>{roomLabel(r)}</span>

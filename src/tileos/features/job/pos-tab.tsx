@@ -83,7 +83,7 @@ export const POsTab = MaterialsTab
 /** one PO on a project, one line: which order · what's on it · how much · where it's at */
 function PORow({ onClick, title, sub, amount, status }: { onClick: () => void; icon?: React.ReactNode; title: string; sub: React.ReactNode; amount?: number; status: React.ReactNode }) {
   return (
-    <button onClick={onClick} data-po-row className={cn(COLS, 'min-h-12 w-full border-t border-line-2 px-5 py-2 text-left transition-colors hover:bg-[#f7f5f0] max-sm:px-4')}>
+    <button onClick={onClick} data-po-row className={cn(COLS, 'min-h-12 w-full border-t border-line-2 px-5 py-2 text-left transition-colors row-hover max-sm:px-4')}>
       <span className="flex min-w-0 items-center gap-3">
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-wash-2 text-muted"><Package className="h-3.5 w-3.5" /></span>
         <span className="min-w-0 leading-tight">

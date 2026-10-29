@@ -283,7 +283,7 @@ function PlanRow({ r }: { r: Row }) {
           : target.replace(/\s+—\s+[A-Z][a-z]{2} \d{1,2}$/, '')
   const openIt = () => s.open({ t: r.pending ? 'estimate' : 'job', id: r.pending || j.id })
   return (
-    <div className={cn('border-t border-line-2 py-3.5 transition-colors hover:bg-[#f7f5f0]', COLS, PX)}>
+    <div className={cn('border-t border-line-2 py-3.5 transition-colors row-hover', COLS, PX)}>
       <div className="flex min-w-0 items-center gap-3">
         <button onClick={openIt} className="shrink-0" aria-label={`Open ${j.name}`}><StartTile r={r} /></button>
         <div className="min-w-0 flex-1">

@@ -204,7 +204,12 @@ export function surfaceItem(name: string) {
   return 'i-wall'
 }
 /** what we'd pay the installer: square feet from the project's surfaces × the item's installer rate */
-export function draftIPOLines(s: any, jobId: string): IPOLine[] {
+/** what an installer gets for a piece of work: his own price (his page → Prices), else the item's standard rate */
+export function crewRate(s: { rules: { crewRates?: Record<string, Record<string, number>> }; items: { id: string; cost: number }[] }, crew: string | undefined, itemId: string): number {
+  const his = crew ? s.rules.crewRates?.[crew]?.[itemId] : undefined
+  return his != null && his >= 0 ? his : s.items.find((i) => i.id === itemId)?.cost || 0
+}
+export function draftIPOLines(s: any, jobId: string, crew?: string): IPOLine[] {
   const rooms: Room[] = s.rooms[jobId] || []
   const items = s.items as { id: string; name: string; cost: number; unit: string }[]
   const byItem: Record<string, number> = {}
@@ -216,7 +221,8 @@ export function draftIPOLines(s: any, jobId: string): IPOLine[] {
   }))
   let lines: IPOLine[] = Object.entries(byItem).filter(([id]) => items.some((i) => i.id === id)).map(([id, n]) => {
     const it = items.find((i) => i.id === id)!
-    return { item: it.name, itemId: id, n, rate: it.cost, qty: `${n.toLocaleString('en-US')} ${it.unit}`, amount: Math.round(n * (it.cost || 0)) }
+    const rate = crewRate(s, crew, id)
+    return { item: it.name, itemId: id, n, rate, qty: `${n.toLocaleString('en-US')} ${it.unit}`, amount: Math.round(n * (rate || 0)) }
   })
   if (!lines.length) {
     /* no square feet yet: one line per room at the estimate's share */
@@ -249,7 +255,7 @@ export function pickInstaller(jobId: string, crew: PersonKey | 'tbd') {
     s.ipos = s.ipos.filter((p) => !(p.jobId === jobId && ['Draft', 'Rejected'].includes(p.status)))
     id = 'IPO-' + (/^\d/.test(jobId) ? jobId.toUpperCase() : 201 + s.ipos.length)
     if (s.ipos.some((p) => p.id === id)) id = id + '-' + (s.ipos.length + 1)
-    s.ipos.push({ id, jobId, crew, status: 'Draft', date: NOW, lines: draftIPOLines(s, jobId), changes: [], log: [L(me(), `Drafted for ${PEOPLE[crew].name} from the project scope`)] })
+    s.ipos.push({ id, jobId, crew, status: 'Draft', date: NOW, lines: draftIPOLines(s, jobId, crew), changes: [], log: [L(me(), `Drafted for ${PEOPLE[crew].name} from the project scope${s.rules.crewRates?.[crew] ? ' at his prices' : ''}`)] })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer picked · ${PEOPLE[crew].name}`, detail: `PO ${id} drafted — waiting for your approval`, ref: { t: 'ipo', id } })
   }, `${PEOPLE[crew].name} picked — his PO is drafted for you to approve`)
   if (id) S().open({ t: 'ipo', id })
@@ -264,7 +270,7 @@ export function bookInstaller(jobId: string, crew: PersonKey, o: { send: boolean
     s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: crew }
     s.ipos = s.ipos.filter((p) => !(p.jobId === jobId && ['Draft', 'Rejected'].includes(p.status)))
     id = nextPO()
-    const lines = draftIPOLines(s, jobId)
+    const lines = draftIPOLines(s, jobId, crew)
     const total = lines.reduce((n, l) => n + l.amount, 0)
     s.ipos.push({ id, jobId, crew, status: o.send ? 'Sent' : 'Draft', date: NOW, lines, changes: [], log: [L(me(), o.send ? `Created from the project scope and sent to ${PEOPLE[crew].name}` : `Drafted for ${PEOPLE[crew].name} from the project scope`), ...(o.note ? [L(me(), o.note)] : [])] })
     if (o.send) newTask(s, { jobId, title: `${PEOPLE[crew].name} to accept ${id} · ${s.jobs[jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[crew].name, followUp: 'Tomorrow', tone: 'info', where: id, action: { label: 'Open PO', kind: 'ipo:' + id } })

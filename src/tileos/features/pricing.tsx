@@ -166,7 +166,7 @@ function EstimatingPanel({ job, p }: { job: Job; p: Pricing }) {
         <CardHeader icon={<NumberBadge n={1} />} title="Takeoff" sub="Tick each area as it’s measured." action={<span className="inline-flex items-center gap-2 text-[0.875rem] font-semibold text-ink-2"><Ring pct={t.pct} size={36} stroke={4} tone={t.pct === 100 ? 'ok' : 'info'} />{t.pct}%</span>} />
         <div className="border-t border-line-2">
           {t.areas.map((a, i) => (
-            <button key={a.name} onClick={() => toggleArea(job.id, i)} className="flex w-full items-center gap-3.5 border-b border-line-2 px-6 py-3.5 text-left last:border-0 hover:bg-wash max-sm:px-4">
+            <button key={a.name} onClick={() => toggleArea(job.id, i)} className="flex w-full items-center gap-3.5 border-b border-line-2 px-6 py-3.5 text-left last:border-0 row-hover max-sm:px-4">
               {a.done ? <CheckCircle2 className="h-[1.375rem] w-[1.375rem] fill-ok-500 text-white" /> : <Circle className="h-[1.375rem] w-[1.375rem] text-[#CDD4DE]" />}
               <span className="flex-1 text-[0.90625rem] font-semibold text-ink">{a.name}</span>
               <span className="text-[0.875rem] tnum text-ink-2">{a.sf}</span>

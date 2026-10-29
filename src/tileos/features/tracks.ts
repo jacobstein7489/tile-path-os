@@ -215,19 +215,38 @@ export const issueKind = (t: Task) => (isRequest(t) ? 'Needed on site' : t.tone 
 
 /** what's wrong on the project right now: a step that hit a problem ("No water on site") and any problem raised on it —
  *  the same list on Projects (the red "1 problem") and on the project (Open items) */
+/** what's holding a project up, the first one first — in the order the job goes (design, tile, site, installer,
+ *  materials): what's first in line leads. A stuck step and the problem reported about it are one item, in the step's
+ *  place; any other problem goes with its part (tile, materials, site…), and the oldest leads among the rest. */
+const TYPE_TRACK: Record<string, TrackKey> = { Tile: 'tile', Materials: 'materials', Field: 'site', Schedule: 'installer', Design: 'scope' }
 export function problemsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)): { key: string; text: string; step?: string; task?: string }[] {
   const tasks = issuesOf(s, job).filter((t) => t.tone === 'bad')
-  const titles = tasks.map((t) => t.title.toLowerCase().slice(0, 24))
-  const out: { key: string; text: string; step?: string; task?: string }[] = tasks.map((t) => ({ key: t.id, text: t.title, task: t.id }))
   /* tile that came short and was reported: it's its own item (reordered, coming) — the delivery isn't a second problem */
   const shortOpen = s.shortages.some((x) => x.jobId === job.id && x.step !== 'received')
+  const order = TRACKS.flatMap((t) => t.steps)
+  const rank = (k: string) => { const i = order.indexOf(k); return i < 0 ? order.length : i }
+  const out: { key: string; text: string; step?: string; task?: string; r: number }[] = []
+  const used = new Set<string>()
+  /* a tile's tag at the start of a problem ("T-05: 3 boxes came broken") */
+  const tagOf = (title: string) => title.match(/^([A-Z]{1,3}-\d+[A-Z]?)\b/)?.[1]?.toLowerCase()
+  const oldest = [...tasks].reverse()
   steps.filter((v) => v.state === 'bad').forEach((v) => {
+    if (v.key === 'delivered' && shortOpen) return
     const note = (v.note || '').toLowerCase()
-    /* a step that's red because of a problem already on the list (the tile that came broken) isn't a second problem */
-    if (titles.some((x) => note.includes(x)) || /^\d+ problems — /.test(v.note || '') || (v.key === 'delivered' && shortOpen)) return
-    out.unshift({ key: 's:' + v.key, text: (v.note || v.label).split(' · ')[0].replace(/^No — /, ''), step: v.key })
+    /* a step that's red because of problems already reported (the tile that came broken): those problems, here */
+    const mine = oldest.filter((x) => !used.has(x.id) && (note.includes(x.title.toLowerCase().slice(0, 24)) || (!!tagOf(x.title) && note.includes(tagOf(x.title)!))))
+    mine.forEach((t, i) => { used.add(t.id); out.push({ key: t.id, text: t.title, task: t.id, r: rank(v.key) + i / 1000 }) })
+    if (mine.length || /^\d+ problems — /.test(v.note || '')) return
+    out.push({ key: 's:' + v.key, text: (v.note || v.label).split(' · ')[0].replace(/^No — /, ''), step: v.key, r: rank(v.key) })
   })
-  return out
+  /* the rest, oldest first (the tasks list keeps the newest first), each after the steps of its part — a problem that
+     names a tile goes with the tile */
+  oldest.forEach((t, i) => {
+    if (used.has(t.id)) return
+    const tr = TRACKS.find((x) => x.key === (tagOf(t.title) ? 'tile' : TYPE_TRACK[t.type]))
+    out.push({ key: t.id, text: t.title, task: t.id, r: (tr ? rank(tr.steps[tr.steps.length - 1]) + 0.5 : order.length + 1) + i / 1000 })
+  })
+  return out.sort((a, b) => a.r - b.r).map(({ r: _, ...x }) => x)
 }
 
 /* ================= the rooms ================= */

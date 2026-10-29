@@ -13,7 +13,6 @@ import { PEOPLE, CREWS, fmtMoney, type PersonKey, type Tone } from '@/tileos/dat
 import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
 import type { IPO, IPOLine } from '@/tileos/data/field'
 import { ipoTotal, poRatio, type Ratio } from './poratio'
-import { RatioMeter } from './stepwin'
 import { allSubs } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy } from './flows'
 import { mailLive, emailPO, emailIPO } from './mailout'
@@ -341,7 +340,8 @@ export function BookInstallerModal({ jobId, crew: first, level }: { jobId: strin
   const [note, setNote] = React.useState('')
   if (!job) return null
   const free = crewFree(s)
-  const lines = draftIPOLines(s, jobId)
+  /* his PO at his own prices, once he's picked */
+  const lines = draftIPOLines(s, jobId, crew)
   const total = lines.reduce((n, l) => n + l.amount, 0)
   const send = (go: boolean) => {
     if (!crew) return
@@ -532,33 +532,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
-      <RatioMeter r={ratio} className="mb-5" />
-      {editing ? (
-        <IPOLinesEdit lines={lines} ratio={ratio} onChange={setLines} />
-      ) : (
-        <>
-          <div className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-            <span>Work</span><span className="text-right">Qty</span><span className="text-right max-sm:hidden">Rate</span><span className="text-right max-sm:hidden">Amount</span>
-          </div>
-          {p.lines.map((l, i) => (
-            <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-              <span className="min-w-0"><span className="block truncate text-ink">{l.item}</span>{ratio.lines[i]?.pct != null && <span className={cn('block text-[0.75rem]', ratio.lines[i].pct! > ratio.line ? 'font-semibold text-bad-600' : 'text-muted')}>{ratio.lines[i].pct}% of what we sell it for</span>}</span>
-              <span className="text-right tnum text-ink-2">{l.qty}</span>
-              <span className="text-right tnum text-ink-2 max-sm:hidden">{l.rate ? `${fmtMoney(l.rate, { cents: l.rate % 1 !== 0 })}` : 'Lump sum'}</span>
-              <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney(l.amount)}</span>
-            </div>
-          ))}
-        </>
-      )}
-      {p.changes.map((c) => (
-        <div key={c.co} className="grid grid-cols-[minmax(0,1fr)_6.875rem_5.625rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-          <span className="truncate text-ink">{c.co} · {c.text} <span className="text-[0.78125rem] text-muted">{c.status === 'pending' ? 'pending' : c.status}</span></span>
-          <span className="text-right tnum text-ink-2">{c.qty}</span>
-          <span className="max-sm:hidden" />
-          <span className={cn('text-right tnum max-sm:hidden', c.status === 'pending' ? 'text-muted' : 'text-ink')}>{fmtMoney(c.amount)}</span>
-        </div>
-      ))}
-      <div className="flex justify-end gap-6 pt-3 text-[0.9375rem] font-semibold text-ink"><span>Total</span><span className="tnum">{fmtMoney(total)}</span></div>
+      <IPOSheet p={p} lines={lines} editing={editing} ratio={ratio} onChange={setLines} />
       <IPOPay p={p} total={total} />
       <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
       <div className="-mx-2 mt-1">{[...p.log].reverse().map((l, i) => <ActivityRow key={i} compact jobId={p.jobId} e={{ date: l.date, who: l.who, kind: 'schedule', title: l.text, ref: { t: 'ipo', id: p.id } }} />)}</div>
@@ -566,13 +540,20 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
   )
 }
 
-/** the PO's lines, to change: how much and at what rate (or a lump sum), and each line's share of what we sell it for */
-function IPOLinesEdit({ lines, ratio, onChange }: { lines: IPOLine[]; ratio: Ratio; onChange: (ls: IPOLine[]) => void }) {
-  const set = (i: number, p: Partial<IPOLine>) => {
+/* His PO next to what we sell the work for, line by line — the same in the flow (this window) as on Billing. On top,
+ * staying put while the lines scroll: the share of the whole estimate on a bar with the company's line, and the column
+ * names. Each line: the work, how much, his rate, what we pay him, what the estimate gets for that work, and the share
+ * (red past the line). Then the change orders, the rest of the estimate (not his work) and the total. While it's a
+ * draft (or being changed) the work, quantity, rate and lump sums are typed right in the line. On a phone each line
+ * stacks: the work, then the numbers, then what we sell it for and the share. */
+const IPO_GRID = 'grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem_6.25rem_6.75rem_3.75rem_2rem] items-center gap-x-2 max-sm:grid-cols-[1fr_1fr_1fr_2rem]'
+function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLine[]; editing: boolean; ratio: Ratio; onChange: (ls: IPOLine[]) => void }) {
+  const s = useStore()
+  const set = (i: number, patch: Partial<IPOLine>) => {
     const next = lines.map((l, j) => {
       if (j !== i) return l
-      const m = { ...l, ...p }
-      if (m.n != null && m.rate != null && (p.n != null || p.rate != null)) {
+      const m = { ...l, ...patch }
+      if (m.n != null && m.rate != null && (patch.n != null || patch.rate != null)) {
         m.amount = Math.round(m.n * m.rate)
         m.qty = `${m.n.toLocaleString('en-US')} ${(l.qty.match(/[A-Za-z].*$/) || ['SF'])[0]}`
       }
@@ -580,27 +561,96 @@ function IPOLinesEdit({ lines, ratio, onChange }: { lines: IPOLine[]; ratio: Rat
     })
     onChange(next)
   }
+  const share = (pct?: number, extra?: string) => <span className={cn('block text-right text-[0.84375rem] tnum', pct == null ? 'text-faint' : pct > ratio.line ? 'font-semibold text-bad-600' : 'text-ink-2', extra)}>{pct != null ? `${pct}%` : '—'}</span>
+  const money = (n?: number | null, cls = 'text-ink-2', extra?: string) => <span className={cn('block text-right text-[0.84375rem] tnum', n ? cls : 'text-faint', extra)}>{n ? fmtMoney(n) : '—'}</span>
+  const lineSold = ratio.lines.reduce((n, l) => n + (l.sold || 0), 0)
+  const rest = ratio.estimate ? Math.max(0, ratio.estimate - lineSold) : 0
+  const cos = p.changes.map((c) => {
+    const m = s.money.find((x) => x.jobId === p.jobId && x.kind === 'change' && x.title.startsWith(c.co))
+    const sold = m ? m.amount || m.meta?.estimate || 0 : 0
+    return { c, sold, pct: sold ? Math.round((c.amount / sold) * 100) : undefined }
+  })
+  const tone = !ratio.sold ? 'neutral' : ratio.over ? 'bad' : ratio.pct > ratio.line - 5 ? 'warn' : 'ok'
+  const phoneSub = (sold?: number | null, pct?: number) => (sold ? <span className="col-span-4 text-[0.75rem] text-muted sm:hidden">We sell it for {fmtMoney(sold)}{pct != null ? <> · <span className={pct > ratio.line ? 'font-semibold text-bad-600' : ''}>{pct}%</span></> : null}</span> : null)
   return (
-    <div>
-      <div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem_7rem_2rem] gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden">
-        <span>Work</span><span className="text-right">Qty</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span />
+    <div data-ipo-sheet>
+      {/* stays on top while the lines scroll */}
+      <div className="sticky -top-5 z-10 -mx-6 -mt-5 bg-white px-6 pt-5 max-sm:-mx-4 max-sm:px-4" data-ipo-top>
+        {ratio.sold ? (
+          <div className="rounded-xl border border-line px-4 py-3" data-ipo-ratio>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="text-[0.9375rem] text-ink">His PO is <b className={cn('font-bold tnum', tone === 'bad' ? 'text-bad-700' : tone === 'warn' ? 'text-warn-700' : 'text-ok-700')}>{ratio.pct}%</b> of the estimate</span>
+              <span className="text-[0.8125rem] tnum text-muted">{fmtMoney(ratio.total)} of {fmtMoney(ratio.sold)} · keep it under {ratio.line}%</span>
+            </div>
+            <div className="relative mt-2.5 h-2 rounded-full bg-wash-2">
+              <div className={cn('h-full rounded-full transition-all', tone === 'bad' ? 'bg-bad-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-ok-500')} style={{ width: `${Math.min(100, Math.max(2, ratio.pct))}%` }} />
+              <span className="absolute -bottom-1 -top-1 w-[0.1875rem] rounded-full bg-ink" style={{ left: `calc(${ratio.line}% - 0.09375rem)` }} title={`The line: ${ratio.line}% of the estimate`} />
+            </div>
+          </div>
+        ) : <div className="rounded-xl border border-line px-4 py-3 text-[0.84375rem] text-muted">No estimate to compare his PO with yet.</div>}
+        <div className={cn(IPO_GRID, 'mt-4 border-b border-line pb-2 text-[0.75rem] font-medium text-muted max-sm:hidden')}>
+          <span>Work</span><span className="text-right">Qty</span><span className="text-right">His rate</span><span className="text-right">His PO</span><span className="text-right">We sell it for</span><span className="text-right">Share</span><span />
+        </div>
       </div>
       {lines.map((l, i) => {
         const r = ratio.lines[i]
         return (
-          <div key={i} className="grid grid-cols-[minmax(0,1fr)_6rem_6rem_7rem_2rem] items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1fr_1fr_1fr_2rem]">
-            <span className="min-w-0 max-sm:col-span-3 max-sm:row-start-1">
-              <NumField text value={l.item} onSave={(v) => set(i, { item: String(v) || l.item })} className="w-full text-left" label="Work" />
-              {r?.pct != null && <span className={cn('mt-0.5 block text-[0.75rem]', r.pct > ratio.line ? 'font-semibold text-bad-600' : 'text-muted')}>{r.pct}% of what we sell it for ({fmtMoney(r.sold)})</span>}
+          <div key={i} className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2 max-sm:gap-y-1.5')} data-ipo-row={i}>
+            <span className="min-w-0 max-sm:col-span-3">
+              {editing ? <NumField text value={l.item} onSave={(v) => set(i, { item: String(v) || l.item })} className="w-full text-left" label="Work" /> : <span className="block truncate text-[0.875rem] text-ink">{l.item}</span>}
             </span>
-            <button aria-label="Remove the line" onClick={() => onChange(lines.filter((_, j) => j !== i))} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-faint hover:bg-wash-2 hover:text-bad-600 sm:order-last max-sm:col-start-4 max-sm:row-start-1"><Trash2 className="h-4 w-4" /></button>
-            {l.n != null ? <NumField value={l.n} onSave={(v) => set(i, { n: Number(v) || 0 })} label="Quantity" /> : <span className="text-right text-[0.8125rem] text-muted max-sm:text-left">{l.qty}</span>}
-            {l.rate != null ? <NumField value={l.rate} money onSave={(v) => set(i, { rate: Number(v) || 0 })} label="Rate" /> : <span className="text-right text-[0.8125rem] text-muted">Lump sum</span>}
-            {l.n != null && l.rate != null ? <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(l.amount)}</span> : <NumField value={l.amount} money onSave={(v) => set(i, { amount: Math.round(Number(v) || 0) })} label="Amount" />}
+            {editing ? (
+              <>
+                {l.n != null ? <NumField value={l.n} onSave={(v) => set(i, { n: Number(v) || 0 })} label="Quantity" className="max-sm:row-start-2" /> : <span className="text-right text-[0.8125rem] text-muted max-sm:row-start-2 max-sm:text-left">{l.qty}</span>}
+                {l.rate != null ? <NumField value={l.rate} money onSave={(v) => set(i, { rate: Number(v) || 0 })} label="Rate" className="max-sm:row-start-2" /> : <span className="text-right text-[0.8125rem] text-faint max-sm:row-start-2">—</span>}
+                {l.n != null && l.rate != null ? <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:row-start-2">{fmtMoney(l.amount)}</span> : <NumField value={l.amount} money onSave={(v) => set(i, { amount: Math.round(Number(v) || 0) })} label="Amount" className="max-sm:row-start-2" />}
+              </>
+            ) : (
+              <>
+                <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:row-start-2 max-sm:text-left">{l.qty}</span>
+                <span className={cn('text-right text-[0.84375rem] tnum max-sm:row-start-2', l.rate ? 'text-ink-2' : 'text-faint')}>{l.rate ? fmtMoney(l.rate, { cents: l.rate % 1 !== 0 }) : '—'}</span>
+                <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:row-start-2">{fmtMoney(l.amount)}</span>
+              </>
+            )}
+            {money(r?.sold, 'text-ink-2', 'max-sm:hidden')}
+            {share(r?.pct, 'max-sm:hidden')}
+            {editing ? (
+              <button aria-label="Take the line off" onClick={() => onChange(lines.filter((_, j) => j !== i))} className="inline-flex h-8 w-8 items-center justify-center justify-self-end rounded-md text-faint hover:bg-wash-2 hover:text-bad-600 max-sm:col-start-4 max-sm:row-start-1"><Trash2 className="h-4 w-4" /></button>
+            ) : <span className="max-sm:hidden" />}
+            {phoneSub(r?.sold, r?.pct)}
           </div>
         )
       })}
-      <button onClick={() => onChange([...lines, { item: 'Extra work', qty: 'Lump sum', amount: 0 }])} className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Plus className="h-4 w-4" />Add a line</button>
+      {editing && <button onClick={() => onChange([...lines, { item: 'Extra work', qty: 'Lump sum', amount: 0 }])} className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Plus className="h-4 w-4" />Add a line</button>}
+      {cos.map(({ c, sold, pct }) => (
+        <div key={c.co} className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2 max-sm:gap-y-1')} data-ipo-co={c.co}>
+          <span className="min-w-0 max-sm:col-span-4"><span className="block truncate text-[0.875rem] text-ink">{c.co} · {c.text}</span>{c.status === 'pending' && <span className="block text-[0.75rem] text-muted">Waiting for the client’s yes — not counted yet</span>}</span>
+          <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:text-left">{c.qty}</span>
+          <span />
+          <span className={cn('text-right text-[0.875rem] tnum', c.status === 'pending' ? 'text-muted' : 'font-semibold text-ink')}>{fmtMoney(c.amount)}</span>
+          {money(sold, 'text-ink-2', 'max-sm:hidden')}
+          {share(pct, 'max-sm:hidden')}
+          <span className="max-sm:hidden" />
+          {phoneSub(sold, pct)}
+        </div>
+      ))}
+      {rest > 0 && (
+        <div className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2')} data-ipo-rest>
+          <span className="min-w-0 max-sm:col-span-3"><span className="block truncate text-[0.875rem] text-muted">The rest of the estimate</span><span className="block truncate text-[0.75rem] text-faint">Materials and the general lines — not his work</span></span>
+          <span className="max-sm:hidden" /><span className="max-sm:hidden" /><span className="max-sm:hidden" />
+          {money(rest, 'text-muted', 'max-sm:col-start-4 max-sm:row-start-1')}
+          <span className="max-sm:hidden" /><span className="max-sm:hidden" />
+        </div>
+      )}
+      <div className={cn(IPO_GRID, 'min-h-[3rem] py-2.5 text-[0.9375rem] font-semibold')} data-ipo-total>
+        <span className="text-ink max-sm:col-span-2">Total</span>
+        <span className="max-sm:hidden" /><span className="max-sm:hidden" />
+        <span className="text-right tnum text-ink max-sm:col-span-2">{fmtMoney(ratio.total)}</span>
+        <span className="text-right tnum text-ink-2 max-sm:hidden">{ratio.sold ? fmtMoney(ratio.sold) : '—'}</span>
+        <span className={cn('text-right tnum max-sm:hidden', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{ratio.sold ? `${ratio.pct}%` : '—'}</span>
+        <span className="max-sm:hidden" />
+        {ratio.sold ? <span className="col-span-4 text-[0.75rem] font-normal text-muted sm:hidden">We sell it for {fmtMoney(ratio.sold)} · <span className={tone === 'bad' ? 'font-semibold text-bad-600' : ''}>{ratio.pct}%</span></span> : null}
+      </div>
     </div>
   )
 }
@@ -652,7 +702,7 @@ function IPOPay({ p, total }: { p: IPO; total: number }) {
           </div>
         )}
         {weeks.map(({ w, r, amount }) => (
-          <button key={w.key} onClick={() => s.open({ t: 'pay', crew: p.crew, week: w.key })} className="flex items-center gap-3 border-b border-line-2 py-2.5 text-left text-[0.875rem] last:border-0 hover:bg-wash">
+          <button key={w.key} onClick={() => s.open({ t: 'pay', crew: p.crew, week: w.key })} className="flex items-center gap-3 border-b border-line-2 py-2.5 text-left text-[0.875rem] last:border-0 row-hover">
             <span className="flex-1 text-ink">Week of {w.label}</span>
             {r && <Status tone={PAY_STATE[r.state].tone}>{PAY_STATE[r.state].label}</Status>}
             <span className="w-[5.625rem] text-right font-semibold tnum text-ink">{fmtMoney(amount)}</span>

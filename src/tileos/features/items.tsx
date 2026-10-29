@@ -440,7 +440,7 @@ function ItemEdit({ i }: { i: Item }) {
 
 function Line({ title, sub, right, onClick }: { title: string; sub?: string; right?: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 border-b border-line-2 px-2 py-2.5 text-left transition-colors hover:bg-wash">
+    <button onClick={onClick} className="flex w-full items-center gap-3 border-b border-line-2 px-2 py-2.5 text-left transition-colors row-hover">
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[0.875rem] text-ink">{title}</span>
         {sub && <span className="block truncate text-[0.78125rem] text-muted">{sub}</span>}
@@ -552,7 +552,7 @@ export function ImportItemsModal({ level }: { level: number }) {
               {changes.map((r) => {
                 const on = take.includes(r.item.id)
                 return (
-                  <button key={r.item.id} onClick={() => setTake(on ? take.filter((k) => k !== r.item.id) : [...take, r.item.id])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 hover:bg-wash">
+                  <button key={r.item.id} onClick={() => setTake(on ? take.filter((k) => k !== r.item.id) : [...take, r.item.id])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 row-hover">
                     <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.item.name}</span>
@@ -577,7 +577,7 @@ export function ImportItemsModal({ level }: { level: number }) {
               {rows.map((p) => {
                 const on = pick.includes(p.sku)
                 return (
-                  <button key={p.sku} onClick={() => setPick(on ? pick.filter((k) => k !== p.sku) : [...pick, p.sku])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 hover:bg-wash">
+                  <button key={p.sku} onClick={() => setPick(on ? pick.filter((k) => k !== p.sku) : [...pick, p.sku])} className="flex w-full items-center gap-3 border-b border-line-2 px-3 py-2.5 text-left last:border-0 row-hover">
                     <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{on && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
                     <ProductPic kind={p.pic as PicKind} color={p.tint || MAT_CAT[p.cat as MatCat].color} label={p.product} sub={p.pack} size={44} />
                     <span className="min-w-0 flex-1">

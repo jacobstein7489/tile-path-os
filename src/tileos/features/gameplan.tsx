@@ -135,7 +135,7 @@ function ReadyList() {
       {rows.map((x) => {
         const j = s.jobs[x.id]
         return (
-          <button key={x.id} onClick={() => s.open({ t: 'book', jobId: x.id })} data-ready-row={x.id} title={`${j.client} — pick the installer`} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition hover:bg-[#f7f5f0]">
+          <button key={x.id} onClick={() => s.open({ t: 'book', jobId: x.id })} data-ready-row={x.id} title={`${j.client} — pick the installer`} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition row-hover">
             <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
             <span className="shrink-0 text-[0.8125rem] text-muted">{x.when ? fmt(x.when, { month: 'short', day: 'numeric' }) : 'No date'}</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-faint" />

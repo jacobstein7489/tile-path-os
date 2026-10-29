@@ -493,7 +493,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
               const on = !off.has(r.key)
               const place = [r.city, r.state].filter(Boolean).join(', ')
               return (
-                <label key={r.key} data-import-row={r.name} data-on={on || undefined} className={cn('flex cursor-pointer items-start gap-3 border-b border-line-2 px-3.5 py-2.5 last:border-b-0 hover:bg-[#fbfaf7]', !on && 'opacity-55')}>
+                <label key={r.key} data-import-row={r.name} data-on={on || undefined} className={cn('flex cursor-pointer items-start gap-3 border-b border-line-2 px-3.5 py-2.5 last:border-b-0 row-hover', !on && 'opacity-55')}>
                   <input type="checkbox" checked={on} onChange={() => flip(r.key)} className="mt-1 h-4 w-4 shrink-0 accent-[#2650cf]" aria-label={`Add ${r.name}`} />
                   <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wash-2 text-ink-2">{kind === 'client' ? (r.kind === 'Homeowner' ? <User className="h-4 w-4" /> : <Building2 className="h-4 w-4" />) : React.createElement(ICON_OF[kind], { className: 'h-4 w-4' })}</span>
                   <span className="min-w-0 flex-1 leading-snug">

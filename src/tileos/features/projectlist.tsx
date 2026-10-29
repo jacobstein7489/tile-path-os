@@ -136,11 +136,10 @@ const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | '
  * Holding it up: the one thing in the way right now, in plain words, and how many more — its own column, so they all
  * start at the same spot. Each group (On hold, Getting ready…) is a light band; every line is the same one line.
  * On a phone: the name and where it stands, then what's in the way — or what's left, or the client and the start. */
-const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.1fr)_5rem] max-md:block'
-/** each circle's place — as wide as its name, the same in the band and in every row, so each circle sits right
- *  under its name, like a column */
-const SLOT: Record<string, string> = { scope: 'w-[3rem]', tile: 'w-[2.25rem]', site: 'w-[2.25rem]', installer: 'w-[3.25rem]', materials: 'w-[3.5rem]' }
-const slot = (k: string) => cn(SLOT[k] || 'w-[3rem]', 'flex shrink-0 justify-center')
+const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_17.5rem_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_5rem] max-md:block'
+/** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
+ *  (the widest name, Materials, fits), the same in the band and in every row */
+const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
 
 function ListHead() {
   return (
@@ -212,7 +211,6 @@ function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */
             </span>
           ))}
         </span>
-        <span className={cn('truncate text-[0.8125rem] tnum lg:max-xl:hidden', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{all ? 'Ready' : `${done} of ${tracks.length}`}</span>
       </span>
     )
   }
@@ -266,7 +264,7 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       data-project={j.id}
       onClick={open}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
-      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors hover:bg-[#f7f5f0] max-md:px-4 max-md:py-2.5', COLS)}
+      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors row-hover max-md:px-4 max-md:py-2.5', COLS)}
     >
       {/* a computer: five things on one line, each in its column */}
       <div className="flex min-w-0 items-center gap-2 max-md:hidden">

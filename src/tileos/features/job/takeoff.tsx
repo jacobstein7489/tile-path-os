@@ -183,7 +183,7 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
   /* grout: which colors, so the order says them */
   const colors = l.itemId === 'm-grout' ? Array.from(new Set(l.uses.map((u) => s.rooms[jobId]?.find((r) => r.name === u.room)?.surfaces.find((x) => x.name === u.surface)?.grout).filter(Boolean) as string[])).map((g) => GROUTS[g]?.name || g) : []
   return (
-    <div className={cn(QGRID, ROWPAD, 'w-full transition-colors hover:bg-[#f7f5f0]')} data-mat={l.itemId}>
+    <div className={cn(QGRID, ROWPAD, 'w-full transition-colors row-hover')} data-mat={l.itemId}>
         <Pop
           open={open}
           onOpenChange={(o) => { if (o !== open) onToggle() }}

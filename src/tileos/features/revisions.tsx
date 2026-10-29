@@ -154,7 +154,7 @@ function Compare({ e, a, b, onPick, onBack }: { e: Estimate; a: number; b: numbe
         {!changed.length && <div className="px-4 py-6 text-center text-[0.84375rem] text-muted">No differences.</div>}
         {same.length > 0 && (
           <>
-            <button onClick={() => setShowSame((x) => !x)} className="flex w-full items-center gap-1.5 border-b border-line-2 px-4 py-2 text-left text-[0.78125rem] font-semibold text-muted hover:bg-wash">
+            <button onClick={() => setShowSame((x) => !x)} className="flex w-full items-center gap-1.5 border-b border-line-2 px-4 py-2 text-left text-[0.78125rem] font-semibold text-muted row-hover">
               {showSame ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}{same.length} line{same.length > 1 ? 's' : ''} the same
             </button>
             {showSame && same.map((d) => (

@@ -6,7 +6,7 @@ import * as React from 'react'
 import { Building2, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus, Package, FileText, Receipt, HardHat, Repeat, CheckCheck, BellDot } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Menu, MenuItem, MenuLabel, MenuSep } from '@/tileos/components/ui/overlay'
+import { Menu, MenuItem, MenuLabel, MenuSep, RightMenu } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { NOW } from '@/tileos/lib/today'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -57,7 +57,27 @@ export function conversations(s: St, withAway = false): Convo[] {
   return out.sort((a, b) => b.rank - a.rank)
 }
 /** what the app noticed for this login — a delivery, an approval, a request dropped off — newest first */
-export const updatesFor = (s: St) => noticesFor(s, meOf(s.role))
+/** an update archived by this person (the same per-person list as the conversations) */
+const updKey = (id: string, me: PersonKey) => `u:${id}|${me}`
+const updAway = (s: St, id: string, me: PersonKey) => !!s.seen?.[updKey(id, me)]?.away
+export const updatesFor = (s: St) => { const me = meOf(s.role); return noticesFor(s, me).filter((n) => !updAway(s, n.id, me)) }
+export const archivedUpdates = (s: St) => { const me = meOf(s.role); return noticesFor(s, me).filter((n) => updAway(s, n.id, me)) }
+/** archive an update — or bring it back */
+export function archiveUpdate(id: string, on: boolean) {
+  const st = useStore.getState()
+  const me = meOf(st.role)
+  st.commit((x) => {
+    x.seen ||= {}
+    if (on) x.seen[updKey(id, me)] = { n: 0, away: 1 }
+    else delete x.seen[updKey(id, me)]
+    const n = x.notices.find((y) => y.id === id)
+    if (n && on) n.unread = false
+  }, on ? 'Archived' : 'Back in Updates')
+}
+/** an update back to unread — bold with the dot until it's opened again */
+export function unreadUpdate(id: string) {
+  useStore.getState().commit((x) => { const n = x.notices.find((y) => y.id === id); if (n) n.unread = true })
+}
 export const updatesUnread = (s: St) => updatesFor(s).filter((n) => n.unread).length
 export const inboxUnread = (s: St) => conversations(s).reduce((n, c) => n + c.unread, 0) + updatesUnread(s)
 /** an update seen — or all of them */
@@ -88,7 +108,7 @@ export function putAway(key: string, jobId: string | undefined, on: boolean) {
   const me = meOf(st.role)
   const k = seenKey(key, me)
   const n = jobId ? (st.messages[jobId] || []).length : 0
-  st.commit((x) => { x.seen ||= {}; const cur = x.seen[k] || { n }; x.seen[k] = on ? { ...cur, n, away: n, unread: false } : { n: cur.n } }, on ? 'Put away' : 'Back in the inbox', { sub: on ? 'It comes back the moment something new lands in it.' : undefined })
+  st.commit((x) => { x.seen ||= {}; const cur = x.seen[k] || { n }; x.seen[k] = on ? { ...cur, n, away: n, unread: false } : { n: cur.n } }, on ? 'Archived' : 'Back in the inbox', { sub: on ? 'It comes back the moment something new is said in it.' : undefined })
 }
 /** mark it unread — it stays bold with a 1 until you open it again */
 export function markUnread(key: string, jobId?: string) {
@@ -119,10 +139,12 @@ export function InboxPage() {
     return m ? { ok: true, said: `${m.who === me ? 'You' : PEOPLE[m.who]?.short || ''}: ${m.text}` } : { ok: false }
   }
   const [picked, setPicked] = React.useState<string | null>(null)
-  /* New: what you haven't seen. All: everything that isn't put away. Put away: what you filed — it comes back on its own */
+  /* New: what you haven't seen. All: everything not archived. Archived: what you filed — a conversation comes back on its
+     own when someone says something new in it */
   const [view, setView] = React.useState<'all' | 'new' | 'away' | 'updates'>('all')
   const updates = updatesFor(s)
   const updN = updates.filter((n) => n.unread).length
+  const oldUpdates = archivedUpdates(s)
   const list = all.filter((c) => !c.away)
   const unreadN = list.reduce((n, c) => n + c.unread, 0)
   const shown = (view === 'away' ? all.filter((c) => c.away) : view === 'new' ? list.filter((c) => c.unread > 0) : list).map((c) => ({ c, h: hit(c) })).filter((x) => x.h.ok).map((x) => (x.h.said ? { ...x.c, preview: x.h.said } : x.c))
@@ -165,9 +187,9 @@ export function InboxPage() {
             </Menu>
           </div>
           <div className="flex items-center gap-1.5 border-b border-line-2 px-3 py-2">
-            {([['all', 'All'], ['new', 'New'], ['updates', 'Updates'], ['away', 'Put away']] as const).map(([k, label]) => {
+            {([['all', 'All'], ['new', 'New'], ['updates', 'Updates'], ['away', 'Archived']] as const).map(([k, label]) => {
               const on = view === k
-              const n = k === 'new' ? unreadN : k === 'updates' ? updN : k === 'away' ? all.filter((c) => c.away).length : 0
+              const n = k === 'new' ? unreadN : k === 'updates' ? updN : k === 'away' ? all.filter((c) => c.away).length + oldUpdates.length : 0
               if (k === 'away' && !n) return null
               return <button key={k} onClick={() => setView(k)} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
             })}
@@ -176,27 +198,20 @@ export function InboxPage() {
             {view === 'updates' && (
               <>
                 {updates.length > 0 && updN > 0 && <div className="flex justify-end border-b border-line-2 px-3 py-1.5"><button onClick={() => readUpdate()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><CheckCheck className="h-3.5 w-3.5" />Mark all as seen</button></div>}
-                {updates.map((n) => {
-                  const Ic = UPD_ICON[n.kind] || BellDot
-                  const job = n.jobId ? s.jobs[n.jobId] : undefined
-                  return (
-                    <button key={n.id} data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 border-b border-line-2 px-4 py-3 text-left transition hover:bg-[#f8f6f2]', n.unread && 'bg-[#f6f8fe]')}>
-                      <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
-                        <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
-                      </span>
-                      {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="New" />}
-                    </button>
-                  )
-                })}
+                {updates.map((n) => <UpdateRow key={n.id} n={n} />)}
                 {!updates.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">No updates yet — deliveries, approvals and requests land here.</div>}
               </>
             )}
             {view !== 'updates' && shown.map((c) => {
               const on = cur?.key === c.key
+              const items = [
+                c.unread ? { icon: <MailOpen className="h-4 w-4" />, label: 'Mark as read', onSelect: () => markRead(c.key, c.jobId) } : { icon: <Mail className="h-4 w-4" />, label: 'Mark as unread', onSelect: () => markUnread(c.key, c.jobId) },
+                c.away ? { icon: <Inbox className="h-4 w-4" />, label: 'Move back to the inbox', onSelect: () => putAway(c.key, c.jobId, false) } : { icon: <Archive className="h-4 w-4" />, label: 'Archive', hint: 'It comes back when someone writes in it', onSelect: () => { putAway(c.key, c.jobId, true); if (on) setPicked(null) } },
+                c.jobId ? { icon: <Building2 className="h-4 w-4" />, label: 'Open the project', onSelect: () => s.open({ t: 'job', id: c.jobId! }) } : null,
+              ]
               return (
-                <div key={c.key} className={cn('group relative border-b border-line-2 transition hover:bg-[#f8f6f2]', on && 'bg-[#eef2fd] hover:bg-[#eef2fd]')}>
+                <RightMenu key={c.key} items={items}>
+                <div className={cn('group relative border-b border-line-2 transition row-hover', on && 'bg-[#eef2fd] hover:bg-[#eef2fd]')}>
                   <button onClick={() => openConvo(c)} data-convo={c.key} className="flex w-full items-center gap-3 px-4 py-3 pr-11 text-left">
                     <Face c={c} />
                     <span className="min-w-0 flex-1">
@@ -210,18 +225,28 @@ export function InboxPage() {
                       </span>
                     </span>
                   </button>
-                  {/* unread · put away — like any messaging app */}
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 max-lg:opacity-100">
-                    <Menu align="end" width={220} trigger={<button aria-label={`More for ${c.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
-                      {c.unread ? <MenuItem icon={<MailOpen className="h-4 w-4" />} onSelect={() => markRead(c.key, c.jobId)}>Mark as read</MenuItem> : <MenuItem icon={<Mail className="h-4 w-4" />} onSelect={() => markUnread(c.key, c.jobId)}>Mark as unread</MenuItem>}
-                      {c.away ? <MenuItem icon={<Inbox className="h-4 w-4" />} onSelect={() => putAway(c.key, c.jobId, false)}>Back to the inbox</MenuItem> : <MenuItem icon={<Archive className="h-4 w-4" />} hint="It comes back when something new lands" onSelect={() => { putAway(c.key, c.jobId, true); if (on) setPicked(null) }}>Put away</MenuItem>}
-                      {c.jobId && <MenuItem icon={<Building2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'job', id: c.jobId })}>Open the project</MenuItem>}
+                  {/* at the side, pointing at it: archive in one click, unread in one click (right-click has the same) —
+                      on a phone, the ··· (or a long press) */}
+                  <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded-lg bg-white/95 opacity-0 shadow-xs transition group-hover:opacity-100 focus-within:opacity-100 max-lg:hidden" data-convo-actions>
+                    <button aria-label={c.unread ? `Mark ${c.name} as read` : `Mark ${c.name} as unread`} title={c.unread ? 'Mark as read' : 'Mark as unread'} onClick={() => (c.unread ? markRead(c.key, c.jobId) : markUnread(c.key, c.jobId))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2 hover:text-ink">{c.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
+                    <button aria-label={c.away ? `Move ${c.name} back to the inbox` : `Archive ${c.name}`} title={c.away ? 'Move back to the inbox' : 'Archive'} onClick={() => { putAway(c.key, c.jobId, !c.away); if (on && !c.away) setPicked(null) }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2 hover:text-ink" data-archive>{c.away ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+                  </span>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden">
+                    <Menu align="end" width={230} trigger={<button aria-label={`More for ${c.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+                      {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} hint={it!.hint} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
                     </Menu>
                   </span>
                 </div>
+                </RightMenu>
               )
             })}
-            {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? 'Nothing put away.' : 'No conversations yet — tap the blue button to write on a project.'}</div>}
+            {view === 'away' && oldUpdates.length > 0 && (
+              <>
+                <div className="border-b border-line-2 px-4 pb-1.5 pt-3 text-[0.75rem] font-semibold text-muted">Archived updates</div>
+                {oldUpdates.map((n) => <UpdateRow key={n.id} n={n} archived />)}
+              </>
+            )}
+            {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? (oldUpdates.length ? 'No archived conversations.' : 'Nothing archived.') : 'No conversations yet — tap the blue button to write on a project.'}</div>}
           </div>
         </div>
         {/* the conversation */}
@@ -243,6 +268,33 @@ export function InboxPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** one update: tap it to open what it's about; archive it at the side or with a right-click */
+function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
+  const s = useStore()
+  const Ic = UPD_ICON[n.kind] || BellDot
+  const job = n.jobId ? s.jobs[n.jobId] : undefined
+  const items = [
+    n.unread ? { icon: <MailOpen className="h-4 w-4" />, label: 'Mark as seen', onSelect: () => readUpdate(n.id) } : { icon: <Mail className="h-4 w-4" />, label: 'Mark as unread', onSelect: () => unreadUpdate(n.id) },
+    archived ? { icon: <Inbox className="h-4 w-4" />, label: 'Move back to Updates', onSelect: () => archiveUpdate(n.id, false) } : { icon: <Archive className="h-4 w-4" />, label: 'Archive', onSelect: () => archiveUpdate(n.id, true) },
+    job ? { icon: <Building2 className="h-4 w-4" />, label: 'Open the project', onSelect: () => s.open({ t: 'job', id: job.id }) } : null,
+  ]
+  return (
+    <RightMenu items={items}>
+      <div className="group relative border-b border-line-2 row-hover" data-update-row={n.id}>
+        <button data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 px-4 py-3 pr-12 text-left', n.unread && 'bg-[#f6f8fe]')}>
+          <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1">
+            <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
+            <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
+          </span>
+          {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600 group-hover:invisible" aria-label="New" />}
+        </button>
+        <button aria-label={archived ? 'Move back to Updates' : 'Archive'} title={archived ? 'Move back to Updates' : 'Archive'} onClick={() => archiveUpdate(n.id, !archived)} className="absolute right-2 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/95 text-muted opacity-0 shadow-xs transition hover:bg-wash-2 hover:text-ink group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100 max-lg:shadow-none" data-archive>{archived ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+      </div>
+    </RightMenu>
   )
 }
 

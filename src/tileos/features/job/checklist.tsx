@@ -39,7 +39,7 @@ export function ChecklistModal({ jobId, level }: { jobId: string; level: number 
   const StepRow = ({ v }: { v: StepView }) => {
     const late = v.due && v.due < TODAY && (v.state === 'now' || v.state === 'bad')
     return (
-      <button onClick={() => openStep(job.id, v.key)} className="flex w-full items-center gap-3 border-t border-line-2 py-2.5 pl-4 pr-4 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+      <button onClick={() => openStep(job.id, v.key)} className="flex w-full items-center gap-3 border-t border-line-2 py-2.5 pl-4 pr-4 text-left transition first:border-t-0 row-hover">
         <StepIcon state={v.state} size={24} />
         <span className="min-w-0 flex-1">
           <span className={cn('block truncate text-[0.875rem] font-semibold', isDone(v) ? 'text-ink-2' : 'text-ink')}>{isDone(v) ? v.label : todoOf(v)}</span>
@@ -69,7 +69,7 @@ export function ChecklistModal({ jobId, level }: { jobId: string; level: number 
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {parts.map(({ ph, items, done, all, bad, next }) => (
             <section key={ph.key} data-part={ph.key} className={cn('flex flex-col overflow-hidden rounded-[0.875rem] border bg-white', bad ? 'border-bad-200' : 'border-line')}>
-              <h3><button onClick={() => setPart(ph.key)} aria-label={`${ph.label} — ${all ? 'done' : bad ? 'problem' : `${done} of ${items.length} done`}`} className="flex w-full items-center gap-3 px-4 pb-2 pt-3.5 text-left transition hover:bg-[#f8f6f2]">
+              <h3><button onClick={() => setPart(ph.key)} aria-label={`${ph.label} — ${all ? 'done' : bad ? 'problem' : `${done} of ${items.length} done`}`} className="flex w-full items-center gap-3 px-4 pb-2 pt-3.5 text-left transition row-hover">
                 <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{ph.label}</span>
                 <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#ece8e1]" aria-hidden>
                   <span className={cn('block h-full rounded-full', all ? 'bg-[#2c4a3e]' : bad ? 'bg-bad-500' : 'bg-brand-600')} style={{ width: `${Math.round((done / items.length) * 100)}%` }} />
@@ -78,7 +78,7 @@ export function ChecklistModal({ jobId, level }: { jobId: string; level: number 
                 <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
               </button></h3>
               {next ? (
-                <button onClick={() => openStep(job.id, next.key)} className="flex w-full flex-1 items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition hover:bg-[#f8f6f2]">
+                <button onClick={() => openStep(job.id, next.key)} className="flex w-full flex-1 items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition row-hover">
                   <StepIcon state={next.state} size={22} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{todoOf(next)}</span>

@@ -53,7 +53,7 @@ export function ClientsPage() {
         {shown.map(({ c, theirs, openItems, owed }) => {
           const tone = theirs.length ? worst(theirs) : 'neutral'
           return (
-            <button key={c.id} onClick={() => s.open({ t: 'customer', id: c.id })} className={cn('group grid w-full items-center gap-5 border-b border-line-2 px-6 py-3.5 text-left transition-colors last:border-0 hover:bg-wash max-md:grid-cols-[minmax(0,1fr)_1.25rem] max-md:gap-x-3 max-md:gap-y-1 max-sm:px-4', cols)}>
+            <button key={c.id} onClick={() => s.open({ t: 'customer', id: c.id })} className={cn('group grid w-full items-center gap-5 border-b border-line-2 px-6 py-3.5 text-left transition-colors last:border-0 row-hover max-md:grid-cols-[minmax(0,1fr)_1.25rem] max-md:gap-x-3 max-md:gap-y-1 max-sm:px-4', cols)}>
               <span className="min-w-0">
                 <span className="block truncate text-[0.9375rem] font-semibold text-ink group-hover:text-brand-700">{c.name}</span>
                 <span className="block truncate text-[0.8125rem] text-muted">{c.contacts[0]?.role || 'Office'} · {c.phone}</span>

@@ -257,7 +257,7 @@ const HALO: Record<Tone, string> = { bad: 'bg-bad-50', warn: 'bg-warn-50', ok: '
 export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
 /** a group inside a list (Overdue, Today, On hold, Getting ready…): a light band the full width, with the same line
  *  above it as every row — so the lines never change. The name and how many; a quiet link on the right if any. */
-export const BAND = 'flex h-9 items-center gap-2 border-t border-line-2 bg-[#f7f5f1]'
+export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-white'
 export function Group({ label, count, tone = 'info', open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className={cn(BAND, PX)} data-group-tone={tone} data-band>
@@ -292,7 +292,7 @@ export function Row({ lead, title, meta, children, onClick, className, dim, leav
       className={cn(
         'group/row relative flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 py-2 transition-colors',
         PX,
-        onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none',
+        onClick && 'cursor-pointer row-hover focus-visible:outline-none',
         dim && 'opacity-70',
         leaving && 'row-out',
         className,
@@ -552,7 +552,7 @@ export function Tr({ children, onClick, className, dim }: { children: React.Reac
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       tabIndex={onClick ? 0 : undefined}
-      className={cn('group transition-colors [&>td]:border-b [&>td]:border-line-2', onClick && 'cursor-pointer hover:bg-[#f7f5f0] focus-visible:bg-[#f7f5f0] focus-visible:outline-none', dim && 'text-muted', className)}
+      className={cn('group transition-colors [&>td]:border-b [&>td]:border-line-2', onClick && 'cursor-pointer row-hover focus-visible:outline-none', dim && 'text-muted', className)}
     >
       {children}
     </tr>
@@ -571,14 +571,14 @@ const FIRST = 'pl-6 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone = 'info', hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#f7f5f1] py-0', FIRST)} data-group-tone={tone} data-band>
+      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-white py-0', FIRST)} data-group-tone={tone} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-baseline gap-2 text-left disabled:cursor-default">
           <span className="text-[0.8125rem] font-semibold text-ink-2">{label}</span>
           {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f7f5f1] max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-white max-md:hidden" />}
     </tr>
   )
 }

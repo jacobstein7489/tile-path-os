@@ -176,7 +176,7 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
       {items.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-line" data-checkin-items>
           {items.map((c) => (
-            <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 hover:bg-[#f8f6f2]">
+            <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 row-hover">
               <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><AlarmClock className="h-4 w-4" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{c.title}</span>
@@ -322,7 +322,7 @@ function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal
   const shown = more ? late : late.slice(0, 6)
   return (
     <div className="border-t border-line-2 first:border-t-0" data-report-person={r.who} data-pct={r.pct ?? ''}>
-      <button onClick={onToggle} aria-expanded={open} className={cn('grid w-full grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-4 py-3 text-left transition hover:bg-[#f8f6f2] max-lg:flex max-lg:gap-3', PX)}>
+      <button onClick={onToggle} aria-expanded={open} className={cn('grid w-full grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-4 py-3 text-left transition row-hover max-lg:flex max-lg:gap-3', PX)}>
         <span className="flex min-w-0 items-center gap-3.5 max-lg:flex-1">
           <ProgressRing pct={r.pct ?? 0} size={46} tone={v.tone} label={r.pct == null ? '–' : `${r.pct}%`} />
           <span className="min-w-0">
@@ -355,7 +355,7 @@ function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal
               <ul className="overflow-hidden rounded-xl border border-line bg-white">
                 {shown.map((j) => (
                   <li key={j.key} className="border-t border-line-2 first:border-t-0">
-                    <button onClick={() => (j.go.kind === 'step' ? openStep(j.go.jobId, j.go.k) : s.open({ t: 'task', id: j.go.id }))} className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition hover:bg-[#f8f6f2]">
+                    <button onClick={() => (j.go.kind === 'step' ? openStep(j.go.jobId, j.go.k) : s.open({ t: 'task', id: j.go.id }))} className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition row-hover">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[0.875rem] font-semibold text-ink">{j.title}</span>
                         <span className="block truncate text-[0.78125rem] text-muted">{j.jobName} · set for {md(j.setFor)} · {j.open ? <b className="font-semibold text-bad-600">still not done — {workDays(j.late)} late</b> : <>done {md(j.doneOn!)} — <b className="font-semibold text-bad-600">{workDays(j.late)} late</b></>}{j.rolls ? ` · moved ${j.rolls}×` : ''}</span>
