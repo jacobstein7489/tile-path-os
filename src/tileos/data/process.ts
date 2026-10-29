@@ -91,11 +91,8 @@ export const PROCESS: ProcStep[] = [
   {
     stage: 'scheduled', title: 'Scheduled',
     happens: 'A crew is booked with dates and starting areas.',
-    who: [
-      { role: 'pm', buttons: ['Assign crew'] },
-      { role: 'crew', buttons: ['Confirm the project'] },
-    ],
-    auto: ['Pre-start checks for the PM, site manager, materials and crew', 'The crew gets the installer package on his phone'],
+    who: [{ role: 'pm', buttons: ['Assign crew', 'He confirmed'], note: 'Installers don’t use Tile OS — the office records his OK.' }],
+    auto: ['Pre-start checks for the PM, site manager and materials'],
     demo: { label: 'Assign a crew to Green Tree', modal: { t: 'assign', jobId: 'green' } },
   },
   {
@@ -103,7 +100,6 @@ export const PROCESS: ProcStep[] = [
     happens: 'Field and office stay in sync without anyone re-typing.',
     who: [
       { role: 'site', buttons: ['Daily update', 'Client wants a change', 'Report issue', 'Short or damaged'] },
-      { role: 'crew', buttons: ['Daily update + photos', 'Extra work', 'Short on material', 'Problem / question'] },
       { role: 'pm', buttons: ['GC progress report', 'Record approval', 'Installer PO change'] },
       { role: 'estimator', buttons: ['Price the change', 'Send to the GC'] },
       { role: 'materials', buttons: ['Receive', 'Reorder'] },
@@ -117,7 +113,6 @@ export const PROCESS: ProcStep[] = [
     happens: 'Touch-ups and return visits, tracked until verified.',
     who: [
       { role: 'site', buttons: ['Ready for punch', 'Add punch item', 'Verify'] },
-      { role: 'crew', buttons: ['Ready to verify'] },
       { role: 'pm', buttons: ['Schedule return'] },
     ],
     auto: ['Required punch items block completion'],

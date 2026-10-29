@@ -591,7 +591,7 @@ export function InstallerFormModal({ id, level }: { id?: PersonKey; level: numbe
         {taken && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">There’s already an installer with that name.</div>}
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
-          {formField('Email (for his POs and his phone app)', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@email.com" className="h-10" />)}
+          {formField('Email (for his POs)', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@email.com" className="h-10" />)}
         </div>
         <MoreBlock value={f.more} onChange={(more) => set({ more })} />
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">

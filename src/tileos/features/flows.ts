@@ -450,7 +450,7 @@ export function assignCrew(jobId: string, o: { crew: PersonKey; start: string; d
     if (o.confirm) newTask(s, { jobId, title: `Waiting for ${PEOPLE[o.crew].name} to confirm ${j.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[o.crew].name, followUp: 'Tomorrow', tone: 'warn', where: 'Crew confirmation', action: { label: 'Mark confirmed', kind: 'crew-confirm' } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `${isReturn ? 'Return booked' : 'Scheduled'} · ${PEOPLE[o.crew].name}, ${o.workers} workers, ${isoLabel(o.start)} – ${isoLabel(end)}`, detail: o.areas.length ? 'Starting with ' + o.areas.join(', ') : undefined })
   }, `${PEOPLE[o.crew].name} is on ${j0.name} from ${isoLabel(o.start)}`, {
-    sub: o.confirm ? 'He confirms from his phone. Until then it shows dashed on the Schedule.' : 'It’s on the Schedule.',
+    sub: o.confirm ? 'It shows dashed on the Schedule until you mark that he confirmed.' : 'It’s on the Schedule.',
     to: ['punch', 'closeout'].includes(j0.stage) ? undefined : [
       { who: 'ys', what: 'Confirm the start with the GC' },
       { who: 'yakov', what: 'Release the starting areas' },
@@ -460,6 +460,17 @@ export function assignCrew(jobId: string, o: { crew: PersonKey; start: string; d
   S().close()
 }
 
+/** the office marks that the installer said yes to his booking (he's told by phone or text — installers don't use Tile OS) */
+export function confirmCrewFor(jobId: string) {
+  const t = S().tasks.find((x) => x.jobId === jobId && x.action?.kind === 'crew-confirm' && x.state !== 'done')
+  if (t) return confirmCrew(t.id)
+  S().commit((s) => {
+    s.bookings.forEach((b) => { if (b.jobId === jobId && b.status === 'pending') b.status = 'on' })
+    if (s.prep[jobId]) s.prep[jobId].confirmed = 'yes'
+    const b = s.bookings.find((x) => x.jobId === jobId)
+    addHist(s, jobId, { who: me(), kind: 'schedule', title: `${b ? PEOPLE[b.crew as PersonKey]?.name || 'The crew' : 'The crew'} confirmed the project` })
+  }, 'Crew confirmed')
+}
 export function confirmCrew(taskId: string) {
   S().commit((s) => {
     const t = s.tasks.find((x) => x.id === taskId)
@@ -1365,9 +1376,9 @@ export function startProject(jobId: string) {
     j.pct = j.pct ?? 0
     j.stageDates = { ...(j.stageDates || {}), scheduled: j.stageDates?.scheduled || NOW, installation: NOW }
     j.keyDate = { label: 'Started', value: NOW }
-    j.next = { text: 'Daily updates from the crew', owner: 'ys', due: 'Every day' }
+    j.next = { text: 'Daily updates', owner: 'ys', due: 'Every day' }
     s.prep[jobId] = { ...(s.prep[jobId] || {}), started: NOW, target: `Started ${NOW}`, confirmed: 'yes' }
     closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.type === 'Schedule' && t.state !== 'done').map((t) => t.id), 'Started')
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `Started — ${PEOPLE[crew].name} is on site`, detail: 'Moved to In progress on the game plan' })
-  }, `${j0.name} started`, { sub: 'It’s In progress. The daily update shows up on the site manager’s Today from now on.', to: [{ who: crew as PersonKey, what: 'On site — the job is on his phone' }, { who: 'yakov', what: 'Daily update every day' }] })
+  }, `${j0.name} started`, { sub: 'It’s In progress. The daily update shows up on the site manager’s Today from now on.', to: [{ who: crew as PersonKey, what: 'On site' }, { who: 'yakov', what: 'Daily update every day' }] })
 }

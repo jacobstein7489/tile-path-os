@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, Plus, AlertTriangle, Ban, Users, Clock3, ArrowRight, Trash2, CalendarPlus, Smartphone, CheckCircle2, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Plus, AlertTriangle, Ban, Users, Clock3, ArrowRight, Trash2, CalendarPlus, CheckCircle2, Info } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { PageHeader, Card, CardHeader, Button, Pill, Avatar, Segmented, Chip, Field, Stepper as NumStepper, Count, IconCircle } from '@/tileos/components/ui/core'
 import { Modal, Tip, Pop } from '@/tileos/components/ui/overlay'
@@ -8,7 +8,7 @@ import { Swatch } from '@/tileos/components/ui/swatch'
 import { Bar } from '@/tileos/components/ui/progress'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, CREW_BLOCK, type PersonKey } from '@/tileos/data/model'
-import { assignCrew, addBusinessDays, isoLabel } from './flows'
+import { assignCrew, confirmCrewFor, addBusinessDays, isoLabel } from './flows'
 import { TODAY, TOMORROW, MONDAY, addDays as addDaysT, dayShort, workday } from '@/tileos/lib/today'
 
 export function mondayOf(iso: string) {
@@ -268,7 +268,7 @@ const START_OPTS = [
   { iso: workday(addDaysT(TODAY, 3)), label: dayShort(workday(addDaysT(TODAY, 3))).replace(',', '') },
   { iso: addDaysT(MONDAY, 7), label: dayShort(addDaysT(MONDAY, 7)).replace(',', '') },
   { iso: addDaysT(MONDAY, 14), label: dayShort(addDaysT(MONDAY, 14)).replace(',', '') },
-]
+].filter((o, i, all) => all.findIndex((x) => x.iso === o.iso) === i) /* late in the week "in 3 days" is next Monday — once */
 
 export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initialStart, level }: { jobId?: string; crew?: PersonKey; start?: string; level: number }) {
   const s = useStore()
@@ -281,7 +281,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
   const [days, setDays] = React.useState(r?.days || 3)
   const [workers, setWorkers] = React.useState(r?.workers || 2)
   const [areas, setAreas] = React.useState<string[]>(r?.areas || [])
-  const [confirm, setConfirm] = React.useState(true)
+  const [confirm, setConfirm] = React.useState(false)
   React.useEffect(() => {
     const rr = s.ready.find((x) => x.jobId === jobId)
     if (rr) {
@@ -398,10 +398,10 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
           </div>
         )}
         <button onClick={() => setConfirm((v) => !v)} className={cn('flex items-center gap-3.5 rounded-2xl border p-4 text-left transition', confirm ? 'border-brand-200 bg-brand-50/50' : 'border-line')}>
-          <IconCircle tone={confirm ? 'info' : 'neutral'} size={40}><Smartphone className="h-5 w-5" /></IconCircle>
+          <IconCircle tone={confirm ? 'info' : 'neutral'} size={40}><Clock3 className="h-5 w-5" /></IconCircle>
           <div className="min-w-0 flex-1">
-            <div className="text-[0.90625rem] font-semibold text-ink">Ask {crew ? PEOPLE[crew as PersonKey].name : 'the crew'} to confirm on his phone</div>
-            <div className="text-[0.8125rem] text-muted">Shows as “waiting to confirm” on the schedule until he accepts.</div>
+            <div className="text-[0.90625rem] font-semibold text-ink">Wait for {crew ? PEOPLE[crew as PersonKey].name : 'the crew'}’s OK</div>
+            <div className="text-[0.8125rem] text-muted">Shows dashed on the Schedule until you mark that he confirmed.</div>
           </div>
           <span className={cn('relative h-6 w-11 rounded-full transition', confirm ? 'bg-brand-600' : 'bg-[#D5DBE4]')}>
             <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all', confirm ? 'left-[1.375rem]' : 'left-0.5')} />
@@ -447,7 +447,11 @@ export function BookingModal({ id, level }: { id: string; level: number }) {
           <div className="text-[0.84375rem]" style={{ color: col.text }}>{isoLabel(b.start)} – {isoLabel(b.end)}</div>
         </div>
         {b.status === 'pending' && (
-          <div className="flex items-center gap-2.5 rounded-xl bg-warn-50 px-3.5 py-3 text-[0.875rem] text-ink-2"><Clock3 className="h-4 w-4 text-warn-600" />Waiting for {PEOPLE[b.crew as PersonKey].name} to confirm on his phone.</div>
+          <div className="flex items-center gap-2.5 rounded-xl bg-warn-50 py-2 pl-3.5 pr-2 text-[0.875rem] text-ink-2" data-booking-wait>
+            <Clock3 className="h-4 w-4 shrink-0 text-warn-600" />
+            <span className="min-w-0 flex-1">Waiting for {PEOPLE[b.crew as PersonKey].name} to confirm.</span>
+            <Button size="sm" icon={<CheckCircle2 />} onClick={() => confirmCrewFor(b.jobId)} data-booking-confirm>He confirmed</Button>
+          </div>
         )}
         {job?.pct !== undefined && (
           <div>

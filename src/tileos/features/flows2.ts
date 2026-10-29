@@ -262,7 +262,7 @@ export function bookInstaller(jobId: string, crew: PersonKey, o: { send: boolean
     s.ipos.push({ id, jobId, crew, status: o.send ? 'Sent' : 'Draft', date: NOW, lines, changes: [], log: [L(me(), o.send ? `Created from the project scope and sent to ${PEOPLE[crew].name}` : `Drafted for ${PEOPLE[crew].name} from the project scope`), ...(o.note ? [L(me(), o.note)] : [])] })
     if (o.send) newTask(s, { jobId, title: `${PEOPLE[crew].name} to accept ${id} · ${s.jobs[jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[crew].name, followUp: 'Tomorrow', tone: 'info', where: id, action: { label: 'Open PO', kind: 'ipo:' + id } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: o.send ? `${id} sent to ${PEOPLE[crew].name} · ${fmtMoney(total)}` : `${id} drafted for ${PEOPLE[crew].name}`, detail: 'Installer PO from the project scope', ref: { t: 'ipo', id } })
-  }, o.send ? `PO sent to ${PEOPLE[crew].name}` : `Draft PO saved for ${PEOPLE[crew].name}`, o.send ? { sub: 'It’s on his phone. You’ll see it here the moment he answers.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] } : undefined)
+  }, o.send ? `PO sent to ${PEOPLE[crew].name}` : `Draft PO saved for ${PEOPLE[crew].name}`, o.send ? { sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] } : undefined)
   return id
 }
 export function sendDraftIPO(ipoId: string) {
@@ -275,7 +275,7 @@ export function sendDraftIPO(ipoId: string) {
     p.log.push(L(me(), `Approved and sent to ${PEOPLE[p.crew].name}`))
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(p.lines.reduce((n, l) => n + l.amount, 0))}`, ref: { t: 'ipo', id: p.id } })
-  }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'It’s on his phone. You’ll see it here the moment he answers.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
+  }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
 }
 /** change the lines of an installer's PO. A draft simply changes; a PO he already has goes to him again as a new
  *  revision, and he accepts it again. */
@@ -298,7 +298,7 @@ export function setIPOLines(ipoId: string, lines: IPOLine[], o: { revise?: boole
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'ipo:' + p.id && t.state !== 'done').map((t) => t.id), 'Replaced by the revision')
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} revision ${rev} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised — revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
-  }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. He accepts it again from his phone.` } : undefined)
+  }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. When he OKs it, record it on the PO.` } : undefined)
 }
 export function answerIPO(ipoId: string, ok: boolean, reason?: string, o: { fromCrew?: boolean } = {}) {
   const p0 = S().ipos.find((p) => p.id === ipoId)

@@ -29,7 +29,7 @@ import { IN_FIELD_STAGES, stepsFor } from '../steps'
 import { tracksFor } from '../tracks'
 
 /** something opened on the project: a room, the conversation, a file, the money… */
-export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' }
+export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab; /** a wall or floor to open right away */ surface?: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' }
 
 /** a link that opens something on the project right away (what happened, every wall and floor) */
 export const viewFromTab = (tab?: string): BoardView => (tab === 'history' || tab === 'log' ? { t: 'log' } : tab === 'walls' ? { t: 'scope' } : null)
@@ -44,12 +44,17 @@ export function trackOfStep(s: Store, job: Job, k: string): OpenTrack {
 export type RoomTab = 'surfaces' | 'log' | 'photos'
 /** one room, open on the project, with Back on top: its walls and floors (tap one for its tile, grout and layout), the
  *  daily log for this room, and its photos — one at a time */
-function RoomOpen({ job, name, tab: tab0, back }: { job: Job; name: string; tab?: RoomTab; back: () => void }) {
+function RoomOpen({ job, name, tab: tab0, surface, back }: { job: Job; name: string; tab?: RoomTab; surface?: string; back: () => void }) {
   const s = useStore()
   const r = (s.rooms[job.id] || []).find((x) => x.name === name)
-  const [openSf, setOpenSf] = React.useState<string | null>(null)
+  const [openSf, setOpenSf] = React.useState<string | null>(surface || null)
   const [tab, setTab] = React.useState<RoomTab>(tab0 || 'surfaces')
   const inField = IN_FIELD_STAGES.includes(job.stage)
+  /* opened on one wall or floor: it's in view */
+  React.useEffect(() => {
+    if (!surface) return
+    try { document.querySelector(`[data-room-open="${CSS.escape(name)}"] [data-surface="${CSS.escape(surface)}"]`)?.scrollIntoView({ block: 'nearest' }) } catch { /* old browser */ }
+  }, [])
   if (!r) return null
   const p = roomPct(r)
   const entries = (s.diary[job.id] || []).filter((e) => e.rooms.some((x) => x.room === r.name))
@@ -106,7 +111,7 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
     </div>
   )
   switch (view.t) {
-    case 'room': return <RoomOpen job={job} name={view.name} tab={view.tab} back={back} />
+    case 'room': return <RoomOpen key={`${view.name}|${view.surface || ''}`} job={job} name={view.name} tab={view.tab} surface={view.surface} back={back} />
     case 'chat': return (
       <div className="flex h-full min-h-0 flex-col" data-panel="chat">
         <ConvoHead jobId={job.id} onBack={back} backLabel={backLabel} />

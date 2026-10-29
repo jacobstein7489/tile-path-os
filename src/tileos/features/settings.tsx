@@ -6,7 +6,7 @@ import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { DEPOSIT_WAY, type DepositWay } from './progressbill'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
-import { Page, Card } from '@/tileos/components/ui/page'
+import { Page, Card, HEAD_ROW } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, LOGIN_TYPES, type Role, type PersonKey } from '@/tileos/data/model'
 import { MAT_RULES0, MAT_RULE_ROWS } from '@/tileos/data/takeoff'
@@ -863,13 +863,13 @@ function setEmailRule(patch: NonNullable<Rules['email']>, msg?: string) {
   useStore.getState().commit((st) => { st.rules.email = { ...(st.rules.email || {}), ...patch } }, msg || 'Saved')
 }
 type MailKind = 'estimates' | 'invoices' | 'other'
-const MAIL_KINDS: { k: MailKind; title: string; sub: string; from: string; cc: 'ccEstimates' | 'ccInvoices' | 'ccOther' }[] = [
-  { k: 'estimates', title: 'Estimates', sub: 'Estimates and revisions to the client', from: 'estimating@cobblestonenj.com', cc: 'ccEstimates' },
-  { k: 'invoices', title: 'Invoices', sub: 'Invoices, progress bills, payment reminders', from: 'accounting@cobblestonenj.com', cc: 'ccInvoices' },
-  { k: 'other', title: 'Everything else', sub: 'Purchase orders, tile orders, the installer’s PO', from: 'office@cobblestonenj.com', cc: 'ccOther' },
+const MAIL_KINDS: { k: MailKind; title: string; sub: string; cc: 'ccEstimates' | 'ccInvoices' | 'ccOther' }[] = [
+  { k: 'estimates', title: 'Estimates', sub: 'Estimates and revisions to the client', cc: 'ccEstimates' },
+  { k: 'invoices', title: 'Invoices', sub: 'Invoices, progress bills, reminders', cc: 'ccInvoices' },
+  { k: 'other', title: 'Everything else', sub: 'POs, tile orders, installer POs', cc: 'ccOther' },
 ]
 /** who a kind of email comes from — replies go back there; empty, it comes from the person who sends it */
-function FromCell({ k, title, placeholder }: { k: MailKind; title: string; placeholder: string }) {
+function FromCell({ k, title }: { k: MailKind; title: string }) {
   const s = useStore()
   const saved = s.rules.email?.[k] || ''
   const [v, setV] = React.useState(saved)
@@ -878,7 +878,7 @@ function FromCell({ k, title, placeholder }: { k: MailKind; title: string; place
   const save = () => { const t = v.trim(); if (t === saved || bad) return; setEmailRule({ [k]: t || undefined }, t ? `${title} come from ${t}` : `${title}: back to the person who sends them`) }
   return (
     <span className="flex w-full flex-col gap-1">
-      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder={placeholder} aria-label={`${title} come from`} className={cn('w-full', bad && 'border-bad-300')} data-email-from={k} />
+      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="The person who sends it" aria-label={`${title} come from`} className={cn('w-full', bad && 'border-bad-300')} data-email-from={k} />
       {bad && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
     </span>
   )
@@ -902,26 +902,29 @@ function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEst
     </span>
   )
 }
+/* one table, the same lines as every list: the column names on top, a light line between the rows, no lines between
+ * the columns. On a phone each kind stacks: its name, then "Comes from", then "Copy (Cc)", each with its small label. */
+const MAIL_COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] items-center gap-x-6 max-md:grid-cols-1 max-md:gap-y-2.5'
 function EmailTab() {
   const s = useStore()
   const every = s.rules.email?.cc || []
-  const cell = 'flex min-w-0 items-center px-4 py-3 max-md:px-4 max-md:py-1.5'
+  const small = 'text-[0.75rem] font-medium text-faint md:hidden'
   return (
     <div className="flex flex-col gap-4" data-email-settings>
       <Card pad={false} className="overflow-hidden">
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] divide-x divide-line-2 border-b border-line-2 bg-wash text-[0.75rem] font-semibold text-muted max-md:hidden">
-          <span className="px-5 py-2">Email</span>
-          <span className="px-4 py-2">Comes from — replies go back there</span>
-          <span className="px-4 py-2">Copy (Cc)</span>
+        <div className={cn(HEAD_ROW, MAIL_COLS, 'px-5 max-md:hidden')}>
+          <span>Email</span>
+          <span>Comes from — replies go back there</span>
+          <span>Copy (Cc)</span>
         </div>
-        {MAIL_KINDS.map((m) => (
-          <div key={m.k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] divide-x divide-line-2 border-b border-line-2 last:border-b-0 max-md:block max-md:divide-x-0 max-md:py-2" data-email-kind={m.k}>
-            <span className={cn(cell, 'block pl-5 max-md:pl-4')}>
+        {MAIL_KINDS.map((m, i) => (
+          <div key={m.k} className={cn(MAIL_COLS, 'px-5 py-3 max-sm:px-4 max-md:py-4', i > 0 && 'border-t border-line-2')} data-email-kind={m.k}>
+            <span className="min-w-0">
               <span className="block text-[0.875rem] font-semibold text-ink">{m.title}</span>
               <span className="block truncate text-[0.78125rem] text-muted">{m.sub}</span>
             </span>
-            <span className={cell}><FromCell k={m.k} title={m.title} placeholder={m.from} /></span>
-            <span className={cell}><CcCell k={m.k} title={m.title} field={m.cc} /></span>
+            <span className="flex min-w-0 flex-col gap-1"><span className={small}>Comes from</span><FromCell k={m.k} title={m.title} /></span>
+            <span className="flex min-w-0 flex-col gap-1"><span className={small}>Copy (Cc)</span><CcCell k={m.k} title={m.title} field={m.cc} /></span>
           </div>
         ))}
         {every.length > 0 && (
@@ -937,7 +940,7 @@ function EmailTab() {
         )}
       </Card>
       <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        Leave “Comes from” empty and it comes from the person who sends it. Every email is also kept on its project. Today QuickBooks still sends the estimates and invoices itself — set the same copy there: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages</b>. Invites and password emails go out through Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+        Leave “Comes from” empty and each email goes out from the person who sends it — the estimator from their own email, accounting from theirs. Every email is also kept on its project. QuickBooks still sends the estimates and invoices itself for now — set the same copy there: <b className="font-semibold text-ink-2">⚙ → Account and settings → Sales → Messages</b>. Invites and password emails go out through Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
       </p>
     </div>
   )

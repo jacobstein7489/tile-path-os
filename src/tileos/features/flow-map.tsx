@@ -7,7 +7,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PHASES, STAGE_LABEL, ROLES, PEOPLE, roleDef, loginOf, type Role, type Member } from '@/tileos/data/model'
 import { PROCESS } from '@/tileos/data/process'
 
-const ROLE_ORDER: Role[] = ['office', 'estimator', 'owner', 'site', 'accounting', 'crew']
+const ROLE_ORDER: Role[] = ['office', 'estimator', 'owner', 'site', 'accounting']
 /** the people on a login type now, by their names on the team list */
 const holders = (team: Member[], r: Role) => team.filter((m) => loginOf(m.role) === r && m.status !== 'off')
 const names = (team: Member[], r: Role) => (r === 'crew' ? 'Installers' : holders(team, r).map((m) => PEOPLE[m.key]?.name).filter(Boolean).join(', '))

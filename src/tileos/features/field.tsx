@@ -871,7 +871,7 @@ export function ChangeApproveModal({ id, level }: { id: string; level: number })
           <div className="mt-2.5 flex flex-col divide-y divide-line-2 rounded-2xl border border-line">
             {[
               { i: <Receipt className="h-4 w-4" />, t: 'Billing', d: `${co} becomes billable · ${fmtMoney(m.amount || x.estimate || 0)}` },
-              { i: <HardHat className="h-4 w-4" />, t: 'Crew', d: `The do-not-start lifts; the instruction on their phone becomes “${x.to}”` },
+              { i: <HardHat className="h-4 w-4" />, t: 'Crew', d: `The do-not-start lifts; the crew’s instruction becomes “${x.to}”` },
               ...(x.doIPO && ipo ? [{ i: <FileText className="h-4 w-4" />, t: 'Installer PO', d: `${ipo.id} change sent to ${PEOPLE[ipo.crew].name}: ${x.ipoQty}` }] : []),
               ...(x.doTile && x.tileSF > 0 ? [{ i: <Package className="h-4 w-4" />, t: 'Tile', d: `About ${x.tileSF} SF more ${x.tileTag} plus waste — ${tileOf(m.jobId, x.tileTag)?.suppliedBy === 'GC' ? 'the GC is asked to order it' : 'we order it'}` }] : []),
             ].map((r) => (

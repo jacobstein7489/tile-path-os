@@ -111,6 +111,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const sf = rooms.reduce((n, r) => n + r.sf, 0)
   const confirmed = ['done', 'na'].includes(steps.find((v) => v.key === 'change')?.state || '') || inField
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(s.role)
+  /* a change to the scope goes through a change order — started here, whether or not there are any yet */
+  const canChange = s.role !== 'accounting' && s.role !== 'client'
   const cols = inField ? SURF_COLS_FIELD : SURF_COLS
   const groups = floorsOf(rooms.map((r) => r.room))
   const floors = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
@@ -124,6 +126,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {rooms.length > 0 && <PrintMenu job={job} />}
           {rooms.length > 0 && canEdit && <Button size="sm" icon={<Pencil />} onClick={() => open({ t: 'scope' })} data-edit-walls>Edit</Button>}
+          {rooms.length > 0 && canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
         </span>
       </header>
       {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
@@ -152,7 +155,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
                       return (
-                        <button key={x.name} data-surface-row={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} title="Its tile, grout, layout and what it’s set on" className={cn(cols, 'w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition hover:bg-[#f7f5f0] max-sm:px-3')}>
+                        <button key={x.name} data-surface-row={x.name} onClick={() => open({ t: 'room', name: room.name, surface: x.name })} title="Its tile, grout, layout and what it’s set on" className={cn(cols, 'w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition hover:bg-[#f7f5f0] max-sm:px-3')}>
                           <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}</span>
                           <span className="flex min-w-0 items-center gap-2 max-md:col-span-2 max-md:row-start-2">
                             {t ? <TileImg tile={t} size={20} radius={4} /> : null}
@@ -181,14 +184,12 @@ function ChangeOrders({ job }: { job: Job }) {
   const s = useStore()
   const money = !['site', 'crew', 'client'].includes(s.role)
   const list = s.money.filter((m) => m.jobId === job.id && m.kind === 'change')
-  const can = s.role !== 'accounting' && s.role !== 'client'
   if (!list.length) return null
   return (
     <div data-changes className="mt-4 overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex items-baseline gap-2 px-5 pb-2.5 pt-3.5 max-sm:px-3">
         <h4 className="text-[0.9375rem] font-semibold text-ink">Change orders</h4>
         <span className="text-[0.8125rem] font-medium tnum text-faint">{list.length}</span>
-        {can && <button onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className={cn(LINK, 'ml-auto')}><Plus className="h-3.5 w-3.5" />Change order</button>}
       </header>
       {list.map((m) => {
         const words = m.state === 'paid' ? { t: 'Paid', c: 'text-[#2c8a5b]' } : m.step < 0 ? { t: 'Waiting for the client’s OK', c: 'text-warn-700' } : m.step >= 1 ? { t: 'Billed', c: 'text-ink-2' } : { t: 'Approved', c: 'text-[#2c8a5b]' }

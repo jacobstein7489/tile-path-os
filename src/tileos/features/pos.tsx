@@ -1,6 +1,6 @@
 /* Purchase orders — every PO we send: materials to suppliers and work to our installers.
  * Each line carries the item and what we pay for it, so the Items page knows our prices by vendor. */
-import { smp, REAL } from '@/tileos/lib/save'
+import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { Mail, Plus, Send, Truck, Check, Trash2, FilePen, Hourglass, AlarmClock, PackageCheck, Layers, Package, HardHat, Building2, ArrowLeft, MapPin, CalendarCheck, Calculator } from 'lucide-react'
@@ -502,7 +502,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
       {!draft && p.status === 'Sent' && (
         <>
           <Button variant="ghost" icon={<FilePen />} onClick={() => setDraft(p.lines.map((l) => ({ ...l })))}>Change it</Button>
-          <span className="text-[0.84375rem] text-muted max-md:hidden">{REAL.cloud ? `${name} answers from his phone — or record what he told you:` : `${name} answers from his phone. For the demo:`}</span>
+          <span className="text-[0.84375rem] text-muted max-md:hidden">Record what {name} told you:</span>
           <Pop open={rejOpen} onOpenChange={setRejOpen} side="top" width={300} trigger={<Button className="ml-auto">He turned it down</Button>}>
             <div className="text-[0.875rem] font-medium text-ink">Why?</div>
             <div className="mt-2 flex flex-col gap-1">
