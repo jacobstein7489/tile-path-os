@@ -232,7 +232,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
           <div className="mt-1 flex justify-between text-[0.8125rem] text-muted"><span>To</span><span>{job?.client}</span></div>
         </button>
         <Button full size="lg" variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={() => createInvoice(m.id)}>Send the invoice</Button>
-        <div className="text-[0.78125rem] text-muted">{(s.rules.autoOff || []).includes('inv-remind') ? 'Reminders are off — Settings → Automations.' : `Reminders go out by themselves every ${s.rules.reminderDays} days until it’s paid.`}</div>
+        <div className="text-[0.78125rem] text-muted">{(s.rules.autoOff || []).includes('inv-remind') ? 'Reminders are off — Settings → Automations.' : `While it’s unpaid, a reminder is ready on accounting’s Today every ${s.rules.reminderDays} days — one click sends it.`}</div>
       </>
     )
   else if (m.kind === 'retainage' && m.step === 0) actions = <Button full size="lg" variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={() => requestRetainage(m.id)}>Request release</Button>

@@ -13,6 +13,7 @@ import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
 import { qbLive, pushBill, pushPayment, emailBill } from './qbsync'
 import { mailLive, emailPO, emailIPO } from './mailout'
+import { REAL } from '@/tileos/lib/save'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -780,6 +781,8 @@ export function sendReminder(id: string) {
   /* in QuickBooks: a real reminder email, with the invoice and its Pay button again */
   const m = S().money.find((x) => x.id === id)
   if (qbLive() && m?.qb?.id && !m.qb.gone) { void emailBill(id, { reminder: true }); return }
+  /* the real app: a reminder needs the invoice in QuickBooks (its PDF and Pay button) */
+  if (REAL.cloud) { toast.error(qbLive() ? 'Put it in QuickBooks first (on the bill), then remind them' : 'Reminders go out once QuickBooks is connected — Settings → Connections'); return }
   S().commit((s) => {
     const m = s.money.find((x) => x.id === id)
     m?.log.push(L(me(), 'Reminder emailed to the client'))

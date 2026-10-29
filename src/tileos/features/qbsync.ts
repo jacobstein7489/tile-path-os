@@ -4,7 +4,7 @@
  * from Tile OS (the address and Cc in Settings → Email) with QuickBooks' own PDF and its Pay button; without email set
  * up, QuickBooks sends it itself. Nothing goes to QuickBooks from the preview or the sample projects. */
 import * as React from 'react'
-import { useStore, meOf, type Store } from '@/tileos/store'
+import { useStore, meOf, newTask, closeTasks, type Store } from '@/tileos/store'
 import { REAL } from '@/tileos/lib/save'
 import { showPop } from '@/tileos/lib/pop'
 import { NOW } from '@/tileos/lib/today'
@@ -203,11 +203,13 @@ export async function emailBill(id: string, o: { reminder?: boolean; first?: boo
     return false
   }
   const list = [to.emails[0], ...cc].join(', ')
-  quiet(id, (x) => {
+  quiet(id, (x, st) => {
     if (!x.qb) return
     x.qb.emailed = new Date().toISOString()
     x.qb.emailedTo = to.emails[0]
     x.log.push(L(me, `${o.reminder ? 'Reminder emailed' : 'Emailed'} to ${list}${r.via === 'quickbooks' ? ' (sent by QuickBooks)' : ''}`))
+    /* the reminder that was waiting on someone's Today is done */
+    closeTasks(st, st.tasks.filter((t) => t.id.startsWith(`remind-${id}-`) && t.state !== 'done').map((t) => t.id), 'Reminder sent')
   })
   showPop({ title: o.reminder ? `Reminder sent to ${to.emails[0]}` : `Invoice ${doc} sent to ${to.emails[0]}`, sub: o.first ? `It’s in QuickBooks too${m.qb.link ? ', with the Pay button in the email' : ''}.` : cc.length ? `Copied: ${cc.join(', ')}` : undefined })
   return true
@@ -301,6 +303,27 @@ export async function pullQb(o: { say?: boolean } = {}): Promise<number> {
   }
 }
 
+/* ---------------- invoice reminders (Settings → Automations) ---------------- */
+/** an unpaid invoice that went out — or was last reminded — that many days ago lands on accounting's Today (the admin's,
+ *  with nobody in accounting), ready to send with one click. One per bill and email, whoever's app sees it first. */
+export function remindLate() {
+  const s = useStore.getState()
+  if ((s.rules.autoOff || []).includes('inv-remind')) return
+  const days = Math.max(1, s.rules.reminderDays || 3)
+  const books = s.team.find((m) => m.role === 'accounting' && m.status !== 'off')
+  const owner = (books?.key as PersonKey) || meOf('owner')
+  const add = s.money.filter((m) => m.state !== 'paid' && m.qb?.id && !m.qb.gone && m.qb.emailed && (m.qb.balance ?? 1) > 0.005 && Date.now() - Date.parse(m.qb.emailed) >= days * 86_400_000)
+    .filter((m) => !s.tasks.some((t) => t.id === `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`))
+  if (!add.length) return
+  useStore.setState((st: any) => {
+    for (const m of add) {
+      const j = st.jobs[m.jobId]
+      const open = (m.amount || 0) - (m.paid || 0)
+      newTask(st, { id: `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`, jobId: m.jobId, title: `Remind ${billTo(st, m.jobId).name} — invoice ${m.ref || ''} has ${fmtMoney(open)} open`, type: 'Money', owner, for: [books ? 'accounting' : 'owner'], state: 'now', due: 'Today', tone: 'warn', where: `${j?.name || ''} · ${m.title}`, action: { label: 'Remind', kind: 'money:' + m.id } })
+    }
+  })
+}
+
 /* ---------------- keeping in step while the app is open ---------------- */
 let timer: ReturnType<typeof setInterval> | null = null
 let onVis: (() => void) | null = null
@@ -311,6 +334,7 @@ export async function syncQb(o: { say?: boolean } = {}) {
   if (!view.connected) { await refreshQb(); if (!view.connected) return }
   await retryUnsent()
   await pullQb(o)
+  remindLate()
 }
 /** the real app, once it's open: where QuickBooks stands, then a look every 10 minutes (and when the app comes back
  *  into view) — by whoever can see the money */
