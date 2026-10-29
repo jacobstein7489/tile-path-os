@@ -8,6 +8,7 @@ import { curRev, revTotal, teamOf, openNotes, bucketOf, EST_STEP, EST_TEAM0, typ
 import { AREA_PRESETS, SURFACES, customSurface, uniqueArea, sortAreas, type AreaPreset, type SurfaceDef } from '@/tileos/data/areas'
 import { QB_SURFACE_ITEMS } from '@/tileos/data/qbitems'
 import { estSend, newLine } from './flows2'
+import { peopleOn, namesOf, rolesOf, stepLabel, stepAfter, estSteps } from './estpeople'
 import { isoFromLabel, md } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -17,9 +18,17 @@ type D = Parameters<Parameters<ReturnType<typeof S>['commit']>[0]>[0]
 const ROLE_OF: Partial<Record<PersonKey, Role>> = { ys: 'owner', takeoff: 'takeoff', estimator: 'estimator', office: 'office' }
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
-/** put the estimate on a step: the right person gets a task, the last step's task closes */
+/** the step before this one inside the company — "Office review", or one of the company's own */
+function prevLabel(s: D, step: string) {
+  const list = estSteps(s as any)
+  const i = list.findIndex((x) => x.key === step)
+  return i > 0 ? list[i - 1].label : 'Office review'
+}
+/** put the estimate on a step: the right people get a task, the last step's task closes */
 export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } = {}) {
-  const who = teamOf(e)[step]
+  /* the real people on the step — one or more; the first leads, the rest have it on their Today too */
+  const people = peopleOn(s as any, e, step)
+  const who = people[0] || (teamOf(e) as unknown as Record<string, PersonKey>)[step] || meOf('owner')
   const j = s.jobs[e.jobId]
   const rev = curRev(e)
   e.step = step
@@ -30,26 +39,28 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
   const title =
     step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'note')} on the takeoff${revWord}` : `Do the takeoff${revWord}`)
     : step === 'review' ? `Review the takeoff${revWord}`
-    : `Final review${revWord}`
+    : step === 'final' ? `Final review${revWord}`
+    : `${stepLabel(s as any, step)}${revWord}`
   newTask(s, {
     jobId: e.jobId,
     title,
     type: 'Pricing',
     owner: who,
-    /* the person's own login type — whoever the admin put on this step */
-    for: [s.team.find((m: any) => m.key === who)?.role || ROLE_OF[who] || 'office'],
+    also: people.length > 1 ? people.slice(1) : undefined,
+    /* each person's own login type — whoever the admin put on this step */
+    for: people.length ? rolesOf(s as any, people) : [s.team.find((m: any) => m.key === who)?.role || ROLE_OF[who] || 'office'],
     watch: step === 'final' ? [] : ['owner'],
     state: 'now',
     /* it's theirs the moment it lands — on their Today right now, every step (the bid's own due date is on the estimate) */
     due: 'Today',
     dueTone: step === 'final' ? 'warn' : 'neutral',
     tone: o.notes ? 'warn' : 'info',
-    where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? `Ready from ${PEOPLE[teamOf(e).takeoff].short}` : `Office review done · ${fmtMoney(revTotal(rev))}`,
+    where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? `Ready from ${namesOf(peopleOn(s as any, e, 'takeoff'))}` : `${prevLabel(s, step)} done · ${fmtMoney(revTotal(rev))}`,
     action: { label: step === 'takeoff' ? 'Open estimate' : 'Review', kind: 'estimate:' + e.id },
   })
   if (j) {
-    j.next = { text: step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'review note')}` : 'Finish the takeoff') : EST_STEP[step].label, owner: who, due: 'Today' }
-    j.headline = step === 'takeoff' ? (o.notes ? `Back with ${PEOPLE[who].short} · ${plural(o.notes, 'note')}` : `Takeoff · ${PEOPLE[who].short}`) : step === 'review' ? 'Takeoff done · with the office for review' : 'Office review done · owner review'
+    j.next = { text: step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'review note')}` : 'Finish the takeoff') : stepLabel(s as any, step), owner: who, due: 'Today' }
+    j.headline = step === 'takeoff' ? (o.notes ? `Back with ${namesOf(people)} · ${plural(o.notes, 'note')}` : `Takeoff · ${namesOf(people)}`) : step === 'review' ? 'Takeoff done · with the office for review' : step === 'final' ? `${prevLabel(s, step)} done · final review` : `${stepLabel(s as any, step)} · ${namesOf(people)}`
   }
 }
 
@@ -76,15 +87,17 @@ export function estStartTakeoff(estId: string, who: PersonKey = 'takeoff') {
     e.status = 'estimating'
     e.estimator = who
     e.team = { ...(e.team || {}), takeoff: who }
+    e.people = { ...(e.people || {}), takeoff: [who] }
     e.log.push({ date: NOW, who: me(), text: `Takeoff started · ${PEOPLE[who].name}` })
     const j = s.jobs[e.jobId]
     if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'estimating'
     giveTo(s, e, 'takeoff')
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Takeoff started · ${PEOPLE[who].name}`, ref: { t: 'estimate', id: e.id } })
-  }, `The takeoff is with ${PEOPLE[who].name}`, { close: true, sub: 'It’s on their Today. It comes back for review when they’re done.', flow: [{ who: meOf(S().role), label: 'Request', state: 'done' }, { who, label: 'Takeoff', state: 'now' }, { who: 'estimator', label: 'Office review', state: 'next' }, { who: 'ys', label: 'Final review', state: 'next' }, { label: 'Client', state: 'next' }] })
+  }, `The takeoff is with ${PEOPLE[who].name}`, { close: true, sub: 'It’s on their Today. It comes back for review when they’re done.', flow: [{ who: meOf(S().role), label: 'Request', state: 'done' }, { who, label: 'Takeoff', state: 'now' }, ...estSteps(S()).filter((x) => x.key !== 'takeoff').map((x) => ({ who: peopleOn(S(), S().estimates.find((y) => y.id === estId), x.key)[0], label: x.label, state: 'next' as const })), { label: 'Client', state: 'next' }] })
 }
 
-/** "Ready for review" / "Looks good" / "Approve and send" — whatever this step's yes is */
+/** "Ready for review" / "Looks good" / "Done" / "Approve and send" — whatever this step's yes is. It goes to the next
+ *  step's people (the company's own steps too); after the final review it goes to the client. */
 export function estHandOff(estId: string) {
   const e0 = S().estimates.find((x) => x.id === estId)
   if (!e0) return
@@ -98,22 +111,26 @@ export function estHandOff(estId: string) {
     })
     return estSend(estId)
   }
-  const next: EstStep = step === 'takeoff' ? e0.backTo || 'review' : 'final'
-  const team = teamOf(e0)
+  const next: EstStep = step === 'takeoff' ? e0.backTo || stepAfter(S(), 'takeoff') || 'review' : stepAfter(S(), step) || 'final'
+  const nextPeople = peopleOn(S(), e0, next)
+  const to = namesOf(nextPeople)
+  const label = stepLabel(S(), step)
   const fixed = (e0.notes || []).filter((n) => n.rev === curRev(e0).n && n.done).length
+  const list = estSteps(S())
+  const ni = list.findIndex((x) => x.key === next)
   S().commit(
     (s) => {
       const e = s.estimates.find((x) => x.id === estId)!
       e.backTo = undefined
-      e.log.push({ date: NOW, who: me(), text: step === 'takeoff' ? `${e0.backTo && fixed ? `Fixed ${plural(fixed, 'note')} — ` : ''}Ready for review — to ${PEOPLE[team[next]].short}` : `Office review done — to ${PEOPLE[team.final].short}` })
+      e.log.push({ date: NOW, who: me(), text: step === 'takeoff' ? `${e0.backTo && fixed ? `Fixed ${plural(fixed, 'note')} — ` : ''}Ready for review — to ${to}` : `${label} done — to ${to}` })
       giveTo(s, e, next)
-      addHist(s, e.jobId, { who: me(), kind: 'pricing', title: step === 'takeoff' ? `Takeoff ready for review · ${e.id}` : `Office review done · ${e.id}`, detail: `${fmtMoney(revTotal(curRev(e)))} · now with ${PEOPLE[team[next]].name}`, ref: { t: 'estimate', id: e.id } })
+      addHist(s, e.jobId, { who: me(), kind: 'pricing', title: step === 'takeoff' ? `Takeoff ready for review · ${e.id}` : `${label} done · ${e.id}`, detail: `${fmtMoney(revTotal(curRev(e)))} · now with ${namesOf(nextPeople, null, true)}`, ref: { t: 'estimate', id: e.id } })
     },
-    step === 'takeoff' ? `Sent to ${PEOPLE[team[next]].name} for ${next === 'final' ? 'final' : 'office'} review` : `Sent to ${PEOPLE[team.final].name} for the final review`,
+    `Sent to ${namesOf(nextPeople, null, true)} for ${next === 'final' ? 'the final review' : next === 'review' ? 'the office review' : stepLabel(S(), next).toLowerCase()}`,
     {
       close: true,
-      sub: `It’s on ${PEOPLE[team[next]].short === PEOPLE[meOf(S().role)].short ? 'your' : `${PEOPLE[team[next]].short}’s`} Today.`,
-      flow: (['takeoff', 'review', 'final'] as EstStep[]).map((k) => ({ who: team[k], label: k === 'takeoff' ? 'Takeoff' : k === 'review' ? 'Office review' : 'Final review', state: (k === next ? 'now' : ['takeoff', 'review', 'final'].indexOf(k) < ['takeoff', 'review', 'final'].indexOf(next) ? 'done' : 'next') as 'done' | 'now' | 'next' })).concat([{ who: undefined as any, label: 'Client', state: 'next' as const }]),
+      sub: `It’s on ${nextPeople.includes(meOf(S().role)) && nextPeople.length === 1 ? 'your' : `${to}’s`} Today.`,
+      flow: list.map((x, i) => ({ who: peopleOn(S(), e0, x.key)[0], label: x.label, state: (i === ni ? 'now' : i < ni ? 'done' : 'next') as 'done' | 'now' | 'next' })).concat([{ who: undefined as any, label: 'Client', state: 'next' as const }]),
     },
   )
 }
@@ -122,19 +139,20 @@ export function estSendBack(estId: string) {
   const e0 = S().estimates.find((x) => x.id === estId)
   if (!e0) return
   const step = e0.step
-  if (step !== 'review' && step !== 'final') return
+  if (!step || step === 'takeoff') return
   const n = openNotes(e0).length
-  const team = teamOf(e0)
+  const back = peopleOn(S(), e0, 'takeoff')
+  const here = peopleOn(S(), e0, step)
   S().commit(
     (s) => {
       const e = s.estimates.find((x) => x.id === estId)!
       e.backTo = step
-      e.log.push({ date: NOW, who: me(), text: `Sent back to ${PEOPLE[team.takeoff].short} · ${plural(n, 'note')}` })
+      e.log.push({ date: NOW, who: me(), text: `Sent back to ${namesOf(back)} · ${plural(n, 'note')}` })
       giveTo(s, e, 'takeoff', { notes: n })
-      addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Sent back to ${PEOPLE[team.takeoff].short} · ${plural(n, 'note')}`, detail: openNotes(e).map((x) => x.text).join(' · '), ref: { t: 'estimate', id: e.id } })
+      addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Sent back to ${namesOf(back)} · ${plural(n, 'note')}`, detail: openNotes(e).map((x) => x.text).join(' · '), ref: { t: 'estimate', id: e.id } })
     },
-    `Sent back to ${PEOPLE[team.takeoff].name} with ${plural(n, 'note')}`,
-    { close: true, sub: 'When the notes are checked off it comes straight back to you.', flow: [{ who: team.takeoff, label: 'Fixes the notes', state: 'now' }, { who: team[step], label: 'Back to you', state: 'next' }] },
+    `Sent back to ${namesOf(back, null, true)} with ${plural(n, 'note')}`,
+    { close: true, sub: 'When the notes are checked off it comes straight back to you.', flow: [{ who: back[0], label: 'Fixes the notes', state: 'now' }, { who: here[0], label: 'Back to you', state: 'next' }] },
   )
 }
 
@@ -362,8 +380,11 @@ export function newEstimate(d: NewEstimate) {
       missing.forEach((m) => newTask(s, { jobId: id, title: `${m} from the GC`, type: 'Pricing', owner: 'office', for: ['office'], state: 'waiting', waitingOn: 'GC', followUp: 'Thu', tone: 'warn', where: 'Documents' }))
       d.areas = sortAreas(d.areas, companyAreas(s).map((x) => x.name))
       const lines = d.areas.flatMap((a) => linesForArea(s, a.name, a.surfaces))
+      d.areas.forEach((a) => learn(s, a.name, a.surfaces))
       s.estimates.unshift({
-        id: estId, jobId: id, status: 'estimating', estimator: t.takeoff, due: d.due, team: { ...t },
+        id: estId, jobId: id, status: 'estimating', estimator: t.takeoff, due: d.due,
+        /* only who was changed for this one — the rest follows the company's people (two on a step stay two) */
+        team: Object.fromEntries(TEAM_KEYS.filter((k) => k === 'takeoff' || t[k] !== companyTeam(s)[k]).map((k) => [k, t[k]])) as Partial<EstTeam>,
         revs: [{ n: 1, date: NOW, status: 'draft', what: 'Original scope', lines, areas: d.areas.map((a) => ({ name: a.name, floor: a.floor })) }],
         log: [{ date: NOW, who: me(), text: `Estimate started${d.areas.length ? ` · ${plural(d.areas.length, 'area')}` : ''}${missing.length ? ` · ${missing.join(' and ')} missing` : ''}` }],
       })
@@ -393,6 +414,7 @@ export function setEstTeam(estId: string, key: keyof EstTeam, who: PersonKey) {
     const was = teamOf(e)[key]
     if (was === who) return
     e.team = { ...teamOf(e), [key]: who }
+    e.people = { ...(e.people || {}), [key]: [who] }
     if (key === 'takeoff') e.estimator = who
     const b = bucketOf(e)
     const j = s.jobs[e.jobId]
@@ -412,6 +434,21 @@ export function setEstTeam(estId: string, key: keyof EstTeam, who: PersonKey) {
   }, `${TEAM_LABEL[key]} — ${PEOPLE[who].name}`, { sub: bucketOf(S().estimates.find((x) => x.id === estId)!) === key ? `It moved to ${PEOPLE[who].short}’s Today.` : undefined })
 }
 
+/* ================= the company learns what its people type ================= */
+/** an area or a surface someone types on an estimate that isn't on the company's lists yet goes on them — every next
+ *  estimate offers it (Settings → Estimates, where it can be taken off again). "Girls bath #2" teaches "Girls bath". */
+export function learn(s: D, area: string | undefined, keys: string[]) {
+  const known = companySurfaces(s)
+  const fresh = Array.from(new Set(keys.filter((k) => k && !known.some((x) => x.key === k || x.label.toLowerCase() === k.toLowerCase()))))
+  if (fresh.length) s.rules.surfaces = [...(s.rules.surfaces || []), ...fresh.map((k) => customSurface(k))]
+  const base = (area || '').replace(/\s*#\d+$/, '').trim()
+  if (!base) return
+  const areas = companyAreas(s)
+  if (areas.some((a) => a.name.toLowerCase() === base.toLowerCase())) return
+  const toKey = (k: string) => companySurfaces(s).find((x) => x.key === k || x.label.toLowerCase() === k.toLowerCase())?.key || k
+  s.rules.areas = [...areas.map((a) => ({ ...a, surfaces: [...a.surfaces] })), { name: base, surfaces: keys.length ? Array.from(new Set(keys.map(toKey))) : ['floor'], custom: true }]
+}
+
 /* ================= areas on an estimate ================= */
 const metaOf = (e: Estimate) => {
   const r = curRev(e)
@@ -427,6 +464,7 @@ export function estAddArea(estId: string, name: string, keys: string[], floor?: 
     const area = uniqueArea(name.trim(), Array.from(new Set([...meta.map((a) => a.name), ...r.lines.map((l) => l.area)])))
     meta.push({ name: area, floor })
     r.lines.push(...linesForArea(s, area, keys.length ? keys : ['floor']))
+    learn(s, name.trim(), keys)
   }, `${name.trim()} added`)
 }
 export function estAddSurface(estId: string, area: string, key: string) {
@@ -437,6 +475,7 @@ export function estAddSurface(estId: string, area: string, key: string) {
     const lines = linesForArea(s, area, [key])
     const at = r.lines.map((l) => l.area).lastIndexOf(area)
     r.lines.splice(at < 0 ? r.lines.length : at + 1, 0, ...lines)
+    learn(s, undefined, [key])
   })
 }
 export function estSetArea(estId: string, area: string, p: { floor?: string | null; note?: string | null }) {
@@ -462,7 +501,12 @@ export function estRemoveArea(estId: string, area: string) {
 
 /* ================= the company lists (Settings) ================= */
 export function setCompanyTeam(key: keyof EstTeam, who: PersonKey) {
-  S().commit((s) => { s.rules.estTeam = { ...companyTeam(s), [key]: who } }, `New estimates: ${TEAM_LABEL[key].toLowerCase()} by ${PEOPLE[who].name}`)
+  S().commit((s) => {
+    s.rules.estTeam = { ...companyTeam(s), [key]: who }
+    /* the people on the step: the new one leads, anyone else on it stays */
+    const was = s.rules.estPeople?.[key]
+    if (was?.length) s.rules.estPeople = { ...s.rules.estPeople, [key]: [who, ...was.filter((p) => p !== who && p !== companyTeam(s)[key])] }
+  }, `New estimates: ${TEAM_LABEL[key].toLowerCase()} by ${PEOPLE[who].name}`)
 }
 export function addCompanyArea(name: string, keys: string[]) {
   S().commit((s) => {

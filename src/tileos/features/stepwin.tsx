@@ -88,7 +88,7 @@ export const TODO: Record<string, string> = {
   deposit: 'Invoice the deposit',
 }
 /** one line under the title: what this step is for */
-const WHAT: Record<string, string> = {
+export const WHAT: Record<string, string> = {
   getpaper: 'Ask the tile store for the paperwork — what they’re sending, how much of each. Upload it here when it comes.',
   rooms: 'Upload it and AI reads it: every tile matched to the walls and floors from the estimate. Fix what it got wrong, pick what it couldn’t.',
   qty: 'Is there enough of every tile, with the extra for cuts? Short — send them the right quantities, and it waits for the new paperwork.',

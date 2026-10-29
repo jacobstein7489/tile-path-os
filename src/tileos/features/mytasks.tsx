@@ -22,7 +22,7 @@ import { payDue } from './pay-page'
 import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { followersOf, toggleFollow, setEveryone } from './taskshare'
-import { stepTodos, stepsFor, isGettingReady, type StepView } from './steps'
+import { stepTodos, stepsFor, isGettingReady, realOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
@@ -72,7 +72,7 @@ export function withoutProject(title: string, j: Job): string {
  * on my login has it by name. Two people on one login (the takeoff person and the office reviewer) each see their own.
  * No person (me = null): everything for the login — that's the Everyone list. */
 export const isMine = (t: Task, role: Role, me: PersonKey | null = meOf(role)) => {
-  if (me && t.owner === me) return true
+  if (me && (t.owner === me || t.also?.includes(me))) return true
   if (!t.for.some((r) => r === role || loginOf(r) === role)) return false
   if (!me || !t.owner) return true
   return !useStore.getState().team.some((m) => m.key === t.owner && m.status !== 'off' && loginOf(m.role) === loginOf(role))
@@ -389,7 +389,8 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
     /* a hand-off (a takeoff, a review) is yours the moment it lands — it's on Today, with its due date */
     const b0 = taskBucket(t)
     const b = t.action?.kind?.startsWith('estimate:') && (b0 === 'tomorrow' || b0 === 'week' || b0 === 'later') ? 'today' : b0
-    out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: t.owner })
+    /* a login spot nobody took ("Estimator") is never shown as a person — it's whoever has that login */
+    out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: realOwner(s, t.owner) })
   })
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))
   /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */

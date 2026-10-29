@@ -25,7 +25,7 @@ import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty, Group, Word } from './kit'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
-const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_minmax(13rem,auto)] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_minmax(11rem,auto)] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
+const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_15rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_13rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 const QFIRST = 'flex min-w-0 items-center gap-3'
 const ROWPAD = 'min-h-12 border-t border-line-2 px-5 py-2 max-sm:px-4'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
@@ -53,7 +53,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
       ) : undefined}
     >
       <div>
-        {tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span></div>}
+        {tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
         {tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
@@ -77,7 +77,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
                 <span className="min-w-0 leading-tight">
                   <span className="block truncate text-[0.875rem] text-ink"><span className="font-semibold tnum">{tag}</span> {t?.name || 'Tile'}{t?.size ? <span className="text-muted"> · {t.size}</span> : null}</span>
                   {/* on a phone: how much, under the name */}
-                  <span className="hidden truncate text-[0.75rem] text-muted max-lg:block">{need ? `${need.toLocaleString('en-US')} ${unit}` : ''}{need && uses.length ? ' · ' : ''}<span className="max-sm:hidden">{Array.from(new Set(uses.map((u) => u.room))).join(', ')}</span></span>
+                  <span className="hidden truncate text-[0.75rem] text-muted max-lg:block">{need ? `${need.toLocaleString('en-US')} ${unit}` : ''}<span className="max-sm:hidden">{need && uses.length ? ' · ' : ''}{Array.from(new Set(uses.map((u) => u.room))).join(', ')}</span></span>
                 </span>
               </span>
               <span className={cn('min-w-0 truncate text-[0.8125rem] max-lg:hidden', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
@@ -86,6 +86,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
                 <Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word>
                 {action && <Button size="xs" variant={short ? 'primary' : 'outline'} onClick={action.run}>{action.label}</Button>}
               </span>
+              <span className="max-sm:hidden" />
             </div>
           )
         })}
@@ -102,7 +103,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
 }
 
 /* ---------------- our materials ---------------- */
-export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode }) {
+export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode; /** the Materials tab: "Order what's missing" is on the line on top */ orderOnTop?: boolean }) {
   const s = useStore()
   const save = useSaveStatus()
   const t = takeoff(s, job.id)
@@ -118,7 +119,7 @@ export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onSc
       count={t.counted || shownCount ? shownCount : undefined}
       action={simple ? undefined : <>
         {canEdit && <AddMaterial jobId={job.id} />}
-        {miss.length > 0
+        {miss.length > 0 && !orderOnTop
           ? <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
           : canEdit && <Button size="sm" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id })}>New PO</Button>}
       </>}
@@ -130,7 +131,7 @@ export function MaterialsNeed({ job, onScope, simple, orders }: { job: Job; onSc
         </div>
       ) : (
         <div>
-          <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Material</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span></div>
+          <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Material</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>
           {GROUPS.map((g) => {
             const ls = t.lines.filter((l) => l.group === g)
             if (!ls.length) return null
@@ -224,8 +225,10 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
             </span>
           )}
         </span>
-        <span className="flex min-w-0 items-center justify-end gap-1.5">
+        <span className="flex min-w-0 items-center justify-end">
           {l.toOrder > 0 ? <Word className="text-ink">To order {l.toOrder.toLocaleString('en-US')}</Word> : l.onSite >= l.need ? <Word tone="ok">On site</Word> : <Word>Coming</Word>}
+        </span>
+        <span className="flex justify-end max-sm:hidden">
           {canEdit && (
             <Menu align="end" width={240} trigger={<button aria-label={`Change ${it?.name || 'this material'}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
               <MenuItem icon={<Pencil />} onSelect={() => { setQ(String(l.need)); setEditing(true) }}>Change how many</MenuItem>

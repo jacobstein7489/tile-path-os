@@ -15,7 +15,7 @@ import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconT
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
-import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
+import { EST_STATUS, EST_STEP, STEP_ORDER, curRev, revTotal, estAmount, teamOf, bucketOf, turnOf, holderOf, insideOf, openNotes, type Estimate, type EstLine, type EstBucket, type EstNote, type EstTeam } from '@/tileos/data/estimates'
 import { FLOORS, sortAreas, guessSurfaces, isOutside } from '@/tileos/data/areas'
 import { printNode } from '@/tileos/lib/print'
 import { EstimatePaper, paperGroups, paperText } from './estpaper'
@@ -24,6 +24,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
+import { peopleOn, turnOn, namesOf, stepLabel, estSteps, stepAfter } from './estpeople'
 import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, addCompanyArea, surfaceOf, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
 import { insidePeople } from './steps-ui'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -49,11 +50,10 @@ export const CAT: Record<EstCat, { label: string; tone: Tone; icon: React.ReactN
 }
 /** where an estimate stands, in words — "Estimating · Office review", "Pending approval" (the same as its header) */
 export const estLabel = (e: Estimate): { label: string; tone: Tone } => {
-  const b = bucketOf(e)
-  const inside = b === 'takeoff' || b === 'review' || b === 'final'
-  return { label: `${CAT[catOf(e)].label}${inside ? ` · ${EST_STEP[b].label}` : ''}`, tone: CAT[catOf(e)].tone }
+  const inside = insideOf(e)
+  return { label: `${CAT[catOf(e)].label}${inside ? ` · ${stepLabel(useStore.getState(), bucketOf(e))}` : ''}`, tone: CAT[catOf(e)].tone }
 }
-const STEP_RANK = (e: Estimate) => ['takeoff', 'review', 'final'].indexOf(bucketOf(e))
+const STEP_RANK = (e: Estimate) => estSteps(useStore.getState()).findIndex((x) => x.key === bucketOf(e))
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
 function nextOf(s: Store, e: Estimate): { text: string; tone?: 'bad' | 'warn' } {
@@ -63,13 +63,14 @@ function nextOf(s: Store, e: Estimate): { text: string; tone?: 'bad' | 'warn' } 
   const notes = openNotes(e).length
   if (b === 'request') return missing.length ? { text: `Waiting for the ${missing.join(' and ')}`, tone: 'warn' } : { text: 'Plans are in — send it to the takeoff' }
   if (b === 'takeoff') {
-    if (e.backTo) return { text: `Fix ${plural(notes, 'note')} — back to ${PEOPLE[teamOf(e)[e.backTo]].short}`, tone: 'warn' }
+    if (e.backTo) return { text: `Fix ${plural(notes, 'note')} — back to ${namesOf(peopleOn(s, e, e.backTo))}`, tone: 'warn' }
     if (p?.takeoff?.question) return { text: `Waiting on the ${p.takeoff.question.waitingOn.toLowerCase()}`, tone: 'warn' }
     if (e.status === 'revision') return { text: 'Make the client’s changes', tone: 'warn' }
     return { text: curRev(e).lines.length ? (notes ? `${plural(notes, 'thing')} to check` : 'Finish the takeoff') : 'Do the takeoff' }
   }
   if (b === 'review') return { text: 'Review the takeoff' }
   if (b === 'final') return { text: 'Approve and send' }
+  if (insideOf(e)) return { text: stepLabel(s, b) }
   if (b === 'sent') return { text: `Follow up ${e.followUp || 'Thu'}`, tone: e.followUp === 'Today' ? 'warn' : undefined }
   if (b === 'approved') return { text: 'It’s a project' }
   return { text: '—' }
@@ -91,10 +92,10 @@ export function EstimatesPage() {
   const [who, setWho] = React.useState('all')
   const [q, setQ] = React.useState('')
   const list = s.estimates.filter((e) => s.jobs[e.jobId])
-  const turn = (e: Estimate) => holderOf(e)
+  const turn = (e: Estimate) => turnOn(s, e)
   const match = (e: Estimate) => {
     const j = s.jobs[e.jobId]
-    return (client === 'all' || j.clientId === client) && (who === 'all' || turn(e) === who) && (!q || `${e.id} ${j.name} ${j.client}`.toLowerCase().includes(q.toLowerCase()))
+    return (client === 'all' || j.clientId === client) && (who === 'all' || turn(e).includes(who as PersonKey)) && (!q || `${e.id} ${j.name} ${j.client}`.toLowerCase().includes(q.toLowerCase()))
   }
   const of = (c: EstCat) => list.filter((e) => catOf(e) === c)
   const open = list.filter((e) => OPEN_C.includes(catOf(e)) && match(e))
@@ -104,7 +105,7 @@ export function EstimatesPage() {
   const clients = Array.from(new Set(list.map((e) => s.jobs[e.jobId].clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || s.jobs[list.find((e) => s.jobs[e.jobId].clientId === id)!.jobId].client }))
   const pick = (v: EstView) => () => setView(view === v ? 'open' : v)
   const me = meOf(s.role)
-  const mine = of('estimating').concat(of('revision')).filter((e) => turnOf(e) === me).length
+  const mine = of('estimating').concat(of('revision')).filter((e) => turnOn(s, e).includes(me)).length
   return (
     <Page
       title="Estimates"
@@ -190,15 +191,20 @@ function EstRow({ e }: { e: Estimate }) {
   const j = s.jobs[e.jobId]
   const b = bucketOf(e)
   /* inside the company the number that matters is the one being checked */
-  const amt = b === 'takeoff' || b === 'review' || b === 'final' ? revTotal(curRev(e)) : estAmount(e)
+  const amt = insideOf(e) ? revTotal(curRev(e)) : estAmount(e)
   const nx = nextOf(s, e)
   const c = catOf(e)
-  const turn = holderOf(e)
+  const turns = turnOn(s, e)
+  const turn = turns[0]
   const me = meOf(s.role)
   const date = whenOf(e)
   const late = /Today|late/.test(date)
+  /* whose turn, by name — two people on a step: both */
   const who = turn ? (
-    <span className="flex min-w-0 items-center gap-2"><Avatar who={turn} size={20} /><span className={cn('truncate text-[0.8125rem]', turn === me ? 'font-medium text-ink' : 'text-ink-2')}>{turn === me ? 'You' : PEOPLE[turn].short}</span></span>
+    <span className="flex min-w-0 items-center gap-2" data-turn={turns.join(',')}>
+      <span className="flex shrink-0 -space-x-1.5">{turns.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} ring={turns.length > 1} />)}</span>
+      <span className={cn('truncate text-[0.8125rem]', turns.includes(me) ? 'font-medium text-ink' : 'text-ink-2')}>{namesOf(turns, me)}</span>
+    </span>
   ) : <span className="text-[0.8125rem] text-faint">—</span>
   const money = <span className={cn('text-[0.8125rem] tnum', amt ? 'font-medium text-ink' : 'text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
   return (
@@ -302,7 +308,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const [panel, setPanel] = React.useState<EstPanel>(null)
   const paperRef = React.useRef<HTMLDivElement>(null)
   const [noteAt, setNoteAt] = React.useState<string | null>(null)
-  const [takeoffBy, setTakeoffBy] = React.useState<PersonKey>(() => { const x = s.estimates.find((y) => y.id === id); return x ? teamOf(x).takeoff : 'takeoff' })
+  const [takeoffBy, setTakeoffBy] = React.useState<PersonKey>(() => { const x = s.estimates.find((y) => y.id === id); return (x && peopleOn(s, x, 'takeoff')[0]) || 'takeoff' })
   if (!e) return null
   const j = s.jobs[e.jobId]
   if (!j) return null
@@ -315,9 +321,11 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const sent = [...e.revs].reverse().find((r) => r.sentOn)
   const st = e.status
   const b = bucketOf(e)
-  const team = teamOf(e)
-  const turn = turnOf(e)
-  const inside = b === 'takeoff' || b === 'review' || b === 'final'
+  /* who's on each step — real people, one or more */
+  const on = (k: string) => peopleOn(s, e, k)
+  const turns = turnOn(s, e)
+  const turn = turns[0] || null
+  const inside = insideOf(e)
   const notes = (e.notes || []).filter((n) => n.rev === shown.n)
   const open = openNotes(e)
   /* reading the plans is shown in the preview; the real app doesn't offer it until it's real */
@@ -325,20 +333,22 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   const canNote = shown === cur && inside
   const me = meOf(s.role)
   /* everyone acts for themselves; the owner can act for anyone */
-  const canAct = ownerish(s) || (b === 'request' ? s.role === 'office' : turn === me)
+  const canAct = ownerish(s) || (b === 'request' ? s.role === 'office' : turns.includes(me))
   const back = () => setPanel(null)
 
-  const order: EstBucket[] = ['request', 'takeoff', 'review', 'final', 'sent', 'approved']
-  const at = b === 'lost' ? 5 : order.indexOf(b)
+  /* the path: the request, every step inside the company (the company's own too), sent, approved */
+  const steps = estSteps(s)
+  const order: string[] = ['request', ...steps.map((x) => x.key), 'sent', 'approved']
+  const at = b === 'lost' ? order.length - 1 : order.indexOf(b) >= 0 ? order.indexOf(b) : order.indexOf('final')
   const state = (i: number) => (i < at ? 'done' : i === at ? (b === 'lost' ? 'blocked' : 'current') : 'future') as 'done' | 'current' | 'future' | 'blocked'
   /* when each step was done — from the estimate's own log (the last time, if it went round again) */
   const lastLog = (re: RegExp) => [...e.log].reverse().find((l) => re.test(l.text))
-  const DONE_RE: Record<string, RegExp> = { takeoff: /Ready for review/, review: /^Office review done/, final: /^Final review done/, sent: /^Revision \d+ sent|^Sent/, approved: /^Approved/ }
+  const DONE_RE: Record<string, RegExp> = { takeoff: /Ready for review|^Takeoff done/, review: /^Office review done/, final: /^Final review done/, sent: /^Revision \d+ sent|^Sent/, approved: /^Approved/ }
+  steps.filter((x) => x.custom).forEach((x) => { DONE_RE[x.key] = new RegExp('^' + x.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' done') })
   const doneLog = (k: string) => (k === 'request' ? e.log[0] : DONE_RE[k] ? lastLog(DONE_RE[k]) : undefined)
   const doneOn: Record<string, string | undefined> = {
     request: e.log[0]?.date,
-    takeoff: doneLog('takeoff')?.date,
-    review: doneLog('review')?.date,
+    ...Object.fromEntries(steps.map((x) => [x.key, doneLog(x.key)?.date])),
     final: doneLog('final')?.date || sent?.sentOn,
     sent: sent?.sentOn,
     approved: e.approvedOn,
@@ -346,13 +356,11 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   /* whose each step is — the one who did it (from the estimate's own log), else whoever has that step: their
      initials on the path */
   const person = (w?: string) => (w && w !== 'system' && PEOPLE[w as PersonKey] ? (w as PersonKey) : undefined)
-  const has: Record<string, PersonKey | undefined> = { request: person(e.log[0]?.who) || team.follow, takeoff: team.takeoff, review: team.review, final: team.final, sent: team.follow, approved: undefined }
+  const has: Record<string, PersonKey | undefined> = { request: person(e.log[0]?.who) || on('follow')[0], ...Object.fromEntries(steps.map((x) => [x.key, on(x.key)[0]])), sent: on('follow')[0], approved: undefined }
   const whoOf = (k: string, done: boolean) => (done && person(doneLog(k)?.who)) || has[k]
   const path = [
     { key: 'request', label: 'Request' },
-    { key: 'takeoff', label: cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : 'Takeoff' },
-    { key: 'review', label: 'Office review' },
-    { key: 'final', label: 'Final review' },
+    ...steps.map((x) => ({ key: x.key, label: x.key === 'takeoff' && cur.n > 1 && inside ? `Takeoff · Rev ${cur.n}` : x.label })),
     { key: 'sent', label: 'Sent · follow-up' },
     { key: 'approved', label: b === 'lost' ? 'Lost' : 'Approved' },
   ].map((p, i) => {
@@ -368,7 +376,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       {/* the name, where it stands, the total and the buttons */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{j.name}</h2>
-        <Status tone={CAT[catOf(e)].tone} className="min-w-0 shrink-0 max-sm:hidden">{CAT[catOf(e)].label}{inside ? ` · ${EST_STEP[b as 'takeoff'].label}` : ''}</Status>
+        <Status tone={CAT[catOf(e)].tone} className="min-w-0 shrink-0 max-sm:hidden">{CAT[catOf(e)].label}{inside ? ` · ${stepLabel(s, b)}` : ''}</Status>
         <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted max-md:hidden">{e.id}</span>
         {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
         <span className="ml-auto flex shrink-0 items-center gap-2">
@@ -400,7 +408,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     </div>
   )
 
-  const waitText = turn ? `With ${PEOPLE[turn].name}${e.since ? ` · since ${e.since}` : ''}` : ''
+  const waitText = turn ? `With ${namesOf(turns, null, true)}${e.since ? ` · since ${e.since}` : ''}` : ''
   const noteCount = open.length
   const footer = (
     <>
@@ -419,25 +427,25 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       {b === 'takeoff' && canAct && (
         <>
           <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted">
-            <Avatar who={team.takeoff} size={22} />
+            <Avatar who={on('takeoff')[0] || me} size={22} />
             {noteCount ? <span className="font-medium text-warn-700">{plural(noteCount, 'note')} to check off</span> : cur.lines.length ? `${cur.lines.length} lines · ${fmtMoney(revTotal(cur))}` : 'Add the rooms and lines from your items.'}
           </span>
-          <Tip label={!cur.lines.length ? 'Add the lines first' : noteCount ? 'Check off every note first' : `Goes to ${PEOPLE[team[e.backTo || 'review']].name}`}>
+          <Tip label={!cur.lines.length ? 'Add the lines first' : noteCount ? 'Check off every note first' : `Goes to ${namesOf(on(e.backTo || stepAfter(s, 'takeoff') || 'review'), null, true)}`}>
             <span className="ml-auto">
-              <Button variant="primary" icon={<Send />} disabled={!cur.lines.length || noteCount > 0} onClick={() => estHandOff(e.id)}>{e.backTo ? `Fixed — back to ${PEOPLE[team[e.backTo]].short}` : 'Ready for review'}</Button>
+              <Button variant="primary" icon={<Send />} disabled={!cur.lines.length || noteCount > 0} onClick={() => estHandOff(e.id)}>{e.backTo ? `Fixed — back to ${namesOf(on(e.backTo))}` : (stepAfter(s, 'takeoff') || 'review') === 'review' ? 'Ready for review' : `Done — to ${namesOf(on(stepAfter(s, 'takeoff')!))}`}</Button>
             </span>
           </Tip>
         </>
       )}
-      {(b === 'review' || b === 'final') && canAct && (
+      {inside && b !== 'takeoff' && canAct && (
         <>
           {canNote && noteAt !== '' && <Button icon={<MessageSquarePlus />} onClick={() => setNoteAt('')} className="text-warn-700">Add a note</Button>}
-          <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted max-md:hidden">{noteCount ? `${plural(noteCount, 'note')} for ${PEOPLE[team.takeoff].short}` : b === 'review' ? 'or on a room' : 'Last look before it goes out'}</span>
-          <Tip label={noteCount ? `Goes back to ${PEOPLE[team.takeoff].name} with the notes` : 'Add a note to a room first'}>
+          <span className="inline-flex min-w-0 items-center gap-2 text-[0.84375rem] text-muted max-md:hidden">{noteCount ? `${plural(noteCount, 'note')} for ${namesOf(on('takeoff'))}` : b === 'final' ? 'Last look before it goes out' : b === 'review' ? 'or on a room' : steps.find((x) => x.key === b)?.what || ''}</span>
+          <Tip label={noteCount ? `Goes back to ${namesOf(on('takeoff'), null, true)} with the notes` : 'Add a note to a room first'}>
             <span className="ml-auto"><Button icon={<Undo2 />} disabled={!noteCount} onClick={() => estSendBack(e.id)}>Send back{noteCount ? ` · ${plural(noteCount, 'note')}` : ''}</Button></span>
           </Tip>
-          {b === 'review' ? (
-            <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>Looks good — to {PEOPLE[team.final].short}</Button>
+          {b !== 'final' ? (
+            <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>{b === 'review' ? 'Looks good' : 'Done'} — to {namesOf(on(stepAfter(s, b) || 'final'))}</Button>
           ) : (
             <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => s.open({ t: 'estsend', id: e.id })}>Preview and send</Button>
           )}
@@ -446,7 +454,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       {st === 'sent' && (
         <>
           <Button variant="ghost" icon={<FileText />} onClick={() => s.open({ t: 'estsend', id: e.id, sent: true })}>What they got</Button>
-          <span className="ml-auto text-[0.84375rem] text-muted max-md:hidden">{PEOPLE[team.follow].short} follows up {e.followUp || 'Thu'}</span>
+          <span className="ml-auto text-[0.84375rem] text-muted max-md:hidden">{namesOf(on('follow'))} {on('follow').length > 1 ? 'follow' : 'follows'} up {e.followUp || 'Thu'}</span>
           <Menu align="end" width={300} trigger={<Button variant="primary" iconRight={<ChevronDown />} className="max-md:ml-auto">What did the client say?</Button>}>
             <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project — scope, deposit, getting ready" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>Approved</MenuItem>
             <MenuItem icon={<Undo2 className="h-4 w-4 text-warn-600" />} hint="List what they asked for — a new revision" onSelect={() => s.open({ t: 'estchanges', id: e.id })}>They want changes</MenuItem>

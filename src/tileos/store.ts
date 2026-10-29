@@ -58,6 +58,11 @@ export interface Rules {
   autoOff?: string[]
   /** who does each estimate step by default — new estimates start with these people */
   estTeam?: EstTeam
+  /** who does each estimate step, one or more people (the first leads) — the standard steps and the company's own;
+   *  when a step isn't here, estTeam has its one person */
+  estPeople?: Record<string, PersonKey[]>
+  /** the company's own estimate steps, each after the step it follows (Settings → Who does what) */
+  estSteps?: { key: string; label: string; after?: string; what?: string; off?: boolean }[]
   /** the areas a new estimate offers (empty = the standard list) and surfaces the company added */
   areas?: AreaPreset[]
   surfaces?: SurfaceDef[]

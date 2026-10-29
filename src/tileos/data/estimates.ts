@@ -20,13 +20,15 @@ export interface EstLine { id: string; area: string; itemId: string; desc?: stri
 
 /* Inside the company an estimate goes Takeoff → Office review → Final review, then to the client.
  * Whose turn it is lives on the estimate — nobody's tasks change hands. */
-export type EstStep = 'takeoff' | 'review' | 'final'
-export const EST_STEP: Record<EstStep, { label: string; short: string; tone: Tone }> = {
+/** a step inside the company: the three standard ones, or one the company added (Settings → Who does what) */
+export type BuiltStep = 'takeoff' | 'review' | 'final'
+export type EstStep = BuiltStep | (string & {})
+export const EST_STEP: Record<BuiltStep, { label: string; short: string; tone: Tone }> = {
   takeoff: { label: 'Takeoff', short: 'Takeoff', tone: 'info' },
   review: { label: 'Office review', short: 'Office review', tone: 'vio' },
   final: { label: 'Final review', short: 'Final review', tone: 'warn' },
 }
-export const STEP_ORDER: EstStep[] = ['takeoff', 'review', 'final']
+export const STEP_ORDER: BuiltStep[] = ['takeoff', 'review', 'final']
 /** a review note, pinned to a room or a line; it goes back with "Send back" and gets checked off */
 export interface EstNote { id: string; rev: number; by: PersonKey; step: EstStep | 'ai'; area?: string; lineId?: string; text: string; done?: boolean; date: string }
 /** who does each step — and, once it's sent, who follows up with the client */
@@ -41,6 +43,8 @@ export const turnOf = (e: Estimate): PersonKey | null => {
   const b = bucketOf(e)
   return b === 'takeoff' || b === 'review' || b === 'final' ? teamOf(e)[b] : null
 }
+/** it's on a step inside the company (a standard one or the company's own) */
+export const insideOf = (e: Estimate) => e.status === 'estimating' || e.status === 'revision'
 /** who has it now: the person on the step — or, once it's with the client, the one who follows up */
 export const holderOf = (e: Estimate): PersonKey | null => turnOf(e) || (bucketOf(e) === 'sent' ? teamOf(e).follow : bucketOf(e) === 'request' ? 'office' : null)
 /** a room on the estimate: which floor, and the note the scope paper prints next to it ("9.25′ ceiling; fully tiled") */
@@ -62,6 +66,9 @@ export interface Estimate {
   since?: string
   backTo?: EstStep
   team?: Partial<EstTeam>
+  /** who does each step on this estimate when it isn't the company's (Settings → Who does what) — one or more people,
+   *  the first leads; also the company's own steps */
+  people?: Record<string, PersonKey[]>
   notes?: EstNote[]
 }
 

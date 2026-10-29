@@ -6,13 +6,13 @@ import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, Clipbo
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, BAND } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
 import { stepsFor, companySteps } from './steps'
-import { tracksFor, bookingOf, problemsOf, type TrackView } from './tracks'
+import { tracksFor, bookingOf, problemsOf, TRACKS, type TrackView } from './tracks'
 import { TODAY, md, isoFromLabel } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
@@ -111,12 +111,16 @@ export function ProjectsPage() {
               if (!rows.length) return null
               return (
                 <section key={t.key}>
-                  <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />
+                  {t.key === 'coming' ? <ComingBand count={rows.length} /> : <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />}
                   {rows.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
                 </section>
               )
             })
-          : list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
+          : <>
+              {/* only the ones getting ready: the band still names the circles */}
+              {view === 'coming' && list.length > 0 && <ComingBand count={list.length} />}
+              {list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
+            </>}
         {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
@@ -126,22 +130,44 @@ export function ProjectsPage() {
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
 /* One line per project, five columns that line up top to bottom and share the width:
- *   Project · Client · Where it stands · Problem · Start
- * Where it stands: getting ready, the five parts as small circles and how many are done; installing, how far; touch-
- * ups, how many are left to fix. Problem: what's wrong, in red, only when something is — its own column, so they all
- * start at the same spot. No "next" and no "who" — a project waits on many things and many people; they're inside.
- * Each group (On hold, Getting ready…) is a light band; every line is the same one line. On a phone: the name and where
- * it stands, then what's wrong — or the client and the start. */
-const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_6rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_5.5rem] max-md:block'
+ *   Project · Client · Where it stands · Holding it up · Start
+ * Where it stands: getting ready, the five parts as circles under their names (the Getting ready band names them —
+ * nothing to point at) and how many are done; installing, how far; touch-ups, how many are left to fix.
+ * Holding it up: the one thing in the way right now, in plain words, and how many more — its own column, so they all
+ * start at the same spot. Each group (On hold, Getting ready…) is a light band; every line is the same one line.
+ * On a phone: the name and where it stands, then what's in the way — or what's left, or the client and the start. */
+const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.1fr)_5rem] max-md:block'
+/** each circle's place — as wide as its name, the same in the band and in every row, so each circle sits right
+ *  under its name, like a column */
+const SLOT: Record<string, string> = { scope: 'w-[3rem]', tile: 'w-[2.25rem]', site: 'w-[2.25rem]', installer: 'w-[3.25rem]', materials: 'w-[3.5rem]' }
+const slot = (k: string) => cn(SLOT[k] || 'w-[3rem]', 'flex shrink-0 justify-center')
 
 function ListHead() {
   return (
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
       <span>Project</span>
-      <span className="max-lg:hidden">Client</span>
+      <span className="max-xl:hidden">Client</span>
       <span>Where it stands</span>
-      <span>Problem</span>
+      <span>Holding it up</span>
       <span className="text-right">Start</span>
+    </div>
+  )
+}
+
+/** the Getting ready band: its name and how many — and over the circles, what each one is */
+function ComingBand({ count }: { count: number }) {
+  return (
+    <div className={cn(BAND, COLS, 'pl-5 pr-5 max-md:flex max-md:px-4')} data-band data-group-tone="vio" data-coming-band>
+      <span className="inline-flex min-w-0 items-baseline gap-2">
+        <span className="truncate text-[0.8125rem] font-semibold text-ink-2">Getting ready</span>
+        <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>
+      </span>
+      <span className="max-xl:hidden" />
+      <span className="flex min-w-0 items-center max-md:hidden" data-part-names>
+        {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem] font-medium text-muted')}>{t.label}</span>)}
+      </span>
+      <span className="max-md:hidden" />
+      <span className="max-md:hidden" />
     </div>
   )
 }
@@ -169,23 +195,24 @@ function Bar({ pct, label }: { pct: number; label: string }) {
 }
 
 /** where it stands, in a few characters */
-function StandsCell({ j }: { j: Job }) {
+function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */ words?: boolean }) {
   const s = useStore()
   const t = typeOf(j)
   if (t === 'coming') {
     const tracks = tracksFor(s, j)
     const done = tracks.filter((x) => x.state === 'done').length
     const all = done === tracks.length
+    if (words) return <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{all ? 'Ready' : `${done} of ${tracks.length} ready`}</span>
     return (
-      <span className="flex min-w-0 items-center gap-2.5" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} parts done`} title={all ? 'Every part is ready — book the crew' : `${done} of ${tracks.length} parts ready`}>
-        <span className="flex shrink-0 items-center gap-[0.1875rem]">
+      <span className="flex min-w-0 items-center gap-2" data-mini-line aria-label={`Getting ready — ${done} of ${tracks.length} parts done`}>
+        <span className="flex shrink-0 items-center">
           {tracks.map((x) => (
-            <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className="inline-flex">
+            <span key={x.key} data-mark={x.key} data-at={x.state} title={`${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`} className={slot(x.key)}>
               <PartDot t={x} /><span className="sr-only" data-mark-name>{x.label}</span><span className="sr-only" data-mark-count>{x.done}/{x.total}</span>
             </span>
           ))}
         </span>
-        <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{all ? 'Ready' : `${done} of ${tracks.length}`}</span>
+        <span className={cn('truncate text-[0.8125rem] tnum lg:max-xl:hidden', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{all ? 'Ready' : `${done} of ${tracks.length}`}</span>
       </span>
     )
   }
@@ -213,13 +240,13 @@ function startOf(s: Store, j: Job): { text: string; late?: boolean } {
   return { text: j.dates?.start || (b ? md(b.start) : s.prep[j.id]?.started || '') }
 }
 
-/** what's wrong, in red — only when something is: the first problem in a few words, and "+2" when there are more
- *  (all of them show when you point at it, and inside) */
-function ProblemFlag({ list }: { list: { text: string }[] }) {
+/** what's holding it up — only when something is: the first thing in plain words (a small red mark, the words
+ *  calm), and "· 3 more" when there are more (all of them inside, on Where it stands) */
+function HoldFlag({ list }: { list: { text: string }[] }) {
   if (!list.length) return null
   return (
-    <span data-problems={list.length} title={list.map((p) => p.text).join(' · ')} className="inline-flex min-w-0 items-center gap-1 text-[0.78125rem] font-medium text-bad-600">
-      <TriangleAlert className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{list[0].text}</span>{list.length > 1 && <span className="shrink-0">+{list.length - 1}</span>}
+    <span data-problems={list.length} title={list.map((p) => p.text).join(' · ')} className="inline-flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-2">
+      <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-bad-500" /><span className="truncate">{list[0].text}</span>{list.length > 1 && <span className="shrink-0 text-faint">· {list.length - 1} more</span>}
     </span>
   )
 }
@@ -228,7 +255,9 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
   const s = useStore()
   const st = startOf(s, j)
   const probs = problemsOf(s, j)
-  const flag = <ProblemFlag list={probs} />
+  const flag = <HoldFlag list={probs} />
+  /* getting ready, on a phone: what's left, by name */
+  const left = typeOf(j) === 'coming' ? tracksFor(s, j).filter((x) => x.state !== 'done').map((x) => x.label) : []
   const open = () => s.open({ t: 'job', id: j.id })
   return (
     <div
@@ -244,7 +273,7 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
         <span className="truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
         {j.kind === 'repair' && <span className="shrink-0 text-[0.75rem] text-muted">Repair</span>}
       </div>
-      <span className="min-w-0 truncate text-[0.8125rem] text-muted max-lg:hidden">{j.client}</span>
+      <span className="min-w-0 truncate text-[0.8125rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="min-w-0 max-md:hidden"><StandsCell j={j} /></div>
       <div className="flex min-w-0 max-md:hidden">{flag}</div>
       <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', st.late ? 'font-medium text-warn-700' : 'text-muted')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span>
@@ -252,11 +281,11 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-center gap-3">
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
-          <span className="shrink-0"><StandsCell j={j} /></span>
+          <span className="shrink-0"><StandsCell j={j} words /></span>
         </div>
-        {/* under it: what's wrong, when something is — else the client and the start */}
+        {/* under it: what's in the way, when something is — else what's left to get ready, or the client and the start */}
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[0.78125rem] text-muted">
-          {probs.length ? flag : <span className="min-w-0 truncate">{[j.client, st.text && `starts ${st.text}`].filter(Boolean).join(' · ')}</span>}
+          {probs.length ? flag : left.length ? <span className="min-w-0 truncate" data-left>Left: {left.join(', ')}{st.text ? ` · starts ${st.text}` : ''}</span> : <span className="min-w-0 truncate">{[j.client, st.text && `starts ${st.text}`].filter(Boolean).join(' · ')}</span>}
         </div>
       </div>
     </div>

@@ -14,34 +14,40 @@ import { TODAY, addDays, md, workday, dow, dayShort } from '@/tileos/lib/today'
 import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, addCompanyArea, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
 import { isOff } from './active'
 import { insidePeople } from './steps-ui'
+import { estSteps, EST_FOLLOW, companyPeople, namesOf } from './estpeople'
 import { FormHead, FormRow, ClientField } from './formkit'
 import { SearchSelect } from '@/tileos/components/ui/select'
 
 export type PickedArea = { name: string; floor?: string; surfaces: string[] }
 
-/** one person per step — tap a face to change it */
+/** who does each step, in order — tap one to put someone else on it for this estimate. A step with two people (from
+ *  Settings → Who does what) shows both; the company's own steps are in their place. */
 export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onChange?: (k: keyof EstTeam, p: PersonKey) => void; now?: keyof EstTeam | null; compact?: boolean }) {
   const st = useStore()
   const people = insidePeople(st)
+  const base = companyTeam(st)
+  const order = [...estSteps(st), EST_FOLLOW]
   return (
     <div className={cn('grid gap-2', compact ? 'grid-cols-1' : 'grid-cols-4 max-md:grid-cols-2')}>
-      {TEAM_KEYS.map((k, i) => {
-        const p = team[k]
-        const on = now === k
+      {order.map((d, i) => {
+        const k = d.key as keyof EstTeam
+        const built = (TEAM_KEYS as string[]).includes(d.key)
+        const list = built && team[k] !== base[k] ? [team[k]] : companyPeople(st, d.key)
+        const on = now === d.key
         const body = (
-          <span className={cn('flex w-full items-center gap-2.5 rounded-[0.6875rem] border px-2.5 py-2 text-left transition', on ? 'border-brand-300 bg-brand-50' : 'border-line bg-white', onChange && 'hover:border-[#c6bfb4]')}>
-            <Avatar who={p} size={28} />
+          <span className={cn('flex w-full items-center gap-2.5 rounded-[0.6875rem] border px-2.5 py-2 text-left transition', on ? 'border-brand-300 bg-brand-50' : 'border-line bg-white', onChange && built && 'hover:border-[#c6bfb4]')}>
+            <span className="flex shrink-0 -space-x-1.5">{list.slice(0, 2).map((p) => <Avatar key={p} who={p} size={28} ring={list.length > 1} />)}</span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[0.71875rem] font-semibold text-muted">{i + 1}. {TEAM_LABEL[k]}{on && <span className="ml-1.5 text-brand-700">· now</span>}</span>
-              <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[p].name}</span>
+              <span className="block text-[0.71875rem] font-semibold text-muted">{i + 1}. {d.label}{on && <span className="ml-1.5 text-brand-700">· now</span>}</span>
+              <span className="block truncate text-[0.84375rem] font-semibold text-ink">{namesOf(list, null, list.length === 1)}</span>
             </span>
           </span>
         )
-        if (!onChange) return <div key={k}>{body}</div>
+        if (!onChange || !built) return <div key={d.key}>{body}</div>
         return (
-          <Menu key={k} align="start" width={260} trigger={<button type="button" aria-label={`${TEAM_LABEL[k]} — ${PEOPLE[p].name}`} className="block w-full">{body}</button>}>
-            <MenuLabel>{TEAM_LABEL[k]}</MenuLabel>
-            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} />} checked={x === p} hint={PEOPLE[x]?.roleLabel} onSelect={() => onChange(k, x)}>{PEOPLE[x]?.name}</MenuItem>)}
+          <Menu key={d.key} align="start" width={260} trigger={<button type="button" aria-label={`${d.label} — ${namesOf(list, null, true)}`} className="block w-full">{body}</button>}>
+            <MenuLabel>{d.label} — on this estimate</MenuLabel>
+            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} />} checked={list.length === 1 && x === list[0]} hint={PEOPLE[x]?.roleLabel} onSelect={() => onChange(k, x)}>{PEOPLE[x]?.name}</MenuItem>)}
           </Menu>
         )
       })}

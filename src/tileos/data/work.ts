@@ -43,6 +43,9 @@ export interface Task {
   result?: string
   /** people who see it on their Following list and get told when it moves — the owner still does it */
   followers?: PersonKey[]
+  /** someone else who can do it too (two people on an estimate step): it's on their Today as well, and whoever does it
+   *  first closes it for both */
+  also?: PersonKey[]
   /** someone reminded the owner it's late (the admin's "Remind") — it pops up on the owner's screen */
   nudge?: { by: PersonKey; at: string; day: string }
   /** shows at the top of everyone's Today until it's done */

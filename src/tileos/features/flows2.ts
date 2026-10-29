@@ -12,6 +12,7 @@ import type { IPOLine } from '@/tileos/data/field'
 import type { POLine } from '@/tileos/data/work'
 import { nextPO } from '@/tileos/lib/utils'
 import { giveTo } from './estflow'
+import { peopleOn, namesOf, rolesOf, estSteps } from './estpeople'
 import { matBy, matFor } from './flows'
 import { shiftText, labelFromIso, workday, addDays, TODAY } from '@/tileos/lib/today'
 
@@ -61,7 +62,9 @@ export function estSend(estId: string) {
   const r0 = curRev(e0)
   const total = revTotal(r0)
   const team = teamOf(e0)
-  const fol = team.follow
+  /* who follows up — one or more people, the first leads */
+  const fols = peopleOn(S(), e0, 'follow')
+  const fol = fols[0] || team.follow
   /* the follow-up lands a few work days out */
   const fu = labelFromIso(workday(addDays(TODAY, 3)))
   S().commit((s) => {
@@ -91,9 +94,9 @@ export function estSend(estId: string) {
       p.nextFollowUp = fu
     }
     closeTasks(s, s.tasks.filter((t) => t.jobId === e.jobId && t.state !== 'done' && t.type === 'Pricing').map((t) => t.id), 'Estimate sent')
-    if (!(s.rules.autoOff || []).includes('est-followup')) newTask(s, { jobId: e.jobId, title: `Follow up on ${e.id} · ${j?.name}`, type: 'Pricing', owner: fol, for: [FOL_ROLE[fol] || 'office'], watch: ['owner'], state: 'waiting', waitingOn: 'Client', followUp: fu, tone: 'neutral', where: `Revision ${r.n} · ${fmtMoney(total)} · sent ${NOW}`, action: { label: 'Open estimate', kind: 'estimate:' + e.id } })
+    if (!(s.rules.autoOff || []).includes('est-followup')) newTask(s, { jobId: e.jobId, title: `Follow up on ${e.id} · ${j?.name}`, type: 'Pricing', owner: fol, also: fols.length > 1 ? fols.slice(1) : undefined, for: fols.length ? rolesOf(s as any, fols) : [FOL_ROLE[fol] || 'office'], watch: ['owner'], state: 'waiting', waitingOn: 'Client', followUp: fu, tone: 'neutral', where: `Revision ${r.n} · ${fmtMoney(total)} · sent ${NOW}`, action: { label: 'Open estimate', kind: 'estimate:' + e.id } })
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `${e.id} revision ${r.n} sent · ${fmtMoney(total)}`, ref: { t: 'estimate', id: e.id } })
-  }, `${e0.id} sent — it’s ${PEOPLE[fol].name}’s now`, { close: true, sub: `${PEOPLE[fol].short} follows up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu} — it’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [{ who: team.takeoff, label: 'Takeoff', state: 'done' }, { who: team.review, label: 'Office review', state: 'done' }, { who: team.final, label: 'Final review', state: 'done' }, { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
+  }, `${e0.id} sent — it’s ${namesOf(fols.length ? fols : [fol], null, true)}’s now`, { close: true, sub: `${namesOf(fols.length ? fols : [fol])} ${fols.length > 1 ? 'follow' : 'follows'} up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu} — it’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [...estSteps(S()).map((x) => ({ who: peopleOn(S(), e0, x.key)[0], label: x.label, state: 'done' as const })), { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
 }
 
 /** the client wants changes: a new revision, with each thing they asked for as a note to check off */
@@ -112,7 +115,7 @@ export function estRevise(estId: string, what: string, o: { changes?: { text: st
     /* a revision walks the same path: takeoff, office review, owner review */
     giveTo(s, e, 'takeoff')
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Revision ${last.n + 1} requested · ${what || 'changes'}`, ref: { t: 'estimate', id: e.id } })
-  }, 'Revision started — it’s on the takeoff estimator’s Today')
+  }, `Revision started — it’s on ${namesOf(peopleOn(S(), S().estimates.find((x) => x.id === estId)!, 'takeoff'))}’s Today`)
 }
 
 export function estLost(estId: string, reason: string) {

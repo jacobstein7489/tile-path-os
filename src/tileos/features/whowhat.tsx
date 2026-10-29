@@ -84,6 +84,8 @@ export function saveWhoWhat(team: EstTeam, owners: Owners, alsoOpen: boolean) {
   s.commit((st) => {
     const old = companyTeam(st)
     st.rules.estTeam = { ...team }
+    /* the people on each estimate step: the one picked here leads, anyone else on it stays */
+    if (st.rules.estPeople) TEAM_KEYS.forEach((k) => { const was = st.rules.estPeople![k]; if (was?.length) st.rules.estPeople = { ...st.rules.estPeople, [k]: [team[k], ...was.filter((p) => p !== team[k] && p !== old[k])] } })
     setCompanyOwners(st, owners)
     st.rules.whoSet = NOW
     st.rules.whoV = WHO_V
@@ -94,6 +96,7 @@ export function saveWhoWhat(team: EstTeam, owners: Owners, alsoOpen: boolean) {
       TEAM_KEYS.forEach((k) => {
         if (t[k] !== old[k] || team[k] === old[k]) return
         e.team = { ...(e.team || {}), [k]: team[k] }
+        if (e.people?.[k]) e.people = { ...e.people, [k]: [team[k], ...e.people[k].filter((p) => p !== team[k] && p !== old[k])] }
         /* the step it's on right now: its task goes to the new person */
         if ((e.step || 'takeoff') === k && e.status !== 'request') {
           const role = (st.team.find((m) => m.key === team[k])?.role || 'estimator') as Role

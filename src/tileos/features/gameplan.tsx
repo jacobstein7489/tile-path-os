@@ -1,6 +1,7 @@
 /* Schedule — the calendar, and only the calendar (the game plan lives in Projects → Getting ready):
  *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
- *     while it waits for his OK or is only planned; striped when the project is on hold). Month: a regular month.
+ *     while it waits for his OK or is only planned; gray with a pause mark when the project is on hold).
+ *   Month: the work days of the month, the same bars — what's ready to book is in the list beside it, not on the days.
  *   Under it, the projects ready to book — one line each; tap one to pick the installer.
  * No legend, no counts on top, no second line on the bars. On a phone: one line per crew — what he's on, or free. */
 import * as React from 'react'
@@ -59,7 +60,8 @@ function lanesOf<T extends { start: string; end: string }>(items: T[]) {
 /* one look for every item, in both views: one calm color for the crews' work — not a color per crew */
 function look(it: Item, clash: boolean) {
   const ring = clash && 'ring-2 ring-bad-500 ring-offset-1'
-  if (it.hold) return { className: cn('border border-[#ecd6d2] text-[#8f2f24]', ring), style: { background: 'repeating-linear-gradient(135deg, #fbf3f1 0 6px, #f6e6e2 6px 12px)' } as React.CSSProperties }
+  /* on hold: a quiet gray with the pause mark — it's waiting, not on fire */
+  if (it.hold) return { className: cn('border border-[#e2ddd4] bg-[#f3f1ec] text-[#5b5f68]', ring), style: {} as React.CSSProperties }
   if (it.kind === 'tobook') return { className: 'border border-dashed border-[#bcc3cc] bg-white text-ink-2', style: {} }
   if (it.kind === 'planned' || it.kind === 'pending') return { className: cn('border border-dashed border-[#9fb3e6] bg-white text-[#1f3d8f]', ring), style: {} }
   return { className: cn('border border-[#dbe3f8] bg-[#eef2fc] text-[#1f3d8f]', ring), style: {} }
@@ -162,7 +164,7 @@ function CrewList({ days, items, clashes }: { days: string[]; items: Item[]; cla
             <Avatar who={c} size={28} />
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[c].name}</span>
-              <span className={cn('block truncate text-[0.75rem]', clashes.includes(c) ? 'font-medium text-bad-600' : it?.hold ? 'text-[#8f2f24]' : 'text-muted')}>
+              <span className={cn('block truncate text-[0.75rem]', clashes.includes(c) ? 'font-medium text-bad-600' : 'text-muted')}>
                 {it ? `${job?.name}${it.hold ? ' · on hold' : it.kind === 'pending' ? ' · waiting for his OK' : it.kind === 'planned' ? ' · planned' : ''} · ${fmt(it.start, { month: 'short', day: 'numeric' })} – ${fmt(it.end, { month: 'short', day: 'numeric' })}${mine.length > 1 ? ` · +${mine.length - 1}` : ''}` : 'Free this week'}
               </span>
             </span>
@@ -257,43 +259,46 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
   )
 }
 
-/* ================= month: a regular month, like Google Calendar ================= */
+/* ================= month: the work days, Monday to Friday ================= */
+/* The same calm bars as the week: one blue for booked work (dashed while it waits for his OK or is only planned), gray
+ * on hold. Ready-to-book projects aren't on the days — they're in the list beside it, with their dates. */
 function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
   const m = anchor.slice(0, 7)
   const first = m + '-01'
-  const start = addDays(first, -dow(first))
+  const last = addDays(addDays(m + '-28', 4).slice(0, 7) + '-01', -1)
+  /* the weeks that touch the month, each Monday to Friday */
   const weeks: string[][] = []
-  for (let w = 0; w < 6; w++) {
-    const wk = Array.from({ length: 7 }, (_, i) => addDays(start, w * 7 + i))
-    if (w >= 4 && wk[0].slice(0, 7) !== m) break
-    weeks.push(wk)
+  for (let mon = mondayOf(first); mon <= last; mon = addDays(mon, 7)) {
+    const wk = Array.from({ length: 5 }, (_, i) => addDays(mon, i))
+    if (wk.some((d) => d.slice(0, 7) === m)) weeks.push(wk)
   }
-  const MAX = 6
+  const onDays = items.filter((it) => it.kind !== 'tobook')
+  const MAX = 5
   return (
-    <div>
-      <div className="grid grid-cols-7 border-b border-line-2">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2')}>{d}</div>)}
+    <div className="flex min-h-0 flex-1 flex-col" data-month>
+      <div className="grid grid-cols-5 border-b border-line-2">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2')}>{d}</div>)}
       </div>
       {weeks.map((wk) => {
         const a = wk[0]
-        const z = wk[6]
-        const segs = items.filter((it) => it.end >= a && it.start <= z).map((it) => ({ it, start: it.start < a ? a : it.start, end: it.end > z ? z : it.end }))
+        const z = wk[4]
+        const segs = onDays.filter((it) => it.end >= a && it.start <= z).map((it) => ({ it, start: it.start < a ? a : it.start, end: it.end > z ? z : it.end })).filter((x) => x.start <= x.end && wk.includes(x.start) && wk.includes(x.end))
         const lanes = lanesOf(segs)
         const shownLanes = lanes.slice(0, MAX)
         const hidden = lanes.slice(MAX).flat()
         const laneH = 24
         return (
-          <div key={a} className="relative border-b border-line-2 last:border-0" style={{ minHeight: 34 + Math.max(2, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 22 : 10) }}>
-            <div className="absolute inset-0 grid grid-cols-7">
+          <div key={a} className="relative flex-1 border-b border-line-2 last:border-0" style={{ minHeight: 34 + Math.max(2, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 22 : 10) }}>
+            <div className="absolute inset-0 grid grid-cols-5">
               {wk.map((d, i) => {
                 const out = d.slice(0, 7) !== m
                 const more = hidden.filter((h) => h.start <= d && h.end >= d)
                 return (
-                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', (i === 0 || i === 6) && 'bg-[#fbfbfc]', out && 'bg-[#fafafb]')}>
+                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out && 'bg-[#fafaf8]')}>
                     <div className="flex items-center justify-between px-2 pt-1.5">
                       <span className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[0.78125rem] font-semibold tnum', d === TODAY ? 'bg-brand-600 text-white' : out ? 'text-faint' : 'text-ink-2')}>{Number(d.slice(8)) === 1 ? <><span className="max-sm:hidden">{fmt(d, { month: 'short' })}&nbsp;</span>1</> : Number(d.slice(8))}</span>
-                      {d >= TODAY && isWeekday(d) && (
+                      {d >= TODAY && (
                         <Tip label="Book someone from this day">
                           <button aria-label={`Book from ${d}`} onClick={() => s.open({ t: 'assign', start: d })} className="inline-flex h-6 w-6 items-center justify-center rounded-full text-faint opacity-0 transition hover:bg-wash hover:text-brand-600 group-hover:opacity-100"><Plus className="h-3.5 w-3.5" /></button>
                         </Tip>
@@ -321,13 +326,13 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                 <Tip key={x.it.id + a} label={`${job?.name} · ${sub(x.it)} · ${fmt(x.it.start, { month: 'short', day: 'numeric' })} – ${fmt(x.it.end, { month: 'short', day: 'numeric' })}`}>
                   <button
                     onClick={() => openItem(s, x.it)}
+                    data-month-bar={x.it.jobId}
                     className={cn('absolute flex min-w-0 items-center gap-1 overflow-hidden px-2 text-left text-[0.75rem] font-semibold leading-none transition hover:brightness-[.97] max-sm:px-1 max-sm:text-[0.65625rem]', contL ? 'rounded-l-none' : 'rounded-l-md', contR ? 'rounded-r-none' : 'rounded-r-md', lk.className)}
-                    style={{ ...lk.style, left: `calc(${(si / 7) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 7) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 32 + li * laneH, height: laneH - 4 }}
+                    style={{ ...lk.style, left: `calc(${(si / 5) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 5) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 32 + li * laneH, height: laneH - 4 }}
                   >
                     {x.it.hold && <PauseCircle className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{job?.name}</span>
                     {x.it.crew && <span className="shrink-0 font-medium opacity-70 max-md:hidden">· {PEOPLE[x.it.crew].short}</span>}
-                    {x.it.kind === 'tobook' && <span className="shrink-0 font-medium text-muted max-md:hidden">· to book</span>}
                   </button>
                 </Tip>
               )

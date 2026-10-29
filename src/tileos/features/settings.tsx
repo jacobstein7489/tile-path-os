@@ -5,7 +5,7 @@ import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
 import { DEPOSIT_WAY, type DepositWay } from './progressbill'
-import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, MenuCheck, MenuSep } from '@/tileos/components/ui/overlay'
 import { Page, Card, HEAD_ROW } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, LOGIN_TYPES, type Role, type PersonKey } from '@/tileos/data/model'
@@ -20,6 +20,9 @@ import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, r
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
+import { estSteps, EST_FOLLOW, companyPeople, peopleOn, setCompanyPeople, addCompanyEstStep, renameCompanyEstStep, removeCompanyEstStep, namesOf } from './estpeople'
+import { realOwner } from './steps'
+import { WHAT as STEP_WHAT } from './stepwin'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/save'
@@ -503,30 +506,120 @@ function ChecklistTab() {
   )
 }
 
-/** an estimate's steps, in the same rows as a project's: who does the takeoff, the office review, the final review and
- *  the follow-up — by name. Every new estimate goes to these people; nothing to set on each one. */
-const EST_STEP_AFTER: Record<keyof EstTeam, string> = { takeoff: 'When the plans come in', review: 'After the takeoff', final: 'After the office review', follow: 'After it’s sent to the client' }
+/* ---------------- the flow: every step, in order, on one line that runs from step to step ----------------
+ * Each step says what it is, when it starts and what comes after it, and who does it — one person or more (with two,
+ * it's on both their Todays and either one does it). */
+function FlowRow({ n, last, name, what, starts, then, who, more, off, ...rest }: { n: number; last?: boolean; name: React.ReactNode; what?: string; starts: string; then: string; who?: React.ReactNode; more?: React.ReactNode; off?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn('grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-start gap-x-3 border-b border-line-2 px-5 py-3 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_2.25rem] max-sm:gap-y-2 max-sm:px-4', off && 'bg-[#faf9f6]')} {...rest}>
+      <span className="relative flex h-full justify-center">
+        <span className={cn('relative z-[1] inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.71875rem] font-semibold tnum', off ? 'bg-wash text-faint' : 'bg-[#e9edf9] text-brand-700')}>{n}</span>
+        {!last && <span aria-hidden className="absolute -bottom-3 top-6 w-px bg-[#d9d3c9]" />}
+      </span>
+      <span className="min-w-0">
+        <span className={cn('block text-[0.875rem] font-semibold', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
+        {what && <span className="block text-[0.78125rem] leading-snug text-muted">{what}</span>}
+        <span className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[0.75rem] text-faint">
+          <span><span className="font-medium text-muted">Starts</span> {starts}</span>
+          <span><span className="font-medium text-muted">Then</span> {then}</span>
+        </span>
+      </span>
+      <span className="self-center max-sm:col-start-2 max-sm:row-start-2 max-sm:self-start">{who}</span>
+      <span className="flex justify-end self-center max-sm:col-start-3 max-sm:row-start-1 max-sm:self-start">{more}</span>
+    </div>
+  )
+}
+const firstLine = (t?: string) => (t ? t.split(/(?<=[.!?])\s/)[0] : undefined)
+
+/** who has a step — one person or more; the first one ticked leads */
+function PeoplePick({ value, onChange, label }: { value: PersonKey[]; onChange: (p: PersonKey[]) => void; label: string }) {
+  const s = useStore()
+  const people = insidePeople(s)
+  return (
+    <Menu align="end" width={270} trigger={
+      <button type="button" aria-label={`Who does ${label}`} className="inline-flex h-9 min-w-0 max-w-[15rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash" data-people-pick={value.join(',')}>
+        <span className="flex shrink-0 -space-x-1.5">{value.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} ring={value.length > 1} />)}</span>
+        <span className="truncate">{namesOf(value, null, value.length === 1)}</span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
+      </button>
+    }>
+      <MenuLabel>Who does “{label}” — tick one or more</MenuLabel>
+      {people.map((p) => (
+        <MenuCheck key={p} checked={value.includes(p)} onChange={(on) => { const next = on ? [...value, p] : value.filter((x) => x !== p); if (next.length) onChange(next) }}>
+          <span className="flex min-w-0 items-center gap-2"><Avatar who={p} size={20} /><span className="truncate">{PEOPLE[p]?.name}</span></span>
+        </MenuCheck>
+      ))}
+    </Menu>
+  )
+}
+
+/** an estimate's steps as a flow: takeoff → office review → your own steps → final review → it goes out → follows up.
+ *  Every new estimate goes to these people. Add your own step anywhere before the final review. */
 function EstimateSteps() {
   const s = useStore()
-  const team = companyTeam(s)
+  const steps = estSteps(s)
+  const [adding, setAdding] = React.useState(false)
+  const [name, setName] = React.useState('')
+  const [after, setAfter] = React.useState('review')
+  const [who, setWho] = React.useState<PersonKey[]>([])
+  const [renaming, setRenaming] = React.useState<{ key: string; name: string } | null>(null)
+  const all = [...steps, EST_FOLLOW]
+  const add = () => { if (!name.trim()) return; addCompanyEstStep(name.trim(), after, who.length ? who : companyPeople(s, 'review')); setName(''); setWho([]); setAdding(false) }
   return (
     <div data-steps-part="estimates">
       <Card pad={false} className="overflow-hidden">
         <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3 max-sm:px-4">
           <h3 className="text-[0.96875rem] font-semibold text-ink">Estimates</h3>
-          <span className="text-[0.8125rem] text-muted">{TEAM_KEYS.length} steps</span>
+          <span className="text-[0.8125rem] text-muted">{all.length} steps</span>
         </div>
-        {TEAM_KEYS.map((k, i) => (
-          <div key={k} className="grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)] max-sm:px-4" data-est-step={k}>
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-wash-2 text-[0.71875rem] font-semibold tnum text-ink-2">{i + 1}</span>
-            <span className="min-w-0">
-              <span className="block truncate text-[0.875rem] font-semibold text-ink">{TEAM_LABEL[k]}</span>
-              <span className="flex items-center gap-1 truncate text-[0.78125rem] text-muted"><CornerDownRight className="h-3 w-3 shrink-0" />{EST_STEP_AFTER[k]}</span>
-            </span>
-            <span className="max-sm:col-start-2 max-sm:row-start-2"><OwnerPick value={team[k]} onChange={(p) => setCompanyTeam(k, p as PersonKey)} label={TEAM_LABEL[k]} /></span>
-            <span className="max-sm:hidden" />
-          </div>
-        ))}
+        {all.map((d, i) => {
+          const prev = i > 0 ? all[i - 1] : undefined
+          const starts = d.key === 'takeoff' ? 'when the plans come in' : d.key === 'follow' ? 'once it’s sent to the client' : `after ${prev?.label.toLowerCase()}`
+          const then = d.key === 'final' ? 'it goes to the client' : d.key === 'follow' ? 'the client answers — a yes makes it a project' : `${all[i + 1]?.label.toLowerCase()}`
+          /* real people — a login spot nobody took ("Estimator") shows as whoever has that login */
+          const people = peopleOn(s, null, d.key)
+          const own = (s.rules.estSteps || []).find((x) => x.key === d.key)
+          if (own && renaming?.key === own.key) {
+            const done = () => { if (renaming.name.trim() && renaming.name.trim() !== own.label) renameCompanyEstStep(own.key, renaming.name); setRenaming(null) }
+            return (
+              <div key={d.key} className="flex items-center gap-3 border-b border-line-2 px-5 py-2.5 max-sm:px-4" data-est-step={d.key}>
+                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e9edf9] text-[0.71875rem] font-semibold tnum text-brand-700">{i + 1}</span>
+                <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); done() }}>
+                  <TextInput autoFocus value={renaming.name} onChange={(e) => setRenaming({ key: own.key, name: e.target.value })} onKeyDown={(e) => { if (e.key === 'Escape') setRenaming(null) }} aria-label={`New name for ${own.label}`} className="min-w-0 flex-1" />
+                  <Button type="submit" size="sm" variant="primary" icon={<Check />}>Save</Button>
+                </form>
+              </div>
+            )
+          }
+          return (
+            <FlowRow key={d.key} n={i + 1} last={i === all.length - 1} data-est-step={d.key}
+              name={<>{d.label}{d.custom && <span className="ml-2 text-[0.71875rem] font-medium text-brand-600">yours</span>}</>}
+              what={d.what} starts={starts} then={then}
+              who={<PeoplePick value={people} onChange={(v) => setCompanyPeople(d.key, v)} label={d.label} />}
+              more={own ? (
+                <Menu align="end" width={220} trigger={<button aria-label={`More for ${d.label}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+                  <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => setRenaming({ key: own.key, name: own.label })}>Rename</MenuItem>
+                  <MenuSep />
+                  <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeCompanyEstStep(own.key)}>Remove</MenuItem>
+                </Menu>
+              ) : undefined}
+            />
+          )
+        })}
+        {adding ? (
+          <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-est-step>
+            <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen — e.g. Check the supplier’s prices" className="min-w-[14rem] flex-1" />
+            <Menu align="start" width={240} trigger={<Button type="button" iconRight={<ChevronDown />}>After {steps.find((x) => x.key === after)?.label.toLowerCase() || 'office review'}</Button>}>
+              <MenuLabel>It comes after</MenuLabel>
+              {steps.filter((x) => x.key !== 'final').map((x) => <MenuItem key={x.key} checked={after === x.key} onSelect={() => setAfter(x.key)}>{x.label}</MenuItem>)}
+            </Menu>
+            <PeoplePick value={who.length ? who : companyPeople(s, 'review')} onChange={setWho} label={name || 'the new step'} />
+            <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>
+            <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
+          </form>
+        ) : (
+          <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-[#fbfaf7] max-sm:px-4" data-add-step="estimates"><Plus className="h-4 w-4" />Add a step to Estimates</button>
+        )}
       </Card>
     </div>
   )
@@ -546,7 +639,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
         <h3 className="text-[0.96875rem] font-semibold text-ink">{label}</h3>
         <span className="text-[0.8125rem] text-muted">{on} {on === 1 ? 'step' : 'steps'}</span>
       </div>
-      {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} />)}
+      {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} />)}
       {part !== 'other' && (adding ? (
         <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
           <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen — e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
@@ -565,7 +658,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
 /** who has a step — everyone inside with a login (materials can follow the company rule) */
 function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'matBy'; onChange: (p: PersonKey | 'matBy') => void; label: string; matRule?: boolean }) {
   const s = useStore()
-  const who = value === 'matBy' ? (s.rules.matBy || 'yakov') : value
+  const who = value === 'matBy' ? (s.rules.matBy || 'yakov') : realOwner(s, value)
   return (
     <Menu align="end" width={260} trigger={<button type="button" className="inline-flex h-9 min-w-0 max-w-[13rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash"><Avatar who={who as PersonKey} size={22} /><span className="truncate">{value === 'matBy' ? 'Whoever orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
       <MenuLabel>Who has “{label}”</MenuLabel>
@@ -575,36 +668,44 @@ function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'ma
   )
 }
 
-/** one step: its number, its name (tap Rename to change it), after what it opens, who has it — and ··· */
-function StepSetting({ d, n, all }: { d: StepDef; n: number; all: StepDef[] }) {
+/** one step in a part's flow: its number, its name (Rename changes it everywhere), what it is, when it starts and what
+ *  comes after it, who has it — and ··· */
+function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[]; last?: boolean }) {
   const [editing, setEditing] = React.useState(false)
   const [name, setName] = React.useState(d.short)
-  const shown = d.named ? d.short : STEP_SHORT[d.key] || d.short
-  const after = (d.after || []).map((k) => all.find((x) => x.key === k)).filter(Boolean).map((x) => (x!.named ? x!.short : STEP_SHORT[x!.key] || x!.short).toLowerCase())
+  const nameOf = (x: StepDef) => (x.named ? x.short : STEP_SHORT[x.key] || x.short)
+  const shown = nameOf(d)
+  const after = (d.after || []).map((k) => all.find((x) => x.key === k)).filter(Boolean).map((x) => nameOf(x!).toLowerCase())
+  const next = all.filter((x) => !x.off && (x.after || []).includes(d.key)).map((x) => nameOf(x).toLowerCase())
   const save = () => { if (name.trim() && name.trim() !== shown) renameCompanyStep(d.key, name.trim()); setEditing(false) }
-  return (
-    <div className={cn('grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_2.25rem] max-sm:px-4', d.off && 'bg-[#faf9f6]')} data-step-setting={d.key} data-off={d.off || undefined}>
-      <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.71875rem] font-semibold tnum', d.off ? 'bg-wash text-faint' : 'bg-wash-2 text-ink-2')}>{n}</span>
-      {editing ? (
-        <form className="flex min-w-0 items-center gap-2" onSubmit={(e) => { e.preventDefault(); save() }}>
+  if (editing) {
+    return (
+      <div className="flex items-center gap-3 border-b border-line-2 px-5 py-2.5 last:border-b-0 max-sm:px-4" data-step-setting={d.key}>
+        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e9edf9] text-[0.71875rem] font-semibold tnum text-brand-700">{n}</span>
+        <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); save() }}>
           <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { setName(shown); setEditing(false) } }} aria-label={`New name for ${shown}`} className="min-w-0 flex-1" />
           <Button type="submit" size="sm" variant="primary" icon={<Check />}>Save</Button>
         </form>
-      ) : (
-        <span className="min-w-0">
-          <span className={cn('block truncate text-[0.875rem] font-semibold', d.off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{shown}{d.off && <span className="ml-2 text-[0.71875rem] font-medium text-muted no-underline [text-decoration:none]">off</span>}</span>
-          <span className="flex items-center gap-1 truncate text-[0.78125rem] text-muted">{d.off ? 'Not on any project — turn it back on from ···' : after.length ? <><CornerDownRight className="h-3 w-3 shrink-0" />After {after.join(' and ')}</> : 'Starts the day it’s won'}</span>
-        </span>
-      )}
-      <span className="max-sm:col-start-2 max-sm:row-start-2">{!d.off && <OwnerPick value={d.owner} onChange={(p) => setCompanyStepOwner(d.key, p)} label={shown} matRule={d.key === 'materials'} />}</span>
-      <Menu align="end" width={240} trigger={<button aria-label={`More for ${shown}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-ink max-sm:col-start-3 max-sm:row-start-1"><MoreHorizontal className="h-4 w-4" /></button>}>
-        <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setName(shown); setEditing(true) }}>Rename</MenuItem>
-        {d.off
-          ? <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setCompanyStepOff(d.key, false)}>Turn back on</MenuItem>
-          : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project — the steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
-        {!BUILT_IN.has(d.key) && d.custom && !STEP_SHORT[d.key] && <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeCompanyStep(d.key)}>Remove</MenuItem>}
-      </Menu>
-    </div>
+      </div>
+    )
+  }
+  return (
+    <FlowRow n={n} last={last} off={d.off} data-step-setting={d.key} data-off={d.off || undefined}
+      name={<>{shown}{d.off && <span className="ml-2 text-[0.71875rem] font-medium text-muted">off</span>}</>}
+      what={d.off ? 'Not on any project — turn it back on from ···' : firstLine(STEP_WHAT[d.key])}
+      starts={after.length ? `after ${after.join(' and ')}` : 'the day it’s won'}
+      then={next.length ? next.join(', ') : 'counts toward booking the crew'}
+      who={!d.off ? <OwnerPick value={d.owner} onChange={(p) => setCompanyStepOwner(d.key, p)} label={shown} matRule={d.key === 'materials'} /> : undefined}
+      more={
+        <Menu align="end" width={240} trigger={<button aria-label={`More for ${shown}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+          <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setName(shown); setEditing(true) }}>Rename</MenuItem>
+          {d.off
+            ? <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setCompanyStepOff(d.key, false)}>Turn back on</MenuItem>
+            : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project — the steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
+          {!BUILT_IN.has(d.key) && d.custom && !STEP_SHORT[d.key] && <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeCompanyStep(d.key)}>Remove</MenuItem>}
+        </Menu>
+      }
+    />
   )
 }
 

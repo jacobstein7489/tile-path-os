@@ -16,12 +16,16 @@ export function soldRev(s: Pick<Store, 'estimates'>, jobId: string): EstRev | un
   return est ? [...est.revs].reverse().find((r) => r.status === 'approved') || curRev(est) : undefined
 }
 
-export type Ratio = { total: number; sold: number; pct: number; line: number; over: boolean; lines: { sold: number; pct?: number }[] }
+export type Ratio = { total: number; sold: number; pct: number; line: number; over: boolean; lines: { sold: number; pct?: number }[]; /** the estimate alone, and the approved change orders on top of it */ estimate: number; changes: number }
 /** the PO's share of the estimate, overall and line by line. A line is worth what the estimate gets for the walls and
  *  floors it pays for — the estimate spread over the surfaces, the same way progress billing spreads it. */
 export function poRatio(s: Store, p: Pick<IPO, 'jobId' | 'lines' | 'changes'>): Ratio {
   const rev = soldRev(s, p.jobId)
-  const sold = revTotal(rev) || s.jobs[p.jobId]?.contract || 0
+  const estimate = revTotal(rev) || s.jobs[p.jobId]?.contract || 0
+  /* what we sell the work for is the contract: the estimate and the change orders the client said yes to (his PO
+   *  grows with the same changes) */
+  const changes = (s.money || []).filter((m) => m.jobId === p.jobId && m.kind === 'change' && m.step >= 0).reduce((n, m) => n + (m.amount || m.meta?.estimate || 0), 0)
+  const sold = estimate ? estimate + changes : 0
   const total = ipoTotal(p as IPO)
   const line = s.rules?.laborPct || LABOR_LINE
   const pct = sold ? Math.round((total / sold) * 100) : 0
@@ -32,5 +36,5 @@ export function poRatio(s: Store, p: Pick<IPO, 'jobId' | 'lines' | 'changes'>): 
     const est = l.itemId ? flat.filter((f) => itemOf(f.x) === l.itemId).reduce((n, f) => n + (worth.byKey[worthKey(f.room, f.x.name)] || 0), 0) : 0
     return { sold: Math.round(est), pct: est ? Math.round((l.amount / est) * 100) : undefined }
   })
-  return { total, sold, pct, line, over: !!sold && pct > line, lines }
+  return { total, sold, pct, line, over: !!sold && pct > line, lines, estimate, changes }
 }

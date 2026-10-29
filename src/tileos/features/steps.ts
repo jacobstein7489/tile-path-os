@@ -31,16 +31,21 @@ export function emptySpot(s: Pick<Store, 'team'>, key?: string) {
   const m = s.team.find((y) => y.key === key)
   return !m || (!m.uid && !m.email && !m.last && (m.first || '').trim() === SPOT[key])
 }
-export function realOwner(s: Store, key: PersonKey): PersonKey {
+/** `avoid`: people already on another part of the same thing (the estimate's takeoff) — passed over when the spot has
+ *  someone else ("Estimator" with Mordcha and Malisa both estimators, Malisa doing the takeoff → Mordcha) */
+export function realOwner(s: Pick<Store, 'team' | 'rules'>, key: PersonKey, avoid: PersonKey[] = []): PersonKey {
   if (!REAL.cloud || !emptySpot(s, key)) return key
   const t = companyTeam(s)
   const person = (k?: string) => (k && !emptySpot(s, k) && s.team.some((m) => m.key === k && m.status !== 'off') ? (k as PersonKey) : undefined)
-  const holder = (r: string) => s.team.find((m) => m.role === r && m.status !== 'off' && !emptySpot(s, m.key))?.key as PersonKey | undefined
+  const holder = (r: string) => {
+    const all = s.team.filter((m) => m.role === r && m.status !== 'off' && !emptySpot(s, m.key)).map((m) => m.key as PersonKey)
+    return all.find((k) => !avoid.includes(k)) || all[0]
+  }
   const order: Record<string, (PersonKey | undefined)[]> = {
-    takeoff: [person(t.takeoff), holder('takeoff')],
+    takeoff: [person(t.takeoff), holder('takeoff'), holder('estimator')],
     estimator: [person(t.review), holder('estimator')],
     office: [holder('office'), person(t.follow)],
-    materials: [person(matBy(s)), holder('site')],
+    materials: [person(matBy(s as Store)), holder('site')],
     accounting: [holder('accounting')],
   }
   return (order[key] || []).find(Boolean) || holder('owner') || key
@@ -751,7 +756,8 @@ export const CHANGE_KINDS = ['LED channel or track', 'A pattern — herringbone,
 /** whoever reviews the estimate for this project (the office estimator) */
 export function estimatorFor(s: Store, jobId: string): PersonKey {
   const est = s.estimates.find((e) => e.jobId === jobId)
-  return est ? teamOf(est).review : ({ ...EST_TEAM0, ...(s.rules.estTeam || {}) }).review
+  /* a real person — the "Estimator" spot nobody took goes to whoever reviews estimates */
+  return realOwner(s, est ? teamOf(est).review : ({ ...EST_TEAM0, ...(s.rules.estTeam || {}) }).review, est ? [realOwner(s, teamOf(est).takeoff)] : [])
 }
 /** what changed from the estimate at the meeting or on the site walk — it goes to the estimator to update the estimate */
 export function logChanges(jobId: string, items: { what: string; where?: string; note?: string }[]) {
