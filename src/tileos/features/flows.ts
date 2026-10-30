@@ -646,6 +646,7 @@ export function receiveTile(jobId: string, tag: string, qty: number) {
         p.late = false
         p.note = 'Delivered'
         closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + p.id && t.state !== 'done').map((t) => t.id), 'Delivered')
+        if (p.shortId) shortCame(s, p.shortId)
       } else p.note = `Part came · still to come: ${p.lines.filter((l) => (l.got || 0) < (l.n ?? 0)).map((l) => `${l.tag} ${(l.n ?? 0) - (l.got || 0)} ${l.unit || ''}`.trim()).join(', ')}`
     })
     c.received = Math.min(c.ordered, c.received + qty)
@@ -1021,6 +1022,7 @@ export function receivePO(id: string) {
     p.note = 'Delivered'
     p.log.push(L(me(), 'Delivered to site · all lines'))
     if (p.kind === 'tile') tileStepIn(s, p.jobId)
+    if (p.shortId) shortCame(s, p.shortId)
     s.mats.forEach((m) => {
       if (m.po === id) m.status = 'delivered'
     })
@@ -1053,26 +1055,29 @@ export const billsUs = (p?: PO) => !!p && (p.kind !== 'tile' || p.paidBy === 'us
  * order number goes on it), the PO is our call for the delivery. What comes is checked in against it — all of it, or
  * part (how much of each tile), and whatever didn't come stays open on the same PO until it does. */
 export type TilePOLine = { tag: string; name: string; n: number; unit: string; price?: number }
-export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string }) {
+export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string; /** more of the same tile, on top of what was ordered */ more?: boolean; /** the shortage it reorders */ shortId?: string }) {
   const id = nextPO()
   const us = o.paidBy === 'us'
   const amount = us ? Math.round(o.lines.reduce((n, l) => n + (l.price || 0) * l.n, 0) * 100) / 100 : 0
   const tags = o.lines.map((l) => l.tag)
   const ref = o.storeRef?.trim()
+  /* a reported shortage of one of these tiles, not reordered yet, is reordered on this PO */
+  const short = o.shortId ? S().shortages.find((x) => x.id === o.shortId) : o.more ? S().shortages.find((x) => x.jobId === jobId && x.step === 'short' && tags.includes(x.tag)) : undefined
   S().commit((s) => {
     const rooms = s.rooms[jobId] || []
     s.pos.unshift({
-      id, jobId, kind: 'tile', paidBy: o.paidBy, ...(ref ? { storeRef: ref } : {}), ...(o.memo?.trim() ? { memo: o.memo.trim() } : {}),
-      supplier: o.supplier, what: `Tile · ${tags.join(', ')}`, amount, step: 1, date: NOW, eta: 'Asked for ' + o.neededBy,
+      id, jobId, kind: 'tile', paidBy: o.paidBy, ...(ref ? { storeRef: ref } : {}), ...(o.memo?.trim() ? { memo: o.memo.trim() } : {}), ...(o.more ? { more: true } : {}), ...(short ? { shortId: short.id } : {}),
+      supplier: o.supplier, what: `${o.more ? 'More tile' : 'Tile'} · ${tags.join(', ')}`, amount, step: 1, date: NOW, eta: 'Asked for ' + o.neededBy,
       note: `Sent today · waiting for ${o.supplier} to confirm`,
       lines: o.lines.map((l) => ({ item: `${l.tag} ${l.name}`.trim(), qty: `${l.n.toLocaleString('en-US')} ${l.unit}`, n: l.n, unit: l.unit, tag: l.tag, got: 0, ...(us && l.price != null ? { price: l.price } : {}) })),
-      log: [L(me(), `Sent to ${o.supplier}${ref ? ` · their order ${ref}` : ''}${us ? '' : ' · the client’s tile — our call for the delivery'}`)],
+      log: [L(me(), `Sent to ${o.supplier}${o.more ? ' · more tile — the project came up short' : ''}${ref ? ` · their order ${ref}` : ''}${us ? '' : ' · the client’s tile — our call for the delivery'}`)],
     })
     /* each tile on the project knows it's on this PO: how much, from which store, when */
     o.lines.forEach((l) => {
       const c = s.checks.find((x) => x.jobId === jobId && x.tag === l.tag)
       if (c) {
-        if (us) c.ordered += l.n
+        /* more tile is on top of what was ordered; the client's first order is the same tile, called for delivery */
+        if (us || o.more) c.ordered += l.n
         else c.ordered = Math.max(c.ordered, c.received + l.n)
         c.supplier = o.supplier
         c.eta = o.neededBy
@@ -1082,13 +1087,56 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
         s.checks.push({ jobId, tag: l.tag, where, unit: l.unit, measured: l.n, wastePct: 0, ordered: l.n, received: 0, supplier: o.supplier, suppliedBy: us ? 'Us' : o.paidBy, eta: o.neededBy, note: id })
       }
     })
+    /* the shortage it reorders: reordered, on this PO */
+    if (short) shortReordered(s, short.id, { by: us ? 'Us' : o.paidBy === 'Owner' ? 'Client' : 'GC', from: o.supplier, eta: o.neededBy, po: id })
     /* whoever sent it gets the store's yes: it waits on their list and is back on their Today tomorrow */
     newTask(s, { jobId, title: `${id} · get ${o.supplier}’s confirmation`, type: 'Materials', owner: me(), for: [s.role], state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[jobId]?.name || ''} · tile ${tags.join(', ')}`, action: { label: 'Mark confirmed', kind: 'po:' + id } })
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · tile ${tags.join(', ')}`, detail: o.lines.map((l) => `${l.tag} ${l.n} ${l.unit}`).join(', ') + (ref ? ` · their order ${ref}` : ''), ref: { t: 'po', id } })
-  }, `${id} sent to ${o.supplier}`, { sub: `Tile ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
+  }, `${id} sent to ${o.supplier}`, { sub: `${o.more ? 'More tile' : 'Tile'} ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
   S().close()
   if (mailLive()) void emailPO(id)
   return id
+}
+/** a shortage reordered on a tile PO: where it is, its task waits on the store, the hold says when */
+function shortReordered(s: Store, shId: string, o: { by: 'GC' | 'Client' | 'Us'; from: string; eta: string; po: string }) {
+  const x = s.shortages.find((y) => y.id === shId)
+  if (!x || x.step !== 'short') return
+  x.step = 'reordered'
+  x.orderedBy = o.by
+  x.orderedFrom = o.from
+  x.orderedOn = NOW
+  x.eta = o.eta
+  x.po = o.po
+  x.log.push(L(me(), `Reordered on ${o.po} · ${x.qty} ${x.unit} from ${o.from} · needed ${o.eta}`))
+  s.tasks.filter((t) => t.action?.kind === 'short:' + shId && t.state === 'now').forEach((t) => {
+    t.state = 'waiting'
+    t.waitingOn = o.from
+    t.followUp = o.eta
+    t.title = `${x.tag} reordered on ${o.po} · needed ${o.eta}`
+    t.action = { label: 'It came in', kind: 'short:' + shId }
+    t.log.push(L(me(), `Reordered on ${o.po}`))
+  })
+  const j = s.jobs[x.jobId]
+  if (j?.hold?.shortage === shId) j.hold.reason = `Waiting for ${x.qty} ${x.unit} of ${x.tag} · ${o.po}`
+}
+/** the tile a shortage waited for is all here (it came on its PO): the walls and floors open up, off hold, the crew is
+ *  told — the tile itself was counted in already, on its tile */
+function shortCame(s: Store, shId: string) {
+  const x = s.shortages.find((y) => y.id === shId)
+  if (!x || x.step === 'received') return
+  x.step = 'received'
+  x.receivedOn = NOW
+  x.log.push(L(me(), `All here${x.po ? ` · ${x.po}` : ''}`))
+  x.surfaces.forEach((f) => {
+    const y = s.rooms[x.jobId]?.find((r) => r.name === f.room)?.surfaces.find((z) => z.name === f.surface)
+    if (y && y.state === 'waitmat') { y.state = 'ready'; y.reason = undefined }
+  })
+  const j = s.jobs[x.jobId]
+  if (j?.hold?.shortage === shId) j.hold = undefined
+  closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'short:' + shId && t.state !== 'done').map((t) => t.id), `${x.tag} came in`)
+  setIssues(s, x.jobId, (iss) => iss.filter((i) => !i.text.includes(x.tag)))
+  const crew = (j?.crew || s.bookings.find((b) => b.jobId === x.jobId)?.crew || 'yakov') as PersonKey
+  if (x.surfaces.length) newTask(s, { jobId: x.jobId, title: `${x.tag} is on site — back to ${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')}`, type: 'Field', owner: crew, for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: x.surfaces.map((f) => `${f.room} · ${f.surface}`).join(' · ') })
 }
 /** tile came in on a tile: counted on its record, and its problem cleared once it's all here */
 function tileIn(s: Store, jobId: string, tag: string, qty: number) {

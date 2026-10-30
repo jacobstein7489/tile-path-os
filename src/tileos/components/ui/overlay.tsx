@@ -39,7 +39,7 @@ export function Modal({
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 animate-overlay-in backdrop-blur-[0.125rem]" style={{ zIndex: z, background: level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} />
-        <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }}>
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
           <Dialog.Content
             aria-describedby={undefined}
             /* the pop-up in the middle (Done! · Undo · OK) isn't outside the window — tapping it keeps the window open */

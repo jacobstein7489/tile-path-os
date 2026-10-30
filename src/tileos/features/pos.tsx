@@ -150,7 +150,7 @@ export function POsPage() {
                     <span className="shrink-0 text-[0.8125rem] tnum text-muted">{r.po.id}</span>
                     <span className="truncate text-[0.875rem] font-medium text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
                   </div>
-                  <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `Tile${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
+                  <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `${r.po.more ? 'More tile' : 'Tile'}${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
                 </Td>
                 <Td className="max-md:hidden">
                   {r.kind === 'installer' ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><Avatar who={r.po.crew} size={20} />{PEOPLE[r.po.crew].name}</span> : <span className="text-[0.84375rem]">{r.po.supplier}</span>}
@@ -221,7 +221,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
     <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:px-4">
       <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-2">
         <div className="min-w-0">
-          <div className="text-[0.8125rem] text-muted">Purchase order · {tile ? (bills ? 'tile we buy' : 'the client’s tile — delivery') : 'materials'}</div>
+          <div className="text-[0.8125rem] text-muted">Purchase order · {tile ? (p.more ? (bills ? 'more tile — we buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile — delivery') : 'materials'}</div>
           <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id} · {p.supplier}</h2>
           <div className="mt-1 text-[0.875rem] text-muted">
             <button onClick={() => s.open({ t: 'job', id: p.jobId, tab: 'materials' })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {p.what}{p.storeRef ? <> · their order <b className="font-semibold text-ink-2">{p.storeRef}</b></> : null}

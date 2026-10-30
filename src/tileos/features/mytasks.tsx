@@ -660,6 +660,7 @@ export function MyTasksPage() {
   return (
     <Page
       title={`${greeting()}, ${PEOPLE[me].short}`}
+      phoneTitle
       sub={TODAY_LABEL}
       top={<>
         <Bubbles

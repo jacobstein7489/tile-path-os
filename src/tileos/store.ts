@@ -5,7 +5,7 @@ import { EVENTS0, type CalEvent } from '@/tileos/data/calendar'
 import { MAT_RULES0, type MatRules } from '@/tileos/data/takeoff'
 import { immer } from 'zustand/middleware/immer'
 import { showPop, type FlowStep } from '@/tileos/lib/pop'
-import type { Job, Role, Stage, PersonKey, Customer } from '@/tileos/data/model'
+import type { Job, Role, Stage, PersonKey, Customer, SalesPerson } from '@/tileos/data/model'
 import { roleDef, PEOPLE, fmtMoney, TEAM0, ROLES, ACCESS, applyTeam, moveLogins, type Member } from '@/tileos/data/model'
 import { JOBS0, PRICING0, ROOMS, LOST0, CUSTOMERS, CUSTOMERS0, TILES, JOB_TILES, GROUTS, historyFor, roomPct, jobPct, hasSF, type Pricing, type Room, type HistEntry, type Tile, type Grout, type FileRec } from '@/tileos/data/jobs'
 import { DIARY0, IPOS0, type DiaryEntry, type IPO } from '@/tileos/data/field'
@@ -25,11 +25,13 @@ import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
 import type { AreaPreset, SurfaceDef } from '@/tileos/data/areas'
 
-export type Page = 'today' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay' | 'team'
+export type Page = 'today' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay' | 'team' | 'commissions'
 export interface Route { page: Page; id?: string; tab?: string; q?: Record<string, string> }
 export type Modal = { t: string; [k: string]: any }
 
 export interface Rules {
+  /** commissions: the company's rate (%) on what's invoiced (4 unless it's changed), and its salespeople */
+  commission?: { rate?: number; people?: SalesPerson[] }
   depositRule: 'warn' | 'block'
   depositPct: number
   retainage: number
@@ -181,7 +183,7 @@ export function homeOf(r: Role): Route {
 function parseHash(): Route {
   const h = (typeof location !== 'undefined' ? location.hash : '').replace(/^#\/?/, '')
   const [page, id, tab] = h.split('/')
-  const pages: Page[] = ['today', 'upcoming', 'tasks', 'projects', 'clients', 'schedule', 'money', 'flow', 'settings', 'job', 'crew', 'estimates', 'pos', 'items', 'designers', 'subs', 'suppliers', 'directory', 'pay', 'team']
+  const pages: Page[] = ['today', 'upcoming', 'tasks', 'projects', 'clients', 'schedule', 'money', 'flow', 'settings', 'job', 'crew', 'estimates', 'pos', 'items', 'designers', 'subs', 'suppliers', 'directory', 'pay', 'team', 'commissions']
   if (pages.includes(page as Page)) return { page: page as Page, id, tab }
   return { page: 'today' }
 }

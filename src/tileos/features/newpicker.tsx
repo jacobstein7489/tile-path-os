@@ -2,7 +2,7 @@
 import * as React from 'react'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
-  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert,
+  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus,
 } from 'lucide-react'
 import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -49,13 +49,16 @@ export function ColorTile({ label, hint, icon: I, color, onClick, selected }: { 
 /** who each option is for — a login sees only what fits its job (the site manager doesn't make POs or take payments;
  *  the books don't log site issues or decisions) */
 const FOR: Record<string, Role[]> = {
-  task: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'site', 'materials', 'accounting'],
-  meeting: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'site', 'materials'],
+  /* the site manager's + New stays short: the daily update, a problem, what's needed on site, more tile, touch-ups,
+     a delivery, a note — no tasks, meetings, POs, change orders or new projects */
+  task: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials', 'accounting'],
+  meeting: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials'],
   po: ['owner', 'pm', 'office', 'estimator', 'materials'],
+  moretile: ['owner', 'pm', 'office', 'estimator', 'materials', 'site'],
   punch: ['owner', 'pm', 'office', 'site'],
   daily: ['owner', 'pm', 'office', 'site'],
   question: ['owner', 'pm', 'office', 'site', 'estimator'],
-  change: ['owner', 'pm', 'office', 'site', 'estimator'],
+  change: ['owner', 'pm', 'office', 'estimator'],
   shortage: ['owner', 'pm', 'office', 'site', 'materials'],
   delivery: ['site', 'materials'],
   decision: ['owner', 'pm', 'office', 'site', 'estimator', 'takeoff'],
@@ -85,6 +88,7 @@ const STAGE_RANK: Partial<Record<Stage, number>> = { installation: 0, scheduled:
 type Group = 'site' | 'office'
 const ADD: (Pick & { c: TileColor; g: Group })[] = [
   { k: 'need', l: 'Need something on site', h: 'Material or a tool — brought to the job, on someone’s list until it’s dropped off', i: Truck, c: 'orange', g: 'site', m: (j) => ({ t: 'need', jobId: j }) },
+  { k: 'moretile', l: 'Order more tile', h: 'Short on tile — a tile PO to the store for the extra, with a number to follow', i: PackagePlus, c: 'cyan', g: 'site', m: (j) => ({ t: 'moretile', jobId: j }) },
   { k: 'problem', l: 'Problem', h: 'Tile broken, wrong or missing · site not ready · anything that holds the job up', i: TriangleAlert, c: 'red', g: 'site', job: true, m: (j) => ({ t: 'problem', jobId: j! }) },
   { k: 'punch', l: 'Touch-ups', h: 'A list for the crew, with photos', i: Sparkles, c: 'violet', g: 'site', m: (j) => ({ t: 'punchnew', jobId: j }) },
   { k: 'daily', l: 'Daily update', h: 'What the crew tiled today', i: ClipboardList, c: 'blue', g: 'site', m: (j) => ({ t: 'record', type: 'daily', jobId: j }) },
@@ -108,8 +112,8 @@ const TOP: Partial<Record<Role, string[]>> = {
   owner: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   pm: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   office: ['need', 'problem', 'task', 'note', 'meeting', 'po'],
-  site: ['daily', 'need', 'problem', 'punch', 'delivery', 'task'],
-  materials: ['need', 'delivery', 'problem', 'po', 'task'],
+  site: ['daily', 'problem', 'need', 'moretile', 'punch', 'delivery', 'note'],
+  materials: ['need', 'moretile', 'delivery', 'problem', 'po', 'task'],
   accounting: ['payment', 'task', 'note'],
   estimator: ['task', 'note', 'meeting', 'change'],
   takeoff: ['task', 'note', 'meeting'],

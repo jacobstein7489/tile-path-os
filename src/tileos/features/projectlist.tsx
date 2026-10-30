@@ -11,7 +11,8 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
-import { stepsFor, companySteps } from './steps'
+import { stepsFor, companySteps, IN_FIELD_STAGES } from './steps'
+import { pictureOf } from './progressbill'
 import { tracksFor, bookingOf, problemsOf, readyPctOf, gateOpen, leadWords, stepShort, TRACKS, type TrackView } from './tracks'
 import { installerOf } from './upcoming'
 import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
@@ -105,7 +106,7 @@ export function ProjectsPage() {
       }
     >
       <div style={WIDE}>
-        {!!list.length && <ListHead />}
+        {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
               const rows = list.filter((j) => typeOf(j) === t.key)
@@ -143,17 +144,50 @@ const WIDE = evenVars([9.5, 8, 17.5, 14.5, 4], { fixedLast: true })
  *  (the widest name, Materials, fits), the same on top and in every row */
 const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
 
-function ListHead() {
+function ListHead({ parts }: { /** a project getting ready is on the list: the five names over its circles */ parts: boolean }) {
   return (
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
       <span>Project</span>
       <span className="max-xl:hidden">Client</span>
-      <span className="flex min-w-0 items-center" data-part-names title="Where it stands — the five parts of getting ready">
-        {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem]')}>{t.label}</span>)}
-      </span>
+      {parts ? (
+        <span className="flex min-w-0 items-center" data-part-names title="Getting ready — its five parts. A project that started shows how far it is instead.">
+          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem]')}>{t.label}</span>)}
+        </span>
+      ) : <span data-part-names>How far</span>}
       <span>Now</span>
       <span className="text-right">Start</span>
     </div>
+  )
+}
+
+/** a project that's started — or a repair — shows how far it is, not the five parts of getting ready (they're done) */
+export const pastReady = (j: Job) => j.kind === 'repair' || IN_FIELD_STAGES.includes(j.stage)
+/** how far a project that started is, in one bar: installing — how much is in; touch-ups — how many are checked;
+ *  closing and finished — how much of it is paid */
+export function howFar(s: Store, j: Job): { pct: number; text: string; tone?: 'ok' | 'warn' } {
+  if (j.stage === 'installation') { const p = j.pct ?? 0; return { pct: p, text: `${p}% installed` } }
+  if (j.stage === 'punch' || (j.kind === 'repair' && !['closeout', 'complete'].includes(j.stage))) {
+    const all = s.punch.filter((p) => p.jobId === j.id)
+    if (!all.length) return { pct: 0, text: j.kind === 'repair' ? 'Repair' : 'No touch-ups yet' }
+    /* fixed and checked fills the bar; what's fixed and waits for its check is said apart from what's still to fix */
+    const checked = all.filter((p) => p.status === 'verified').length
+    const toCheck = all.filter((p) => p.status === 'verify').length
+    const toFix = all.length - checked - toCheck
+    const text = toFix ? `${toFix} to fix${toCheck ? ` · ${toCheck} to check` : ''}` : toCheck ? `${toCheck} to check` : 'All checked'
+    return { pct: Math.round((checked / all.length) * 100), text, tone: toFix || toCheck ? undefined : 'ok' }
+  }
+  const pic = pictureOf(s, j.id)
+  return pic.paidPct >= 100 ? { pct: 100, text: 'Paid in full', tone: 'ok' } : { pct: pic.paidPct, text: `${pic.billedPct}% billed · ${pic.paidPct}% paid` }
+}
+function FarBar({ s, j }: { s: Store; j: Job }) {
+  const f = howFar(s, j)
+  return (
+    <span className="flex min-w-0 items-center gap-3" data-progress={f.pct} aria-label={f.text}>
+      <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#e5e0d7]">
+        <span className="line-grow absolute inset-y-0 left-0 rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(0, Math.min(100, f.pct))}%` }} />
+      </span>
+      <span className={cn('w-[7.5rem] shrink-0 truncate text-[0.78125rem] tnum', f.tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{f.text}</span>
+    </span>
   )
 }
 
@@ -169,16 +203,20 @@ function PartDot({ t }: { t?: TrackView }) {
 }
 const partWords = (x: TrackView) => `${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`
 
-/** where it stands: the five parts on one tracking line — the same for every project */
+/** where it stands: the five parts of getting ready — or, once it's started, how far it is */
 function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */ words?: boolean }) {
   const s = useStore()
+  if (pastReady(j)) {
+    if (words) { const f = howFar(s, j); return <span className={cn('truncate text-[0.8125rem] tnum', f.tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-progress={f.pct}>{f.text}</span> }
+    return <FarBar s={s} j={j} />
+  }
   const tracks = tracksFor(s, j).filter((x) => x.key !== 'other')
   const pct = readyPctOf(tracks)
   const done = tracks.filter((x) => x.state === 'done').length
   const all = !!tracks.length && done === tracks.length
   if (words) {
     const t = typeOf(j)
-    const w = t === 'progress' ? `${j.pct ?? 0}% in` : all ? (t === 'coming' ? 'Ready' : '') : `${done} of ${tracks.length} ready`
+    const w = all ? (t === 'coming' ? 'Ready' : '') : `${done} of ${tracks.length} ready`
     return w ? <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{w}</span> : null
   }
   /* the five go on at the same time, not one after another — so no line through them, just the five circles */
@@ -217,15 +255,20 @@ export function nowOf(s: Store, j: Job): NowWords {
   const crew = (b?.crew || j.crew || installerOf(s, j)) as PersonKey | undefined
   const name = (p?: PersonKey) => (!p ? undefined : p === me ? 'You' : PEOPLE[p]?.short || undefined)
   const day = (iso: string) => (iso === TODAY ? 'today' : iso < TODAY ? `was due ${md(iso)}` : labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : `by ${labelFromIso(iso)}`)
+  /* on hold: why */
   if (t === 'hold') return { text: j.hold?.shortage ? 'On hold — waiting for the tile' : j.hold?.reason ? `On hold — ${j.hold.reason.replace(/^./, (c) => c.toLowerCase())}` : 'On hold', tone: 'wait' }
-  if (t === 'progress') return { text: `Installing · ${j.pct ?? 0}% done`, who: name(crew) }
+  /* installing: who's on it and the day it's to be done (how far it is, is in the bar) */
+  const end = b?.end ? (b.end < TODAY ? `was to end ${md(b.end)}` : `ends ${md(b.end)}`) : j.dates?.finish ? `ends ${j.dates.finish}` : undefined
+  if (t === 'progress') return crew ? { text: `${name(crew)} on site`, when: end, late: !!b?.end && b.end < TODAY } : { text: 'Installing — no installer on it', tone: 'wait' }
+  /* touch-ups and repairs: who has them, and his day back if it's booked */
   if (t === 'touchups' || t === 'repairs') {
-    const all = s.punch.filter((p) => p.jobId === j.id)
-    const open = all.filter((p) => p.status !== 'verified').length
-    if (t === 'repairs' && !all.length) return { text: 'Repair', who: name(crew) }
-    return { text: open ? `Touch-ups · ${open} to fix` : 'Touch-ups · all checked', who: name(crew) }
+    const back = s.bookings.find((x) => x.jobId === j.id && x.label === 'Return visit' && x.end >= TODAY)
+    const open = s.punch.filter((p) => p.jobId === j.id && p.status !== 'verified').length
+    if (!crew) return { text: open ? 'Pick who fixes them' : t === 'repairs' ? 'Pick a crew' : 'Check them off', tone: 'mine' }
+    return { text: `${name(crew)} has ${open ? 'them' : 'it'}`, when: back ? `back ${md(back.start)}` : undefined }
   }
-  if (t === 'done') { const bl = billingOf(j); return { text: bl.billedPct >= 100 ? 'Finished · billed' : `Finished · ${bl.billedPct || 0}% billed`, tone: 'quiet' } }
+  /* finished: the money */
+  if (t === 'done') { const bl = billingOf(j); return { text: bl.paidPct >= 100 ? 'Paid and closed' : bl.billedPct >= 100 ? 'Billed — waiting to be paid' : 'Bill the rest', tone: bl.paidPct >= 100 ? 'quiet' : bl.billedPct >= 100 ? 'wait' : 'mine' } }
   /* getting ready: the step that's up — yours first, then the first one someone has to do (in the job's order), then
      what it waits on */
   const tracks = tracksFor(s, j)
@@ -244,13 +287,14 @@ export function nowOf(s: Store, j: Job): NowWords {
   return { text: mine ? `${step} · your turn` : step, who: mine ? undefined : name(v.owner), when: v.due ? day(v.due) : undefined, late: !!v.due && v.due < TODAY, tone: mine ? 'mine' : undefined }
 }
 
-/** the problems on a project, counted — the list on hover, all of them on the project */
-function Problems({ list, small }: { list: { text: string }[]; small?: boolean }) {
+/** the problems on a project: a small red number at the end of the line — point at it for the list, open the project
+ *  for all of them. Small on purpose: the red ! on a part already says where. */
+function Problems({ list }: { list: { text: string }[]; small?: boolean }) {
   if (!list.length) return null
   const words = `${list.length} ${list.length === 1 ? 'problem' : 'problems'}`
   return (
-    <span data-problems={list.length} title={`${words}:\n${list.map((p) => `• ${p.text}`).join('\n')}`} aria-label={`${words}: ${list.map((p) => p.text).join('; ')}`} className={cn('inline-flex shrink-0 items-center gap-1 rounded-full bg-bad-50 font-semibold tnum text-bad-700', small ? 'h-5 px-1.5 text-[0.71875rem]' : 'h-[1.375rem] pl-1.5 pr-2 text-[0.75rem]')}>
-      <TriangleAlert className="h-3 w-3" />{words}
+    <span data-problems={list.length} title={`${words}:\n${list.map((p) => `• ${p.text}`).join('\n')}`} aria-label={`${words}: ${list.map((p) => p.text).join('; ')}`} className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-bad-50 px-1 text-[0.6875rem] font-bold leading-none tnum text-bad-600 ring-1 ring-bad-200">
+      {list.length}
     </span>
   )
 }

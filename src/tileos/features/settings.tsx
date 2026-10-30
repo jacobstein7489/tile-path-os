@@ -287,7 +287,8 @@ function MemberRow({ k }: { k: PersonKey }) {
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>
             {!admin && !m.uid && <MenuItem icon={<Send className="h-4 w-4" />} onSelect={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invite again' : 'Invite them'}</MenuItem>}
             <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={edit}>Change the details</MenuItem>
-            {!admin && <MenuItem danger onSelect={() => removeMember(k)} hint="Their login stops working">Remove from the team</MenuItem>}
+            {/* never yourself — your own login would stop working */}
+            {!admin && k !== REAL.me && <MenuItem danger onSelect={() => removeMember(k)} hint="Their login stops working">Remove from the team</MenuItem>}
           </Menu>
         </>
       )}

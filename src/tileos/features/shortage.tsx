@@ -127,6 +127,8 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
   const [from, setFrom] = React.useState('Best Tile')
   const [eta, setEta] = React.useState('Fri')
   const [qty, setQty] = React.useState('')
+  /* reordered some other way (the GC called the store): the quick way, without a PO */
+  const [other, setOther] = React.useState(false)
   if (!sh) return null
   const job = s.jobs[sh.jobId]
   const tile = tileOf(sh.jobId, sh.tag)
@@ -137,12 +139,24 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
     coming: sh.eta ? `Arrives ${sh.eta}` : 'Date to come',
     received: sh.receivedOn ? `Received ${sh.receivedOn}` : PEOPLE[(job?.crew as PersonKey) || 'yakov']?.short || '',
   }
+  /* reorder it on a tile PO: the store gets it by email with a number to follow, and this closes when it's all here */
+  const orderMore = () => s.swap({ t: 'moretile', jobId: sh.jobId, tags: [sh.tag], qty: { [sh.tag]: sh.qty }, shortId: sh.id })
   const footer =
-    sh.step === 'short' ? (
+    sh.step === 'short' && !other ? (
+      <>
+        <button type="button" onClick={() => setOther(true)} className="text-[0.8125rem] font-semibold text-muted hover:text-ink" data-ordered-other>Ordered another way?</button>
+        <Button className="ml-auto" variant="primary" icon={<Truck />} onClick={orderMore} data-short-order>Order more tile</Button>
+      </>
+    ) : sh.step === 'short' ? (
       <>
         <span className="text-[0.84375rem] text-muted">Arrives</span>
         <DatePresets value={eta} onPick={setEta} presets={['Tomorrow', 'Thu', 'Fri', 'Next Mon']} />
         <Button className="ml-auto" variant="primary" icon={<Check />} onClick={() => reorderShortage(sh.id, { by, from, eta: eta })}>Reordered</Button>
+      </>
+    ) : sh.step === 'reordered' && sh.po && s.pos.some((p) => p.id === sh.po) ? (
+      <>
+        <span className="text-[0.84375rem] text-muted">On {sh.po} — check it in there when it comes.</span>
+        <Button className="ml-auto" variant="primary" icon={<PackageCheck />} onClick={() => s.swap({ t: 'po', id: sh.po! })}>Open {sh.po}</Button>
       </>
     ) : sh.step === 'reordered' ? (
       <>
@@ -171,7 +185,12 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
           </React.Fragment>
         ))}
       </ol>
-      {sh.step === 'short' && (
+      {sh.step === 'short' && !other && (
+        <div className="mt-6 rounded-2xl border border-line bg-wash px-4 py-3 text-[0.875rem] text-ink-2">
+          <b className="font-semibold text-ink">Order more tile</b> sends the store a tile PO for the {sh.qty} {sh.unit} — with a number to follow, same as any PO. When it’s all here, this closes and the crew gets the walls and floors back.
+        </div>
+      )}
+      {sh.step === 'short' && other && (
         <div className="mt-6 rounded-2xl border border-line p-4">
           <div className="text-[0.8125rem] font-semibold text-muted">Who orders it</div>
           <div className="mt-2 flex flex-wrap gap-2">

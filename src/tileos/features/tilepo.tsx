@@ -15,6 +15,7 @@ import { fmtMoney } from '@/tileos/data/model'
 import { tilesOf, tileOf } from '@/tileos/data/jobs'
 import type { PO } from '@/tileos/data/work'
 import { createTilePO, receivePOPart } from './flows'
+import { paperQty } from './steps'
 import { mailLive } from './mailout'
 import { FormHead, FormRow, ProjectField, DAY_OPTIONS, byDay } from './formkit'
 
@@ -35,7 +36,18 @@ function toCome(s: Store, jobId: string, tag: string): { n: number; unit: string
   return { n: Math.ceil(sf * 1.1), unit: 'SF' }
 }
 
-export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: string[]; level: number }) {
+/** how much more of a tile the project needs: a shortage reported on it, else what the paperwork came up short */
+function shortOf(s: Store, jobId: string, tag: string): { n: number; unit?: string } {
+  const sh = s.shortages.find((x) => x.jobId === jobId && x.tag === tag && x.step === 'short')
+  if (sh) return { n: sh.qty, unit: sh.unit }
+  const t = tileOf(jobId, tag)
+  const q = t ? paperQty(s, jobId, t) : undefined
+  return q && q.short > 0 ? { n: q.short, unit: q.unit } : { n: 0 }
+}
+
+/** a tile PO — or, "Order more tile" (more): more of the same tile when the project came up short, on top of what was
+ *  ordered. It goes to the store with its number, like any tile PO; a shortage reported on the tile is reordered on it */
+export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { jobId?: string; tags?: string[]; qty?: Record<string, number>; more?: boolean; shortId?: string; level: number }) {
   const s = useStore()
   const [job, setJob] = React.useState(jobId || '')
   const j = s.jobs[job]
@@ -45,9 +57,16 @@ export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: 
     all.map((tag) => {
       const t = tileOf(job, tag)
       const c = s.checks.find((x) => x.jobId === job && x.tag === tag)
+      const name = [t?.name, t?.size].filter(Boolean).join(' · ')
+      /* more tile: only what's short is filled in — the rest is 0 until you type how much */
+      if (more) {
+        const sh = qty?.[tag] != null ? { n: qty[tag] } : shortOf(s, job, tag)
+        const unit = ('unit' in sh && sh.unit) || c?.unit || t?.paper?.unit || 'SF'
+        return { tag, name, on: (tags ? tags.includes(tag) : true) && sh.n > 0, n: sh.n, unit, price: 0 }
+      }
       const left = toCome(s, job, tag)
       const on = tags ? tags.includes(tag) : !c || c.received < c.ordered
-      return { tag, name: [t?.name, t?.size].filter(Boolean).join(' · '), on: on && left.n > 0, n: left.n, unit: left.unit, price: 0 }
+      return { tag, name, on: on && left.n > 0, n: left.n, unit: left.unit, price: 0 }
     })
   const [lines, setLines] = React.useState<Draft[]>(draft)
   React.useEffect(() => { setLines(draft()) }, [job])
@@ -55,8 +74,9 @@ export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: 
   const [pays, setPays] = React.useState<'client' | 'us'>(first?.suppliedBy === 'Us' ? 'us' : 'client')
   const [store, setStore] = React.useState(first?.supplier || s.checks.find((c) => c.jobId === job)?.supplier || 'Best Tile')
   const [ref, setRef] = React.useState('')
-  const [needed, setNeeded] = React.useState('Mon')
-  const [memo, setMemo] = React.useState('')
+  const [needed, setNeeded] = React.useState(more ? 'Tomorrow' : 'Mon')
+  /* more of a tile: the same dye lot as the first order, or the shade won't match */
+  const [memo, setMemo] = React.useState(more ? 'Same dye lot as the first order, please.' : '')
   const picked = lines.filter((l) => l.on && l.n > 0)
   const total = pays === 'us' ? picked.reduce((n, l) => n + l.n * l.price, 0) : 0
   const stores = Array.from(new Set([store, ...s.suppliers.map((x) => x.name), ...s.checks.map((c) => c.supplier)].filter(Boolean)))
@@ -66,15 +86,15 @@ export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: 
   const send = () => {
     if (!job || !picked.length) return
     const paidBy = pays === 'us' ? 'us' : first?.suppliedBy === 'Owner' ? 'Owner' : 'GC'
-    createTilePO(job, { supplier: store, paidBy, storeRef: pays === 'client' ? ref : undefined, neededBy: needed, memo, lines: picked.map((l) => ({ tag: l.tag, name: l.name, n: l.n, unit: l.unit, ...(pays === 'us' ? { price: l.price } : {}) })) })
+    createTilePO(job, { supplier: store, paidBy, storeRef: pays === 'client' ? ref : undefined, neededBy: needed, memo, more, shortId, lines: picked.map((l) => ({ tag: l.tag, name: l.name, n: l.n, unit: l.unit, ...(pays === 'us' ? { price: l.price } : {}) })) })
   }
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
-      title={j ? `Tile PO · ${j.name}` : 'Tile PO'}
-      header={<FormHead k="po" kicker={j ? j.name : 'Tile'} title="Tile PO" />}
+      title={j ? `${more ? 'Order more tile' : 'Tile PO'} · ${j.name}` : more ? 'Order more tile' : 'Tile PO'}
+      header={<FormHead k={more ? 'moretile' : 'po'} kicker={j ? j.name : 'Tile'} title={more ? 'Order more tile' : 'Tile PO'} />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
@@ -90,7 +110,7 @@ export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: 
             <ProjectField value={job} onChange={setJob} keep={(x) => !['request', 'estimating', 'proposal', 'followup'].includes(x.stage)} autoFocus />
           </FormRow>
         )}
-        <FormRow label="Who pays the store" hint={pays === 'client' ? 'The client bought the tile — this PO is our call for the delivery. No prices on it.' : 'We buy the tile — it has prices, and the store’s bill comes to us.'}>
+        <FormRow label="Who pays the store" hint={pays === 'client' ? (more ? 'The client’s tile — the store adds it to their order and delivers it. No prices on it.' : 'The client bought the tile — this PO is our call for the delivery. No prices on it.') : 'We buy the tile — it has prices, and the store’s bill comes to us.'}>
           <Segmented value={pays} onChange={setPays} className="max-sm:w-full max-sm:[&>button]:flex-1" items={[{ key: 'client', label: 'The client’s tile — deliver it' }, { key: 'us', label: 'We buy it' }]} />
         </FormRow>
         <FormRow label="Store" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />Delivered to {j.address}</span> : undefined}>
@@ -104,7 +124,7 @@ export function NewTilePOModal({ jobId, tags, level }: { jobId?: string; tags?: 
             <TextInput value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. #BT-22817" aria-label="The store’s order number" className="max-w-[16rem]" data-store-ref />
           </FormRow>
         )}
-        <FormRow label="Which tile, how much" hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : 'What’s still to come is filled in.'}>
+        <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : more ? 'Only the extra — on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in.'}>
           {lines.length > 0 && (
             <div className={cn('grid items-center gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden', pays === 'us' ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]')}>
               <span /><span>Tile</span><span className="text-right">Qty</span><span>Unit</span>{pays === 'us' && <span className="text-right">Price / unit</span>}

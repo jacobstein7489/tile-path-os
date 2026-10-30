@@ -38,7 +38,7 @@ export const STEP_SHORT: Record<string, string> = {
   design: 'Design meeting', change: 'Confirm scope', tile: 'Pick tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
   getpaper: 'Get paperwork', rooms: 'Enter paperwork', qty: 'Check quantities', order: 'Get delivery date', delivered: 'Receive tile',
   heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems', sheets: 'Hang room sheets',
-  installer: 'Send installer PO', confirmed: 'Installer accepts', walk: 'Walk-through',
+  installer: 'Pick installer & send PO', confirmed: 'Installer accepts', walk: 'Walk-through',
   materials: 'Order materials', matin: 'Receive materials',
 }
 /** a step's name on the path — it says what happened when that matters (tile short, the store revising) */
@@ -51,7 +51,8 @@ export function stepShort(s: Store, job: Job, v: StepView) {
     if (short.length) return `${short[0].tag} short${short.length > 1 ? ` +${short.length - 1}` : ''}`
   }
   if (v.key === 'qty' && v.state === 'wait') return 'Waiting on store'
-  if (v.key === 'installer' && v.state !== 'done' && !installerOf(s, job)) return 'Pick installer'
+  /* the installer's PO is this step: pick him and send his PO — once he's picked, what's left is sending it */
+  if (v.key === 'installer' && v.state !== 'done') return installerOf(s, job) ? 'Send installer PO' : 'Pick installer & send PO'
   if (v.key === 'fixes' && v.state === 'now') return 'Re-check on site'
   if (v.key === 'order' && v.state === 'bad') return 'Store ordered short'
   if (v.key === 'delivered' && v.state === 'bad') return s.tasks.some((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done') ? 'Tile came wrong' : 'Tile came short'

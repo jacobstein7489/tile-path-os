@@ -24,7 +24,7 @@ export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
 const PHONE_BAR = 'no-scrollbar max-md:flex-nowrap max-md:overflow-x-auto max-md:[&>*]:shrink-0 max-md:[&>div]:ml-0 max-md:[&>div]:w-auto max-md:[&>div]:flex-nowrap max-md:[&>div>*]:shrink-0 max-md:[&_.bar-title]:hidden'
 
 export function Page({
-  title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare,
+  title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare, phoneTitle,
 }: {
   title: React.ReactNode
   sub?: React.ReactNode
@@ -42,6 +42,8 @@ export function Page({
   top?: React.ReactNode
   /** render the children as they are, without the main card */
   bare?: boolean
+  /** its name shows on a phone too (Today's "Good afternoon, …") — the bar on top only says which page it is */
+  phoneTitle?: boolean
 }) {
   /* how tall the pinned parts are — the page's head (its name and its bubbles) and the toolbar — so each pins right
      under the one above it, and the column names under both */
@@ -77,9 +79,9 @@ export function Page({
         <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
           {/* on a phone the bar on top already says which page this is — so no title here, only the line under it
               (when there is one: Today's "1 overdue" opens what's late) and the page's button */}
-          <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && 'max-sm:hidden', PAGE_PX)}>
-            <div className={cn('min-w-0', !sub && 'max-sm:hidden')}>
-              <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink max-sm:hidden">{title}</h1>
+          <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
+            <div className={cn('min-w-0', !sub && !phoneTitle && 'max-sm:hidden')}>
+              <h1 className={cn('font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink', phoneTitle ? 'max-sm:text-[1.375rem]' : 'max-sm:hidden')} data-page-title>{title}</h1>
               {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
@@ -274,16 +276,16 @@ export const ROW_H = 'min-h-[3rem]'
 /** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
  *  (or band's) line — every line in a list is the same one line. */
 export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
-/** a group inside a list (Overdue, Today, On hold, a project, a person…): a soft gray band the full width — no
- *  yellow, no colors — with the name in small capitals and how many in a little white pill, so it stands out as a
- *  heading and never reads as one more line of the list. The same line above it as every row, so the lines never
- *  change. A quiet link on the right if any. */
-export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-[#eeeeeb]'
-/** a band's name: small capitals, bold, dark — the same on every list */
-export const BAND_LABEL = 'truncate text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-ink-2'
-/** how many in a group: a little white pill after its name */
+/** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
+ *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
+ *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is
+ *  half bands). The same line above it as every row, so the lines never change. A quiet link on the right if any. */
+export const BAND = 'flex h-8 items-center gap-2 border-t border-line bg-[#f6f6f4]'
+/** a band's name: small capitals, bold, dark gray — the same on every list */
+export const BAND_LABEL = 'truncate text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-[#4c5361]'
+/** how many in a group, after its name */
 export function BandCount({ n }: { n: number }) {
-  return <span className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-white px-1.5 text-[0.6875rem] font-semibold leading-none tnum text-muted ring-1 ring-[#dddcd7]" data-band-count>{n}</span>
+  return <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-band-count>{n}</span>
 }
 export function Group({ label, count, tone, open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
@@ -598,14 +600,14 @@ const FIRST = 'pl-5 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#eeeeeb] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
+      <td className={cn('h-8 whitespace-nowrap border-b border-line-2 bg-[#f6f6f4] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2 text-left disabled:cursor-default">
           <span className={BAND_LABEL}>{label}</span>
           {count !== undefined && <BandCount n={count} />}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#eeeeeb] max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f6f6f4] max-md:hidden" />}
     </tr>
   )
 }

@@ -18,6 +18,8 @@ export interface Shortage {
   receivedOn?: string
   /** the crew can't keep working on anything else — the project is on hold */
   stops: boolean
+  /** the tile PO it was reordered on */
+  po?: string
   log: LogLine[]
 }
 export const SHORTAGES0: Shortage[] = [

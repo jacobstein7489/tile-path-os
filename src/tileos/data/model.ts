@@ -262,7 +262,13 @@ export interface Job {
   hold?: { reason: string; since: string; by: PersonKey; shortage?: string }
   /** billed and paid before Tile OS (from QuickBooks) — the progress bills pick up from there */
   before?: { billed: number; paid: number; retainage?: number; changes?: number }
+  /** who sold it: each salesperson, their rate (%) on what's invoiced, and what they've been paid */
+  sales?: SaleShare[]
 }
+/** a salesperson's part of a project: their rate on what's invoiced, and the payments to them */
+export interface SaleShare { who: string; rate: number; paid?: { amount: number; date: string; iso?: string; note?: string; by?: PersonKey }[] }
+/** someone who sells for the company (they may or may not sign in) */
+export interface SalesPerson { id: string; name: string; email?: string; phone?: string }
 
 export interface Customer {
   id: string

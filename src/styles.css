@@ -213,6 +213,18 @@ button:disabled { cursor: not-allowed; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
+/* the phone's keyboard is up (lib/viewport.ts): the bar on top stays on screen (iOS slides the page up under the
+   keyboard), a window sits right above the keyboard instead of behind it, Messages fits what's left, and the tabs at
+   the bottom step aside — the keyboard covers them anyway */
+@media (max-width: 1023.98px) {
+  html.kb-open [data-phone-top] { transform: translateY(var(--vvt, 0px)); }
+  html.kb-open [data-phone-tabs] { display: none; }
+  html.kb-open [data-inbox-frame] { height: calc(var(--vvh, 100dvh) - var(--app-top, 0px)) !important; transform: translateY(var(--vvt, 0px)); }
+}
+@media (max-width: 639.98px) {
+  html.kb-open [data-modal-frame] { top: var(--vvt, 0px); bottom: auto; height: var(--vvh, 100%); }
+  html.kb-open [data-modal-frame] > [role="dialog"] { max-height: calc(var(--vvh, 100dvh) - 0.5rem); }
+}
 /* phones: anything you type in is 16px, so iOS doesn't zoom the page when a box gets focus */
 @media (max-width: 767.98px) { input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { font-size: 16px !important; } }
 /* Page ground and type, outside the layers so they also win over the host page's own reset. */

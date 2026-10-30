@@ -14,7 +14,7 @@ import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users, Gauge, FlaskConical, Undo2 } from 'lucide-react'
+import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
@@ -51,6 +51,7 @@ export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   pos: { label: 'Purchase orders', icon: PackageCheck },
   pay: { label: 'Installer pay', icon: HandCoins },
   money: { label: 'Billing', icon: Receipt },
+  commissions: { label: 'Commissions', icon: Percent },
   items: { label: 'Items', icon: Boxes },
   directory: { label: 'Clients', icon: ContactRound },
   clients: { label: 'Clients', icon: Building },
@@ -62,12 +63,13 @@ export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
 /** what a role sees in the menu, in menu order */
 export function navKeys(nav: string[]) {
   /* the inbox comes with Today — every login that has a Today has an inbox */
-  return nav.filter((k) => k !== 'directory').flatMap((k) => (k === 'today' ? ['today', 'inbox'] : [k]))
+  /* Commissions come with Billing */
+  return nav.filter((k) => k !== 'directory').flatMap((k) => (k === 'today' ? ['today', 'inbox'] : k === 'money' ? ['money', 'commissions'] : [k]))
 }
 const GROUPS: { label: string; keys: string[] }[] = [
   { label: '', keys: ['today', 'inbox'] },
   { label: 'Work', keys: ['estimates', 'projects', 'upcoming'] },
-  { label: 'Money', keys: ['pos', 'pay', 'money', 'items'] },
+  { label: 'Money', keys: ['pos', 'pay', 'money', 'commissions', 'items'] },
   { label: 'People', keys: ['team', 'clients', 'designers', 'subs', 'suppliers'] },
 ]
 /** what a login has in the menu — and the team report for the admin, on his own view */
@@ -251,7 +253,7 @@ export function BottomNav() {
   const { bar, more } = phoneNav(useNav())
   const moreOn = more.includes(active)
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main" data-phone-tabs>
       <div className="mx-auto flex h-[3.625rem] max-w-[35rem] items-stretch px-2">
         {bar.map((k) => {
           const on = active === k
@@ -301,7 +303,7 @@ export function TopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const title = NAV[activeNav(route.page)]?.label || ({ flow: 'How it works', settings: 'Settings' } as Record<string, string>)[route.page] || 'Cobblestone'
   return (
-    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white px-4 lg:hidden">
+    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white px-4 lg:hidden" data-phone-top>
       <button onClick={() => go(homeOf(role))} aria-label="Home" className="shrink-0">
         <Logo size={30} />
       </button>

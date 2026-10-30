@@ -138,7 +138,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           </div>
           {groups.map((g) => (
             <section key={g.floor}>
-              {floors && <div className="flex h-9 items-center border-t border-line bg-[#e5e5e1] px-5 text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-ink max-sm:px-3">{g.floor}</div>}
+              {floors && <div className="flex h-9 items-center border-t border-line bg-[#ecece8] px-5 text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-ink max-sm:px-3">{g.floor}</div>}
               {g.rooms.map((room) => {
                 const r = viewOf(room.name)
                 const w = roomWord(r)

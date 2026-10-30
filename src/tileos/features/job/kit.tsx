@@ -42,7 +42,7 @@ export const Empty = ({ children, className }: { children: React.ReactNode; clas
 /** a group inside a sheet — a floor, a kind of tile, the orders: the same soft gray band as every list's (its name in
  *  small capitals, how many in a white pill), with the same line above it as every row, so the lines never change */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className="flex h-9 items-center gap-2 border-t border-line bg-[#eeeeeb] px-5 max-sm:px-4" data-band>
+  <div className="flex h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] px-5 max-sm:px-4" data-band>
     <span className={cn(BAND_LABEL, 'min-w-0', tone === 'bad' && 'text-bad-700')}>{label}</span>{count != null && <BandCount n={count} />}
     {right != null && <span className="ml-auto shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{right}</span>}
   </div>

@@ -55,6 +55,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             </label>
           )}
           {/* a tile order — or our call for the client's tile to be delivered — with its own number */}
+          {!simple && all.length > 0 && <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more</Button>}
           {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })} data-tile-po-new>Tile PO</Button>}
         </span>
       ) : undefined}

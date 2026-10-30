@@ -73,12 +73,31 @@ async function inviteByOwnMail(admin: any, data: { email: string; name: string; 
   const link = await welcomeLink(admin, data.email, data.redirectTo);
   if (!link) throw new Error("No link came back");
   const first = (data.name || "").split(" ")[0] || "there";
-  const html = `<div style="font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;color:#1c1b18;max-width:520px">
-<p>Hi ${esc(first)},</p>
-<p>You’re invited to <b>Cobblestone Tile OS</b> — where we run our projects.</p>
-<p><a href="${esc(link)}" style="display:inline-block;background:#2650cf;color:#fff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px">Set your password and come in</a></p>
-<p style="color:#5b5f68;font-size:14px">The link works once. If the button doesn’t open, copy this into your browser:<br>${esc(link)}</p>
-</div>`;
+  /* the company's logo on top, the one button, the same look as every screen before the app */
+  const base = String(data.redirectTo || "https://cobblestone.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"></head>
+<body style="margin:0;padding:0;background:#f4f1eb;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Pick a password and you’re in — Cobblestone runs its projects on Tile OS.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;">
+<tr><td style="background:#ffffff;border:1px solid #e8e2d8;border-radius:18px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+<tr><td style="height:6px;background:#22372b;border-radius:18px 18px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+<tr><td align="center" style="padding:34px 40px 0;"><img src="${esc(base)}/logo-email.png" width="190" alt="Cobblestone Tile Installation" style="display:block;width:190px;max-width:70%;height:auto;border:0;"></td></tr>
+<tr><td style="padding:22px 40px 0;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b7a70;text-align:center;">Tile OS</td></tr>
+<tr><td style="padding:10px 40px 0;font-size:26px;font-weight:700;line-height:1.25;color:#1c1a16;text-align:center;">You’re invited, ${esc(first)}</td></tr>
+<tr><td style="padding:14px 40px 0;font-size:16px;line-height:1.6;color:#4a4740;text-align:center;">Cobblestone runs its projects on Tile OS — what’s next on every job, who has it, and what came in. Pick a password and you’re in.</td></tr>
+<tr><td align="center" style="padding:30px 40px 8px;"><a href="${esc(link)}" style="display:inline-block;background:#22372b;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;padding:17px 34px;border-radius:12px;">Pick my password</a></td></tr>
+<tr><td style="padding:14px 40px 0;font-size:13px;line-height:1.55;color:#8a857b;text-align:center;">The link works once. On a phone, open it in Safari or Chrome — then “Add to Home Screen” and it works like an app.</td></tr>
+<tr><td style="padding:30px 40px 34px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0ebe3;"><tr><td style="padding-top:18px;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">If the button doesn’t open, copy this into your browser:<br><span style="word-break:break-all;">${esc(link)}</span></td></tr></table></td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:22px 0 0;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">Cobblestone Tile Installation</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
   const r = await sendMail({ copy: false, from: data.from || "Cobblestone Tile <office@cobblestonenj.com>", to: [data.email], subject: "You’re invited to Cobblestone Tile OS", html, text: `Hi ${first},\n\nYou’re invited to Cobblestone Tile OS. Open this link, pick a password, and you’re in (it works once):\n${link}` });
   if (!r.ok) throw new Error(r.why);
 }

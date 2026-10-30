@@ -191,7 +191,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['rooms'] },
   { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
   { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['tile', 'layouts'], custom: true },
-  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Send installer PO', owner: 'ys', after: ['rooms'] },
+  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Pick installer & send PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates — after the walk-through', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
   { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['rooms'] },
@@ -221,7 +221,7 @@ const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => 
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
 const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting — confirmed', 'Confirm what was decided',
   /* the clearer names (Oct 26): what a saved list still calls them gets the new name */
-  'Get the paperwork', 'Enter the paperwork', 'Quantities', 'Underlayment', 'Confirm the scope', 'Tile and grout', 'Layouts', 'Floor heights', 'Fixes', 'Installer PO', 'Show him the job', 'Installer confirmed', 'Tile delivery date', 'Tile delivered', 'Materials delivered',
+  'Send installer PO', 'Get the paperwork', 'Enter the paperwork', 'Quantities', 'Underlayment', 'Confirm the scope', 'Tile and grout', 'Layouts', 'Floor heights', 'Fixes', 'Installer PO', 'Show him the job', 'Installer confirmed', 'Tile delivery date', 'Tile delivered', 'Materials delivered',
   'Floor heights — the high and the low point of every floor', 'Site checked — wall heights, water, electrical, plumbing', 'Job shown to the installer', 'Installer confirmed — he took the PO and the dates'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps

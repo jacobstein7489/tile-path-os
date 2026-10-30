@@ -4,7 +4,7 @@
  * says there; replies go back to that address. When it can't go — no email for them, email not set up — the PO says
  * so on its window, which has "Email it". */
 import { useStore, meOf, type Store } from '@/tileos/store'
-import { REAL } from '@/tileos/lib/save'
+import { REAL, PUBLISHED } from '@/tileos/lib/save'
 import { showPop } from '@/tileos/lib/pop'
 import { NOW } from '@/tileos/lib/today'
 import { fmtMoney, PEOPLE, crewInfo, type PersonKey } from '@/tileos/data/model'
@@ -41,7 +41,12 @@ export function installerEmails(s: Pick<Store, 'team'>, crew: PersonKey): string
   return clean([m?.email, ci?.email, ...[...(m?.more || []), ...(ci?.more || [])].filter((r) => r.kind === 'email').map((r) => r.value)]).slice(0, 2)
 }
 
-const frame = (inner: string) => `<div style="font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b18;max-width:640px">${inner}</div>`
+/* every email: the company's logo on top (served by the published app), the message, the company's name under it */
+const frame = (inner: string) => `<div style="font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b18;max-width:640px">
+<img src="${PUBLISHED}/logo-email.png" width="130" alt="Cobblestone Tile Installation" style="display:block;width:130px;height:auto;border:0;margin:0 0 18px">
+${inner}
+<p style="margin:22px 0 0;padding-top:12px;border-top:1px solid #ece7df;font-size:12px;color:#8a857b">Cobblestone Tile Installation</p>
+</div>`
 const table = (head: string[], rows: string[][], total?: [string, string]) => `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px">
 <tr>${head.map((h, i) => `<th style="text-align:${i ? 'right' : 'left'};padding:8px 6px;border-bottom:1px solid #d9d3c9;color:#5b5f68;font-weight:600">${esc(h)}</th>`).join('')}</tr>
 ${rows.map((r) => `<tr>${r.map((c, i) => `<td style="text-align:${i ? 'right' : 'left'};padding:8px 6px;border-bottom:1px solid #ece8e1">${esc(c)}</td>`).join('')}</tr>`).join('\n')}
@@ -80,6 +85,8 @@ export async function emailPO(poId: string, o: { changed?: boolean; quietOk?: bo
   const priced = !tile || p.paidBy === 'us'
   const rows = p.lines.map((l) => (priced ? [l.item, l.qty, l.price != null ? money(l.price) : '', l.price != null && l.n != null ? money(l.price * l.n) : ''] : [l.item, l.qty]))
   const intro = o.changed ? `<b>${esc(p.id)} has changed</b> — this replaces the one we sent before.`
+    : p.more && !priced ? `We need more of the tile below${p.storeRef ? ` on order <b>${esc(p.storeRef)}</b>` : ''} — please add it and deliver it. Our reference is <b>${esc(p.id)}</b>.`
+    : p.more ? `Here is our purchase order <b>${esc(p.id)}</b> for more of the same tile.`
     : tile && !priced ? `Please deliver the tile below${p.storeRef ? ` from order <b>${esc(p.storeRef)}</b>` : ''} — our reference is <b>${esc(p.id)}</b>.`
       : `Here is our ${tile ? 'tile ' : ''}purchase order <b>${esc(p.id)}</b>${p.storeRef ? ` (your order ${esc(p.storeRef)})` : ''}.`
   const html = frame(`<p>Hi ${esc(p.supplier)} team,</p>
@@ -88,7 +95,7 @@ export async function emailPO(poId: string, o: { changed?: boolean; quietOk?: bo
 ${p.memo ? `<p>${esc(p.memo)}</p>` : ''}
 ${priced ? table(['Item', 'Qty', 'Price', 'Amount'], rows, ['Total', money(p.amount)]) : table(['Tile', 'Qty'], rows)}
 <p>Thank you,<br>${esc(who.name)}<br>Cobblestone Tile</p>`)
-  const r = await go({ to, subject: `${p.id}${o.changed ? ' (changed)' : ''}${tile ? ' · tile' : ''}${p.storeRef ? ` · your order ${p.storeRef}` : ''} · ${j?.name || ''}${needed ? ` · needed ${needed}` : ''}`, html }, s)
+  const r = await go({ to, subject: `${p.id}${o.changed ? ' (changed)' : ''}${p.more ? ' · more tile' : tile ? ' · tile' : ''}${p.storeRef ? ` · your order ${p.storeRef}` : ''} · ${j?.name || ''}${needed ? ` · needed ${needed}` : ''}`, html }, s)
   if (!r.ok) {
     note(`The email didn’t go out — ${r.why}`)
     showPop({ title: `${p.id} saved — the email didn’t go out`, sub: `${r.why}. Try “Email it” on the PO again.`, tone: 'warn' })

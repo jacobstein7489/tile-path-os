@@ -68,6 +68,8 @@ import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
+import { watchKeyboard } from '@/tileos/lib/viewport'
+import { CommissionsPage, CommissionModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
   switch (m.t) {
@@ -121,6 +123,10 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'book': return <BookInstallerModal jobId={m.jobId} crew={m.crew} level={level} />
     case 'newpo': return <NewPOModal jobId={m.jobId} prefill={m.prefill} fromEstimate={m.fromEstimate} fromTakeoff={m.fromTakeoff} level={level} />
     case 'newtilepo': return <NewTilePOModal jobId={m.jobId} tags={m.tags} level={level} />
+    case 'moretile': return <NewTilePOModal jobId={m.jobId} tags={m.tags} qty={m.qty} shortId={m.shortId} more level={level} />
+    case 'commission': return <CommissionModal jobId={m.jobId} level={level} />
+    case 'salespeople': return <SalesPeopleModal level={level} />
+    case 'commrate': return <CommissionRateModal level={level} />
     case 'popart': return <PartCameModal id={m.id} level={level} />
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} />
@@ -222,13 +228,16 @@ function useNarrow(q = '(max-width: 1023px)') {
 
 export default function App() {
   const narrow = useNarrow()
+  /* the phone's keyboard: the bar on top and the windows stay where they belong while typing */
+  React.useEffect(() => { watchKeyboard() }, [])
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const away = useStore((s) => awayFromMe(s))
   /* the team report: the admin, on his own view */
   const report = useStore((s) => reportOn(s))
   const navList = roleDef(role).nav
-  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : []), ...(navList.includes('upcoming') ? ['schedule'] : [])]
+  /* Commissions come with Billing — whoever sees the invoices sees what they earn the salespeople */
+  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, ...(navList.includes('money') ? ['commissions'] : []), 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : []), ...(navList.includes('upcoming') ? ['schedule'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
 
   let body: React.ReactNode = null
@@ -240,6 +249,7 @@ export default function App() {
     case 'estimates': body = <EstimatesPage />; break
     case 'pos': body = <POsPage />; break
     case 'pay': body = <PayPage />; break
+    case 'commissions': body = <CommissionsPage />; break
     case 'projects': body = <ProjectsPage />; break
     case 'directory':
     case 'clients':
