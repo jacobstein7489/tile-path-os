@@ -17,7 +17,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Plus, Truck, HardHat, CalendarD
 import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
-import { Circles, Circle, ProgressRing, BAND, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
+import { Circles, Circle, ProgressRing, BAND, BAND_LABEL, BandCount, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
@@ -38,8 +38,8 @@ export type OpenTrack = { track: TrackKey; step: string } | null
 
 /* ================= the line ================= */
 /** where the project is — like a parcel's tracking line: the six stages evenly spaced on one line, each one's name and
- *  where it's at under its circle, and the line green as far as the project has got — into the stage going on, as far
- *  as that's got (getting ready: its steps done; installing: how much is in; touch-ups: how many are checked). On a
+ *  where it's at under its circle, and the line green up to the stage going on. Only while installing does it run on
+ *  into the next one, as far as the install has got; getting ready says "3 of 5 done" under its circle instead. On a
  *  phone, the circles alone and the stage going on in words under them. */
 export function ProjectLine({ job, className }: { job: Job; className?: string }) {
   const s = useStore()
@@ -408,8 +408,8 @@ export function OpenIssues({ job, className, steps = [], onStep, band, fill }: {
   if (band) return (
     <div data-issues className={className}>
       <div className={cn(BAND, 'px-4 max-sm:px-3')}>
-        <span className="text-[0.8125rem] font-semibold text-ink-2">Open items</span>
-        <span className="text-[0.8125rem] font-medium tnum text-faint">{n}</span>
+        <span className={BAND_LABEL}>Open items</span>
+        <BandCount n={n} />
       </div>
       {rows}
     </div>

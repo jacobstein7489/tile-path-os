@@ -20,11 +20,16 @@ import type { Task } from '@/tileos/data/work'
 export type TrackKey = 'scope' | 'tile' | 'site' | 'installer' | 'materials' | 'other'
 /** the five tracks of getting ready, and the steps each one walks through, in order */
 export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
-  { key: 'scope', label: 'Design', steps: ['design', 'change', 'tile', 'setup', 'layouts'] },
-  { key: 'tile', label: 'Tile', steps: ['getpaper', 'rooms', 'qty', 'order', 'delivered'] },
+  /* Design: the meeting (set it, it happened, what was decided), the scope after it, the layouts */
+  { key: 'scope', label: 'Design', steps: ['design', 'change', 'layouts'] },
+  /* Tile: everything about the tile itself — the paperwork, the grout and a picture for each, the delivery */
+  { key: 'tile', label: 'Tile', steps: ['getpaper', 'rooms', 'qty', 'tile', 'order', 'delivered'] },
+  /* Site: the site check, the floor levels, the room sheets (fixing what the check found, only when it found something) */
   { key: 'site', label: 'Site', steps: ['heights', 'level', 'fixes', 'sheets'] },
-  { key: 'installer', label: 'Installer', steps: ['installer', 'confirmed', 'walk'] },
-  { key: 'materials', label: 'Materials', steps: ['materials', 'matin'] },
+  /* Installer: pick him (that sends his PO), walk him through the job, then he accepts */
+  { key: 'installer', label: 'Installer', steps: ['installer', 'walk', 'confirmed'] },
+  /* Materials: what goes under the tile decides what we order — then order it, then it comes */
+  { key: 'materials', label: 'Materials', steps: ['setup', 'materials', 'matin'] },
 ]
 /** a question added on one project sits in the track of the part it was added to */
 const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
@@ -87,12 +92,15 @@ export function tracksFor(s: Store, job: Job, all: StepView[] = stepsFor(s, job)
   const view = (key: TrackKey, label: string): TrackView | null => {
     const steps = lists[key]
     if (!steps.length) return null
-    const open = steps.filter((v) => !finished(v))
+    /* "2 of 3 done" counts only what's on the part — a step not needed on this project (no problems to fix) isn't
+       shown, so it isn't counted either */
+    const real = steps.filter((v) => v.state !== 'na')
+    const open = real.filter((v) => !finished(v))
     const lead = open.find((v) => v.state === 'bad') || open.find((v) => v.state === 'now' && v.owner === me) || open.find((v) => v.state === 'now') || open.find((v) => v.state === 'wait') || open[0]
     const state: StepState = !open.length ? 'done' : open.some((v) => v.state === 'bad') ? 'bad' : open.some((v) => v.state === 'now') ? 'now' : open.some((v) => v.state === 'wait') ? 'wait' : 'later'
     const days = steps.map((v) => v.doneOn).filter(Boolean) as string[]
     const doneOn = !open.length ? days.sort((a, b) => (isoFromLabel(a) || '').localeCompare(isoFromLabel(b) || '')).pop() : undefined
-    return { key, label, steps, lead, state, done: steps.length - open.length, total: steps.length, doneOn }
+    return { key, label, steps, lead, state, done: real.length - open.length, total: real.length, doneOn }
   }
   const out: TrackView[] = []
   TRACKS.forEach((t) => { const v = view(t.key, t.label); if (v) out.push(v) })
@@ -170,13 +178,11 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
   const openP = punch.filter((p) => p.status !== 'verified')
   const pct = st === 'installation' ? job.pct ?? 0 : 0
   const n = tracks.length
-  /* how far getting ready has got: its steps done, of all of them */
-  const readyPct = readyPctOf(tracks)
   return [
     { key: 'approved', label: 'Approved', state: 'done', sub: [won, est?.id].filter(Boolean).join(' · ') || 'Won' },
     inField || open
       ? { key: 'ready', label: 'Getting ready', state: 'done', sub: inField ? 'Done' : `All ${n} done` }
-      : { key: 'ready', label: 'Getting ready', state: bad ? 'bad' : 'now', sub: `${done} of ${n} done${bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}`, link: readyPct },
+      : { key: 'ready', label: 'Getting ready', state: bad ? 'bad' : 'now', sub: `${done} of ${n} done${bad ? ` · ${bad} ${bad === 1 ? 'problem' : 'problems'}` : ''}` },
     inField || booked
       ? { key: 'crew', label: 'Crew scheduled', state: 'done', sub: [crew ? PEOPLE[crew]?.short : '', start].filter(Boolean).join(' · ') || 'Scheduled' }
       : open
@@ -188,7 +194,7 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
         ? { key: 'install', label: 'Installing', state: 'done', sub: job.dates?.finish ? `Done ${job.dates.finish}` : 'Done' }
         : { key: 'install', label: 'Installing', state: 'later', sub: start ? `${startIso && startIso < TODAY ? 'was to start' : 'starts'} ${start}` : undefined },
     st === 'punch'
-      ? { key: 'punch', label: 'Touch-ups', state: 'now', sub: openP.length ? `${openP.length} open` : 'None open', link: punch.length ? Math.round(((punch.length - openP.length) / punch.length) * 100) : 0 }
+      ? { key: 'punch', label: 'Touch-ups', state: 'now', sub: openP.length ? `${openP.length} open` : 'None open' }
       : ['closeout', 'complete'].includes(st)
         ? { key: 'punch', label: 'Touch-ups', state: 'done', sub: punch.length ? 'All checked' : 'None' }
         : { key: 'punch', label: 'Touch-ups', state: 'later' },

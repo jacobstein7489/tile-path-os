@@ -69,8 +69,9 @@ export function Page({
   }, [!!(tabs || toolbar)])
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
-      {/* a big screen is used, not left empty on both sides — only a very wide one gets margins */}
-      <div className="mx-auto w-full max-w-[160rem]" style={{ '--head': head + 'px' } as React.CSSProperties}>
+      {/* centered and never wider than this: on a big monitor the page stays together in the middle instead of
+          spreading across the screen — the same width on every page (the bar on top lines up with it) */}
+      <div className="mx-auto w-full max-w-[76rem]" style={{ '--head': head + 'px' } as React.CSSProperties}>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
         <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
@@ -273,16 +274,23 @@ export const ROW_H = 'min-h-[3rem]'
 /** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
  *  (or band's) line — every line in a list is the same one line. */
 export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
-/** a group inside a list (Overdue, Today, On hold, Getting ready…): a plain light gray band the full width, so it
- *  reads as a heading and never as one more line of the list — no colors, just the name and how many. The same line
- *  above it as every row, so the lines never change. A quiet link on the right if any. */
-export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-[#f3f3f1]'
+/** a group inside a list (Overdue, Today, On hold, a project, a person…): a soft gray band the full width — no
+ *  yellow, no colors — with the name in small capitals and how many in a little white pill, so it stands out as a
+ *  heading and never reads as one more line of the list. The same line above it as every row, so the lines never
+ *  change. A quiet link on the right if any. */
+export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-[#eeeeeb]'
+/** a band's name: small capitals, bold, dark — the same on every list */
+export const BAND_LABEL = 'truncate text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-ink-2'
+/** how many in a group: a little white pill after its name */
+export function BandCount({ n }: { n: number }) {
+  return <span className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-white px-1.5 text-[0.6875rem] font-semibold leading-none tnum text-muted ring-1 ring-[#dddcd7]" data-band-count>{n}</span>
+}
 export function Group({ label, count, tone, open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className={cn(BAND, PX)} data-group-tone={tone || 'neutral'} data-band>
-      <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-baseline gap-2 text-left disabled:cursor-default">
-        <span className="truncate text-[0.8125rem] font-semibold text-ink">{label}</span>
-        {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-muted">{count}</span>}
+      <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-center gap-2 text-left disabled:cursor-default">
+        <span className={BAND_LABEL}>{label}</span>
+        {count !== undefined && <BandCount n={count} />}
         {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
       </button>
       {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
@@ -590,14 +598,14 @@ const FIRST = 'pl-5 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#f3f3f1] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
-        <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-baseline gap-2 text-left disabled:cursor-default">
-          <span className="text-[0.8125rem] font-semibold text-ink">{label}</span>
-          {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
+      <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#eeeeeb] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
+        <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2 text-left disabled:cursor-default">
+          <span className={BAND_LABEL}>{label}</span>
+          {count !== undefined && <BandCount n={count} />}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f3f3f1] max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#eeeeeb] max-md:hidden" />}
     </tr>
   )
 }
@@ -757,10 +765,16 @@ export function Link({ pct, className, style }: { pct: number; className?: strin
   )
 }
 const REACHED: CircleState[] = ['done', 'now', 'todo', 'wait', 'bad']
-/** how far the line after a step has got: up to the next one once that's reached; while the step is the one going on,
- *  as far as it's got */
-const linkAfter = (st: CircleStep, next?: CircleStep) =>
-  st.state === 'done' ? (next && !next.lock && REACHED.includes(next.state) ? 100 : st.link ?? 0) : st.state !== 'later' && !st.lock ? st.link ?? 0 : 0
+/** how far the line after step i has got: green only as far as everything before it is done — a step done out of turn
+ *  gets its check, but the line doesn't jump ahead to it (the site check still open, the floor levels done: no green
+ *  yet). Up to the next one once that's reached; on the step going on, as far as it's got (only installing says that). */
+const linkAfter = (steps: CircleStep[], i: number) => {
+  const st = steps[i], next = steps[i + 1]
+  const first = steps.findIndex((x) => x.state !== 'done')
+  const flow = first < 0 ? steps.length : first
+  if (i < flow) return next && !next.lock && REACHED.includes(next.state) ? 100 : st.link ?? 0
+  return i === flow && st.state !== 'later' && !st.lock ? st.link ?? 0 : 0
+}
 
 /** one circle, always whole: green and full with a check when done, red with ! for a problem, else a full ring in the
  *  step's color — blue your turn, dark someone else's, amber waiting on someone outside, light gray not yet. Never a
@@ -826,7 +840,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
                 {/* the part that's open below — underlined, like a tab */}
                 {on && onPick && <span aria-hidden data-picked className="absolute -bottom-[0.625rem] left-0 right-1 h-[0.1875rem] rounded-t-full bg-brand-600 max-sm:right-0" />}
               </Tag>
-              {i < all.length - 1 && <Link pct={linkAfter(st, all[i + 1])} className="mx-2 h-[0.1875rem] min-w-3 flex-1 max-sm:mx-1" />}
+              {i < all.length - 1 && <Link pct={linkAfter(all, i)} className="mx-2 h-[0.1875rem] min-w-3 flex-1 max-sm:mx-1" />}
             </li>
           )
         })}
@@ -851,7 +865,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
               const on = at === st.key
               return (
                 <li key={st.key} className="relative flex min-w-[4.75rem] flex-[1_1_0] flex-col items-center" data-state={st.state}>
-                  {i > 0 && <Link pct={linkAfter(g.steps[i - 1], st)} className="absolute h-[0.1875rem]" style={{ top: sz / 2 - 1.5, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
+                  {i > 0 && <Link pct={linkAfter(g.steps, i - 1)} className="absolute h-[0.1875rem]" style={{ top: sz / 2 - 1.5, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
                   <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
                     <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>
                     <span title={st.label.replace(/\u00AD/g, '')} className={cn('mt-1.5 line-clamp-2 max-w-full whitespace-normal text-[0.75rem] font-semibold leading-[1.15] max-sm:line-clamp-3', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>

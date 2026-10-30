@@ -174,29 +174,32 @@ export function DesktopTopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const me = meOf(role)
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 bg-canvas px-7 max-xl:px-6 max-lg:hidden">
-      <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
-        <Search className="h-4 w-4" />
-        <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>
-        <Kbd>⌘K</Kbd>
-      </button>
-      <div className="ml-auto flex items-center gap-3">
-        <Menu
-          align="end"
-          width={270}
-          trigger={
-            <button data-account-menu className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cdc7bc]">
-              <Avatar who={me} size={28} />
-              <span className="min-w-0 text-left leading-tight">
-                <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[me].name}</span>
-                <span className="block truncate text-[0.75rem] text-muted">{roleDef(role).label}</span>
-              </span>
-              <ChevronDown className="h-4 w-4 text-faint" />
-            </button>
-          }
-        >
-          <UserMenuItems />
-        </Menu>
+    <header className="sticky top-0 z-20 h-14 bg-canvas px-7 max-xl:px-6 max-lg:hidden">
+      {/* the same width as the page under it, so the search and your name line up with the page's edges */}
+      <div className="mx-auto flex h-full w-full max-w-[72.5rem] items-center gap-4" data-top-bar>
+        <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
+          <Search className="h-4 w-4" />
+          <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>
+          <Kbd>⌘K</Kbd>
+        </button>
+        <div className="ml-auto flex items-center gap-3">
+          <Menu
+            align="end"
+            width={270}
+            trigger={
+              <button data-account-menu className="flex items-center gap-2.5 rounded-[0.625rem] border border-line bg-white py-[0.1875rem] pl-[0.1875rem] pr-2.5 shadow-xs transition hover:border-[#cdc7bc]">
+                <Avatar who={me} size={28} />
+                <span className="min-w-0 text-left leading-tight">
+                  <span className="block truncate text-[0.84375rem] font-semibold text-ink">{PEOPLE[me].name}</span>
+                  <span className="block truncate text-[0.75rem] text-muted">{roleDef(role).label}</span>
+                </span>
+                <ChevronDown className="h-4 w-4 text-faint" />
+              </button>
+            }
+          >
+            <UserMenuItems />
+          </Menu>
+        </div>
       </div>
     </header>
   )

@@ -7,7 +7,7 @@ import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, UserRound
 import { useStore, meOf, NOW, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
-import { BAND } from '@/tileos/components/ui/page'
+import { BAND, BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { keepFiles, openFile } from '@/tileos/lib/files'
 import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
@@ -55,8 +55,9 @@ export function TouchupsList({ job }: { job: Job }) {
       {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {done.length > 0 && (
         <div>
-          <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'w-full px-5 text-left text-[0.8125rem] font-semibold text-muted hover:text-ink max-sm:px-4')}>
-            {showDone ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}{done.length} checked
+          <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'group w-full px-5 text-left max-sm:px-4')}>
+            <span className={cn(BAND_LABEL, 'group-hover:text-ink')}>Checked</span><BandCount n={done.length} />
+            {showDone ? <ChevronDown className="h-3.5 w-3.5 text-faint" /> : <ChevronRight className="h-3.5 w-3.5 text-faint" />}
           </button>
           {showDone && done.map((p) => <TouchupLine key={p.id} p={p} />)}
         </div>
@@ -96,7 +97,7 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
 function Part({ label, n, children }: { label: string; n: number; children: React.ReactNode }) {
   return (
     <div>
-      <div className={cn(BAND, 'px-5 max-sm:px-4')}><span className="text-[0.8125rem] font-semibold text-ink-2">{label}</span><span className="text-[0.8125rem] font-medium tnum text-faint">{n}</span></div>
+      <div className={cn(BAND, 'px-5 max-sm:px-4')}><span className={BAND_LABEL}>{label}</span><BandCount n={n} /></div>
       {children}
     </div>
   )

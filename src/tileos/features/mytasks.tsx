@@ -7,7 +7,7 @@ import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, B
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, STICKY_HEAD, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
+import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, BAND_LABEL, BandCount, STICKY_HEAD, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -109,6 +109,9 @@ const cleanTitle = (title: string, job?: Job) => (job ? title.replace(new RegExp
 const WhoCol = React.createContext(false)
 /** grouped by project: the project is the group's name — the rows don't say it again */
 const InJob = React.createContext(false)
+/** grouped by project, but a row that isn't under a project's band (For everyone, No day set, the check-ins): the
+ *  same two columns as the rest of the list — its project goes quietly after its name instead of in a column */
+const Loose = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 /** the row's button floats in on the right when you point at the row (a mouse) — never on a phone or a tablet */
@@ -139,11 +142,14 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
 }) {
   const who = React.useContext(WhoCol)
   const inJob = React.useContext(InJob)
+  const loose = React.useContext(Loose) && inJob
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
-  /* grouped by project, the group's name says it — it's still on the row for a screen reader */
-  const quiet = inJob ? project : undefined
-  if (inJob) project = undefined
+  /* grouped by project, the group's name says it — it's still on the row for a screen reader. A row under no
+     project's band says its project after its name (and under it on a phone). */
+  const inline = loose ? project : undefined
+  const quiet = inJob && !loose ? project : undefined
+  if (inJob && !loose) project = undefined
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
   const ownerName = owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : ''
   return (
@@ -161,7 +167,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
             {/* on a phone the time sits at the end of the title's line, and the project goes under it */}
             {w && <span className={cn('shrink-0 text-[0.75rem] tnum md:hidden', whenCls)}>{w}</span>}
           </div>
@@ -580,16 +586,16 @@ export function MyTasksPage() {
       const rows = items.filter((x) => jobOfItem(x) === id)
       const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
       return (
-        <InJob.Provider key={id || 'none'} value><section aria-label={j ? j.name : 'Not on a project'}>
+        <InJob.Provider key={id || 'none'} value><Loose.Provider value={false}><section aria-label={j ? j.name : 'Not on a project'}>
           <div className={cn(BAND, PX)} data-band>
             {j ? (
-              <button onClick={() => s.open({ t: 'job', id })} className="min-w-0 truncate text-left text-[0.8125rem] font-semibold text-ink-2 hover:text-brand-700">{j.name}</button>
-            ) : <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink-2">Not on a project</span>}
-            <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{rows.length + ts.length}</span>
+              <button onClick={() => s.open({ t: 'job', id })} className={cn(BAND_LABEL, 'min-w-0 text-left hover:text-brand-700')}>{j.name}</button>
+            ) : <span className={BAND_LABEL}>Not on a project</span>}
+            <BandCount n={rows.length + ts.length} />
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
-        </section></InJob.Provider>
+        </section></Loose.Provider></InJob.Provider>
       )
     })
   }
@@ -612,10 +618,10 @@ export function MyTasksPage() {
           <div className={cn(BAND, PX)} data-band>
             {person && <Avatar who={p as PersonKey} size={20} />}
             {person ? (
-              <button onClick={() => setWho(p)} className="min-w-0 truncate text-left text-[0.8125rem] font-semibold text-ink-2 hover:text-brand-700" title={`Only ${person.short}’s list`}>{person.name}</button>
-            ) : <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink-2">Nobody yet</span>}
-            <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{rows.length + ts.length}</span>
-            {lateN > 0 && <span className="shrink-0 text-[0.75rem] font-medium text-bad-600">{lateN} late</span>}
+              <button onClick={() => setWho(p)} className={cn(BAND_LABEL, 'min-w-0 text-left hover:text-brand-700')} title={`Only ${person.short}’s list`}>{person.name}</button>
+            ) : <span className={BAND_LABEL}>Nobody yet</span>}
+            <BandCount n={rows.length + ts.length} />
+            {lateN > 0 && <span className="shrink-0 text-[0.75rem] font-semibold text-bad-600">{lateN} late</span>}
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} />)}
@@ -680,6 +686,10 @@ export function MyTasksPage() {
     >
       {/* whose each row is: on everyone's list — unless it's grouped by person already */}
       <WhoCol.Provider value={whoCol}>
+      {/* grouped by project: every row has the same two columns as the names on top — the ones under no project's
+          band too (For everyone, the check-ins, No day set) */}
+      <InJob.Provider value={grouping === 'job' && view !== 'done'}>
+      <Loose.Provider value={grouping === 'job' && view !== 'done'}>
       <div>
         {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')}><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
@@ -741,6 +751,8 @@ export function MyTasksPage() {
         {view === 'done' && shownDone.length > doneN && <button onClick={() => setDoneN(doneN + 40)} className={cn('w-full border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-brand-50/40', PX)}>Show older — {shownDone.length - doneN} more</button>}
         {view === 'done' && !shownDone.length && <EmptyState icon={<Check />} title="Nothing done yet" sub="Finished tasks stay here for the record." />}
       </div>
+      </Loose.Provider>
+      </InJob.Provider>
       </WhoCol.Provider>
     </Page>
   )

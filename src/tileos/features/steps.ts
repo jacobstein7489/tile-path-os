@@ -193,7 +193,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['tile', 'layouts'], custom: true },
   { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Send installer PO', owner: 'ys', after: ['rooms'] },
   { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
-  { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
+  { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates — after the walk-through', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
   { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['rooms'] },
   { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Receive tile', owner: 'yakov', after: ['order'] },
   { key: 'materials', phase: 'materials', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },

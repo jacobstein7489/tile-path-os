@@ -10,6 +10,7 @@ import * as React from 'react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
+import { BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 /** Cobblestone's green — the bands on the scope of work */
@@ -38,12 +39,12 @@ export function Section({ title, count, sub, right, action, children, className,
   )
 }
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
-/** a group inside a sheet — a room, a person, a group: a light gray band the full width (the same as every list's),
- *  with the same line above it as every row, so the lines never change */
+/** a group inside a sheet — a floor, a kind of tile, the orders: the same soft gray band as every list's (its name in
+ *  small capitals, how many in a white pill), with the same line above it as every row, so the lines never change */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn('flex h-9 items-center gap-2 border-t border-line bg-[#f3f3f1] px-5 text-[0.8125rem] font-semibold max-sm:px-4', tone === 'bad' ? 'text-bad-700' : 'text-ink')} data-band>
-    <span className="min-w-0 truncate">{label}</span>{count != null && <span className="font-medium tnum text-faint">{count}</span>}
-    {right != null && <span className="ml-auto shrink-0 tnum">{right}</span>}
+  <div className="flex h-9 items-center gap-2 border-t border-line bg-[#eeeeeb] px-5 max-sm:px-4" data-band>
+    <span className={cn(BAND_LABEL, 'min-w-0', tone === 'bad' && 'text-bad-700')}>{label}</span>{count != null && <BandCount n={count} />}
+    {right != null && <span className="ml-auto shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{right}</span>}
   </div>
 )
 /** the few numbers on top of a tab — big, plain, the same everywhere */

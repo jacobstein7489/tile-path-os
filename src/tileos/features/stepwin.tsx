@@ -448,7 +448,9 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   const at = all.find((x) => x.key === k)
   /* only this track's steps (the deposit, on none, keeps its own part) */
   const tk = at ? trackOf(at) : null
-  const list = at ? all.filter((x) => (tk ? trackOf(x) === tk : x.phase === at.phase) && (x.state !== 'na' || x.key === k)) : []
+  /* in the part's own order — the same as on the project */
+  const order = tk ? TRACKS.find((t) => t.key === tk)?.steps || [] : []
+  const list = at ? all.filter((x) => (tk ? trackOf(x) === tk : x.phase === at.phase) && (x.state !== 'na' || x.key === k)).sort((a, b) => (order.indexOf(a.key) + 1 || 99) - (order.indexOf(b.key) + 1 || 99)) : []
   const v = list.find((x) => x.key === k)
   const body = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { body.current?.scrollTo?.({ top: 0 }) }, [k])

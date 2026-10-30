@@ -169,7 +169,9 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
       </div>
       {/* where it is, like the estimate's path */}
-      {!pricing && onChat && <ProjectLine className="mt-3" job={job} />}
+      {/* the line runs the same width as the panels under it — even on both sides (the room kept on the right for
+          the close button is above it, not beside it) */}
+      {!pricing && onChat && <ProjectLine className={cn('mt-3', mode === 'modal' && '-mr-9 max-sm:-mr-10')} job={job} />}
     </div>
   )
 }
