@@ -6,7 +6,7 @@ import { Check, ChevronRight, Building2, ClipboardList, Receipt, Undo2, FileText
 import { useStore, type Store } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { Status, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Status, PX, STICKY_HEAD, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, type Tone } from '@/tileos/data/model'
 import { smp } from '@/tileos/lib/save'
@@ -78,14 +78,16 @@ export function ProgressToolbar({ week, onWeek }: { week: string; onWeek: (k: st
   )
 }
 
-const COLS = 'grid grid-cols-[minmax(0,1fr)_7.5rem_10.5rem_8.5rem_10rem_9.25rem] items-center gap-4 max-xl:grid-cols-[minmax(0,1fr)_7.5rem_9.5rem_8.5rem_10rem] max-lg:grid-cols-[minmax(0,1fr)_auto]'
+const COLS = cn('grid grid-cols-[minmax(0,1fr)_7.5rem_10.5rem_8.5rem_10rem_9.25rem] items-center gap-4 lg:gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_7.5rem_9.5rem_8.5rem_10rem] max-lg:grid-cols-[minmax(0,1fr)_auto]', EVEN)
+/** on a wide screen: each column its room, the rest shared evenly (the button stays at the right) */
+const WIDE = evenVars([14, 7, 10.5, 7, 8, 9.25], { fixedLast: true })
 export function ProgressList({ week }: { week: string }) {
   const s = useStore()
   const w = weekOfKey(week)
   const rows = weekBills(s, w)
   return (
-    <div>
-      <div className={cn(COLS, 'border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
+    <div style={WIDE}>
+      <div className={cn(COLS, HEAD_ROW, 'max-lg:hidden', PX, STICKY_HEAD)}>
         <span>Project</span>
         <span className="text-right">Work this week</span>
         <span>Installed · billed</span>
@@ -117,7 +119,7 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
   const rooms = new Set(r.lines.map((l) => l.room)).size
   const billedPct = r.contract ? Math.min(100, Math.round((r.before / r.contract) * 100)) : 0
   return (
-    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3.5rem] cursor-pointer border-t border-line-2 bg-white py-2.5 transition-colors first:border-t-0 row-hover', PX)}>
+    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3rem] cursor-pointer border-t border-line-2 bg-white py-1.5 transition-colors first:border-t-0 row-hover', PX)}>
       <span className="min-w-0">
         <span className="block truncate text-[0.875rem] font-semibold text-ink">{job.name}</span>
         <span className="block truncate text-[0.78125rem] text-muted">

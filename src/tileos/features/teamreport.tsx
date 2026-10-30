@@ -12,7 +12,7 @@ import { AlarmClock, BellRing, Check, ChevronDown, ChevronRight, SlidersHorizont
 import { useStore, meOf, NOW, DATA_KEYS, type Store } from '@/tileos/store'
 import { Avatar, Button, Field, TextInput } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { Page, Status, PX, ProgressRing, ViewSwitch } from '@/tileos/components/ui/page'
+import { Page, Status, PX, ProgressRing, ViewSwitch, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role, type Tone } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
@@ -301,8 +301,8 @@ export function TeamReportPage() {
         </div>
       }
     >
-      <div className={cn('grid grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-4 border-b border-line-2 bg-[#fbfaf7] py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX)}>
-        <span className="pl-[3.75rem]">Person · on time, of what was set for a day</span><span>Late by, on average</span><span>Moved after late</span><span>Late now</span><span>How it’s going</span><span />
+      <div className={cn(HEAD_ROW, 'grid grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] gap-x-6 max-lg:hidden', EVEN, PX)} style={TEAM_WIDE}>
+        <span className="pl-[2.75rem]">Person · on time, of what was set for a day</span><span>Late by, on average</span><span>Moved after late</span><span>Late now</span><span>How it’s going</span><span />
       </div>
       <div data-report>
         {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} open={open === r.who} onToggle={() => setOpen(open === r.who ? null : r.who)} ci={ci.find((g) => g.who === r.who)?.items.length || 0} days={Number(days)} />)}
@@ -314,6 +314,9 @@ export function TeamReportPage() {
   )
 }
 
+/** on a wide screen: each column its room, the rest shared evenly */
+const TEAM_WIDE = evenVars([16, 7.5, 6, 5.5, 7, 1], { fixedLast: true })
+
 function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal: number; open: boolean; onToggle: () => void; ci: number; days: number }) {
   const s = useStore()
   const v = verdict(r.pct, goal)
@@ -322,11 +325,11 @@ function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal
   const shown = more ? late : late.slice(0, 6)
   return (
     <div className="border-t border-line-2 first:border-t-0" data-report-person={r.who} data-pct={r.pct ?? ''}>
-      <button onClick={onToggle} aria-expanded={open} className={cn('grid w-full grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-4 py-3 text-left transition row-hover max-lg:flex max-lg:gap-3', PX)}>
-        <span className="flex min-w-0 items-center gap-3.5 max-lg:flex-1">
-          <ProgressRing pct={r.pct ?? 0} size={46} tone={v.tone} label={r.pct == null ? '–' : `${r.pct}%`} />
+      <button onClick={onToggle} aria-expanded={open} style={TEAM_WIDE} className={cn('grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-x-6 py-1.5 text-left transition row-hover max-lg:flex max-lg:gap-3', EVEN, PX)}>
+        <span className="flex min-w-0 items-center gap-3 max-lg:flex-1">
+          <ProgressRing pct={r.pct ?? 0} size={34} tone={v.tone} label={r.pct == null ? '–' : `${r.pct}%`} />
           <span className="min-w-0">
-            <span className="flex items-baseline gap-2"><span className="truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[r.who]?.name}</span><span className="truncate text-[0.75rem] text-muted max-sm:hidden">{PEOPLE[r.who]?.roleLabel}</span></span>
+            <span className="flex items-baseline gap-2"><span className="truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[r.who]?.name}</span><span className="truncate text-[0.75rem] text-muted max-sm:hidden">{PEOPLE[r.who]?.roleLabel}</span></span>
             <span className="mt-0.5 block truncate text-[0.8125rem] text-muted tnum">
               {r.set ? <>{r.onTime} of {r.set} on time{r.late ? ` · ${r.late} late` : ''}{r.early ? ` · ${r.early} early` : ''}</> : 'Nothing set for a day in these days'}
               <span className="lg:hidden">{r.lateNow ? <> · <span className="font-semibold text-bad-600">{r.lateNow} late now</span></> : null}</span>

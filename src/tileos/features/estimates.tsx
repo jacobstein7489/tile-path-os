@@ -11,7 +11,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, type CircleState } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, EVEN, evenVars, ROW_H, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -142,7 +142,7 @@ export function EstimatesPage() {
         </>
       }
     >
-      <div>
+      <div style={EST_WIDE}>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
           (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
@@ -157,7 +157,7 @@ export function EstimatesPage() {
           })}
         {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
-          <div key={l.name} title={l.reason} className={cn('min-h-[2.75rem] border-t border-line-2 py-2 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
+          <div key={l.name} title={l.reason} className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
             <div className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div>
             <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
             <div className="text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
@@ -175,7 +175,9 @@ export function EstimatesPage() {
 /* One line per estimate, four things, no lines between them: Estimate · Whose turn · Date · Amount. No status column
    and no "next" — the group it's under says where it is, and whose turn it is says who moves it (what they do is
    inside, and when you point at the row). On a phone: the name and the amount, then whose turn and the date. */
-const EST_COLS = 'grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_8rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] max-md:block'
+const EST_COLS = cn('grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_8rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] max-md:block', EVEN)
+/** on a wide screen: Estimate · Whose turn · Date · Amount, each with its room and the rest shared evenly */
+const EST_WIDE = evenVars([14, 11, 8, 6], { fixedLast: true })
 function EstHead() {
   return (
     <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
@@ -216,7 +218,7 @@ function EstRow({ e }: { e: Estimate }) {
       title={`${nx.text} · ${j.client}`}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
-      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors row-hover focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
+      className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
       <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink max-md:hidden">{j.name}</span>
       <span className="min-w-0 max-md:hidden">{who}</span>

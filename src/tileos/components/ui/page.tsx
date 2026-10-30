@@ -252,26 +252,37 @@ export function ToolbarSearch({ value, onChange, placeholder }: { value: string;
 const DOT: Record<Tone, string> = { bad: 'bg-bad-500', warn: 'bg-warn-500', ok: 'bg-ok-500', info: 'bg-brand-600', vio: 'bg-vio-500', neutral: 'bg-faint' }
 const HALO: Record<Tone, string> = { bad: 'bg-bad-50', warn: 'bg-warn-50', ok: 'bg-ok-50', info: 'bg-brand-50', vio: 'bg-vio-50', neutral: 'bg-wash-2' }
 
+/** columns that share a row the same way on every page, on a laptop or a full-screen monitor: each column gets the room
+ *  its content needs (in rem), and what's left over is shared out evenly between them — so the space from one column to
+ *  the next is about the same everywhere, never one huge gap after the first column. A last column that's pinned to the
+ *  right (a date, an amount) keeps just its own room, so its gap isn't doubled. Set it on the list as --cols-xl and
+ *  put EVEN on the head and the rows; below xl the list keeps its own columns. */
+export function evenCols(widths: number[], o: { fixedLast?: boolean; gap?: number } = {}): string {
+  const gap = o.gap ?? 1.5
+  const n = widths.length
+  const share = o.fixedLast ? n - 1 : n
+  const used = widths.reduce((a, b) => a + b, 0) + (n - 1) * gap
+  const slack = `max(0rem, (100% - ${used}rem) / ${share})`
+  return widths.map((w, i) => (o.fixedLast && i === n - 1 ? `${w}rem` : `minmax(0, calc(${w}rem + ${slack}))`)).join(' ')
+}
+export const EVEN = 'xl:grid-cols-[var(--cols-xl)]'
+export const evenVars = (widths: number[], o?: { fixedLast?: boolean; gap?: number }) => ({ '--cols-xl': evenCols(widths, o) }) as React.CSSProperties
+/** every line of every list is the same height — one line or two */
+export const ROW_H = 'min-h-[3rem]'
+
 /** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
  *  (or band's) line — every line in a list is the same one line. */
 export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
-/** a group inside a list (Overdue, Today, On hold, Getting ready…): a light gray band the full width — gray, never
- *  yellow — so it reads as a heading and never as one more line of the list. The same line above it as every row, so
- *  the lines never change. A dot in the group's own color (its bubble's color on top), the name and how many; a quiet
- *  link on the right if any. */
+/** a group inside a list (Overdue, Today, On hold, Getting ready…): a plain light gray band the full width, so it
+ *  reads as a heading and never as one more line of the list — no colors, just the name and how many. The same line
+ *  above it as every row, so the lines never change. A quiet link on the right if any. */
 export const BAND = 'flex h-9 items-center gap-2 border-t border-line bg-[#f3f3f1]'
-/** each group's dot — the colors of the bubbles on top */
-export const BAND_DOT: Record<Tone, string> = { bad: '#d7342a', warn: '#d98c0b', ok: '#2c8a5b', info: '#2650cf', vio: '#6347c7', neutral: '#a09b92' }
-export function BandDot({ tone }: { tone?: Tone }) {
-  return tone ? <span aria-hidden data-band-dot={tone} className="h-2 w-2 shrink-0 self-center rounded-full" style={{ background: BAND_DOT[tone] }} /> : null
-}
 export function Group({ label, count, tone, open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className={cn(BAND, PX)} data-group-tone={tone || 'neutral'} data-band>
       <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-baseline gap-2 text-left disabled:cursor-default">
-        <BandDot tone={tone} />
         <span className="truncate text-[0.8125rem] font-semibold text-ink">{label}</span>
-        {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
+        {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-muted">{count}</span>}
         {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
       </button>
       {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
@@ -298,7 +309,7 @@ export function Row({ lead, title, meta, children, onClick, className, dim, leav
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       className={cn(
-        'group/row relative flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 py-2 transition-colors',
+        'group/row relative flex min-h-[3rem] items-center gap-3 border-t border-line-2 py-1.5 transition-colors',
         PX,
         onClick && 'cursor-pointer row-hover focus-visible:outline-none',
         dim && 'opacity-70',
@@ -546,7 +557,7 @@ export function Table({ children, minWidth, className, auto }: { children: React
     </div>
   )
 }
-const EDGE = 'first:pl-6 last:pr-6 max-sm:first:pl-4 max-sm:last:pr-4'
+const EDGE = 'first:pl-5 last:pr-5 max-sm:first:pl-4 max-sm:last:pr-4'
 export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
   return (
     <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.75rem] font-medium text-faint xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
@@ -568,20 +579,19 @@ export function Tr({ children, onClick, className, dim }: { children: React.Reac
 }
 export function Td({ children, className, right, colSpan }: { children?: React.ReactNode; className?: string; right?: boolean; colSpan?: number }) {
   return (
-    <td colSpan={colSpan} className={cn('h-[3.25rem] px-3 py-2 align-middle text-[0.84375rem] text-ink-2', EDGE, right && 'text-right', className)}>
+    <td colSpan={colSpan} className={cn('h-[3rem] px-3 py-1.5 align-middle text-[0.84375rem] text-ink-2', EDGE, right && 'text-right', className)}>
       {children}
     </td>
   )
 }
 /** a group heading inside a table.
  * It spans the columns with a second cell that phones hide, so hidden columns never come back as empty ones. */
-const FIRST = 'pl-6 max-sm:pl-4'
+const FIRST = 'pl-5 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
       <td className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-[#f3f3f1] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-baseline gap-2 text-left disabled:cursor-default">
-          <BandDot tone={tone && tone !== 'neutral' ? tone : undefined} />
           <span className="text-[0.8125rem] font-semibold text-ink">{label}</span>
           {count !== undefined && <span className="text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
@@ -684,8 +694,8 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
         const on = at === st.key
         return (
           <li key={st.key} className="relative flex min-w-[5.75rem] flex-1 flex-col items-center text-center">
-            {/* the line to it, like a parcel's tracking: full once it's reached, halfway while it's on its way */}
-            {i > 0 && <Link pct={prevDone && st.state !== 'future' ? 100 : prevDone ? 50 : 0} className="absolute top-[0.90625rem] h-[0.1875rem]" style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
+            {/* the line to it: green once it's reached */}
+            {i > 0 && <Link pct={prevDone && st.state !== 'future' ? 100 : 0} className="absolute top-[0.90625rem] h-[0.1875rem]" style={{ left: 'calc(-50% + 22px)', right: 'calc(50% + 22px)' }} />}
             <button
               onClick={st.onClick}
               disabled={!st.onClick}
@@ -733,11 +743,11 @@ export type CircleStep = { key: string; label: string; sub?: string; state: Circ
 export type CircleGroup = { key: string; label?: string; sub?: string; subTone?: 'bad'; onLabel?: () => void; steps: CircleStep[] }
 /* blue is "your turn" (and where the project is) — someone else's open step is a dark ring: to do */
 const C_ARC: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#cfc8bd', todo: '#3f4654' }
-const C_TRACK: Record<CircleState, string> = { done: '#2c8a5b', now: '#dfe6fb', wait: '#f6e6c8', bad: '#d7342a', later: '#e7e2d9', todo: '#e3e5e8' }
 const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-brand-700', wait: 'text-warn-700', bad: 'font-semibold text-bad-600', later: 'text-faint', todo: 'text-ink-2' }
 
-/** the line between two circles — like a parcel's tracking line: green as far as the work has got, gray after it. It
- *  grows into place when it first shows, and moves along when the work does. */
+/** the line between two circles: green as far as the work has got, gray after it. Between steps that are simply done
+ *  or not, it's all or nothing; only the project's own line (one stage after another, each with a real "how far") moves
+ *  part of the way into the next stage, like a parcel's tracking line. It grows into place when it first shows. */
 export function Link({ pct, className, style }: { pct: number; className?: string; style?: React.CSSProperties }) {
   const p = Math.max(0, Math.min(100, Math.round(pct)))
   return (
@@ -752,11 +762,13 @@ const REACHED: CircleState[] = ['done', 'now', 'todo', 'wait', 'bad']
 const linkAfter = (st: CircleStep, next?: CircleStep) =>
   st.state === 'done' ? (next && !next.lock && REACHED.includes(next.state) ? 100 : st.link ?? 0) : st.state !== 'later' && !st.lock ? st.link ?? 0 : 0
 
-/** one circle: green and full with a check when done, red with ! for a problem, else a ring that fills */
+/** one circle, always whole: green and full with a check when done, red with ! for a problem, else a full ring in the
+ *  step's color — blue your turn, dark someone else's, amber waiting on someone outside, light gray not yet. Never a
+ *  part of a ring (it reads as a circle cut off); how far a part has got is said in words beside it. */
+const C_RING: Record<CircleState, string> = { done: '#2c8a5b', now: '#2650cf', wait: '#d98c0b', bad: '#d7342a', later: '#d9d3c9', todo: '#3f4654' }
 export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: number; on?: boolean; /** "where it's up to": filled blue, breathing */ solid?: boolean }) {
-  const w = size >= 34 ? 3.5 : 3
+  const w = size >= 34 ? 3 : 2.5
   const r = (size - w) / 2
-  const c = 2 * Math.PI * r
   if (st.lock) {
     return (
       <span className="relative inline-flex shrink-0 items-center justify-center rounded-full" style={{ width: size, height: size }} data-lock>
@@ -766,13 +778,11 @@ export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: nu
     )
   }
   const filled = st.state === 'done' || st.state === 'bad' || (!!solid && st.state === 'now')
-  const pct = filled ? 100 : st.state === 'later' ? (st.pct || 0) : Math.max(st.pct ?? 0, st.pct == null ? 100 : 6)
   const txt = size >= 34 ? 'text-[0.6875rem]' : 'text-[0.625rem]'
   return (
     <span className={cn('relative inline-flex shrink-0 items-center justify-center rounded-full transition-shadow', on && 'shadow-[0_0_0_0.25rem_rgba(38,80,207,.16)]', solid && st.state === 'now' && 'animate-pulse-ring')} style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={filled ? size / 2 : r} fill={filled ? C_ARC[st.state] : '#fff'} stroke={filled ? 'none' : C_TRACK[st.state]} strokeWidth={w} />
-        {!filled && pct > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C_ARC[st.state]} strokeWidth={w} strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} className="transition-[stroke-dasharray] duration-700" />}
+      <svg width={size} height={size} aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={filled ? size / 2 : r} fill={filled ? C_ARC[st.state] : '#fff'} stroke={filled ? 'none' : C_RING[st.state]} strokeWidth={w} />
       </svg>
       <span className={cn('absolute inset-0 flex items-center justify-center font-bold tnum leading-none', txt, filled ? 'text-white' : st.state === 'now' ? 'text-brand-700' : st.state === 'wait' ? 'text-warn-700' : st.state === 'todo' ? 'text-ink-2' : 'text-faint')}>
         {st.state === 'done' ? <Check className={size >= 34 ? 'h-4 w-4' : 'h-3.5 w-3.5'} strokeWidth={3.2} /> : st.state === 'bad' ? '!' : st.center}
@@ -782,9 +792,6 @@ export function Circle({ st, size = 36, on, solid }: { st: CircleStep; size?: nu
   )
 }
 
-/** a part's steps each get the same room, as if it had five — so the circles are as far apart in every part, and a
- *  part with fewer steps sits in the middle */
-const EVEN = 5
 export function Circles({ groups, at, onPick, layout = 'below', size, label, className, markNow }: { groups: CircleGroup[]; at?: string; onPick?: (key: string) => void; layout?: 'below' | 'beside'; size?: number; label?: string; className?: string; /** where it's up to: the step going on now is filled blue, a little bigger, and says "Now" */ markNow?: boolean }) {
   const all = groups.flatMap((g) => g.steps)
   const rowRef = React.useRef<HTMLDivElement>(null)
@@ -798,7 +805,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
   if (layout === 'beside') {
     const sz = size ?? 30
     return (
-      <ol aria-label={label} className={cn('no-scrollbar flex items-center overflow-x-auto', onPick && 'pb-2.5', className)} data-circles>
+      <ol aria-label={label} className={cn('no-scrollbar -my-2.5 flex items-center overflow-x-auto px-1 py-2.5', onPick && 'pb-5', className)} data-circles>
         {all.map((st, i) => {
           const on = at === st.key
           const here = !!markNow && st.state === 'now'
@@ -829,7 +836,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
   const sz = size ?? 36
   const named = groups.some((g) => g.label || g.sub)
   return (
-    <div ref={rowRef} aria-label={label} className={cn('no-scrollbar flex items-stretch gap-0 overflow-x-auto', className)} data-circles>
+    <div ref={rowRef} aria-label={label} className={cn('no-scrollbar -my-1.5 flex items-stretch gap-0 overflow-x-auto py-1.5', className)} data-circles>
       {groups.map((g, gi) => (
         <div key={g.key} className={cn('flex min-w-0 flex-col', gi > 0 && 'ml-3 border-l border-line pl-3', g.steps.length > 1 ? '' : 'flex-none')} style={g.steps.length > 1 ? { flex: `${g.steps.length} 1 0`, minWidth: `${g.steps.length * 4.75}rem` } : undefined}>
           {named && <div className="mb-1.5 flex h-5 items-center gap-2 px-1">
@@ -839,11 +846,11 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
             {g.sub && <span className={cn('whitespace-nowrap text-[0.75rem]', g.subTone === 'bad' ? 'font-semibold text-bad-600' : 'text-muted')}>{g.sub}</span>}
             {g.label && g.steps.length > 1 && <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" />}
           </div>}
-          <ol className="flex items-start justify-center">
+          <ol className="flex items-start">
             {g.steps.map((st, i) => {
               const on = at === st.key
               return (
-                <li key={st.key} className="relative flex min-w-[4.75rem] flex-col items-center" style={{ flex: `0 1 ${100 / Math.max(EVEN, g.steps.length)}%` }} data-state={st.state}>
+                <li key={st.key} className="relative flex min-w-[4.75rem] flex-[1_1_0] flex-col items-center" data-state={st.state}>
                   {i > 0 && <Link pct={linkAfter(g.steps[i - 1], st)} className="absolute h-[0.1875rem]" style={{ top: sz / 2 - 1.5, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
                   <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
                     <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>

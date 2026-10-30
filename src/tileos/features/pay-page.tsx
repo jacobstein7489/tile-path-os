@@ -6,7 +6,7 @@ import { ArrowRight, Check, HardHat, MessageCircleQuestion, Undo2, TriangleAlert
 import { useStore, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Pop } from '@/tileos/components/ui/overlay'
-import { Page, Status, Row, Col, Meta, PX, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Status, Row, Col, Meta, PX, STICKY_HEAD, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
 import { PAY_WEEKS, THIS_WEEK, PAY_STATE, payRows, payRow, payGrid, poBalance, mismatchWhy, approvePay, askAboutPay, undoPay, weekDays, payOpen, paidWeeks, type PayRow, type PaidRow } from './pay'
@@ -65,16 +65,16 @@ export function PayPage() {
       }
     >
       {w.kind === 'paid' ? (
-        <div>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
+        <div style={PAID_WIDE}>
+          <div className={cn(HEAD_ROW, 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] gap-x-6 max-lg:hidden', EVEN, PX, STICKY_HEAD)}>
             <span>Installer</span><span>Project</span><span className="text-right">Paid</span><span>Status</span><span />
           </div>
           {w.paid.map((r) => <PaidLine key={r.crew} r={r} />)}
           {!w.paid.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>Nobody worked that week.</div>}
         </div>
       ) : (
-        <div>
-          <div className={cn('grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-b border-line-2 bg-wash py-2 text-[0.75rem] font-semibold text-muted max-lg:hidden', PX, STICKY_HEAD)}>
+        <div style={PAY_WIDE}>
+          <div className={cn(HEAD_ROW, 'grid grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] gap-x-6 max-lg:hidden', EVEN, PX, STICKY_HEAD)}>
             <span>Installer</span><span className="text-right">Days</span><span className="text-right">Work done</span><span className="text-right">From the updates</span><span className="text-right">His bill</span><span />
           </div>
           {w.rows.map((r) => <PayLine key={r.crew} r={r} weekKey={w.key} />)}
@@ -134,12 +134,16 @@ export function WeekPicker({ weeks, value, onChange }: { weeks: Pick<WeekTile, '
   )
 }
 
+/** on a wide screen: each column its room, the rest shared evenly (the button stays at the right) */
+const PAY_WIDE = evenVars([12, 4.5, 5.75, 8, 8, 10], { fixedLast: true })
+const PAID_WIDE = evenVars([12, 14, 7, 9, 7], { fixedLast: true })
+
 function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
   const s = useStore()
   const st = PAY_STATE[r.state]
   const open = () => s.open({ t: 'pay', crew: r.crew, week: weekKey })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -176,7 +180,7 @@ function PaidLine({ r }: { r: PaidRow }) {
   const s = useStore()
   const open = () => s.open({ t: 'ipo', id: r.jobs[0].ipo })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3.25rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] items-center gap-3 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">

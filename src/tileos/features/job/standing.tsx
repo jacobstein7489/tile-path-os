@@ -190,7 +190,11 @@ function Parts({ job, tracks, at, onPick, children }: { job: Job; tracks: TrackV
           const lead = t.state !== 'done' ? t.lead : undefined
           const mine = !!lead && lead.owner === me && (lead.state === 'now' || lead.state === 'bad')
           const w = lead ? stepWords(s, job, lead, me) : null
+          /* whose it is goes with the step it's on — a part has steps on different people (the PO is yours, the
+             walk-through is Yakov's), so no one person stands for the whole part */
           const who = lead?.owner
+          const low = (x: string) => x.replace(/^./, (c) => c.toLowerCase())
+          const words = !lead || !w ? '' : /^your turn/i.test(w.text) ? low(w.text) : [who && PEOPLE[who] ? (who === me ? 'you' : firstName(who)) : '', low(w.text)].filter(Boolean).join(' · ')
           const on = at === t.key
           return (
             <button
@@ -211,17 +215,11 @@ function Parts({ job, tracks, at, onPick, children }: { job: Job; tracks: TrackV
                   <span className={cn('truncate text-[0.9375rem] font-semibold', on ? 'text-ink' : 'text-ink')}>{t.label}</span>
                   {t.state !== 'done' && <span className="shrink-0 text-[0.75rem] tnum text-faint">{t.done} of {t.total}</span>}
                 </span>
-                <span data-step-words className={cn('mt-0.5 block truncate text-[0.78125rem]', t.state === 'done' ? 'font-medium text-[#2c8a5b]' : w?.tone)}>
-                  {t.state === 'done' ? `Done${t.doneOn ? ` ${t.doneOn}` : ''}` : lead ? `${stepShort(s, job, lead)} · ${w!.text}` : 'Nothing open'}
+                <span data-step-words data-who={who} className={cn('mt-0.5 block truncate text-[0.78125rem]', t.state === 'done' ? 'font-medium text-[#2c8a5b]' : w?.tone)}>
+                  {t.state === 'done' ? `Done${t.doneOn ? ` ${t.doneOn}` : ''}` : lead ? `${stepShort(s, job, lead)} · ${words}` : 'Nothing open'}
                 </span>
               </span>
-              {who && PEOPLE[who] && (
-                <span data-who className="flex w-[7.25rem] shrink-0 items-center gap-2 max-sm:w-auto">
-                  <Avatar who={who} size={26} />
-                  <span className={cn('min-w-0 truncate text-[0.8125rem] max-sm:sr-only', who === me ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{who === me ? 'You' : firstName(who)}</span>
-                </span>
-              )}
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint lg:hidden" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
             </button>
           )
         })}

@@ -103,11 +103,11 @@ export function ItemsPage() {
         <Table minWidth={820}>
           <thead>
             <tr>
-              <Th>Item</Th>
-              <Th w={80}>Unit</Th>
-              <Th w={130} right>We charge</Th>
-              <Th w={170} right className="max-md:hidden">We pay the installer</Th>
-              <Th w={110} right className="max-lg:hidden">Margin</Th>
+              <Th className="xl:w-[18rem]">Item</Th>
+              <Th w="5rem">Unit</Th>
+              <Th w="8rem" right>We charge</Th>
+              <Th w="10.5rem" right className="max-md:hidden">We pay the installer</Th>
+              <Th w="7rem" right className="max-lg:hidden">Margin</Th>
             </tr>
           </thead>
           <tbody>
@@ -145,10 +145,10 @@ export function ItemsPage() {
         <Table minWidth={760}>
           <thead>
             <tr>
-              <Th>Material</Th>
-              <Th w={170} className="max-md:hidden">Supplier</Th>
-              <Th w={130} right>We pay</Th>
-              <Th w={130} right className="max-lg:hidden">We charge</Th>
+              <Th className="xl:w-[18rem]">Material</Th>
+              <Th w="10.5rem" className="max-md:hidden">Supplier</Th>
+              <Th w="8rem" right>We pay</Th>
+              <Th w="8rem" right className="max-lg:hidden">We charge</Th>
             </tr>
           </thead>
           <tbody>
@@ -170,11 +170,11 @@ export function ItemsPage() {
         <Table minWidth={760}>
           <thead>
             <tr>
-              <Th>Rate</Th>
-              <Th w={70} className="max-md:hidden">Unit</Th>
-              <Th w={120} right>We charge</Th>
-              <Th w={140} right className="max-md:hidden">We pay the installer</Th>
-              <Th w={90} right className="max-lg:hidden">Margin</Th>
+              <Th className="xl:w-[18rem]">Rate</Th>
+              <Th w="4.5rem" className="max-md:hidden">Unit</Th>
+              <Th w="7.5rem" right>We charge</Th>
+              <Th w="8.75rem" right className="max-md:hidden">We pay the installer</Th>
+              <Th w="5.5rem" right className="max-lg:hidden">Margin</Th>
             </tr>
           </thead>
           <tbody>

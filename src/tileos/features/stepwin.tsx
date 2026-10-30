@@ -219,9 +219,143 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
   )
 }
 
+/* ================= a finished step: what came of it =================
+ * A finished step stays on its part's line with a ✓ — it's the record of who did it and when — and opening it shows
+ * what it produced, each thing one tap from where it lives: the paperwork itself, what was entered, the numbers checked,
+ * the delivery date, what came in, the installer and his PO, our POs, the layouts, the site check's answers. */
+function ResultRow({ icon, title, sub, right, tone, onClick }: { icon?: React.ReactNode; title: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode; tone?: 'bad' | 'ok' | 'warn'; onClick?: () => void }) {
+  const Tag = onClick ? 'button' : 'div'
+  return (
+    <Tag {...(onClick ? { type: 'button' as const, onClick } : {})} className={cn('flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-3.5 py-2 text-left first:border-t-0', onClick && 'row-hover')}>
+      {icon && <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-wash-2 text-ink-2 [&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>}
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate text-[0.875rem] font-medium text-ink">{title}</span>
+        {sub && <span className="mt-0.5 block truncate text-[0.78125rem] text-muted">{sub}</span>}
+      </span>
+      {right != null && <span className={cn('shrink-0 text-right text-[0.8125rem] tnum', tone === 'bad' ? 'font-semibold text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{right}</span>}
+      {onClick && <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
+    </Tag>
+  )
+}
+function ResultBox({ title, children, empty }: { title: string; children?: React.ReactNode; empty?: string }) {
+  const has = React.Children.toArray(children).filter(Boolean).length > 0
+  return (
+    <section className="overflow-hidden rounded-xl border border-line bg-white" data-step-result>
+      <header className="border-b border-line-2 bg-[#f7f7f5] px-3.5 py-2 text-[0.75rem] font-semibold text-muted">{title}</header>
+      {has ? children : <div className="px-3.5 py-3 text-[0.84375rem] text-muted">{empty || 'Nothing kept with it.'}</div>}
+    </section>
+  )
+}
+function StepResult({ job, v }: { job: Job; v: StepView }) {
+  const s = useStore()
+  const tiles = Object.values(s.tiles[job.id] || {})
+  const checks = s.checks.filter((c) => c.jobId === job.id)
+  const rec = s.stepRecs[job.id]?.[v.key]
+  const scope = () => s.open({ t: 'scopewin', jobId: job.id })
+  switch (v.key) {
+    case 'getpaper': {
+      const files = s.files.filter((f) => f.jobId === job.id && f.kind === 'paperwork')
+      return (
+        <ResultBox title="The paperwork" empty="It was marked as here, but no file was kept with it. Upload it from Documents on the project.">
+          {files.map((f) => <ResultRow key={f.id} icon={<FileText />} title={f.name} sub={[PEOPLE[f.by]?.short, f.at].filter(Boolean).join(' · ')} onClick={() => s.open({ t: 'file', id: f.id })} />)}
+        </ResultBox>
+      )
+    }
+    case 'rooms':
+      return (
+        <ResultBox title="What was entered from the paperwork" empty="No tile on the paperwork yet.">
+          {tiles.map((t) => <ResultRow key={t.tag} icon={<Grid2x2 />} title={<><b className="font-semibold">{t.tag}</b> {t.name}</>} sub={[t.size, t.supplier].filter(Boolean).join(' · ')} right={t.paper ? `${t.paper.qty.toLocaleString('en-US')} ${t.paper.unit === 'boxes' ? 'boxes' : 'SF'}` : '—'} onClick={scope} />)}
+        </ResultBox>
+      )
+    case 'qty':
+      return (
+        <ResultBox title="On the paperwork against what we need" empty="No tile to check.">
+          {tiles.map((t) => {
+            const r = qtyRow(s, job.id, t)
+            const word = r.have == null ? 'Not on the paperwork' : r.need == null ? `${r.have} ${unitWord(r.unit, r.have)}` : r.short > 0 ? `${r.short} ${unitWord(r.unit, r.short)} short` : 'Enough'
+            return <ResultRow key={t.tag} icon={<Ruler />} title={<><b className="font-semibold">{t.tag}</b> {t.name}</>} sub={r.need != null ? `${r.have != null ? `Has ${r.have} · ` : ''}we need ${r.need} ${unitWord(r.unit, r.need)} with the extra for cuts` : undefined} right={word} tone={r.short > 0 ? 'bad' : r.have != null ? 'ok' : undefined} />
+          })}
+        </ResultBox>
+      )
+    case 'order':
+    case 'delivered':
+      return (
+        <ResultBox title={v.key === 'order' ? 'The tile order' : 'What came in'} empty="No tile order on this project yet.">
+          {checks.map((c) => <ResultRow key={c.tag} icon={<Truck />} title={<><b className="font-semibold">{c.tag}</b> {c.where}</>} sub={[c.supplier, c.suppliedBy ? `ordered by ${c.suppliedBy === 'GC' ? 'the GC' : c.suppliedBy.toLowerCase() === 'owner' ? 'the owner' : c.suppliedBy}` : '', c.eta && c.received < c.ordered ? `due ${c.eta}` : ''].filter(Boolean).join(' · ')} right={c.received >= c.ordered && c.ordered > 0 ? `All ${c.ordered} ${c.unit} here` : c.received > 0 ? `${c.received} of ${c.ordered} ${c.unit}` : `${c.ordered} ${c.unit} ordered`} tone={c.received >= c.ordered && c.ordered > 0 ? 'ok' : c.received > 0 ? 'warn' : undefined} />)}
+        </ResultBox>
+      )
+    case 'tile':
+      return (
+        <ResultBox title="The tile and grout" empty="No tile picked yet.">
+          {tiles.map((t) => <ResultRow key={t.tag} icon={<Grid2x2 />} title={<><b className="font-semibold">{t.tag}</b> {t.name}</>} sub={[t.size, t.finish, t.maker].filter(Boolean).join(' · ')} right={t.grout ? `${GROUTS[t.grout]?.name || t.grout} grout` : 'No grout'} tone={t.grout ? undefined : 'warn'} onClick={scope} />)}
+        </ResultBox>
+      )
+    case 'layouts': {
+      const all = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.filter((x) => x.tile).map((x) => ({ room: r.name, x })))
+      const set = all.filter((a) => a.x.layout).length
+      return (
+        <ResultBox title="The layouts">
+          <ResultRow icon={<Grid2x2 />} title={`${set} of ${all.length} walls and floors have a layout`} sub="Every wall and floor, drawn to scale — print or send to the designer" onClick={() => s.open({ t: 'layouts', jobId: job.id })} />
+        </ResultBox>
+      )
+    }
+    case 'heights': {
+      const answers = Object.entries(rec?.checks || {})
+      return (
+        <ResultBox title="What the site check found" empty="Checked — nothing kept with it.">
+          {answers.map(([k, a]) => {
+            const d = SITE_CHECKS.find((x) => x.k === k)
+            return <ResultRow key={k} title={d?.label || k} sub={(a as any).note || ((a as any).rooms?.length ? (a as any).rooms.join(', ') : undefined)} right={(a as any).na ? 'Not needed' : (a as any).ok ? 'Yes' : (a as any).fixed ? 'Fixed' : 'No'} tone={(a as any).na ? undefined : (a as any).ok || (a as any).fixed ? 'ok' : 'bad'} />
+          })}
+        </ResultBox>
+      )
+    }
+    case 'change': {
+      const ch = rec?.changes || []
+      return (
+        <ResultBox title="What changed from the estimate" empty="Nothing changed — the scope is the estimate's.">
+          {ch.map((c, i) => <ResultRow key={i} title={c.what} sub={[c.where, c.note].filter(Boolean).join(' · ') || undefined} />)}
+        </ResultBox>
+      )
+    }
+    case 'installer':
+    case 'confirmed': {
+      const ipo = [...s.ipos].reverse().find((x) => x.jobId === job.id)
+      const crew = (ipo?.crew || installerOf(s, job)) as PersonKey | undefined
+      const amount = ipo ? ipo.lines.reduce((n, l) => n + (l.amount || 0), 0) : 0
+      return (
+        <ResultBox title="The installer and his PO" empty="No installer on this project yet.">
+          {crew && <ResultRow icon={<HardHat />} title={PEOPLE[crew]?.name || crew} sub={ipo ? `${ipo.id}${amount ? ` · ${fmtMoney(amount)}` : ''}` : 'No PO yet'} right={ipo ? (ipo.status === 'Accepted' ? `Accepted ${ipo.date || ''}`.trim() : ipo.status) : undefined} tone={ipo?.status === 'Accepted' ? 'ok' : undefined} onClick={ipo ? () => s.open({ t: 'ipo', id: ipo.id }) : undefined} />}
+        </ResultBox>
+      )
+    }
+    case 'materials':
+    case 'matin': {
+      const pos = s.pos.filter((p) => p.jobId === job.id)
+      const word = (p: (typeof pos)[number]) => (/cancelled/i.test(p.note) ? 'Cancelled' : p.step >= 3 ? 'Here' : p.step === 2 ? `Confirmed${p.eta ? ` · ${p.eta}` : ''}` : p.step === 1 ? 'Sent' : 'Draft')
+      return (
+        <ResultBox title="Our POs" empty="No PO on this project yet.">
+          {pos.map((p) => <ResultRow key={p.id} icon={<Truck />} title={`${p.id} · ${p.supplier}`} sub={[p.what, fmtMoney(p.amount)].filter(Boolean).join(' · ')} right={word(p)} tone={p.step >= 3 ? 'ok' : p.late ? 'bad' : undefined} onClick={() => s.open({ t: 'po', id: p.id })} />)}
+        </ResultBox>
+      )
+    }
+    case 'design':
+    case 'walk': {
+      const ev = s.events.filter((e) => e.jobId === job.id && (v.key === 'design' ? e.kind === 'meeting' : e.kind === 'walkthrough'))
+      return (
+        <ResultBox title={v.key === 'design' ? 'The meeting' : 'The walk-through'} empty={rec?.note || 'It happened — no notes kept with it.'}>
+          {ev.map((e) => <ResultRow key={e.id} icon={<CalendarDays />} title={e.title} sub={[labelFromIso(e.date), timeLabel(e.start), e.people.map((p) => PEOPLE[p]?.short).filter(Boolean).join(', ')].filter(Boolean).join(' · ')} />)}
+          {rec?.note ? <ResultRow title="Notes" sub={rec.note} /> : null}
+        </ResultBox>
+      )
+    }
+  }
+  return null
+}
+
 /** the step itself, the same way every time: what's happening (the block on top), then the work — yours to do; or,
  *  someone else's, what they do there (read only); nothing yet while it waits for the step before — and what's
- *  happened with it. */
+ *  happened with it. Once it's done: what came of it, for everyone — its person can still change it. */
 function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boolean; goTo?: (k: string) => void }) {
   const s = useStore()
   const { me, mine, admin, locked, viewOnly } = stepRights(s, v)
@@ -235,9 +369,13 @@ function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boo
   return (
     <>
       <StepStatus job={job} v={v} me={me} mine={mine} admin={admin} onSite={onSite} take={take} goTo={goTo} />
-      {/* the work is its person's: someone else's step says what's happening, and what happened — no greyed-out form to
-          scroll. A problem is the exception: everyone sees what's wrong (each problem opens; the buttons stay theirs). */}
-      {mine && !locked ? (
+      {/* done: what came of it, for everyone — its person can open the work again to change something */}
+      {v.state === 'done' ? (
+        <div className={cn('flex flex-col gap-3', gap)} data-step-done>
+          <StepResult job={job} v={v} />
+          {mine && !locked && <DoneChange job={job} v={v} />}
+        </div>
+      ) : mine && !locked ? (
         <fieldset className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
       ) : v.state === 'bad' ? (
         <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', gap)} data-problem-view><Body job={job} v={v} /></fieldset>
@@ -256,6 +394,16 @@ function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boo
         </div>
       )}
     </>
+  )
+}
+
+/** a finished step's person: the work stays one tap away, to change something after it's done */
+function DoneChange({ job, v }: { job: Job; v: StepView }) {
+  const [open, setOpen] = React.useState(false)
+  return open ? (
+    <fieldset className="m-0 min-w-0 border-0 p-0" data-done-change><Body job={job} v={v} /></fieldset>
+  ) : (
+    <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1 self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-done-open>Change something here<ChevronDown className="h-3.5 w-3.5" /></button>
   )
 }
 

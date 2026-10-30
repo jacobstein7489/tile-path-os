@@ -6,7 +6,7 @@ import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, Clipbo
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, Link } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -104,7 +104,7 @@ export function ProjectsPage() {
         </>
       }
     >
-      <div>
+      <div style={WIDE}>
         {!!list.length && <ListHead />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
@@ -128,16 +128,17 @@ const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | '
 
 /* One line per project, five columns that line up top to bottom and share the width:
  *   Project · Client · Design Tile Site Installer Materials · Now · Start
- * The five parts of getting ready, as circles on one line, for every project — the same five, in the same place, under
- * their names on top. Like a parcel's tracking line: the line between them is green as far as getting ready has got
- * (its steps done, of all of them) and moves along as the work does; each circle says its part — ✓ done, a ring that
- * fills, ! a problem.
+ * The five parts of getting ready, as five circles, for every project — the same five, in the same place, under their
+ * names on top. They go on at the same time, so there's no line through them; each circle says its part — ✓ done,
+ * ! a problem, a dark ring under way, amber waiting on someone outside, light gray not started.
  * Now: always something — the step that's up (yours in blue), the crew's days, how far the installing is, the touch-ups
  * left, why it's on hold. Problems are counted on the right of it ("2 problems"), never squeezed into the words: point
  * at the count for the list, open the project for all of them.
  * Each group (On hold, Getting ready…) is a gray band with its color dot. On a phone: the name and how far it is, then
  * what's going on now. */
-const COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_17.5rem_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-xl:grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_5rem] max-md:block'
+const COLS = cn('grid grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-md:block', EVEN)
+/** on a wide screen: Project · Client · the five · Now · Start, each with its room and the rest shared evenly */
+const WIDE = evenVars([9.5, 8, 17.5, 14.5, 4], { fixedLast: true })
 /** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
  *  (the widest name, Materials, fits), the same on top and in every row */
 const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
@@ -156,19 +157,15 @@ function ListHead() {
   )
 }
 
-/** one part of getting ready, as a small circle: ✓ done · a ring that fills as its steps get done · ! a problem */
+/** one part of getting ready, as a small whole circle: ✓ done · ! a problem · a ring — dark once it's under way, amber
+ *  while it waits on someone outside, light gray before it starts. How far it's got is in its words (point at it). */
 function PartDot({ t }: { t?: TrackView }) {
   /* a part this project doesn't have */
   if (!t) return <span className="inline-flex h-4 w-4 rounded-full border-2 border-dashed border-[#ddd6cb] bg-white" />
   if (t.state === 'done') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2c8a5b] text-white"><Check className="h-2.5 w-2.5" strokeWidth={4} /></span>
   if (t.state === 'bad') return <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#d7342a] text-[0.5625rem] font-black text-white">!</span>
-  const r = 6, c = 2 * Math.PI * r, f = t.total ? t.done / t.total : 0
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 -rotate-90">
-      <circle cx="8" cy="8" r={r} fill="#fff" stroke={t.state === 'wait' ? '#e9c98f' : '#ddd6cb'} strokeWidth="2.25" />
-      {f > 0 && <circle cx="8" cy="8" r={r} fill="none" stroke="#2c8a5b" strokeWidth="2.25" strokeDasharray={`${c * f} ${c}`} strokeLinecap="round" />}
-    </svg>
-  )
+  const ring = t.state === 'wait' ? '#d98c0b' : t.done > 0 || t.state === 'now' ? '#3f4654' : '#d9d3c9'
+  return <span className="inline-flex h-4 w-4 rounded-full border-[0.15625rem] bg-white" style={{ borderColor: ring }} data-ring={t.state} />
 }
 const partWords = (x: TrackView) => `${x.label} — ${x.state === 'done' ? 'done' : x.state === 'bad' ? 'a problem' : `${x.done} of ${x.total} done${x.state === 'wait' ? ' · waiting' : ''}`}`
 
@@ -184,14 +181,13 @@ function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */
     const w = t === 'progress' ? `${j.pct ?? 0}% in` : all ? (t === 'coming' ? 'Ready' : '') : `${done} of ${tracks.length} ready`
     return w ? <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{w}</span> : null
   }
+  /* the five go on at the same time, not one after another — so no line through them, just the five circles */
   return (
-    <span className="relative flex shrink-0 items-center" data-mini-line data-ready-pct={pct} aria-label={`Getting ready — ${done} of ${tracks.length} parts done, ${pct}% of the steps`}>
-      {/* the line, from the first circle's middle to the last one's — green as far as it's got */}
-      <Link pct={pct} className="absolute h-[0.1875rem]" style={{ left: '1.75rem', right: '1.75rem', top: 'calc(50% - 0.09375rem)' }} />
+    <span className="flex shrink-0 items-center" data-mini-line data-ready-pct={pct} aria-label={`Getting ready — ${done} of ${tracks.length} parts done, ${pct}% of the steps`}>
       {TRACKS.map((tk) => {
         const x = tracks.find((y) => y.key === tk.key)
         return (
-          <span key={tk.key} data-mark={tk.key} data-at={x?.state || 'none'} title={x ? partWords(x) : `${tk.label} — not on this project`} className={cn(slot(tk.key), 'relative z-[1]')}>
+          <span key={tk.key} data-mark={tk.key} data-at={x?.state || 'none'} title={x ? partWords(x) : `${tk.label} — not on this project`} className={slot(tk.key)}>
             <PartDot t={x} /><span className="sr-only" data-mark-name>{tk.label}</span>{x && <span className="sr-only" data-mark-count>{x.done}/{x.total}</span>}
           </span>
         )
@@ -279,7 +275,7 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       data-project={j.id}
       onClick={open}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
-      className={cn('min-h-[2.75rem] cursor-pointer border-t border-line-2 py-2 pl-5 pr-5 transition-colors row-hover max-md:px-4 max-md:py-2.5', COLS)}
+      className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover max-md:px-4 max-md:py-2.5', COLS)}
     >
       {/* a computer: five things on one line, each in its column */}
       <div className="flex min-w-0 items-center gap-2 max-md:hidden">

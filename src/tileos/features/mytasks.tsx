@@ -7,7 +7,7 @@ import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, B
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, STICKY_HEAD, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -113,17 +113,20 @@ const InJob = React.createContext(false)
 const TBTN = ROW_BTN
 /** the row's button floats in on the right when you point at the row (a mouse) — never on a phone or a tablet */
 const HOVER_ACT = 'pointer-events-none absolute inset-y-0 right-0 hidden items-center pl-12 pr-5 opacity-0 transition-opacity duration-100 max-sm:pr-4 [@media(hover:hover)]:md:flex group-hover/row:opacity-100 group-focus-visible/row:opacity-100 group-has-[:focus-visible]/row:opacity-100'
-const HOVER_BG = { background: 'linear-gradient(90deg, rgba(247,245,240,0), #f7f5f0 2.75rem)' }
+const HOVER_BG = { background: 'linear-gradient(90deg, rgba(255,255,255,0), #fff 2.75rem)' }
 /** the columns: what · (whose, on everyone's list) · project (not when grouped by project) · when — the same on the
  *  column names on top and on every row, so everything lines up, and they share the whole width */
 export const todoCols = (who: boolean, inJob: boolean) =>
-  who
+  cn(who
     ? inJob ? 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1fr)_7rem]'
-    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem]'
+    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem]', EVEN)
+/** on a wide screen: each column its room, the rest shared evenly — When stays pinned to the right */
+export const todoWide = (who: boolean, inJob: boolean) =>
+  evenVars(who ? (inJob ? [24, 8, 6] : [22, 8, 12, 6]) : inJob ? [30, 6] : [24, 12, 6], { fixedLast: true })
 /** the column names over a Today list */
 function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
   return (
-    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} data-todo-head>
+    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} style={todoWide(who, inJob)} data-todo-head>
       <span>What</span>
       {who && <span>Whose</span>}
       {!inJob && <span>Project</span>}
@@ -151,7 +154,8 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
-      className={cn('group/row relative min-h-[2.75rem] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', todoCols(who, inJob), PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      style={todoWide(who, inJob)}
+      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', ROW_H, todoCols(who, inJob), PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}

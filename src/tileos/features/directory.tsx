@@ -108,12 +108,12 @@ export function ClientsPage() {
       <Table minWidth={820}>
         <thead>
           <tr>
-            <Th>Client</Th>
-            <Th w={170} className="max-lg:hidden">Main contact</Th>
-            <Th w={150} className="max-md:hidden">Phone</Th>
-            <Th w={150} className="max-md:hidden">Projects</Th>
-            <Th w={130} right className="max-lg:hidden">Open to collect</Th>
-            <Th w={52} />
+            <Th className="xl:w-[14rem]">Client</Th>
+            <Th w="10.5rem" className="max-lg:hidden">Main contact</Th>
+            <Th w="9.5rem" className="max-md:hidden">Phone</Th>
+            <Th w="9.5rem" className="max-md:hidden">Projects</Th>
+            <Th w="8rem" right className="max-lg:hidden">Open to collect</Th>
+            <Th w="3.25rem" />
           </tr>
         </thead>
         <tbody>
@@ -177,11 +177,11 @@ export function DesignersPage() {
       <Table minWidth={760}>
         <thead>
           <tr>
-            <Th>Designer</Th>
-            <Th w={150} className="max-md:hidden">Phone</Th>
-            <Th w={240} className="max-lg:hidden">Clients</Th>
-            <Th w={230} className="max-md:hidden">Waiting on them</Th>
-            <Th w={52} />
+            <Th className="xl:w-[16rem]">Designer</Th>
+            <Th w="9.5rem" className="max-md:hidden">Phone</Th>
+            <Th w="15rem" className="max-lg:hidden">Clients</Th>
+            <Th w="14.5rem" className="max-md:hidden">Waiting on them</Th>
+            <Th w="3.25rem" />
           </tr>
         </thead>
         <tbody>
@@ -246,12 +246,12 @@ export function SubsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th>Installer</Th>
-            <Th w={230} className="max-md:hidden">Working now</Th>
-            <Th w={120} className="max-lg:hidden">Free from</Th>
-            <Th w={170} className="max-md:hidden">Installer POs</Th>
-            <Th w={210} className="max-xl:hidden">Last week’s pay</Th>
-            <Th w={52} />
+            <Th className="xl:w-[12rem]">Installer</Th>
+            <Th w="14.5rem" className="max-md:hidden">Working now</Th>
+            <Th w="7.5rem" className="max-lg:hidden">Free from</Th>
+            <Th w="10.5rem" className="max-md:hidden">Installer POs</Th>
+            <Th w="13rem" className="max-xl:hidden">Last week’s pay</Th>
+            <Th w="3.25rem" />
           </tr>
         </thead>
         <tbody>
@@ -320,12 +320,12 @@ export function SuppliersPage() {
       <Table minWidth={760}>
         <thead>
           <tr>
-            <Th>Supplier</Th>
-            <Th w={260} className="max-lg:hidden">Who to call</Th>
-            <Th w={130} className="max-md:hidden">Open POs</Th>
-            <Th w={130} className="max-md:hidden">Late</Th>
-            <Th w={150} right className="max-lg:hidden">Spent this year</Th>
-            <Th w={52} />
+            <Th className="xl:w-[13rem]">Supplier</Th>
+            <Th w="16.25rem" className="max-lg:hidden">Who to call</Th>
+            <Th w="8rem" className="max-md:hidden">Open POs</Th>
+            <Th w="8rem" className="max-md:hidden">Late</Th>
+            <Th w="9.5rem" right className="max-lg:hidden">Spent this year</Th>
+            <Th w="3.25rem" />
           </tr>
         </thead>
         <tbody>
@@ -398,12 +398,12 @@ export function ItemsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th>Item</Th>
-            <Th w={70} className="max-md:hidden">Unit</Th>
-            <Th w={110} right className="max-md:hidden">We charge</Th>
-            <Th w={110} right className="max-md:hidden">We pay</Th>
-            <Th w={90} right className="max-lg:hidden">Margin</Th>
-            <Th w={170} className="max-xl:hidden">Paid to</Th>
+            <Th className="xl:w-[18rem]">Item</Th>
+            <Th w="4.5rem" className="max-md:hidden">Unit</Th>
+            <Th w="7rem" right className="max-md:hidden">We charge</Th>
+            <Th w="7rem" right className="max-md:hidden">We pay</Th>
+            <Th w="5.5rem" right className="max-lg:hidden">Margin</Th>
+            <Th w="10.5rem" className="max-xl:hidden">Paid to</Th>
           </tr>
         </thead>
         <tbody>

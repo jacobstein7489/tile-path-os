@@ -129,12 +129,12 @@ export function POsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th>PO</Th>
-            <Th w={190} className="max-md:hidden">Vendor</Th>
-            <Th w={190} className="max-lg:hidden">Project</Th>
-            <Th w={120} right className="max-md:hidden">Amount</Th>
-            <Th w={210} className="max-md:hidden">Status</Th>
-            <Th w={110} className="max-xl:hidden">Date</Th>
+            <Th className="xl:w-[16rem]">PO</Th>
+            <Th w="12rem" className="max-md:hidden">Vendor</Th>
+            <Th w="12rem" className="max-lg:hidden">Project</Th>
+            <Th w="7.5rem" right className="max-md:hidden">Amount</Th>
+            <Th w="13rem" className="max-md:hidden">Status</Th>
+            <Th w="7rem" className="max-xl:hidden">Date</Th>
           </tr>
         </thead>
         <tbody>

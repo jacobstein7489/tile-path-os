@@ -87,13 +87,13 @@ export function BillingPage() {
         <Table minWidth={900}>
           <thead>
             <tr>
-              <Th w={104} className="max-md:hidden">Invoice</Th>
-              <Th>Project · bill</Th>
-              <Th w={200} className="max-xl:hidden">Client · PO · estimate</Th>
-              <Th w={128} right className="max-md:hidden">Amount</Th>
-              <Th w={170} className="max-md:hidden">Status</Th>
-              <Th w={180} className="max-lg:hidden">When</Th>
-              {tab === 'todo' && <Th w={150} className="max-lg:hidden" />}
+              <Th w="6.5rem" className="max-md:hidden">Invoice</Th>
+              <Th className="xl:w-[16rem]">Project · bill</Th>
+              <Th w="12.5rem" className="max-xl:hidden">Client · PO · estimate</Th>
+              <Th w="8rem" right className="max-md:hidden">Amount</Th>
+              <Th w="10.5rem" className="max-md:hidden">Status</Th>
+              <Th w="11.25rem" className="max-lg:hidden">When</Th>
+              {tab === 'todo' && <Th w="9.5rem" className="max-lg:hidden" />}
             </tr>
           </thead>
           <tbody>
@@ -147,13 +147,13 @@ function ByProject() {
     <Table minWidth={860}>
       <thead>
         <tr>
-          <Th>Project</Th>
-          <Th w={130} right className="max-md:hidden">Contract</Th>
-          <Th w={110} right className="max-md:hidden">Installed</Th>
-          <Th w={100} right className="max-md:hidden">Billed</Th>
-          <Th w={100} right className="max-lg:hidden">Paid</Th>
-          <Th w={120} right className="max-lg:hidden">Retainage</Th>
-          <Th w={190} className="max-xl:hidden" />
+          <Th className="xl:w-[14rem]">Project</Th>
+          <Th w="8rem" right className="max-md:hidden">Contract</Th>
+          <Th w="7rem" right className="max-md:hidden">Installed</Th>
+          <Th w="6.25rem" right className="max-md:hidden">Billed</Th>
+          <Th w="6.25rem" right className="max-lg:hidden">Paid</Th>
+          <Th w="7.5rem" right className="max-lg:hidden">Retainage</Th>
+          <Th w="12rem" className="max-xl:hidden" />
         </tr>
       </thead>
       <tbody>

@@ -52,7 +52,13 @@ export function runTaskAction(t: Task) {
   if (kind === 'tab:touchups') return s.open({ t: 'touchups', jobId: t.jobId })
   if (kind.startsWith('tab:')) return s.open({ t: 'job', id: t.jobId, tab: kind.slice(4) })
   switch (kind) {
-    case 'open-job': return s.open({ t: 'job', id: t.jobId })
+    /* never just the project: the walk to verify what the office built is the site check — open that step; anything
+       else opens the task itself (its notes, its history, the project one tap away) */
+    case 'open-job': {
+      const j = s.jobs[t.jobId]
+      if (j && (t.type === 'Field' || /verify/i.test(t.title)) && stepsFor(s, j).some((v) => v.key === 'heights')) return s.open({ t: 'step', jobId: t.jobId, k: 'heights' })
+      return s.open({ t: 'task', id: t.id })
+    }
     case 'schedule': return s.open({ t: 'readytobook' })
     case 'assign': return s.open({ t: 'assign', jobId: t.jobId })
     case 'followup': return s.open({ t: 'followup', jobId: t.jobId })
