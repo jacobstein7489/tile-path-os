@@ -6,7 +6,7 @@ import { isoOfDay, parseTime } from '@/tileos/data/calendar'
 import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
 import type { PersonKey, Stage, SwatchKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
-import type { Task, MoneyItem } from '@/tileos/data/work'
+import type { Task, MoneyItem, PO } from '@/tileos/data/work'
 import { surfacePct, tileOf } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
@@ -15,7 +15,7 @@ import { qbLive, pushBill, pushPayment, emailBill, pushEstimate } from './qbsync
 import { mailLive, emailPO, emailIPO } from './mailout'
 import { stepsFor } from './steps'
 import { REAL } from '@/tileos/lib/save'
-import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText } from '@/tileos/lib/today'
+import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, isoFromLabel } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
@@ -630,6 +630,24 @@ export function receiveTile(jobId: string, tag: string, qty: number) {
   S().commit((s) => {
     const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
     if (!c) return
+    /* it came on a tile PO: counted on that PO's line too — the PO is done when everything on it is here */
+    let left = qty
+    s.pos.filter((p) => p.jobId === jobId && p.kind === 'tile' && p.step >= 1 && p.step < 3 && !/cancelled/i.test(p.note)).reverse().forEach((p) => {
+      p.lines.forEach((l) => {
+        if (l.tag !== tag || left <= 0) return
+        const q = Math.min(left, (l.n ?? 0) - (l.got || 0))
+        if (q <= 0) return
+        l.got = (l.got || 0) + q
+        left -= q
+        p.log.push(L(me(), `${tag}: ${q} ${l.unit || c.unit} came`))
+      })
+      if (p.lines.every((l) => (l.got || 0) >= (l.n ?? 0))) {
+        p.step = 3
+        p.late = false
+        p.note = 'Delivered'
+        closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + p.id && t.state !== 'done').map((t) => t.id), 'Delivered')
+      } else p.note = `Part came · still to come: ${p.lines.filter((l) => (l.got || 0) < (l.n ?? 0)).map((l) => `${l.tag} ${(l.n ?? 0) - (l.got || 0)} ${l.unit || ''}`.trim()).join(', ')}`
+    })
     c.received = Math.min(c.ordered, c.received + qty)
     if (c.received >= c.ordered) {
       c.note = 'All here'
@@ -960,9 +978,17 @@ export function confirmPO(id: string, eta: string) {
     closeTasks(s, s.tasks.filter((t) => t.title.startsWith(id) || t.action?.kind === 'po:' + id || (id === 'PO-1045' && t.id === 't-po1045')).map((t) => t.id), 'Confirmed')
     setIssues(s, p.jobId, (iss) => iss.filter((i) => !i.text.includes(id) && !/supplier has not confirmed/i.test(i.text)))
     addHist(s, p.jobId, { who: me(), kind: 'material', title: `${p.supplier} confirmed ${id}`, detail: `Arrives ${eta}` })
+    /* tile: each of its tiles knows the day, and the tile's "get the delivery date" step is done */
+    if (p.kind === 'tile') {
+      p.lines.forEach((l) => { const c = l.tag ? s.checks.find((x) => x.jobId === p.jobId && x.tag === l.tag) : undefined; if (c && c.received < c.ordered) c.eta = eta })
+      const iso = isoFromLabel(eta)
+      const r = (s.stepRecs[p.jobId] ||= {})
+      if (!r.order?.done) r.order = { ...(r.order || {}), done: NOW, by: me(), note: `${id} · delivery ${eta}` }
+      if (iso) r.delivered = { ...(r.delivered || {}), due: iso }
+    }
     /* the day it comes: on the Today of whoever takes deliveries, to check it in (a project getting ready has its own
-       "materials delivered" step for this) */
-    if (!deliveryStepOn(s, p.jobId)) newTask(s, { jobId: p.jobId, title: `Check in ${id} from ${p.supplier}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: eta, tone: 'info', where: `${s.jobs[p.jobId]?.name || ''} · ${p.what}`, action: { label: 'Check it in', kind: 'po:' + id } })
+       "materials delivered" / "receive tile" step for this) */
+    if (!deliveryStepOn(s, p.jobId, p.kind === 'tile' ? 'delivered' : 'matin')) newTask(s, { jobId: p.jobId, title: `Check in ${id} from ${p.supplier}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: eta, tone: 'info', where: `${s.jobs[p.jobId]?.name || ''} · ${p.what}`, action: { label: 'Check it in', kind: 'po:' + id } })
   }, `${id} confirmed — arrives ${eta}`, { close: true, to: [{ who: matBy(S()), what: `Check in ${id} when it comes — ${eta}` }] })
 }
 /** who gets what once a PO is out: the sender gets the supplier's yes, whoever takes deliveries checks it in */
@@ -972,20 +998,29 @@ function poTo(id: string, supplier: string): { who: PersonKey; what: string }[] 
   out.push({ who: rec, what: `Check in ${id} the day it comes` })
   return out
 }
-/** a project getting ready checks its materials in on its own step — no second task for it */
-function deliveryStepOn(s: Store, jobId: string): boolean {
+/** a project getting ready checks its materials (and its tile) in on its own step — no second task for it */
+function deliveryStepOn(s: Store, jobId: string, key: 'matin' | 'delivered' = 'matin'): boolean {
   const j = s.jobs[jobId]
   if (!j) return false
-  try { return stepsFor(s, j).some((v) => v.key === 'matin' && v.state !== 'done' && v.state !== 'na') } catch { return false }
+  try { return stepsFor(s, j).some((v) => v.key === key && v.state !== 'done' && v.state !== 'na') } catch { return false }
 }
 export function receivePO(id: string) {
+  const tile = S().pos.find((x) => x.id === id)?.kind === 'tile'
   S().commit((s) => {
     const p = s.pos.find((x) => x.id === id)
     if (!p) return
+    /* what was still to come on each line came now — tile counts in on its tile */
+    p.lines.forEach((l) => {
+      const n = l.n ?? 0
+      const left = Math.max(0, n - (l.got || 0))
+      l.got = n
+      if (p.kind === 'tile' && l.tag && left) tileIn(s, p.jobId, l.tag, left)
+    })
     p.step = 3
     p.late = false
     p.note = 'Delivered'
     p.log.push(L(me(), 'Delivered to site · all lines'))
+    if (p.kind === 'tile') tileStepIn(s, p.jobId)
     s.mats.forEach((m) => {
       if (m.po === id) m.status = 'delivered'
     })
@@ -1007,12 +1042,109 @@ export function receivePO(id: string) {
       newTask(s, { jobId: '828', title: 'Schedule the 828 Clyde return', type: 'Schedule', owner: 'ys', for: ['pm', 'owner'], state: 'now', due: 'This week', tone: 'neutral', where: 'Lobby repairs · landing · about 2 days', action: { label: 'Schedule', kind: 'assign' } })
     }
     addHist(s, p.jobId, { who: me(), kind: 'material', title: `${id} delivered · ${p.what}`, detail: thinset828 ? 'The return is off hold — ready to book' : undefined })
-  }, `${id} delivered — it’s on site`, { close: true, flow: [{ who: matBy(S()), label: 'Sent', state: 'done' }, { label: 'Confirmed', state: 'done' }, { label: 'Delivered', state: 'done' }, { who: 'accounting', label: 'Bill', state: 'now' }] })
+  }, `${id} delivered — it’s on site`, { close: true, flow: [{ who: matBy(S()), label: 'Sent', state: 'done' }, { label: 'Confirmed', state: 'done' }, { label: 'Delivered', state: 'done' }, ...(tile && !billsUs(S().pos.find((x) => x.id === id)) ? [] : [{ who: 'accounting' as PersonKey, label: 'Bill', state: 'now' as const }])] })
+}
+/** a PO we pay for has a bill to come — the client's tile, delivered on our PO, doesn't */
+export const billsUs = (p?: PO) => !!p && (p.kind !== 'tile' || p.paidBy === 'us')
+
+/* ================= tile on a PO: an order, or our call for a delivery — a number to follow =================
+ * A tile PO is a PO like our materials': its own number, emailed to the store with the number in the subject, on the
+ * Purchase orders page and on the project. Prices only when we buy the tile; when the client bought it (the store's
+ * order number goes on it), the PO is our call for the delivery. What comes is checked in against it — all of it, or
+ * part (how much of each tile), and whatever didn't come stays open on the same PO until it does. */
+export type TilePOLine = { tag: string; name: string; n: number; unit: string; price?: number }
+export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string }) {
+  const id = nextPO()
+  const us = o.paidBy === 'us'
+  const amount = us ? Math.round(o.lines.reduce((n, l) => n + (l.price || 0) * l.n, 0) * 100) / 100 : 0
+  const tags = o.lines.map((l) => l.tag)
+  const ref = o.storeRef?.trim()
+  S().commit((s) => {
+    const rooms = s.rooms[jobId] || []
+    s.pos.unshift({
+      id, jobId, kind: 'tile', paidBy: o.paidBy, ...(ref ? { storeRef: ref } : {}), ...(o.memo?.trim() ? { memo: o.memo.trim() } : {}),
+      supplier: o.supplier, what: `Tile · ${tags.join(', ')}`, amount, step: 1, date: NOW, eta: 'Asked for ' + o.neededBy,
+      note: `Sent today · waiting for ${o.supplier} to confirm`,
+      lines: o.lines.map((l) => ({ item: `${l.tag} ${l.name}`.trim(), qty: `${l.n.toLocaleString('en-US')} ${l.unit}`, n: l.n, unit: l.unit, tag: l.tag, got: 0, ...(us && l.price != null ? { price: l.price } : {}) })),
+      log: [L(me(), `Sent to ${o.supplier}${ref ? ` · their order ${ref}` : ''}${us ? '' : ' · the client’s tile — our call for the delivery'}`)],
+    })
+    /* each tile on the project knows it's on this PO: how much, from which store, when */
+    o.lines.forEach((l) => {
+      const c = s.checks.find((x) => x.jobId === jobId && x.tag === l.tag)
+      if (c) {
+        if (us) c.ordered += l.n
+        else c.ordered = Math.max(c.ordered, c.received + l.n)
+        c.supplier = o.supplier
+        c.eta = o.neededBy
+        c.note = id
+      } else {
+        const where = rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === l.tag).map((x) => `${r.name} ${x.name.toLowerCase()}`)).join(' · ')
+        s.checks.push({ jobId, tag: l.tag, where, unit: l.unit, measured: l.n, wastePct: 0, ordered: l.n, received: 0, supplier: o.supplier, suppliedBy: us ? 'Us' : o.paidBy, eta: o.neededBy, note: id })
+      }
+    })
+    /* whoever sent it gets the store's yes: it waits on their list and is back on their Today tomorrow */
+    newTask(s, { jobId, title: `${id} · get ${o.supplier}’s confirmation`, type: 'Materials', owner: me(), for: [s.role], state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[jobId]?.name || ''} · tile ${tags.join(', ')}`, action: { label: 'Mark confirmed', kind: 'po:' + id } })
+    addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · tile ${tags.join(', ')}`, detail: o.lines.map((l) => `${l.tag} ${l.n} ${l.unit}`).join(', ') + (ref ? ` · their order ${ref}` : ''), ref: { t: 'po', id } })
+  }, `${id} sent to ${o.supplier}`, { sub: `Tile ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
+  S().close()
+  if (mailLive()) void emailPO(id)
+  return id
+}
+/** tile came in on a tile: counted on its record, and its problem cleared once it's all here */
+function tileIn(s: Store, jobId: string, tag: string, qty: number) {
+  const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
+  if (!c || qty <= 0) return
+  c.received = Math.min(c.ordered, c.received + qty)
+  if (c.received >= c.ordered) {
+    c.note = 'All here'
+    setIssues(s, jobId, (iss) => iss.filter((x) => !x.text.includes(tag)))
+  }
+}
+/** every tile on the project is here: the tile's "receive" step is done */
+function tileStepIn(s: Store, jobId: string) {
+  const all = s.checks.filter((c) => c.jobId === jobId)
+  if (!all.length || all.some((c) => c.received < c.ordered)) return
+  const r = ((s.stepRecs[jobId] ||= {}).delivered ||= {})
+  if (r.done) return
+  r.done = NOW
+  r.by = me()
+  r.note = `All here · checked in ${NOW}`
+  if (s.prep[jobId]) s.prep[jobId].tile = 'yes'
+}
+/** part of a PO came: how many of each line — the rest stays open on the same PO, back on the sender's list */
+export function receivePOPart(id: string, counts: number[], said?: string) {
+  const p0 = S().pos.find((x) => x.id === id)
+  if (!p0) return
+  const came = counts.reduce((a, b) => a + (b || 0), 0)
+  if (!came) return
+  const done = p0.lines.every((l, i) => (l.got || 0) + (counts[i] || 0) >= (l.n ?? 0))
+  if (done) return receivePO(id)
+  S().commit((s) => {
+    const p = s.pos.find((x) => x.id === id)
+    if (!p) return
+    const parts: string[] = []
+    p.lines.forEach((l, i) => {
+      const q = Math.max(0, Math.min((l.n ?? 0) - (l.got || 0), counts[i] || 0))
+      if (!q) return
+      l.got = (l.got || 0) + q
+      parts.push(`${l.tag || l.item} ${q}${l.unit ? ` ${l.unit}` : ''}`)
+      if (p.kind === 'tile' && l.tag) tileIn(s, p.jobId, l.tag, q)
+    })
+    const left = p.lines.filter((l) => (l.got || 0) < (l.n ?? 0)).map((l) => `${l.tag || l.item} ${(l.n ?? 0) - (l.got || 0)}${l.unit ? ` ${l.unit}` : ''}`)
+    p.late = false
+    p.note = `Part came · still to come: ${left.join(', ')}`
+    p.log.push(L(me(), `Part came — ${parts.join(', ')} · still to come: ${left.join(', ')}${said ? ` · ${p.supplier}: “${said}”` : ''}`))
+    /* the rest is followed up: on the sender's list, back tomorrow */
+    const owner = s.tasks.find((t) => t.action?.kind === 'po:' + id)?.owner || matBy(s)
+    closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + id && t.state !== 'done').map((t) => t.id), 'Part came')
+    newTask(s, { jobId: p.jobId, title: `${id} · the rest from ${p.supplier}`, type: 'Materials', owner, for: [s.role], state: 'waiting', waitingOn: p.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[p.jobId]?.name || ''} · still to come: ${left.join(', ')}`, action: { label: 'Check it in', kind: 'po:' + id } })
+    addHist(s, p.jobId, { who: me(), kind: 'material', title: `${id} · part came`, detail: `${parts.join(', ')} · still to come: ${left.join(', ')}`, ref: { t: 'po', id } })
+  }, `${id} · part came — the rest stays open`, { close: true })
 }
 export function poNext(id: string) {
   S().commit((s) => {
     const p = s.pos.find((x) => x.id === id)
-    if (!p) return
+    if (!p || !billsUs(p)) return
     p.step = Math.min(5, p.step + 1)
     p.note = p.step === 4 ? 'Supplier bill received' : p.step === 5 ? 'Paid' : p.note
     p.log.push(L(me(), p.step === 4 ? 'Supplier bill received — matched to the PO' : 'Paid'))

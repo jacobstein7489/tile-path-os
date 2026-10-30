@@ -75,13 +75,20 @@ export async function emailPO(poId: string, o: { changed?: boolean; quietOk?: bo
   const site = PEOPLE[matBy(s)]
   const sitePhone = s.team.find((x) => x.key === matBy(s))?.phone
   const needed = (p.eta || '').replace(/^Asked for /, '').replace(/^Was /, '')
-  const rows = p.lines.map((l) => [l.item, l.qty, l.price != null ? money(l.price) : '', l.price != null && l.n != null ? money(l.price * l.n) : ''])
+  /* tile the client bought: our PO is the call for its delivery — no prices on it, the store's order number is */
+  const tile = p.kind === 'tile'
+  const priced = !tile || p.paidBy === 'us'
+  const rows = p.lines.map((l) => (priced ? [l.item, l.qty, l.price != null ? money(l.price) : '', l.price != null && l.n != null ? money(l.price * l.n) : ''] : [l.item, l.qty]))
+  const intro = o.changed ? `<b>${esc(p.id)} has changed</b> — this replaces the one we sent before.`
+    : tile && !priced ? `Please deliver the tile below${p.storeRef ? ` from order <b>${esc(p.storeRef)}</b>` : ''} — our reference is <b>${esc(p.id)}</b>.`
+      : `Here is our ${tile ? 'tile ' : ''}purchase order <b>${esc(p.id)}</b>${p.storeRef ? ` (your order ${esc(p.storeRef)})` : ''}.`
   const html = frame(`<p>Hi ${esc(p.supplier)} team,</p>
-<p>${o.changed ? `<b>${esc(p.id)} has changed</b> — this replaces the one we sent before.` : `Here is our purchase order <b>${esc(p.id)}</b>.`} Please reply to confirm it and the delivery date.</p>
-<p style="margin:0"><b>Project:</b> ${esc(j?.name || '')}<br><b>Deliver to:</b> ${esc(j?.address || '')}${needed ? `<br><b>Needed on site:</b> ${esc(needed)}` : ''}${site ? `<br><b>Site contact:</b> ${esc(site.name)}${sitePhone ? ` · ${esc(sitePhone)}` : ''}` : ''}</p>
-${table(['Item', 'Qty', 'Price', 'Amount'], rows, ['Total', money(p.amount)])}
+<p>${intro} Please reply to confirm it and the delivery date, with ${esc(p.id)} in the subject.</p>
+<p style="margin:0"><b>Project:</b> ${esc(j?.name || '')}<br><b>Deliver to:</b> ${esc(j?.address || '')}${needed ? `<br><b>Needed on site:</b> ${esc(needed)}` : ''}${site ? `<br><b>Site contact:</b> ${esc(site.name)}${sitePhone ? ` · ${esc(sitePhone)}` : ''}` : ''}${p.storeRef ? `<br><b>Your order:</b> ${esc(p.storeRef)}` : ''}</p>
+${p.memo ? `<p>${esc(p.memo)}</p>` : ''}
+${priced ? table(['Item', 'Qty', 'Price', 'Amount'], rows, ['Total', money(p.amount)]) : table(['Tile', 'Qty'], rows)}
 <p>Thank you,<br>${esc(who.name)}<br>Cobblestone Tile</p>`)
-  const r = await go({ to, subject: `${p.id}${o.changed ? ' (changed)' : ''} · ${j?.name || ''}${needed ? ` · needed ${needed}` : ''}`, html }, s)
+  const r = await go({ to, subject: `${p.id}${o.changed ? ' (changed)' : ''}${tile ? ' · tile' : ''}${p.storeRef ? ` · your order ${p.storeRef}` : ''} · ${j?.name || ''}${needed ? ` · needed ${needed}` : ''}`, html }, s)
   if (!r.ok) {
     note(`The email didn’t go out — ${r.why}`)
     showPop({ title: `${p.id} saved — the email didn’t go out`, sub: `${r.why}. Try “Email it” on the PO again.`, tone: 'warn' })

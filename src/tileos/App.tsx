@@ -33,6 +33,7 @@ import { NewEstimateModal } from '@/tileos/features/estnew'
 import { NewAutomationModal } from '@/tileos/features/automations'
 import { PunchNewModal } from '@/tileos/features/punch'
 import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } from '@/tileos/features/pos'
+import { NewTilePOModal, PartCameModal } from '@/tileos/features/tilepo'
 import { JobPage } from '@/tileos/features/job/workspace'
 import { SurfaceModal, TileModal } from '@/tileos/features/job/scope-tab'
 import { ProjectWindow, RoomModal, ScopeDocModal, FilesModal, HistoryModal, WhatsOpenModal, ScopeWinModal, OrdersWinModal, MoneyWinModal } from '@/tileos/features/job/project-window'
@@ -119,6 +120,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'ipo': return <IPOModal id={m.id} level={level} />
     case 'book': return <BookInstallerModal jobId={m.jobId} crew={m.crew} level={level} />
     case 'newpo': return <NewPOModal jobId={m.jobId} prefill={m.prefill} fromEstimate={m.fromEstimate} fromTakeoff={m.fromTakeoff} level={level} />
+    case 'newtilepo': return <NewTilePOModal jobId={m.jobId} tags={m.tags} level={level} />
+    case 'popart': return <PartCameModal id={m.id} level={level} />
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />

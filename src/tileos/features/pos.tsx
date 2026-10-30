@@ -14,7 +14,7 @@ import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
 import type { IPO, IPOLine } from '@/tileos/data/field'
 import { ipoTotal, poRatio, type Ratio } from './poratio'
 import { allSubs } from '@/tileos/data/directory'
-import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy } from './flows'
+import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs } from './flows'
 import { mailLive, emailPO, emailIPO } from './mailout'
 import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
@@ -33,6 +33,7 @@ type Row = { kind: 'material'; po: PO } | { kind: 'installer'; po: IPO }
 const matStatus = (p: PO): { tone: Tone; label: string; open: boolean } =>
   /cancelled/i.test(p.note) ? { tone: 'neutral', label: 'Cancelled', open: false }
   : p.late ? { tone: 'bad', label: `Late · ${p.eta}`, open: true }
+  : p.step < 3 && p.lines.some((l) => (l.got || 0) > 0) ? { tone: 'warn', label: 'Part came · rest to come', open: true }
   : { tone: p.step >= 3 ? 'ok' : p.step === 2 ? 'info' : 'warn', label: p.step === 3 ? 'Received' : PO_STEPS[p.step], open: p.step < 3 }
 /** which bubble a PO sits in */
 type POBucket = 'draft' | 'waiting' | 'coming' | 'late' | 'done'
@@ -58,7 +59,8 @@ export function POsPage() {
   const rows: Row[] = [...s.pos.map((po) => ({ kind: 'material' as const, po })), ...s.ipos.map((po) => ({ kind: 'installer' as const, po }))]
   const vendorOf = (r: Row) => (r.kind === 'material' ? r.po.supplier : PEOPLE[r.po.crew].name)
   const st = (r: Row) => (r.kind === 'material' ? matStatus(r.po) : ipoStatus(r.po))
-  const scoped = rows.filter((r) => (type === 'all' || r.kind === type) && (vendor === 'all' || vendorOf(r) === vendor) && (job === 'all' || r.po.jobId === job) && (!q || `${r.po.id} ${vendorOf(r)} ${s.jobs[r.po.jobId]?.name}`.toLowerCase().includes(q.toLowerCase())))
+  const typeOf = (r: Row) => (r.kind === 'material' && r.po.kind === 'tile' ? 'tile' : r.kind)
+  const scoped = rows.filter((r) => (type === 'all' || typeOf(r) === type) && (vendor === 'all' || vendorOf(r) === vendor) && (job === 'all' || r.po.jobId === job) && (!q || `${r.po.id} ${vendorOf(r)} ${s.jobs[r.po.jobId]?.name} ${r.kind === 'material' ? `${r.po.storeRef || ''} ${r.po.what}` : ''}`.toLowerCase().includes(q.toLowerCase())))
   const list = scoped.filter((r) => tab === 'all' || (tab === 'open' ? bucketOfPO(r) !== 'done' : bucketOfPO(r) === tab))
   const nB = (b: POBucket) => scoped.filter((r) => bucketOfPO(r) === b).length
   const pick = (b: POBucket | 'calc') => () => setTab(tab === b ? 'open' : b)
@@ -80,7 +82,7 @@ export function POsPage() {
     <Page
       title="Purchase orders"
       sub={tab === 'calc' ? `${fmtMoney(calcTotal)} to order` : undefined}
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newpo' })}>New PO</Button>}
+      actions={<><Button icon={<Plus />} onClick={() => s.open({ t: 'newtilepo' })} data-new-tile-po>Tile PO</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newpo' })}>New PO</Button></>}
       top={
         <Bubbles
           arrows
@@ -97,7 +99,7 @@ export function POsPage() {
       toolbar={
         <>
           <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ open: 'Open POs', all: 'All POs', calc: 'To order — worked out from each scope', draft: 'Draft', waiting: 'Sent — waiting to confirm', coming: 'Confirmed — on the way', late: 'Late', done: 'Received' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{tab === 'calc' ? calc.length : list.length}</span></span>
-          <Filter icon={<Layers />} label="Type" value={type} options={[{ key: 'material', label: 'Materials · suppliers' }, { key: 'installer', label: 'Installers · subs' }]} onChange={setType} />
+          <Filter icon={<Layers />} label="Type" value={type} options={[{ key: 'material', label: 'Materials · suppliers' }, { key: 'tile', label: 'Tile · stores' }, { key: 'installer', label: 'Installers · subs' }]} onChange={setType} />
           <Filter icon={<Package />} label="Vendor" value={vendor} options={vendors.map((v) => ({ key: v, label: v }))} onChange={setVendor} />
           <Filter icon={<Building2 />} label="Project" value={job} options={jobs.map((id) => ({ key: id, label: s.jobs[id].name }))} onChange={setJob} width={260} />
           <ClearFilters show={type !== 'all' || vendor !== 'all' || job !== 'all' || !!q} onClear={() => { setType('all'); setVendor('all'); setJob('all'); setQ('') }} />
@@ -148,14 +150,14 @@ export function POsPage() {
                     <span className="shrink-0 text-[0.8125rem] tnum text-muted">{r.po.id}</span>
                     <span className="truncate text-[0.875rem] font-medium text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
                   </div>
-                  <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? 'Materials' : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)} · {fmtMoney(amount)}</span></div>
+                  <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `Tile${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
                 </Td>
                 <Td className="max-md:hidden">
                   {r.kind === 'installer' ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><Avatar who={r.po.crew} size={20} />{PEOPLE[r.po.crew].name}</span> : <span className="text-[0.84375rem]">{r.po.supplier}</span>}
                 </Td>
                 <Td className="truncate text-[0.84375rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
                 <Td right className="tnum text-ink max-md:hidden">
-                  {fmtMoney(amount)}
+                  {r.kind === 'material' && !billsUs(r.po) ? <span className="text-muted">No prices</span> : fmtMoney(amount)}
                   {r.kind === 'installer' && (() => { const ra = poRatio(s, r.po); return ra.sold && ra.total ? <div className={cn('text-[0.75rem] font-semibold', ra.over ? 'text-bad-600' : 'text-muted')}>{ra.pct}% of estimate</div> : null })()}
                 </Td>
                 <Td className="max-md:hidden"><Status tone={x.tone}>{x.label}</Status></Td>
@@ -203,26 +205,30 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   /* changing it after it went out: the lines are worked on here, then the change goes to the supplier */
   const [edit, setEdit] = React.useState<POLine[] | null>(null)
   if (!p) return null
-  const canChange = (p.step === 1 || p.step === 2) && allowedFor(s.role, 'po')
+  const canChange = (p.step === 1 || p.step === 2) && allowedFor(s.role, 'po') && p.kind !== 'tile'
   const editTotal = edit ? edit.reduce((n, l) => n + (l.price || 0) * (l.n || 0), 0) : 0
   const job = s.jobs[p.jobId]
   const cancelled = /cancelled/i.test(p.note)
-  const steps = ['Sent', 'Confirmed', 'Delivered', 'Bill in', 'Paid'].map((label, i) => {
+  const tile = p.kind === 'tile'
+  /* the client's tile, delivered on our PO: no bill to come — it ends when it's all here */
+  const bills = billsUs(p)
+  const part = p.lines.some((l) => (l.got || 0) > 0) && p.step < 3
+  const steps = (bills ? ['Sent', 'Confirmed', 'Delivered', 'Bill in', 'Paid'] : ['Sent', 'Confirmed', 'Delivered']).map((label, i) => {
     const at = p.step - 1
-    return { key: label, label, state: (cancelled ? 'future' : i < at ? 'done' : i === at ? (p.late && i === 1 ? 'blocked' : 'current') : 'future') as any, sub: i === 1 && p.step <= 2 ? p.eta : undefined }
+    return { key: label, label, state: (cancelled ? 'future' : i < at ? 'done' : i === at ? (p.late && i === 1 ? 'blocked' : 'current') : 'future') as any, sub: i === 1 && p.step <= 2 ? p.eta : i === 2 && part ? 'Part came' : undefined }
   })
   const header = (
     <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:px-4">
       <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-2">
         <div className="min-w-0">
-          <div className="text-[0.8125rem] text-muted">Purchase order · materials</div>
+          <div className="text-[0.8125rem] text-muted">Purchase order · {tile ? (bills ? 'tile we buy' : 'the client’s tile — delivery') : 'materials'}</div>
           <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id} · {p.supplier}</h2>
           <div className="mt-1 text-[0.875rem] text-muted">
-            <button onClick={() => s.open({ t: 'job', id: p.jobId, tab: 'materials' })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {p.what}
+            <button onClick={() => s.open({ t: 'job', id: p.jobId, tab: 'materials' })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {p.what}{p.storeRef ? <> · their order <b className="font-semibold text-ink-2">{p.storeRef}</b></> : null}
           </div>
         </div>
         <div className="shrink-0 text-right max-md:text-left">
-          <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(p.amount)}</div>
+          {bills ? <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(p.amount)}</div> : <div className="text-[1rem] font-semibold text-ink-2">No prices</div>}
           <div className={cn('text-[0.8125rem]', p.late ? 'font-medium text-bad-700' : 'text-muted')}>{p.eta}</div>
           {p.step >= 1 && !mailLive() && <button onClick={() => s.open({ t: 'email', what: { kind: 'po', poId: p.id } })} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Mail className="h-3.5 w-3.5" />The email {p.supplier} got</button>}
           {p.step >= 1 && !cancelled && mailLive() && <MailedLine mailed={p.mailed} who={p.supplier} onSend={() => emailPO(p.id)} />}
@@ -257,18 +263,21 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
               <div className="mt-3 flex justify-end"><Button size="sm" variant="primary" disabled={!said.trim()} onClick={() => { followUpPO(p.id, said.trim(), back); setSaid(''); setFu(false) }}>Save — back {back}</Button></div>
             </Pop>
           )}
-          <Button className="ml-auto" variant="primary" icon={<Truck />} onClick={() => receivePO(p.id)}>Received — all here</Button>
+          {/* it came: all of it — or part, how much of each, and the rest stays open on this PO */}
+          <Button className="ml-auto" icon={<PackageCheck />} onClick={() => s.open({ t: 'popart', id: p.id })} data-part-came>Part came</Button>
+          <Button variant="primary" icon={<Truck />} onClick={() => receivePO(p.id)}>{part ? 'The rest came' : 'Received — all here'}</Button>
         </>
       )}
-      {p.step === 3 && <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Supplier bill received</Button>}
+      {p.step === 3 && (bills ? <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Supplier bill received</Button> : <span className="ml-auto text-[0.84375rem] font-medium text-ok-700">All here — nothing to pay, it’s the client’s tile.</span>)}
       {p.step === 4 && <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Mark paid</Button>}
       {p.step >= 5 && <span className="text-[0.84375rem] text-ok-700">Paid.</span>}
     </>
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
-      {edit ? <POLinesEdit lines={edit} onChange={setEdit} /> : <POLines lines={p.lines} total={p.amount} />}
+      {edit ? <POLinesEdit lines={edit} onChange={setEdit} /> : <POLines lines={p.lines} total={p.amount} priced={bills} />}
       <div className="mt-3 flex items-center gap-2 text-[0.84375rem] text-muted"><Truck className="h-4 w-4" />Deliver to {job?.address}</div>
+      {p.memo && <div className="mt-2 rounded-lg bg-wash px-3 py-2 text-[0.84375rem] text-ink-2">{p.memo}</div>}
       <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
       <div className="-mx-2 mt-1">{[...p.log].reverse().map((l, i) => <ActivityRow key={i} compact jobId={p.jobId} e={{ date: l.date, who: l.who, kind: 'material', title: l.text, ref: { t: 'po', id: p.id } }} />)}</div>
     </Modal>
@@ -303,29 +312,38 @@ function POLinesEdit({ lines, onChange }: { lines: POLine[]; onChange: (ls: POLi
   )
 }
 
-function POLines({ lines, total }: { lines: POLine[]; total: number }) {
+function POLines({ lines, total, priced = true }: { lines: POLine[]; total: number; /** the client's tile: no prices */ priced?: boolean }) {
   const s = useStore()
+  const came = lines.some((l) => l.got != null && l.got > 0)
+  const COLS = priced ? 'grid-cols-[minmax(0,1fr)_6.875rem_6.25rem_6.875rem]' : 'grid-cols-[minmax(0,1fr)_6.875rem_8rem]'
   return (
     <div>
-      <div className="grid grid-cols-[minmax(0,1fr)_6.875rem_6.25rem_6.875rem] border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_6rem]">
-        <span>Item</span><span className="text-right">Qty</span><span className="text-right max-sm:hidden">Price</span><span className="text-right max-sm:hidden">Amount</span>
+      <div className={cn('grid border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_6rem]', COLS)}>
+        <span>Item</span><span className="text-right">Qty</span>{priced ? <><span className="text-right max-sm:hidden">Price</span><span className="text-right max-sm:hidden">Amount</span></> : <span className="text-right max-sm:hidden">Came</span>}
       </div>
       {lines.map((l, i) => {
         const it = s.items.find((x) => x.id === l.itemId)
+        const got = l.got || 0
+        const all = l.n != null && got >= l.n
         return (
-          <div key={i} className="grid grid-cols-[minmax(0,1fr)_6.875rem_6.25rem_6.875rem] items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]">
+          <div key={i} className={cn('grid items-center border-b border-line-2 py-2.5 text-[0.875rem] max-sm:grid-cols-[minmax(0,1fr)_6rem]', COLS)} data-po-line={l.tag || i}>
             <span className="min-w-0">
               <span className="block truncate text-ink">{l.item}</span>
               {/* which QuickBooks item it books to — only accounting needs to see that */}
               {it && s.role === 'accounting' && <span className="block truncate text-[0.75rem] text-muted">QuickBooks · {it.qb}</span>}
+              {priced && came && <span className={cn('block truncate text-[0.75rem]', all ? 'text-ok-700' : 'text-warn-700')}>{all ? 'All came' : got ? `${got} came · ${(l.n ?? 0) - got} to come` : 'Not yet'}</span>}
             </span>
             <span className="text-right tnum text-ink-2">{l.qty}</span>
-            <span className="text-right tnum text-ink-2 max-sm:hidden">{l.price ? fmtMoney(l.price, { cents: l.price % 1 !== 0 }) : '—'}</span>
-            <span className="text-right tnum text-ink max-sm:hidden">{l.price && l.n ? fmtMoney(l.price * l.n) : '—'}</span>
+            {priced ? (
+              <>
+                <span className="text-right tnum text-ink-2 max-sm:hidden">{l.price ? fmtMoney(l.price, { cents: l.price % 1 !== 0 }) : '—'}</span>
+                <span className="text-right tnum text-ink max-sm:hidden">{l.price && l.n ? fmtMoney(l.price * l.n) : '—'}</span>
+              </>
+            ) : <span className={cn('text-right tnum max-sm:hidden', all ? 'font-medium text-ok-700' : got ? 'font-medium text-warn-700' : 'text-muted')}>{all ? 'All here' : got ? `${got} of ${l.n}` : 'Not yet'}</span>}
           </div>
         )
       })}
-      <div className="flex justify-end gap-6 pt-3 text-[0.9375rem] font-semibold text-ink"><span>Total</span><span className="tnum">{fmtMoney(total)}</span></div>
+      {priced && <div className="flex justify-end gap-6 pt-3 text-[0.9375rem] font-semibold text-ink"><span>Total</span><span className="tnum">{fmtMoney(total)}</span></div>}
     </div>
   )
 }

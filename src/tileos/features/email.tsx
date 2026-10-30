@@ -46,6 +46,27 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
         <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#d9d3c9] bg-white px-4 text-[0.875rem] font-semibold text-[#394150]">Can’t make the date</span>
       </>
     )
+    /* a tile PO: the tiles and how much — no prices on the client's tile, and their order number on it */
+    if (po?.kind === 'tile') {
+      const priced = po.paidBy === 'us'
+      subject = `${id} · tile${po.storeRef ? ` · your order ${po.storeRef}` : ''} · ${j?.name} · needed ${d.neededBy}`
+      body = <>{priced ? <>Here is our tile purchase order <b>{id}</b></> : <>Please deliver the tile below{po.storeRef ? <> from order <b>{po.storeRef}</b></> : null} — our reference is <b>{id}</b></>} for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. Please reply to confirm the delivery date, with {id} in the subject.</>
+      doc = (
+        <Doc title={priced ? 'Tile purchase order' : 'Tile delivery'} refNo={id} rows={[['Ship to', j?.address || ''], ['Needed by', d.neededBy], ['Project', j?.name || ''], ...(po.storeRef ? [['Your order', po.storeRef] as [string, string]] : []), ['Contact', `${PEOPLE[matBy(s)]?.name} · site`]]}>
+          <div className="divide-y divide-[#e8eaee] border-y border-[#e8eaee]">
+            {po.lines.map((l, i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-[0.84375rem] font-semibold text-[#101828]">{l.item}</span>
+                <span className="w-24 shrink-0 text-right text-[0.84375rem] tnum text-[#394150]">{l.qty}</span>
+                {priced && <span className="w-20 shrink-0 text-right text-[0.84375rem] font-semibold tnum text-[#101828]">{fmtMoney((l.price || 0) * (l.n || 0))}</span>}
+              </div>
+            ))}
+          </div>
+          {priced && <div className="mt-2 flex justify-end gap-6 text-[0.875rem]"><span className="text-[#66707f]">Total</span><b className="tnum text-[#101828]">{fmtMoney(po.amount)}</b></div>}
+          {po.memo && <div className="mt-3 text-[0.84375rem] text-[#394150]">{po.memo}</div>}
+        </Doc>
+      )
+    } else
     doc = (
       <Doc title="Purchase order" refNo={id} rows={[['Ship to', j?.address || ''], ['Needed by', d.neededBy], ['Project', j?.name || ''], ['Contact', `${PEOPLE[matBy(s)]?.name} · site`]]}>
         <div className="divide-y divide-[#e8eaee] border-y border-[#e8eaee]">

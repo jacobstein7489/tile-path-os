@@ -384,8 +384,22 @@ export const OURMATS: OurMat[] = [
 
 /* ================= purchase orders (money out) ================= */
 export const PO_STEPS = ['Draft', 'Sent', 'Confirmed', 'Delivered', 'Bill in', 'Paid']
-export interface POLine { item: string; qty: string; itemId?: string; n?: number; price?: number }
-export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string; /** the last time Tile OS emailed it, and to whom */ mailed?: { at: string; to: string } }
+export interface POLine { item: string; qty: string; itemId?: string; n?: number; price?: number
+  /** tile: the tile's tag on the project — the line is that tile */
+  tag?: string
+  /** tile: SF, boxes, pallets */
+  unit?: string
+  /** how many came so far — a part delivery leaves the rest open on the same PO */
+  got?: number }
+export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string; /** the last time Tile OS emailed it, and to whom */ mailed?: { at: string; to: string }
+  /** tile from the store (a tile order, or our call for the delivery of the client's tile) — not our materials */
+  kind?: 'tile'
+  /** who pays the store: us (it has prices and a bill), or the client — then the PO is the delivery, with no prices */
+  paidBy?: 'us' | 'GC' | 'Owner'
+  /** the store's own order number for it (the client's order at the store) */
+  storeRef?: string
+  /** a line for the store, on the PO and in its email */
+  memo?: string }
 export const POS0: PO[] = [
   { id: 'PO-1045', jobId: '114', supplier: 'Infinity', what: 'Setting materials', amount: 1374, step: 1, date: 'Sep 26', eta: 'Asked for Oct 5', note: 'Sent Sep 26 · waiting for Infinity to confirm', lines: [{ item: 'Uncoupling membrane', qty: '2 rolls', itemId: 'm-membrane', n: 2, price: 315 }, { item: 'LFT thinset', qty: '16 bags', itemId: 'm-thinset', n: 16, price: 38 }, { item: 'Grout · Silverado', qty: '4 bags', itemId: 'm-grout', n: 4, price: 34 }], log: [L('Sep 26', 'materials', 'Sent to Infinity')] },
   { id: 'PO-1041', jobId: '119', supplier: 'Metal Works Inc.', what: 'JOLLY satin brass 10 mm', amount: 684, step: 2, date: 'Sep 9', eta: 'Tomorrow', note: '4 of 6 received · 2 ship tomorrow', lines: [{ item: 'Schluter JOLLY · satin brass · 10 mm · 8 ft', qty: '6', itemId: 'm-jolly', n: 6, price: 114 }], log: [L('Sep 9', 'materials', 'Sent'), L('Sep 10', 'materials', 'Confirmed'), L('Sep 25', 'materials', 'Received 4 of 6')] },

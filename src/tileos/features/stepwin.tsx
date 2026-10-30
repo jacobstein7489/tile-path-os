@@ -281,6 +281,7 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
     case 'delivered':
       return (
         <ResultBox title={v.key === 'order' ? 'The tile order' : 'What came in'} empty="No tile order on this project yet.">
+          {s.pos.filter((p) => p.jobId === job.id && p.kind === 'tile' && !/cancelled/i.test(p.note)).map((p) => <ResultRow key={p.id} icon={<Send />} title={`${p.id} · ${p.supplier}`} sub={[p.lines.map((l) => `${l.tag} ${l.qty}`).join(', '), p.storeRef ? `their order ${p.storeRef}` : ''].filter(Boolean).join(' · ')} right={p.step >= 3 ? 'All here' : p.lines.some((l) => (l.got || 0) > 0) ? 'Part came' : p.step === 2 ? `Coming ${p.eta || ''}`.trim() : 'Sent'} tone={p.step >= 3 ? 'ok' : p.lines.some((l) => (l.got || 0) > 0) ? 'warn' : undefined} onClick={() => s.open({ t: 'po', id: p.id })} />)}
           {checks.map((c) => <ResultRow key={c.tag} icon={<Truck />} title={<><b className="font-semibold">{c.tag}</b> {c.where}</>} sub={[c.supplier, c.suppliedBy ? `ordered by ${c.suppliedBy === 'GC' ? 'the GC' : c.suppliedBy.toLowerCase() === 'owner' ? 'the owner' : c.suppliedBy}` : '', c.eta && c.received < c.ordered ? `due ${c.eta}` : ''].filter(Boolean).join(' · ')} right={c.received >= c.ordered && c.ordered > 0 ? `All ${c.ordered} ${c.unit} here` : c.received > 0 ? `${c.received} of ${c.ordered} ${c.unit}` : `${c.ordered} ${c.unit} ordered`} tone={c.received >= c.ordered && c.ordered > 0 ? 'ok' : c.received > 0 ? 'warn' : undefined} />)}
         </ResultBox>
       )
@@ -1227,25 +1228,37 @@ function Order({ job, v }: { job: Job; v: StepView }) {
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const [when, setWhen] = React.useState('Thu')
   const receiver = stepsFor(s, job).find((x) => x.key === 'delivered')?.owner
+  /* the tile goes to the store on a PO with its own number — the order, or our call for the client's tile to come */
+  const pos = s.pos.filter((p) => p.jobId === job.id && p.kind === 'tile' && !/cancelled/i.test(p.note))
+  const poLine = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line px-4 py-3" data-tile-po-step>
+      <span className="min-w-0 flex-1 text-[0.84375rem] text-ink-2">{pos.length ? <>On {pos.map((p, i) => <React.Fragment key={p.id}>{i ? ', ' : ''}<button type="button" onClick={() => s.open({ t: 'po', id: p.id })} className="font-semibold text-brand-700 hover:underline">{p.id}</button></React.Fragment>)} — the store confirms the day on it.</> : 'Send the store a tile PO — it has its own number, and they confirm the delivery day on it.'}</span>
+      <Button size="sm" icon={<Send />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })}>{pos.length ? 'Another tile PO' : 'Tile PO'}</Button>
+    </div>
+  )
   if (checks.length)
     return (
-      <Block title="What the store ordered" right={checks[0].supplier}>
-        {checks.map((c) => {
-          const need = Math.ceil(c.measured * (1 + c.wastePct / 100))
-          const short = c.ordered < need && !c.note
-          return (
-            <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
-              <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span><span className="block text-[0.78125rem] text-muted">{c.ordered} {c.unit} ordered · we need {need}{c.eta ? ` · delivery ${c.eta}` : ''}</span></span>
-              {short ? <Button size="sm" variant="primary" onClick={() => s.open({ t: 'qty', jobId: job.id, tag: c.tag })}>Settle it</Button> : <Status tone="ok">Enough</Status>}
-            </div>
-          )
-        })}
-      </Block>
+      <div className="flex flex-col gap-4">
+        <Block title="What the store ordered" right={checks[0].supplier}>
+          {checks.map((c) => {
+            const need = Math.ceil(c.measured * (1 + c.wastePct / 100))
+            const short = c.ordered < need && !c.note
+            return (
+              <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
+                <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span><span className="block text-[0.78125rem] text-muted">{c.ordered} {c.unit} ordered · we need {need}{c.eta ? ` · delivery ${c.eta}` : ''}</span></span>
+                {short ? <Button size="sm" variant="primary" onClick={() => s.open({ t: 'qty', jobId: job.id, tag: c.tag })}>Settle it</Button> : <Status tone="ok">Enough</Status>}
+              </div>
+            )
+          })}
+        </Block>
+        {poLine}
+      </div>
     )
   if (v.state === 'done') return <Good>{v.note || 'Ordered'}</Good>
   return (
     <div className="flex flex-col gap-4">
-      <Field label="When is the tile being delivered?"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
+      {poLine}
+      <Field label="Or, the GC set it up — when is the tile being delivered?"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
       {receiver && (
         <div className="flex items-center gap-2.5 text-[0.84375rem] text-ink-2" data-receiver={receiver}>
           <Avatar who={receiver} size={26} />

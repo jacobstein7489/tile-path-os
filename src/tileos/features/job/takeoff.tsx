@@ -23,9 +23,10 @@ import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty, Group, Word } from './kit'
+import { openTilePOs } from '../tilepo'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
-const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_15rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_13rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
+const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 const QFIRST = 'flex min-w-0 items-center gap-3'
 const ROWPAD = 'min-h-12 border-t border-line-2 px-5 py-2 max-sm:px-4'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
@@ -45,11 +46,17 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
     <Section
       title="Tile"
       count={all.length}
-      action={all.length > 6 ? (
-        <label className="relative block w-[15rem] max-sm:w-[10rem]">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
-        </label>
+      action={(all.length > 6 || !simple) ? (
+        <span className="flex items-center gap-2">
+          {all.length > 6 && (
+            <label className="relative block w-[15rem] max-sm:w-[10rem]">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
+            </label>
+          )}
+          {/* a tile order — or our call for the client's tile to be delivered — with its own number */}
+          {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })} data-tile-po-new>Tile PO</Button>}
+        </span>
       ) : undefined}
     >
       <div>
@@ -83,6 +90,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
               <span className={cn('min-w-0 truncate text-[0.8125rem] max-lg:hidden', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
               <span className="text-right text-[0.8125rem] tnum text-ink-2 max-lg:hidden" title={boxes > 0 ? `${boxes} boxes · with the extra for cuts` : 'With the extra for cuts'}>{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
               <span className="flex min-w-0 items-center justify-end gap-2.5 max-sm:justify-start max-sm:pl-10">
+                {/* on a tile PO that's still open: its number, one tap to it */}
+                {(() => { const po = openTilePOs(s, job.id, tag)[0]; return po ? <button type="button" onClick={() => s.open({ t: 'po', id: po.id })} className="shrink-0 text-[0.8125rem] font-semibold tnum text-brand-700 hover:underline" data-tile-po={po.id}>{po.id}</button> : null })()}
                 <Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word>
                 {action && <Button size="xs" variant={short ? 'primary' : 'outline'} onClick={action.run}>{action.label}</Button>}
               </span>
