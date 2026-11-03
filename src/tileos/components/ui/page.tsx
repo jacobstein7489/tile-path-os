@@ -71,9 +71,8 @@ export function Page({
   }, [!!(tabs || toolbar)])
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
-      {/* centered and never wider than this: on a big monitor the page stays together in the middle instead of
-          spreading across the screen — the same width on every page (the bar on top lines up with it) */}
-      <div className="mx-auto w-full max-w-[76rem]" style={{ '--head': head + 'px' } as React.CSSProperties}>
+      {/* the whole screen (only a very wide one gets margins) — the lists space their columns evenly across it */}
+      <div className="mx-auto w-full max-w-[160rem]" style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
         <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>

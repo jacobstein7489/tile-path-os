@@ -129,7 +129,7 @@ export const todoWide = (who: boolean, inJob: boolean) =>
 /** the column names over a Today list */
 function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
   return (
-    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} style={todoWide(who, inJob)} data-todo-head>
+    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} style={todoWide(who, inJob)} data-todo-head data-subrow>
       <span>What</span>
       {who && <span>Whose</span>}
       {!inJob && <span>Project</span>}
@@ -160,6 +160,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
+      data-subrow
       style={todoWide(who, inJob)}
       className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', ROW_H, todoCols(who, inJob), PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
@@ -302,7 +303,7 @@ function CheckInSection({ items }: { items: PlateItem[] }) {
     <section data-day="checkin" data-checkins>
       <Group label="Check in on the team" count={rows.length} tone="neutral" />
       {rows.map(({ who, c }) => (
-        <div key={c.key} data-checkin-row={who}>
+        <div key={c.key} data-checkin-row={who} data-contents>
           <TodoRow
             onClick={() => open(who)}
             icon={<UserRoundCheck />}
@@ -691,8 +692,10 @@ export function MyTasksPage() {
           band too (For everyone, the check-ins, No day set) */}
       <InJob.Provider value={grouping === 'job' && view !== 'done'}>
       <Loose.Provider value={grouping === 'job' && view !== 'done'}>
-      <div>
-        {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')}><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
+      {/* the columns: What · Whose (everyone's list) · Project (not when grouped by project) · When — each as wide as its
+          widest line, the same space between them */}
+      <div data-even-list style={{ '--n': 2 + (whoCol ? 1 : 0) + (grouping === 'job' && view !== 'done' ? 0 : 1) } as React.CSSProperties}>
+        {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
         {pinnedRows.length > 0 && view === 'today' && (
           <section data-pinned>

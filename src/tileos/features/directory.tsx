@@ -4,14 +4,14 @@ import * as React from 'react'
 import { RefreshCw, Plus, Upload, Building2, PenTool, HardHat, Truck, Boxes, Hammer, Package, Shapes, FileClock, CircleDollarSign, Hourglass, CalendarCheck, HandCoins, AlarmClock, Archive, MoreHorizontal, ArchiveRestore } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
-import { Button, Avatar, TextInput } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { isOff, setActive, type DirKind } from './active'
 import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow, Status, Bubbles, type BubbleColor } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, roleDef, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { allSubs, type SupplierInfo } from '@/tileos/data/directory'
+import { allSubs, kindsOf, kindsText, SUPPLY_KINDS, type SupplierInfo } from '@/tileos/data/directory'
 import { ITEM_TYPE_LABEL, type ItemType } from '@/tileos/data/items'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, PAY_STATE, payRow } from './pay'
@@ -338,7 +338,7 @@ export function SuppliersPage() {
               <Tr key={x.name} onClick={() => s.open({ t: 'supplier', id: x.name })}>
                 <Td>
                   <div className="truncate text-[0.875rem] font-medium text-ink">{x.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{x.supplies}</div>
+                  <div className="truncate text-[0.78125rem] text-muted">{kindsOf(x).length ? kindsText(kindsOf(x)) : x.supplies}</div>
                 </Td>
                 <Td className="max-lg:hidden">
                   {x.contact || x.phone ? (
@@ -483,7 +483,8 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
   const clash = !!f.name.trim() && f.name.trim() !== name && s.suppliers.some((x) => x.name.toLowerCase() === f.name.trim().toLowerCase())
   const ok = !!f.name.trim() && !clash && reachOk(f.more)
   const save = () => {
-    const rec: SupplierInfo = { name: f.name.trim(), supplies: (f.supplies || '').trim(), contact: f.contact?.trim() || undefined, phone: f.phone?.trim() || undefined, email: f.email?.trim() || undefined, more: cleanReach(f.more), note: f.note?.trim() || undefined }
+    const kinds = kindsOf(f)
+    const rec: SupplierInfo = { name: f.name.trim(), supplies: kinds.length ? kindsText(kinds) : (f.supplies || '').trim(), kinds, contact: f.contact?.trim() || undefined, phone: f.phone?.trim() || undefined, email: f.email?.trim() || undefined, more: cleanReach(f.more), note: f.note?.trim() || undefined }
     s.commit((x) => {
       if (cur) {
         const i = x.suppliers.findIndex((y) => y.name === cur.name)
@@ -502,7 +503,16 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
       <div className="flex flex-col gap-3.5">
         {formField('Name', <TextInput data-autofocus aria-label="Supplier name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Infinity" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That supplier is already on the list.</div>}
-        {formField('What we buy from them', <TextInput aria-label="What we buy from them" value={f.supplies} onChange={(e) => set({ supplies: e.target.value })} placeholder="e.g. Setting materials — thinset, grout, membranes" className="h-10" />)}
+        <div>
+          <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">What we buy from them</div>
+          {/* picked, not typed: a tile store gets the tile POs, the others the materials POs */}
+          <div className="flex flex-wrap gap-1.5" data-supply-kinds>
+            {SUPPLY_KINDS.map((k) => {
+              const on = kindsOf(f).includes(k.key)
+              return <Chip key={k.key} on={on} onClick={() => { const cur = kindsOf(f); set({ kinds: on ? cur.filter((x) => x !== k.key) : [...cur, k.key] }) }} className="h-9" data-kind={k.key}>{k.label}</Chip>
+            })}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {formField('Who to call', <TextInput aria-label="Contact name" value={f.contact || ''} onChange={(e) => set({ contact: e.target.value })} placeholder="Name of the rep" className="h-10" />)}
           {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}

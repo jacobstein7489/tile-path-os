@@ -178,7 +178,7 @@ export function DesktopTopBar() {
   return (
     <header className="sticky top-0 z-20 h-14 bg-canvas px-7 max-xl:px-6 max-lg:hidden">
       {/* the same width as the page under it, so the search and your name line up with the page's edges */}
-      <div className="mx-auto flex h-full w-full max-w-[72.5rem] items-center gap-4" data-top-bar>
+      <div className="mx-auto flex h-full w-full max-w-[156.5rem] items-center gap-4" data-top-bar>
         <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
           <Search className="h-4 w-4" />
           <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>

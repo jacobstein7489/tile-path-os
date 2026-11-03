@@ -142,7 +142,7 @@ export function EstimatesPage() {
         </>
       }
     >
-      <div style={EST_WIDE}>
+      <div style={{ ...EST_WIDE, '--n': 3, '--n-lg': 4 } as React.CSSProperties} data-even-list>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
           (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
@@ -157,7 +157,7 @@ export function EstimatesPage() {
           })}
         {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
-          <div key={l.name} title={l.reason} className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
+          <div key={l.name} title={l.reason} data-subrow className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
             <div className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div>
             <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
             <div className="text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
@@ -180,7 +180,7 @@ const EST_COLS = cn('grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8f
 const EST_WIDE = evenVars([14, 11, 8, 6], { fixedLast: true })
 function EstHead() {
   return (
-    <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
+    <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>Estimate</span>
       <span>Whose turn</span>
       <span className="max-lg:hidden">Date</span>
@@ -215,6 +215,7 @@ function EstRow({ e }: { e: Estimate }) {
       role="button"
       tabIndex={0}
       data-est={e.id}
+      data-subrow
       title={`${nx.text} · ${j.client}`}
       onClick={() => s.open({ t: 'estimate', id: e.id })}
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}

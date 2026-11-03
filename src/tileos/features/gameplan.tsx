@@ -58,13 +58,38 @@ function lanesOf<T extends { start: string; end: string }>(items: T[]) {
 }
 
 /* one look for every item, in both views: one calm color for the crews' work — not a color per crew */
+/** each installer's color on the schedule — the same family as his avatar, so you see who's where at a glance; an
+ *  installer added later gets one of these by his name */
+const SPARE = [CREW_BLOCK.leo, CREW_BLOCK.philip, CREW_BLOCK.walter, CREW_BLOCK.alex, CREW_BLOCK.caesar, CREW_BLOCK.giovanni, CREW_BLOCK.jose]
+export function crewColor(crew?: string) {
+  if (!crew) return { bg: '#eef2fc', bar: '#2650cf', text: '#1f3d8f' }
+  if (CREW_BLOCK[crew]) return CREW_BLOCK[crew]
+  let h = 0
+  for (const ch of crew) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return SPARE[h % SPARE.length]
+}
 function look(it: Item, clash: boolean) {
   const ring = clash && 'ring-2 ring-bad-500 ring-offset-1'
   /* on hold: a quiet gray with the pause mark — it's waiting, not on fire */
   if (it.hold) return { className: cn('border border-[#e2ddd4] bg-[#f3f1ec] text-[#5b5f68]', ring), style: {} as React.CSSProperties }
   if (it.kind === 'tobook') return { className: 'border border-dashed border-[#bcc3cc] bg-white text-ink-2', style: {} }
-  if (it.kind === 'planned' || it.kind === 'pending') return { className: cn('border border-dashed border-[#9fb3e6] bg-white text-[#1f3d8f]', ring), style: {} }
-  return { className: cn('border border-[#dbe3f8] bg-[#eef2fc] text-[#1f3d8f]', ring), style: {} }
+  const c = crewColor(it.crew)
+  /* waiting for his OK, or only planned: his color, dashed, on white */
+  if (it.kind === 'planned' || it.kind === 'pending') return { className: cn('border border-dashed bg-white', ring), style: { borderColor: c.bar, color: c.text } as React.CSSProperties }
+  /* booked: his color, with a solid edge on the left */
+  return { className: cn('border', ring), style: { background: c.bg, borderColor: c.bg, boxShadow: `inset 0.1875rem 0 0 ${c.bar}`, color: c.text } as React.CSSProperties }
+}
+/** who's which color — the installers on the schedule in view */
+function CrewKey({ crews }: { crews: string[] }) {
+  if (!crews.length) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-line-2 px-4 py-2 text-[0.78125rem] text-ink-2" data-crew-key>
+      {crews.map((c) => (
+        <span key={c} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[0.1875rem]" style={{ background: crewColor(c).bar }} />{PEOPLE[c as PersonKey]?.short || c}</span>
+      ))}
+      <span className="inline-flex items-center gap-1.5 text-muted"><span className="h-2.5 w-2.5 rounded-[0.1875rem] border border-[#d6d0c6] bg-[#f3f1ec]" />On hold</span>
+    </div>
+  )
 }
 const sub = (it: Item) => (it.hold ? `On hold · ${it.hold}` : it.kind === 'tobook' ? 'Ready to book — pick an installer' : it.kind === 'planned' ? `${PEOPLE[it.crew!].short} · planned, not booked` : it.kind === 'pending' ? `Waiting for ${PEOPLE[it.crew!].short} to confirm` : `${PEOPLE[it.crew!].short} · ${it.label}`)
 
@@ -260,8 +285,9 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
 }
 
 /* ================= month: the work days, Monday to Friday ================= */
-/* The same calm bars as the week: one blue for booked work (dashed while it waits for his OK or is only planned), gray
- * on hold. Ready-to-book projects aren't on the days — they're in the list beside it, with their dates. */
+/* The same bars as the week: each installer in his own color (dashed while it waits for his OK or is only planned),
+ * gray on hold, a key on top — and a job that runs on into next week keeps going there. Ready-to-book projects aren't on
+ * the days — they're in the list beside it, with their dates. */
 function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
   const m = anchor.slice(0, 7)
@@ -275,8 +301,10 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
   }
   const onDays = items.filter((it) => it.kind !== 'tobook')
   const MAX = 5
+  const inView = Array.from(new Set(onDays.filter((it) => !it.hold && it.crew && it.end >= weeks[0]?.[0] && it.start <= (weeks[weeks.length - 1]?.[4] || '')).map((it) => it.crew!)))
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-month>
+      <CrewKey crews={inView} />
       <div className="grid grid-cols-5 border-b border-line-2">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2')}>{d}</div>)}
       </div>
@@ -287,7 +315,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
         const lanes = lanesOf(segs)
         const shownLanes = lanes.slice(0, MAX)
         const hidden = lanes.slice(MAX).flat()
-        const laneH = 24
+        const laneH = 26
         return (
           <div key={a} className="relative flex-1 border-b border-line-2 last:border-0" style={{ minHeight: 34 + Math.max(2, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 22 : 10) }}>
             <div className="absolute inset-0 grid grid-cols-5">
@@ -333,6 +361,8 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                     {x.it.hold && <PauseCircle className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{job?.name}</span>
                     {x.it.crew && <span className="shrink-0 font-medium opacity-70 max-md:hidden">· {PEOPLE[x.it.crew].short}</span>}
+                    {/* it runs on into next week — it keeps going there */}
+                    {contR && <ChevronRight className="ml-auto h-3 w-3 shrink-0 opacity-60" />}
                   </button>
                 </Tip>
               )

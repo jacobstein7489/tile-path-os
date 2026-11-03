@@ -13,7 +13,7 @@ import { PEOPLE, CREWS, fmtMoney, type PersonKey, type Tone } from '@/tileos/dat
 import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
 import type { IPO, IPOLine } from '@/tileos/data/field'
 import { ipoTotal, poRatio, type Ratio } from './poratio'
-import { allSubs } from '@/tileos/data/directory'
+import { allSubs, kindsOf } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs } from './flows'
 import { mailLive, emailPO, emailIPO } from './mailout'
 import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
@@ -774,7 +774,8 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
     const g = groups.find((x) => x.vendor === v)
     if (g) setLines(g.lines.map((l) => ({ itemId: l.itemId!, n: l.n || 1, price: l.price || 0 })))
   }
-  const vendors = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name)).map((x) => x.name)
+  /* the suppliers that sell us materials — a store we only get tile from isn't one (its orders are tile POs) */
+  const vendors = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name) && !(kindsOf(x).length && kindsOf(x).every((k) => k === 'tile'))).map((x) => x.name)
   const vendorHint = (v: string) => {
     const t = byVendor.find((g) => g.vendor === v)
     if (useTake && t) return `${t.lines.length} still missing on this project`

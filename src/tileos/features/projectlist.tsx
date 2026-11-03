@@ -5,7 +5,7 @@ import * as React from 'react'
 import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, DatePresets, Tip } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
@@ -105,7 +105,7 @@ export function ProjectsPage() {
         </>
       }
     >
-      <div style={WIDE}>
+      <div style={{ ...WIDE, '--n': 4, '--n-xl': 5 } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
@@ -146,7 +146,7 @@ const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
 
 function ListHead({ parts }: { /** a project getting ready is on the list: the five names over its circles */ parts: boolean }) {
   return (
-    <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head>
+    <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>Project</span>
       <span className="max-xl:hidden">Client</span>
       {parts ? (
@@ -293,9 +293,11 @@ function Problems({ list }: { list: { text: string }[]; small?: boolean }) {
   if (!list.length) return null
   const words = `${list.length} ${list.length === 1 ? 'problem' : 'problems'}`
   return (
-    <span data-problems={list.length} title={`${words}:\n${list.map((p) => `• ${p.text}`).join('\n')}`} aria-label={`${words}: ${list.map((p) => p.text).join('; ')}`} className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-bad-50 px-1 text-[0.6875rem] font-bold leading-none tnum text-bad-600 ring-1 ring-bad-200">
-      {list.length}
-    </span>
+    <Tip side="left" label={<span className="block py-0.5" data-problems-pop><b className="mb-1 block font-semibold">{words}</b>{list.slice(0, 6).map((p, i) => <span key={i} className="block leading-snug opacity-90">· {p.text}</span>)}{list.length > 6 && <span className="block opacity-70">+{list.length - 6} more on the project</span>}</span>}>
+      <span data-problems={list.length} aria-label={`${words}: ${list.map((p) => p.text).join('; ')}`} className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 cursor-default items-center justify-center rounded-full bg-bad-50 px-1 text-[0.6875rem] font-bold leading-none tnum text-bad-600 ring-1 ring-bad-200">
+        {list.length}
+      </span>
+    </Tip>
   )
 }
 function NowLine({ w }: { w: NowWords }) {
@@ -317,6 +319,7 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       role="button"
       tabIndex={0}
       data-project={j.id}
+      data-subrow
       onClick={open}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
       className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover max-md:px-4 max-md:py-2.5', COLS)}

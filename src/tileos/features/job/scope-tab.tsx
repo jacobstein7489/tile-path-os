@@ -5,6 +5,7 @@
  * Whose scope it is (and that it's locked) is said once, in the card's header. Tap a wall or floor to change it
  * (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
+import { sellsTile } from '@/tileos/data/directory'
 import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea, SearchField } from '@/tileos/components/ui/core'
@@ -486,7 +487,8 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
     setBusy(false)
   }
   const save = () => saveTile(jobId, { ...t, tag: tagT, name: t.name.trim(), maker: t.maker.trim(), sku: t.sku.trim(), supplier: t.supplier.trim() }, { was: tag, on: on.map((k) => { const [r, sfc] = k.split('|'); return { room: r, surface: sfc } }) })
-  const suppliers = Array.from(new Set([...s.suppliers.map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
+  /* the tile stores (Suppliers that sell tile) first, then any store a tile came from before */
+  const suppliers = Array.from(new Set([...s.suppliers.filter((x) => sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
   return (
     <Modal
       level={level}

@@ -363,12 +363,13 @@ const dayWord = (d: string) => d.replace(/^(Today|Tomorrow|This|Next|Every|By|Be
 export function OpenIssues({ job, className, steps = [], onStep, band, fill }: { job: Job; className?: string; /** getting ready's steps still open (once it's done) */ steps?: StepView[]; onStep?: (k: string) => void; /** under the parts, in the same panel: a band and its lines */ band?: boolean; /** its own panel beside the stage — there even when nothing's open */ fill?: boolean }) {
   const s = useStore()
   const me = meOf(s.role)
-  const list = issuesOf(s, job)
+  /* tailored to whoever's looking: what's theirs comes first (a problem before the rest), then everyone else's */
+  const list = [...issuesOf(s, job)].sort((a, b) => Number(b.owner === me) - Number(a.owner === me))
   const [all, setAll] = React.useState(false)
   const n = list.length + steps.length
   if (!n && !fill) return null
-  /* problems first: a step's problem, then the rest (issuesOf sorts them) */
-  const stepRows = [...steps].sort((a, b) => Number(b.state === 'bad') - Number(a.state === 'bad'))
+  /* problems first: a step's problem, then the rest (issuesOf sorts them) — yours before anyone else's */
+  const stepRows = [...steps].sort((a, b) => Number(b.owner === me) - Number(a.owner === me) || Number(b.state === 'bad') - Number(a.state === 'bad'))
   const max = all || fill ? 99 : 6
   const shownSteps = stepRows.slice(0, max)
   const shown = list.slice(0, Math.max(0, max - shownSteps.length))

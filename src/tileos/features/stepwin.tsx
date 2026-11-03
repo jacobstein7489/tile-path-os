@@ -4,6 +4,7 @@
  * you picked with only what it needs — what it is, whose turn, when, the one or two things that finish it. Today, a
  * task or a link opens it; tap another circle and that step shows instead. */
 import * as React from 'react'
+import type { Task } from '@/tileos/data/work'
 import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
@@ -1610,27 +1611,50 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
   const checks = s.checks.filter((c) => c.jobId === job.id)
   /* a tile with a problem logged against it isn't "all here", even if the count matched */
   const badTags = new Set(s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done').map((t) => (t.where || t.title).split(/[\s:·]/)[0]))
-  if (checks.length)
+  if (checks.length) {
+    /* one list, each tile once: how much is here, and its problem right on it (tap it to see who has it) — a problem
+       on a tile that isn't on this delivery gets its own line in the same list */
+    const me = meOf(s.role)
+    const probs = s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done')
+    const tagOf = (t: Task) => (t.where || t.title).split(/[\s:·]/)[0]
+    const shortWords = (t: Task) => t.title.replace(new RegExp(`^${tagOf(t)}\\s*[:·—-]?\\s*`), '')
+    const whoOf = (t: Task) => [t.owner === me ? 'You' : PEOPLE[t.owner]?.short, t.state === 'waiting' && t.waitingOn ? `waiting on ${t.waitingOn}` : ''].filter(Boolean).join(' · ')
+    const extra = probs.filter((t) => !checks.some((c) => c.tag === tagOf(t)))
     return (
       <div className="space-y-4">
-        <TileProblems job={job} />
-        <Block title="The delivery" right={checks[0].supplier}>
-          {checks.map((c) => (
-            <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
-              <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span><span className="block text-[0.78125rem] text-muted">{c.received} of {c.ordered} {c.unit} here{c.eta && c.received < c.ordered ? ` · due ${c.eta}` : ''}</span></span>
-              {badTags.has(c.tag)
-                ? <Status tone="bad">Problem</Status>
-                : <Status tone={c.received >= c.ordered ? 'ok' : c.received ? 'bad' : 'neutral'}>{c.received >= c.ordered ? 'All here' : c.received ? 'Part of it' : 'Not yet'}</Status>}
-            </div>
+        <Block title="The tile" right={checks[0].supplier}>
+          {checks.map((c) => {
+            const p = probs.filter((t) => tagOf(t) === c.tag)
+            return (
+              <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0" data-delivery-tile={c.tag}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span>
+                  <span className="block truncate text-[0.78125rem] text-muted">{c.received} of {c.ordered} {c.unit} here{c.eta && c.received < c.ordered ? ` · due ${c.eta}` : ''}</span>
+                </span>
+                {p.length
+                  ? <button type="button" onClick={() => s.open({ t: 'task', id: p[0].id })} className="min-w-0 max-w-[55%] shrink text-right leading-tight" title={p.map((t) => t.title).join(' · ')}>
+                      <span className="block truncate text-[0.8125rem] font-semibold text-bad-600">{shortWords(p[0])}{p.length > 1 ? ` +${p.length - 1}` : ''}</span>
+                      <span className="block truncate text-[0.75rem] text-muted">{whoOf(p[0])}</span>
+                    </button>
+                  : <Status tone={c.received >= c.ordered ? 'ok' : c.received ? 'bad' : 'neutral'}>{c.received >= c.ordered ? 'All here' : c.received ? 'Part of it' : 'Not yet'}</Status>}
+              </div>
+            )
+          })}
+          {extra.map((t) => (
+            <button key={t.id} type="button" onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left row-hover" data-delivery-tile={tagOf(t)}>
+              <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-semibold text-ink">{tagOf(t)}</span><span className="block truncate text-[0.78125rem] text-muted">{whoOf(t)}</span></span>
+              <span className="min-w-0 max-w-[55%] truncate text-right text-[0.8125rem] font-semibold text-bad-600">{shortWords(t)}</span>
+            </button>
           ))}
         </Block>
         <Actions>
-          <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
+          <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>{probs.length ? 'Another problem' : 'Broken, wrong or missing'}</Button>
           {checks.some((c) => c.received < c.ordered) && v.state !== 'wait' && <TileNotYet job={job} />}
           {checks.some((c) => c.received < c.ordered) && <Button variant="primary" icon={<PackageCheck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })}>Check it in</Button>}
         </Actions>
       </div>
     )
+  }
   if (v.state === 'done') return <Good>{v.note || 'On site'}</Good>
   if (badTags.size) return <div className="space-y-4"><TileProblems job={job} /><Actions><Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Another problem</Button></Actions></div>
   return (
