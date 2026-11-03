@@ -1,9 +1,7 @@
-/* Room sheets — one page a room, to hang in the room on the job, in Cobblestone's own layout (the logo, ROOM SHEET,
- * the address, the room's name big and green). Then each tile, its picture on the left and on the right: where it goes
- * (Floor, Shower walls…), its name and size, the grout — and how it's laid out, how the edges are finished (mitered, or
- * the metal: which one, the finish, the size), how high the walls go, what it's set on, and anything to know.
- * A wall or floor still waiting for its tile says NOT SPECIFIED, so nobody guesses. Made from what's already in the
- * project — the tile paperwork, the picks, the layouts — nothing to type. */
+/* Room sheets — one page a room, to hang in the room on the job, in Cobblestone's own Tile + Grout layout: the logo,
+ * TILE + GROUT, the address, the room's name big and green; then each tile, its picture on the left and on the right
+ * where it goes (Floor, Shower walls…), its name, its size and its grout (and its edges, when they're set). Nothing else. A wall or floor still waiting
+ * for its tile says NOT SPECIFIED, so nobody guesses. Made from what's already in the project — nothing to type. */
 import * as React from 'react'
 import { Printer } from 'lucide-react'
 import { useStore, addHist, meOf } from '@/tileos/store'
@@ -20,7 +18,7 @@ import type { Job } from '@/tileos/data/model'
 import { printNode } from '@/tileos/lib/print'
 import { takesTile } from './steps'
 import { methodOf } from './takeoff'
-import { LayoutThumb, layoutOf, ftIn, suggestLayout } from './layout'
+import { suggestLayout } from './layout'
 
 /** what a room sheet says about one wall or floor */
 export type SheetRow = { x: Surface; tile?: Tile; grout?: string; groutKey?: string; joint?: string; setOn: string; setAuto: boolean; layout: string; layoutSuggested: boolean }
@@ -109,52 +107,32 @@ function SheetPhoto({ tile, max }: { tile?: Tile; max: number }) {
   )
 }
 
-/** one room, one page */
+/** one room, one page — the way Cobblestone's own Tile + Grout pages are: the room's name big and green, then each
+ *  tile with its picture on the left and, on the right, where it goes (Floor, Shower walls…), its name, its size and
+ *  its grout. Nothing else — the fewest words, so it reads from across the room. */
 export function RoomSheet({ job, room, last, page }: { job: Job; room: Room; last?: boolean; page?: number }) {
   const list = sheetEntries(job.id, room)
-  const cover = coverageOf(room)
   const big = list.length <= 2 ? 240 : list.length === 3 ? 180 : 150
   return (
     <section data-room-sheet={room.name} className={cn('bg-white text-[#222]', DOC_FONT)} style={{ breakAfter: last ? 'auto' : 'page', pageBreakAfter: last ? 'auto' : 'always', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
-      <DocHead kind="Room sheet" line={docLine(job)} />
+      <DocHead kind="Tile + grout" line={docLine(job)} />
       <h1 className="mt-6 text-[1.5rem] font-bold uppercase leading-tight" style={{ color: DOC_GREEN }}>{room.name}</h1>
-      {room.floor && <div className="mt-0.5 text-[0.78125rem] text-[#666]">{room.floor}</div>}
-      {/* how the room is tiled — fully, half, wet walls, the base, the ceiling */}
-      {cover.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5" data-sheet-cover>
-          {cover.map((c) => <span key={c} className="rounded-full px-2.5 py-1 text-[0.75rem] font-semibold" style={{ background: '#e8efe9', color: DOC_GREEN }}>{c}</span>)}
-        </div>
-      )}
       <div className="mt-6 flex flex-col gap-7">
         {list.map((e) => (
           <div key={e.key} className="grid grid-cols-[16.5rem_minmax(0,1fr)] gap-x-[1.375rem]" style={{ breakInside: 'avoid' }} data-sheet-entry={e.label}>
             <SheetPhoto tile={e.tile} max={big} />
             <div className="min-w-0 pt-0.5">
               <div className="text-[0.78125rem] font-bold" style={{ color: DOC_GREEN }}>{e.label}</div>
-              <div className="mt-1 text-[1.09375rem] font-bold leading-tight">{e.tile ? e.tile.name : 'NOT SPECIFIED'}{e.tile && <span className="ml-2 align-[0.0625rem] text-[0.6875rem] font-semibold text-[#8a8a8a]">{e.tile.tag}</span>}</div>
-              <div className="mt-1 text-[0.8125rem] text-[#333]">{e.tile ? [e.tile.size.replace(/\s*×\s*/g, ' x '), e.tile.finish].filter(Boolean).join(' · ') || 'Size NOT SPECIFIED' : 'NOT SPECIFIED'}</div>
-              <div className="mt-2 text-[0.78125rem] leading-snug text-[#333]" data-sheet-grout><b className="font-bold text-[#222]">GROUT:</b> {e.grout || 'NOT SPECIFIED'}{e.grout && e.joint ? ` · ${e.joint.replace(/″?$/, '″')} joint` : ''}</div>
-              {e.lines.map((l) => (
+              <div className="mt-1 text-[1.09375rem] font-bold leading-tight">{e.tile ? e.tile.name : 'NOT SPECIFIED'}</div>
+              <div className="mt-1 text-[0.8125rem] text-[#333]">{e.tile ? (e.tile.size || '').replace(/\s*×\s*/g, ' x ') || 'Size NOT SPECIFIED' : 'NOT SPECIFIED'}</div>
+              <div className="mt-2 text-[0.78125rem] leading-snug text-[#333]" data-sheet-grout><b className="font-bold text-[#222]">GROUT:</b> {e.grout || 'NOT SPECIFIED'}</div>
+              {/* the edges, when they're set — the one more thing the installer has to know (which metal, or mitered) */}
+              {e.lines.filter((l) => l.k === 'Edges').map((l) => (
                 <div key={l.k} className="mt-1 flex items-center gap-1.5 text-[0.78125rem] leading-snug text-[#333]" data-sheet-line={l.k}>
-                  <span><b className="font-bold text-[#222]">{l.k.toUpperCase()}:</b> {l.v}</span>
-                  {/* a sample of the metal's color */}
-                  {l.k === 'Edges' && e.metals.map((f) => <FinishDot key={f} finish={f} size={13} />)}
+                  <span><b className="font-bold text-[#222]">EDGES:</b> {l.v}</span>
+                  {e.metals.map((f) => <FinishDot key={f} finish={f} size={13} />)}
                 </div>
               ))}
-              {/* the layout itself, drawn — the tile's real size, its pattern, the grout, the cuts */}
-              {e.tile && (
-                <div className="mt-2.5 flex flex-wrap items-end gap-3">
-                  {e.xs.slice(0, 3).map((x) => {
-                    const L = layoutOf(job.id, x)
-                    return (
-                      <figure key={x.name} className="m-0" data-sheet-layout={x.name}>
-                        <LayoutThumb jobId={job.id} x={x} max={list.length <= 2 ? 150 : 110} />
-                        <figcaption className="mt-0.5 text-[0.6875rem] text-[#555]">{x.name} · {ftIn(L.W)} × {ftIn(L.H)}{L.measured ? '' : ' (about)'}{L.smallest ? ` · smallest cut ${ftIn(L.smallest)}` : ''}</figcaption>
-                      </figure>
-                    )
-                  })}
-                </div>
-              )}
             </div>
           </div>
         ))}

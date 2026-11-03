@@ -89,7 +89,9 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
   const auto = wide && phase === 'ready' && !watching
   const sel: OpenTrack = open && tracks.some((t) => t.key === open.track && t.steps.some((v) => v.key === open.step)) ? open : auto ? leadOf(s, job, tracks) : null
   const t = sel ? tracks.find((x) => x.key === sel.track) : undefined
-  const v = sel && t ? t.steps.find((x) => x.key === sel.step) : undefined
+  const v0 = sel && t ? t.steps.find((x) => x.key === sel.step) : undefined
+  /* a step that's part of another (Enter tile & grout → Enter paperwork) shows that one */
+  const v = v0?.into ? t!.steps.find((x) => x.key === v0.into) || v0 : v0
   /* to a step on any part — a step that isn't open yet points at the one it waits for, wherever that is */
   const pick = (k: string) => { const tk = tracks.find((x) => x.steps.some((y) => y.key === k))?.key; if (tk) setOpen({ track: tk, step: k }) }
   /* the side that shows the part starts at its top when another is picked */

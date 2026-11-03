@@ -419,44 +419,67 @@ export function StepInline({ job, v, onClose, onGo }: { job: Job; v: StepView; o
   )
 }
 
-/** a part's steps as circles, like the estimate's path: ✓ done, the one it's on (blue when it's yours), amber while
- *  it waits on someone outside, red for a problem, grey for what comes after — and under each, whose it is and when.
+/** a part's steps, every name in full (on as many lines as it takes — nothing cut off). The ones that follow each other
+ *  are joined in one strip with arrows between them (get the paperwork → enter it → the quantities); a step that stands
+ *  on its own (the site check, the floor levels) is its own card. ✓ done, the one it's on (blue when it's yours), amber
+ *  while it waits on someone outside, red for a problem, grey for what comes after — and under each, where it is.
  *  Tap one to see it. The same on the project and in the step's own window. */
 export function PartPath({ job, list, at, onPick, label }: { job: Job; list: StepView[]; at: string; onPick: (k: string) => void; label: string }) {
   const s = useStore()
   const me = meOf(s.role)
-  /* each step its own bar — they don't hang on one line (several go on at the same time); each says where it is now */
+  const groups = chainsOf(list)
+  const card = (x: StepView) => {
+    const w = stepNow(x, me)
+    const on = x.key === at
+    return (
+      <button
+        key={x.key}
+        role="tab"
+        aria-selected={on}
+        onClick={() => onPick(x.key)}
+        data-step={x.key}
+        data-track-step={x.key}
+        data-state={x.state}
+        {...(on ? { 'data-on': '' } : {})}
+        title={w.full}
+        className={cn('flex min-w-[8.75rem] flex-1 basis-[9.5rem] flex-col rounded-[0.75rem] border px-3 pb-2.5 pt-2.5 text-left transition max-sm:min-w-[7.5rem] max-sm:basis-[8rem] max-sm:px-2.5', on ? 'border-brand-400 bg-brand-50 ring-1 ring-brand-200' : 'border-line bg-white hover:border-[#d6cfc3]')}
+      >
+        <span className="flex min-w-0 items-start gap-1.5">
+          <span className="mt-px shrink-0"><StepIcon state={x.state} size={15} /></span>
+          <span className="min-w-0 text-[0.84375rem] font-semibold leading-snug text-ink max-sm:text-[0.8125rem]" data-step-name>{stepShort(s, job, x)}</span>
+        </span>
+        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-[#ece8e1]" data-step-bar={w.pct}>
+          <span className={cn('block h-full rounded-full', w.bar)} style={{ width: `${w.pct}%` }} />
+        </span>
+        <span className={cn('mt-1.5 line-clamp-2 text-[0.75rem] leading-snug', w.tone)} data-step-now>{w.text}</span>
+      </button>
+    )
+  }
   return (
-    <div role="tablist" aria-label={label} className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-2 max-sm:grid-cols-3" style={{ '--n': list.length } as React.CSSProperties} data-step-bars>
-      {list.map((x) => {
-        const w = stepNow(x, me)
-        const on = x.key === at
-        return (
-          <button
-            key={x.key}
-            role="tab"
-            aria-selected={on}
-            onClick={() => onPick(x.key)}
-            data-step={x.key}
-            data-track-step={x.key}
-            data-state={x.state}
-            {...(on ? { 'data-on': '' } : {})}
-            title={w.full}
-            className={cn('flex min-w-0 flex-col rounded-[0.75rem] border px-2.5 pb-2 pt-2 text-left transition', on ? 'border-brand-400 bg-brand-50/60 ring-1 ring-brand-200' : 'border-line bg-white hover:border-[#d6cfc3]')}
-          >
-            <span className="flex min-w-0 items-center gap-1.5">
-              <StepIcon state={x.state} size={15} />
-              <span className="min-w-0 truncate text-[0.78125rem] font-semibold text-ink max-sm:text-[0.75rem]">{stepShort(s, job, x)}</span>
-            </span>
-            <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#ece8e1]" data-step-bar={w.pct}>
-              <span className={cn('block h-full rounded-full', w.bar)} style={{ width: `${w.pct}%` }} />
-            </span>
-            <span className={cn('mt-1 line-clamp-2 text-[0.71875rem] leading-snug', w.tone)} data-step-now>{w.text}</span>
-          </button>
-        )
-      })}
+    <div role="tablist" aria-label={label} className="flex flex-wrap items-stretch gap-2.5" data-step-bars>
+      {groups.map((g) => g.length === 1 ? card(g[0]) : (
+        <div key={g[0].key} className="flex min-w-0 flex-[1_1_100%] flex-wrap items-stretch gap-y-2 rounded-[0.875rem] bg-[#f3f1ec] p-1.5" data-step-chain={g.length}>
+          {g.map((x, i) => (
+            <React.Fragment key={x.key}>
+              {i > 0 && <span className="flex w-5 shrink-0 items-center justify-center text-[#a39b8e]" aria-hidden><ChevronRight className="h-4 w-4" strokeWidth={2.25} /></span>}
+              {card(x)}
+            </React.Fragment>
+          ))}
+        </div>
+      ))}
     </div>
   )
+}
+/** which steps follow each other: in the part's order, a step that waits for one already in the strip joins it; one
+ *  that doesn't starts its own */
+export function chainsOf(list: StepView[]): StepView[][] {
+  const out: StepView[][] = []
+  list.forEach((v) => {
+    const cur = out[out.length - 1]
+    if (cur && v.after.some((k) => cur.some((x) => x.key === k))) cur.push(v)
+    else out.push([v])
+  })
+  return out
 }
 /** where a step is, in a few words that change with it — "Being revised · back Nov 4", "Delivery Nov 5", "Delivered
  *  Oct 30", "3 of 6 matched" — and how full its own bar is */
@@ -484,6 +507,8 @@ export function stepNow(x: StepView, me: PersonKey): { text: string; full: strin
           : cut(note) || `Waiting${x.due ? ` · back ${day(x.due)}` : ''}`
     return { text, full: note || text, pct: part ?? 55, bar: 'bg-warn-500', tone: 'text-warn-700' }
   }
+  /* the quantities check themselves once the paperwork is in — nobody's turn until something's short */
+  if (x.key === 'qty' && (x.state === 'later' || (x.state === 'now' && /^After the tile/.test(note)))) return { text: 'Checks itself', full: 'Once the paperwork is in, the quantities are checked by themselves against what the estimate needs', pct: 0, bar: '', tone: 'text-muted' }
   if (x.state === 'now') {
     const late = !!x.due && x.due < TODAY
     const text = [who, part != null ? frac![0] : x.key === 'delivered' && x.due ? `coming ${day(x.due)}` : '', late ? 'late' : ''].filter(Boolean).join(' · ')
@@ -495,10 +520,13 @@ export function stepNow(x: StepView, me: PersonKey): { text: string; full: strin
 
 /** one part of getting ready in its own window (from Today, a task, a link) — the same as on the project: its steps as
  *  circles on top, the one that's picked under them with its work. Tap another and it shows instead. */
-export function StepModal({ jobId, k, level }: { jobId: string; k: string; level: number }) {
+export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
   const all = job ? stepsFor(s, job) : []
+  /* a step that's part of another (Enter tile & grout → Enter paperwork) opens that one */
+  const k0 = all.find((x) => x.key === k0raw)?.into || k0raw
+  const k = k0
   const at = all.find((x) => x.key === k)
   /* only this track's steps (the deposit, on none, keeps its own part) */
   const tk = at ? trackOf(at) : null
@@ -648,6 +676,7 @@ function Body({ job, v }: { job: Job; v: StepView }) {
   switch (v.key) {
     case 'getpaper': return <GetPaper job={job} v={v} />
     case 'rooms': return <EnterPaper job={job} v={v} />
+    /* tile & grout is part of entering the paperwork now — the same rows have the picture and the grout */
     case 'qty': return <Quantities job={job} v={v} />
     case 'tile': return <Selections job={job} />
     case 'design':
@@ -789,7 +818,8 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
           ))}
         </Block>
       )}
-      {!missing.length && tiled.length > 0 && tiles.length > 0 && <Good>Every wall and floor has its tile.</Good>}
+      {!missing.length && tiled.length > 0 && tiles.length > 0 && <Good>{tiles.every((t) => t.grout && (t.photo || t.swatch)) ? 'Every wall and floor has its tile, and every tile its picture and grout.' : 'Every wall and floor has its tile.'}</Good>}
+      {!missing.length && tiles.some((t) => !t.grout || !(t.photo || t.swatch)) && <div className="text-[0.84375rem] font-medium text-warn-700" data-paper-left>{(() => { const n = tiles.filter((t) => !t.grout || !(t.photo || t.swatch)).length; return `${n} ${n === 1 ? 'tile needs' : 'tiles need'} a picture or the grout — tap the picture or Pick the grout.` })()}</div>}
       <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF — the rooms, walls and square feet are on <b className="font-semibold text-ink-2">Scope of work</b>.</div>
       {v.state !== 'done' && tiles.length > 0 && missing.length > 0 && (
         <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered — ${missing.length} without a tile on this paperwork`, { close: true })}>Entered — the rest isn’t on this paperwork</Button></Actions>
@@ -797,20 +827,48 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
     </div>
   )
 }
-/** one tile from the paperwork: what it is and which walls and floors it goes on */
+/** one tile from the paperwork: its picture (tap to add one), what it is, which walls and floors it goes on, and its
+ *  grout — everything entering the paperwork asks, on one line */
 function TileWhere({ job, t, loose, locked }: { job: Job; t: Tile; loose?: boolean; locked?: boolean }) {
   const s = useStore()
   const flat = flatOf(s, job.id)
   const opts = flat.filter((f) => takesTile(f.x.name) || f.x.tile === t.tag).map((f) => ({ key: refKey({ room: f.room, surface: f.x.name }), label: `${f.room} · ${f.x.name}`, hint: f.x.tile && f.x.tile !== t.tag ? `Has ${f.x.tile} now` : f.x.sf ? `${f.x.sf} SF` : undefined }))
   const vals = flat.filter((f) => f.x.tile === t.tag).map((f) => refKey({ room: f.room, surface: f.x.name }))
+  const ref = React.useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = React.useState(false)
+  const pick = async (f?: File) => {
+    if (!f) return
+    setBusy(true)
+    try { patchTile(job.id, t.tag, await readPhoto(f), `${t.tag} picture saved`) } catch (e: any) { toast(e?.message || 'Couldn’t read that picture') }
+    setBusy(false)
+  }
+  const g = t.grout ? GROUTS[t.grout] : undefined
+  const pic = !!(t.photo || t.swatch)
   return (
-    <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0">
-      <TileImg tile={t} size={40} radius={8} />
+    <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0 max-sm:flex-wrap" data-paper-tile={t.tag}>
+      {locked ? <TileImg tile={t} size={40} radius={8} /> : (
+        <button type="button" onClick={() => ref.current?.click()} className="group shrink-0" aria-label={pic ? `Change the picture of ${t.tag}` : `Add a picture of ${t.tag}`} title={busy ? 'Saving the picture…' : pic ? 'Change the picture' : 'Add a picture'} data-tile-pic={pic ? 'yes' : 'no'}>
+          {pic ? <TileImg tile={t} size={40} radius={8} /> : <span className="inline-flex h-10 w-10 items-center justify-center rounded-[0.5rem] border border-dashed border-warn-300 bg-warn-50/50 text-warn-700 transition group-hover:border-brand-300 group-hover:text-brand-600"><Camera className="h-4 w-4" /></span>}
+          <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} />
+        </button>
+      )}
       <div className="min-w-0 flex-1">
         <OpenRow onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} className="block max-w-full truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{t.tag} {t.name}{t.size ? <span className="font-normal text-muted"> · {t.size}</span> : null}{t.paper ? <span className="font-normal text-muted"> · {t.paper.qty.toLocaleString('en-US')} {unitWord(t.paper.unit, t.paper.qty)} on the paperwork</span> : null}</OpenRow>
         {locked ? <div className="mt-0.5 truncate text-[0.8125rem] text-muted">{vals.length ? opts.filter((o) => vals.includes(o.key)).map((o) => o.label).join(', ') : 'Not on a wall or floor'}</div> : <MultiSelect values={vals} options={opts} label={`Where ${t.tag} goes`} placeholder="Where does it go?" width={360} className={cn('mt-1 min-h-8 py-1 text-[0.8125rem]', loose && 'border-warn-300 bg-warn-50/50')} onChange={(keys) => setTileOn(job.id, t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))} summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))} />}
       </div>
       {loose && <Status tone="warn">Not on a wall or floor</Status>}
+      {!locked && (
+        <span className="flex shrink-0 items-center gap-1.5 max-sm:w-full max-sm:pl-[3.25rem]">
+          <Menu align="end" width={240} trigger={<button className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-line bg-white px-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash" data-tile-grout={t.grout || 'none'}>{g ? <><GroutDot grout={t.grout} />{g.name}</> : <span className="font-semibold text-warn-700">Pick the grout</span>}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+            <MenuLabel>Grout for {t.tag}</MenuLabel>
+            {Object.entries(GROUTS).map(([k, gg]) => <MenuItem key={k} icon={<GroutDot grout={k} />} checked={t.grout === k} onSelect={() => patchTile(job.id, t.tag, { grout: k }, `${t.tag} · ${gg.name} grout`)}>{gg.name}</MenuItem>)}
+          </Menu>
+          <Menu align="end" width={180} trigger={<button className="inline-flex h-9 items-center gap-1 rounded-[0.5625rem] border border-line bg-white px-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash">{t.joint || 'Joint'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+            <MenuLabel>Grout joint</MenuLabel>
+            {JOINTS.map((j) => <MenuItem key={j} checked={t.joint === j} onSelect={() => patchTile(job.id, t.tag, { joint: j })}>{j}</MenuItem>)}
+          </Menu>
+        </span>
+      )}
     </div>
   )
 }

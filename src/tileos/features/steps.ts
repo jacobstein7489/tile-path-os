@@ -145,6 +145,8 @@ export interface StepView {
   taskId?: string
   doneOn?: string
   doneBy?: PersonKey
+  /** shown as part of another step (Enter tile & grout is part of Enter paperwork) — open that one instead */
+  into?: string
   phase: string
   /** answered "No" on the checklist */
   no?: { note?: string; by: PersonKey; at: string }
@@ -180,7 +182,7 @@ export const PHASES: { key: string; label: string }[] = [
  * checked off (or set on the calendar); the rest read themselves from what happened. */
 export const STEP_DEFAULTS: StepDef[] = [
   { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get paperwork', owner: 'estimator' },
-  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile matched to the estimate', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper'] },
+  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile on its walls and floors, with its picture and grout', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Check quantities', owner: 'takeoff', after: ['rooms'] },
   { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
@@ -602,8 +604,20 @@ export function stepsFor(s: Store, j: Job): StepView[] {
       })
     })
   }
-  /* a step that waits for an earlier one isn't anyone's turn yet */
-  const doneish = (k: string) => { const x = list.find((y) => y.key === k); return !x || x.state === 'done' || x.state === 'na' }
+  /* Enter the paperwork and Enter tile & grout are one step to the people doing it — the AI enters both at once: the
+     paperwork is in when every wall and floor has its tile and every tile has its picture and grout. The tile & grout
+     step stays underneath (its own checks, its own records) and shows as part of Enter paperwork */
+  const paper = list.find((v) => v.key === 'rooms')
+  const tg = list.find((v) => v.key === 'tile')
+  if (paper && tg && !tg.only && !paper.only && tg.state !== 'na') {
+    if (paper.state === 'done' && tg.state !== 'done') Object.assign(paper, { state: tg.state === 'later' ? 'now' : tg.state, note: tg.note, owner: tg.owner, action: tg.action, due: tg.due || paper.due, taskId: tg.taskId || paper.taskId, doneOn: undefined, doneBy: undefined, no: tg.no })
+    tg.state = 'na'
+    tg.note = 'Part of entering the paperwork'
+    tg.action = undefined
+    tg.into = 'rooms'
+  }
+  /* a step that waits for an earlier one isn't anyone's turn yet (one that's part of another waits on that one) */
+  const doneish = (k: string): boolean => { const x = list.find((y) => y.key === k); if (x?.into && x.into !== k) return doneish(x.into); return !x || x.state === 'done' || x.state === 'na' }
   list.forEach((v) => {
     if (v.state !== 'now') return
     const first = v.after.find((k) => !doneish(k))

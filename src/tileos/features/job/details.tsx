@@ -6,14 +6,15 @@
  *   People        — the client and their contact, the designer, the installer, our site manager; the dates
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
-import { sheetRooms, RoomSheets } from '../roomsheets'
+import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
+import { DOC_GREEN, DOC_GRAY } from '../docpaper'
 import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, crewInfo, type Job, type PersonKey, type Reach } from '@/tileos/data/model'
-import { GROUTS, byTag, filesFor, tilesOf, surfacePct, floorsOf, type Tile } from '@/tileos/data/jobs'
+import { GROUTS, byTag, filesFor, tilesOf, surfacePct, floorsOf, type Tile, type Room, type Surface } from '@/tileos/data/jobs'
 import { METHODS } from '@/tileos/data/takeoff'
 import { methodOf } from '../takeoff'
 import { TODAY, labelFromIso } from '@/tileos/lib/today'
@@ -132,7 +133,14 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   /* a change to the scope goes through a change order — started here, whether or not there are any yet */
   const canChange = s.role !== 'accounting' && s.role !== 'client'
   const cols = inField ? SURF_COLS_FIELD : SURF_COLS
-  const groups = floorsOf(rooms.map((r) => r.room))
+  /* search: a tile (its tag, name, size, grout) or a room — a room that matches shows all of it, else only the walls
+     and floors that do */
+  const [q, setQ] = React.useState('')
+  const ws = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const has = (hay: (string | undefined)[]) => { const h = hay.filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => h.includes(w)) }
+  const surfHit = (x: Surface) => { const t = tilesOf(job.id).find((y) => y.tag === x.tile); const g = x.grout || t?.grout; return has([x.name, x.height, x.tile, t?.name, t?.size, t?.finish, g && (GROUTS[g]?.name || g), edgeWords(x.edge)]) }
+  const shown = (room: Room) => (!ws.length || has([room.name, room.floor, room.note]) ? room.surfaces : room.surfaces.filter(surfHit))
+  const groups = floorsOf(rooms.map((r) => r.room)).map((g) => ({ ...g, rooms: g.rooms.filter((r) => shown(r).length) })).filter((g) => g.rooms.length)
   const floors = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
   const viewOf = (name: string) => rooms.find((r) => r.room.name === name)!
   return (
@@ -141,6 +149,12 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
         <h3 className="text-[1rem] font-semibold text-ink">Scope of work</h3>
         {rooms.length > 0 && <span className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'}{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>}
         {rooms.length > 0 && confirmed && <span data-scope-locked title="Set — a change goes through a change order" className="inline-flex items-center gap-1 text-[0.8125rem] text-muted"><Lock className="h-3.5 w-3.5 text-faint" />Set</span>}
+        {rooms.length > 0 && (
+          <label className="relative block w-[16rem] max-sm:order-last max-sm:w-full">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a tile or a room" aria-label="Search the scope" data-scope-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-300" />
+          </label>
+        )}
         {/* a phone: the buttons two by two, the width of the screen — nothing runs off the side */}
         <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>button]:w-full">
           {/* a phone: the layouts are here (a computer has them as their own tab) */}
@@ -151,7 +165,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
         </span>
       </header>
       {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
-      {rooms.length > 0 && (
+      {rooms.length > 0 && ws.length > 0 && !groups.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted" data-scope-none>Nothing matches “{q}”. <button className="font-semibold text-brand-700 hover:underline" onClick={() => setQ('')}>Show everything</button></div>}
+      {rooms.length > 0 && groups.length > 0 && (
         <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">
           {/* the column names, then each room as a band with its walls and floors under it — every line the same */}
           <div className={cn(HEAD_ROW, cols, 'px-5 max-lg:hidden')}>
@@ -159,19 +174,25 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           </div>
           {groups.map((g) => (
             <section key={g.floor}>
-              {floors && <div className="flex h-9 items-center border-t border-line bg-[#ecece8] px-5 text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-ink max-sm:px-3">{g.floor}</div>}
+              {/* each floor in a dark green band, as on Cobblestone's scope of work */}
+              <div className="flex h-10 items-center gap-3 px-5 text-[0.78125rem] font-bold uppercase tracking-[0.06em] text-white max-sm:px-3" style={{ background: DOC_GREEN }} data-floor-band>
+                <span className="min-w-0 flex-1 truncate">{floors ? g.floor : 'Scope of work'}</span>
+                <span className="shrink-0 text-white/80">{g.rooms.length} {g.rooms.length === 1 ? 'room' : 'rooms'}</span>
+              </div>
               {g.rooms.map((room) => {
                 const r = viewOf(room.name)
                 const w = roomWord(r)
+                const cover = coverageOf(room).join('; ')
                 return (
                   <div key={room.name} data-room={room.name} data-room-state={r.state}>
-                    <button onClick={() => open({ t: 'room', name: room.name })} data-room-head className={cn(BAND, 'group w-full min-w-0 gap-3 px-5 text-left max-sm:px-3')}>
-                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink group-hover:text-brand-700">{room.name}</span>
-                      {r.sf > 0 && <span className="shrink-0 text-[0.8125rem] tnum text-faint">{r.sf.toLocaleString('en-US')} SF</span>}
-                      <span data-room-why className={cn('ml-auto min-w-0 truncate text-right text-[0.8125rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}</span>
+                    {/* each room in a light gray band: its name in capitals, how it's tiled after it */}
+                    <button onClick={() => open({ t: 'room', name: room.name })} data-room-head className="group flex min-h-9 w-full min-w-0 items-center gap-3 border-t border-line px-5 py-1.5 text-left max-sm:px-3" style={{ background: DOC_GRAY }}>
+                      <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222]"><b className="font-bold uppercase tracking-[0.02em] group-hover:text-brand-700">{room.name}</b>{cover && <span className="text-[#555]" data-room-cover> | {cover}</span>}</span>
+                      {r.sf > 0 && <span className="shrink-0 text-[0.8125rem] tnum text-[#555]">{r.sf.toLocaleString('en-US')} SF</span>}
+                      <span data-room-why className={cn('min-w-0 shrink-0 truncate text-right text-[0.8125rem] max-sm:max-w-[6.5rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                     </button>
-                    {room.surfaces.map((x) => {
+                    {shown(room).map((x) => {
                       const t = tilesOf(job.id).find((y) => y.tag === x.tile)
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)

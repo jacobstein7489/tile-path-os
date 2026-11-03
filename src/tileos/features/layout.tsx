@@ -327,6 +327,9 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
 export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (the project's Layouts tab) */ title?: boolean }) {
   const s = useStore()
   const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
+  /* one room at a time, picked on top — or all of them, room by room */
+  const [only, setOnly] = React.useState<string>('')
+  const pickedRooms = only ? rooms.filter((r) => r.name === only) : rooms
   const all = rooms.flatMap((r) => r.rows)
   const set = all.filter((x) => x.layout).length
   const missing = all.length - set
@@ -345,13 +348,24 @@ export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (th
     </header>
   )
   if (!all.length) return <div className="flex flex-col gap-3" data-layouts-board>{title && head}<div className="rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with a tile yet — they come from the tile paperwork.</div></div>
+  const chip = (key: string, label: string, n: number) => (
+    <button key={key || 'all'} type="button" onClick={() => setOnly(key)} aria-pressed={only === key} data-layouts-pick={key || 'all'} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[0.84375rem] font-semibold transition', only === key ? 'border-[#2c4a3e] bg-[#2c4a3e] text-white' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
+      {label}<span className={cn('text-[0.75rem] font-medium tnum', only === key ? 'text-white/80' : 'text-faint')}>{n}</span>
+    </button>
+  )
   return (
-    <div className="flex flex-col gap-5" data-layouts-board>
+    <div className="flex flex-col gap-4" data-layouts-board>
       {head}
-      {rooms.map((r) => (
-        <section key={r.name} data-layouts-room={r.name}>
-          <h4 className="mb-2 text-[0.8125rem] font-semibold text-ink-2">{r.name}</h4>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))] sm:gap-3">
+      {/* the rooms on top — tap one to see only its walls and floors (they wrap, nothing slides sideways) */}
+      {rooms.length > 1 && <div className="flex flex-wrap gap-1.5" data-layouts-rooms>{chip('', 'All rooms', all.length)}{rooms.map((r) => chip(r.name, r.name, r.rows.length))}</div>}
+      {pickedRooms.map((r) => (
+        <section key={r.name} data-layouts-room={r.name} className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
+          {/* each room as a section of its own, like the scope of work: its name in a light gray band */}
+          <header className="flex min-h-10 items-center gap-3 border-b border-line px-4 py-2" style={{ background: '#f0f1ef' }}>
+            <h4 className="min-w-0 flex-1 truncate text-[0.84375rem] font-bold uppercase tracking-[0.02em] text-[#222]">{r.name}</h4>
+            <span className="shrink-0 text-[0.8125rem] text-[#555]">{r.rows.length} {r.rows.length === 1 ? 'wall or floor' : 'walls and floors'}</span>
+          </header>
+          <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))] sm:gap-3 max-sm:p-2.5">
             {r.rows.map((x) => <LayoutCard key={x.name} job={job} room={r.name} x={x} />)}
           </div>
         </section>

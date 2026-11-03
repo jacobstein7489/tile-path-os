@@ -121,18 +121,17 @@ const InJob = React.createContext(false)
 const Loose = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
-/** the row's button floats in on the right when you point at the row (a mouse) — never on a phone or a tablet */
-const HOVER_ACT = 'pointer-events-none absolute inset-y-0 right-0 hidden items-center pl-12 pr-5 opacity-0 transition-opacity duration-100 max-sm:pr-4 [@media(hover:hover)]:md:flex group-hover/row:opacity-100 group-focus-visible/row:opacity-100 group-has-[:focus-visible]/row:opacity-100'
-const HOVER_BG = { background: 'linear-gradient(90deg, rgba(255,255,255,0), #fff 2.75rem)' }
 /** the columns: what · (whose, on everyone's list) · project (not when grouped by project) · when — the same on the
  *  column names on top and on every row, so everything lines up, and they share the whole width */
 export const todoCols = (who: boolean, inJob: boolean) =>
   cn(who
-    ? inJob ? 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1fr)_7rem]'
-    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem]', EVEN)
-/** on a wide screen: each column its room, the rest shared evenly — When stays pinned to the right */
+    ? inJob ? 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_7rem_9rem]' : 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1fr)_7rem_9rem]'
+    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem_9rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem_9rem]', EVEN)
+/** on a wide screen: each column its room, the rest shared evenly — When and Next stay on the right */
 export const todoWide = (who: boolean, inJob: boolean) =>
-  evenVars(who ? (inJob ? [24, 8, 6] : [22, 8, 12, 6]) : inJob ? [30, 6] : [24, 12, 6], { fixedLast: true })
+  evenVars(who ? (inJob ? [24, 8, 6, 9] : [22, 8, 12, 6, 9]) : inJob ? [30, 6, 9] : [24, 12, 6, 9], { fixedLast: true })
+/** how many columns a Today list has — What, Whose (everyone's list), Project (not grouped by project), When, Next */
+export const todoN = (who: boolean, inJob: boolean) => 3 + (who ? 1 : 0) + (inJob ? 0 : 1)
 /** the column names over a Today list */
 function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
   return (
@@ -141,9 +140,13 @@ function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
       {who && <span>Whose</span>}
       {!inJob && <span>Project</span>}
       <span className="text-right">When</span>
+      <span className="text-right">Next</span>
     </div>
   )
 }
+/** the row's one button, in its own column on a computer — what happens next, always in sight (blue words, no box) */
+const NEXT_CELL = 'flex min-w-0 items-center justify-end gap-3 max-md:hidden [&_button]:h-8 [&_button]:max-w-full [&_button]:border-0 [&_button]:bg-transparent [&_button]:px-0 [&_button]:font-semibold [&_button]:text-brand-700 [&_button]:shadow-none [&_button:hover]:bg-transparent [&_button:hover]:text-brand-800 [&_button:hover]:underline'
+
 function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
 }) {
@@ -186,7 +189,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       {!inJob && <span className="min-w-0 truncate text-[0.8125rem] text-muted max-md:hidden">{project}</span>}
       {quiet && <span className="sr-only">{quiet}</span>}
       <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', whenCls)}>{w}</span>
-      {action && <div className={HOVER_ACT} style={HOVER_BG} onClick={(e) => e.stopPropagation()}><span className="pointer-events-auto flex items-center gap-2">{action}</span></div>}
+      <div className={NEXT_CELL} onClick={(e) => e.stopPropagation()} data-todo-next>{action}</div>
     </div>
   )
 }
@@ -195,7 +198,9 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
 const hourLabel = (min: number) => timeLabel(min).replace(/^(\d+) /, '$1:00 ')
 function taskTime(t: Task): number | null { return t.repeatAt ? parseTime(t.repeatAt) : null }
 
-function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolean; followed?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } }) {
+/** for the whole team — said on the row itself, in Today's list (not a band of its own) */
+const EveryoneTag = () => <span className="mr-2 inline-flex h-5 items-center rounded-full bg-warn-50 px-2 align-[0.0625rem] text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-warn-700 ring-1 ring-warn-200" data-everyone-tag>For everyone</span>
+function TaskRow({ t, showOwner, followed, when, tag }: { t: Task; showOwner?: boolean; followed?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' }; tag?: React.ReactNode }) {
   const s = useStore()
   const job = s.jobs[t.jobId]
   const [leaving, setLeaving] = React.useState(false)
@@ -219,7 +224,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* the line does what its button does — the one thing that happens next, wherever you tap */
       onClick={() => (act ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
-      title={cleanTitle(t.title, job)}
+      title={tag ? <>{tag}{cleanTitle(t.title, job)}</> : cleanTitle(t.title, job)}
       detail={detail}
       owner={showOwner ? t.owner : undefined}
       project={job ? (PRICING_STAGES.includes(job.stage) ? `${job.name} · estimate` : job.name) : 'Company'}
@@ -557,7 +562,7 @@ export function MyTasksPage() {
   const nowMin = now.getHours() * 60 + now.getMinutes()
 
   /* one day: what's late (today only), then the day in time order — timed things first, then anytime */
-  const dayBlock = (iso: string, items: PlateItem[], withLate = false) => {
+  const dayBlock = (iso: string, items: PlateItem[], withLate = false, pinnedHere: Task[] = []) => {
     /* urgent: first of all, in red — then what's late, then the day */
     const urgentRows = withLate ? items.filter((x) => x.t?.urgent && x.t.state === 'now') : []
     items = items.filter((x) => !urgentRows.includes(x))
@@ -580,9 +585,11 @@ export function MyTasksPage() {
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
-        {(rows.length > 0 || !lateRows.length) && (
+        {(rows.length > 0 || pinnedHere.length > 0 || !lateRows.length) && (
           <section data-day={iso}>
-            <Group label={dayHead(iso)} count={rows.length} tone="info" />
+            <Group label={dayHead(iso)} count={rows.length + pinnedHere.length} tone="info" />
+            {/* for the whole team: first in the day, each one tagged */}
+            {pinnedHere.map((t) => <TaskRow key={t.id} t={t} showOwner={all} when={{ text: 'Anytime', tone: 'quiet' }} tag={<EveryoneTag />} />)}
             {timed.map((x, i) => (
               <React.Fragment key={x.key}>
                 {i === nowAt && <NowLine min={nowMin} />}
@@ -591,7 +598,7 @@ export function MyTasksPage() {
             ))}
             {iso === TODAY && timed.length > 0 && nowAt === -1 && <NowLine min={nowMin} />}
             {any.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
-            {!rows.length && <div className={cn('border-t border-line-2 py-6 text-[0.84375rem] text-muted', PX)}>Nothing on {dayHead(iso).toLowerCase() === 'today' ? 'today' : dayHead(iso)}.</div>}
+            {!rows.length && !pinnedHere.length && <div className={cn('border-t border-line-2 py-6 text-[0.84375rem] text-muted', PX)}>Nothing on {dayHead(iso).toLowerCase() === 'today' ? 'today' : dayHead(iso)}.</div>}
           </section>
         )}
       </React.Fragment>
@@ -697,11 +704,33 @@ export function MyTasksPage() {
   /* the column names show over a list that has rows */
   const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
+  const lateToday = today.filter((x) => x.b === 'overdue').length
+  const urgentN = today.filter((x) => x.t?.urgent && x.t.state === 'now').length
   return (
     <Page
       title={`${greeting()}, ${PEOPLE[me].short}`}
       phoneTitle
       sub={TODAY_LABEL}
+      /* your Today, in color on top — whose list this is and how much is on it, so nobody wonders where they are */
+      hero={
+        <section className="relative overflow-hidden rounded-[1.125rem] px-6 py-5 text-white shadow-[0_1.25rem_2.25rem_-1.5rem_rgba(37,73,196,.75)] max-sm:rounded-[0.9375rem] max-sm:px-4 max-sm:py-4" style={{ background: 'linear-gradient(135deg, #2347bf 0%, #3160dc 55%, #4b78e8 100%)' }} data-today-hero>
+          <span className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/[0.07]" aria-hidden />
+          <span className="pointer-events-none absolute -bottom-20 right-24 h-40 w-40 rounded-full bg-white/[0.05] max-sm:hidden" aria-hidden />
+          <div className="relative flex min-w-0 flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0">
+              <div className="text-[0.78125rem] font-bold uppercase tracking-[0.09em] text-white/75">{all ? 'Everyone’s Today' : 'Your Today'} · {TODAY_LABEL}</div>
+              <h1 className="font-display mt-1 text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.015em] max-sm:text-[1.375rem]" data-page-title>{greeting()}, {PEOPLE[me].short}</h1>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5" data-today-sum>
+              <button type="button" onClick={() => setView('today')} className="flex items-baseline gap-1.5 rounded-xl bg-white/15 px-3.5 py-2 text-left transition hover:bg-white/20">
+                <span className="display-num text-[1.625rem] font-semibold leading-none tnum">{today.length}</span>
+                <span className="text-[0.875rem] font-medium text-white/90">{today.length === 1 ? 'thing today' : 'things today'}</span>
+              </button>
+              {(lateToday > 0 || urgentN > 0) && <span className="rounded-full bg-[#fde8e5] px-3 py-1 text-[0.8125rem] font-bold text-[#b42318]" data-today-late>{[urgentN ? `${urgentN} urgent` : '', lateToday ? `${lateToday} late` : ''].filter(Boolean).join(' · ')}</span>}
+            </div>
+          </div>
+        </section>
+      }
       top={<>
         <Bubbles
           items={[
@@ -736,7 +765,7 @@ export function MyTasksPage() {
       <Loose.Provider value={grouping === 'job' && view !== 'done'}>
       {/* the columns: What · Whose (everyone's list) · Project (not when grouped by project) · When — each as wide as its
           widest line, the same space between them */}
-      <div data-even-list style={{ '--n': 2 + (whoCol ? 1 : 0) + (grouping === 'job' && view !== 'done' ? 0 : 1) } as React.CSSProperties}>
+      <div data-even-list data-first-wide style={{ '--n': todoN(whoCol, grouping === 'job' && view !== 'done'), '--rest': todoN(whoCol, grouping === 'job' && view !== 'done') - 1 } as React.CSSProperties}>
         {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* urgent: before anything else, in red — whichever way the list is grouped (by time it's the day's first part) */}
         {view === 'today' && grouping !== 'time' && urgentToday.length > 0 && (
@@ -746,14 +775,14 @@ export function MyTasksPage() {
           </section>
         )}
         {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
-        {pinnedRows.length > 0 && view === 'today' && (
+        {pinnedRows.length > 0 && view === 'today' && grouping !== 'time' && (
           <section data-pinned>
             <Group label="For everyone" count={pinnedRows.length} tone="warn" />
             {pinnedRows.map((t) => <TaskRow key={t.id} t={t} showOwner={all} when={{ text: 'Anytime', tone: 'quiet' }} />)}
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length || (grouping === 'time' && pinnedRows.length) ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday, true, pinnedRows)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>
