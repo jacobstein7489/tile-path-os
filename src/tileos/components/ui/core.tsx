@@ -74,15 +74,22 @@ export function IconButton({ className, label, children, size = 'md', ...rest }:
   )
 }
 
+/** the way out of a window: a quiet × on a computer; on a phone a real button that says Close — easy to see and to hit */
 export function CloseButton({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <button
       onClick={onClick}
       aria-label="Close"
       title="Close (Esc)"
-      className={cn('inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-wash-2 hover:text-ink', className)}
+      data-close
+      className={cn(
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-wash-2 hover:text-ink',
+        'max-sm:h-10 max-sm:w-auto max-sm:gap-1.5 max-sm:rounded-full max-sm:border max-sm:border-[#d9d3c9] max-sm:bg-white max-sm:pl-3 max-sm:pr-3.5 max-sm:text-[0.9375rem] max-sm:font-semibold max-sm:text-ink max-sm:shadow-[0_0.0625rem_0.1875rem_rgba(17,19,24,.08)]',
+        className,
+      )}
     >
       <X className="h-5 w-5" strokeWidth={1.75} />
+      <span className="hidden max-sm:inline">Close</span>
     </button>
   )
 }
@@ -327,15 +334,18 @@ const sayInto = (onChange: ((e: any) => void) | undefined, was: unknown, t: stri
   onChange?.({ target: { value: next }, currentTarget: { value: next } })
 }
 /** a one-line box; `mic` puts a mic in it to talk instead of typing */
+/** no browser or phone suggestions popping up over what you type — the autofill list, the predictions bar (a field
+ *  that needs them, the sign-in email and password, says so itself) */
+export const NO_SUGGEST = { autoComplete: 'off', autoCorrect: 'off', spellCheck: false } as const
 export function TextInput({ mic, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { mic?: boolean }) {
-  const box = <input {...props} className={cn('h-9 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', mic && canListen() && 'pr-11', props.className)} />
+  const box = <input {...NO_SUGGEST} {...props} className={cn('h-9 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', mic && canListen() && 'pr-11', props.className)} />
   if (!mic || !canListen() || props.disabled || props.readOnly) return box
   return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute right-1 top-1/2 -translate-y-1/2 [&_button]:h-7 [&_button]:w-7 [&_button]:border-transparent" /></span>
 }
 /** a note box — with a mic in the corner to talk instead of typing (mic={false} for none) */
 export function TextArea({ mic = true, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { mic?: boolean }) {
   const on = mic && canListen() && !props.disabled && !props.readOnly
-  const box = <textarea {...props} className={cn('min-h-[5.25rem] w-full resize-none rounded-lg border border-line bg-white px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', on && 'pr-12', props.className)} />
+  const box = <textarea {...NO_SUGGEST} {...props} className={cn('min-h-[5.25rem] w-full resize-none rounded-lg border border-line bg-white px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', on && 'pr-12', props.className)} />
   if (!on) return box
   return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute bottom-2.5 right-2" /></span>
 }

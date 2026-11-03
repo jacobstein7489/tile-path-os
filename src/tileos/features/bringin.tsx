@@ -163,6 +163,27 @@ const uid = (i = 0) => `${Date.now().toString(36)}${i}${Math.random().toString(3
 /** the project in Tile OS this estimate is for — by its name or its address (the number and the street) */
 const existingFor = (r: EstRead) => Object.values(useStore.getState().jobs).find((j) => [r.project, r.address].some((x) => !!x && (sameJob(j.name, x) || sameJob(j.address, x))))
 
+/** read one project's estimate and put it into that project: its rooms, walls, floors and square feet (when it has no
+ *  rooms yet), its total (when it has none) — and the estimate kept with it. The pop-up says what went in. */
+export async function estimateInto(jobId: string, file: File): Promise<void> {
+  const r = await readEstimate([file])
+  const st0 = useStore.getState()
+  const me = meOf(st0.role)
+  const rooms = roomsFrom(r)
+  const job = st0.jobs[jobId]
+  if (!job) return
+  const had = (st0.rooms[jobId] || []).length
+  st0.commit((st) => {
+    const j = st.jobs[jobId]
+    if (!j) return
+    if (!(st.rooms[jobId] || []).length) st.rooms[jobId] = rooms
+    if (!j.contract && r.total) j.contract = r.total
+    if ((!j.address || /to confirm/i.test(j.address)) && r.address) j.address = r.address
+    addHist(st, jobId, { who: me, kind: 'pricing', title: `Its estimate read${r.number ? ` · ${r.number}` : ''}`, detail: [r.total ? `total ${fmtMoney(r.total)}` : '', `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}`, sfOf(r) ? `${Math.round(sfOf(r)).toLocaleString('en-US')} SF` : ''].filter(Boolean).join(' · ') })
+  }, had ? `${job.name}: the estimate is kept — its rooms stay as they were` : `${job.name}: ${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'} from its estimate`, { undo: false })
+  await keepFiles(jobId, [file], 'other', { quiet: true, doc: 'Estimate' }).catch(() => undefined)
+}
+
 /* the list lives outside the window: closing it doesn't stop the reading, and opening it again shows where it's at */
 const useCards = create<{ cards: Card[] }>(() => ({ cards: [] }))
 const setCards = (f: (cs: Card[]) => Card[]) => useCards.setState((x) => ({ cards: f(x.cards) }))

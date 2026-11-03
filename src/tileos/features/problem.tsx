@@ -50,7 +50,7 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
   const owner: PersonKey = me
   const due = 'Today'
   const [photos, setPhotos] = React.useState<File[]>([])
-  const choose = (k: Kind) => setKind(k)
+  const choose = (k: Kind | '') => setKind(k)
   const tile = tiles.find((t) => t.tag === tag)
   const boxes = `${n} ${n === 1 ? 'box' : 'boxes'}`
   const title = !kind ? '' : kind === 'broken' ? `${tag}: ${boxes} came broken` : kind === 'wrong' ? `${tag}: ${boxes} came wrong` : kind === 'short' ? `${tag}: ${boxes} missing` : kind === 'site' ? `${what} — not ready yet` : (note.trim().split(/[.\n]/)[0] || '').slice(0, 80)
@@ -85,16 +85,17 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
     >
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
       <FormRow label="What’s wrong?">
-        {/* tap one — no list to open */}
+        {/* tap one — no list to open. Picked, only that one stays (Change brings the others back) */}
         {/* on a phone: two small tiles a row, the words only — the whole window fits without scrolling */}
         <div className="grid grid-cols-2 gap-2" data-problem-kinds>
-          {KINDS.map((x) => {
+          {KINDS.filter((x) => !kind || kind === x.k).map((x) => {
             const on = kind === x.k
             return (
-              <button key={x.k} type="button" onClick={() => choose(x.k)} aria-pressed={on} data-problem-kind={x.k}
-                className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition max-sm:gap-2 max-sm:px-2.5 max-sm:py-2', on ? 'border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2')}>
+              <button key={x.k} type="button" onClick={() => choose(on ? ('' as Kind) : x.k)} aria-pressed={on} data-problem-kind={x.k}
+                className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition max-sm:gap-2 max-sm:px-2.5 max-sm:py-2', on ? 'col-span-2 border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2')}>
                 <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:h-8 max-sm:w-8', on ? 'bg-bad-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-[1.125rem] w-[1.125rem]" /></span>
-                <span className="min-w-0 leading-tight"><span className="block text-[0.875rem] font-semibold text-ink max-sm:text-[0.8125rem]">{x.label}</span><span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{x.sub}</span></span>
+                <span className="min-w-0 flex-1 leading-tight"><span className="block text-[0.875rem] font-semibold text-ink max-sm:text-[0.8125rem]">{x.label}</span><span className={cn('block truncate text-[0.75rem] text-muted', !on && 'max-sm:hidden')}>{x.sub}</span></span>
+                {on && <span className="shrink-0 text-[0.8125rem] font-semibold text-brand-700" data-problem-change>Change</span>}
               </button>
             )
           })}

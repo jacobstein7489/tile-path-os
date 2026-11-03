@@ -35,6 +35,8 @@ const ctls: Record<string, AbortController> = {}
 export function stopRead(jobId: string) { ctls[jobId]?.abort(); setRead(jobId, { k: 'idle' }) }
 /** the paperwork is being read on this project, or what it entered is on screen — its window stays open for it */
 export const useReadBusy = (jobId: string) => useReads((x) => { const k = x.by[jobId]?.k; return k === 'reading' || k === 'entered' })
+/** how its reading is going, in a few words — 'reading', what went wrong, or '' — for a window that started it */
+export const useReadWords = (jobId: string) => useReads((x) => { const r = x.by[jobId]; return r?.k === 'reading' ? 'reading' : r?.k === 'idle' && r.msg ? r.msg : '' })
 async function runRead(job: Job, list: File[], already?: boolean) {
   const files = list.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name))
   if (!files.length) { setRead(job.id, { k: 'idle', msg: 'Pick a PDF or photos of the paperwork.', tone: 'warn' }); return }

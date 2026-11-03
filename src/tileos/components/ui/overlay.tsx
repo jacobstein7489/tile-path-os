@@ -64,9 +64,14 @@ export function Modal({
           >
             {header ? (
               <>
-                {/* big headers scroll away with the content on phones; the close button stays put */}
-                <div className="absolute right-4 top-4 z-20 max-sm:right-3 max-sm:top-3">
-                  <CloseButton onClick={onClose} className="max-sm:shadow-pop" />
+                {/* big headers scroll away with the content on phones; the way out stays put — on a computer the × in the
+                    corner, on a phone a bar on top with a real Close button (and the window's name, on the big ones) */}
+                <div className="absolute right-4 top-4 z-20 max-sm:hidden">
+                  <CloseButton onClick={onClose} />
+                </div>
+                <div className={cn('hidden shrink-0 items-center gap-3 border-b border-line-2 bg-white pb-2 pl-4 pr-3 pt-2 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
+                  <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{tall && typeof title === 'string' ? title : ''}</span>
+                  <CloseButton onClick={onClose} />
                 </div>
                 <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Details'}</Dialog.Title>
                 <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE}>

@@ -272,9 +272,9 @@ export const evenVars = (widths: number[], o?: { fixedLast?: boolean; gap?: numb
 /** every line of every list is the same height — one line or two */
 export const ROW_H = 'min-h-[3rem]'
 
-/** a list's column names, on top: small but easy to read (a medium gray, semibold), pinned while the rows scroll. Its line under it is the first row's
- *  (or band's) line — every line in a list is the same one line. */
-export const HEAD_ROW = 'h-9 items-center bg-white text-[0.78125rem] font-semibold text-[#5f6470] shadow-[0_0.0625rem_0_var(--color-line-2)]'
+/** a list's column names, on top: easy to read (dark gray, semibold, near the size of the rows), pinned while the rows
+ *  scroll. Its line under it is the first row's (or band's) line — every line in a list is the same one line. */
+export const HEAD_ROW = 'h-10 items-center bg-white text-[0.875rem] font-semibold text-[#363b45] shadow-[0_0.0625rem_0_var(--color-line-2)]'
 /** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
  *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
  *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is
@@ -482,13 +482,14 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
 export type Bubble = { key: string; label: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boolean; wrap?: boolean }) {
   return (
-    <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5')} role="tablist">
+    /* on a phone: a grid of three a row — every one in sight at once, nothing to slide sideways */
+    <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5', 'max-sm:mx-0 max-sm:mb-0 max-sm:grid max-sm:grid-cols-3 max-sm:gap-1.5 max-sm:overflow-visible max-sm:px-0 max-sm:pb-0')} role="tablist" data-bubbles>
       {items.map((b, i) => {
         const c = BC[b.color]
         /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
         return (
           <React.Fragment key={b.key}>
-            {i > 0 && !wrap && (b.gapBefore ? <span className="mx-1 w-px shrink-0 self-stretch bg-line" /> : arrows && !b.plainBefore ? <ChevronRight className="-mx-1.5 h-4 w-4 shrink-0 self-center text-[#c3c9d1]" /> : null)}
+            {i > 0 && !wrap && (b.gapBefore ? <span className="mx-1 w-px shrink-0 self-stretch bg-line max-sm:hidden" /> : arrows && !b.plainBefore ? <ChevronRight className="-mx-1.5 h-4 w-4 shrink-0 self-center text-[#c3c9d1] max-sm:hidden" /> : null)}
             <button
               role="tab"
               aria-selected={!!b.on}
@@ -496,17 +497,19 @@ export function Bubbles({ items, arrows, wrap }: { items: Bubble[]; arrows?: boo
               disabled={!b.onClick}
               className={cn(
                 'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
+                /* phone: the number big on top, the name under it, the icon small in the corner */
+                'max-sm:h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:px-2.5 max-sm:pt-2',
                 b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1">
                 <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
-                <span className={cn('block truncate text-[0.75rem] font-medium leading-4', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>
+                <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>
               </span>
             </button>
           </React.Fragment>

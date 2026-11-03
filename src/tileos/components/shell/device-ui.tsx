@@ -30,6 +30,33 @@ export function OfflineBar() {
   )
 }
 
+/** no suggestions over what you type, anywhere: every text box on the page — the ones that come and go too — gets the
+ *  browser's autofill list and the phone's predictions turned off (a box that says what it wants, like the sign-in
+ *  email or password, keeps it) */
+export function QuietTyping() {
+  React.useEffect(() => {
+    const SKIP = /^(password|email|checkbox|radio|range|file|color|button|submit|reset|hidden|image)$/
+    const quiet = (el: Element) => {
+      if (el instanceof HTMLInputElement) { if (SKIP.test(el.type)) return }
+      else if (!(el instanceof HTMLTextAreaElement)) return
+      if (!el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off')
+      if (!el.hasAttribute('autocorrect')) el.setAttribute('autocorrect', 'off')
+      if (!el.hasAttribute('spellcheck')) el.setAttribute('spellcheck', 'false')
+    }
+    const all = (root: ParentNode) => root.querySelectorAll?.('input,textarea').forEach(quiet)
+    all(document)
+    const mo = new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach((n) => { if (n instanceof Element) { quiet(n); all(n) } })))
+    mo.observe(document.body, { childList: true, subtree: true })
+    const focus = (e: FocusEvent) => { if (e.target instanceof Element) quiet(e.target) }
+    document.addEventListener('focusin', focus, true)
+    return () => { mo.disconnect(); document.removeEventListener('focusin', focus, true) }
+  }, [])
+  return null
+}
+
+/* after a pull-to-refresh the app opens again fresh — this says so when it's back */
+const REFRESHED = 'tileos-refreshed'
+
 /* how far to pull before letting go refreshes */
 const PULL = 64
 const MAX = 110
@@ -39,6 +66,12 @@ export function PullToRefresh() {
   const [busy, setBusy] = React.useState(false)
   const start = React.useRef<number | null>(null)
   const pull = React.useRef(0)
+  /* back from a refresh: say it worked */
+  React.useEffect(() => {
+    let back = false
+    try { back = sessionStorage.getItem(REFRESHED) === '1'; sessionStorage.removeItem(REFRESHED) } catch { /* private window — nothing to say */ }
+    if (back) setTimeout(() => showPop({ title: 'Up to date', sub: 'Refreshed — you’re seeing the newest.', tone: 'ok' }), 400)
+  }, [])
   React.useEffect(() => {
     if (!window.matchMedia('(pointer: coarse)').matches) return
     const scrolledParent = (t: EventTarget | null) => {
@@ -71,12 +104,17 @@ export function PullToRefresh() {
       /* with signal: what's waiting goes up first, then the app opens again fresh — the newest version and the newest
          data. With no signal: nothing to reload — it keeps working from the phone */
       void (REAL.cloud && REAL.refresh ? REAL.refresh() : Promise.resolve('none' as const)).then((r) => {
-        if (r === 'ok' && navigator.onLine) { location.reload(); return }
+        if (r === 'ok' && navigator.onLine) {
+          try { sessionStorage.setItem(REFRESHED, '1') } catch { /* it still refreshes */ }
+          location.reload()
+          return
+        }
         const wait = Math.max(0, 700 - (Date.now() - t0))
         setTimeout(() => {
           setBusy(false)
           setY(0)
           if (r === 'offline') showPop({ title: 'No signal', sub: OFFLINE_WORDS, tone: 'warn' })
+          else showPop({ title: 'Up to date', sub: 'Refreshed — you’re seeing the newest.', tone: 'ok' })
         }, wait)
       })
     }

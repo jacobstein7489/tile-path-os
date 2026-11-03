@@ -20,6 +20,7 @@ import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
 import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
+import { CatchUpBar } from './catchup'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 export type ProjType = 'hold' | 'coming' | 'progress' | 'touchups' | 'repairs' | 'done'
@@ -107,6 +108,8 @@ export function ProjectsPage() {
         </>
       }
     >
+      {/* brought in without where they're up to: go through them, one at a time */}
+      <CatchUpBar />
       <div style={{ ...WIDE, '--n': 5, '--n-xl': 6 } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
@@ -139,12 +142,12 @@ const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | '
  * at the count for the list, open the project for all of them.
  * Each group (On hold, Getting ready…) is a gray band with its color dot. On a phone: the name and how far it is, then
  * what's going on now. */
-const COLS = cn('grid grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_4.5rem_5rem] items-center gap-x-6 max-md:block', EVEN)
+const COLS = cn('grid grid-cols-[minmax(0,1fr)_21.25rem_minmax(0,1.1fr)_4.5rem_5rem] items-center gap-x-6 max-md:block', EVEN)
 /** on a wide screen: Project · Client · the five · Now · Problems · Start, each with its room and the rest shared evenly */
-const WIDE = evenVars([9.5, 8, 17.5, 14.5, 4.5, 4], { fixedLast: true })
+const WIDE = evenVars([9.5, 8, 21.25, 14.5, 4.5, 4], { fixedLast: true })
 /** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
  *  (the widest name, Materials, fits), the same on top and in every row */
-const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
+const slot = (_k?: string) => 'flex w-[4.25rem] shrink-0 justify-center'
 
 function ListHead({ parts }: { /** a project getting ready is on the list: the five names over its circles */ parts: boolean }) {
   return (
@@ -153,7 +156,7 @@ function ListHead({ parts }: { /** a project getting ready is on the list: the f
       <span className="max-xl:hidden">Client</span>
       {parts ? (
         <span className="flex min-w-0 items-center" data-part-names title="Getting ready — its five parts. A project that started shows how far it is instead.">
-          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.71875rem]')}>{t.label}</span>)}
+          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.8125rem]')}>{t.label}</span>)}
         </span>
       ) : <span data-part-names>How far</span>}
       <span>Now</span>

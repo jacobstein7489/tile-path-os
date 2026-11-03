@@ -69,10 +69,11 @@ import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
 import { BringInModal } from '@/tileos/features/bringin'
+import { CatchUpModal } from '@/tileos/features/catchup'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
 import { watchKeyboard } from '@/tileos/lib/viewport'
 import { noAutofill } from '@/tileos/lib/noautofill'
-import { OfflineBar, PullToRefresh } from '@/tileos/components/shell/device-ui'
+import { OfflineBar, PullToRefresh, QuietTyping } from '@/tileos/components/shell/device-ui'
 import { CommissionsPage, CommissionModal, ClientSalesModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
@@ -136,6 +137,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} />
     case 'bringin': return <BringInModal level={level} />
+    case 'catchup': return <CatchUpModal level={level} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />
     case 'designer': return <DesignerProfile id={m.id} level={level} />
     case 'sub': return <InstallerProfile id={m.id} level={level} />
@@ -301,6 +303,7 @@ export default function App() {
       <CommandPalette />
       <CenterPop />
       <PullToRefresh />
+      <QuietTyping />
     </TipProvider>
   )
 }

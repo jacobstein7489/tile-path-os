@@ -260,6 +260,9 @@ export interface Job {
   stageDates?: Record<string, string>
   /** stopped while something is missing (tile, the GC, the site) — the project shows On hold */
   hold?: { reason: string; since: string; by: PersonKey; shortage?: string }
+  /** brought in (from Asana, or from its estimate) and gone through since — where it stands, the installer, the site
+   *  manager, how far, the dates: the day it was brought up to date */
+  caughtUp?: string
   /** billed and paid before Tile OS (from QuickBooks) — the progress bills pick up from there */
   before?: { billed: number; paid: number; retainage?: number; changes?: number }
   /** who sold it, for this project: each salesperson, their rate (%) and what they've been paid — set from the
