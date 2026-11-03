@@ -1,12 +1,15 @@
-/* Bring in projects — the ones already going when Tile OS starts: getting ready, installing, on hold, in touch-ups.
- * Drop each project's estimate (a PDF or photos of it — whatever program made it): AI reads the client, the address,
- * every room and each wall and floor with its square feet, and the estimate's number and total. Check the name, pick
- * where it stands, add its tile paperwork if it's handy (the same reader fills in the tiles, grout, edges and
- * pictures), and bring them in — one at a time or a stack at once. The estimate stays with its project. */
+/* Bring in projects — the ones already going when Tile OS starts.
+ *   From Asana: the project's CSV export (Cobblestone Sales Process) — every open job in its place at once: being
+ *     priced on Estimates, won on Projects (getting ready, ready for the crew, in progress, touch-ups). See asanalist.
+ *   Estimate files: drop each project's estimate (a PDF or photos — whatever program made it). AI reads the client, the
+ *     address, every room and each wall and floor with its square feet, the number and the total. A project that's in
+ *     Tile OS already (brought in from Asana) gets the rooms; a new one is made with where it stands. Its tile paperwork
+ *     can come with it (the same reader fills in the tiles, grout, edges and pictures). The estimate stays with it. */
 import * as React from 'react'
-import { Upload, FileText, Loader2, X, Plus, CircleAlert, Check, ChevronDown, PauseCircle, Sparkles } from 'lucide-react'
+import { create } from 'zustand'
+import { Upload, FileText, Loader2, X, Plus, CircleAlert, Check, ChevronDown, PauseCircle, Sparkles, ArrowRight, Table2 } from 'lucide-react'
 import { useStore, addHist, meOf, NOW } from '@/tileos/store'
-import { Button, TextInput } from '@/tileos/components/ui/core'
+import { Button, TextInput, Segmented } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
@@ -17,6 +20,7 @@ import { keepFiles } from '@/tileos/lib/files'
 import { pagesOf, askAI, jsonIn, ReadError } from './reader'
 import { companySteps } from './steps'
 import { readPaperworkFor } from './paperread'
+import { jobsFromCsv, bringList, sameJob, PLACES, type ListJob, type Place } from './asanalist'
 
 /* ================= reading an estimate ================= */
 export type EstSurface = { name: string; sf?: number; note?: string }
@@ -137,51 +141,64 @@ const OPEN_AT: Record<Where, string[] | null> = {
   touchups: [],
 }
 
-/* ================= one estimate dropped in ================= */
+/* ================= the projects being brought in ================= */
+/** an estimate dropped in: read, then a new project — or the rooms for one that's there already */
 type Card = {
-  id: string; file: File; paper: File[]
-  st: 'waiting' | 'reading' | 'read' | 'bad'; msg?: string; read?: EstRead
+  id: string
+  file: File
+  paper: File[]
+  st: 'waiting' | 'reading' | 'read' | 'bad'
+  msg?: string; read?: EstRead
   name: string; client: string; address: string; where: Where; pct: string; hold: boolean; why: string; open: boolean
   /** the installer on it (in progress, touch-ups) — can be picked later */
   crew: string
+  /** the project that's already in Tile OS (from Asana) this estimate is for — it gets the rooms; '' makes a new one */
+  into: string
 }
 const READABLE = (f: File) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name)
 const bare = (f: string) => f.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim()
 const clientOf = (name: string): Customer | undefined => { const k = norm(name); return k ? Object.values(CUSTOMERS).find((c) => norm(c.name) === k) : undefined }
 const sfOf = (r?: EstRead) => (r ? r.rooms.reduce((a, x) => a + x.surfaces.reduce((b, y) => b + (y.sf || 0), 0), 0) : 0)
+const uid = (i = 0) => `${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 5)}`
+/** the project in Tile OS this estimate is for — by its name or its address (the number and the street) */
+const existingFor = (r: EstRead) => Object.values(useStore.getState().jobs).find((j) => [r.project, r.address].some((x) => !!x && (sameJob(j.name, x) || sameJob(j.address, x))))
+
+/* the list lives outside the window: closing it doesn't stop the reading, and opening it again shows where it's at */
+const useCards = create<{ cards: Card[] }>(() => ({ cards: [] }))
+const setCards = (f: (cs: Card[]) => Card[]) => useCards.setState((x) => ({ cards: f(x.cards) }))
+const patch = (id: string, p: Partial<Card>) => setCards((cs) => cs.map((c) => (c.id === id ? { ...c, ...p } : c)))
+const cardOf = (id: string) => useCards.getState().cards.find((c) => c.id === id)
+/* one at a time — a stack of estimates doesn't jam the AI */
+let queue: Promise<void> = Promise.resolve()
+function enqueue(id: string) {
+  queue = queue.then(async () => {
+    const c = cardOf(id)
+    if (!c) return
+    patch(id, { st: 'reading', msg: undefined })
+    try {
+      const r = await readEstimate([c.file])
+      if (!cardOf(id)) return
+      if (!r.rooms.length && !r.client && !r.project) { patch(id, { st: 'bad', msg: 'Nothing on it looked like an estimate — try a clearer PDF.' }); return }
+      const had = existingFor(r)
+      patch(id, { st: 'read', read: r, name: r.project || r.address.split(',')[0] || bare(c.file.name), client: r.client, address: r.address || r.project, into: had?.id || '' })
+    } catch (e: any) {
+      if (cardOf(id)) patch(id, { st: 'bad', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.' })
+    }
+  })
+}
 
 export function BringInModal({ level }: { level: number }) {
   const s = useStore()
-  const [cards, setCards] = React.useState<Card[]>([])
+  const cards = useCards((x) => x.cards)
+  const [src, setSrc] = React.useState<'asana' | 'files'>('asana')
   const [over, setOver] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
-  /* one estimate read at a time — a stack of them doesn't jam the AI */
-  const queue = React.useRef<Promise<void>>(Promise.resolve())
-  const live = React.useRef(true)
-  React.useEffect(() => () => { live.current = false }, [])
-  const patch = (id: string, p: Partial<Card>) => setCards((cs) => cs.map((c) => (c.id === id ? { ...c, ...p } : c)))
-  const read = (c: Card) => {
-    queue.current = queue.current.then(async () => {
-      if (!live.current) return
-      patch(c.id, { st: 'reading' })
-      try {
-        const r = await readEstimate([c.file])
-        if (!live.current) return
-        if (!r.rooms.length && !r.client && !r.project) { patch(c.id, { st: 'bad', msg: 'Nothing on it looked like an estimate — try a clearer PDF.' }); return }
-        const name = r.project || r.address.split(',')[0] || bare(c.file.name)
-        patch(c.id, { st: 'read', read: r, name, client: r.client, address: r.address || r.project })
-      } catch (e: any) {
-        if (live.current) patch(c.id, { st: 'bad', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.' })
-      }
-    })
-  }
   const add = (list: File[]) => {
-    const files = list.filter(READABLE)
-    const fresh: Card[] = files.map((f, i) => ({ id: `${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 5)}`, file: f, paper: [], st: 'waiting', name: bare(f.name), client: '', address: '', where: 'new', pct: '', hold: false, why: '', open: false, crew: '' }))
+    const fresh: Card[] = list.filter(READABLE).map((f, i) => ({ id: uid(i), file: f, paper: [], st: 'waiting', name: '', client: '', address: '', where: 'new', pct: '', hold: false, why: '', open: false, crew: '', into: '' }))
     setCards((cs) => [...cs, ...fresh])
-    fresh.forEach(read)
+    fresh.forEach((c) => enqueue(c.id))
   }
-  const ready = cards.filter((c) => c.st === 'read' && c.name.trim() && c.client.trim())
+  const ready = cards.filter((c) => c.st === 'read' && (c.into || (c.name.trim() && c.client.trim())))
   const busy = cards.some((c) => c.st === 'waiting' || c.st === 'reading')
 
   const bring = () => {
@@ -190,12 +207,24 @@ export function BringInModal({ level }: { level: number }) {
     s.commit((st) => {
       ready.forEach((c, i) => {
         const r = c.read!
-        const id = 'p' + Date.now().toString(36) + i
+        const rooms = roomsFrom(r)
+        const detail = [r.number, r.date ? `dated ${r.date}` : '', r.total ? `total ${fmtMoney(r.total)}` : '', `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}`, sfOf(r) ? `${Math.round(sfOf(r)).toLocaleString('en-US')} SF` : ''].filter(Boolean).join(' · ')
+        /* there already (brought in from Asana): its rooms come from the estimate — rooms it has stay as they are */
+        const had = c.into ? st.jobs[c.into] : undefined
+        if (had) {
+          if (!(st.rooms[had.id] || []).length) st.rooms[had.id] = rooms
+          if (!had.contract && r.total) had.contract = r.total
+          if ((!had.address || /to confirm/i.test(had.address)) && r.address) had.address = r.address
+          addHist(st, had.id, { who: me, kind: 'pricing', title: `Its estimate read${r.number ? ` · ${r.number}` : ''}`, detail })
+          made.push({ card: c, id: had.id })
+          return
+        }
+        const id = 'p' + uid(i)
         /* the client: the one we have by that name — or a new one from what the estimate says */
         const nm = c.client.trim()
         let clientId = clientOf(nm)?.id || Object.values(st.clients).find((x) => norm(x.name) === norm(nm))?.id
         if (!clientId) {
-          clientId = 'c' + Date.now().toString(36) + i
+          clientId = 'c' + uid(i)
           st.clients[clientId] = {
             id: clientId, name: nm, kind: /\b(llc|inc|corp|co|construction|builders?|group|development|properties|homes|contracting|realty|management)\b/i.test(nm) ? 'General contractor' : 'Homeowner',
             address: r.clientAddress || '', phone: r.clientPhone || '', email: r.clientEmail || '', notes: `Brought in with ${c.name.trim()}`, contacts: [],
@@ -203,7 +232,6 @@ export function BringInModal({ level }: { level: number }) {
         }
         const stage = c.where === 'installing' ? 'installation' : c.where === 'touchups' ? 'punch' : 'setup'
         const pct = Math.max(0, Math.min(100, Math.round(Number(c.pct.replace(/[^\d.]/g, '')) || 0)))
-        const rooms = roomsFrom(r)
         const job: Job = {
           id, name: c.name.trim(), client: nm, clientId, address: c.address.trim() || r.address || '', stage, kind: 'install',
           status: c.hold ? 'bad' : 'info',
@@ -229,11 +257,12 @@ export function BringInModal({ level }: { level: number }) {
             recs[d.key] = d.key === 'sheets' && (c.where === 'tile' || c.where === 'ready') ? { na: true } : { done: NOW, by: me, note: 'Done before Tile OS' }
           })
         }
-        addHist(st, id, { who: me, kind: 'pricing', title: `Brought in from its estimate${r.number ? ` ${r.number}` : ''}`, detail: [r.date ? `Dated ${r.date}` : '', r.total ? `Total ${fmtMoney(r.total)}` : '', `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}`, sfOf(r) ? `${Math.round(sfOf(r)).toLocaleString('en-US')} SF` : '', WHERE.find((w) => w.key === c.where)!.label.toLowerCase()].filter(Boolean).join(' · ') })
+        addHist(st, id, { who: me, kind: 'pricing', title: `Brought in from its estimate${r.number ? ` ${r.number}` : ''}`, detail: [detail, WHERE.find((w) => w.key === c.where)!.label.toLowerCase()].filter(Boolean).join(' · ') })
         if (c.hold) addHist(st, id, { who: me, kind: 'field', title: 'On hold', detail: c.why.trim() || undefined })
         made.push({ card: c, id })
       })
-    }, `${ready.length} ${ready.length === 1 ? 'project' : 'projects'} brought in`, { sub: ready.some((c) => c.paper.length) ? 'Its tile paperwork is being read now — the tiles fill in by themselves.' : 'Each one is on Projects with its rooms, walls and floors.' })
+    }, ready.every((c) => c.into) ? `${ready.length} ${ready.length === 1 ? 'estimate' : 'estimates'} read into ${ready.length === 1 ? 'its project' : 'their projects'}` : `${ready.length} ${ready.length === 1 ? 'project' : 'projects'} brought in`, { sub: ready.some((c) => c.paper.length) ? 'Its tile paperwork is being read now — the tiles fill in by themselves.' : 'Each one has its rooms, walls and floors.' })
+    setCards((cs) => cs.filter((c) => !made.some((m) => m.card.id === c.id)))
     s.close()
     s.go({ page: 'projects' })
     /* the estimate stays with its project; the tile paperwork is read and entered, one project after another */
@@ -250,56 +279,171 @@ export function BringInModal({ level }: { level: number }) {
     <Modal
       level={level}
       size="lg"
-      tall={cards.length > 0}
+      tall
       onClose={s.close}
       title="Bring in projects"
-      sub="Drop each project’s estimate — AI builds it: the client, the address, every room, wall and floor"
-      footer={
+      sub="Every job from Asana at once — then each one’s estimate, and AI builds its rooms, walls and floors"
+      footer={src === 'asana' ? undefined : (
         <>
-          <span className="min-w-0 truncate text-[0.8125rem] text-muted">{busy ? 'Reading…' : cards.length ? `${ready.length} of ${cards.length} ready` : 'PDFs or photos — one estimate per project'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" icon={<Check />} disabled={!ready.length} onClick={bring} data-bring-in>{ready.length > 1 ? `Bring in ${ready.length} projects` : 'Bring it in'}</Button>
+          <span className="min-w-0 truncate text-[0.8125rem] text-muted">{busy ? 'Reading… you can close this, it keeps going' : cards.length ? `${ready.length} of ${cards.length} ready` : 'One estimate per project'}</span>
+          <Button className="ml-auto" variant="ghost" onClick={s.close}>{cards.length ? 'Close' : 'Cancel'}</Button>
+          <Button variant="primary" icon={<Check />} disabled={!ready.length} onClick={bring} data-bring-in>{ready.length > 1 ? `Bring in ${ready.length}` : 'Bring it in'}</Button>
         </>
-      }
+      )}
     >
-      <input ref={input} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Estimates" data-bringin-files onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; add(f) }} />
-      <div
-        onDragOver={(e) => { e.preventDefault(); setOver(true) }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => { e.preventDefault(); setOver(false); add(Array.from(e.dataTransfer.files || [])) }}
-        onClick={() => input.current?.click()}
-        role="button"
-        tabIndex={0}
-        className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed transition max-sm:flex-wrap', cards.length ? 'px-4 py-3' : 'px-5 py-8', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5] hover:border-brand-300')}
-        data-bringin-drop
-      >
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[0.9375rem] font-semibold text-ink">{cards.length ? 'Add more estimates' : 'Drop the estimates here — or tap to pick them'}</span>
-          <span className="block text-[0.8125rem] text-muted">One per project, as many as you like. A PDF, or photos of the pages.</span>
-        </span>
-      </div>
-      {cards.length > 0 && (
-        <div className="mt-4 flex flex-col gap-3" data-bringin-list>
-          {cards.map((c) => <EstCard key={c.id} c={c} patch={(p) => patch(c.id, p)} remove={() => setCards((cs) => cs.filter((x) => x.id !== c.id))} retry={() => read(c)} />)}
-        </div>
+      <Segmented value={src} onChange={setSrc} className="mb-4 w-full sm:w-auto [&>button]:flex-1 [&>button]:whitespace-nowrap" items={[{ key: 'asana', label: '1 · Jobs from Asana' }, { key: 'files', label: '2 · Estimate files' }]} />
+      {src === 'asana' ? <AsanaList /> : (
+        <>
+          <input ref={input} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Estimates" data-bringin-files onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; add(f) }} />
+          <div
+            onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); setOver(false); add(Array.from(e.dataTransfer.files || [])) }}
+            onClick={() => input.current?.click()}
+            role="button"
+            tabIndex={0}
+            className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed transition max-sm:flex-wrap', cards.length ? 'px-4 py-3' : 'px-5 py-8', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5] hover:border-brand-300')}
+            data-bringin-drop
+          >
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.9375rem] font-semibold text-ink">{cards.length ? 'Add more estimates' : 'Drop the estimates here — or tap to pick them'}</span>
+              <span className="block text-[0.8125rem] text-muted">One per project, as many as you like. A project that’s already in (from Asana) gets its rooms; a new one is made.</span>
+            </span>
+          </div>
+          {cards.length > 0 && (
+            <div className="mt-4 flex flex-col gap-3" data-bringin-list>
+              {cards.map((c) => <EstCard key={c.id} c={c} />)}
+            </div>
+          )}
+        </>
       )}
     </Modal>
   )
 }
 
-/** one estimate: reading it, then what it found — the name, the client, the address, the rooms — and where it stands */
-function EstCard({ c, patch, remove, retry }: { c: Card; patch: (p: Partial<Card>) => void; remove: () => void; retry: () => void }) {
+/* ================= 1 · the jobs from Asana: the project's CSV export ================= */
+type Loaded = { file: string; board: string; jobs: ListJob[]; finished: number; on: string[] }
+function AsanaList() {
+  const s = useStore()
+  const input = React.useRef<HTMLInputElement>(null)
+  const [over, setOver] = React.useState(false)
+  const [got, setGot] = React.useState<Loaded | null>(null)
+  const [msg, setMsg] = React.useState('')
+  const [shut, setShut] = React.useState<string[]>([])
+  const load = async (f?: File) => {
+    if (!f) return
+    setMsg('')
+    const text = await f.text().catch(() => '')
+    const r = jobsFromCsv(text, { have: Object.values(s.jobs) })
+    if (!r.columns || !r.jobs.length) { setMsg(r.columns ? 'No open jobs in that file.' : 'That doesn’t look like an Asana export — it needs a “Name” column. Export the project as CSV and drop that file.'); return }
+    setGot({ file: f.name, board: r.board, jobs: r.jobs, finished: r.finished, on: r.jobs.filter((j) => !j.dup).map((j) => j.key) })
+  }
+  if (!got) return (
+    <div className="flex flex-col gap-3" data-asana-list="empty">
+      <div className="rounded-xl border border-line bg-white px-4 py-3.5 text-[0.84375rem] leading-snug text-ink-2">
+        <div className="mb-1.5 text-[0.9375rem] font-semibold text-ink">Every job from Asana, in one go</div>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>In Asana, open the project with the jobs — <b className="font-semibold text-ink">Cobblestone Sales Process</b>.</li>
+          <li>Click the arrow next to the project’s name → <b className="font-semibold text-ink">Export / Print</b> → <b className="font-semibold text-ink">CSV</b>.</li>
+          <li>Drop the file here. (Or the file Claude sent you — it’s the same.)</li>
+        </ol>
+        <div className="mt-2 text-[0.78125rem] text-muted">Each job goes where it stands — being priced on Estimates, won on Projects — with its client, installer, dates and notes. The papers come after, under “2 · Estimate files”.</div>
+      </div>
+      <input ref={input} type="file" accept=".csv,text/csv" className="hidden" aria-label="Asana CSV" data-asana-csv onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void load(f) }} />
+      <div
+        onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); void load(e.dataTransfer.files?.[0]) }}
+        onClick={() => input.current?.click()}
+        role="button"
+        tabIndex={0}
+        className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed px-5 py-7 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5] hover:border-brand-300')}
+        data-asana-drop
+      >
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Table2 className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.9375rem] font-semibold text-ink">Drop the Asana CSV here — or tap to pick it</span>
+          <span className="block text-[0.8125rem] text-muted">Only the open jobs come in. Done and lost ones stay out.</span>
+        </span>
+      </div>
+      {msg && <div className="flex items-center gap-2 rounded-lg bg-warn-50 px-3 py-2 text-[0.8125rem] text-warn-700"><CircleAlert className="h-4 w-4 shrink-0" />{msg}</div>}
+    </div>
+  )
+  const { jobs, on } = got
+  const pick = jobs.filter((j) => on.includes(j.key))
+  const setOn = (keys: string[]) => setGot({ ...got, on: keys })
+  const toggle = (k: string) => setOn(on.includes(k) ? on.filter((x) => x !== k) : [...on, k])
+  const groups = PLACES.filter((p) => p.on !== 'Left out').map((p) => ({ ...p, rows: jobs.filter((j) => j.place === p.key) })).filter((g) => g.rows.length)
+  const priced = pick.filter((j) => PLACES.find((p) => p.key === j.place)!.on === 'Estimates').length
+  const crewWord = (j: ListJob) => (j.crew ? (j.crewKey ? (PEOPLE[j.crewKey]?.short || j.crew) : `${j.crew} (not in Tile OS)`) : '')
+  const go = () => {
+    bringList(pick, got.board)
+    setGot(null)
+    s.close()
+    s.go({ page: 'projects' })
+  }
+  return (
+    <div className="flex flex-col gap-3" data-asana-list="loaded">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line bg-white px-4 py-3">
+        <Table2 className="h-4 w-4 shrink-0 text-muted" />
+        <span className="min-w-0 flex-1 text-[0.875rem] text-ink-2"><b className="font-semibold text-ink">{jobs.length} open jobs</b>{got.board ? ` in ${got.board}` : ''}{got.finished ? <span className="text-muted"> · {got.finished} done or lost left out</span> : null}</span>
+        <button type="button" onClick={() => setGot(null)} className="text-[0.8125rem] font-semibold text-muted hover:text-ink">Another file</button>
+      </div>
+      {groups.map((g) => {
+        const keys = g.rows.map((j) => j.key)
+        const all = keys.every((k) => on.includes(k))
+        const closed = shut.includes(g.key)
+        return (
+          <section key={g.key} className="overflow-hidden rounded-xl border border-line bg-white" data-asana-group={g.key}>
+            <header className="flex min-w-0 items-center gap-3 bg-[#f6f4f0] px-3 py-2">
+              <input type="checkbox" checked={all} onChange={() => setOn(all ? on.filter((k) => !keys.includes(k)) : Array.from(new Set([...on, ...keys])))} aria-label={`All of ${g.label}`} className="h-4 w-4 shrink-0 accent-[#2650cf]" />
+              <button type="button" onClick={() => setShut(closed ? shut.filter((x) => x !== g.key) : [...shut, g.key])} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{g.label}</span>
+                <span className="shrink-0 text-[0.8125rem] tnum text-muted">{keys.filter((k) => on.includes(k)).length} of {keys.length}</span>
+                <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[0.75rem] font-medium text-muted"><ArrowRight className="h-3 w-3" />{g.on}</span>
+                <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', closed && '-rotate-90')} />
+              </button>
+            </header>
+            {!closed && g.rows.map((j) => (
+              <label key={j.key} className="flex cursor-pointer items-center gap-3 border-t border-line-2 px-3 py-2 text-[0.84375rem] hover:bg-[#faf8f5]" data-asana-job={j.key}>
+                <input type="checkbox" checked={on.includes(j.key)} onChange={() => toggle(j.key)} className="h-4 w-4 shrink-0 accent-[#2650cf]" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-ink">{j.name}</span>
+                  <span className="block truncate text-[0.75rem] text-muted">{[j.client || 'Client to confirm', j.priceOut && g.on === 'Estimates' ? 'price-out' : '', crewWord(j), j.start ? `starts ${j.start.slice(5).replace('-', '/')}` : ''].filter(Boolean).join(' · ')}</span>
+                </span>
+                {j.dup && <span className="shrink-0 rounded-full bg-warn-50 px-2 py-0.5 text-[0.71875rem] font-semibold text-warn-700" title="A project with this name or address is in Tile OS already">Already in</span>}
+              </label>
+            ))}
+          </section>
+        )
+      })}
+      <div className="sticky bottom-0 -mx-6 -mb-5 flex flex-wrap items-center gap-2 border-t border-line bg-white px-6 py-3 max-sm:-mx-4 max-sm:px-4">
+        <span className="min-w-0 flex-1 text-[0.8125rem] text-muted">{pick.length - priced} on Projects · {priced} on Estimates</span>
+        <Button variant="ghost" onClick={s.close}>Cancel</Button>
+        <Button variant="primary" icon={<Check />} disabled={!pick.length} onClick={go} data-asana-bring>Bring in {pick.length}</Button>
+      </div>
+    </div>
+  )
+}
+
+/* ================= 2 · one estimate being read ================= */
+/** reading it, then what it found — the rooms, and which project they go to (one that's there, or a new one) */
+function EstCard({ c }: { c: Card }) {
   const s = useStore()
   const paperIn = React.useRef<HTMLInputElement>(null)
+  const set = (p: Partial<Card>) => patch(c.id, p)
+  const remove = () => setCards((cs) => cs.filter((x) => x.id !== c.id))
+  const retry = () => { set({ st: 'waiting', msg: undefined }); enqueue(c.id) }
   const r = c.read
   const known = c.client.trim() ? clientOf(c.client) : undefined
   const sf = sfOf(r)
   const nSurf = r ? r.rooms.reduce((a, x) => a + x.surfaces.length, 0) : 0
-  const dup = Object.values(s.jobs).find((j) => norm(j.name) === norm(c.name) || (!!c.address.trim() && norm(j.address) === norm(c.address)))
+  const had = c.into ? s.jobs[c.into] : undefined
+  const match = r ? existingFor(r) : undefined
   const where = WHERE.find((w) => w.key === c.where)!
   return (
-    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-est-card={c.st}>
+    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-est-card={c.st} data-est-into={c.into || undefined}>
       <header className="flex min-w-0 items-center gap-3 border-b border-line-2 bg-[#fbfaf7] px-4 py-2.5">
         {c.st === 'reading' || c.st === 'waiting' ? <Loader2 className={cn('h-4 w-4 shrink-0 text-brand-600', c.st === 'reading' && 'animate-spin')} /> : c.st === 'bad' ? <CircleAlert className="h-4 w-4 shrink-0 text-bad-600" /> : <FileText className="h-4 w-4 shrink-0 text-muted" />}
         <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium text-ink-2">{c.file.name}</span>
@@ -316,24 +460,9 @@ function EstCard({ c, patch, remove, retry }: { c: Card; patch: (p: Partial<Card
       )}
       {c.st === 'read' && r && (
         <div className="flex flex-col gap-3 px-4 py-3.5">
-          <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
-            <label className="min-w-0">
-              <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Project</span>
-              <TextInput value={c.name} onChange={(e) => patch({ name: e.target.value })} aria-label="Project name" data-est-name />
-            </label>
-            <label className="min-w-0">
-              <span className="mb-1 flex items-baseline justify-between gap-2 text-[0.75rem] font-semibold text-muted"><span>Client</span>{c.client.trim() && <span className={cn('font-medium', known ? 'text-[#2c8a5b]' : 'text-brand-700')}>{known ? 'Already a client' : 'New client'}</span>}</span>
-              <TextInput value={c.client} onChange={(e) => patch({ client: e.target.value })} aria-label="Client" data-est-client />
-            </label>
-            <label className="min-w-0">
-              <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Address</span>
-              <TextInput value={c.address} onChange={(e) => patch({ address: e.target.value })} aria-label="Job address" data-est-address />
-            </label>
-          </div>
-          {dup && <div className="flex items-center gap-2 rounded-lg bg-warn-50 px-3 py-2 text-[0.8125rem] text-warn-700"><CircleAlert className="h-4 w-4 shrink-0" />{dup.name} is in Tile OS already — take this one out if it’s the same project.</div>}
           {/* what it found: the rooms, every wall and floor, the square feet — open it to check */}
           <div className="rounded-lg border border-line-2">
-            <button type="button" onClick={() => patch({ open: !c.open })} aria-expanded={c.open} className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left" data-est-rooms>
+            <button type="button" onClick={() => set({ open: !c.open })} aria-expanded={c.open} className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left" data-est-rooms>
               <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink-2"><b className="font-semibold text-ink">{r.rooms.length} {r.rooms.length === 1 ? 'room' : 'rooms'}</b> · {nSurf} {nSurf === 1 ? 'wall or floor' : 'walls and floors'}{sf ? ` · ${Math.round(sf).toLocaleString('en-US')} SF` : ''}<span className="text-muted"> — {r.rooms.map((x) => x.room).slice(0, 4).join(', ')}{r.rooms.length > 4 ? '…' : ''}</span></span>
               <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', c.open && 'rotate-180')} />
             </button>
@@ -349,35 +478,61 @@ function EstCard({ c, patch, remove, retry }: { c: Card; patch: (p: Partial<Card
               </div>
             )}
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-sm:grid-cols-1">
-            <label className="min-w-0">
-              <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Where it stands</span>
-              <SearchSelect label="Where it stands" value={c.where} onChange={(k) => patch({ where: (k || 'new') as Where })} search={false} plain options={WHERE.map((w) => ({ key: w.key, label: w.label }))} />
-            </label>
-            {c.where === 'installing' && (
-              <label className="w-36 max-sm:w-full">
-                <span className="mb-1 block text-[0.75rem] font-semibold text-muted">How far</span>
-                <span className="relative block"><TextInput inputMode="numeric" value={c.pct} onChange={(e) => patch({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="0" aria-label="How far — percent installed" className="pr-14" data-est-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">% in</span></span>
-              </label>
-            )}
-          </div>
-          <div className="-mt-1.5 text-[0.75rem] text-muted">{where.hint}</div>
-          {(c.where === 'installing' || c.where === 'touchups') && (
-            <label className="min-w-0 sm:max-w-[22rem]">
-              <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Installer on it</span>
-              <SearchSelect label="Installer on it" value={c.crew} onChange={(k) => patch({ crew: k || '' })} placeholder="Pick later" search={false} plain options={CREWS.filter((x) => !isOff(s, 'crew', x)).map((x) => ({ key: x, label: PEOPLE[x]?.name || x }))} />
-            </label>
+          {had ? (
+            /* the project's already in (from Asana): the rooms go there */
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[#eef6f1] px-3 py-2.5 text-[0.84375rem]" data-est-goes-into>
+              <Check className="h-4 w-4 shrink-0 text-[#2c8a5b]" />
+              <span className="min-w-0 flex-1 text-ink-2">For <b className="font-semibold text-ink">{had.name}</b> — already in Tile OS. {(s.rooms[had.id] || []).length ? 'It has rooms already — they stay; the estimate is kept with it.' : 'The rooms go there.'}</span>
+              <button type="button" onClick={() => set({ into: '' })} className="text-[0.8125rem] font-semibold text-muted hover:text-ink" data-est-new-instead>A new project instead</button>
+            </div>
+          ) : (
+            <>
+              {match && <div className="flex flex-wrap items-center gap-2 rounded-lg bg-warn-50 px-3 py-2 text-[0.8125rem] text-warn-700"><CircleAlert className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1">{match.name} is in Tile OS already.</span><button type="button" onClick={() => set({ into: match.id })} className="font-semibold underline-offset-2 hover:underline">Put the rooms there</button></div>}
+              <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
+                <label className="min-w-0">
+                  <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Project</span>
+                  <TextInput value={c.name} onChange={(e) => set({ name: e.target.value })} aria-label="Project name" data-est-name />
+                </label>
+                <label className="min-w-0">
+                  <span className="mb-1 flex items-baseline justify-between gap-2 text-[0.75rem] font-semibold text-muted"><span>Client</span>{c.client.trim() ? <span className={cn('font-medium', known ? 'text-[#2c8a5b]' : 'text-brand-700')}>{known ? 'Already a client' : 'New client'}</span> : <span className="font-medium text-warn-700">Type the client</span>}</span>
+                  <TextInput value={c.client} onChange={(e) => set({ client: e.target.value })} aria-label="Client" data-est-client />
+                </label>
+                <label className="min-w-0">
+                  <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Address</span>
+                  <TextInput value={c.address} onChange={(e) => set({ address: e.target.value })} aria-label="Job address" data-est-address />
+                </label>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 max-sm:grid-cols-1">
+                <label className="min-w-0">
+                  <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Where it stands</span>
+                  <SearchSelect label="Where it stands" value={c.where} onChange={(k) => set({ where: (k || 'new') as Where })} search={false} plain options={WHERE.map((w) => ({ key: w.key, label: w.label }))} />
+                </label>
+                {c.where === 'installing' && (
+                  <label className="w-36 max-sm:w-full">
+                    <span className="mb-1 block text-[0.75rem] font-semibold text-muted">How far</span>
+                    <span className="relative block"><TextInput inputMode="numeric" value={c.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="0" aria-label="How far — percent installed" className="pr-14" data-est-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">% in</span></span>
+                  </label>
+                )}
+              </div>
+              <div className="-mt-1.5 text-[0.75rem] text-muted">{where.hint}</div>
+              {(c.where === 'installing' || c.where === 'touchups') && (
+                <label className="min-w-0 sm:max-w-[22rem]">
+                  <span className="mb-1 block text-[0.75rem] font-semibold text-muted">Installer on it</span>
+                  <SearchSelect label="Installer on it" value={c.crew} onChange={(k) => set({ crew: k || '' })} placeholder="Pick later" search={false} plain options={CREWS.filter((x) => !isOff(s, 'crew', x)).map((x) => ({ key: x, label: PEOPLE[x]?.name || x }))} />
+                </label>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => set({ hold: !c.hold })} aria-pressed={c.hold} data-est-hold className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition', c.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
+                {c.hold && <span className="min-w-[12rem] flex-1"><TextInput value={c.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-est-why /></span>}
+              </div>
+            </>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => patch({ hold: !c.hold })} aria-pressed={c.hold} data-est-hold className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition', c.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
-            {c.hold && <span className="min-w-[12rem] flex-1"><TextInput value={c.why} onChange={(e) => patch({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-est-why /></span>}
-          </div>
           {/* its tile paperwork, if it's handy: read and entered once it's in */}
           <div className="flex flex-wrap items-center gap-2 border-t border-line-2 pt-3">
-            <input ref={paperIn} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Tile paperwork" data-est-paper-files onChange={(e) => { const f = Array.from(e.target.files || []).filter(READABLE); e.target.value = ''; if (f.length) patch({ paper: [...c.paper, ...f] }) }} />
+            <input ref={paperIn} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Tile paperwork" data-est-paper-files onChange={(e) => { const f = Array.from(e.target.files || []).filter(READABLE); e.target.value = ''; if (f.length) set({ paper: [...c.paper, ...f] }) }} />
             <Button size="sm" icon={c.paper.length ? <Sparkles /> : <Plus />} onClick={() => paperIn.current?.click()} data-est-paper>{c.paper.length ? 'More tile paperwork' : 'Its tile paperwork'}</Button>
             {c.paper.length > 0
-              ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{c.paper.map((f) => f.name).join(', ')} <span className="text-muted">— AI reads it once it’s in</span><button type="button" onClick={() => patch({ paper: [] })} className="ml-2 font-semibold text-muted hover:text-ink">Remove</button></span>
+              ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{c.paper.map((f) => f.name).join(', ')} <span className="text-muted">— AI reads it once it’s in</span><button type="button" onClick={() => set({ paper: [] })} className="ml-2 font-semibold text-muted hover:text-ink">Remove</button></span>
               : <span className="text-[0.8125rem] text-muted">If you have it — the tiles, grout, edges and pictures fill in by themselves.</span>}
           </div>
         </div>
