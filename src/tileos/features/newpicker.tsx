@@ -2,7 +2,7 @@
 import * as React from 'react'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
-  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus,
+  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus, Upload,
 } from 'lucide-react'
 import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -68,6 +68,7 @@ const FOR: Record<string, Role[]> = {
   payment: ['accounting'],
   newreq: ['owner', 'pm', 'office', 'takeoff', 'estimator'],
   newproject: ['owner', 'pm', 'office'],
+  bringin: ['owner', 'pm', 'office'],
   newrepair: ['owner', 'pm', 'office'],
   newclient: ['owner', 'pm', 'office', 'estimator', 'accounting'],
 }
@@ -122,6 +123,7 @@ const TOP: Partial<Record<Role, string[]>> = {
 const STARTS: (Pick & { c: TileColor })[] = [
   { k: 'newreq', l: 'Price a new project', h: 'Upload the plans', i: FileText, c: 'blue', m: () => ({ t: 'newreq' }) },
   { k: 'newproject', l: 'New project', h: 'Won already', i: Building2, c: 'teal', m: () => ({ t: 'newproject' }) },
+  { k: 'bringin', l: 'Bring in projects', h: 'From their estimates', i: Upload, c: 'teal', m: () => ({ t: 'bringin' }) },
   { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, c: 'orange', m: () => ({ t: 'newrepair' }) },
   { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, c: 'violet', m: () => ({ t: 'newclient' }) },
 ]

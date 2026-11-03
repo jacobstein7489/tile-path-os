@@ -60,6 +60,10 @@ async function runRead(job: Job, list: File[], already?: boolean) {
   } finally { if (ctls[job.id] === c) delete ctls[job.id] }
 }
 
+/** read a project's tile paperwork and enter it (bringing a project in with its paperwork) — kept with the project
+ *  first, then read; the pop-up says what was entered */
+export const readPaperworkFor = (job: Job, files: File[]) => runRead(job, files)
+
 /** the drop zone, the reading, and what it entered — at the top of the paperwork steps */
 export function PaperRead({ job }: { job: Job }) {
   const s = useStore()

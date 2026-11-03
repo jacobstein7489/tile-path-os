@@ -2,7 +2,7 @@
  *   Project · Client · Where it stands · Next · Who · Start · Contract
  * No status column: the group it's under already says it. Red only for a problem. */
 import * as React from 'react'
-import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check } from 'lucide-react'
+import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check, Upload } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -81,6 +81,8 @@ export function ProjectsPage() {
   return (
     <Page
       title="Projects"
+      /* the projects already going when Tile OS starts: from their estimates, a stack at once */
+      actions={allowedFor(s.role, 'bringin') ? <Button icon={<Upload />} onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button> : undefined}
       top={
         <Bubbles
           items={[

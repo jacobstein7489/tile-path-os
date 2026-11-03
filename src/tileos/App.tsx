@@ -68,6 +68,7 @@ import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
+import { BringInModal } from '@/tileos/features/bringin'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
 import { watchKeyboard } from '@/tileos/lib/viewport'
 import { noAutofill } from '@/tileos/lib/noautofill'
@@ -134,6 +135,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'popart': return <PartCameModal id={m.id} level={level} />
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} />
+    case 'bringin': return <BringInModal level={level} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />
     case 'designer': return <DesignerProfile id={m.id} level={level} />
     case 'sub': return <InstallerProfile id={m.id} level={level} />
