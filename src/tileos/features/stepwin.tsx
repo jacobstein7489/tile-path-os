@@ -637,6 +637,18 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
     setBusy(true)
     try { await keepFiles(job.id, files, 'paperwork') } finally { setBusy(false) }
   }
+  /* whoever enters the paperwork: upload it here and it's read and entered right away — tiles, walls and floors */
+  if (scopeLock(s, job.id).canEdit) return (
+    <div className="flex flex-col gap-4">
+      <PaperRead job={job} />
+      {v.state !== 'done' && !kept.length && (
+        <Actions>
+          <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store — waiting" />
+          <Button icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
+        </Actions>
+      )}
+    </div>
+  )
   return (
     <div className="flex flex-col gap-4">
       {kept.length > 0 && (

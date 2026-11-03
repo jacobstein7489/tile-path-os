@@ -4,8 +4,10 @@
  * Every change is saved to the project's history; the materials and the scope of work follow by themselves. */
 import { useStore, addHist, meOf } from '@/tileos/store'
 import { GROUTS, JOINTS, type Tile, type Surface, type Grout } from '@/tileos/data/jobs'
-import type { ReadTile } from './reader'
+import type { ReadTile, ReadRoom } from './reader'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
+import type { Item } from '@/tileos/data/items'
+import { parseMetal, metalItem, metalText } from '@/tileos/data/catalog'
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
@@ -109,7 +111,23 @@ const jointOf = (j: string) => JOINTS.find((x) => x.replace(/[^\d/]/g, '') === j
 
 /** what was read off the tile paperwork goes onto the project in one go: new tiles added, known ones filled in, the
  *  walls and floors pointed at their tile, and the paperwork's quantity kept for the check */
-export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string } = {}) {
+/* what the paperwork says, in the words the lists use */
+const WALLISH = /wall|backsplash|splash|wainscot|niche|tub|shower w/i
+function readEdge(e: string) {
+  const m = parseMetal(e)
+  if (m?.profile) return metalText(m)
+  if (/miter/i.test(e)) return 'Mitered'
+  if (/bullnose/i.test(e)) return 'Bullnose tile'
+  if (/pencil/i.test(e)) return 'Pencil liner'
+  return e
+}
+function readHeight(h: string) {
+  if (/wet/i.test(h)) return 'Wet walls only — to the ceiling'
+  if (/half|\b4\s*(ft|feet|′|')|48\s*(″|"|in)/i.test(h)) return 'Half tiled — to 4 ft'
+  if (/full|ceiling/i.test(h)) return 'Fully tiled — to the ceiling'
+  return h
+}
+export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; rooms?: ReadRoom[] } = {}) {
   let added = 0
   let placed = 0
   S().commit(
@@ -143,10 +161,16 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string }
           x.tile = tag
           if (t.grout) x.grout = t.grout
           if (t.joint) x.joint = t.joint
+          /* how it's laid, the edges (mitered or which metal), how high — when the paperwork says */
+          if (p.layout) x.layout = p.layout
+          if (p.edge) { x.edge = readEdge(p.edge); keepMetal(s, x.edge) }
+          if (p.height && WALLISH.test(x.name)) x.height = readHeight(p.height)
           if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
           placed++
         })
       }
+      /* what it says about a room as a whole — "9 ft ceiling; wet walls full, other walls to 4 ft" */
+      ;(o.rooms || []).forEach((r) => { const room = s.rooms[jobId]?.find((y) => y.name === r.room); if (room && !room.note) room.note = r.note })
       addHist(s, jobId, { who: me(), kind: 'setup', title: `Read from the tile paperwork${o.file ? ` · ${o.file}` : ''}`, detail: `${picks.length} tile${picks.length === 1 ? '' : 's'} (${added} new) · ${placed} wall${placed === 1 ? '' : 's'} and floors matched` })
     },
     `Read from the paperwork — ${picks.length} tile${picks.length === 1 ? '' : 's'}`,
@@ -191,6 +215,8 @@ export function saveSurface(jobId: string, room: string, surface: string, p: Sur
         else (x as any)[k] = v
       })
       if (x.tile === undefined) x.tile = ''
+      /* a metal picked from the list is in Items from now on — the materials order counts it by the piece */
+      if (changed.includes('edge')) keepMetal(s, x.edge)
       if (changed.includes('tile') && x.tile && x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
       /* the room's progress follows the square feet */
       addHist(s, jobId, {
@@ -203,6 +229,14 @@ export function saveSurface(jobId: string, room: string, surface: string, p: Sur
     `${room} · ${surface} saved`,
     { close: true, sub: changed.some((k) => ['tile', 'method', 'sf', 'edge'].includes(k)) ? 'The materials and the scope of work follow by themselves.' : undefined },
   )
+}
+
+/** a metal edge picked from the list goes into the company's Items (once), so orders and the takeoff can count it */
+export function keepMetal(s: { items: Item[] }, edge?: string) {
+  const m = parseMetal(edge)
+  if (!m?.profile) return
+  const it = metalItem(m)
+  if (!s.items.some((i) => i.id === it.id)) s.items.push(it)
 }
 
 /** a grout color the company uses that isn't on the list yet */
@@ -257,7 +291,8 @@ export const WHO_ORDERS: { key: string; label: string }[] = [{ key: 'GC', label:
 export const PATTERNS = ['Straight lay', 'Offset ½', 'Offset ⅓', 'Vertical stack', 'Herringbone', 'Diagonal', 'Basketweave', 'Pitched to the drain', 'Field tile · mitered edges']
 export const STARTS = ['Best start — no slivers', 'Centered', 'Full tile at the door', 'Full tile at the doorway', 'Full tile at the floor', 'From the top', 'Centered on the niche', 'Centered on the tub', 'Centered on the window', 'Long side to the door']
 export const EDGES = ['Schluter JOLLY · satin brass · 10 mm', 'Schluter JOLLY · brushed nickel · 10 mm', 'Schluter JOLLY · matte black · 10 mm', 'Schluter JOLLY · aluminum · 10 mm', 'Schluter RONDEC · brushed stainless', 'Mitered', 'Bullnose tile', 'Pencil liner', 'Marble saddle at the door', 'Flush to the wood floor', 'Metal transition strip']
-export const HEIGHTS = ['To the ceiling', '96″', '84″', '84″ · metal edge on top', '72″', '60″', '48″ wainscot', '42″ wainscot', '36″', '18″ backsplash', '4″ base']
+/** how high a wall is tiled — fully, half, wet walls only, or a height */
+export const HEIGHTS = ['Fully tiled — to the ceiling', 'Half tiled — to 4 ft', 'Wet walls only — to the ceiling', '96″', '84″', '84″ · metal edge on top', '72″', '60″', '48″ wainscot', '42″ wainscot', '36″', '18″ backsplash', '4″ base']
 
 /** a layout reads "Vertical stack · full tile at the doorway" — split it into the pattern and where it starts */
 export function splitLayout(layout?: string): { pattern: string; start: string } {
@@ -274,4 +309,4 @@ export function splitLayout(layout?: string): { pattern: string; start: string }
 }
 export const joinLayout = (pattern: string, start: string) => [pattern, start ? start.charAt(0).toLowerCase() + start.slice(1) : ''].filter(Boolean).join(' · ')
 /** is the edge a metal profile (it goes on the materials order) */
-export const isMetal = (edge?: string) => !!edge && /jolly|rondec|schluter|metal|profile|strip/i.test(edge)
+export const isMetal = (edge?: string) => !!edge && /jolly|rondec|quadec|finec|schiene|reno-|dilex|schluter|metal|profile|strip/i.test(edge)

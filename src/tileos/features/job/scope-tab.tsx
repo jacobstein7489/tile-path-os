@@ -28,8 +28,9 @@ import { AddSurfaceButton, AddRoomButton } from '../roomedit'
 import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
-  TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, EDGES, HEIGHTS,
+  TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, HEIGHTS,
 } from '../tiles'
+import { EdgePicker } from '../metalpick'
 
 const SURF_STATUS: Record<string, string> = { done: 'Done', working: 'Working', ready: 'Ready', blocked: 'Blocked', waitmat: 'Waiting on material', hold: 'On hold', notstarted: 'Not started', unknown: 'To check' }
 const IN_FIELD = ['scheduled', 'installation', 'punch', 'closeout', 'complete']
@@ -152,7 +153,8 @@ export function ScopeLockBar({ job }: { job: Job }) {
   const s = useStore()
   const lock = scopeLock(s, job.id)
   if (!lock.done) return null
-  return <div className="flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />{lock.canEdit ? 'Locked — it’s your scope, so only you change it.' : `Locked — it’s ${PEOPLE[lock.owner]?.short}’s scope. Only ${PEOPLE[lock.owner]?.short} changes it.`}</div>
+  const mine = lock.owner === meOf(s.role)
+  return <div className="flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />{lock.canEdit ? (mine ? 'Locked — it’s your scope, so only you change it.' : `Locked — it’s ${PEOPLE[lock.owner]?.short}’s scope. You can change it as the admin.`) : `Locked — it’s ${PEOPLE[lock.owner]?.short}’s scope. Only ${PEOPLE[lock.owner]?.short} changes it.`}</div>
 }
 
 /* ---------------- the tile schedule ---------------- */
@@ -441,12 +443,12 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           width={380}
         />
       </Row>
-      <Row label="Edge or metal" hint={isMetal(edge) ? 'Metal goes on the materials order by the length' : undefined}>
-        <SearchSelect label="Edge or metal" value={edge} onChange={setEdge} emptyLabel="None — no open edge" options={opts(EDGES, edge)} onCreate={setEdge} createLabel={(q) => `Use “${q}”`} search searchPlaceholder="Type or pick…" width={360} />
+      <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece — and on the room sheet' : edge ? 'On the room sheet' : undefined}>
+        <EdgePicker value={edge} onChange={setEdge} />
       </Row>
       {kind === 'wall' && (
-        <Row label="Height">
-          <SearchSelect label="Height" value={height} onChange={setHeight} emptyLabel="Not set" options={opts(HEIGHTS, height)} onCreate={setHeight} createLabel={(q) => `Use “${q}”`} search={false} width={280} />
+        <Row label="How high">
+          <SearchSelect label="How high" value={height} onChange={setHeight} emptyLabel="Not set" options={opts(HEIGHTS, height)} onCreate={setHeight} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
         </Row>
       )}
       <Row label="Square feet" hint={x.measured ? `Measured on site ${x.measured.date}` : undefined}>

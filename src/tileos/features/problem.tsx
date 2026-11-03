@@ -46,12 +46,11 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
   const [n, setN] = React.useState(1)
   const [what, setWhat] = React.useState(SITE[0])
   const [note, setNote] = React.useState('')
-  const [owner, setOwner] = React.useState<PersonKey>(me)
-  const [ownerPicked, setOwnerPicked] = React.useState(false)
-  const [due, setDue] = React.useState('Tomorrow')
+  /* it lands on your own list, for today — the admin hands it to someone else or moves the day from the task */
+  const owner: PersonKey = me
+  const due = 'Today'
   const [photos, setPhotos] = React.useState<File[]>([])
-  const people = insidePeople(s)
-  const choose = (k: Kind) => { setKind(k); if (!ownerPicked) setOwner(deskFor(s, k)) }
+  const choose = (k: Kind) => setKind(k)
   const tile = tiles.find((t) => t.tag === tag)
   const boxes = `${n} ${n === 1 ? 'box' : 'boxes'}`
   const title = !kind ? '' : kind === 'broken' ? `${tag}: ${boxes} came broken` : kind === 'wrong' ? `${tag}: ${boxes} came wrong` : kind === 'short' ? `${tag}: ${boxes} missing` : kind === 'site' ? `${what} — not ready yet` : (note.trim().split(/[.\n]/)[0] || '').slice(0, 80)
@@ -86,7 +85,19 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
     >
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
       <FormRow label="What’s wrong?">
-        <SearchSelect label="What’s wrong" value={kind} onChange={(k) => choose(k as Kind)} search={false} width={360} placeholder="Pick one" options={KINDS.map((x) => ({ key: x.k, label: x.label, hint: x.sub, lead: <span className="inline-flex h-7 w-7 items-center justify-center rounded-[0.5rem] bg-wash-2 text-ink-2"><x.icon className="h-4 w-4" /></span> }))} />
+        {/* tap one — no list to open */}
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1" data-problem-kinds>
+          {KINDS.map((x) => {
+            const on = kind === x.k
+            return (
+              <button key={x.k} type="button" onClick={() => choose(x.k)} aria-pressed={on} data-problem-kind={x.k}
+                className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition', on ? 'border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2 max-sm:col-span-1')}>
+                <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', on ? 'bg-bad-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-[1.125rem] w-[1.125rem]" /></span>
+                <span className="min-w-0 leading-tight"><span className="block truncate text-[0.875rem] font-semibold text-ink">{x.label}</span><span className="block truncate text-[0.75rem] text-muted">{x.sub}</span></span>
+              </button>
+            )
+          })}
+        </div>
       </FormRow>
       {isTile(kind || undefined) && (
         <FormRow label="Which tile">
@@ -103,9 +114,6 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
       )}
       <FormRow label={kind === 'other' ? 'What’s wrong' : 'What happened'}>
         <TextArea aria-label="What happened" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="min-h-[3.75rem]" placeholder={kind === 'site' ? 'e.g. The GC says the water is on Friday' : kind === 'other' ? 'Say it in a few words' : 'e.g. 3 boxes cracked in the corner — the driver saw it (optional)'} />
-      </FormRow>
-      <FormRow label="Who sorts it out">
-        <WhoWhen who={owner} onWho={(p) => { setOwner(p); setOwnerPicked(true) }} when={due} onWhen={setDue} whoLabel="Whose desk" whenLabel="Sorted by" whenPrefix="Sorted by" people={people} />
       </FormRow>
     </Modal>
   )

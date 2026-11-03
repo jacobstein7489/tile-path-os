@@ -30,7 +30,7 @@ export function TasksPage() {
   const visible = tasks.filter((t) => {
     if (role === 'accounting' && t.type !== 'Money') return false
     if (scope === 'mine') return t.for.includes(role) || (t.owner === me && !['owner', 'pm', 'site'].includes(role))
-    return role === 'owner' || t.for.includes(role) || (t.watch || []).includes(role) || t.type === 'Money' && role === 'accounting' || role === 'pm' || role === 'site'
+    return role === 'owner' || t.for.includes(role) || (t.watch || []).includes(role) || t.type === 'Money' && role === 'accounting'
   })
   const filtered = visible.filter((t) => {
     if (types.length && !types.includes(t.type)) return false

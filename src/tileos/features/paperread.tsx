@@ -1,9 +1,11 @@
-/* Upload the tile paperwork and let AI read it: every tile on it — tag, name, size, grout, how much — matched to the
- * walls and floors from the estimate. You see what it found, untick anything that's wrong, and use it. The file
- * stays with the project. */
+/* Upload the tile paperwork and AI reads it and enters it by itself: every tile on it — tag, name, size, grout, how
+ * much, how it's laid, the edges (mitered or which metal), how high — matched to the walls and floors from the
+ * estimate. What it entered shows right after, with anything it couldn't match; "Take it back" undoes it all. Paperwork
+ * uploaded earlier that nothing was read from yet is read the moment this opens. The file stays with the project. */
 import * as React from 'react'
-import { Sparkles, Upload, Loader2, FileText, Check, X, CircleAlert } from 'lucide-react'
-import { useStore } from '@/tileos/store'
+import { create } from 'zustand'
+import { Sparkles, Upload, Loader2, FileText, Check, X, CircleAlert, Undo2 } from 'lucide-react'
+import { useStore, addHist, meOf } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { Status } from '@/tileos/components/ui/page'
@@ -16,53 +18,70 @@ import { readTilePaperwork, ReadError, labelOf, type ReadResult, type ReadTile }
 import { takesTile } from './steps'
 import { applyRead } from './tiles'
 
+type Before = { tiles: Record<string, Tile>; rooms: any[] }
 type State =
   | { k: 'idle'; msg?: string; tone?: 'bad' | 'warn' }
   | { k: 'reading'; name: string; n: number }
-  | { k: 'review'; res: ReadResult; file: string; problem?: string }
+  | { k: 'entered'; res: ReadResult; file: string; problem?: string; before: Before }
+/* paperwork already uploaded is read once by itself on each project (again only with a tap) */
+const tried = new Set<string>()
+const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v ?? null))
 
-/** the drop zone, the reading, and the review — at the top of the paperwork step */
+/* the reading runs on its own — closing the window, or the step turning done when the file lands, doesn't stop it;
+   when it's done it's entered, and the pop-up says so (with Undo) wherever you are */
+const useReads = create<{ by: Record<string, State> }>(() => ({ by: {} }))
+const setRead = (jobId: string, st: State) => useReads.setState((x) => ({ by: { ...x.by, [jobId]: st } }))
+const ctls: Record<string, AbortController> = {}
+export function stopRead(jobId: string) { ctls[jobId]?.abort(); setRead(jobId, { k: 'idle' }) }
+async function runRead(job: Job, list: File[], already?: boolean) {
+  const files = list.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name))
+  if (!files.length) { setRead(job.id, { k: 'idle', msg: 'Pick a PDF or photos of the paperwork.', tone: 'warn' }); return }
+  const name = files.length === 1 ? files[0].name : `${files.length} files`
+  setRead(job.id, { k: 'reading', name, n: files.length })
+  ctls[job.id]?.abort()
+  const c = (ctls[job.id] = new AbortController())
+  /* the file is kept first — it stays with the project whatever the reading says */
+  const kept = already ? { problem: undefined as string | undefined } : await keepFiles(job.id, files, 'paperwork', { quiet: true }).catch((e: any) => ({ problem: String(e?.message || e) }))
+  try {
+    const st0 = useStore.getState()
+    const res = await readTilePaperwork(job, st0.rooms[job.id] || [], Object.values(st0.tiles[job.id] || {}).sort(byTag), files, c.signal)
+    if (c.signal.aborted) return
+    if (!res.tiles.length) { setRead(job.id, { k: 'idle', msg: `No tiles found on ${name}.${res.notes ? ` ${res.notes}` : ''}`, tone: 'warn' }); return }
+    /* entered right away — what was there before is kept, so it can be taken back */
+    const st1 = useStore.getState()
+    const before: Before = { tiles: copy(st1.tiles[job.id] || {}), rooms: copy(st1.rooms[job.id] || []) }
+    applyRead(job.id, res.tiles, { file: name, rooms: res.rooms })
+    setRead(job.id, { k: 'entered', res, file: name, problem: kept.problem, before })
+  } catch (e: any) {
+    if (c.signal.aborted || e?.code === 'cancelled') { setRead(job.id, { k: 'idle' }); return }
+    setRead(job.id, { k: 'idle', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.', tone: 'bad' })
+  } finally { if (ctls[job.id] === c) delete ctls[job.id] }
+}
+
+/** the drop zone, the reading, and what it entered — at the top of the paperwork steps */
 export function PaperRead({ job }: { job: Job }) {
   const s = useStore()
-  const [st, setSt] = React.useState<State>({ k: 'idle' })
+  const st = useReads((x) => x.by[job.id]) || ({ k: 'idle' } as State)
   const [over, setOver] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
-  const ctl = React.useRef<AbortController | null>(null)
-  React.useEffect(() => () => ctl.current?.abort(), [])
   const kept = s.files.filter((f) => f.jobId === job.id && f.kind === 'paperwork')
   /* paperwork already uploaded (on Get paperwork) that nothing was read from yet: read it from here — no second upload */
-  const unread = kept.length > 0 && !Object.values(s.tiles[job.id] || {}).some((t) => t.paper)
+  const unread = kept.length > 0 && !Object.values(s.tiles[job.id] || {}).some((t) => t.paper) && !(s.hist[job.id] || []).some((h) => /^Read from the tile paperwork/.test(h.title))
   const readKept = async () => {
     const recs = kept.slice(-8)
-    setSt({ k: 'reading', name: recs.length === 1 ? recs[0].name : `${recs.length} files`, n: recs.length })
-    ctl.current?.abort()
-    const c = (ctl.current = new AbortController())
+    setRead(job.id, { k: 'reading', name: recs.length === 1 ? recs[0].name : `${recs.length} files`, n: recs.length })
     const files = (await Promise.all(recs.map(fileBlob))).filter(Boolean) as File[]
-    if (c.signal.aborted) return
-    if (!files.length) { setSt({ k: 'idle', msg: `Couldn’t open ${recs.length === 1 ? recs[0].name : 'the paperwork'} — upload it here instead.`, tone: 'warn' }); return }
-    void go(files, true)
+    if (!files.length) { setRead(job.id, { k: 'idle', msg: `Couldn’t open ${recs.length === 1 ? recs[0].name : 'the paperwork'} — upload it here instead.`, tone: 'warn' }); return }
+    void runRead(job, files, true)
   }
-  const go = async (list: File[], already?: boolean) => {
-    const files = list.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name))
-    if (!files.length) { setSt({ k: 'idle', msg: 'Pick a PDF or photos of the paperwork.', tone: 'warn' }); return }
-    const name = files.length === 1 ? files[0].name : `${files.length} files`
-    setSt({ k: 'reading', name, n: files.length })
-    ctl.current?.abort()
-    const c = (ctl.current = new AbortController())
-    const keep = already ? Promise.resolve({ recs: [], problem: undefined as string | undefined }) : keepFiles(job.id, files, 'paperwork', { quiet: true })
-    try {
-      const st0 = useStore.getState()
-      const res = await readTilePaperwork(job, st0.rooms[job.id] || [], Object.values(st0.tiles[job.id] || {}).sort(byTag), files, c.signal)
-      if (c.signal.aborted) return
-      const { problem } = await keep
-      if (!res.tiles.length) { setSt({ k: 'idle', msg: `No tiles found on ${name}.${res.notes ? ` ${res.notes}` : ''}`, tone: 'warn' }); return }
-      setSt({ k: 'review', res, file: name, problem })
-    } catch (e: any) {
-      if (c.signal.aborted || e?.code === 'cancelled') { setSt({ k: 'idle' }); return }
-      setSt({ k: 'idle', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.', tone: 'bad' })
-    }
-  }
-  if (st.k === 'review') return <Review job={job} res={st.res} file={st.file} problem={st.problem} onDone={() => setSt({ k: 'idle' })} />
+  const go = (l: File[]) => { void runRead(job, l) }
+  /* uploaded before and not read yet: read it now — no button */
+  React.useEffect(() => {
+    if (!unread || st.k !== 'idle' || tried.has(job.id)) return
+    tried.add(job.id)
+    void readKept()
+  }, [unread, job.id])
+  if (st.k === 'entered') return <Entered job={job} res={st.res} file={st.file} problem={st.problem} before={st.before} onDone={() => setRead(job.id, { k: 'idle' })} />
   return (
     <div>
       <div
@@ -78,7 +97,7 @@ export function PaperRead({ job }: { job: Job }) {
           {st.k === 'reading' ? (
             <>
               <span className="block truncate text-[0.90625rem] font-semibold text-ink">Reading {st.name}…</span>
-              <span className="block text-[0.8125rem] text-muted">Every tile, its size, grout and how much — matched to the walls and floors. Up to a minute.</span>
+              <span className="block text-[0.8125rem] text-muted">Every tile, its size, grout and how much — matched to the walls and floors. Up to a minute; you can close this, it keeps going.</span>
             </>
           ) : unread ? (
             <>
@@ -93,7 +112,7 @@ export function PaperRead({ job }: { job: Job }) {
           )}
         </span>
         {st.k === 'reading'
-          ? <Button size="sm" variant="ghost" icon={<X />} onClick={() => { ctl.current?.abort(); setSt({ k: 'idle' }) }}>Stop</Button>
+          ? <Button size="sm" variant="ghost" icon={<X />} onClick={() => stopRead(job.id)}>Stop</Button>
           : unread
             ? <span className="flex shrink-0 items-center gap-1.5"><Button size="sm" variant="ghost" icon={<Upload />} onClick={() => input.current?.click()}>Another</Button><Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => void readKept()} data-read-kept>Read it</Button></span>
             : <Button size="sm" variant="primary" icon={<Upload />} onClick={() => input.current?.click()}>Upload</Button>}
@@ -113,56 +132,58 @@ export function PaperRead({ job }: { job: Job }) {
   )
 }
 
-/** what the AI found — untick what's wrong, then use it */
-function Review({ job, res, file, problem, onDone }: { job: Job; res: ReadResult; file: string; problem?: string; onDone: () => void }) {
+/** what it entered from the paperwork — and what it couldn't match, to fix below; "Take it back" undoes it all */
+function Entered({ job, res, file, problem, before, onDone }: { job: Job; res: ReadResult; file: string; problem?: string; before: Before; onDone: () => void }) {
   const s = useStore()
-  const mine = s.tiles[job.id] || {}
-  const [on, setOn] = React.useState<boolean[]>(() => res.tiles.map(() => true))
-  const picked = res.tiles.filter((_, i) => on[i])
-  const matched = picked.reduce((n, t) => n + t.goesOn.length, 0)
-  /* what isn't matched: tile on the paperwork with no wall or floor, and our walls and floors nothing on it covers */
-  const covered = new Set(picked.flatMap((t) => t.goesOn))
-  const loose = picked.filter((t) => !t.goesOn.length)
+  const matched = res.tiles.reduce((n, t) => n + t.goesOn.length, 0)
+  const covered = new Set(res.tiles.flatMap((t) => t.goesOn))
+  const loose = res.tiles.filter((t) => !t.goesOn.length)
   const uncovered = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.filter((x) => takesTile(x.name) && !x.tile).map((x) => labelOf(r.name, x.name))).filter((l) => !covered.has(l))
+  const takeBack = () => {
+    s.commit((st) => {
+      st.tiles[job.id] = before.tiles
+      st.rooms[job.id] = before.rooms
+      addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Took back what was read from ${file}` })
+    }, 'Taken back — as it was before the paperwork', { undo: false })
+    onDone()
+  }
   return (
-    <section className="overflow-hidden rounded-xl border border-brand-200">
-      <header className="flex items-center gap-3 bg-brand-50/60 px-4 py-3">
-        <Sparkles className="h-4 w-4 shrink-0 text-brand-600" />
+    <section className="overflow-hidden rounded-xl border border-ok-100" data-paper-entered>
+      <header className="flex items-center gap-3 bg-ok-50/70 px-4 py-3">
+        <Check className="h-4 w-4 shrink-0 text-ok-600" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[0.90625rem] font-semibold text-ink">Found {res.tiles.length} tile{res.tiles.length === 1 ? '' : 's'} on {file}</span>
-          <span className="block text-[0.78125rem] text-muted">{res.pages} page{res.pages === 1 ? '' : 's'} read{REAL.cloud ? '' : ' by Claude'} · untick anything that’s wrong — you can fix the rest below</span>
+          <span className="block text-[0.90625rem] font-semibold text-ink">Entered {res.tiles.length} tile{res.tiles.length === 1 ? '' : 's'} from {file}</span>
+          <span className="block text-[0.78125rem] text-muted">{matched} wall{matched === 1 ? '' : 's'} and floors matched · {res.pages} page{res.pages === 1 ? '' : 's'} read — fix anything below, one tap each</span>
         </span>
       </header>
-      {res.tiles.map((t, i) => <ReadRow key={i} t={t} on={on[i]} same={(t.tag && mine[t.tag]) || Object.values(mine).find((x) => x.name.toLowerCase() === t.name.toLowerCase())} toggle={() => setOn(on.map((v, j) => (j === i ? !v : v)))} />)}
+      {res.tiles.map((t, i) => <ReadRow key={i} t={t} same={s.tiles[job.id]?.[t.tag] || Object.values(s.tiles[job.id] || {}).find((x) => x.name.toLowerCase() === t.name.toLowerCase())} />)}
       {(loose.length > 0 || uncovered.length > 0) && (
         <div className="border-t border-line-2 bg-warn-50/50 px-4 py-3 text-[0.8125rem]">
           <div className="font-semibold text-warn-800">Not matched yet</div>
           {loose.length > 0 && <div className="mt-1 text-ink-2"><b className="font-semibold">On the paperwork, no wall or floor:</b> {loose.map((t) => [t.tag, t.name].filter(Boolean).join(' ')).join(', ')}</div>}
           {uncovered.length > 0 && <div className="mt-1 text-ink-2"><b className="font-semibold">Ours, not on the paperwork:</b> {uncovered.slice(0, 8).join(', ')}{uncovered.length > 8 ? ` and ${uncovered.length - 8} more` : ''}</div>}
-          <div className="mt-1 text-muted">Use it anyway — then match the rest below, one tap each.</div>
+          <div className="mt-1 text-muted">Match the rest below — one tap each.</div>
         </div>
       )}
       {res.notes && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{res.notes}</div>}
       {problem && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />The file itself wasn’t kept with the project: {problem}</div>}
       <footer className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-white px-4 py-3">
-        <span className="text-[0.8125rem] text-muted">{picked.length} tile{picked.length === 1 ? '' : 's'} · {matched} wall{matched === 1 ? '' : 's'} and floors</span>
+        <Button variant="ghost" icon={<Undo2 />} onClick={takeBack} data-take-back>Take it back</Button>
         <span className="ml-auto" />
-        <Button variant="ghost" onClick={onDone}>Cancel</Button>
-        <Button variant="primary" icon={<Check />} disabled={!picked.length} onClick={() => { applyRead(job.id, picked, { file }); onDone() }}>Use it</Button>
+        <Button variant="primary" icon={<Check />} onClick={onDone}>Looks right</Button>
       </footer>
     </section>
   )
 }
-function ReadRow({ t, on, same, toggle }: { t: ReadTile; on: boolean; same?: Tile; toggle: () => void }) {
+function ReadRow({ t, same }: { t: ReadTile; same?: Tile }) {
   const g = t.grout ? Object.entries(GROUTS).find(([, x]) => t.grout!.toLowerCase().includes(x.name.toLowerCase())) : undefined
+  const more = [t.layout, t.edge ? `Edges: ${t.edge}` : '', t.height].filter(Boolean)
   return (
-    <label className={cn('flex cursor-pointer items-start gap-3 border-t border-line-2 px-4 py-3 transition', !on && 'opacity-50')}>
-      <input type="checkbox" checked={on} onChange={toggle} className="mt-1 h-4 w-4 shrink-0 accent-[#2650cf]" />
+    <div className="flex items-start gap-3 border-t border-line-2 px-4 py-3" data-read-row={t.tag || t.name}>
       {same ? <TileImg tile={same} size={36} radius={7} /> : <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.4375rem] bg-wash text-[0.6875rem] font-bold text-muted">{t.tag || 'New'}</span>}
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[0.875rem] font-semibold text-ink">{[t.tag, t.name].filter(Boolean).join(' ')}</span>
-          <Status tone={same ? 'info' : 'ok'}>{same ? `Same as ${same.tag}` : 'New tile'}</Status>
+          <span className="text-[0.875rem] font-semibold text-ink">{same ? `${same.tag} ${same.name}` : [t.tag, t.name].filter(Boolean).join(' ')}</span>
         </span>
         <span className="mt-0.5 block text-[0.78125rem] text-muted">{[t.size, t.finish, t.maker, t.supplier].filter(Boolean).join(' · ') || 'No details on the paperwork'}</span>
         <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.78125rem]">
@@ -170,9 +191,10 @@ function ReadRow({ t, on, same, toggle }: { t: ReadTile; on: boolean; same?: Til
           {t.grout && <span className="inline-flex items-center gap-1 text-ink-2">{g ? <GroutDot grout={g[0]} size={12} /> : null}{t.grout} grout</span>}
           {t.joint && <span className="text-muted">{t.joint} joint</span>}
         </span>
-        <span className={cn('mt-1 block text-[0.78125rem]', t.goesOn.length ? 'text-ink-2' : 'text-warn-700')}>{t.goesOn.length ? `Goes on ${t.goesOn.join(', ')}` : 'Doesn’t say where it goes — pick it below after'}</span>
+        {more.length > 0 && <span className="mt-0.5 block text-[0.78125rem] text-ink-2">{more.join(' · ')}</span>}
+        <span className={cn('mt-1 block text-[0.78125rem]', t.goesOn.length ? 'text-ink-2' : 'text-warn-700')}>{t.goesOn.length ? `Goes on ${t.goesOn.join(', ')}` : 'Doesn’t say where it goes — pick it below'}</span>
         {t.note && <span className="mt-0.5 block text-[0.75rem] text-muted">{t.note}</span>}
       </span>
-    </label>
+    </div>
   )
 }

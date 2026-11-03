@@ -84,11 +84,14 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
   React.useEffect(() => { setStore(pickStore()) }, [job])
   const fromHere = (tag: string) => !storeOf(tag) || storeOf(tag) === store
   const [ref, setRef] = React.useState('')
-  const [needed, setNeeded] = React.useState(more ? 'Tomorrow' : 'Mon')
-  /* more of a tile: the same dye lot as the first order, or the shade won't match */
-  const [memo, setMemo] = React.useState(more ? 'Same dye lot as the first order, please.' : '')
+  /* more tile: needed today, unless you say otherwise; nothing else to fill in — who pays follows the tile, the PO
+     number is made by itself */
+  const [needed, setNeeded] = React.useState(more ? 'Today' : 'Mon')
+  const [memo, setMemo] = React.useState('')
   const picked = lines.filter((l) => l.on && l.n > 0 && fromHere(l.tag))
-  const total = pays === 'us' ? picked.reduce((n, l) => n + l.n * l.price, 0) : 0
+  /* prices on the window: a tile we buy, on a tile PO — more tile keeps it to what and how much */
+  const priced = pays === 'us' && !more
+  const total = pays === 'us' && !more ? picked.reduce((n, l) => n + l.n * l.price, 0) : 0
   const stores = jobStores.length ? jobStores : Array.from(new Set([...tileStores, store].filter(Boolean)))
   const days = DAY_OPTIONS()
   if (!days.some((d) => d.key === needed)) days.unshift({ key: needed, label: needed })
@@ -108,7 +111,7 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{pays === 'us' ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : ' · no prices — the client’s tile'}</span>
+          <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices — the client’s tile'}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} disabled={!job || !picked.length || !store.trim()} onClick={send} data-send-tile-po>{mailLive() ? `Send it to ${store}` : 'Save the PO'}</Button>
         </>
@@ -120,9 +123,11 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
             <ProjectField value={job} onChange={setJob} keep={(x) => !['request', 'estimating', 'proposal', 'followup'].includes(x.stage)} autoFocus />
           </FormRow>
         )}
-        <FormRow label="Who pays the store" hint={pays === 'client' ? (more ? 'The client’s tile — the store adds it to their order and delivers it. No prices on it.' : 'The client bought the tile — this PO is our call for the delivery. No prices on it.') : 'We buy the tile — it has prices, and the store’s bill comes to us.'}>
-          <Segmented value={pays} onChange={setPays} className="max-sm:w-full max-sm:[&>button]:flex-1" items={[{ key: 'client', label: 'The client’s tile — deliver it' }, { key: 'us', label: 'We buy it' }]} />
-        </FormRow>
+        {!more && (
+          <FormRow label="Who pays the store" hint={pays === 'client' ? 'The client bought the tile — this PO is our call for the delivery. No prices on it.' : 'We buy the tile — it has prices, and the store’s bill comes to us.'}>
+            <Segmented value={pays} onChange={setPays} className="max-sm:w-full max-sm:[&>button]:flex-1" items={[{ key: 'client', label: 'The client’s tile — deliver it' }, { key: 'us', label: 'We buy it' }]} />
+          </FormRow>
+        )}
         <FormRow label="Store" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />{jobStores.length === 1 ? `Where this project’s tile comes from · delivered to ${j.address}` : jobStores.length ? `This project’s tile comes from ${jobStores.join(' and ')} · delivered to ${j.address}` : `No store on this project’s tile yet — it’s kept with the tile from this PO on · delivered to ${j.address}`}</span> : undefined}>
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2 max-sm:grid-cols-1">
             {jobStores.length === 1
@@ -131,19 +136,19 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
             <SearchSelect label="Needed on site by" value={needed} onChange={setNeeded} search={false} width={260} options={days.map((d) => ({ key: d.key, label: byDay(d.label, 'Needed by') }))} plain />
           </div>
         </FormRow>
-        {pays === 'client' && (
+        {pays === 'client' && !more && (
           <FormRow label="Their order number" hint="The client’s order at the store — the store finds it by this. Optional.">
             <TextInput value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. #BT-22817" aria-label="The store’s order number" className="max-w-[16rem]" data-store-ref />
           </FormRow>
         )}
         <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : more ? 'Only the extra — on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in.'}>
           {lines.length > 0 && (
-            <div className={cn('grid items-center gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden', pays === 'us' ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]')}>
-              <span /><span>Tile</span><span className="text-right">Qty</span><span>Unit</span>{pays === 'us' && <span className="text-right">Price / unit</span>}
+            <div className={cn('grid items-center gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]')}>
+              <span /><span>Tile</span><span className="text-right">Qty</span><span>Unit</span>{priced && <span className="text-right">Price / unit</span>}
             </div>
           )}
           {lines.map((l, i) => !fromHere(l.tag) ? null : (
-            <label key={l.tag} data-tile-line={l.tag} className={cn('grid items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_5rem]', pays === 'us' ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]', !l.on && 'opacity-60')}>
+            <label key={l.tag} data-tile-line={l.tag} className={cn('grid items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_5rem]', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]', !l.on && 'opacity-60')}>
               <input type="checkbox" checked={l.on} onChange={(e) => set(i, { on: e.target.checked })} aria-label={`Put ${l.tag} on the PO`} className="h-4 w-4 accent-[#2650cf]" />
               <span className="flex min-w-0 items-center gap-2.5">
                 <TileImg tile={tileOf(job, l.tag)} size={30} radius={6} />
@@ -153,13 +158,15 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
               <select aria-label={`Unit for ${l.tag}`} value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} className="h-8 rounded-md border border-line bg-white px-1.5 text-[0.8125rem] text-ink max-sm:hidden">
                 {Array.from(new Set([l.unit, ...UNITS])).map((u) => <option key={u}>{u}</option>)}
               </select>
-              {pays === 'us' && <input inputMode="decimal" aria-label={`Price for ${l.tag}`} value={l.price || ''} placeholder="$" onChange={(e) => set(i, { price: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0) })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none max-sm:hidden" />}
+              {priced && <input inputMode="decimal" aria-label={`Price for ${l.tag}`} value={l.price || ''} placeholder="$" onChange={(e) => set(i, { price: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0) })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none max-sm:hidden" />}
             </label>
           ))}
         </FormRow>
-        <FormRow label="A line for the store" hint="On the PO and in its email — a gate code, call before, which door.">
-          <TextArea rows={2} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Optional" aria-label="A line for the store" />
-        </FormRow>
+        {!more && (
+          <FormRow label="A line for the store" hint="On the PO and in its email — a gate code, call before, which door.">
+            <TextArea rows={2} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Optional" aria-label="A line for the store" />
+          </FormRow>
+        )}
         {mailLive() && <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted"><Mail className="h-3.5 w-3.5" />It goes to {store} by email, with its number in the subject — they reply to confirm the day.</div>}
       </div>
     </Modal>

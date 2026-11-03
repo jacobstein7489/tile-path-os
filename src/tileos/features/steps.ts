@@ -265,7 +265,8 @@ export function scopeLock(s: Store, jobId: string): { owner: PersonKey; done: bo
   if (!j || ['request', 'estimating', 'proposal', 'followup'].includes(j.stage)) return { owner, done: false, canEdit: true }
   const tiled = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
   const done = !!rec?.done || !['awarded', 'setup'].includes(j.stage) || (tiled.length > 0 && tiled.every((x) => x.tile))
-  return { owner, done, canEdit: !done || me === owner }
+  /* the admin can always change it */
+  return { owner, done, canEdit: !done || me === owner || s.role === 'owner' }
 }
 /** a wall or floor that gets tile — not the underlayment, waterproofing, metals or drains under and around it */
 export const takesTile = (name: string) => !/underlay|waterproof|membrane|metal|schluter|trim|drain|skim|mud bed|self.?level|prep|saddle|threshold/i.test(name)

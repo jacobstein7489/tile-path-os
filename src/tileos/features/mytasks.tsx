@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge, BellRing } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -40,14 +40,19 @@ const ASSIGNABLE: PersonKey[] = ['ys', 'yakov', 'office', 'estimator', 'takeoff'
 const ROLE_OF: Partial<Record<PersonKey, Role[]>> = { ys: ['owner', 'pm'], yakov: ['site'], office: ['office'], estimator: ['estimator'], takeoff: ['takeoff'], materials: ['materials'], accounting: ['accounting'] }
 const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setup: ClipboardList, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt }
 
-/** a daily update that's due today: one per project a crew is working on (the site manager sends them) */
-export type DailyItem = { kind: 'daily'; jobId: string; crew: PersonKey; workers?: number }
+/** a daily update that's due today: one per project a crew is working on (the site manager sends them) — every work
+ *  day, no skipping: the one for the last work day that wasn't sent is still there the next morning, late */
+export type DailyItem = { kind: 'daily'; jobId: string; crew: PersonKey; workers?: number; missed?: string }
 export function dailyDue(s: Store, role: Role): DailyItem[] {
   if (role !== 'site' || (s.rules.autoOff || []).includes('daily-update')) return []
-  return s.bookings
-    .filter((b) => b.start <= TODAY_ISO && b.end >= TODAY_ISO && s.jobs[b.jobId] && ['installation', 'punch'].includes(s.jobs[b.jobId].stage))
-    .filter((b) => s.diary[b.jobId]?.[0]?.date !== NOW)
-    .map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
+  const working = (iso: string) => s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && ['installation', 'punch'].includes(s.jobs[b.jobId].stage))
+  const sent = (jobId: string, iso: string) => (s.diary[jobId] || []).some((d) => d.date === md(iso) || (iso === TODAY_ISO && d.date === NOW))
+  /* the last work day before today (Friday, on a Monday) */
+  let prev = addDays(TODAY_ISO, -1)
+  while ([0, 6].includes(new Date(prev + 'T12:00:00').getDay())) prev = addDays(prev, -1)
+  const late = working(prev).filter((b) => b.start <= prev && !sent(b.jobId, prev)).map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers, missed: prev }))
+  const today = working(TODAY_ISO).filter((b) => !sent(b.jobId, TODAY_ISO)).map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
+  return [...late, ...today]
 }
 /** a project named in what was typed or said — "828 Clyde tiles…" → 828 Clyde (the longest name that fits wins) */
 const words = (t: string) => ` ${t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `
@@ -96,6 +101,8 @@ export function taskIso(t: Task): string | undefined {
   return isoFromLabel(t.due)
 }
 function taskBucket(t: Task): Bucket {
+  /* urgent: on today's list whatever day it says, until it's done */
+  if (t.urgent && t.state === 'now') return 'today'
   if (/this week/i.test(t.due || '')) return 'week'
   return bucketOfIso(taskIso(t))
 }
@@ -206,7 +213,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const last = log[log.length - 1]
   const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
-  const w = when || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
+  const w = (t.urgent && t.state === 'now' ? { text: 'Urgent', tone: 'bad' as const } : undefined) || when || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
   return (
     <TodoRow
       leaving={leaving}
@@ -259,12 +266,12 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
     <TodoRow
       onClick={() => s.open({ t: 'daily', jobId: d.jobId })}
       icon={<ClipboardList />}
-      title="Daily update"
+      title={d.missed ? `Daily update · ${md(d.missed)} — not sent` : 'Daily update'}
       detail={`${PEOPLE[d.crew].short}’s crew · ${job.pct ?? 0}% installed`}
       owner={showOwner ? 'yakov' : undefined}
       project={job.name}
-      when="End of day"
-      whenTone="strong"
+      when={d.missed ? md(d.missed) : 'End of day'}
+      whenTone={d.missed ? 'bad' : 'strong'}
       action={<Button size="sm" className={TBTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
     />
   )
@@ -380,7 +387,7 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   const out: PlateItem[] = []
   const last = addDays(TODAY, AHEAD)
   s.events.filter((e) => e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
-  dailyDue(s, role).forEach((d) => out.push({ key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
+  dailyDue(s, role).forEach((d) => out.push(d.missed ? { key: 'dm' + d.jobId, b: 'overdue', iso: d.missed, time: null, kind: 'daily', d, who: 'yakov' } : { key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
   /* the admin's: who on the team to check in on — late past the company's line (its own part of Today) */
@@ -504,7 +511,9 @@ export function MyTasksPage() {
   const t0 = (s.route.tab as string) || 'today'
   const [view, setView] = React.useState<View>(t0 === 'waiting' ? 'waiting' : t0 === 'done' ? 'done' : t0 === 'tomorrow' ? 'tomorrow' : t0 === 'later' || t0 === 'coming' ? 'later' : 'today')
   const inside = role !== 'crew' && role !== 'client'
-  const [scope, setScope] = React.useState<'mine' | 'all'>(t0 === 'team' && inside ? 'all' : 'mine')
+  /* everyone's tasks are for the admin — every other login sees its own */
+  const seesTeam = role === 'owner'
+  const [scope, setScope] = React.useState<'mine' | 'all'>(t0 === 'team' && seesTeam ? 'all' : 'mine')
   const [who, setWho] = React.useState<string>('all')
   const [job, setJob] = React.useState<string>('all')
   const me = meOf(role)
@@ -546,6 +555,9 @@ export function MyTasksPage() {
 
   /* one day: what's late (today only), then the day in time order — timed things first, then anytime */
   const dayBlock = (iso: string, items: PlateItem[], withLate = false) => {
+    /* urgent: first of all, in red — then what's late, then the day */
+    const urgentRows = withLate ? items.filter((x) => x.t?.urgent && x.t.state === 'now') : []
+    items = items.filter((x) => !urgentRows.includes(x))
     const lateRows = withLate ? items.filter((x) => x.b === 'overdue') : []
     const rows = items.filter((x) => x.b !== 'overdue')
     const timed = rows.filter((x) => x.time != null)
@@ -553,6 +565,12 @@ export function MyTasksPage() {
     const nowAt = iso === TODAY ? timed.findIndex((x) => (x.time ?? 0) > nowMin) : -1
     return (
       <React.Fragment key={iso}>
+        {urgentRows.length > 0 && (
+          <section data-day="urgent">
+            <Group label="Urgent" count={urgentRows.length} tone="bad" />
+            {urgentRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+          </section>
+        )}
         {lateRows.length > 0 && (
           <section data-day="overdue">
             <Group label="Overdue" count={lateRows.length} tone="bad" right={<button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button>} />
@@ -676,7 +694,7 @@ export function MyTasksPage() {
       </>}
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
-          {inside && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
+          {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
           {/* one person's list — the admin and the office see what's on anyone's plate */}
           {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={all ? [{ key: 'person', label: 'By person', icon: <UserRound /> }, { key: 'job', label: 'By project', icon: <Building2 /> }, { key: 'time', label: 'By time', icon: <Clock3 /> }] : [{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
@@ -1006,7 +1024,8 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const [title, setTitle] = React.useState(() => (msg ? (msg.text.length > 70 ? msg.text.slice(0, 68).trimEnd() + '…' : msg.text) : ''))
   const [job, setJob] = React.useState<string>(jobId || '')
   const [owner, setOwner] = React.useState<PersonKey>(me)
-  const [due, setDue] = React.useState('Tomorrow')
+  const [due, setDue] = React.useState('Today')
+  const [urgent, setUrgent] = React.useState(false)
   const [picked, setPicked] = React.useState(false)
   const [repeat, setRepeat] = React.useState<'' | NonNullable<Task['repeat']>>('')
   const [at, setAt] = React.useState('4 PM')
@@ -1034,7 +1053,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
     const j = s.jobs[job]
     const clean = (j && heard ? withoutProject(title.trim(), j) : title.trim()) || title.trim()
     const role = s.team.find((m) => m.key === owner)?.role
-    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: 'info', repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
     if (msg && jobId) markMessageTask(jobId, msg.id)
     s.close()
   }
@@ -1075,28 +1094,37 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
           </div>
         </FormRow>
       )}
+      {/* who: tap a face — you, unless you pick someone else */}
       <FormRow label="Who does it">
-        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does it" className={chip}><Avatar who={owner} size={22} /><span className="min-w-0 flex-1 truncate">{owner === me ? 'Me' : PEOPLE[owner].name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-            <MenuLabel>Who does it</MenuLabel>
-            {(people.length ? people : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} onSelect={() => setOwner(p)} hint={PEOPLE[p]?.roleLabel}>{p === me ? `${PEOPLE[p]?.name} (me)` : PEOPLE[p]?.name}</MenuItem>)}
-          </Menu>
-          <span className="flex min-w-0 gap-2">
-            <Menu align="start" width={240} trigger={<button type="button" aria-label="When" className={chip}><span className="inline-flex shrink-0 text-faint">{repeat ? <Repeat className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}</span><span className="min-w-0 flex-1 truncate">{whenLabel}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-              <MenuLabel>Due</MenuLabel>
-              {WHEN.map(([k, l]) => <MenuItem key={k} checked={!repeat && due === k} onSelect={() => { setRepeat(''); setDue(k); setPicked(true) }}>{l}</MenuItem>)}
-              <MenuSep />
-              <MenuLabel>Repeats</MenuLabel>
-              {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} icon={<Repeat className="h-4 w-4" />} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
-            </Menu>
-            {repeat && (
-              <Menu align="start" width={180} trigger={<button type="button" aria-label="At" className={cn(chip, 'w-auto shrink-0')}><Clock3 className="h-4 w-4 text-faint" />at {at}<ChevronDown className="h-4 w-4 text-faint" /></button>}>
-                {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
-              </Menu>
-            )}
-          </span>
+        <div className="flex flex-wrap gap-1.5" data-task-who>
+          {[me, ...(people.length ? people : ASSIGNABLE).filter((p) => p !== me)].map((p) => (
+            <button key={p} type="button" onClick={() => setOwner(p)} aria-pressed={owner === p} data-who-chip={p}
+              className={cn('inline-flex h-9 items-center gap-2 rounded-full border pl-1 pr-3 text-[0.84375rem] font-medium transition', owner === p ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}>
+              <Avatar who={p} size={26} />{p === me ? 'Me' : PEOPLE[p]?.short || p}
+            </button>
+          ))}
         </div>
       </FormRow>
+      {/* when: tap a day — today unless you say otherwise; "Repeats" for the ones that come back */}
+      <FormRow label="When">
+        <div className="flex flex-wrap items-center gap-1.5" data-task-when>
+          {WHEN.slice(0, 4).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => { setRepeat(''); setDue(k); setPicked(true) }} aria-pressed={!repeat && due === k}
+              className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.84375rem] font-medium transition', !repeat && due === k ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}>{l}</button>
+          ))}
+          <Menu align="start" width={240} trigger={<button type="button" aria-label="Repeats" className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[0.84375rem] font-medium transition', repeat ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}><Repeat className="h-3.5 w-3.5" />{repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : 'Repeats'}</button>}>
+            <MenuLabel>Repeats</MenuLabel>
+            {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} icon={<Repeat className="h-4 w-4" />} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
+            {repeat && <><MenuSep /><MenuLabel>At</MenuLabel>{['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}</>}
+          </Menu>
+        </div>
+      </FormRow>
+      {/* urgent: on top of their Today, in red */}
+      <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent className={cn('mb-1 flex w-full items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', urgent ? 'border-bad-300 bg-bad-50' : 'border-line hover:bg-wash')}>
+        <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', urgent ? 'bg-bad-600 text-white' : 'bg-wash-2 text-muted')}><Flame className="h-3.5 w-3.5" /></span>
+        <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Urgent</span><span className="block text-[0.75rem] text-muted">On top of {owner === me ? 'your' : `${PEOPLE[owner]?.short || 'their'}’s`} Today, in red, until it’s done</span></span>
+        <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', urgent ? 'bg-bad-600' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', urgent ? 'left-[1.125rem]' : 'left-0.5')} /></span>
+      </button>
       {!more ? (
         <button type="button" onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:text-brand-800">
           <Plus className="h-3.5 w-3.5" />Someone follows it, or show it to everyone

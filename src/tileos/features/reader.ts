@@ -12,12 +12,19 @@ export type ReadTile = {
   qty?: number; unit?: 'SF' | 'boxes'; boxSF?: number; supplier?: string
   /** our walls and floors it goes on, as "Room · Surface" */
   goesOn: string[]
+  /** how it's laid, how its edges are finished (mitered, or which metal), how high it goes on the walls — when the
+   *  paperwork says */
+  layout?: string; edge?: string; height?: string
   note?: string
 }
-export type ReadResult = { tiles: ReadTile[]; notes?: string; pages: number }
+/** what the paperwork says about a room as a whole — "9 ft ceiling; wet walls full, other walls to 4 ft" */
+export type ReadRoom = { room: string; note: string }
+export type ReadResult = { tiles: ReadTile[]; rooms?: ReadRoom[]; notes?: string; pages: number }
 export class ReadError extends Error { constructor(public code: string, msg: string) { super(msg) } }
 
-const MAX_PAGES = 8
+/* up to 24 pages, read 8 at a time — a room sheet a page is often 10 pages or more */
+const MAX_PAGES = 24
+const PER_ASK = 8
 const SIDE = 1600
 
 /* ---------------- files → pictures ---------------- */
@@ -133,10 +140,15 @@ export function paperworkPrompt(job: Job, rooms: Room[], tiles: Tile[]): string 
     '- qty and unit: how much the paperwork has of it, unit "SF" or "boxes" (cartons count as boxes); boxSF: square feet in a box, if shown',
     '- supplier: the store or showroom, if shown',
     '- goesOn: which of OUR walls and floors listed above it goes on — copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, floor, shower walls, backsplash…). If it doesn’t say, leave it empty — don’t guess.',
-    '- note: anything unclear about this tile, in a few words',
+    '- layout: the pattern if the paperwork gives it — Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave…',
+    '- edge: how its open edges and outside corners are finished, if the paperwork says — "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',
+    '- height: on walls, how high it goes if the paperwork says — "Fully tiled — to the ceiling", "Half tiled — to 4 ft", "Wet walls only — to the ceiling", or a height like 84″',
+    '- note: where the paperwork puts it in its own words (like "Vanity / toilet accent wall"), and anything unclear about this tile, in a few words',
+    '',
+    'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms" — for example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"}. Use our room names exactly as written above.',
     '',
     'Answer with JSON only, no other text, in exactly this shape:',
-    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"note":""}],"notes":""}',
+    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","note":""}],"rooms":[{"room":"","note":""}],"notes":""}',
     'In "notes" put anything on the paperwork that matters for the job but isn’t a tile — a revision date, a missing page, a question. Leave a field "" (or 0) when the paperwork doesn’t give it.',
   ].join('\n')
 }
@@ -155,9 +167,28 @@ export function cleanRead(raw: any, rooms: Room[]): Omit<ReadResult, 'pages'> {
       tag: str(t?.tag).toUpperCase().replace(/\s+/g, ''), name: str(t?.name) || str(t?.color) || 'Tile', maker: str(t?.maker) || undefined, size: str(t?.size).replace(/\s*[x×X]\s*/g, ' × ') || undefined,
       finish: str(t?.finish) || undefined, grout: str(t?.grout) || undefined, joint: str(t?.joint) || undefined,
       qty: num(t?.qty), unit, boxSF: num(t?.boxSF), supplier: str(t?.supplier) || undefined, goesOn, note: str(t?.note) || undefined,
+      layout: str(t?.layout) || undefined, edge: str(t?.edge) || undefined, height: str(t?.height) || undefined,
     }
   }).filter((t: ReadTile) => t.name || t.tag)
-  return { tiles, notes: str(raw?.notes) || undefined }
+  const names = new Map(rooms.map((r) => [norm(r.name), r.name]))
+  const roomNotes: ReadRoom[] = (Array.isArray(raw?.rooms) ? raw.rooms : []).map((r: any) => ({ room: names.get(norm(str(r?.room))) || '', note: str(r?.note) })).filter((r: ReadRoom) => r.room && r.note)
+  return { tiles, rooms: roomNotes.length ? roomNotes : undefined, notes: str(raw?.notes) || undefined }
+}
+/** what several reads found, as one: the same tile (by its tag, or its name) once, with everything each page said */
+export function mergeReads(parts: Omit<ReadResult, 'pages'>[]): Omit<ReadResult, 'pages'> {
+  const tiles: ReadTile[] = []
+  const keyOf = (t: ReadTile) => (t.tag || t.name).toLowerCase()
+  for (const part of parts) for (const t of part.tiles) {
+    const had = tiles.find((x) => keyOf(x) === keyOf(t) || (!!t.tag && x.tag === t.tag) || x.name.toLowerCase() === t.name.toLowerCase())
+    if (!had) { tiles.push({ ...t, goesOn: [...t.goesOn] }); continue }
+    for (const k of ['tag', 'maker', 'size', 'finish', 'grout', 'joint', 'boxSF', 'supplier', 'layout', 'edge', 'height'] as const) if (!had[k] && t[k]) (had as any)[k] = t[k]
+    if ((t.qty || 0) > (had.qty || 0)) { had.qty = t.qty; had.unit = t.unit }
+    had.goesOn = Array.from(new Set([...had.goesOn, ...t.goesOn]))
+    if (t.note && !(had.note || '').includes(t.note)) had.note = [had.note, t.note].filter(Boolean).join(' · ')
+  }
+  const rooms = parts.flatMap((p) => p.rooms || []).filter((r, i, all) => all.findIndex((x) => x.room === r.room) === i)
+  const notes = parts.map((p) => p.notes).filter(Boolean).join(' ')
+  return { tiles, rooms: rooms.length ? rooms : undefined, notes: notes || undefined }
 }
 
 /** read the paperwork: the pages, the question, the answer checked */
@@ -165,6 +196,14 @@ export async function readTilePaperwork(job: Job, rooms: Room[], tiles: Tile[], 
   const pages = await pagesOf(files)
   if (!pages.length) throw new ReadError('nopages', 'Those files aren’t pictures or PDFs we can read.')
   if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
-  const text = await askAI(paperworkPrompt(job, rooms, tiles), pages, signal)
-  return { ...cleanRead(jsonIn(text), rooms), pages: pages.length }
+  /* 8 pages at a time — then it's put together as one */
+  const parts: Omit<ReadResult, 'pages'>[] = []
+  for (let i = 0; i < pages.length; i += PER_ASK) {
+    const chunk = pages.slice(i, i + PER_ASK)
+    const which = pages.length > PER_ASK ? `\n\nThese are pages ${i + 1}–${i + chunk.length} of ${pages.length}.` : ''
+    const text = await askAI(paperworkPrompt(job, rooms, tiles) + which, chunk, signal)
+    if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
+    parts.push(cleanRead(jsonIn(text), rooms))
+  }
+  return { ...mergeReads(parts), pages: pages.length }
 }

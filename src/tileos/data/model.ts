@@ -262,7 +262,8 @@ export interface Job {
   hold?: { reason: string; since: string; by: PersonKey; shortage?: string }
   /** billed and paid before Tile OS (from QuickBooks) — the progress bills pick up from there */
   before?: { billed: number; paid: number; retainage?: number; changes?: number }
-  /** who sold it: each salesperson, their rate (%) on what's invoiced, and what they've been paid */
+  /** who sold it, for this project: each salesperson, their rate (%) and what they've been paid — set from the
+   *  client's salespeople the first time one of them is paid on it (until then the project goes by the client's) */
   sales?: SaleShare[]
 }
 /** a salesperson's part of a project: their rate on what's invoiced, and the payments to them */
@@ -288,6 +289,9 @@ export interface Customer {
   card?: { status: 'link-sent' | 'on-file'; brand?: string; last4?: string; sent?: string }
   /** the same client in QuickBooks (set the first time one of their invoices goes there) */
   qbId?: string
+  /** who sells to this client, and each one's rate (%) on what's invoiced — one at the company's rate, or a split
+   *  (two at 2% each). Every project of the client goes by it. */
+  sales?: { who: string; rate: number }[]
 }
 
 export const fmtMoney = (n: number, opts: { cents?: boolean; compact?: boolean } = {}) => {

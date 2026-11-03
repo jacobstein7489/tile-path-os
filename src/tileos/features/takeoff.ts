@@ -5,6 +5,8 @@
 import type { Store } from '@/tileos/store'
 import { type Surface, tileOf } from '@/tileos/data/jobs'
 import { METHODS, MAT_RULES0, type MatRules, type MethodKey, type SurfKind } from '@/tileos/data/takeoff'
+import { parseMetal, metalItem } from '@/tileos/data/catalog'
+import { isMetal } from './tiles'
 
 export type Group = 'Floor prep' | 'Walls and waterproofing' | 'Setting and grout' | 'Metal edges'
 export const GROUPS: Group[] = ['Floor prep', 'Walls and waterproofing', 'Setting and grout', 'Metal edges']
@@ -73,9 +75,12 @@ function heightFt(h?: string): number | null {
   return inch ? Number(inch[1]) / 12 : null
 }
 /** metal edges: an 8 ft piece per vertical edge that runs to the ceiling, or enough to cap a wall that stops short */
-function metalOf(x: Surface): { itemId: string; pcs: number; note: string } | null {
-  if (!x.edge || !/jolly|trim|metal/i.test(x.edge)) return null
-  const itemId = /brass/i.test(x.edge) ? 'm-jolly' : /nickel/i.test(x.edge) ? 'm-trim' : 'm-edge'
+function metalOf(x: Surface, items?: { id: string }[]): { itemId: string; pcs: number; note: string } | null {
+  if (!x.edge || !isMetal(x.edge)) return null
+  /* a metal picked from the list is its own item (that profile, finish and size); an older one goes by its words */
+  const spec = parseMetal(x.edge)
+  const exact = spec?.profile ? metalItem(spec).id : ''
+  const itemId = exact && (!items || items.some((i) => i.id === exact)) ? exact : /brass/i.test(x.edge) ? 'm-jolly' : /nickel/i.test(x.edge) ? 'm-trim' : 'm-edge'
   const corners = Number((x.notes || '').match(/(\d+)\s*corners/)?.[1] || 0)
   if (corners) return { itemId, pcs: corners, note: `${corners} outside corners` }
   const h = heightFt(x.height)
@@ -163,7 +168,7 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
         const clips = x.sf * (144 / (L * W)) * 3
         add('m-clips', clips / 250, { ...base, note: `About ${Math.round(clips)} clips · 3 a tile` })
       }
-      const metal = metalOf(x)
+      const metal = metalOf(x, (s as any).items)
       if (metal) add(metal.itemId, metal.pcs, { ...base, note: metal.note })
     }
   }

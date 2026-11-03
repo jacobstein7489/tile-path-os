@@ -25,11 +25,12 @@ const BTN_V: Record<BtnVariant, string> = {
   outline: 'bg-white text-ink border border-[#d9d3c9] shadow-xs hover:border-brand-300 hover:text-brand-700 disabled:text-faint disabled:border-line',
   link: 'text-brand-600 hover:text-brand-700 px-0 h-auto',
 }
+/* on a phone every button is bigger — easy to hit with a thumb, on the go */
 const BTN_S: Record<BtnSize, string> = {
-  lg: 'h-10 px-4 text-[0.875rem] rounded-[0.625rem] gap-2',
-  md: 'h-9 px-3.5 text-[0.84375rem] rounded-[0.5625rem] gap-2',
-  sm: 'h-8 px-3 text-[0.8125rem] rounded-[0.5rem] gap-1.5',
-  xs: 'h-7 px-2.5 text-[0.78125rem] rounded-[0.4375rem] gap-1.5',
+  lg: 'h-10 px-4 text-[0.875rem] rounded-[0.625rem] gap-2 max-md:h-12 max-md:text-[0.9375rem]',
+  md: 'h-9 px-3.5 text-[0.84375rem] rounded-[0.5625rem] gap-2 max-md:h-11 max-md:px-4 max-md:text-[0.90625rem]',
+  sm: 'h-8 px-3 text-[0.8125rem] rounded-[0.5rem] gap-1.5 max-md:h-10 max-md:px-3.5 max-md:text-[0.875rem]',
+  xs: 'h-7 px-2.5 text-[0.78125rem] rounded-[0.4375rem] gap-1.5 max-md:h-9 max-md:px-3 max-md:text-[0.8125rem]',
 }
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'secondary', size = 'md', icon, iconRight, full, className, children, ...rest },
@@ -43,7 +44,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
         'inline-flex shrink-0 items-center justify-center whitespace-nowrap font-semibold transition-colors duration-150 select-none [&_svg]:h-4 [&_svg]:w-4',
         BTN_S[size],
         BTN_V[variant],
-        variant === 'link' && 'h-auto px-0',
+        variant === 'link' && 'h-auto px-0 max-md:h-auto max-md:px-0',
         full && 'w-full',
         className,
       )}
@@ -63,7 +64,7 @@ export function IconButton({ className, label, children, size = 'md', ...rest }:
       title={label}
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-[0.625rem] border border-line bg-white text-ink-2 shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.06)] transition-colors hover:bg-wash hover:text-ink',
-        size === 'md' ? 'h-9 w-9' : 'h-8 w-8',
+        size === 'md' ? 'h-9 w-9 max-md:h-11 max-md:w-11' : 'h-8 w-8 max-md:h-10 max-md:w-10',
         className,
       )}
       {...rest}
@@ -271,7 +272,7 @@ export function Chip({ on, onClick, children, className, tone, icon }: { on?: bo
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-[0.5rem] border px-2.5 text-[0.84375rem] font-medium transition',
+        'inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-[0.5rem] border px-2.5 text-[0.84375rem] font-medium transition max-md:h-10 max-md:px-3',
         on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:bg-wash',
         tone && !on && TONE[tone].text,
         className,

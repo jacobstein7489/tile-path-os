@@ -1,10 +1,10 @@
-/* A text box that knows the usual ones. Start typing and the common ones that match show under it; tap one and its
- * words go in the box — nothing else changes (not who does it, not when). The × empties the box and shows the common
- * ones again, so picking a different one is one tap. "Common" opens the list when the box is empty.
+/* A text box that knows the usual ones. While it's empty the usual ones sit under it as chips — tap one and its words
+ * go in the box (nothing else changes: not who does it, not when). Start typing and the ones that match show in a list
+ * under it. The × empties the box and the chips come back, so picking a different one is one tap.
  * Arrow keys move, Enter picks, Esc closes the list (a second Esc closes the window). */
 import * as React from 'react'
 import * as PO from '@radix-ui/react-popover'
-import { X, ChevronDown } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 import { Mic, canListen, addSaid } from './mic'
 import { scrollHere } from './overlay'
@@ -68,20 +68,24 @@ export function SuggestInput({
               }
             }}
             placeholder={placeholder}
-            className={cn('h-12 w-full rounded-[0.6875rem] border border-[#d9d3c9] bg-white pl-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', value ? (mic ? 'pr-[4.75rem]' : 'pr-11') : mic ? 'pr-[8.25rem]' : 'pr-[5.75rem]')}
+            className={cn('h-12 w-full rounded-[0.6875rem] border border-[#d9d3c9] bg-white pl-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', value ? (mic ? 'pr-[4.75rem]' : 'pr-11') : mic ? 'pr-11' : 'pr-3.5')}
           />
           <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-            {value ? (
-              <button type="button" aria-label="Clear it — pick another" title="Clear it — pick another" onClick={clear} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>
-            ) : (
-              <button type="button" aria-label={listLabel} aria-haspopup="listbox" onClick={() => { if (visible) { setOpen(false); setAll(false) } else { setAll(true); setOpen(true) } box.current?.focus() }} className={cn('inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash-2 hover:text-ink', visible && 'bg-wash-2 text-ink')}>
-                Pick one<ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            )}
+            {value && <button type="button" aria-label="Clear it — pick another" title="Clear it — pick another" onClick={clear} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>}
             <Mic onText={(t) => onChange(addSaid(value, t))} size="sm" />
           </span>
         </span>
       </PO.Anchor>
+      {/* the usual ones, as chips under the box while it's empty — one tap */}
+      {!value && suggestions.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" data-suggest-chips aria-label={listLabel}>
+          {suggestions.slice(0, Math.min(max, 4)).map((x) => (
+            <button key={x} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(x)} className="inline-flex h-8 max-w-full items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700 max-md:h-10 max-md:px-3.5 max-md:text-[0.875rem]">
+              <span className="truncate">{x}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <PO.Portal>
         <PO.Content
           {...scrollHere}

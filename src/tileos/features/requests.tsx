@@ -6,6 +6,9 @@ import { Truck, PackageCheck, X } from 'lucide-react'
 import { useStore, newTask, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput, TextArea } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
+import { SearchSelect } from '@/tileos/components/ui/select'
+import { notInItems, metalText, type MetalSpec } from '@/tileos/data/catalog'
+import { MetalPicker } from './metalpick'
 import { FormHead, FormRow, ProjectField, WhoWhen, PhotoButton } from './formkit'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
@@ -53,71 +56,82 @@ export function onTheWay(id: string) {
 /* ---------------- the window: the same frame as every + New ----------------
  * Project (typed) · What do you need (each thing its own line — tap a common one and it's a line with how many, or type
  * it or say it) · Who brings it and by when (two dropdowns) · a note. A photo from the button at the bottom. */
-const QUICK: [string, string, string][] = [['Thinset', 'bag', 'bags'], ['Grout', 'bag', 'bags'], ['Spacers', 'box', 'boxes'], ['Leveling clips', 'bag', 'bags'], ['Trim / metal', 'piece', 'pieces'], ['Saw blade', 'blade', 'blades'], ['Sponges', 'pack', 'packs'], ['Caulk', 'tube', 'tubes']]
+const QUICK: [string, string, string][] = [['Thinset', 'bag', 'bags'], ['Grout', 'bag', 'bags'], ['Spacers', 'box', 'boxes'], ['Leveling clips', 'bag', 'bags'], ['Saw blade', 'blade', 'blades'], ['Sponges', 'pack', 'packs'], ['Caulk', 'tube', 'tubes']]
 type NeedLine = { id: string; text: string; qty?: number; unit?: [string, string] }
 let lineN = 0
 /** a line as said in the request: "2 bags thinset", or what was typed */
-export const needWords = (l: NeedLine) => (l.qty && l.unit ? `${l.qty} ${l.qty === 1 ? l.unit[0] : l.unit[1]} ${l.text.toLowerCase()}` : l.text)
+export const needWords = (l: NeedLine) => (l.qty && l.unit && l.unit[0] ? `${l.qty} ${l.qty === 1 ? l.unit[0] : l.unit[1]} ${l.text.toLowerCase()}` : l.qty && l.qty > 1 ? `${l.qty} × ${l.text}` : l.text)
 export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number }) {
   const s = useStore()
   const [jobId, setJobId] = React.useState(j0 || '')
   const [lines, setLines] = React.useState<NeedLine[]>([])
-  const [draft, setDraft] = React.useState('')
-  const [when, setWhen] = React.useState('Today')
-  const people = insidePeople(s)
-  const [who, setWho] = React.useState<PersonKey>(() => { const m = matBy(s); return people.includes(m) || !people.length ? m : people[0] })
-  const [note, setNote] = React.useState('')
   const [photos, setPhotos] = React.useState<File[]>([])
   const job = jobId ? s.jobs[jobId] : undefined
-  const typed = (t: string) => { const x = t.trim(); if (x.length < 2) return; setLines((l) => [...l, { id: 'nl' + ++lineN, text: x }]); setDraft('') }
-  const quick = ([name, one, many]: [string, string, string]) => setLines((l) => {
-    const had = l.find((x) => x.text === name && x.unit)
-    return had ? l.map((x) => (x === had ? { ...x, qty: (x.qty || 1) + 1 } : x)) : [...l, { id: 'nl' + ++lineN, text: name, qty: 1, unit: [one, many] }]
+  /* picked, not typed: the usual things and every material in Items — and anything else added by hand. Whoever asks
+     brings it, today (the admin can hand it to someone else or move the day from the task) */
+  const add = (text: string, unit?: [string, string]) => setLines((l) => {
+    const had = l.find((x) => x.text === text)
+    return had ? l.map((x) => (x === had ? { ...x, qty: (x.qty || 1) + 1 } : x)) : [...l, { id: 'nl' + ++lineN, text, qty: 1, unit: unit || ['', ''] }]
   })
-  const all = [...lines, ...(draft.trim().length > 1 ? [{ id: 'draft', text: draft.trim() }] : [])]
-  const ok = !!jobId && all.length > 0
+  const plural = (u: string) => (!u ? '' : /s$/.test(u) ? u : /x$|ch$|sh$/.test(u) ? u + 'es' : u === 'pc' ? 'pcs' : u + 's')
+  /* every material in Items, then the list's thinsets, grouts and waterproofing (Laticrete 254, 253…) */
+  const mats = [...s.items.filter((i) => i.type === 'material'), ...notInItems(s.items)]
+  const options = [
+    ...QUICK.map(([name, one]) => ({ key: 'q:' + name, label: name, hint: `by the ${one}` })),
+    ...mats.map((i) => ({ key: 'i:' + i.id, label: i.name, hint: [i.pack, i.usedFor].filter(Boolean).join(' · ') || undefined })),
+  ]
+  const pick = (key: string) => {
+    if (key.startsWith('q:')) { const q = QUICK.find((x) => x[0] === key.slice(2)); if (q) add(q[0], [q[1], q[2]]); return }
+    const it = mats.find((i) => i.id === key.slice(2))
+    if (it) add(it.name, [it.unit, plural(it.unit)])
+  }
+  /* a metal: the profile, the finish, the size, the piece — tapped, not typed */
+  const [metal, setMetal] = React.useState<MetalSpec | null>(null)
+  const metalOk = !!metal?.profile && !!metal.finish && !!metal.size
+  const ok = !!jobId && lines.length > 0
   const send = async () => {
     if (!ok) return
     if (photos.length) await keepFiles(jobId, photos, 'photo', { quiet: true })
-    askFor({ jobId, what: all.map(needWords).join(' · '), when, who, note: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'} with the project` : ''].filter(Boolean).join(' · ') || undefined })
+    askFor({ jobId, what: lines.map(needWords).join(' · '), when: 'Today', who: me(), note: photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'} with the project` : undefined })
   }
   return (
     <Modal level={level} size="md" onClose={s.close} title="Need something on site"
       header={<FormHead k="need" kicker={job && j0 ? job.name : undefined} />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={<><PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} /><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Ask for it</Button></>}>
+      footer={<><PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} /><span className="truncate text-[0.8125rem] text-muted max-sm:hidden">On your list for today</span><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Add it</Button></>}>
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
       <FormRow label="What do you need?">
+        <div className="flex flex-wrap gap-1.5" data-need-quick>
+          {QUICK.map((q) => <button key={q[0]} type="button" onClick={() => add(q[0], [q[1], q[2]])} className="inline-flex h-9 items-center rounded-full border border-line bg-white px-3.5 text-[0.84375rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700">+ {q[0]}</button>)}
+          <button type="button" data-need-metal onClick={() => setMetal((m) => (m ? null : { profile: '', finish: '' }))} className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.84375rem] font-medium transition', metal ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:text-brand-700')}>+ Metal edge…</button>
+        </div>
+        {metal && (
+          <div className="mt-2.5 rounded-[0.75rem] border border-line bg-[#faf9f7] p-3.5" data-need-metal-pick>
+            <MetalPicker value={metal} onChange={setMetal} pieces />
+            <div className="mt-3 flex items-center gap-2 border-t border-line-2 pt-3">
+              <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{metal.profile ? metalText(metal, { piece: true }) : 'Pick the profile, the finish and the size'}</span>
+              <Button size="sm" variant="primary" disabled={!metalOk} onClick={() => { add(metalText(metal, { piece: true }), ['piece', 'pieces']); setMetal(null) }} data-need-metal-add>Add it</Button>
+            </div>
+          </div>
+        )}
+        <div className="mt-2">
+          <SearchSelect label="Something else" value="" placeholder="Something else — pick it from the list" options={options} onChange={pick} onCreate={(t) => { const x = t.trim(); if (x.length > 1) add(x) }} createLabel={(t) => `Add “${t}”`} search width={380} />
+        </div>
         {lines.length > 0 && (
-          <div className="mb-2 overflow-hidden rounded-[0.625rem] border border-line" data-need-lines>
+          <div className="mt-3 overflow-hidden rounded-[0.625rem] border border-line" data-need-lines>
             {lines.map((l) => (
-              <div key={l.id} className="flex min-h-10 items-center gap-2 border-t border-line-2 px-3 py-1 first:border-t-0" data-need-line={l.text}>
+              <div key={l.id} className="flex min-h-11 items-center gap-2 border-t border-line-2 px-3 py-1 first:border-t-0" data-need-line={l.text}>
                 <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink">{l.text}</span>
-                {l.unit && (
-                  <span className="inline-flex h-8 items-center rounded-lg border border-line">
-                    <button type="button" aria-label={`Fewer ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: Math.max(1, (y.qty || 1) - 1) } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">−</button>
-                    <span className="min-w-[4.5rem] text-center text-[0.8125rem] font-semibold tnum text-ink">{l.qty} {l.qty === 1 ? l.unit[0] : l.unit[1]}</span>
-                    <button type="button" aria-label={`More ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: (y.qty || 1) + 1 } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">+</button>
-                  </span>
-                )}
+                <span className="inline-flex h-8 items-center rounded-lg border border-line">
+                  <button type="button" aria-label={`Fewer ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: Math.max(1, (y.qty || 1) - 1) } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">−</button>
+                  <span className="min-w-[4.5rem] text-center text-[0.8125rem] font-semibold tnum text-ink">{l.qty}{l.unit && l.unit[0] ? ` ${l.qty === 1 ? l.unit[0] : l.unit[1]}` : ''}</span>
+                  <button type="button" aria-label={`More ${l.text}`} onClick={() => setLines((x) => x.map((y) => (y.id === l.id ? { ...y, qty: (y.qty || 1) + 1 } : y)))} className="h-full w-8 text-[1rem] text-ink-2 hover:bg-wash">+</button>
+                </span>
                 <button type="button" aria-label={`Take ${l.text} off`} onClick={() => setLines((x) => x.filter((y) => y.id !== l.id))} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><X className="h-4 w-4" /></button>
               </div>
             ))}
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <TextInput mic aria-label="What do you need" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); typed(draft) } }} placeholder={lines.length ? 'Something else? Type it or say it' : 'Type it or say it — e.g. 3 bags of white thinset'} className="h-10" />
-          {draft.trim().length > 1 && <Button onClick={() => typed(draft)}>Add</Button>}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {QUICK.map((q) => <button key={q[0]} type="button" onClick={() => quick(q)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700">+ {q[0]}</button>)}
-        </div>
-      </FormRow>
-      <FormRow label="Who brings it">
-        <WhoWhen who={who} onWho={setWho} when={when} onWhen={setWhen} whoLabel="Who brings it" whenLabel="By when" people={people.length ? people : [who]} />
-      </FormRow>
-      <FormRow label="Note">
-        <TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="The color, the brand, where to leave it (optional)" className="min-h-[3.75rem]" />
       </FormRow>
     </Modal>
   )

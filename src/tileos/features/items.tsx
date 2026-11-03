@@ -3,7 +3,7 @@
  * Products come in from QuickBooks or a supplier's price list; prices are samples. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { RefreshCw, Plus, Upload, Package, Hammer, Truck, Check, FileSpreadsheet, Sparkles, Camera, Layers, Grid3x3, Droplets, ScrollText, PanelTop, Shovel, Ruler, Wrench, SprayCan, CircleDollarSign, HardHat, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
+import { RefreshCw, Plus, Upload, Package, Hammer, Truck, Check, FileSpreadsheet, Sparkles, Camera, Layers, Grid3x3, Droplets, ScrollText, PanelTop, Shovel, Ruler, Wrench, SprayCan, CircleDollarSign, HardHat, AlertTriangle, Pencil, Trash2, ListChecks } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { Button, Chip, TextInput, Field, OptionCard } from '@/tileos/components/ui/core'
 import { Modal, Tip } from '@/tileos/components/ui/overlay'
@@ -73,6 +73,7 @@ export function ItemsPage() {
       title="Items"
       actions={<div className="flex items-center gap-2">
         <Button icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}><span className="max-sm:hidden">Import from QuickBooks</span><span className="sm:hidden">Import</span></Button>
+        {canChangeItems(s.role) && <Button icon={<ListChecks />} onClick={() => s.open({ t: 'catalog' })} data-open-catalog><span className="max-sm:hidden">From the list — metals, thinset</span><span className="sm:hidden">From the list</span></Button>}
         {canChangeItems(s.role) && <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
       </div>}
       top={

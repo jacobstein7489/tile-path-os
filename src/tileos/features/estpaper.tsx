@@ -1,4 +1,4 @@
-/* The paper the client gets — laid out like Cobblestone's scope of work: COBBLESTONE across the top, the project line,
+/* The paper the client gets — laid out like Cobblestone's scope of work: the logo across the top, the project line,
  * each floor in a green band, each room in gray with its note ("9.25′ ceiling; fully tiled"), every surface with its
  * quantity. The estimate adds the price of each line, the total, the terms and a place to sign. */
 import { smp } from '@/tileos/lib/save'
@@ -9,6 +9,7 @@ import { fmtMoney } from '@/tileos/data/model'
 import { revTotal, type Estimate, type EstRev, type EstLine } from '@/tileos/data/estimates'
 import { floorRank, sortAreas } from '@/tileos/data/areas'
 import { TODAY } from '@/tileos/lib/today'
+import { DocHead, DocFoot, docLine } from './docpaper'
 
 const GREEN = '#2c4a3e'
 const GRAY = '#efece5'
@@ -54,16 +55,8 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
   const date = `${rev.sentOn || rev.date}, ${TODAY.slice(0, 4)}`
   const toMeasure = rev.lines.filter((l) => !l.qty).length
   return (
-    <div ref={innerRef} className="mx-auto w-full max-w-[48.75rem] bg-white px-10 py-9 font-[Helvetica,Arial,sans-serif] text-[#222] shadow-card max-sm:px-4 max-sm:py-6">
-      <div className="flex items-baseline justify-between gap-4">
-        <div className="text-[1.75rem] font-bold max-sm:text-[1.375rem]" style={{ color: GREEN }}>COBBLESTONE</div>
-        <div className="text-[0.8125rem] font-bold" style={{ color: GREEN }}>{prices ? 'ESTIMATE' : 'SCOPE OF WORK'}</div>
-      </div>
-      <div className="mt-4 text-[0.875rem] font-bold">{j.name} | {j.address}</div>
-      <div className="mt-0.5 flex flex-wrap justify-between gap-x-4 text-[0.75rem] text-[#444]">
-        <span>{j.client}</span>
-        <span>Estimate {e.id}{rev.n > 1 ? ` · Revision ${rev.n}` : ''} | {date}</span>
-      </div>
+    <div ref={innerRef} className="mx-auto w-full max-w-[51rem] bg-white px-12 py-10 font-[Helvetica,Arial,sans-serif] text-[#222] shadow-card max-sm:px-4 max-sm:py-6 print:p-0" data-estimate-paper>
+      <DocHead kind={prices ? 'Estimate' : 'Scope of work'} line={docLine(j)} sub={<span className="flex flex-wrap justify-between gap-x-4"><span>{j.client}{j.address && j.address.trim() !== j.name.trim() ? ` · ${j.name}` : ''}</span><span>Estimate {e.id}{rev.n > 1 ? ` · Revision ${rev.n}` : ''} | {date}</span></span>} />
 
       <div className="mt-6">
         {groups.map((g) => (
@@ -122,10 +115,7 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
         </div>
       )}
 
-      <div className="mt-8 flex justify-between border-t border-[#ddd] pt-2 text-[0.625rem] text-[#666]">
-        <span>{prices ? `Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''}${smp(' — sample amounts')}` : `Scope reference - based on estimate ${e.id}`}</span>
-        <span>1</span>
-      </div>
+      <DocFoot left={prices ? `${j.name} · Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''}${smp(' — sample amounts')}` : `${j.name} · based on estimate ${e.id}`} page={1} />
     </div>
   )
 }

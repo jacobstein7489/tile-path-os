@@ -110,7 +110,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const inField = IN_FIELD_STAGES.includes(job.stage)
   const sf = rooms.reduce((n, r) => n + r.sf, 0)
   const confirmed = ['done', 'na'].includes(steps.find((v) => v.key === 'change')?.state || '') || inField
-  const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(s.role)
+  /* changing the walls and floors by hand is for the admin — anyone else asks for a change order */
+  const canEdit = s.role === 'owner'
   /* a change to the scope goes through a change order — started here, whether or not there are any yet */
   const canChange = s.role !== 'accounting' && s.role !== 'client'
   const cols = inField ? SURF_COLS_FIELD : SURF_COLS

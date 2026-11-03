@@ -99,10 +99,8 @@ export function GamePlanPage() {
   const [viewRaw, setViewRaw] = React.useState<View>(() => { try { const v = localStorage.getItem('gp-view') as View; return v === 'month' ? 'month' : 'week' } catch { return 'week' } })
   const [anchor, setAnchor] = React.useState(TODAY)
   const setView = (v: View) => { setViewRaw(v); setAnchor(TODAY); try { localStorage.setItem('gp-view', v) } catch { /* private window */ } }
-  /* a phone always shows the week, as one line per crew — a month of little bars is no use there */
-  const [phone, setPhone] = React.useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches)
-  React.useEffect(() => { const mq = window.matchMedia('(max-width: 767px)'); const f = () => setPhone(mq.matches); mq.addEventListener('change', f); return () => mq.removeEventListener('change', f) }, [])
-  const view = phone ? 'week' : viewRaw
+  /* the week or the month — on the phone too */
+  const view = viewRaw
   const shift = (n: number) => {
     if (view === 'month') { const d = new Date(anchor.slice(0, 7) + '-15T12:00:00'); d.setMonth(d.getMonth() + n); setAnchor(d.toISOString().slice(0, 10)) }
     else setAnchor(addDays(mondayOf(anchor), n * 7))
@@ -119,12 +117,12 @@ export function GamePlanPage() {
       actions={
         <div className="flex w-full flex-wrap items-center gap-2" data-sched-bar>
           <div className="flex items-center rounded-[0.625rem] border border-line bg-white">
-            <button aria-label="Back" onClick={() => shift(-1)} className="inline-flex h-9 w-9 items-center justify-center rounded-l-[0.625rem] text-ink-2 hover:bg-wash"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="inline-flex h-9 min-w-[8.5rem] items-center justify-center border-x border-line px-3 text-[0.875rem] font-semibold text-ink">{range}</span>
-            <button aria-label="Forward" onClick={() => shift(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-r-[0.625rem] text-ink-2 hover:bg-wash"><ChevronRight className="h-4 w-4" /></button>
+            <button aria-label="Back" onClick={() => shift(-1)} className="inline-flex h-9 w-9 items-center justify-center rounded-l-[0.625rem] text-ink-2 hover:bg-wash max-md:h-11 max-md:w-11"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="inline-flex h-9 min-w-[8.5rem] items-center justify-center border-x border-line px-3 text-[0.875rem] font-semibold text-ink max-md:h-11">{range}</span>
+            <button aria-label="Forward" onClick={() => shift(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-r-[0.625rem] text-ink-2 hover:bg-wash max-md:h-11 max-md:w-11"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <Button size="sm" className="h-9" onClick={() => setAnchor(TODAY)}>Today</Button>
-          <Segmented value={view} onChange={setView} className="ml-auto h-9 max-md:hidden [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }]} />
+          <Button size="sm" className="h-9 max-md:h-11" onClick={() => setAnchor(TODAY)}>Today</Button>
+          <Segmented value={view} onChange={setView} className="ml-auto h-9 max-md:h-11 [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }]} data-sched-view />
         </div>
       }
     >

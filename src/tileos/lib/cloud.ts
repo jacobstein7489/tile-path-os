@@ -12,9 +12,10 @@
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs, type Data } from '@/tileos/store'
-import { REAL, redate, seedCounters, setSaveStatus, appUrl } from '@/tileos/lib/save'
+import { REAL, redate, seedCounters, setSaveStatus, appUrl, OFFLINE_WORDS } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
+import { putLocal, getLocal } from '@/tileos/lib/localdb'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, type Answer } from '@/lib/company-ai'
 import { inviteLink, inviteStatus, sendInvite, removeAccess } from '@/lib/invite'
@@ -215,10 +216,15 @@ export async function flush() {
     await push(c)
     /* only what was sent counts as saved — anything changed while it was going up goes next */
     synced = patch(synced, c.up, c.del)
+    const was = offline
+    offline = false
     setSaveStatus({ saving: false, at: Date.now(), problem: undefined })
+    keepCopy(0)
+    if (was) showPop({ title: 'Back online — everything went up', sub: 'What you did without signal is saved for everyone now.' })
   } catch (e) {
     const k = kindOf(e)
-    setSaveStatus({ saving: false, problem: k === 'denied' ? 'Your login can’t save changes — ask the admin' : 'Not saved yet — trying again' })
+    if (k === 'network') offline = true
+    setSaveStatus({ saving: false, problem: k === 'denied' ? 'Your login can’t save changes — ask the admin' : OFFLINE_WORDS })
     if (k !== 'denied') schedule(5000)
   } finally {
     sending = false
@@ -251,7 +257,69 @@ function applyInbox() {
   const next = patch(pickNow(), up, del)
   ensureTiles(next as any)
   useStore.setState(next as any)
+  keepCopy()
 }
+
+/* ---------------- no signal: a copy on this device ---------------- */
+/* Everything is kept on the device as it changes. With no signal the app opens from that copy and keeps working; what's
+ * done meanwhile waits on the device and goes up by itself when the signal is back — after the newest from the
+ * database comes down, so nobody's work is lost (when two people changed the very same thing, the later one wins). */
+type Copy = { at: number; data: Data; synced: Data }
+let uid = ''
+let offline = false
+let copyTimer: ReturnType<typeof setTimeout> | null = null
+let reconnecting: Promise<boolean> | null = null
+let lastLook = 0
+const DAY = 24 * 60 * 60 * 1000
+function keepCopy(ms = 1200) {
+  if (!uid || !synced) return
+  if (copyTimer) clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => {
+    copyTimer = null
+    if (!uid || !synced) return
+    void putLocal('copy:' + uid, { at: Date.now(), data: pickNow(), synced } satisfies Copy).catch(() => { /* no room on the device — it still saves online */ })
+  }, ms)
+}
+/** is the app working from the device's copy right now (no signal) */
+export const isOffline = () => offline
+/** the newest from the database, with what this device did meanwhile laid on top — then that goes up */
+export function reconnect(): Promise<boolean> {
+  if (!synced) return Promise.resolve(false)
+  return (reconnecting ||= (async () => {
+    try {
+      /* a sign-in that ran out while there was no signal is renewed first */
+      await supabase.auth.getSession().catch(() => null)
+      const rows = (await loadAll()).map(fresh)
+      if (!synced) return false
+      const now = pickNow()
+      const mine = diff(synced, now)
+      const db = assemble(rows, now)
+      const merged = patch(db, mine.up, mine.del)
+      ensureTiles(merged as any)
+      synced = db
+      useStore.setState(merged as any)
+      lastLook = Date.now()
+      if (offline) setSaveStatus({ problem: undefined })
+      if (!channel) channel = sb.channel('tileos-records').on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, receive).subscribe()
+      if (mine.up.length || mine.del.length) schedule(30)
+      else if (offline) { offline = false; showPop({ title: 'Back online', sub: 'Everything is up to date.' }) }
+      keepCopy()
+      return true
+    } catch (e) {
+      if (kindOf(e) === 'network') { offline = true; setSaveStatus({ saving: false, problem: OFFLINE_WORDS }) }
+      return false
+    } finally { reconnecting = null }
+  })())
+}
+/** pull down to refresh: send what's waiting, then bring the newest down */
+export async function refreshNow(): Promise<'ok' | 'offline' | 'none'> {
+  if (!synced) return 'none'
+  await flush().catch(() => null)
+  return (await reconnect()) ? 'ok' : 'offline'
+}
+const onOnline = () => { void reconnect() }
+const onLook = () => { if (document.visibilityState === 'visible' && Date.now() - lastLook > 60_000) void reconnect() }
+let retry: ReturnType<typeof setInterval> | null = null
 
 /* ---------------- the sample never lives in the company's data ---------------- */
 /* The preview's sample projects (115 Park, 118 Park…) have fixed ids no real record can have — real ones are made
@@ -298,21 +366,46 @@ if (import.meta.hot) import.meta.hot.on('vite:beforeUpdate', () => { if (synced)
 
 /* ---------------- starting: load, sign the person in, then keep in step ---------------- */
 export type StartResult = { ok: true; member: Member } | { ok: false; why: CloudProblem; detail?: string }
+/** is there a copy of this person's data on this device (to open with no signal) */
+export async function hasCopy(userId: string) { try { return !!(await getLocal<Copy>('copy:' + userId))?.data } catch { return false } }
 export async function startCloud(user: User, opts: { admin: boolean; name: string; appRoles: string[] }): Promise<StartResult> {
-  let rows: Row[]
-  try { rows = await loadAll() } catch (e: any) { return { ok: false, why: kindOf(e), detail: e?.message } }
-  const base = freshData(initialData())
-  /* the database as it is (what's "saved"), and the data to work with (with the clean start filling any gaps) */
-  const fixed = rows.map(fresh)
-  const db = assemble(fixed, undefined)
-  let data = assemble(fixed, base)
-  const cleaned = withoutSample(data)
-  if (cleaned) data = cleaned.data
-  ensureTiles(data as any)
-  seedCounters(JSON.stringify(data))
-  ID.sfx = '.' + CLIENT.slice(0, 4)
-  synced = db
-  useStore.getState().replaceData(data)
+  uid = user.id
+  const copy = await getLocal<Copy>('copy:' + user.id).catch(() => undefined)
+  let rows: Row[] | null = null
+  try { rows = await loadAll() } catch (e: any) {
+    const k = kindOf(e)
+    /* no signal: open from this device's copy — it all goes up when the signal is back */
+    if (k !== 'network' || !copy?.data || !copy.synced) return { ok: false, why: k, detail: e?.message }
+  }
+  let cleaned: ReturnType<typeof withoutSample> = null
+  if (rows) {
+    const base = freshData(initialData())
+    /* the database as it is (what's "saved"), and the data to work with (with the clean start filling any gaps) */
+    const fixed = rows.map(fresh)
+    const db = assemble(fixed, undefined)
+    let data = assemble(fixed, base)
+    cleaned = withoutSample(data)
+    if (cleaned) data = cleaned.data
+    /* done on this device with no signal and never sent (the app was closed before the signal came back): it goes up now */
+    if (copy?.data && copy.synced && Date.now() - copy.at < 14 * DAY) {
+      const mine = diff(copy.synced, copy.data)
+      if (mine.up.length || mine.del.length) data = patch(data, mine.up, mine.del)
+    }
+    ensureTiles(data as any)
+    seedCounters(JSON.stringify(data))
+    ID.sfx = '.' + CLIENT.slice(0, 4)
+    synced = db
+    offline = false
+    useStore.getState().replaceData(data)
+  } else {
+    const data = copy!.data
+    ensureTiles(data as any)
+    seedCounters(JSON.stringify(data))
+    ID.sfx = '.' + CLIENT.slice(0, 4)
+    synced = copy!.synced
+    offline = true
+    useStore.getState().replaceData(data)
+  }
   REAL.cloud = true
   REAL.admin = opts.admin
   REAL.email = user.email || undefined
@@ -346,17 +439,25 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   /* QuickBooks: invoices and payments go there, payments made there come back. Email: POs to suppliers, invoices */
   REAL.qb = { status: () => qbStatus(), connect: () => qbConnect(), disconnect: () => qbDisconnect(), items: () => qbItems(), push: (d) => qbPushInvoice({ data: d }), send: (d) => qbSendInvoice({ data: d }), estimate: (d) => qbPushEstimate({ data: d }), pay: (d) => qbPayment({ data: d }), pull: (ids) => qbPull({ data: { ids } }) }
   REAL.mail = { status: () => mailStatus(), send: (m) => sendTileMail({ data: m }) }
-  setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: undefined })
+  REAL.refresh = refreshNow
+  setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: offline ? OFFLINE_WORDS : undefined })
   const member = linkMember(user, opts)
-  void startQbSync()
+  if (!offline) void startQbSync()
   if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
   /* whatever the clean start filled in (the first time: everything) goes up right away */
-  schedule(30)
+  if (!offline) schedule(30)
+  keepCopy(0)
+  lastLook = Date.now()
   unsub?.()
-  unsub = useStore.subscribe((s, prev) => { if (DATA_KEYS.some((k) => (s as any)[k] !== (prev as any)[k])) schedule() })
+  unsub = useStore.subscribe((s, prev) => { if (DATA_KEYS.some((k) => (s as any)[k] !== (prev as any)[k])) { schedule(); keepCopy() } })
   channel?.unsubscribe()
-  channel = sb.channel('tileos-records').on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, receive).subscribe()
+  channel = offline ? null : sb.channel('tileos-records').on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, receive).subscribe()
   window.addEventListener('beforeunload', () => { if (timer) { clearTimeout(timer); void flush() } })
+  /* the signal comes back, or the phone wakes up: the newest comes down, and what was done meanwhile goes up */
+  window.addEventListener('online', onOnline)
+  document.addEventListener('visibilitychange', onLook)
+  if (retry) clearInterval(retry)
+  retry = setInterval(() => { if (offline) void reconnect() }, 30_000)
   return { ok: true, member }
 }
 /* the tests (in development only) can hand in a change as if someone else made it */
@@ -366,6 +467,11 @@ export function stopCloud() {
   unsub?.(); unsub = null
   channel?.unsubscribe(); channel = null
   synced = null
+  uid = ''
+  REAL.refresh = undefined
+  window.removeEventListener('online', onOnline)
+  document.removeEventListener('visibilitychange', onLook)
+  if (retry) { clearInterval(retry); retry = null }
 }
 
 /* ---------------- the admin's sample projects: try everything, nothing saved ---------------- */

@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client'
 import App from './App'
 import { REAL, wantsSampleLook } from './lib/save'
 import { useStore } from './store'
-import { startCloud, startSample, stopCloud, type CloudProblem } from './lib/cloud'
+import { startCloud, startSample, stopCloud, hasCopy, isOffline, type CloudProblem } from './lib/cloud'
+import { keepAppOnDevice } from './lib/device'
 import { qbArrived } from './features/qbsync'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
 
@@ -28,6 +29,23 @@ const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const MEMBER_KEY = 'tileos-member'
 const remembered = (uid: string) => { try { return localStorage.getItem(MEMBER_KEY) === uid } catch { return false } }
 const remember = (uid: string) => { try { localStorage.setItem(MEMBER_KEY, uid) } catch { /* private window */ } }
+/* who they are on the team, kept on the device — so the app opens with no signal too */
+const INFO_KEY = (uid: string) => `tileos-member-info:${uid}`
+const keepInfo = (uid: string, roles: string[], name?: string) => { try { localStorage.setItem(INFO_KEY(uid), JSON.stringify({ roles, name })) } catch { /* private window */ } }
+const infoOf = (uid: string): { roles: string[]; name?: string } | null => { try { const v = JSON.parse(localStorage.getItem(INFO_KEY(uid)) || 'null'); return v && Array.isArray(v.roles) && v.roles.length ? v : null } catch { return null } }
+/* the sign-in kept on this device: with no signal it can't be renewed, but it's still theirs (a real sign-out or a
+   sign-in that was turned down takes it off the device) */
+const keptUser = (): Session['user'] | null => {
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (!/^sb-.+-auth-token$/.test(k)) continue
+      const v = JSON.parse(localStorage.getItem(k) || 'null')
+      if (v?.user?.id) return v.user
+    }
+  } catch { /* private window */ }
+  return null
+}
+const noSignal = () => typeof navigator !== 'undefined' && navigator.onLine === false
 type Found = { ok: true; roles: string[]; name?: string } | { ok: false; error: any }
 async function lookUp(uid: string): Promise<Found> {
   let lastErr: any = null
@@ -144,9 +162,16 @@ export default function Boot() {
       setPhase({ k: 'badlink', as: session?.user?.email || undefined })
       return
     }
-    if (!session?.user) { started.current = null; setPhase((p) => ({ k: 'signin', note: p.k === 'signin' ? p.note : undefined })); return }
-    /* away too long: sign out first (a link that just came in counts as being here) */
-    if (awayTooLong() && !ARRIVED && !DIRECT) {
+    /* no signal and the sign-in couldn't be renewed: still them — open from what's on this device */
+    let offlineUser: Session['user'] | null = null
+    if (!session?.user) {
+      const u = keptUser()
+      if (u && infoOf(u.id) && (await hasCopy(u.id))) offlineUser = u
+      else { started.current = null; setPhase((p) => ({ k: 'signin', note: p.k === 'signin' ? p.note : undefined })); return }
+    }
+    /* away too long: sign out first (a link that just came in counts as being here) — not with no signal, though:
+       signing in again needs the signal */
+    if (!offlineUser && !noSignal() && awayTooLong() && !ARRIVED && !DIRECT) {
       try { localStorage.removeItem(IDLE_KEY) } catch { /* fine */ }
       started.current = null
       await supabase.auth.signOut()
@@ -154,15 +179,18 @@ export default function Boot() {
       return
     }
     touch()
-    const user = session.user
+    const user = offlineUser || session!.user
     if (started.current === user.id) return
     started.current = user.id
     setPhase({ k: 'loading' })
-    /* let in = has a role; the first person to sign up was made the admin by the database */
-    const found = await lookUp(user.id)
+    /* let in = has a role; the first person to sign up was made the admin by the database — with no signal, what this
+       device knew last time */
+    const kept = infoOf(user.id)
+    let found = offlineUser && kept ? ({ ok: true, roles: kept.roles, name: kept.name } as Found) : await lookUp(user.id)
+    if (!found.ok && kept && (await hasCopy(user.id))) found = { ok: true, roles: kept.roles, name: kept.name }
     if (!found.ok) { started.current = null; setPhase({ k: 'problem', why: 'network', detail: found.error?.message }); return }
     const appRoles = found.roles
-    if (appRoles.length) remember(user.id)
+    if (appRoles.length) { remember(user.id); keepInfo(user.id, appRoles, found.name) }
     const name = found.name || user.user_metadata?.full_name || user.user_metadata?.name || (user.email || '').split('@')[0]
     /* from a link: a password first, then the app — for the link's person, whoever was signed in here before */
     if (ARRIVED && !askedPassword) {
@@ -181,7 +209,7 @@ export default function Boot() {
     if (!sample) { try { sessionStorage.removeItem('tileos-sample-look') } catch { /* fine */ } }
     let res = sample ? startSample(user, { admin, name, appRoles }) : await startCloud(user, { admin, name, appRoles })
     /* the company's data didn't load (the server busy for a moment): twice more before saying so */
-    for (let i = 0; i < 2 && !res.ok && res.why === 'network'; i++) { await pause(1500 * (i + 1)); res = await startCloud(user, { admin, name, appRoles }) }
+    for (let i = 0; i < 2 && !res.ok && res.why === 'network' && !noSignal(); i++) { await pause(1500 * (i + 1)); res = await startCloud(user, { admin, name, appRoles }) }
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
     setPhase({ k: 'ready' })
@@ -194,6 +222,8 @@ export default function Boot() {
     }
   }, [signOut])
 
+  /* the app itself stays on the device, so it opens with no signal */
+  React.useEffect(() => { keepAppOnDevice() }, [])
   React.useEffect(() => {
     let live = true
     const go = () => supabase.auth.getSession().then(({ data }) => { if (live) void begin(data.session) })
@@ -225,7 +255,7 @@ export default function Boot() {
     if (phase.k !== 'ready') return
     let last = 0
     const seen = () => { const n = Date.now(); if (n - last > 60_000) { last = n; touch() } }
-    const look = () => { if (awayTooLong()) { stopCloud(); started.current = null; void supabase.auth.signOut().then(() => setPhase({ k: 'signin', note: AWAY_NOTE })) } }
+    const look = () => { if (awayTooLong() && !noSignal() && !isOffline()) { stopCloud(); started.current = null; void supabase.auth.signOut().then(() => setPhase({ k: 'signin', note: AWAY_NOTE })) } }
     window.addEventListener('pointerdown', seen, { passive: true })
     window.addEventListener('keydown', seen)
     document.addEventListener('visibilitychange', look)

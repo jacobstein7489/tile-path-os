@@ -28,7 +28,7 @@ import { ProjectBoard, viewFromTab, tabFromLink, trackOfStep, type BoardView, ty
 import { ProjectLine, type OpenTrack } from './standing'
 import { tracksFor, phaseOf, bookingOf, TRACKS, type TrackKey } from '../tracks'
 import { pictureOf } from '../progressbill'
-import { ScopeDoc } from './scopedoc'
+import { ScopeDoc, scopeRev } from './scopedoc'
 import { md } from '@/tileos/lib/today'
 
 export { floorsOf }
@@ -240,7 +240,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
   const rooms = estId ? [] : s.rooms[jobId] || []
   const est = estId ? s.estimates.find((e) => e.id === estId) : s.estimates.find((e) => e.jobId === jobId && e.status === 'approved')
   if (!job) return null
-  const fromEst = !rooms.length && est ? (est.revs.find((r) => r.status === 'draft') || est.revs[est.revs.length - 1]) : undefined
+  const fromEst = !rooms.length && est ? scopeRev(est) : undefined
   return (
     <Modal
       level={level}

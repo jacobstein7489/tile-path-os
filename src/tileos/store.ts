@@ -522,12 +522,18 @@ export const useStore = create<Store>()(
         /* the admin can write it for someone who didn't — and it says so */
         ;(t.log ||= []).push({ date: NOW, who: as || me, text: as && as !== me ? `${text} — written by ${PEOPLE[me].short}` : text })
       }, as && as !== meOf(get().role) ? `Note added for ${PEOPLE[as].name}` : 'Note added', { undo: false }),
-    addTask: (p) =>
+    addTask: (p) => {
+      const me = meOf(get().role)
+      const other = !!p.owner && p.owner !== me
       get().commit((s) => {
+        const id = 'n' + tid++ + ID.sfx
         s.tasks.unshift({
-          id: 'n' + tid++ + ID.sfx, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, who: meOf(s.role), text: 'Created' }], ...p,
+          id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, who: meOf(s.role), text: p.urgent ? 'Created — urgent' : 'Created' }], ...p,
         } as Task)
-      }, 'Task added'),
+        /* urgent, for someone else: it pops up for them too, and opens the task */
+        if (p.urgent && other) s.notices.unshift({ id: 'nu' + Date.now(), jobId: p.jobId || undefined, text: `Urgent from ${PEOPLE[me]?.short || 'the office'}: ${p.title}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id }, for: [p.owner as PersonKey] })
+      }, p.urgent ? 'Urgent — on top of the list' : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : undefined)
+    },
   })),
 )
 

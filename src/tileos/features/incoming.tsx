@@ -63,7 +63,9 @@ function markSeen(keys: string[]) {
 export function IncomingModal({ keys, level }: { keys: string[]; level: number }) {
   const s = useStore()
   const me = meOf(s.role)
-  const list = keys.map((k) => s.tasks.find((t) => tag(t, me) === k)).filter((t): t is Task => !!t)
+  /* urgent ones first — red, on top */
+  const list = keys.map((k) => s.tasks.find((t) => tag(t, me) === k)).filter((t): t is Task => !!t).sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent))
+  const urgent = list.filter((t) => t.urgent && t.state === 'now' && t.owner === me).length
   const meets = keys.map((k) => s.events.find((e) => evTag(e) === k)).filter((e): e is CalEvent => !!e)
   const steps = nudgedSteps(s).filter((x) => keys.includes(stepTag(x.job, x.step, x.n!.at)))
   const done = () => { markSeen(keys); s.close() }
@@ -75,8 +77,8 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
       level={level}
       size="sm"
       onClose={done}
-      title={reminders === n ? (n === 1 ? 'A reminder — it’s late' : `${n} reminders — they’re late`) : n === 1 ? 'New for you' : `${n} new for you`}
-      sub={reminders === n ? 'Someone is asking about these. They’re on your Today.' : meets.length && !list.length ? 'It’s on your calendar and your Today' : 'It’s on your Today too'}
+      title={urgent ? (n === 1 ? 'Urgent — for you' : `${urgent} urgent · ${n} new for you`) : reminders === n ? (n === 1 ? 'A reminder — it’s late' : `${n} reminders — they’re late`) : n === 1 ? 'New for you' : `${n} new for you`}
+      sub={urgent ? 'It’s on top of your Today, in red, until it’s done' : reminders === n ? 'Someone is asking about these. They’re on your Today.' : meets.length && !list.length ? 'It’s on your calendar and your Today' : 'It’s on your Today too'}
       footer={<Button className="ml-auto" variant="primary" onClick={done}>Got it</Button>}
     >
       <div className="flex flex-col gap-2">
@@ -88,11 +90,12 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
             <button
               key={t.id}
               onClick={() => { markSeen(keys); s.close(); s.open({ t: 'task', id: t.id }) }}
-              className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
+              data-incoming-urgent={t.urgent ? '' : undefined}
+              className={cn('group flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition', t.urgent ? 'border-bad-200 bg-bad-50/50 hover:border-bad-300' : 'border-line bg-white hover:border-brand-200 hover:bg-brand-50/40')}
             >
               {from ? <Avatar who={from} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"><Inbox className="h-4 w-4" /></span>}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{t.title}</span>
+                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{t.urgent && <span className="mr-1.5 inline-flex h-[1.125rem] items-center rounded-full bg-bad-600 px-1.5 align-[0.0625rem] text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-white">Urgent</span>}{t.title}</span>
                 <span className={cn('block truncate text-[0.78125rem]', nudged ? 'font-medium text-bad-700' : 'text-muted')}>{nudged ? [`${PEOPLE[from!]?.short} reminded you — it’s late`, job?.name, t.due ? `was due ${t.due}` : ''].filter(Boolean).join(' · ') : [t.owner !== me ? `${PEOPLE[t.owner]?.short} has it — you follow it` : '', job?.name, from && t.owner === me ? `from ${PEOPLE[from]?.short}` : t.owner === me ? t.where : '', t.due ? `due ${t.due}` : ''].filter(Boolean).join(' · ')}</span>
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />

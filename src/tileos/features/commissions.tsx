@@ -1,6 +1,6 @@
-/* Commissions — who sold each project, what they've earned on it, what they've been paid and what they're owed.
- *   The company's rate (4% unless it's changed in the window "Rate") goes on every salesperson put on a project; one
- *   project or one person can have a different one.
+/* Commissions — each client has its salesperson (or two, splitting the rate: 2% and 2%), and every project of the
+ *   client goes by it. What each one earned, was paid and is owed, project by project.
+ *   The company's rate (4% unless it's changed in the window "Rate") goes on a client's salesperson; two split it.
  *   Earned = the rate × what's been invoiced on the project (the invoices sent: the deposit, the progress bills, the
  *   final — the same "billed" as the project's Billing). Paid out = the payments to them, one by one. Owed = the rest.
  *   What the client has paid shows alongside, for anyone who waits for the money before paying out. */
@@ -25,12 +25,19 @@ const won = (s: Store) => Object.values(s.jobs).filter((j) => !PRICING.includes(
 const r2 = (n: number) => Math.round(n * 100) / 100
 const pct = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace(/0+$/, '')}%`
 
+/** the client's salespeople and their rates */
+export const clientShares = (s: Pick<Store, 'clients'>, clientId?: string): { who: string; rate: number }[] => (clientId && s.clients[clientId]?.sales) || []
+/** who a project's commission goes to: its own (once someone was paid on it), else its client's */
+export const sharesOf = (s: Pick<Store, 'clients'>, job: Job): SaleShare[] => (job.sales?.length ? job.sales : clientShares(s, job.clientId).map((x) => ({ ...x })))
+/** the clients with a won project — the ones a salesperson is set on */
+export const clientsWon = (s: Store) => Array.from(new Set(won(s).map((j) => j.clientId).filter(Boolean) as string[])).filter((id) => s.clients[id])
+
 export type CommRow = { job: Job; share: SaleShare; person?: SalesPerson; invoiced: number; clientPaid: number; earned: number; paidOut: number; owed: number }
 /** one line for each salesperson on each project */
 export function commRows(s: Store): CommRow[] {
   const people = salesPeople(s)
   return won(s).flatMap((job) => {
-    const shares = job.sales || []
+    const shares = sharesOf(s, job)
     if (!shares.length) return []
     const pic = pictureOf(s, job.id)
     return shares.map((share) => {
@@ -67,6 +74,7 @@ export function removeSalesPerson(id: string) {
   s0.commit((s) => {
     if (s.rules.commission?.people) s.rules.commission.people = s.rules.commission.people.filter((x) => x.id !== id)
     Object.values(s.jobs).forEach((j) => { if (j.sales) j.sales = j.sales.filter((x) => x.who !== id) })
+    Object.values(s.clients).forEach((c) => { if (c.sales) c.sales = c.sales.filter((x) => x.who !== id) })
   }, `${name} is off the list`)
   return true
 }
@@ -76,8 +84,15 @@ export function setCompanyRate(rate: number, everywhere: boolean) {
     const c = (s.rules.commission ||= {})
     const was = c.rate ?? DEFAULT_RATE
     c.rate = rate
-    if (everywhere) Object.values(s.jobs).forEach((j) => (j.sales || []).forEach((x) => { if (x.rate === was) x.rate = rate }))
-  }, `Commission rate ${pct(rate)}`, { sub: everywhere ? 'On every project that had the old rate, and on the ones to come.' : 'On the salespeople put on a project from now on.' })
+    if (everywhere) {
+      Object.values(s.jobs).forEach((j) => (j.sales || []).forEach((x) => { if (x.rate === was) x.rate = rate }))
+      /* a client's salesperson on the old rate — or two splitting it evenly — go to the new one */
+      Object.values(s.clients).forEach((c) => {
+        const n = c.sales?.length || 0
+        if (n && c.sales!.every((x) => Math.abs(x.rate - was / n) < 0.006)) c.sales!.forEach((x) => { x.rate = r2(rate / n) })
+      })
+    }
+  }, `Commission rate ${pct(rate)}`, { sub: everywhere ? 'On every client and project that had the old rate, and on the ones to come.' : 'On the salespeople given to a client from now on.' })
 }
 export function putOnProject(jobId: string, who: string) {
   const s0 = S()
@@ -100,11 +115,40 @@ export function takeOffProject(jobId: string, who: string) {
     if (j?.sales) j.sales = j.sales.filter((x) => x.who !== who || (x.paid || []).length)
   }, 'Taken off the project')
 }
+/* ---- the client's salespeople ---- */
+/** on the client: one gets the company's rate; with two (or more) it's split evenly — each can be changed after */
+export function addToClient(clientId: string, who: string) {
+  const s0 = S()
+  const name = salesPeople(s0).find((x) => x.id === who)?.name || 'Salesperson'
+  s0.commit((s) => {
+    const c = s.clients[clientId]
+    if (!c || (c.sales || []).some((x) => x.who === who)) return
+    const list = [...(c.sales || []), { who, rate: 0 }]
+    const each = r2(rateOf(s) / list.length)
+    c.sales = list.map((x) => ({ who: x.who, rate: each }))
+  }, `${name} sells to ${s0.clients[clientId]?.name}`, { undo: false, sub: 'Every project of theirs goes by it.' })
+}
+export function setClientRate(clientId: string, who: string, rate: number) {
+  S().commit((s) => {
+    const x = s.clients[clientId]?.sales?.find((y) => y.who === who)
+    if (x) x.rate = rate
+  }, `Rate ${pct(rate)}`, { undo: false })
+}
+export function removeFromClient(clientId: string, who: string) {
+  S().commit((s) => {
+    const c = s.clients[clientId]
+    if (c?.sales) c.sales = c.sales.filter((x) => x.who !== who)
+  }, 'Taken off the client')
+}
 export function payCommission(jobId: string, who: string, amount: number, note?: string) {
   const s0 = S()
   const name = salesPeople(s0).find((x) => x.id === who)?.name || 'Salesperson'
   s0.commit((s) => {
-    const x = s.jobs[jobId]?.sales?.find((y) => y.who === who)
+    const j = s.jobs[jobId]
+    if (!j) return
+    /* the first payment on the project: it keeps the client's salespeople and rates as they are now */
+    if (!j.sales?.length) j.sales = clientShares(s, j.clientId).map((x) => ({ ...x }))
+    const x = j.sales.find((y) => y.who === who)
     if (!x) return
     ;(x.paid ||= []).push({ amount: r2(amount), date: NOW, iso: TODAY, ...(note?.trim() ? { note: note.trim() } : {}), by: meOf(s.role) })
   }, `${fmtMoney(amount, { cents: amount % 1 !== 0 })} paid to ${name}`, { sub: s0.jobs[jobId]?.name })
@@ -119,7 +163,8 @@ export function CommissionsPage() {
   const [who, setWho] = React.useState('all')
   const people = salesPeople(s)
   const rows = commRows(s)
-  const none = won(s).filter((j) => !(j.sales || []).length && j.stage !== 'complete')
+  /* the clients nobody sells to yet (their projects with no salesperson of their own) */
+  const none = clientsWon(s).filter((id) => !clientShares(s, id).length && won(s).some((j) => j.clientId === id && !j.sales?.length && j.stage !== 'complete'))
   const owedRows = rows.filter((r) => r.owed > 0.004)
   const paidRows = rows.filter((r) => r.owed <= 0.004 && r.earned > 0)
   const sum = (list: CommRow[], k: 'earned' | 'paidOut' | 'owed') => list.reduce((n, r) => n + r[k], 0)
@@ -142,7 +187,7 @@ export function CommissionsPage() {
             { key: 'all', label: 'Projects with a salesperson', count: new Set(rows.map((r) => r.job.id)).size, icon: <Building2 />, color: 'indigo', on: view === 'all', onClick: () => setView('all') },
             { key: 'owed', label: 'Owed to them', count: money(sum(owedRows, 'owed')), icon: <HandCoins />, color: 'amber', on: view === 'owed', onClick: pick('owed'), gapBefore: true },
             { key: 'paid', label: 'Paid out', count: money(sum(rows, 'paidOut')), icon: <CircleCheckBig />, color: 'green', on: view === 'paid', onClick: pick('paid') },
-            { key: 'none', label: 'No salesperson yet', count: none.length, icon: <UserRound />, color: 'slate', on: view === 'none', onClick: pick('none'), gapBefore: true },
+            { key: 'none', label: 'Clients with no salesperson', count: none.length, icon: <UserRound />, color: 'slate', on: view === 'none', onClick: pick('none'), gapBefore: true },
           ]}
         />
       }
@@ -157,20 +202,23 @@ export function CommissionsPage() {
         <Table minWidth={640}>
           <thead>
             <tr>
-              <Th className="xl:w-[22rem]">Project</Th>
+              <Th className="xl:w-[22rem]">Client</Th>
               <Th w="9rem" right>Invoiced</Th>
               <Th w="12rem" right>Salesperson</Th>
             </tr>
           </thead>
           <tbody>
-            {none.map((j) => (
-              <Tr key={j.id} onClick={() => s.open({ t: 'commission', jobId: j.id })}>
-                <Td><div className="truncate text-[0.875rem] font-semibold text-ink">{j.name}</div><div className="truncate text-[0.78125rem] text-muted">{j.client}</div></Td>
-                <Td right className="tnum">{money(pictureOf(s, j.id).billed)}</Td>
-                <Td right><span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700"><Plus className="h-3.5 w-3.5" />Add a salesperson</span></Td>
-              </Tr>
-            ))}
-            {!none.length && <EmptyRow colSpan={3} title="Every project has a salesperson" />}
+            {none.map((id) => {
+              const jobs = won(s).filter((j) => j.clientId === id)
+              return (
+                <Tr key={id} onClick={() => s.open({ t: 'clientsales', clientId: id })}>
+                  <Td><div className="truncate text-[0.875rem] font-semibold text-ink" data-no-sales={id}>{s.clients[id]?.name}</div><div className="truncate text-[0.78125rem] text-muted">{jobs.length} {jobs.length === 1 ? 'project' : 'projects'} · {jobs.slice(0, 3).map((j) => j.name).join(', ')}</div></Td>
+                  <Td right className="tnum">{money(jobs.reduce((n, j) => n + pictureOf(s, j.id).billed, 0))}</Td>
+                  <Td right><span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700"><Plus className="h-3.5 w-3.5" />Add a salesperson</span></Td>
+                </Tr>
+              )
+            })}
+            {!none.length && <EmptyRow colSpan={3} title="Every client has a salesperson" />}
           </tbody>
         </Table>
       ) : (
@@ -211,8 +259,8 @@ export function CommissionsPage() {
               <EmptyRow
                 colSpan={7}
                 title={rows.length ? 'Nothing here' : 'No salesperson on a project yet'}
-                sub={rows.length ? 'Try another filter.' : people.length ? 'Open “No salesperson yet” and put someone on a project.' : 'Add your salespeople first, then put them on their projects.'}
-                action={!people.length ? <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'salespeople' })}>Add a salesperson</Button> : <Button icon={<Plus />} onClick={() => setView('none')}>Projects with no salesperson</Button>}
+                sub={rows.length ? 'Try another filter.' : people.length ? 'Open “Clients with no salesperson” and give each client theirs.' : 'Add your salespeople first, then give each client theirs.'}
+                action={!people.length ? <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'salespeople' })}>Add a salesperson</Button> : <Button icon={<Plus />} onClick={() => setView('none')}>Clients with no salesperson</Button>}
               />
             )}
           </tbody>
@@ -226,38 +274,73 @@ export function CommissionsPage() {
 export function CommissionModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
-  const people = salesPeople(s)
-  const [adding, setAdding] = React.useState('')
   if (!job) return null
   const pic = pictureOf(s, jobId)
   const rows = commRows(s).filter((r) => r.job.id === jobId)
-  const free = people.filter((p) => !(job.sales || []).some((x) => x.who === p.id))
+  const client = job.clientId ? s.clients[job.clientId] : undefined
+  const own = !!job.sales?.length
   return (
-    <Modal level={level} size="md" onClose={s.close} title={`Commission · ${job.name}`} sub={`${job.client} · invoiced ${money(pic.billed)} · the client paid ${money(pic.paid)}`} footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}>
+    <Modal level={level} size="md" onClose={s.close} title={`Commission · ${job.name}`} sub={`${job.client} · invoiced ${money(pic.billed)} · the client paid ${money(pic.paid)}`} footer={<>{client && <Button icon={<Users />} onClick={() => s.open({ t: 'clientsales', clientId: client.id })} data-open-client-sales>{client.name}’s salespeople</Button>}<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
       <div className="flex flex-col gap-3" data-commission={jobId}>
-        {rows.map((r) => <ShareCard key={r.share.who} r={r} />)}
-        {!rows.length && <p className="text-[0.875rem] text-muted">Nobody on this project yet — who sold it?</p>}
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <SearchSelect
-              label="Add a salesperson"
-              value={adding}
-              placeholder={rows.length ? 'Add another salesperson' : 'Pick the salesperson'}
-              options={free.map((p) => ({ key: p.id, label: p.name, hint: p.email }))}
-              onChange={(k) => { setAdding(''); putOnProject(jobId, k) }}
-              onCreate={(text) => { const id = addSalesPerson(text); putOnProject(jobId, id) }}
-              createLabel={(t) => `Add “${t}” as a salesperson`}
-              search
-              width={340}
-            />
-          </div>
-        </div>
-        <p className="text-[0.78125rem] text-muted">Each one gets the rate on what’s invoiced on the project — {pct(rateOf(s))} unless you change it here. Two people sharing a project can each have their own.</p>
+        {rows.map((r) => <ShareCard key={r.share.who} r={r} locked={!own} />)}
+        {!rows.length && <p className="text-[0.875rem] text-muted">Nobody sells to {client?.name || 'this client'} yet — give them their salesperson and every project of theirs goes by it.</p>}
+        <p className="text-[0.78125rem] text-muted">{own ? 'Someone was paid on this project, so it keeps the salespeople and rates it had then.' : `It goes by ${client?.name || 'the client'}’s salespeople — change them there and every project of theirs follows.`}</p>
       </div>
     </Modal>
   )
 }
-function ShareCard({ r }: { r: CommRow }) {
+
+/* ================= one client: who sells to them, and each one's rate (a split: 2% and 2%) ================= */
+export function ClientSalesModal({ clientId, level }: { clientId: string; level: number }) {
+  const s = useStore()
+  const c = s.clients[clientId]
+  const people = salesPeople(s)
+  const [adding, setAdding] = React.useState('')
+  if (!c) return null
+  const list = c.sales || []
+  const free = people.filter((p) => !list.some((x) => x.who === p.id))
+  const total = r2(list.reduce((n, x) => n + x.rate, 0))
+  const jobs = won(s).filter((j) => j.clientId === clientId)
+  return (
+    <Modal level={level} size="md" onClose={s.close} title={`Salespeople · ${c.name}`} sub={`${jobs.length} ${jobs.length === 1 ? 'project' : 'projects'} go by it — on what’s invoiced on each`} footer={<><span className="text-[0.8125rem] text-muted">{list.length ? `Total ${pct(total)}` : ''}</span><Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
+      <div className="flex flex-col gap-3" data-client-sales={clientId}>
+        {list.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-line">
+            {list.map((x) => <ClientShareRow key={x.who} clientId={clientId} who={x.who} rate={x.rate} name={people.find((p) => p.id === x.who)?.name || 'Salesperson'} />)}
+          </div>
+        )}
+        {!list.length && <p className="text-[0.875rem] text-muted">Who sells to {c.name}? One gets {pct(rateOf(s))}; add a second and it’s split — {pct(r2(rateOf(s) / 2))} each.</p>}
+        <SearchSelect
+          label="Add a salesperson"
+          value={adding}
+          placeholder={list.length ? `Add another — split it ${pct(r2(rateOf(s) / (list.length + 1)))} each` : 'Pick the salesperson'}
+          options={free.map((p) => ({ key: p.id, label: p.name, hint: p.email }))}
+          onChange={(k) => { setAdding(''); addToClient(clientId, k) }}
+          onCreate={(text) => { const id = addSalesPerson(text); addToClient(clientId, id) }}
+          createLabel={(t) => `Add “${t}” as a salesperson`}
+          search
+          width={340}
+        />
+      </div>
+    </Modal>
+  )
+}
+function ClientShareRow({ clientId, who, rate, name }: { clientId: string; who: string; rate: number; name: string }) {
+  const [v, setV] = React.useState(String(rate))
+  React.useEffect(() => setV(String(rate)), [rate])
+  const save = () => { const n = Number(v); if (v !== '' && n >= 0 && n <= 50 && n !== rate) setClientRate(clientId, who, n); else setV(String(rate)) }
+  return (
+    <div className="flex min-h-12 items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0" data-client-share={who}>
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{name}</span>
+      <label className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] text-muted">
+        <input inputMode="decimal" aria-label={`${name}’s rate`} value={v} onChange={(e) => setV(e.target.value.replace(/[^0-9.]/g, ''))} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} className="h-9 w-16 rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" data-client-rate />
+        %
+      </label>
+      <button type="button" onClick={() => removeFromClient(clientId, who)} aria-label={`Take ${name} off`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>
+    </div>
+  )
+}
+function ShareCard({ r, locked }: { r: CommRow; /** the rate is the client's — changed on the client */ locked?: boolean }) {
   const [rate, setRate] = React.useState(String(r.share.rate))
   const [amount, setAmount] = React.useState('')
   const [note, setNote] = React.useState('')
@@ -270,12 +353,14 @@ function ShareCard({ r }: { r: CommRow }) {
     <section className="overflow-hidden rounded-xl border border-line" data-share={r.share.who}>
       <header className="flex items-center gap-3 border-b border-line-2 bg-[#faf9f7] px-4 py-2.5">
         <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{r.person?.name || 'Salesperson'}</span>
-        <label className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] text-muted">
-          Rate
-          <input inputMode="decimal" aria-label="Rate" value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ''))} onBlur={saveRate} onKeyDown={(e) => { if (e.key === 'Enter') saveRate() }} className="h-8 w-14 rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" data-share-rate />
-          %
-        </label>
-        {!paid.length && <button type="button" onClick={() => takeOffProject(r.job.id, r.share.who)} aria-label="Take off this project" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>}
+        {locked ? <span className="shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2" data-share-rate-shown>{pct(r.share.rate)}</span> : (
+          <label className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] text-muted">
+            Rate
+            <input inputMode="decimal" aria-label="Rate" value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ''))} onBlur={saveRate} onKeyDown={(e) => { if (e.key === 'Enter') saveRate() }} className="h-8 w-14 rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" data-share-rate />
+            %
+          </label>
+        )}
+        {!locked && !paid.length && <button type="button" onClick={() => takeOffProject(r.job.id, r.share.who)} aria-label="Take off this project" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>}
       </header>
       <div className="grid grid-cols-3 gap-2 px-4 py-3 text-center max-sm:gap-1">
         <div><div className="text-[0.75rem] text-muted">Earned</div><div className="text-[1rem] font-semibold tnum text-ink">{money(r.earned)}</div></div>
@@ -312,10 +397,10 @@ export function SalesPeopleModal({ level }: { level: number }) {
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [msg, setMsg] = React.useState('')
-  const count = (id: string) => won(s).filter((j) => (j.sales || []).some((x) => x.who === id)).length
+  const count = (id: string) => clientsWon(s).filter((c) => clientShares(s, c).some((x) => x.who === id)).length
   const add = () => { if (!name.trim()) return; addSalesPerson(name, { email }); setName(''); setEmail('') }
   return (
-    <Modal level={level} size="md" onClose={s.close} title="Salespeople" sub="Who sells for the company — put them on their projects from Commissions." footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}>
+    <Modal level={level} size="md" onClose={s.close} title="Salespeople" sub="Who sells for the company — give each client theirs from Commissions." footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}>
       <div className="flex flex-col gap-4">
         {people.length > 0 && (
           <div className="overflow-hidden rounded-xl border border-line">
@@ -323,7 +408,7 @@ export function SalesPeopleModal({ level }: { level: number }) {
               <div key={p.id} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0" data-salesperson={p.id}>
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.name}</span>
-                  <span className="block truncate text-[0.78125rem] text-muted">{[p.email, `${count(p.id)} ${count(p.id) === 1 ? 'project' : 'projects'}`].filter(Boolean).join(' · ')}</span>
+                  <span className="block truncate text-[0.78125rem] text-muted">{[p.email, `${count(p.id)} ${count(p.id) === 1 ? 'client' : 'clients'}`].filter(Boolean).join(' · ')}</span>
                 </span>
                 <button type="button" onClick={() => setMsg(removeSalesPerson(p.id) ? '' : `${p.name} was paid commissions — they stay on the list for the record.`)} aria-label={`Take ${p.name} off the list`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>
               </div>

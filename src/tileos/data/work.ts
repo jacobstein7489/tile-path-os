@@ -50,6 +50,8 @@ export interface Task {
   nudge?: { by: PersonKey; at: string; day: string }
   /** shows at the top of everyone's Today until it's done */
   everyone?: boolean
+  /** urgent: on top of its person's Today, in red, until it's done */
+  urgent?: boolean
   /** the checklist step this task is ("jobId:step"), or "*:step" for one task that covers that step everywhere */
   step?: string
   /** a task that comes back on a schedule */

@@ -272,9 +272,9 @@ export const evenVars = (widths: number[], o?: { fixedLast?: boolean; gap?: numb
 /** every line of every list is the same height — one line or two */
 export const ROW_H = 'min-h-[3rem]'
 
-/** a list's column names, on top: small and quiet, pinned while the rows scroll. Its line under it is the first row's
+/** a list's column names, on top: small but easy to read (a medium gray, semibold), pinned while the rows scroll. Its line under it is the first row's
  *  (or band's) line — every line in a list is the same one line. */
-export const HEAD_ROW = 'h-9 items-center bg-white text-[0.75rem] font-medium text-faint shadow-[0_0.0625rem_0_var(--color-line-2)]'
+export const HEAD_ROW = 'h-9 items-center bg-white text-[0.78125rem] font-semibold text-[#5f6470] shadow-[0_0.0625rem_0_var(--color-line-2)]'
 /** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
  *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
  *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is

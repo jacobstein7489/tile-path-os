@@ -244,6 +244,14 @@ export function phoneNav(navIn: string[]) {
   const bar = PHONE_ORDER.filter((k) => nav.includes(k)).slice(0, 4)
   return { bar, more: nav.filter((k) => !bar.includes(k)) }
 }
+/** + New on the phone: a round button in the middle of the tab bar */
+function PhonePlus() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <NewMenu trigger={<button aria-label="New" data-phone-plus className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_0.375rem_1rem_rgba(38,80,207,.35)] transition active:scale-95"><Plus className="h-6 w-6" strokeWidth={2.4} /></button>} />
+    </div>
+  )
+}
 export function BottomNav() {
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
@@ -254,21 +262,26 @@ export function BottomNav() {
   const moreOn = more.includes(active)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main" data-phone-tabs>
-      <div className="mx-auto flex h-[3.625rem] max-w-[35rem] items-stretch px-2">
-        {bar.map((k) => {
+      <div className="mx-auto flex h-[3.875rem] max-w-[35rem] items-stretch px-1.5">
+        {bar.map((k, i) => {
           const on = active === k
           const Icon = NAV[k].icon
           const n = badge(k)
           return (
-            <button key={k} onClick={() => go({ page: k as Page })} className={cn('flex flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold transition-colors', on ? 'text-brand-600' : 'text-muted')}>
-              <span className="relative">
-                <Icon className="h-[1.3125rem] w-[1.3125rem]" strokeWidth={on ? 2 : 1.7} />
-                {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
-              </span>
-              {NAV[k].label}
-            </button>
+            <React.Fragment key={k}>
+              {/* + New in the middle, where the thumb is */}
+              {i === Math.min(2, bar.length) && <PhonePlus />}
+              <button onClick={() => go({ page: k as Page })} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold transition-colors', on ? 'text-brand-600' : 'text-muted')}>
+                <span className="relative">
+                  <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2 : 1.7} />
+                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
+                </span>
+                <span className="max-w-full truncate">{NAV[k].label}</span>
+              </button>
+            </React.Fragment>
           )
         })}
+        {bar.length < 2 && <PhonePlus />}
         <Menu
           align="end"
           width={240}
@@ -311,7 +324,6 @@ export function TopBar() {
       <button onClick={() => setPalette(true)} aria-label="Search" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-wash-2">
         <Search className="h-[1.125rem] w-[1.125rem]" />
       </button>
-      <NewMenu align="end" trigger={<button aria-label="New" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white hover:bg-brand-700"><Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.2} /></button>} />
       <Menu
         align="end"
         width={260}

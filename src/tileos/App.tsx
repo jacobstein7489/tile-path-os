@@ -15,6 +15,7 @@ import { EstimatesPage, EstimateModal, AiPlansModal, EstSendModal, EstChangesMod
 import { LostModal } from '@/tileos/features/projects'
 import { DirectoryPage, SupplierFormModal, DesignerFormModal, InstallerFormModal } from '@/tileos/features/directory'
 import { ItemsPage, ItemModal, ImportItemsModal, NewItemModal } from '@/tileos/features/items'
+import { CatalogModal } from '@/tileos/features/catalogpick'
 import { EmailModal } from '@/tileos/features/email'
 import { SettingModal } from '@/tileos/features/setting'
 import { ShortageModal, ReportShortModal } from '@/tileos/features/shortage'
@@ -69,7 +70,9 @@ import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
 import { watchKeyboard } from '@/tileos/lib/viewport'
-import { CommissionsPage, CommissionModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
+import { noAutofill } from '@/tileos/lib/noautofill'
+import { OfflineBar, PullToRefresh } from '@/tileos/components/shell/device-ui'
+import { CommissionsPage, CommissionModal, ClientSalesModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
   switch (m.t) {
@@ -125,6 +128,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newtilepo': return <NewTilePOModal jobId={m.jobId} tags={m.tags} level={level} />
     case 'moretile': return <NewTilePOModal jobId={m.jobId} tags={m.tags} qty={m.qty} shortId={m.shortId} more level={level} />
     case 'commission': return <CommissionModal jobId={m.jobId} level={level} />
+    case 'clientsales': return <ClientSalesModal clientId={m.clientId} level={level} />
     case 'salespeople': return <SalesPeopleModal level={level} />
     case 'commrate': return <CommissionRateModal level={level} />
     case 'popart': return <PartCameModal id={m.id} level={level} />
@@ -141,6 +145,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'member': return <MemberModal k={m.key} level={level} />
     case 'item': return <ItemModal id={m.id} level={level} />
     case 'newitem': return <NewItemModal level={level} />
+    case 'catalog': return <CatalogModal level={level} />
     case 'importitems': return <ImportItemsModal level={level} />
     case 'email': return <EmailModal what={m.what} level={level} />
     case 'setting': return <SettingModal jobId={m.jobId} level={level} />
@@ -229,7 +234,7 @@ function useNarrow(q = '(max-width: 1023px)') {
 export default function App() {
   const narrow = useNarrow()
   /* the phone's keyboard: the bar on top and the windows stay where they belong while typing */
-  React.useEffect(() => { watchKeyboard() }, [])
+  React.useEffect(() => { watchKeyboard(); noAutofill() }, [])
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const away = useStore((s) => awayFromMe(s))
@@ -268,7 +273,7 @@ export default function App() {
   return (
     <TipProvider delayDuration={250}>
       {role === 'crew' ? (
-        <CrewView />
+        <><OfflineBar /><CrewView /></>
       ) : role === 'client' ? (
         <PortalView />
       ) : (
@@ -277,6 +282,7 @@ export default function App() {
           <div className="lg:pl-[14rem]">
             {REAL.sampleView && <SampleBar />}
             {away && <PreviewBar />}
+            <OfflineBar />
             <TopBar />
             <DesktopTopBar />
             <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
@@ -292,6 +298,7 @@ export default function App() {
       <ModalHost />
       <CommandPalette />
       <CenterPop />
+      <PullToRefresh />
     </TipProvider>
   )
 }

@@ -105,7 +105,7 @@ export function ProjectsPage() {
         </>
       }
     >
-      <div style={{ ...WIDE, '--n': 4, '--n-xl': 5 } as React.CSSProperties} data-even-list>
+      <div style={{ ...WIDE, '--n': 5, '--n-xl': 6 } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
@@ -137,9 +137,9 @@ const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | '
  * at the count for the list, open the project for all of them.
  * Each group (On hold, Getting ready…) is a gray band with its color dot. On a phone: the name and how far it is, then
  * what's going on now. */
-const COLS = cn('grid grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_5rem] items-center gap-x-6 max-md:block', EVEN)
-/** on a wide screen: Project · Client · the five · Now · Start, each with its room and the rest shared evenly */
-const WIDE = evenVars([9.5, 8, 17.5, 14.5, 4], { fixedLast: true })
+const COLS = cn('grid grid-cols-[minmax(0,1fr)_17.5rem_minmax(0,1.1fr)_4.5rem_5rem] items-center gap-x-6 max-md:block', EVEN)
+/** on a wide screen: Project · Client · the five · Now · Problems · Start, each with its room and the rest shared evenly */
+const WIDE = evenVars([9.5, 8, 17.5, 14.5, 4.5, 4], { fixedLast: true })
 /** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
  *  (the widest name, Materials, fits), the same on top and in every row */
 const slot = (_k?: string) => 'flex w-[3.5rem] shrink-0 justify-center'
@@ -151,10 +151,11 @@ function ListHead({ parts }: { /** a project getting ready is on the list: the f
       <span className="max-xl:hidden">Client</span>
       {parts ? (
         <span className="flex min-w-0 items-center" data-part-names title="Getting ready — its five parts. A project that started shows how far it is instead.">
-          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.6875rem]')}>{t.label}</span>)}
+          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.71875rem]')}>{t.label}</span>)}
         </span>
       ) : <span data-part-names>How far</span>}
       <span>Now</span>
+      <span className="text-center" data-problems-head title="Problems on the project — point at the red number to see them">Problems</span>
       <span className="text-right">Start</span>
     </div>
   )
@@ -331,7 +332,8 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       </div>
       <span className="min-w-0 truncate text-[0.8125rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="min-w-0 max-md:hidden"><StandsCell j={j} /></div>
-      <div className="flex min-w-0 items-center gap-2 max-md:hidden" data-now><span className="flex min-w-0 flex-1"><NowLine w={now} /></span><Problems list={probs} /></div>
+      <div className="flex min-w-0 items-center max-md:hidden" data-now><NowLine w={now} /></div>
+      <div className="flex justify-center max-md:hidden" data-problems-cell><Problems list={probs} /></div>
       <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', st.late ? 'font-medium text-warn-700' : 'text-muted')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span>
       {/* a phone: the name and how far it is; under it what's going on now, and the problems counted */}
       <div className="hidden min-w-0 max-md:block">
