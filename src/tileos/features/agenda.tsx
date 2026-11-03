@@ -12,7 +12,7 @@ import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLab
 import { busyFor, removeEvent, moveEvent } from './calendar'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { JobGlance, nextForMe } from './jobglance'
+import { nextForMe } from './jobglance'
 
 type EvKind = 'meeting' | 'walkthrough' | 'report' | 'delivery' | 'follow' | 'due' | 'start'
 type Ev = { id: string; when?: number; dur?: number; kind: EvKind; title: string; sub?: string; people?: PersonKey[]; run: () => void }
@@ -150,7 +150,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
   return (
     <Modal
       level={level}
-      size={job ? 'md' : 'sm'}
+      size="sm"
       onClose={s.close}
       title={e.title}
       sub={`${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${dayLong(e.date)}${job ? ` · ${job.name}` : ''}`}
@@ -212,7 +212,8 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           {e.by && <Row icon={<CalendarDays />} label="Set by">{PEOPLE[e.by]?.name || 'Someone'}</Row>}
           {e.note && <Row icon={<Flag />} label="About">{e.note}</Row>}
         </dl>
-        {job && <JobGlance job={job} />}
+        {/* the meeting, and nothing else — not the project's whole getting ready (most of it is other people's). The
+            one thing that's yours on the project, if there is one, is the button at the bottom */}
         {job && <button onClick={() => s.swap({ t: 'job', id: job.id })} className="self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-open-project>See all of {job.name}</button>}
         </div>
       )}

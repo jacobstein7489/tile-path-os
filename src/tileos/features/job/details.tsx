@@ -199,10 +199,9 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const g = x.grout || t?.grout
                       const h = heightShort(x.height)
                       const sfText = x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '—'
-                      /* tap a line: its layout, drawn to scale (a wall or floor with no tile: its room) */
-                      const tiled = !!t && takesTile(x.name)
+                      /* the line says it all — nothing to open (the room's own page is on its band) */
                       return (
-                        <button key={x.name} data-surface-row={x.name} onClick={() => (tiled ? s.open({ t: 'layout', jobId: job.id, room: room.name, surface: x.name }) : open({ t: 'room', name: room.name, surface: x.name }))} title={x.layout ? `Layout: ${x.layout}` : tiled ? 'See its layout, drawn to scale' : undefined} className={cn(cols, 'block w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition row-hover max-sm:px-3 max-lg:py-2.5')}>
+                        <div key={x.name} data-surface-row={x.name} title={x.layout ? `Layout: ${x.layout}` : undefined} className={cn(cols, 'block w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] max-sm:px-3 max-lg:py-2.5')}>
                           <span className="flex min-w-0 items-baseline gap-2 lg:block">
                             <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink lg:block" title={x.height ? `${x.name} · ${x.height}` : undefined}>{x.name}{h && <span className="text-[0.8125rem] text-muted" data-surface-height> · {h}</span>}</span>
                             <span className={cn('shrink-0 tnum lg:hidden', x.sf ? 'text-ink-2' : 'text-faint')}>{sfText}</span>
@@ -219,7 +218,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                           </span>
                           <span className={cn('text-right tnum max-lg:hidden', x.sf ? 'text-ink-2' : 'text-faint')}>{sfText}</span>
                           {inField && <span className={cn('text-right max-lg:hidden', x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : stopped ? 'Stopped' : 'Not yet'}</span>}
-                        </button>
+                        </div>
                       )
                     })}
                   </div>

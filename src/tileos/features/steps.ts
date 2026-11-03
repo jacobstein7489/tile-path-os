@@ -910,11 +910,15 @@ export function markTileOrdered(jobId: string, when: string) {
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile ordered by the store', detail: `Delivery ${labelFromIso(iso)}${receiver ? ` — ${PEOPLE[receiver].name} checks it in` : ''}` } as any)
   }, 'Delivery date saved', { sub: receiver ? `It’s on ${receiver === me() ? 'your' : `${PEOPLE[receiver].short}’s`} list ${day === 'today' ? 'today' : `on ${day}`} to check it in.` : undefined, to: receiver && receiver !== me() ? [{ who: receiver, what: `Check in the tile at ${j?.name} · ${labelFromIso(iso)}` }] : undefined })
 }
-/** the tile came: all of it, or report what's short */
+/** the tile came: all of it, or report what's short. All of what the paperwork has is here — and if the paperwork
+ *  itself was short of what the rooms need (nobody revised it, or it came before anyone checked), that's said right
+ *  away, with Order more tile ready on the Today of whoever orders the tile */
 export function checkInTile(jobId: string) {
   const s = S()
   const j = s.jobs[jobId]
   const to = j ? nextUp(s, j, 'delivered') : []
+  /* what's short, worked out first — so the pop-up can say it */
+  const short = Object.values(s.tiles[jobId] || {}).map((t) => ({ t, q: paperQty(s, jobId, t) })).filter((x) => x.q.short > 0 && x.q.need != null).map((x) => `${x.t.tag} is ${x.q.short} ${x.q.unit} short`)
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {}).delivered ||= {})
     r.done = NOW
@@ -922,7 +926,21 @@ export function checkInTile(jobId: string) {
     r.note = `All here · checked in ${NOW}`
     if (st.prep[jobId]) st.prep[jobId].tile = 'yes'
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile delivered — all of it', detail: 'Counted on site' } as any)
-  }, 'Tile checked in — all of it', { sub: 'The project shows it on site.', to: to.length ? to : undefined })
+    const def = companySteps(st).find((d) => d.key === 'order')?.owner
+    const orderer = realOwner(st, (def && def !== 'matBy' && PEOPLE[def as PersonKey] ? def : 'office') as PersonKey)
+    Object.values(st.tiles[jobId] || {}).forEach((t) => {
+      const q = paperQty(st, jobId, t)
+      if (!q.short || q.need == null) return
+      if (st.tasks.some((x) => x.jobId === jobId && x.state !== 'done' && (x.action?.kind || '').startsWith(`moretile:${t.tag}:`))) return
+      newTask(st, {
+        jobId, title: `${t.tag} is ${q.short} ${q.unit} short of what the rooms need`, type: 'Materials', owner: orderer, for: ['office', 'owner', 'pm', 'materials'] as Role[],
+        state: 'now', due: 'Today', tone: 'bad', urgent: true, where: `${t.tag} · ${t.name}`,
+        detail: `The walls and floors it goes on need ${q.need} ${q.unit}, with the extra for cuts — the paperwork had ${q.have} ${q.unit}, and that’s what came.`,
+        action: { label: 'Order more tile', kind: `moretile:${t.tag}:${q.short}` },
+        log: [{ date: NOW, who: 'system', text: 'Checked when the tile came in' }],
+      })
+    })
+  }, short.length ? 'Tile checked in — but some is short' : 'Tile checked in — all of it', { sub: short.length ? `${short.join(' · ')} of what the rooms need. Order more tile is on the Today of whoever orders the tile.` : 'The project shows it on site.', to: to.length ? to : undefined })
 }
 
 /* ---------------- your own steps ---------------- */

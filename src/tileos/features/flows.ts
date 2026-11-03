@@ -6,7 +6,8 @@ import { isoOfDay, parseTime } from '@/tileos/data/calendar'
 import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
 import type { PersonKey, Stage, SwatchKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
-import type { Task, MoneyItem, PO } from '@/tileos/data/work'
+import type { Task, MoneyItem, PO, TileCheck } from '@/tileos/data/work'
+import { needWithWaste } from '@/tileos/data/work'
 import { surfacePct, tileOf } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
@@ -41,6 +42,8 @@ export function runTaskAction(t: Task) {
   if (kind.startsWith('estchange:')) return s.open({ t: 'estimate', id: kind.slice(10) })
   if (kind.startsWith('order:')) return s.open({ t: 'newpo', jobId: kind.slice(6), fromTakeoff: true })
   if (kind.startsWith('short:')) return s.open({ t: 'short', id: kind.slice(6) })
+  /* a tile found short when it came in: Order more tile, the difference filled in */
+  if (kind.startsWith('moretile:')) { const [, tag, q] = kind.split(':'); return s.open({ t: 'moretile', jobId: t.jobId, tags: [tag], qty: { [tag]: Number(q) || 0 } }) }
   if (kind.startsWith('heights:')) return s.open({ t: 'heights', jobId: kind.slice(8), taskId: t.id })
   if (kind.startsWith('pay:')) { const [, crew, week] = kind.split(':'); return s.open({ t: 'pay', crew, week }) }
   if (kind === 'crewreport') return s.open({ t: 'crewreport', taskId: t.id })
@@ -626,36 +629,95 @@ export function receiveMat(matId: string, qty: number, condition: string) {
   S().close()
 }
 
-export function receiveTile(jobId: string, tag: string, qty: number) {
-  S().commit((s) => {
+/** what the rooms need of a tile, in the unit it's counted in (SF, boxes…) — the walls and floors it goes on, with
+ *  the extra for cuts. Unknown (no rooms with square feet on it): what was measured for it, with its own extra. */
+export function needOf(s: Pick<Store, 'rooms' | 'rules'>, jobId: string, c: TileCheck): number | undefined {
+  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === c.tag && (x.sf || 0) > 0)
+  const wallish = (n: string) => !/floor|hearth|step|landing|threshold|saddle/i.test(n)
+  const needSF = Math.ceil(on.reduce((n, x) => n + (x.sf || 0) * (1 + ((wallish(x.name) ? s.rules.waste?.walls : s.rules.waste?.floors) ?? 10) / 100), 0))
+  if (on.length && needSF) {
+    if (/^sf$/i.test(c.unit)) return needSF
+    const t = tileOf(jobId, c.tag)
+    if (/box/i.test(c.unit) && t?.boxSF) return Math.ceil(needSF / t.boxSF)
+  }
+  return c.measured && c.wastePct ? needWithWaste(c) : undefined
+}
+/** count what came of one tile — on its tile PO's line too (the PO is done when everything on it is here) */
+function takeIn(s: Store, jobId: string, tag: string, qty: number) {
+  const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
+  if (!c || qty <= 0) return
+  let left = qty
+  s.pos.filter((p) => p.jobId === jobId && p.kind === 'tile' && p.step >= 1 && p.step < 3 && !/cancelled/i.test(p.note)).reverse().forEach((p) => {
+    p.lines.forEach((l) => {
+      if (l.tag !== tag || left <= 0) return
+      const q = Math.min(left, (l.n ?? 0) - (l.got || 0))
+      if (q <= 0) return
+      l.got = (l.got || 0) + q
+      left -= q
+      p.log.push(L(me(), `${tag}: ${q} ${l.unit || c.unit} came`))
+    })
+    if (p.lines.every((l) => (l.got || 0) >= (l.n ?? 0))) {
+      p.step = 3
+      p.late = false
+      p.note = 'Delivered'
+      closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + p.id && t.state !== 'done').map((t) => t.id), 'Delivered')
+      if (p.shortId) shortCame(s, p.shortId)
+    } else p.note = `Part came · still to come: ${p.lines.filter((l) => (l.got || 0) < (l.n ?? 0)).map((l) => `${l.tag} ${(l.n ?? 0) - (l.got || 0)} ${l.unit || ''}`.trim()).join(', ')}`
+  })
+  c.received = Math.min(c.ordered, c.received + qty)
+  if (c.received >= c.ordered) {
+    c.note = 'All here'
+    setIssues(s, jobId, (iss) => iss.filter((x) => !x.text.includes(tag)))
+  }
+  addHist(s, jobId, { who: me(), kind: 'material', title: `Received ${qty} ${c.unit} of ${tag}`, from: `${c.received - qty} of ${c.ordered}`, to: `${c.received} of ${c.ordered}` })
+}
+/** the tile on site — or on its way — against what the rooms need: a tile that's short (the paperwork was short and
+ *  nobody revised it, or it came late and the check was skipped) is said right away, on whoever orders the tile's
+ *  Today, with Order more tile ready for the difference. Once per tile until it's sorted. */
+function enoughTile(s: Store, jobId: string, tags: string[]): { tag: string; short: number; unit: string }[] {
+  const out: { tag: string; short: number; unit: string }[] = []
+  const def = (s.rules.steps || []).find((d) => d.key === 'order')?.owner || 'office'
+  const orderer = (PEOPLE[def as PersonKey] ? def : 'office') as PersonKey
+  tags.forEach((tag) => {
     const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
     if (!c) return
-    /* it came on a tile PO: counted on that PO's line too — the PO is done when everything on it is here */
-    let left = qty
-    s.pos.filter((p) => p.jobId === jobId && p.kind === 'tile' && p.step >= 1 && p.step < 3 && !/cancelled/i.test(p.note)).reverse().forEach((p) => {
-      p.lines.forEach((l) => {
-        if (l.tag !== tag || left <= 0) return
-        const q = Math.min(left, (l.n ?? 0) - (l.got || 0))
-        if (q <= 0) return
-        l.got = (l.got || 0) + q
-        left -= q
-        p.log.push(L(me(), `${tag}: ${q} ${l.unit || c.unit} came`))
-      })
-      if (p.lines.every((l) => (l.got || 0) >= (l.n ?? 0))) {
-        p.step = 3
-        p.late = false
-        p.note = 'Delivered'
-        closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'po:' + p.id && t.state !== 'done').map((t) => t.id), 'Delivered')
-        if (p.shortId) shortCame(s, p.shortId)
-      } else p.note = `Part came · still to come: ${p.lines.filter((l) => (l.got || 0) < (l.n ?? 0)).map((l) => `${l.tag} ${(l.n ?? 0) - (l.got || 0)} ${l.unit || ''}`.trim()).join(', ')}`
+    const need = needOf(s, jobId, c)
+    if (need == null) return
+    const short = Math.max(0, need - Math.max(c.ordered, c.received))
+    if (!short) return
+    out.push({ tag, short, unit: c.unit })
+    if (s.tasks.some((t) => t.jobId === jobId && t.state !== 'done' && (t.action?.kind || '').startsWith(`moretile:${tag}:`))) return
+    newTask(s, {
+      jobId, title: `${tag} is ${short} ${c.unit} short of what the rooms need`, type: 'Materials', owner: orderer, for: ['office', 'owner', 'pm', 'materials'] as Role[],
+      state: 'now', due: 'Today', tone: 'bad', urgent: true, where: `${tag} · ${c.where}`,
+      detail: `The walls and floors it goes on need ${need} ${c.unit}, with the extra for cuts. ${c.received >= c.ordered ? `All ${c.ordered} ${c.unit} ordered came — that’s all there is.` : `${c.ordered} ${c.unit} were ordered.`}`,
+      action: { label: 'Order more tile', kind: `moretile:${tag}:${short}` },
+      log: [{ date: NOW, who: 'system', text: 'Checked when the tile came in' }],
     })
-    c.received = Math.min(c.ordered, c.received + qty)
-    if (c.received >= c.ordered) {
-      c.note = 'All here'
-      setIssues(s, jobId, (iss) => iss.filter((x) => !x.text.includes(tag)))
-    }
-    addHist(s, jobId, { who: me(), kind: 'material', title: `Received ${qty} ${c.unit} of ${tag}`, from: `${c.received - qty} of ${c.ordered}`, to: `${c.received} of ${c.ordered}` })
-  }, `Received — ${tag} updated`)
+    addHist(s, jobId, { who: me(), kind: 'material', title: `${tag}: ${short} ${c.unit} short`, detail: `Found when it came in — the rooms need ${need} ${c.unit} with the extra` })
+  })
+  return out
+}
+/** one tile came in (part of it is fine — the rest stays to come) */
+export function receiveTile(jobId: string, tag: string, qty: number) {
+  receiveTiles(jobId, { [tag]: qty })
+}
+/** the tile came in — every tile on it at once: how many of each (all of what was still to come, unless you say
+ *  otherwise). Then each is checked against what its rooms need. */
+export function receiveTiles(jobId: string, counts: Record<string, number>) {
+  const tags = Object.keys(counts).filter((k) => counts[k] > 0)
+  if (!tags.length) return
+  let short: { tag: string; short: number; unit: string }[] = []
+  const done = () => { const st = S(); return tags.every((tag) => { const c = st.checks.find((x) => x.jobId === jobId && x.tag === tag); return !c || c.received >= c.ordered }) }
+  S().commit((s) => {
+    tags.forEach((tag) => takeIn(s, jobId, tag, counts[tag]))
+    short = enoughTile(s, jobId, tags)
+  }, tags.length === 1 ? `Received — ${tags[0]} updated` : `Received — ${tags.length} tiles`, {
+    sub: undefined,
+  })
+  /* what it found, said right away */
+  if (short.length) toast(`${short.map((x) => `${x.tag} is ${x.short} ${x.unit} short`).join(' · ')} of what the rooms need`, { description: 'Order more tile is on the Today of whoever orders the tile.' })
+  else if (done()) toast('All the tile is here — and it’s enough for every room')
   S().close()
 }
 

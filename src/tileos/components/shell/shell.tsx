@@ -119,11 +119,12 @@ export function Sidebar() {
         onClick={() => go({ page: k })}
         aria-current={on ? 'page' : undefined}
         className={cn(
-          'group flex h-8 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.84375rem] transition-colors',
+          /* easy to read and to hit: a bit bigger than the page's small print (a short screen keeps them snug) */
+          'group flex h-9 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.9375rem] transition-colors [@media(max-height:47.5rem)]:h-8 [@media(max-height:47.5rem)]:text-[0.875rem]',
           on ? 'bg-brand-50 font-semibold text-brand-800' : 'font-medium text-ink-2 hover:bg-wash hover:text-ink',
         )}
       >
-        <Icon className={cn('h-4 w-4 shrink-0', on ? 'text-brand-600' : 'text-[#7b8492] group-hover:text-ink-2')} strokeWidth={1.9} />
+        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-brand-600' : 'text-[#6f7886] group-hover:text-ink-2')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
         {/* the red badge, like a phone: what's new in the inbox, what's due today */}
         {!!n && (k === 'inbox' || k === 'today'
@@ -145,7 +146,7 @@ export function Sidebar() {
       <div className="shrink-0 px-3">
         <NewMenu
           trigger={
-            <button aria-label="New" className="flex h-9 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-brand-600 px-3 text-[0.84375rem] font-semibold text-white shadow-btn transition hover:bg-brand-700">
+            <button aria-label="New" className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-brand-600 px-3 text-[0.9375rem] font-semibold text-white shadow-btn transition hover:bg-brand-700">
               <Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />
               New
             </button>
@@ -158,7 +159,7 @@ export function Sidebar() {
           if (!keys.length) return null
           return (
             <div key={g.label || 'top'} className={cn(g.label && 'mt-2.5 border-t border-line-2 pt-2.5 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')}>
-              {g.label && <div className="px-2.5 pb-1 text-[0.75rem] font-semibold text-faint">{g.label}</div>}
+              {g.label && <div className="px-2.5 pb-1 text-[0.8125rem] font-semibold text-muted">{g.label}</div>}
               <div className="flex flex-col gap-[0.125rem]">
                 {keys.map((k) => <Item key={k} k={k as Page} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
               </div>

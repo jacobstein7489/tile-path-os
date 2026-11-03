@@ -212,21 +212,28 @@ export function InboxPage() {
               return (
                 <RightMenu key={c.key} items={items}>
                 <div className={cn('group relative border-b border-line-2 transition row-hover', on && 'bg-[#eef2fd] hover:bg-[#eef2fd]')}>
-                  <button onClick={() => openConvo(c)} data-convo={c.key} className="flex w-full items-center gap-3 px-4 py-3 pr-11 text-left">
+                  <button onClick={() => openConvo(c)} data-convo={c.key} className="flex w-full items-center gap-3 px-4 py-3 pr-11 text-left lg:pr-4">
                     <Face c={c} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem]', c.unread ? 'font-bold text-ink' : 'font-semibold text-ink')}>{c.name}</span>
-                        <span className={cn('shrink-0 text-[0.75rem] tnum', c.unread ? 'font-semibold text-brand-700' : 'text-muted')}>{c.when}</span>
+                        <span className={cn('shrink-0 text-[0.75rem] tnum lg:group-hover:invisible lg:group-focus-within:invisible', c.unread ? 'font-semibold text-brand-700' : 'text-muted')}>{c.when}</span>
                       </span>
                       <span className="flex items-center gap-2">
                         <span className={cn('min-w-0 flex-1 truncate text-[0.8125rem]', c.unread ? 'font-medium text-ink-2' : 'text-muted')}>{c.preview}</span>
-                        {c.unread > 0 && <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[0.71875rem] font-bold tnum text-white">{c.unread}</span>}
+                        {c.unread > 0 && <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[0.71875rem] font-bold tnum text-white lg:group-hover:invisible lg:group-focus-within:invisible">{c.unread}</span>}
                       </span>
                     </span>
                   </button>
-                  {/* nothing pops up over the row — read / archive are in the quiet ··· at its side (right-click has the same) */}
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2" data-convo-more>
+                  {/* on a computer, pointing at the row: read and archive, one click each, where its time is — plain icons
+                      in the row itself, nothing floating over it (right-click has them too) */}
+                  <span className={cn('absolute inset-y-0 right-0 hidden items-center gap-1 pl-1 pr-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 lg:flex', on ? 'bg-[#eef2fd]' : 'bg-white')} data-convo-actions>
+                    <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', on ? 'from-[#eef2fd]' : 'from-white')} aria-hidden />
+                    <button aria-label={c.unread ? `Mark ${c.name} as read` : `Mark ${c.name} as unread`} title={c.unread ? 'Mark as read' : 'Mark as unread'} onClick={() => (c.unread ? markRead(c.key, c.jobId) : markUnread(c.key, c.jobId))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink">{c.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
+                    <button aria-label={c.away ? `Move ${c.name} back to the inbox` : `Archive ${c.name}`} title={c.away ? 'Move back to the inbox' : 'Archive'} onClick={() => { putAway(c.key, c.jobId, !c.away); if (on && !c.away) setPicked(null) }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-archive>{c.away ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+                  </span>
+                  {/* a phone: the ··· (or a long press) */}
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden" data-convo-more>
                     <Menu align="end" width={230} trigger={<button aria-label={`More for ${c.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
                       {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} hint={it!.hint} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
                     </Menu>
@@ -279,16 +286,22 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
   return (
     <RightMenu items={items}>
       <div className="group relative border-b border-line-2 row-hover" data-update-row={n.id}>
-        <button data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 px-4 py-3 pr-12 text-left', n.unread && 'bg-[#f6f8fe]')}>
+        <button data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 px-4 py-3 pr-12 text-left lg:pr-4', n.unread && 'bg-[#f6f8fe]')}>
           <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
             <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
           </span>
-          {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="New" />}
+          {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600 lg:group-hover:invisible" aria-label="New" />}
         </button>
-        {/* nothing pops up over it — seen / archive / the project in the quiet ··· at its side */}
-        <span className="absolute right-2 top-2.5" data-update-more>
+        {/* on a computer, pointing at it: seen and archive, one click each, plain icons at its side */}
+        <span className={cn('absolute right-0 top-1.5 hidden items-center gap-1 py-1 pl-1 pr-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 lg:flex', n.unread ? 'bg-[#f6f8fe]' : 'bg-white')} data-update-actions>
+          <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', n.unread ? 'from-[#f6f8fe]' : 'from-white')} aria-hidden />
+          <button aria-label={n.unread ? 'Mark as seen' : 'Mark as unread'} title={n.unread ? 'Mark as seen' : 'Mark as unread'} onClick={() => (n.unread ? readUpdate(n.id) : unreadUpdate(n.id))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink">{n.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
+          <button aria-label={archived ? 'Move back to Updates' : 'Archive'} title={archived ? 'Move back to Updates' : 'Archive'} onClick={() => archiveUpdate(n.id, !archived)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-archive-update>{archived ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+        </span>
+        {/* a phone: the ··· (or a long press) */}
+        <span className="absolute right-2 top-2.5 lg:hidden" data-update-more>
           <Menu align="end" width={230} trigger={<button aria-label="More for this update" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
             {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
           </Menu>

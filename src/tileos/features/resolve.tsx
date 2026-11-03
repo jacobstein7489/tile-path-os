@@ -11,7 +11,7 @@ import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, PEOPLE, ROLES, roleDef, type Role, LOGIN_TYPES, loginOf } from '@/tileos/data/model'
 import { tileOf } from '@/tileos/data/jobs'
 import { needWithWaste } from '@/tileos/data/work'
-import { DRAIN_ANSWERS, resolveDrain, approveCO004, thinsetDecision, settleQty, receiveMat, receiveTile, verifyPunch } from './flows'
+import { DRAIN_ANSWERS, resolveDrain, approveCO004, thinsetDecision, settleQty, receiveMat, receiveTile, receiveTiles, verifyPunch } from './flows'
 import { shiftText, shiftDeep } from '@/tileos/lib/today'
 
 function JobHead({ jobId, kicker, title, right }: { jobId: string; kicker: string; title: string; right?: React.ReactNode }) {
@@ -259,30 +259,54 @@ function SlipPhoto({ jobId }: { jobId: string }) {
   )
 }
 
-export function ReceiveTileModal({ jobId, tag, level }: { jobId: string; tag: string; level: number }) {
+/** the tile came in — every tile still to come on the project, in one window: how many of each came (all of it, unless
+ *  you change a number), one Save. Then each is checked against what its rooms need, and a tile that's short is said
+ *  right away. Tapped from one tile, that one is first. */
+export function ReceiveTileModal({ jobId, tag, level }: { jobId: string; tag?: string; level: number }) {
   const s = useStore()
-  const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
-  const [qty, setQty] = React.useState(c ? c.ordered - c.received : 1)
-  if (!c) return null
-  const t = tileOf(jobId, tag)
+  const all = s.checks.filter((x) => x.jobId === jobId && x.received < x.ordered)
+  const list = tag ? [...all.filter((x) => x.tag === tag), ...all.filter((x) => x.tag !== tag)] : all
+  const [n, setN] = React.useState<Record<string, string>>(() => Object.fromEntries(list.map((c) => [c.tag, String(c.ordered - c.received)])))
+  if (!list.length) return null
+  const counts = Object.fromEntries(list.map((c) => [c.tag, Math.max(0, Math.min(c.ordered - c.received, Number(n[c.tag]) || 0))]))
+  const whole = list.every((c) => counts[c.tag] === c.ordered - c.received)
+  const any = list.some((c) => counts[c.tag] > 0)
+  const supplier = Array.from(new Set(list.map((c) => c.supplier))).join(' · ')
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
-      title="Receive tile"
-      header={<JobHead jobId={jobId} kicker={`${c.supplier} · supplied by the ${c.suppliedBy}`} title={`Receive ${tag} · ${t?.name}`} right={<Pill tone="warn">{c.received} of {c.ordered} here</Pill>} />}
+      title="The tile came in"
+      header={<JobHead jobId={jobId} kicker={supplier || 'Tile'} title="The tile came in" />}
       footer={
         <>
           <Button variant="ghost" icon={<AlertTriangle className="h-4 w-4" />} onClick={() => s.swap({ t: 'problem', jobId })}>Broken, wrong or missing?</Button>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => { receiveTile(jobId, tag, qty); s.close() }}>Save receipt</Button>
+          <Button className="ml-auto" variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} disabled={!any} onClick={() => receiveTiles(jobId, counts)} data-receive-save>{whole ? (list.length > 1 ? 'All of it came' : 'It all came') : 'Save what came'}</Button>
         </>
       }
     >
-      <Field label="How many arrived?" hint={`Outstanding: ${c.ordered - c.received} ${c.unit}. Partial is fine — the rest stays outstanding.`}>
-        <NumStepper value={qty} onChange={setQty} min={1} max={c.ordered - c.received} suffix={c.unit} />
-      </Field>
+      <div className="text-[0.875rem] text-muted">Every tile still to come — all of it is filled in. Change a number if less came.</div>
+      <div className="mt-3 overflow-hidden rounded-xl border border-line" data-receive-list>
+        {list.map((c) => {
+          const t = tileOf(jobId, c.tag)
+          const left = c.ordered - c.received
+          return (
+            <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0" data-receive-tile={c.tag}>
+              {t ? <TileImg tile={t} size={36} radius={7} /> : <span className="h-9 w-9 shrink-0 rounded-[0.4375rem] bg-wash-2" />}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.9375rem] font-semibold text-ink">{c.tag}{t?.name ? <span className="font-normal text-ink-2"> {t.name}</span> : null}</span>
+                <span className="block truncate text-[0.8125rem] text-muted">{c.where} · {c.received ? `${c.received} of ${c.ordered} here` : `${c.ordered} ${c.unit} ordered`}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <TextInput inputMode="numeric" value={n[c.tag] ?? ''} onChange={(e) => setN({ ...n, [c.tag]: e.target.value.replace(/[^\d]/g, '').slice(0, 5) })} aria-label={`${c.tag} — how much came`} className="h-9 w-[4.5rem] text-right tnum" data-receive-n={c.tag} />
+                <span className="w-12 text-[0.8125rem] text-muted">{c.unit}</span>
+              </span>
+              {Number(n[c.tag] || 0) < left && <span className="sr-only">{left - Number(n[c.tag] || 0)} still to come</span>}
+            </div>
+          )
+        })}
+      </div>
     </Modal>
   )
 }

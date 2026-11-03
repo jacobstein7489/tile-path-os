@@ -24,11 +24,9 @@ export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
 const PHONE_BAR = 'no-scrollbar max-md:flex-nowrap max-md:overflow-x-auto max-md:[&>*]:shrink-0 max-md:[&>div]:ml-0 max-md:[&>div]:w-auto max-md:[&>div]:flex-nowrap max-md:[&>div>*]:shrink-0 max-md:[&_.bar-title]:hidden'
 
 export function Page({
-  title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare, phoneTitle, hero,
+  title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare, phoneTitle,
 }: {
   title: React.ReactNode
-  /** a big colored card in place of the page's name (Today: whose list it is, how much is on it) — it scrolls away */
-  hero?: React.ReactNode
   sub?: React.ReactNode
   actions?: React.ReactNode
   tabs?: { key: string; label: string; count?: number; tone?: Tone }[]
@@ -77,17 +75,16 @@ export function Page({
       <div className="mx-auto w-full max-w-[160rem]" style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
-        {hero && <div className={cn('pb-3.5 pt-5 max-sm:pb-3 max-sm:pt-3', PAGE_PX)} data-page-hero>{hero}</div>}
         <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
           {/* on a phone the bar on top already says which page this is — so no title here, only the line under it
               (when there is one: Today's "1 overdue" opens what's late) and the page's button */}
-          {!hero && <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
+          <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
             <div className={cn('min-w-0', !sub && !phoneTitle && 'max-sm:hidden')}>
               <h1 className={cn('font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink', phoneTitle ? 'max-sm:text-[1.375rem]' : 'max-sm:hidden')} data-page-title>{title}</h1>
               {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
-          </header>}
+          </header>
           {top && <div className={cn('pb-3.5', PAGE_PX)}>{top}</div>}
         </div>
         <div className={cn('flex flex-col gap-3.5', PAGE_PX)}>
@@ -289,11 +286,28 @@ export const BAND_LABEL = 'truncate text-[0.71875rem] font-bold uppercase tracki
 export function BandCount({ n }: { n: number }) {
   return <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-band-count>{n}</span>
 }
-export function Group({ label, count, tone, open = true, onToggle, right }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode }) {
+/** a group that has to be seen at a glance (Today's Overdue, Today, Check in on the team…): taller, in its own soft
+ *  color with a line of the color on the left, the name bigger — each part of the list plain to see */
+export const BAND_STRONG = 'flex h-10 items-center gap-2 border-t border-line'
+/* soft on purpose — a hint of the color behind the name and a thin line of it on the left, so the parts stand out
+   without the page turning into stripes */
+const STRONG: Record<string, { bg: string; fg: string; bar: string }> = {
+  bad: { bg: '#fef6f5', fg: '#b42318', bar: '#e0705f' },
+  info: { bg: '#f5f8fe', fg: '#2347bf', bar: '#6f8fe6' },
+  warn: { bg: '#fefaf2', fg: '#8f5207', bar: '#e2ac55' },
+  ok: { bg: '#f4faf6', fg: '#1f6b45', bar: '#6fb58f' },
+  vio: { bg: '#f8f6fe', fg: '#5b3fc4', bar: '#a28be9' },
+  neutral: { bg: '#f7f7f5', fg: '#30343c', bar: '#c4c8ce' },
+}
+export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg, boxShadow: `inset 0.1875rem 0 0 ${c.bar}` } }
+/* written out whole, so the styles are there for each */
+const STRONG_FG: Record<string, string> = { bad: 'text-[#b42318]', info: 'text-[#2347bf]', warn: 'text-[#8f5207]', ok: 'text-[#1f6b45]', vio: 'text-[#5b3fc4]', neutral: 'text-[#30343c]' }
+export const bandLabel = (tone?: Tone) => cn('truncate text-[0.8125rem] font-bold uppercase tracking-[0.06em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
+export function Group({ label, count, tone, open = true, onToggle, right, strong }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode; strong?: boolean }) {
   return (
-    <div className={cn(BAND, PX)} data-group-tone={tone || 'neutral'} data-band>
+    <div className={cn(strong ? BAND_STRONG : BAND, PX)} style={strong ? bandStyle(tone) : undefined} data-group-tone={tone || 'neutral'} data-band data-strong={strong || undefined}>
       <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-center gap-2 text-left disabled:cursor-default">
-        <span className={BAND_LABEL}>{label}</span>
+        <span className={strong ? bandLabel(tone) : BAND_LABEL}>{label}</span>
         {count !== undefined && <BandCount n={count} />}
         {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
       </button>
