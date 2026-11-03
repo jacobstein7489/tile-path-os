@@ -651,6 +651,9 @@ export function MyTasksPage() {
 
   /* the admin's check-ins are their own part of Today — under the day, not mixed into it */
   const shownToday = today.filter(pick).filter((x) => x.kind !== 'checkin')
+  /* urgent first, in its own red part — the rest grouped as asked */
+  const urgentToday = shownToday.filter((x) => x.t?.urgent && x.t.state === 'now')
+  const restToday = shownToday.filter((x) => !urgentToday.includes(x))
   const shownCheckins = all ? [] : today.filter((x) => x.kind === 'checkin')
   /* a task with no day on it still shows up — under today's, as "No day set" — so nothing gets lost */
   const undated = plate.filter((x) => x.kind === 'task' && x.t && x.t.state === 'now' && !taskIso(x.t) && !/this week/i.test(x.t.due || '')).filter(pick)
@@ -714,6 +717,13 @@ export function MyTasksPage() {
           widest line, the same space between them */}
       <div data-even-list style={{ '--n': 2 + (whoCol ? 1 : 0) + (grouping === 'job' && view !== 'done' ? 0 : 1) } as React.CSSProperties}>
         {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
+        {/* urgent: before anything else, in red — whichever way the list is grouped (by time it's the day's first part) */}
+        {view === 'today' && grouping !== 'time' && urgentToday.length > 0 && (
+          <section data-day="urgent">
+            <Group label="Urgent" count={urgentToday.length} tone="bad" />
+            {urgentToday.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+          </section>
+        )}
         {/* for everyone: an ordinary row, on top — whose it is and the project like any other */}
         {pinnedRows.length > 0 && view === 'today' && (
           <section data-pinned>
@@ -722,7 +732,7 @@ export function MyTasksPage() {
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(shownToday) : grouping === 'person' ? byPerson(shownToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday, true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>
