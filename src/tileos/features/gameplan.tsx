@@ -2,8 +2,9 @@
  *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
  *     while it waits for his OK or is only planned; gray with a pause mark when the project is on hold).
  *   Month: the work days of the month, the same bars — what's ready to book is in the list beside it, not on the days.
- *   Under it, the projects ready to book — one line each; tap one to pick the installer.
- * No legend, no counts on top, no second line on the bars. On a phone: one line per crew — what he's on, or free. */
+ *   Beside it, the projects ready to book — one line each; tap one to pick the installer.
+ * No legend, no counts on top, no second line on the bars. On a phone the same week (a row per crew, a column per
+ * day) and the same month; what's ready to book is its own tab, so the calendar isn't followed by a long list. */
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays, Plus, TriangleAlert, PauseCircle, CalendarX2, Users, HardHat, CalendarCheck2, CalendarPlus } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
@@ -19,6 +20,19 @@ import { TODAY, MONDAY, addDays as addDaysT } from '@/tileos/lib/today'
 import { isOff } from './active'
 
 type View = 'week' | '2weeks' | 'month'
+/** a phone-sized screen — kept up to date as it turns or resizes */
+function usePhone() {
+  const q = '(max-width: 767.98px)'
+  const [on, setOn] = React.useState(() => (typeof window !== 'undefined' ? window.matchMedia(q).matches : false))
+  React.useEffect(() => {
+    const mq = window.matchMedia(q)
+    const f = () => setOn(mq.matches)
+    f()
+    mq.addEventListener('change', f)
+    return () => mq.removeEventListener('change', f)
+  }, [])
+  return on
+}
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', o)
 const dow = (iso: string) => new Date(iso + 'T12:00:00').getDay()
 const isWeekday = (iso: string) => { const d = dow(iso); return d > 0 && d < 6 }
@@ -98,6 +112,10 @@ export function GamePlanPage() {
   const s = useStore()
   const [viewRaw, setViewRaw] = React.useState<View>(() => { try { const v = localStorage.getItem('gp-view') as View; return v === 'month' ? 'month' : 'week' } catch { return 'week' } })
   const [anchor, setAnchor] = React.useState(TODAY)
+  /* a phone: Week · Month · To book — the list of what's ready to book is its own tab there */
+  const phone = usePhone()
+  const [booking0, setBooking] = React.useState(false)
+  const booking = phone && booking0
   const setView = (v: View) => { setViewRaw(v); setAnchor(TODAY); try { localStorage.setItem('gp-view', v) } catch { /* private window */ } }
   /* the week or the month — on the phone too */
   const view = viewRaw
@@ -106,6 +124,7 @@ export function GamePlanPage() {
     else setAnchor(addDays(mondayOf(anchor), n * 7))
   }
   const items = itemsOf(s)
+  const toBook = readyRows(s).length
   const fill = useFill<HTMLDivElement>()
   const clashes = CREWS.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY)).length > 1)
   const days = view === 'month' ? [] : Array.from({ length: 5 }, (_, i) => addDays(mondayOf(anchor), i))
@@ -122,22 +141,24 @@ export function GamePlanPage() {
             <button aria-label="Forward" onClick={() => shift(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-r-[0.625rem] text-ink-2 hover:bg-wash max-md:h-11 max-md:w-11"><ChevronRight className="h-4 w-4" /></button>
           </div>
           <Button size="sm" className="h-9 max-md:h-11" onClick={() => setAnchor(TODAY)}>Today</Button>
-          <Segmented value={view} onChange={setView} className="ml-auto h-9 max-md:h-11 [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }]} data-sched-view />
+          <span className="contents" data-sched-view>
+          {phone
+            /* a phone: Week · Month · To book as one control, the width of the screen */
+            ? <Segmented value={booking ? 'book' : view} onChange={(k) => { if (k === 'book') setBooking(true); else { setBooking(false); setView(k as View) } }} className="h-11 w-full [&>button]:flex-1 [&>button]:justify-center [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'book', label: <span className="inline-flex items-center gap-1.5">To book{toBook > 0 && <span className="rounded-full bg-brand-600 px-1.5 text-[0.6875rem] font-bold leading-4 text-white tnum">{toBook}</span>}</span> }]} />
+            : <Segmented value={view} onChange={setView} className="ml-auto h-9 [&>button]:whitespace-nowrap" items={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }]} />}
+          </span>
         </div>
       }
     >
       {/* the week and what's ready to book, side by side, filling the screen — nothing to scroll to */}
       <div ref={fill} className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-stretch">
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
+        <section className={cn('flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card', booking && 'max-md:hidden')}>
           {clashes.length > 0 && <div className="flex items-center gap-1.5 border-b border-line-2 px-5 py-2 text-[0.8125rem] font-medium text-bad-600 max-sm:px-3"><TriangleAlert className="h-3.5 w-3.5" />{clashes.map((c) => PEOPLE[c].short).join(', ')} booked in two places</div>}
           {view === 'month'
             ? <MonthGrid anchor={anchor} items={items} clashes={clashes} />
-            : <>
-                <div className="flex min-h-0 flex-1 flex-col max-md:hidden"><CrewRows days={days} items={items} clashes={clashes} /></div>
-                <div className="md:hidden"><CrewList days={days} items={items} clashes={clashes} /></div>
-              </>}
+            : <div className="flex min-h-0 flex-1 flex-col"><CrewRows days={days} items={items} clashes={clashes} /></div>}
         </section>
-        <ReadyList />
+        <div className={cn('contents', !booking && 'max-md:hidden')}><ReadyList /></div>
       </div>
     </Page>
   )
@@ -145,10 +166,14 @@ export function GamePlanPage() {
 
 /** the projects ready for a crew that nobody's booked for yet — one line each; tap one to pick the installer. Beside
  *  the week, the same height. */
+/** what's ready to book: the dated ones first (soonest on top), then the ones with no date */
+function readyRows(s: Store) {
+  const dated = itemsOf(s).filter((i) => i.kind === 'tobook').sort((a, b) => a.start.localeCompare(b.start))
+  return [...dated.map((i) => ({ id: i.jobId, when: i.start })), ...undated(s).map((r) => ({ id: r.j.id, when: '' }))].filter((x) => s.jobs[x.id])
+}
 function ReadyList() {
   const s = useStore()
-  const dated = itemsOf(s).filter((i) => i.kind === 'tobook').sort((a, b) => a.start.localeCompare(b.start))
-  const rows = [...dated.map((i) => ({ id: i.jobId, when: i.start })), ...undated(s).map((r) => ({ id: r.j.id, when: '' }))].filter((x) => s.jobs[x.id])
+  const rows = readyRows(s)
   return (
     <section data-ready-list className="flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
       <header className="flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-line-2 px-5">
@@ -170,35 +195,7 @@ function ReadyList() {
   )
 }
 
-/** a phone: one line per crew — what he's on this week (or free); tap it for the booking */
-function CrewList({ days, items, clashes }: { days: string[]; items: Item[]; clashes: PersonKey[] }) {
-  const s = useStore()
-  const first = days[0]
-  const last = days[days.length - 1]
-  const crews = CREWS.filter((c) => items.some((i) => i.crew === c && i.end >= first && i.start <= last) || !isOff(s, 'crew', c))
-  return (
-    <div data-crew-list>
-      {crews.map((c) => {
-        const mine = items.filter((i) => i.crew === c && i.end >= first && i.start <= last).sort((a, b) => a.start.localeCompare(b.start))
-        const it = mine[0]
-        const job = it ? s.jobs[it.jobId] : undefined
-        return (
-          <button key={c} onClick={() => (it ? openItem(s, it) : s.open({ t: 'assign', crew: c, start: TODAY }))} className="flex min-h-[3.25rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left first:border-t-0">
-            <Avatar who={c} size={28} />
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[c].name}</span>
-              <span className={cn('block truncate text-[0.75rem]', clashes.includes(c) ? 'font-medium text-bad-600' : 'text-muted')}>
-                {it ? `${job?.name}${it.hold ? ' · on hold' : it.kind === 'pending' ? ' · waiting for his OK' : it.kind === 'planned' ? ' · planned' : ''} · ${fmt(it.start, { month: 'short', day: 'numeric' })} – ${fmt(it.end, { month: 'short', day: 'numeric' })}${mine.length > 1 ? ` · +${mine.length - 1}` : ''}` : 'Free this week'}
-              </span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
+/** tap something on the calendar: its booking — or, when it isn't booked yet, the way to book it */
 function openItem(s: Store, it: Item) {
   const sh = s.jobs[it.jobId]?.hold?.shortage
   if (it.hold && sh) return s.open({ t: 'short', id: sh })
@@ -207,7 +204,7 @@ function openItem(s: Store, it: Item) {
   return s.open({ t: 'booking', id: it.id })
 }
 
-/* ================= week / two weeks: one row per crew ================= */
+/* ================= week / two weeks: one row per crew (on a phone too) ================= */
 function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
   const cols = days.length
@@ -215,12 +212,12 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
   const last = days[cols - 1]
   const rows = CREWS.map((c) => ({ key: c, crew: c, items: items.filter((i) => i.crew === c && i.end >= first && i.start <= last) })).filter((r) => r.items.length || !isOff(useStore.getState(), 'crew', r.crew))
   return (
-    <div className="flex flex-1 flex-col [--crew:12rem]" data-crew-rows>
+    <div className="flex flex-1 flex-col [--crew:12rem] max-md:[--crew:5.25rem]" data-crew-rows>
       <div className="grid border-b border-line-2" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
         <div />
         {days.map((d) => (
-          <div key={d} className="min-w-0 py-2.5 text-center">
-            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.8125rem] tnum', d === TODAY ? 'bg-brand-600 font-semibold text-white' : 'text-muted')}>{fmt(d, { weekday: 'short' })} {Number(d.slice(8))}</span>
+          <div key={d} className="min-w-0 py-2.5 text-center max-md:py-2">
+            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.8125rem] tnum max-md:flex-col max-md:gap-0 max-md:rounded-[0.5rem] max-md:px-1.5 max-md:py-0.5 max-md:text-[0.6875rem] max-md:leading-tight', d === TODAY ? 'bg-brand-600 font-semibold text-white' : 'text-muted')}><span>{fmt(d, { weekday: 'short' })}</span> <span className="max-md:text-[0.8125rem] max-md:font-semibold">{Number(d.slice(8))}</span></span>
           </div>
         ))}
       </div>
@@ -234,9 +231,9 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
         const h = Math.max(1, lanes.length) * laneH + 8
         return (
           <div key={row.key} className="grid flex-1 border-b border-line-2 last:border-0" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))`, minHeight: h }} data-crew-row={crew}>
-            <button onClick={() => s.open({ t: 'sub', id: crew })} className="flex min-w-0 items-center gap-2.5 px-5 py-2 text-left hover:bg-wash">
-              <Avatar who={crew} size={26} />
-              <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[crew].name}</span>
+            <button onClick={() => s.open({ t: 'sub', id: crew })} className="flex min-w-0 items-center gap-2.5 px-5 py-2 text-left hover:bg-wash max-md:gap-1 max-md:px-2.5">
+              <span className="max-md:hidden"><Avatar who={crew} size={26} /></span>
+              <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink max-md:text-[0.8125rem]"><span className="max-md:hidden">{PEOPLE[crew].name}</span><span className="md:hidden">{PEOPLE[crew].short || PEOPLE[crew].name}</span></span>
               {clash && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-bad-600" aria-label="Booked in two places" />}
             </button>
             <div className="relative min-w-0" style={{ gridColumn: `2 / span ${cols}` }}>
@@ -245,7 +242,7 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
                   <div key={d} className={cn('group relative', d === TODAY && 'bg-brand-50/40')}>
                     {!busy.has(d) && d >= TODAY && (
                       <button aria-label={`Book ${PEOPLE[crew].name} from ${d}`} onClick={() => s.open({ t: 'assign', crew, start: d })} className="absolute inset-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-transparent text-[0.75rem] font-semibold text-faint opacity-0 transition group-hover:border-[#CDD4DE] group-hover:opacity-100 hover:bg-wash hover:text-brand-600">
-                        <Plus className="h-3.5 w-3.5" />Book
+                        <Plus className="h-3.5 w-3.5" /><span className="max-md:hidden">Book</span>
                       </button>
                     )}
                   </div>
@@ -264,11 +261,11 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
                 const tag = b.hold ? 'on hold' : b.kind === 'pending' ? 'waiting for his OK' : b.kind === 'planned' ? 'planned' : ''
                 return (
                   <Tip key={b.id} label={`${job?.name} · ${sub(b)} · ${fmt(b.start, { month: 'short', day: 'numeric' })} – ${fmt(b.end, { month: 'short', day: 'numeric' })}`}>
-                    <button onClick={() => openItem(s, b)} data-bar={b.jobId} className={cn('pointer-events-auto absolute flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-left transition hover:brightness-[.97]', lk.className)} style={{ ...lk.style, left: `calc(${(si / cols) * 100}% + 3px)`, width: `calc(${(span / cols) * 100}% - 6px)`, top: 6 + li * laneH, height: laneH - 8 }}>
+                    <button onClick={() => openItem(s, b)} data-bar={b.jobId} className={cn('pointer-events-auto absolute flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-3 text-left transition hover:brightness-[.97] max-md:gap-1 max-md:px-1.5', lk.className)} style={{ ...lk.style, left: `calc(${(si / cols) * 100}% + 3px)`, width: `calc(${(span / cols) * 100}% - 6px)`, top: 6 + li * laneH, height: laneH - 8 }}>
                       {b.hold && <PauseCircle className="h-3.5 w-3.5 shrink-0" />}
-                      <span className="truncate text-[0.8125rem] font-semibold">{job?.name}</span>
-                      {tag && <span className="shrink-0 truncate text-[0.75rem] font-medium opacity-75">· {tag}</span>}
-                      {b.end > last && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />}
+                      <span className="truncate text-[0.8125rem] font-semibold max-md:text-[0.71875rem]">{job?.name}</span>
+                      {tag && <span className="shrink-0 truncate text-[0.75rem] font-medium opacity-75 max-md:hidden">· {tag}</span>}
+                      {b.end > last && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50 max-md:hidden" />}
                     </button>
                   </Tip>
                 )

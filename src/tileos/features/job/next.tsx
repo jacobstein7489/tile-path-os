@@ -5,7 +5,7 @@
  * It used to be a bar at the bottom of the window, away from everything it was about. */
 import * as React from 'react'
 import { ArrowRight, CalendarDays, Play, Receipt, Hourglass, Check } from 'lucide-react'
-import { useStore } from '@/tileos/store'
+import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Pop } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
@@ -14,6 +14,7 @@ import { readyForCrew, startProject } from '../flows'
 import { todoOf, remindStep } from '../stepwin'
 import { nextOn } from './plan'
 import { tracksFor, phaseOf, bookingOf, trackOf, TRACKS } from '../tracks'
+import { stepsFor } from '../steps'
 
 /** the card: a mark, a small line (whose turn, which part), what it is — and the one button */
 function Card({ tone, mark, top, title, sub, action }: { tone: 'mine' | 'calm'; mark: React.ReactNode; top: string; title: string; sub?: string; action?: React.ReactNode }) {
@@ -46,6 +47,33 @@ export function NextUp({ job, onStep }: { job: Job; onStep: (k: string) => void 
     if (!next) return <Card tone="calm" mark={<Mark tone="calm"><Hourglass /></Mark>} top="Waiting" title="Nothing to do here right now" sub="Each part comes back on someone’s list by itself" />
     const v = next.v
     const part = TRACKS.find((t) => t.key === trackOf(v))?.label
+    /* more than one thing is yours here: all of them, one line each — what you do on this project, at a glance */
+    const me = meOf(s.role)
+    const mine = next.mine ? stepsFor(s, job).filter((x) => (x.state === 'now' || x.state === 'bad') && x.owner === me) : []
+    if (mine.length > 1)
+      return (
+        <section data-next="mine" data-your-list={mine.length} className="overflow-hidden rounded-[0.875rem] border border-brand-200 bg-brand-50/70">
+          <div className="flex min-w-0 items-center gap-3 px-4 pb-2 pt-3 max-sm:px-3">
+            <Mark tone="mine"><ArrowRight /></Mark>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.75rem] font-semibold text-brand-700">Your turn · {mine.length} things here</span>
+              <span className="block text-[0.96875rem] font-semibold leading-snug text-ink">What you do on this project</span>
+            </span>
+          </div>
+          {mine.map((x, i) => {
+            const pt = TRACKS.find((t) => t.key === trackOf(x))?.label
+            return (
+              <button key={x.key} type="button" onClick={() => onStep(x.key)} data-your-step={x.key} {...(i === 0 ? { 'data-your-turn': '' } : {})} className="flex w-full min-w-0 items-center gap-3 border-t border-brand-100 px-4 py-3 text-left transition hover:bg-white/70 max-sm:px-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[0.9375rem] font-semibold leading-snug text-ink">{todoOf(x)}</span>
+                  {pt && <span className={cn('block text-[0.78125rem]', x.state === 'bad' ? 'font-medium text-bad-600' : 'text-muted')}>{x.state === 'bad' ? `A problem · ${pt}` : pt}</span>}
+                </span>
+                <span className="shrink-0 text-[0.84375rem] font-semibold text-brand-700">{x.state === 'bad' ? 'Fix it' : 'Open it'} ›</span>
+              </button>
+            )
+          })}
+        </section>
+      )
     if (next.mine)
       return <Card tone="mine" mark={<Mark tone="mine"><ArrowRight /></Mark>} top={`Your turn${part ? ` · ${part}` : ''}`} title={todoOf(v)} action={<Button variant="primary" data-your-turn onClick={() => onStep(v.key)}>Open it</Button>} />
     return (

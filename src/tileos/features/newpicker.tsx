@@ -8,7 +8,6 @@ import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { STAGE_LABEL, type Stage, type Role } from '@/tileos/data/model'
-import { ProjectField } from './formkit'
 
 export const TILE_COLORS = {
   blue: { solid: '#2f5bd8', tint: '#f0f4fe', line: '#d9e2f9' },
@@ -153,13 +152,13 @@ function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () =
       title={x.h}
       data-new={x.k}
       data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
-      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', big ? 'min-h-[3.75rem] py-2' : 'min-h-12 py-1.5')}
+      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)] max-sm:min-h-14 max-sm:gap-3 max-sm:px-3', big ? 'min-h-[3.75rem] py-2' : 'min-h-12 py-1.5')}
     >
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition" style={{ background: tint.bg, color: tint.fg }}>
-        <x.i className="h-4 w-4" strokeWidth={2.1} />
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition max-sm:h-9 max-sm:w-9" style={{ background: tint.bg, color: tint.fg }}>
+        <x.i className="h-4 w-4 max-sm:h-[1.125rem] max-sm:w-[1.125rem]" strokeWidth={2.1} />
       </span>
       <span className="min-w-0 leading-tight">
-        <span className="block text-[0.84375rem] font-semibold text-ink">{x.l}</span>
+        <span className="block text-[0.84375rem] font-semibold text-ink max-sm:text-[0.9375rem]">{x.l}</span>
         {big && <span className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted max-sm:hidden">{x.h}</span>}
       </span>
     </button>
@@ -190,31 +189,36 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
   const dot = (p: Part) => <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PART_TINT[p].dot }} />
+  /* a short list (the site manager's) is one grid — no headings; a long one keeps its three parts */
+  const few = groups.reduce((n, x) => n + x.list.length, 0) + starts.length <= 8
   return (
-    <Modal level={level} size="md" onClose={s.close} title="New" sub={job ? `For ${job.name}` : 'Pick the project, or not — each one asks'}>
-      <ProjectPick value={jobId} onChange={setJobId} />
-      {groups.map((x) => (
-        <section key={x.g} className="mt-4" data-new-group={x.g}>
-          <div className={head}>{dot(x.g)}{x.label}</div>
-          <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
-        </section>
-      ))}
-      {starts.length > 0 && (
-        <section className="mt-4" data-new-group="start">
-          <div className={head}>{dot('start')}Start something new</div>
-          <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
-        </section>
+    <Modal
+      level={level}
+      size="md"
+      onClose={s.close}
+      title="What are you adding?"
+      /* the project you're on goes with it — each form asks for one otherwise */
+      sub={job ? <span className="flex flex-wrap items-center gap-x-2">For {job.name}<button type="button" onClick={() => setJobId('')} className="font-semibold text-brand-700 hover:underline" data-new-unpick>Not for this project</button></span> : undefined}
+    >
+      {few ? (
+        <div className="grid grid-cols-2 gap-2 max-sm:gap-2" data-new-group="all">{[...groups.flatMap((x) => x.list), ...starts].map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+      ) : (
+        <>
+          {groups.map((x, i) => (
+            <section key={x.g} className={cn(i > 0 && 'mt-4')} data-new-group={x.g}>
+              <div className={head}>{dot(x.g)}{x.label}</div>
+              <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2 max-sm:gap-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+            </section>
+          ))}
+          {starts.length > 0 && (
+            <section className="mt-4" data-new-group="start">
+              <div className={head}>{dot('start')}Start something new</div>
+              <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2 max-sm:gap-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+            </section>
+          )}
+        </>
       )}
     </Modal>
   )
 }
 
-/** + New's project: typed (the same field every form uses), or none for something company-wide */
-function ProjectPick({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="min-w-0 flex-1"><ProjectField value={value} onChange={onChange} /></div>
-      {value && <button type="button" onClick={() => onChange('')} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink">Company-wide</button>}
-    </div>
-  )
-}
