@@ -360,7 +360,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
               </FormRow>
             )}
             <FormRow label="Note">
-              <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was said, a measurement, a name (optional)" />
+              <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was said, a measurement (optional)" />
             </FormRow>
           </div>
         )}

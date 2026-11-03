@@ -174,7 +174,7 @@ function partCircle(t: TrackView, mine: boolean): CircleStep {
   const state: CircleState = t.state === 'done' ? 'done' : t.state === 'bad' ? 'bad' : t.state === 'wait' ? 'wait' : t.state === 'now' ? (mine ? 'now' : 'todo') : 'later'
   return { key: t.key, label: t.label, state, pct: t.total ? Math.max(8, Math.round((t.done / t.total) * 100)) : 0 }
 }
-function Parts({ job, tracks, at, onPick, children }: { job: Job; tracks: TrackView[]; at?: TrackKey; onPick: (t: TrackView) => void; /** what else is open, under the parts in the same panel */ children?: React.ReactNode }) {
+export function Parts({ job, tracks, at, onPick, children }: { job: Job; tracks: TrackView[]; at?: TrackKey; onPick: (t: TrackView) => void; /** what else is open, under the parts in the same panel */ children?: React.ReactNode }) {
   const s = useStore()
   const me = meOf(s.role)
   const n = tracks.length

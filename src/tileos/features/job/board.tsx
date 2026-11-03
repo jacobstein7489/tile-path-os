@@ -24,12 +24,13 @@ import { ScopeTab } from './scope-tab'
 import { MaterialsTab } from './pos-tab'
 import { MoneyTab } from './money-tab'
 import { Stands, type OpenTrack } from './standing'
+import { LayoutsBoard } from '../layout'
 import { JobPart, type JobTab } from './details'
 import { IN_FIELD_STAGES, stepsFor } from '../steps'
 import { tracksFor } from '../tracks'
 
 /** something opened on the project: a room, the conversation, a file, the money… */
-export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab; /** a wall or floor to open right away */ surface?: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' }
+export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab; /** a wall or floor to open right away */ surface?: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' } | { t: 'layouts' }
 
 /** a link that opens something on the project right away (what happened, every wall and floor) */
 export const viewFromTab = (tab?: string): BoardView => (tab === 'history' || tab === 'log' ? { t: 'log' } : tab === 'walls' ? { t: 'scope' } : null)
@@ -125,15 +126,17 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
     case 'log': return page('What happened', <HistoryTab job={job} />)
     case 'orders': return page('Materials', <MaterialsTab job={job} onScope={() => setView({ t: 'scope' })} />)
     case 'money': return page('Billing', <MoneyTab job={job} />, 'alongside the job the whole time — billed, paid, the changes')
+    /* on a phone the layouts open from the scope of work, with Back on top — no extra tab to slide to */
+    case 'layouts': return page('Layouts', <LayoutsBoard job={job} />, 'every wall and floor, drawn to scale')
   }
 }
 
 /* ---------------- the body: what's going on now on the left, the job on the right ---------------- */
 /** the project's parts, one at a time, each the full width: Where it stands (what's next, getting ready, the open
  *  issues) · Scope of work · Tiles · People · Documents. It opens on Where it stands. */
-export type BoardTab = 'stands' | 'materials' | 'billing' | JobTab
+export type BoardTab = 'stands' | 'materials' | 'billing' | 'layouts' | JobTab
 const LINK_TAB: Record<string, BoardTab> = {
-  scope: 'scope', rooms: 'scope', tiles: 'materials', materials: 'materials', orders: 'materials', pos: 'materials', deliveries: 'materials',
+  scope: 'scope', rooms: 'scope', layouts: 'layouts', tiles: 'materials', materials: 'materials', orders: 'materials', pos: 'materials', deliveries: 'materials',
   money: 'billing', billing: 'billing', estimate: 'billing', people: 'people', files: 'files', docs: 'files', documents: 'files',
 }
 /** who sees the money — billing is its own tab, never on top of the work */
@@ -177,6 +180,8 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         items={[
           { key: 'stands', label: 'Where it stands', short: 'Status' },
           { key: 'scope', label: 'Scope of work', short: 'Scope' },
+          /* a computer: its own tab. A phone: a button in the scope of work (the tabs fit across, nothing slides) */
+          { key: 'layouts', label: 'Layouts', wide: true },
           { key: 'materials', label: 'Materials' },
           ...(money ? [{ key: 'billing' as BoardTab, label: 'Billing' }] : []),
           { key: 'people', label: 'People' },
@@ -187,6 +192,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         {at === 'stands'
           ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-6 pt-4 max-sm:px-2.5 lg:h-full lg:pb-0"><Stands job={job} open={open} setOpen={setOpen} onStep={onStep || (() => {})} setView={setView} /></div>
           : at === 'materials' ? sheet(<MaterialsTab job={job} onScope={() => setTab('scope')} />)
+            : at === 'layouts' ? sheet(<LayoutsBoard job={job} title />)
             : at === 'billing' ? sheet(<MoneyTab job={job} />)
               : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={at} open={setView} onStep={onStep} /></div>}
       </div>

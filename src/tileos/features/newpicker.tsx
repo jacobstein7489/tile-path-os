@@ -49,14 +49,15 @@ export function ColorTile({ label, hint, icon: I, color, onClick, selected }: { 
 /** who each option is for — a login sees only what fits its job (the site manager doesn't make POs or take payments;
  *  the books don't log site issues or decisions) */
 const FOR: Record<string, Role[]> = {
-  /* the site manager's + New stays short: the daily update, a problem, what's needed on site, more tile, touch-ups,
-     a delivery, a note — no tasks, meetings, POs, change orders or new projects */
+  /* the site manager's + New stays short — only the extras: a problem, what's needed on site, more tile, touch-ups,
+     a delivery, a note. The daily update isn't here: it's on his Today every work day by itself. No tasks, meetings,
+     POs, change orders or new projects */
   task: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials', 'accounting'],
   meeting: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials'],
   po: ['owner', 'pm', 'office', 'estimator', 'materials'],
   moretile: ['owner', 'pm', 'office', 'estimator', 'materials', 'site'],
   punch: ['owner', 'pm', 'office', 'site'],
-  daily: ['owner', 'pm', 'office', 'site'],
+  daily: ['owner', 'pm', 'office'],
   question: ['owner', 'pm', 'office', 'site', 'estimator'],
   change: ['owner', 'pm', 'office', 'estimator'],
   shortage: ['owner', 'pm', 'office', 'site', 'materials'],
@@ -112,7 +113,7 @@ const TOP: Partial<Record<Role, string[]>> = {
   owner: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   pm: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   office: ['need', 'problem', 'task', 'note', 'meeting', 'po'],
-  site: ['daily', 'problem', 'need', 'moretile', 'punch', 'delivery', 'note'],
+  site: ['problem', 'need', 'moretile', 'punch', 'delivery', 'note'],
   materials: ['need', 'moretile', 'delivery', 'problem', 'po', 'task'],
   accounting: ['payment', 'task', 'note'],
   estimator: ['task', 'note', 'meeting', 'change'],

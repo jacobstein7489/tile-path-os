@@ -225,14 +225,9 @@ export function InboxPage() {
                       </span>
                     </span>
                   </button>
-                  {/* at the side, pointing at it: archive in one click, unread in one click (right-click has the same) —
-                      on a phone, the ··· (or a long press) */}
-                  <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded-lg bg-white/95 opacity-0 shadow-xs transition group-hover:opacity-100 focus-within:opacity-100 max-lg:hidden" data-convo-actions>
-                    <button aria-label={c.unread ? `Mark ${c.name} as read` : `Mark ${c.name} as unread`} title={c.unread ? 'Mark as read' : 'Mark as unread'} onClick={() => (c.unread ? markRead(c.key, c.jobId) : markUnread(c.key, c.jobId))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2 hover:text-ink">{c.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
-                    <button aria-label={c.away ? `Move ${c.name} back to the inbox` : `Archive ${c.name}`} title={c.away ? 'Move back to the inbox' : 'Archive'} onClick={() => { putAway(c.key, c.jobId, !c.away); if (on && !c.away) setPicked(null) }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2 hover:text-ink" data-archive>{c.away ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
-                  </span>
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden">
-                    <Menu align="end" width={230} trigger={<button aria-label={`More for ${c.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+                  {/* nothing pops up over the row — read / archive are in the quiet ··· at its side (right-click has the same) */}
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2" data-convo-more>
+                    <Menu align="end" width={230} trigger={<button aria-label={`More for ${c.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
                       {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} hint={it!.hint} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
                     </Menu>
                   </span>
@@ -290,9 +285,14 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
             <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
             <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
           </span>
-          {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600 group-hover:invisible" aria-label="New" />}
+          {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="New" />}
         </button>
-        <button aria-label={archived ? 'Move back to Updates' : 'Archive'} title={archived ? 'Move back to Updates' : 'Archive'} onClick={() => archiveUpdate(n.id, !archived)} className="absolute right-2 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/95 text-muted opacity-0 shadow-xs transition hover:bg-wash-2 hover:text-ink group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100 max-lg:shadow-none" data-archive>{archived ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+        {/* nothing pops up over it — seen / archive / the project in the quiet ··· at its side */}
+        <span className="absolute right-2 top-2.5" data-update-more>
+          <Menu align="end" width={230} trigger={<button aria-label="More for this update" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+            {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
+          </Menu>
+        </span>
       </div>
     </RightMenu>
   )

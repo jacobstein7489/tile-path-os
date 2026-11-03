@@ -16,6 +16,9 @@ export type ReadTile = {
    *  paperwork says */
   layout?: string; edge?: string; height?: string
   note?: string
+  /** where the tile's own picture is on the pages (the page, from 0, and the box) — and the picture cut out of it */
+  photo?: { page: number; box: [number, number, number, number] }
+  pic?: string; picColor?: string
 }
 /** what the paperwork says about a room as a whole — "9 ft ceiling; wet walls full, other walls to 4 ft" */
 export type ReadRoom = { room: string; note: string }
@@ -144,16 +147,28 @@ export function paperworkPrompt(job: Job, rooms: Room[], tiles: Tile[]): string 
     '- edge: how its open edges and outside corners are finished, if the paperwork says — "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',
     '- height: on walls, how high it goes if the paperwork says — "Fully tiled — to the ceiling", "Half tiled — to 4 ft", "Wet walls only — to the ceiling", or a height like 84″',
     '- note: where the paperwork puts it in its own words (like "Vanity / toilet accent wall"), and anything unclear about this tile, in a few words',
+    '- photo: if the pages show a picture of this tile (a sample photo or swatch), where it is: {"page": the picture number (1 for the first picture you were sent), "box": [ymin, xmin, ymax, xmax]} — each from 0 to 1000 across that picture, top-left is 0,0. Box just the tile’s picture, not text and not the whole page. Leave photo out if there is no picture of it.',
     '',
     'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms" — for example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"}. Use our room names exactly as written above.',
     '',
     'Answer with JSON only, no other text, in exactly this shape:',
-    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","note":""}],"rooms":[{"room":"","note":""}],"notes":""}',
+    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","note":"","photo":{"page":1,"box":[0,0,0,0]}}],"rooms":[{"room":"","note":""}],"notes":""}',
     'In "notes" put anything on the paperwork that matters for the job but isn’t a tile — a revision date, a missing page, a question. Leave a field "" (or 0) when the paperwork doesn’t give it.',
   ].join('\n')
 }
 
 const num = (v: any) => { const n = Number(String(v ?? '').replace(/[^\d.]/g, '')); return isFinite(n) && n > 0 ? n : undefined }
+/** a picture's place, checked: the picture number (from 1 — 0 is taken as 1) and a box that's a real part of it */
+function photoOf(p: any): ReadTile['photo'] {
+  if (!p || !Array.isArray(p.box) || p.box.length !== 4) return undefined
+  const b = p.box.map((v: any) => Math.max(0, Math.min(1000, Number(v)))) as [number, number, number, number]
+  if (b.some((v) => !isFinite(v))) return undefined
+  const [y0, x0, y1, x1] = b
+  const area = ((y1 - y0) * (x1 - x0)) / 1e6
+  if (y1 - y0 < 20 || x1 - x0 < 20 || area > 0.85) return undefined
+  const page = Math.max(1, Math.round(Number(p.page) || 1))
+  return { page: page - 1, box: b }
+}
 const str = (v: any) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim())
 /** the AI's answer, checked: our walls and floors only, numbers as numbers */
 export function cleanRead(raw: any, rooms: Room[]): Omit<ReadResult, 'pages'> {
@@ -168,6 +183,7 @@ export function cleanRead(raw: any, rooms: Room[]): Omit<ReadResult, 'pages'> {
       finish: str(t?.finish) || undefined, grout: str(t?.grout) || undefined, joint: str(t?.joint) || undefined,
       qty: num(t?.qty), unit, boxSF: num(t?.boxSF), supplier: str(t?.supplier) || undefined, goesOn, note: str(t?.note) || undefined,
       layout: str(t?.layout) || undefined, edge: str(t?.edge) || undefined, height: str(t?.height) || undefined,
+      photo: photoOf(t?.photo),
     }
   }).filter((t: ReadTile) => t.name || t.tag)
   const names = new Map(rooms.map((r) => [norm(r.name), r.name]))
@@ -181,7 +197,7 @@ export function mergeReads(parts: Omit<ReadResult, 'pages'>[]): Omit<ReadResult,
   for (const part of parts) for (const t of part.tiles) {
     const had = tiles.find((x) => keyOf(x) === keyOf(t) || (!!t.tag && x.tag === t.tag) || x.name.toLowerCase() === t.name.toLowerCase())
     if (!had) { tiles.push({ ...t, goesOn: [...t.goesOn] }); continue }
-    for (const k of ['tag', 'maker', 'size', 'finish', 'grout', 'joint', 'boxSF', 'supplier', 'layout', 'edge', 'height'] as const) if (!had[k] && t[k]) (had as any)[k] = t[k]
+    for (const k of ['tag', 'maker', 'size', 'finish', 'grout', 'joint', 'boxSF', 'supplier', 'layout', 'edge', 'height', 'photo'] as const) if (!had[k] && t[k]) (had as any)[k] = t[k]
     if ((t.qty || 0) > (had.qty || 0)) { had.qty = t.qty; had.unit = t.unit }
     had.goesOn = Array.from(new Set([...had.goesOn, ...t.goesOn]))
     if (t.note && !(had.note || '').includes(t.note)) had.note = [had.note, t.note].filter(Boolean).join(' · ')
@@ -203,7 +219,42 @@ export async function readTilePaperwork(job: Job, rooms: Room[], tiles: Tile[], 
     const which = pages.length > PER_ASK ? `\n\nThese are pages ${i + 1}–${i + chunk.length} of ${pages.length}.` : ''
     const text = await askAI(paperworkPrompt(job, rooms, tiles) + which, chunk, signal)
     if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
-    parts.push(cleanRead(jsonIn(text), rooms))
+    const part = cleanRead(jsonIn(text), rooms)
+    /* the picture numbers are this ask's — make them the page's place in the whole paperwork */
+    part.tiles.forEach((t) => { if (t.photo) t.photo = t.photo.page < chunk.length ? { ...t.photo, page: t.photo.page + i } : undefined })
+    parts.push(part)
   }
-  return { ...mergeReads(parts), pages: pages.length }
+  const out = mergeReads(parts)
+  /* each tile's picture, cut out of its page — it goes on the tile, and so on the room sheets */
+  for (const t of out.tiles) {
+    if (!t.photo || !pages[t.photo.page]) continue
+    const c = await cutOut(pages[t.photo.page], t.photo.box).catch(() => undefined)
+    if (c) { t.pic = c.photo; t.picColor = c.color }
+  }
+  return { ...out, pages: pages.length }
+}
+/** a part of a page, as a small JPEG (about 480 px) and its average color */
+async function cutOut(page: Blob, box: [number, number, number, number]): Promise<{ photo: string; color: string } | undefined> {
+  if (typeof createImageBitmap === 'undefined') return undefined
+  const bmp = await createImageBitmap(page)
+  const [y0, x0, y1, x1] = box.map((v) => v / 1000)
+  const sx = Math.round(x0 * bmp.width), sy = Math.round(y0 * bmp.height)
+  const sw = Math.round((x1 - x0) * bmp.width), sh = Math.round((y1 - y0) * bmp.height)
+  if (sw < 24 || sh < 24) return undefined
+  const k = Math.min(1, 480 / Math.max(sw, sh))
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(sw * k))
+  c.height = Math.max(1, Math.round(sh * k))
+  const g = c.getContext('2d')!
+  g.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height)
+  bmp.close?.()
+  let color = '#e9e5de'
+  try {
+    const d = g.getImageData(0, 0, c.width, c.height).data
+    let r = 0, gg = 0, b = 0, n = 0
+    for (let q = 0; q < d.length; q += 16) { r += d[q]; gg += d[q + 1]; b += d[q + 2]; n++ }
+    const hx = (v: number) => Math.round(v / n).toString(16).padStart(2, '0')
+    if (n) color = `#${hx(r)}${hx(gg)}${hx(b)}`
+  } catch { /* keep the neutral color */ }
+  return { photo: c.toDataURL('image/jpeg', 0.82), color }
 }

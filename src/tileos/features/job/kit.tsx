@@ -29,7 +29,7 @@ export function Section({ title, count, sub, right, action, children, className,
             {count != null && <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
             <span className="flex-1" />
             {right && <span className="min-w-0 shrink truncate text-[0.8125rem] text-muted">{right}</span>}
-            {action && <div className="flex shrink-0 items-center gap-1.5">{action}</div>}
+            {action && <div className="flex min-w-0 shrink-0 items-center gap-1.5 max-sm:max-w-full max-sm:flex-wrap">{action}</div>}
           </header>
           {sub && <div className="border-b border-line-2 px-5 py-1.5 text-[0.78125rem] text-muted max-sm:px-4">{sub}</div>}
         </>

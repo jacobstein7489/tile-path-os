@@ -1167,7 +1167,7 @@ function SameJob({ e, onDone }: { e: Estimate; onDone: () => void }) {
   return (
     <div>
       <p className="text-[0.875rem] leading-snug text-ink-2">Pick the project. The estimate goes on it — its tasks, files and messages too — and it says the project’s name everywhere: on Today, in the inbox, on the estimate.</p>
-      <TextInput className="mt-4" aria-label="Find the project" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Find the project — name, client or address" />
+      <TextInput className="mt-4" aria-label="Find the project" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Find the project" />
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         {list.map(({ j, score }) => (
           <button key={j.id} data-same={j.id} onClick={() => setPick(j.id)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 row-hover', pick === j.id && 'bg-brand-50/60')}>

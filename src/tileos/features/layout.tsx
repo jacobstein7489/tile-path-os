@@ -193,9 +193,9 @@ export function layoutOf(jobId: string, x: Surface) {
   return { tile, W, H, j, pattern, mosaic: !!td.mosaic, pieces: r.pieces, smallest: r.smallest, slivers: r.slivers, full: r.full, cut: r.cut, measured: !!x.dims, holes, real: td.real }
 }
 /** the drawing, small — for the room sheet that hangs in the room */
-export function LayoutThumb({ jobId, x, max = 190 }: { jobId: string; x: Surface; max?: number }) {
+export function LayoutThumb({ jobId, x, max = 190, maxH }: { jobId: string; x: Surface; max?: number; /** the tallest it may be (a card) — otherwise about ¾ of max */ maxH?: number }) {
   const L = layoutOf(jobId, x)
-  const k = Math.min(max / L.W, (max * 0.78) / L.H)
+  const k = Math.min(max / L.W, (maxH ?? max * 0.78) / L.H)
   const color = L.tile?.color || TILE_COLOR[L.tile?.swatch || ''] || '#efece6'
   const g = GROUTS[x.grout || L.tile?.grout || '']?.color || '#b8b0a3'
   return (
@@ -318,6 +318,69 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
         </section>
       ))}
     </div>
+  )
+}
+
+/** the Layouts part of a project: every wall and floor with a tile, room by room, each one drawn to scale — its tile at
+ *  its real size and color, the grout lines, the cuts, the windows and doors — with the pattern under it. Tap one to see
+ *  it big, change it or send it to the designer. */
+export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (the project's Layouts tab) */ title?: boolean }) {
+  const s = useStore()
+  const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
+  const all = rooms.flatMap((r) => r.rows)
+  const set = all.filter((x) => x.layout).length
+  const missing = all.length - set
+  /* filling in the suggestions is for the office — the site sees them */
+  const canFill = !['site', 'crew', 'client', 'accounting'].includes(s.role)
+  const head = (
+    <header className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+      {title && <h3 className="text-[1rem] font-semibold text-ink">Layouts</h3>}
+      {all.length > 0 && (
+        <span className="flex items-center gap-2" data-layouts-count>
+          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[#ece8e1]"><span className="block h-full rounded-full bg-[#2c4a3e]" style={{ width: `${Math.round((set / all.length) * 100)}%` }} /></span>
+          <span className="text-[0.8125rem] tnum text-muted"><b className="font-semibold text-ink-2">{set} of {all.length}</b> set</span>
+        </span>
+      )}
+      {missing > 0 && canFill && <span className="ml-auto"><Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(job.id)} data-fill-layouts>Use the suggestions ({missing})</Button></span>}
+    </header>
+  )
+  if (!all.length) return <div className="flex flex-col gap-3" data-layouts-board>{title && head}<div className="rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with a tile yet — they come from the tile paperwork.</div></div>
+  return (
+    <div className="flex flex-col gap-5" data-layouts-board>
+      {head}
+      {rooms.map((r) => (
+        <section key={r.name} data-layouts-room={r.name}>
+          <h4 className="mb-2 text-[0.8125rem] font-semibold text-ink-2">{r.name}</h4>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))] sm:gap-3">
+            {r.rows.map((x) => <LayoutCard key={x.name} job={job} room={r.name} x={x} />)}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+/** one wall or floor: its drawing, its name, its tile, its pattern — and whether it's drawn, set or only suggested */
+function LayoutCard({ job, room, x }: { job: Job; room: string; x: Surface }) {
+  const s = useStore()
+  const tile = tileOf(job.id, x.tile)
+  const sg = x.layout ? null : suggestLayout(job.id, x)
+  const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
+  const state = drawn ? { t: 'Drawn', c: 'text-[#2c8a5b]' } : x.layout ? { t: 'Set', c: 'text-[#2c4a3e]' } : { t: 'Suggested', c: 'text-vio-600' }
+  return (
+    <button onClick={() => s.open({ t: 'layout', jobId: job.id, room, surface: x.name })} data-layout-card={`${room}|${x.name}`} aria-label={`Layout — ${room} ${x.name}`} className="group flex min-w-0 flex-col overflow-hidden rounded-[0.875rem] border border-line bg-white text-left shadow-card transition hover:border-brand-300">
+      <span className="flex h-36 items-center justify-center bg-[#f4f1ec] p-2.5 sm:h-44 sm:p-3"><LayoutThumb jobId={job.id} x={x} max={150} maxH={118} /></span>
+      <span className="flex min-w-0 flex-col gap-0.5 border-t border-line-2 px-3 py-2.5 max-sm:px-2.5 max-sm:py-2">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink group-hover:text-brand-700">{x.name}</span>
+          <span className={cn('shrink-0 text-[0.71875rem] font-semibold', state.c)}>{state.t}</span>
+        </span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[0.78125rem] text-ink-2">
+          {tile && <TileImg tile={tile} size={16} radius={3} />}
+          <span className="truncate">{tile ? `${tile.tag} ${tile.name}${tile.size ? ` · ${tile.size}` : ''}` : x.tile}</span>
+        </span>
+        <span className={cn('line-clamp-2 text-[0.75rem] leading-snug', x.layout ? 'text-muted' : 'text-faint')}>{x.layout || sg!.text}</span>
+      </span>
+    </button>
   )
 }
 

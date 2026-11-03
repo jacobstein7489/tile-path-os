@@ -236,7 +236,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
   const s = useStore()
   const job = s.jobs[jobId]
   const doc = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { if (print) { const t = setTimeout(() => printNode(doc.current), 350); return () => clearTimeout(t) } }, [print])
+  React.useEffect(() => { if (print) { const t = setTimeout(() => printNode(doc.current, `${s.jobs[jobId]?.name || ''} — Scope of work`), 350); return () => clearTimeout(t) } }, [print])
   const rooms = estId ? [] : s.rooms[jobId] || []
   const est = estId ? s.estimates.find((e) => e.id === estId) : s.estimates.find((e) => e.jobId === jobId && e.status === 'approved')
   if (!job) return null
@@ -252,7 +252,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
       footer={
         <>
           <span className="text-[0.8125rem] text-muted">{fromEst ? `From estimate ${est!.id}, revision ${fromEst.n}` : `From the project’s rooms and surfaces${est ? ` · estimate ${est.id}` : ''}`}</span>
-          <Button className="ml-auto" variant="primary" icon={<Printer />} onClick={() => printNode(doc.current)}>Print</Button>
+          <Button className="ml-auto" variant="primary" icon={<Printer />} onClick={() => printNode(doc.current, `${job.name} — Scope of work`)}>Print</Button>
         </>
       }
     >

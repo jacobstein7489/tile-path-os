@@ -35,7 +35,7 @@ export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
 const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
 /** each step's name on its track's path — what has to happen, said plainly */
 export const STEP_SHORT: Record<string, string> = {
-  design: 'Design meeting', change: 'Confirm scope', tile: 'Pick tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
+  design: 'Design meeting', change: 'Confirm scope', tile: 'Enter tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
   getpaper: 'Get paperwork', rooms: 'Enter paperwork', qty: 'Check quantities', order: 'Get delivery date', delivered: 'Receive tile',
   heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems', sheets: 'Hang room sheets',
   installer: 'Pick installer & send PO', confirmed: 'Installer accepts', walk: 'Walk-through',

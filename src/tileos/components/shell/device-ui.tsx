@@ -68,7 +68,10 @@ export function PullToRefresh() {
       setBusy(true)
       setY(56)
       const t0 = Date.now()
+      /* with signal: what's waiting goes up first, then the app opens again fresh — the newest version and the newest
+         data. With no signal: nothing to reload — it keeps working from the phone */
       void (REAL.cloud && REAL.refresh ? REAL.refresh() : Promise.resolve('none' as const)).then((r) => {
+        if (r === 'ok' && navigator.onLine) { location.reload(); return }
         const wait = Math.max(0, 700 - (Date.now() - t0))
         setTimeout(() => {
           setBusy(false)

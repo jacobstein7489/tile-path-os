@@ -21,15 +21,42 @@ import { Section, Empty, Word } from './kit'
 const poWord = (step: number, eta?: string) =>
   step <= 0 ? 'Draft — not sent' : step === 1 ? 'Waiting to confirm' : step === 2 ? (eta ? `Coming ${eta}` : 'Confirmed') : step === 3 ? 'Delivered' : step === 4 ? 'Delivered · bill came in' : 'Paid'
 const COLS = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_15rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_13rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
+/** two simple tabs — the tile, and what we buy (thinset, grout, boards, metal edges) — one at a time, no long scroll.
+ *  Each says in a few words where it's at */
+type MatPart = 'tile' | 'ours'
+function MatTabs({ job, part, setPart }: { job: Job; part: MatPart; setPart: (p: MatPart) => void }) {
+  const s = useStore()
+  const tags = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...s.checks.filter((c) => c.jobId === job.id).map((c) => c.tag)]))
+  const tiles = tags.map((tag) => tileStatus(s, job.id, tag)).filter((x) => !/Not on a wall|No square feet/.test(x.label))
+  const t = takeoff(s, job.id)
+  const tileHere = tiles.filter((x) => x.tone === 'ok').length
+  const tileShort = tiles.filter((x) => x.tone === 'bad').length
+  const matOrder = t.lines.filter((l) => l.toOrder > 0).length
+  const matHere = t.lines.filter((l) => l.toOrder <= 0 && l.onSite >= l.need).length
+  const tileWords = !tiles.length ? '' : tileShort ? `${tileShort} short` : `${tileHere} of ${tiles.length} here`
+  const ourWords = !t.lines.length ? '' : matOrder ? `${matOrder} to order` : `${matHere} of ${t.lines.length} here`
+  const tab = (k: MatPart, label: string, words: string, bad?: boolean) => (
+    <button key={k} type="button" role="tab" aria-selected={part === k} onClick={() => setPart(k)} data-mat-tab={k} className={cn('inline-flex h-full min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.5rem] px-3 text-[0.875rem] font-semibold transition max-sm:flex-col max-sm:gap-0 max-sm:leading-tight sm:flex-none sm:px-4', part === k ? 'bg-white text-ink shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.12)]' : 'text-muted hover:text-ink-2')}>
+      <span className="max-w-full truncate">{label}</span>
+      {words && <span className={cn('max-w-full shrink-0 truncate text-[0.75rem] font-medium tnum', bad ? 'text-bad-600' : 'text-muted')}>{words}</span>}
+    </button>
+  )
+  return (
+    <div role="tablist" className="flex h-11 w-full items-center gap-1 rounded-[0.6875rem] border border-line bg-wash-2 p-1 max-sm:h-14 sm:w-auto sm:self-start" data-mat-tabs>
+      {tab('tile', 'Tile', tileWords, tileShort > 0)}
+      {tab('ours', 'Our materials', ourWords)}
+    </div>
+  )
+}
 export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }) {
   const s = useStore()
-  if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} />
+  const [part, setPart] = React.useState<MatPart>('tile')
+  if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} part={part} setPart={setPart} />
   const pos = s.pos.filter((p) => p.jobId === job.id)
   return (
-    <div className="flex flex-col gap-4" data-materials>
-      <MaterialsStrip job={job} />
-      <TileOrders job={job} onScope={onScope} />
-      <MaterialsNeed job={job} onScope={onScope} orderOnTop orders={
+    <div className="flex flex-col gap-4" data-materials data-mat-part={part}>
+      <MatTabs job={job} part={part} setPart={setPart} />
+      {part === 'tile' ? <TileOrders job={job} onScope={onScope} /> : <MaterialsNeed job={job} onScope={onScope} orders={
         pos.length ? pos.map((p) => (
           <PORow
             key={p.id}
@@ -41,7 +68,7 @@ export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }
             status={<Word tone={/cancelled/i.test(p.note) ? undefined : p.late ? 'bad' : p.step >= 3 ? 'ok' : undefined}>{/cancelled/i.test(p.note) ? 'Cancelled' : p.late ? `Late · ${p.eta}` : poWord(p.step, p.eta)}</Word>}
           />
         )) : undefined
-      } />
+      } />}
     </div>
   )
 }
@@ -100,7 +127,7 @@ function PORow({ onClick, title, sub, amount, status }: { onClick: () => void; i
 }
 
 /** the site manager's version: what's coming and what's here — no prices, no POs to make, no installer PO */
-function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
+function DeliveriesTab({ job, onScope, part, setPart }: { job: Job; onScope: () => void; part: MatPart; setPart: (p: MatPart) => void }) {
   const s = useStore()
   const pos = s.pos.filter((p) => p.jobId === job.id && !/cancelled/i.test(p.note))
   const coming = pos.filter((p) => p.step < 3)
@@ -117,8 +144,8 @@ function DeliveriesTab({ job, onScope }: { job: Job; onScope: () => void }) {
         ))}
         {!coming.length && <Empty>Nothing on the way to this project.</Empty>}
       </Section>
-      <TileOrders job={job} onScope={onScope} simple />
-      <MaterialsNeed job={job} onScope={onScope} simple />
+      <MatTabs job={job} part={part} setPart={setPart} />
+      {part === 'tile' ? <TileOrders job={job} onScope={onScope} simple /> : <MaterialsNeed job={job} onScope={onScope} simple />}
     </div>
   )
 }

@@ -50,6 +50,9 @@ export interface Task {
   nudge?: { by: PersonKey; at: string; day: string }
   /** shows at the top of everyone's Today until it's done */
   everyone?: boolean
+  /** someone who isn't doing it took the next step on it (reminded its person): it's off their Today until that day (ISO,
+   *  by person) — and back then if it still isn't done */
+  quiet?: Partial<Record<PersonKey, string>>
   /** urgent: on top of its person's Today, in red, until it's done */
   urgent?: boolean
   /** the checklist step this task is ("jobId:step"), or "*:step" for one task that covers that step everywhere */

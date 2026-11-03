@@ -151,6 +151,8 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
           ...(p.size ? { size: p.size } : {}), ...(p.finish ? { finish: p.finish } : {}), ...(p.maker ? { maker: p.maker } : {}), ...(p.supplier ? { supplier: p.supplier } : {}),
           ...(p.grout ? { grout: groutKeyFor(s, p.grout) } : {}), ...(p.joint ? { joint: jointOf(p.joint) } : {}), ...(p.boxSF ? { boxSF: p.boxSF } : {}),
           ...(p.qty ? { paper: { qty: p.qty, unit: p.unit || 'SF' } } : {}), ...(p.note && !base.note ? { note: p.note } : {}),
+          /* its picture from the paperwork — unless someone put one on it already */
+          ...(p.pic && !base.photo ? { photo: p.pic, color: p.picColor } : {}),
         }
         mine[tag] = t
         if (!same) added++

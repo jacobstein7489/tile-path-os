@@ -7,7 +7,7 @@
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
 import { sheetRooms, RoomSheets } from '../roomsheets'
-import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -32,6 +32,8 @@ import { ScopeDoc } from './scopedoc'
 import { printNode } from '@/tileos/lib/print'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { edgeKind, edgeWords, parseMetal, METAL_PROFILES, METAL_FINISHES } from '@/tileos/data/catalog'
+import { FinishDot } from '../metalpick'
 
 /** a part of the job: its title (and what it is) on the left, its links on the right — then one white sheet */
 function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
@@ -74,9 +76,24 @@ function roomWord(r: RoomView): { text: string; cls: string } {
   if (!c) return { text: r.state === 'notstarted' ? 'Not started' : '', cls: 'text-muted' }
   return { text: c.text, cls: c.tone === 'bad' ? 'font-medium text-bad-600' : c.tone === 'warn' ? 'text-warn-700' : 'text-muted' }
 }
-/** wall or floor · its tile · SF · (how far) */
-const SURF_COLS = 'grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_5rem] items-center gap-x-6 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3'
-const SURF_COLS_FIELD = 'grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_5rem_5.5rem] items-center gap-x-6 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3'
+/** wall or floor · its tile (with its picture) · size · grout · edges · SF · (how far) — everything about it on its line,
+ *  nothing to open. A phone stacks them: the name and SF, the tile and size under it, the grout and edges under that */
+const SURF_COLS = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem] lg:items-center lg:gap-x-5'
+const SURF_COLS_FIELD = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem_4.5rem] lg:items-center lg:gap-x-5'
+/** "Fully tiled", "48″ wainscot" — how high a wall goes, short */
+const heightShort = (h?: string) => (h ? h.split(' — ')[0] : '')
+/** the edges of a wall or floor, short, with a sample of the metal's color: "Mitered", "Jolly · Brushed nickel" */
+function EdgeCell({ edge }: { edge?: string }) {
+  const k = edgeKind(edge)
+  if (!edge || !k) return <span className="text-faint max-lg:hidden">—</span>
+  if (k === 'metal') {
+    const m = parseMetal(edge)!
+    const p = METAL_PROFILES.find((x) => x.key === m.profile)
+    const f = METAL_FINISHES.find((x) => x.key === m.finish)
+    return <span className="flex min-w-0 items-center gap-1.5" title={edgeWords(edge)}><FinishDot finish={m.finish} size={13} /><span className="truncate text-ink-2">{[p?.short || 'Metal', f?.name].filter(Boolean).join(' · ')}</span></span>
+  }
+  return <span className="truncate text-ink-2" title={edgeWords(edge)}>{k === 'mitered' ? 'Mitered' : edge}</span>
+}
 /** one Print: the scope of work, or the room sheets to hang in each room */
 function PrintMenu({ job }: { job: Job }) {
   const s = useStore()
@@ -86,7 +103,7 @@ function PrintMenu({ job }: { job: Job }) {
   React.useEffect(() => {
     if (!what) return
     const t = setTimeout(() => {
-      printNode(what === 'sheets' ? (ref.current?.firstElementChild as HTMLElement | null) : ref.current)
+      printNode(what === 'sheets' ? (ref.current?.firstElementChild as HTMLElement | null) : ref.current, `${job.name} — ${what === 'sheets' ? 'Room sheets' : 'Scope of work'}`)
       if (what === 'sheets') s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed — ${n} room${n === 1 ? '' : 's'}` }) }, undefined, { undo: false })
       setWhat(null)
     }, 60)
@@ -124,7 +141,10 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
         <h3 className="text-[1rem] font-semibold text-ink">Scope of work</h3>
         {rooms.length > 0 && <span className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'}{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>}
         {rooms.length > 0 && confirmed && <span data-scope-locked title="Set — a change goes through a change order" className="inline-flex items-center gap-1 text-[0.8125rem] text-muted"><Lock className="h-3.5 w-3.5 text-faint" />Set</span>}
-        <span className="ml-auto flex shrink-0 items-center gap-2">
+        {/* a phone: the buttons two by two, the width of the screen — nothing runs off the side */}
+        <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>button]:w-full">
+          {/* a phone: the layouts are here (a computer has them as their own tab) */}
+          {rooms.some((r) => r.room.surfaces.some((x) => x.tile && takesTile(x.name))) && <Button size="sm" icon={<LayoutGrid />} onClick={() => open({ t: 'layouts' })} className="sm:hidden" data-phone-layouts>Layouts</Button>}
           {rooms.length > 0 && <PrintMenu job={job} />}
           {rooms.length > 0 && canEdit && <Button size="sm" icon={<Pencil />} onClick={() => open({ t: 'scope' })} data-edit-walls>Edit</Button>}
           {rooms.length > 0 && canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
@@ -134,8 +154,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
       {rooms.length > 0 && (
         <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">
           {/* the column names, then each room as a band with its walls and floors under it — every line the same */}
-          <div className={cn(HEAD_ROW, cols, 'px-5 max-md:hidden')}>
-            <span>Wall or floor</span><span>Tile</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
+          <div className={cn(HEAD_ROW, cols, 'px-5 max-lg:hidden')}>
+            <span>Wall or floor</span><span>Tile</span><span>Size</span><span>Grout</span><span>Edges</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
           </div>
           {groups.map((g) => (
             <section key={g.floor}>
@@ -155,15 +175,29 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const t = tilesOf(job.id).find((y) => y.tag === x.tile)
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
+                      const g = x.grout || t?.grout
+                      const h = heightShort(x.height)
+                      const sfText = x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '—'
+                      /* tap a line: its layout, drawn to scale (a wall or floor with no tile: its room) */
+                      const tiled = !!t && takesTile(x.name)
                       return (
-                        <button key={x.name} data-surface-row={x.name} onClick={() => open({ t: 'room', name: room.name, surface: x.name })} title="Its tile, grout, layout and what it’s set on" className={cn(cols, 'w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition row-hover max-sm:px-3')}>
-                          <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}</span>
-                          <span className="flex min-w-0 items-center gap-2 max-md:col-span-2 max-md:row-start-2">
-                            {t ? <TileImg tile={t} size={20} radius={4} /> : null}
-                            <span className={cn('min-w-0 truncate', t ? 'text-ink-2' : 'text-muted')}>{t ? <><span className="font-medium text-ink">{t.tag}</span> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? (x.tile || 'No tile yet') : 'Not tiled'}</span>
+                        <button key={x.name} data-surface-row={x.name} onClick={() => (tiled ? s.open({ t: 'layout', jobId: job.id, room: room.name, surface: x.name }) : open({ t: 'room', name: room.name, surface: x.name }))} title={x.layout ? `Layout: ${x.layout}` : tiled ? 'See its layout, drawn to scale' : undefined} className={cn(cols, 'block w-full border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] transition row-hover max-sm:px-3 max-lg:py-2.5')}>
+                          <span className="flex min-w-0 items-baseline gap-2 lg:block">
+                            <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink lg:block" title={x.height ? `${x.name} · ${x.height}` : undefined}>{x.name}{h && <span className="text-[0.8125rem] text-muted" data-surface-height> · {h}</span>}</span>
+                            <span className={cn('shrink-0 tnum lg:hidden', x.sf ? 'text-ink-2' : 'text-faint')}>{sfText}</span>
                           </span>
-                          <span className={cn('text-right tnum max-md:row-start-1 max-md:col-start-2', x.sf ? 'text-ink-2' : 'text-faint')}>{x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '—'}</span>
-                          {inField && <span className={cn('text-right max-md:hidden', x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : stopped ? 'Stopped' : 'Not yet'}</span>}
+                          <span className="mt-1 flex min-w-0 items-center gap-2 lg:mt-0" data-surface-tile>
+                            {t ? <TileImg tile={t} size={26} radius={5} /> : null}
+                            <span className="min-w-0 truncate">{t ? <><span className="font-semibold text-ink">{t.tag}</span> <span className="text-ink-2">{t.name}</span>{t.size ? <span className="text-muted lg:hidden"> · {t.size}</span> : null}</> : <span className="text-muted">{takesTile(x.name) ? (x.tile || 'No tile yet') : 'Not tiled'}</span>}</span>
+                          </span>
+                          <span className="truncate tnum text-ink-2 max-lg:hidden" data-surface-size>{t?.size || <span className="text-faint">—</span>}</span>
+                          {/* a phone: the grout and the edges on one line under the tile; a computer: their own columns */}
+                          <span className={cn('mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.78125rem] lg:contents lg:text-[0.8125rem]', !g && !x.edge && 'max-lg:hidden')}>
+                            <span className={cn('flex min-w-0 items-center gap-1.5', !g && 'max-lg:hidden')} data-surface-grout>{g ? <><GroutDot grout={g} size={13} /><span className="truncate text-ink-2">{GROUTS[g]?.name || g}{x.joint ? <span className="text-muted"> · {x.joint}</span> : null}</span></> : <span className="text-faint">—</span>}</span>
+                            <span className="flex min-w-0 items-center" data-surface-edge><EdgeCell edge={x.edge} /></span>
+                          </span>
+                          <span className={cn('text-right tnum max-lg:hidden', x.sf ? 'text-ink-2' : 'text-faint')}>{sfText}</span>
+                          {inField && <span className={cn('text-right max-lg:hidden', x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted')}>{x.state === 'done' ? 'Done' : x.state === 'working' ? `${pct}%` : stopped ? 'Stopped' : 'Not yet'}</span>}
                         </button>
                       )
                     })}

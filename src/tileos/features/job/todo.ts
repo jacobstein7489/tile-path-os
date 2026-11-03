@@ -42,7 +42,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
       rooms.length
         ? { key: 'rooms', title: 'Rooms and surfaces', status: 'done', note: `${rooms.length} rooms · ${flat.length} surfaces` }
         : { key: 'rooms', title: 'Rooms and surfaces', status: 'todo', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: job.id }) } },
-      { key: 'tile', title: 'Tile picked for every surface', status: !flat.length ? 'todo' : picked === flat.length ? 'done' : 'part', note: flat.length ? `${picked} of ${flat.length} picked` : 'After the rooms', action: flat.length && picked < flat.length ? { label: 'Pick tiles', run: () => setTab('scope') } : undefined },
+      { key: 'tile', title: 'Tile entered for every surface', status: !flat.length ? 'todo' : picked === flat.length ? 'done' : 'part', note: flat.length ? `${picked} of ${flat.length} entered` : 'After the rooms', action: flat.length && picked < flat.length ? { label: 'Enter tiles', run: () => setTab('scope') } : undefined },
       short
         ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${needWithWaste(short) - short.ordered} ${short.unit} short of our takeoff`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
         : { key: 'qty', title: 'Tile quantity', status: checks.length ? 'done' : 'wait', note: checks.length ? 'Covers our takeoff and waste' : 'Waiting for the store’s order' },
@@ -81,7 +81,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
     const crew = installerOf(s, job)
     const items: NowItem[] = CELLS.map((c) => {
       const cell = cells[c.key]
-      const label = cell.state === 'yes' || cell.state === 'na' ? undefined : c.key === 'po' ? (crew ? 'Send PO' : 'Book installer') : c.key === 'material' ? (cell.state === 'wait' ? 'Open' : cell.label === 'Add SF' || cell.label === 'No scope' ? 'Open scope' : 'Order') : c.key === 'deposit' ? 'Open invoice' : c.key === 'picked' ? 'Pick tiles' : 'Open'
+      const label = cell.state === 'yes' || cell.state === 'na' ? undefined : c.key === 'po' ? (crew ? 'Send PO' : 'Book installer') : c.key === 'material' ? (cell.state === 'wait' ? 'Open' : cell.label === 'Add SF' || cell.label === 'No scope' ? 'Open scope' : 'Order') : c.key === 'deposit' ? 'Open invoice' : c.key === 'picked' ? 'Enter tiles' : 'Open'
       return { key: c.key, title: c.short, status: CELL_TO_NOW[cell.state], note: /^\d|\$/.test(cell.label) ? `${cell.label} — ${cell.hint}` : cell.hint, action: label && cell.run ? { label, run: cell.run } : undefined }
     })
     return { heading: st === 'scheduled' ? 'Scheduled — ready to start' : 'Ready — before the crew starts', items }

@@ -185,7 +185,7 @@ export const STEP_DEFAULTS: StepDef[] = [
   { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['rooms'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
   { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm scope', owner: 'yakov', after: ['design'], custom: true },
-  { key: 'tile', phase: 'grout', label: 'Tile and grout picked — a picture and the grout for every tile', short: 'Pick tile & grout', owner: 'estimator', after: ['rooms'] },
+  { key: 'tile', phase: 'grout', label: 'Tile and grout entered — a picture and the grout for every tile', short: 'Enter tile & grout', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Set layouts', owner: 'office', after: ['design'], custom: true },
   { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['rooms'] },
   { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['rooms'] },
@@ -334,11 +334,11 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'tile': {
       const tiles = Object.values(s.tiles[j.id] || {}).filter((t) => flat.some((x) => x.tile === t.tag))
       if (!tiles.length) return { state: 'now', note: 'After the paperwork is entered' }
-      if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'Picked before this list' }
+      if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'Entered before this list' }
       const noGrout = tiles.filter((t) => !t.grout).length
       const noPic = tiles.filter((t) => !t.photo && !t.swatch).length
       if (!noGrout && !noPic) return { state: 'done', note: 'Every tile has its grout and a picture' }
-      return { state: 'now', note: [noGrout ? `${noGrout} tile${noGrout === 1 ? '' : 's'} need${noGrout === 1 ? 's' : ''} a grout` : '', noPic ? `${noPic} need${noPic === 1 ? 's' : ''} a picture` : ''].filter(Boolean).join(' · '), action: { label: 'Pick them' } }
+      return { state: 'now', note: [noGrout ? `${noGrout} tile${noGrout === 1 ? '' : 's'} need${noGrout === 1 ? 's' : ''} a grout` : '', noPic ? `${noPic} need${noPic === 1 ? 's' : ''} a picture` : ''].filter(Boolean).join(' · '), action: { label: 'Enter them' } }
     }
     case 'setup': {
       const st = settingStatus(s, j.id)

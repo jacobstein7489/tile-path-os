@@ -10,7 +10,8 @@ import { useStore, addHist, meOf } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { edgeWords } from '@/tileos/data/catalog'
+import { edgeWords, parseMetal } from '@/tileos/data/catalog'
+import { FinishDot } from './metalpick'
 import { DocHead, DocFoot, docLine, DOC_GREEN, DOC_FONT } from './docpaper'
 import { isWall } from './heights'
 import { GROUTS, tileOf, type Room, type Surface, type Tile } from '@/tileos/data/jobs'
@@ -38,8 +39,25 @@ export function sheetRows(jobId: string, room: Room): SheetRow[] {
 /** the rooms that get a sheet: the ones with tile on a wall or floor */
 export const sheetRooms = (s: { rooms: Record<string, Room[]> }, jobId: string) => (s.rooms[jobId] || []).filter((r) => r.surfaces.some((x) => x.tile && takesTile(x.name)))
 
+/** how a room is tiled, in a few words for the top of its sheet (and the scope of work): the ceiling, fully or half
+ *  tiled, wet walls, the base — from the room's note and each wall's height */
+export function coverageOf(room: Room): string[] {
+  const out: string[] = []
+  const add = (t: string) => { const k = t.toLowerCase(); if (t && !out.some((x) => x.toLowerCase() === k)) out.push(t) }
+  ;(room.note || '').split(/\s*;\s*/).map((x) => x.trim()).filter(Boolean).forEach((x) => add(x.charAt(0).toUpperCase() + x.slice(1)))
+  const noted = (room.note || '').toLowerCase()
+  room.surfaces.forEach((x) => {
+    if (/^base\b/i.test(x.name)) { add(`Tile base${x.height ? ` · ${x.height.replace(/\s*base$/i, '')}` : ''}`); return }
+    if (!x.height || !isWall(x.name)) return
+    const h = x.height.replace(/\s+—\s+/g, ', ')
+    const words = `${x.name}: ${h.charAt(0).toLowerCase()}${h.slice(1)}`
+    if (!noted.includes(h.toLowerCase())) add(words)
+  })
+  return out
+}
+
 /** one tile on a room sheet: the walls and floors it goes on, and what the installer needs to know about it */
-export type SheetEntry = { key: string; label: string; tile?: Tile; tag?: string; grout?: string; joint?: string; lines: { k: string; v: string }[]; xs: Surface[] }
+export type SheetEntry = { key: string; label: string; tile?: Tile; tag?: string; grout?: string; joint?: string; lines: { k: string; v: string }[]; xs: Surface[]; /** the metal finishes on its edges — a sample of each color */ metals: string[] }
 export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
   const groups = new Map<string, Surface[]>()
   room.surfaces.filter((x) => takesTile(x.name)).forEach((x) => {
@@ -63,7 +81,8 @@ export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
       { k: 'Set on', v: per((x) => (x.method ? METHODS[x.method as keyof typeof METHODS]?.label || x.method : '')) },
       { k: 'Note', v: per((x) => x.notes) },
     ].filter((l) => l.v)
-    return { key, label: xs.map((x) => x.name).join(' + '), tile: t, tag: xs[0].tile || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: xs[0].joint || t?.joint, lines, xs }
+    const metals = Array.from(new Set(xs.map((x) => parseMetal(x.edge)?.finish).filter(Boolean) as string[]))
+    return { key, label: xs.map((x) => x.name).join(' + '), tile: t, tag: xs[0].tile || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: xs[0].joint || t?.joint, lines, xs, metals }
   })
 }
 /** the tile's shape from its size — "24 × 48" lies long, "32 × 32" is square */
@@ -93,12 +112,19 @@ function SheetPhoto({ tile, max }: { tile?: Tile; max: number }) {
 /** one room, one page */
 export function RoomSheet({ job, room, last, page }: { job: Job; room: Room; last?: boolean; page?: number }) {
   const list = sheetEntries(job.id, room)
-  const big = list.length <= 2 ? 264 : list.length === 3 ? 200 : 160
+  const cover = coverageOf(room)
+  const big = list.length <= 2 ? 240 : list.length === 3 ? 180 : 150
   return (
-    <section data-room-sheet={room.name} className={cn('bg-white text-[#222]', DOC_FONT)} style={{ breakAfter: last ? 'auto' : 'page', pageBreakAfter: last ? 'auto' : 'always' }}>
+    <section data-room-sheet={room.name} className={cn('bg-white text-[#222]', DOC_FONT)} style={{ breakAfter: last ? 'auto' : 'page', pageBreakAfter: last ? 'auto' : 'always', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
       <DocHead kind="Room sheet" line={docLine(job)} />
       <h1 className="mt-6 text-[1.5rem] font-bold uppercase leading-tight" style={{ color: DOC_GREEN }}>{room.name}</h1>
-      {(room.floor || room.note) && <div className="mt-1 text-[0.78125rem] text-[#666]">{[room.floor, room.note].filter(Boolean).join(' · ')}</div>}
+      {room.floor && <div className="mt-0.5 text-[0.78125rem] text-[#666]">{room.floor}</div>}
+      {/* how the room is tiled — fully, half, wet walls, the base, the ceiling */}
+      {cover.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5" data-sheet-cover>
+          {cover.map((c) => <span key={c} className="rounded-full px-2.5 py-1 text-[0.75rem] font-semibold" style={{ background: '#e8efe9', color: DOC_GREEN }}>{c}</span>)}
+        </div>
+      )}
       <div className="mt-6 flex flex-col gap-7">
         {list.map((e) => (
           <div key={e.key} className="grid grid-cols-[16.5rem_minmax(0,1fr)] gap-x-[1.375rem]" style={{ breakInside: 'avoid' }} data-sheet-entry={e.label}>
@@ -108,15 +134,22 @@ export function RoomSheet({ job, room, last, page }: { job: Job; room: Room; las
               <div className="mt-1 text-[1.09375rem] font-bold leading-tight">{e.tile ? e.tile.name : 'NOT SPECIFIED'}{e.tile && <span className="ml-2 align-[0.0625rem] text-[0.6875rem] font-semibold text-[#8a8a8a]">{e.tile.tag}</span>}</div>
               <div className="mt-1 text-[0.8125rem] text-[#333]">{e.tile ? [e.tile.size.replace(/\s*×\s*/g, ' x '), e.tile.finish].filter(Boolean).join(' · ') || 'Size NOT SPECIFIED' : 'NOT SPECIFIED'}</div>
               <div className="mt-2 text-[0.78125rem] leading-snug text-[#333]" data-sheet-grout><b className="font-bold text-[#222]">GROUT:</b> {e.grout || 'NOT SPECIFIED'}{e.grout && e.joint ? ` · ${e.joint.replace(/″?$/, '″')} joint` : ''}</div>
-              {e.lines.map((l) => <div key={l.k} className="mt-1 text-[0.78125rem] leading-snug text-[#333]" data-sheet-line={l.k}><b className="font-bold text-[#222]">{l.k.toUpperCase()}:</b> {l.v}</div>)}
-              {e.xs.some((x) => x.dims) && (
-                <div className="mt-2.5 flex flex-wrap gap-3">
-                  {e.xs.filter((x) => x.dims).map((x) => {
+              {e.lines.map((l) => (
+                <div key={l.k} className="mt-1 flex items-center gap-1.5 text-[0.78125rem] leading-snug text-[#333]" data-sheet-line={l.k}>
+                  <span><b className="font-bold text-[#222]">{l.k.toUpperCase()}:</b> {l.v}</span>
+                  {/* a sample of the metal's color */}
+                  {l.k === 'Edges' && e.metals.map((f) => <FinishDot key={f} finish={f} size={13} />)}
+                </div>
+              ))}
+              {/* the layout itself, drawn — the tile's real size, its pattern, the grout, the cuts */}
+              {e.tile && (
+                <div className="mt-2.5 flex flex-wrap items-end gap-3">
+                  {e.xs.slice(0, 3).map((x) => {
                     const L = layoutOf(job.id, x)
                     return (
                       <figure key={x.name} className="m-0" data-sheet-layout={x.name}>
-                        <LayoutThumb jobId={job.id} x={x} max={120} />
-                        <figcaption className="mt-0.5 text-[0.6875rem] text-[#555]">{x.name} · {ftIn(L.W)} × {ftIn(L.H)}{L.smallest ? ` · smallest cut ${ftIn(L.smallest)}` : ''}</figcaption>
+                        <LayoutThumb jobId={job.id} x={x} max={list.length <= 2 ? 150 : 110} />
+                        <figcaption className="mt-0.5 text-[0.6875rem] text-[#555]">{x.name} · {ftIn(L.W)} × {ftIn(L.H)}{L.measured ? '' : ' (about)'}{L.smallest ? ` · smallest cut ${ftIn(L.smallest)}` : ''}</figcaption>
                       </figure>
                     )
                   })}
@@ -147,7 +180,7 @@ export function PrintSheetsButton({ job, room, children, variant, size, classNam
   React.useEffect(() => {
     if (!on) return
     const t = setTimeout(() => {
-      printNode(ref.current?.firstElementChild as HTMLElement | null)
+      printNode(ref.current?.firstElementChild as HTMLElement | null, `${job.name} — ${room ? `${room} room sheet` : 'Room sheets'}`)
       s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed${room ? ` — ${room}` : ` — ${n} room${n === 1 ? '' : 's'}`}` }) }, undefined, { undo: false })
       setOn(false)
     }, 60)

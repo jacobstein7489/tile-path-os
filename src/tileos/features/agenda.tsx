@@ -12,6 +12,7 @@ import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLab
 import { busyFor, removeEvent, moveEvent } from './calendar'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
+import { JobGlance, nextForMe } from './jobglance'
 
 type EvKind = 'meeting' | 'walkthrough' | 'report' | 'delivery' | 'follow' | 'due' | 'start'
 type Ev = { id: string; when?: number; dur?: number; kind: EvKind; title: string; sub?: string; people?: PersonKey[]; run: () => void }
@@ -142,14 +143,17 @@ export function EventModal({ id, level }: { id: string; level: number }) {
   const job = e.jobId ? s.jobs[e.jobId] : undefined
   const ours = insidePeople(s)
   const what = e.kind === 'walkthrough' ? 'walkthrough' : 'meeting'
-  const save = () => { moveEvent(e.id, { date: isoFromLabel(day) || e.date, start: time, people: who }); setMoving(false) }
+  /* a meeting about a project: where it stands, and the one thing that's mine on it — not the whole project */
+  const next = job ? nextForMe(s, job) : undefined
+  /* moved: that's what it was opened for — the window closes, the pop-up says where it went */
+  const save = () => { moveEvent(e.id, { date: isoFromLabel(day) || e.date, start: time, people: who }); setMoving(false); s.close() }
   return (
     <Modal
       level={level}
-      size="sm"
+      size={job ? 'md' : 'sm'}
       onClose={s.close}
       title={e.title}
-      sub={`${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${dayLong(e.date)}`}
+      sub={`${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${dayLong(e.date)}${job ? ` · ${job.name}` : ''}`}
       footer={
         canceling ? (
           <>
@@ -166,7 +170,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           <>
             <Button variant="ghost" icon={<Trash2 />} onClick={() => setCanceling(true)}>Cancel the {what}</Button>
             <Button className="ml-auto" onClick={() => setMoving(true)}>Move it</Button>
-            {job && <Button variant="primary" onClick={() => s.swap({ t: 'job', id: job.id })}>Open {job.name}</Button>}
+            {next && job && <Button variant="primary" className="max-sm:flex-1" onClick={() => s.open({ t: 'step', jobId: job.id, k: next.v.key })} data-meeting-next><span className="truncate">{next.label}</span></Button>}
           </>
         )
       }
@@ -194,6 +198,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           </div>
         </div>
       ) : (
+        <div className="flex flex-col gap-5">
         <dl className="flex flex-col gap-4 text-[0.875rem]">
           <Row icon={<Clock3 />} label="When">{dayLabel(e.date)} · {rangeLabel(e.start, e.dur)}</Row>
           {job && <Row icon={<Building2 />} label="Project">{job.name} · <span className="text-muted">{job.address}</span></Row>}
@@ -207,6 +212,9 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           {e.by && <Row icon={<CalendarDays />} label="Set by">{PEOPLE[e.by]?.name || 'Someone'}</Row>}
           {e.note && <Row icon={<Flag />} label="About">{e.note}</Row>}
         </dl>
+        {job && <JobGlance job={job} />}
+        {job && <button onClick={() => s.swap({ t: 'job', id: job.id })} className="self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-open-project>See all of {job.name}</button>}
+        </div>
       )}
     </Modal>
   )

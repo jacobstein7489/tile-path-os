@@ -15,6 +15,7 @@ import type { Estimate, EstRev, EstLine } from '@/tileos/data/estimates'
 import type { Item } from '@/tileos/data/items'
 import { paperGroups } from '../estpaper'
 import { DocHead, DocFoot, docLine, DOC_GREEN, DOC_GRAY, DOC_FONT } from '../docpaper'
+import { coverageOf } from '../roomsheets'
 
 type Line = { id: string; text: string; qty: string }
 type Area = { name: string; note?: string; lines: Line[] }
@@ -50,7 +51,7 @@ function fromProject(items: Item[], rooms: { name: string; floor?: string; note?
   const out: Floor[] = floorsOf(rooms as any).map((g) => ({
     floor: g.floor === 'Rooms' ? 'Scope of work' : g.floor,
     areas: g.rooms.map((r) => ({
-      name: r.name, note: r.note,
+      name: r.name, note: coverageOf(r as any).join('; ') || r.note,
       lines: [
         ...r.surfaces.map((x) => ({ id: x.name, text: `${surfaceWords(x.name)}${x.height ? ` — ${heightWords(x.height)}` : ''}`, qty: x.sf ? `${x.sf} SF` : '1 EA' })),
         ...extra(r.name).map((l) => ({ id: l.id, text: estText(items, l), qty: qtyText(l.qty, unitOf(items, l)) })),
@@ -81,7 +82,7 @@ export function ScopeDoc({ jobId, estId, innerRef }: { jobId: string; estId?: st
   const rooms = estId ? [] : s.rooms[jobId] || []
   const floors = rooms.length ? fromProject(s.items, rooms, rev) : rev ? fromEstimate(s.items, rev) : []
   return (
-    <div ref={innerRef} className={cn('mx-auto w-full max-w-[51rem] bg-white px-12 py-10 text-[#222] shadow-card max-sm:px-4 max-sm:py-6 print:p-0', DOC_FONT)} data-scope-doc>
+    <div ref={innerRef} className={cn('mx-auto w-full max-w-[51rem] bg-white px-12 py-10 text-[#222] shadow-card max-sm:px-4 max-sm:py-6 print:p-0', DOC_FONT)} style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }} data-scope-doc>
       <table className="w-full border-collapse">
         {/* the top of the page — printed again at the top of every page */}
         <thead><tr><td className="p-0"><DocHead kind="Scope of work" line={docLine(job)} /><div className="h-7" /></td></tr></thead>

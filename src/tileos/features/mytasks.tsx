@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame, MoreHorizontal, ArrowRight, MessageSquare } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -205,8 +205,6 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   /* a getting-ready step's task opens the step's own window */
   const stepTask = !!t.step && !t.step.startsWith('*:') && !!s.jobs[t.step.split(':')[0]]
   const act = !theirs && !stepTask && !!t.action && t.action.kind !== 'open-job' && t.state === 'now'
-  /* a hand-off (a review, a PO, an invoice) opens the thing itself — the notes and history are one tap from there */
-  const opensWork = act && /^(estimate|estchange|money|po|co|short|order|heights|pay):/.test(t.action!.kind)
   const follow = followDue(t)
   const Ic = TYPE_ICON[t.type] || ListTodo
   const log = t.log || []
@@ -218,7 +216,8 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
     <TodoRow
       leaving={leaving}
       done={done || leaving}
-      onClick={() => (opensWork ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
+      /* the line does what its button does — the one thing that happens next, wherever you tap */
+      onClick={() => (act ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
       title={cleanTitle(t.title, job)}
       detail={detail}
@@ -509,7 +508,9 @@ export function MyTasksPage() {
   const s = useStore()
   const role = s.role
   const t0 = (s.route.tab as string) || 'today'
-  const [view, setView] = React.useState<View>(t0 === 'waiting' ? 'waiting' : t0 === 'done' ? 'done' : t0 === 'tomorrow' ? 'tomorrow' : t0 === 'later' || t0 === 'coming' ? 'later' : 'today')
+  /* the site manager's Today is just today and tomorrow */
+  const simple = role === 'site'
+  const [view, setView] = React.useState<View>(t0 === 'tomorrow' ? 'tomorrow' : simple ? 'today' : t0 === 'waiting' ? 'waiting' : t0 === 'done' ? 'done' : t0 === 'later' || t0 === 'coming' ? 'later' : 'today')
   const inside = role !== 'crew' && role !== 'client'
   /* everyone's tasks are for the admin — every other login sees its own */
   const seesTeam = role === 'owner'
@@ -548,7 +549,9 @@ export function MyTasksPage() {
   const done = s.tasks.filter((t) => t.state === 'done' && (all ? true : isMine(t, role)))
   const doneToday = done.filter((t) => t.doneAt === 'Just now' || t.doneAt === 'Today' || isoFromLabel(t.doneAt) === TODAY).length
   const meetingsToday = today.filter((x) => x.kind === 'meet').length
-  const pinned = s.tasks.filter((t) => t.everyone && t.state !== 'done' && (job === 'all' || t.jobId === job))
+  const pinned = s.tasks.filter((t) => t.everyone && t.state !== 'done' && (job === 'all' || t.jobId === job) && (all || !quietForMe(t, me)))
+  /* what I reminded someone about: off my Today, back tomorrow if it isn't done — it waits on Tomorrow, never lost */
+  const backTomorrow = all ? [] : s.tasks.filter((t) => t.state !== 'done' && t.owner !== me && t.quiet?.[me] === TOMORROW && (job === 'all' || t.jobId === job))
   const jobsWithTasks = Object.values(s.jobs).filter((j) => s.tasks.some((t) => t.jobId === j.id) || s.events.some((e) => e.jobId === j.id))
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
@@ -600,7 +603,22 @@ export function MyTasksPage() {
   const byProject = (items: PlateItem[], tasksOnly?: Task[]) => {
     const keyOf = (id: string) => (id && s.jobs[id] ? s.jobs[id].name : '\uffff')
     const ids = Array.from(new Set(tasksOnly ? tasksOnly.map((t) => t.jobId || '') : items.map(jobOfItem))).sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
-    return ids.map((id) => {
+    const countOf = (id: string) => items.filter((x) => jobOfItem(x) === id).length + (tasksOnly || []).filter((t) => (t.jobId || '') === id).length
+    /* a project with just one thing: one line, its name in gray — no band of its own (a screen of bands one row each
+       is busy); the gray band is for a project with two or more */
+    const singles = ids.filter((id) => !!id && countOf(id) === 1)
+    const banded = ids.filter((id) => !singles.includes(id))
+    const oneEach = singles.length > 0 && (
+      <InJob.Provider key="one-each" value><Loose.Provider value><section aria-label="One each" data-one-each>
+        <div className={cn(BAND, PX)} data-band><span className={BAND_LABEL}>{banded.length ? 'Other projects' : 'Projects'}</span><BandCount n={singles.length} /></div>
+        {singles.map((id) => {
+          const x = items.find((y) => jobOfItem(y) === id)
+          const t = (tasksOnly || []).find((y) => (y.jobId || '') === id)
+          return x ? <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} /> : t ? <TaskRow key={t.id} t={t} showOwner={all} /> : null
+        })}
+      </section></Loose.Provider></InJob.Provider>
+    )
+    return [...banded.map((id) => {
       const j = id ? s.jobs[id] : undefined
       const rows = items.filter((x) => jobOfItem(x) === id)
       const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
@@ -616,7 +634,7 @@ export function MyTasksPage() {
           {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
         </section></Loose.Provider></InJob.Provider>
       )
-    })
+    }), oneEach]
   }
 
   /* by person: one section per person — what's late first, then the rest in the order it happens; tap the name for
@@ -677,7 +695,7 @@ export function MyTasksPage() {
   /* whose each row is: on everyone's list — unless it's grouped by person already */
   const whoCol = all && !(grouping === 'person' && view !== 'done')
   /* the column names show over a list that has rows */
-  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
+  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
   return (
     <Page
@@ -688,10 +706,13 @@ export function MyTasksPage() {
         <Bubbles
           items={[
             { key: 'today', label: 'Today', count: today.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
-            { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
-            { key: 'later', label: 'Later', count: later.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
-            { key: 'waiting', label: 'Waiting on others', count: waiting.length + waitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
-            { key: 'done', label: 'Done', count: done.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
+            { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
+            /* the site manager: today and tomorrow — that's all he needs on the go */
+            ...(simple ? [] : [
+              { key: 'later', label: 'Later', count: later.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
+              { key: 'waiting', label: 'Waiting on others', count: waiting.length + waitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+              { key: 'done', label: 'Done', count: done.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
+            ] as any[]),
           ]}
         />
       </>}
@@ -740,13 +761,19 @@ export function MyTasksPage() {
             {undated.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
-        {view === 'today' && shownToday.length > 0 && tomorrow.length > 0 && (
+        {view === 'today' && shownToday.length > 0 && tomorrow.length + backTomorrow.length > 0 && (
           <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted row-hover hover:text-ink', PX)}>
-            <CalendarDays className="h-4 w-4" />{tomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
+            <CalendarDays className="h-4 w-4" />{tomorrow.length + backTomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
           </button>
         )}
 
-        {view === 'tomorrow' && (shownTomorrow.length ? (grouping === 'job' ? byProject(shownTomorrow) : grouping === 'person' ? byPerson(shownTomorrow) : dayBlock(TOMORROW, shownTomorrow)) : <EmptyState icon={<Check />} title="Nothing for tomorrow yet" sub="Anything due tomorrow, and tomorrow’s meetings, show here." />)}
+        {view === 'tomorrow' && backTomorrow.length > 0 && (
+          <section data-back-tomorrow>
+            <Group label="Back to you tomorrow" count={backTomorrow.length} tone="neutral" />
+            {backTomorrow.map((t) => <TaskRow key={t.id} t={t} when={{ text: 'Reminded', tone: 'quiet' }} />)}
+          </section>
+        )}
+        {view === 'tomorrow' && (shownTomorrow.length ? (grouping === 'job' ? byProject(shownTomorrow) : grouping === 'person' ? byPerson(shownTomorrow) : dayBlock(TOMORROW, shownTomorrow)) : !backTomorrow.length && <EmptyState icon={<Check />} title="Nothing for tomorrow yet" sub="Anything due tomorrow, and tomorrow’s meetings, show here." />)}
 
         {view === 'later' && grouping === 'job' && byProject(shownLater)}
         {view === 'later' && grouping === 'person' && byPerson(shownLater)}
@@ -837,20 +864,32 @@ export function taskOrigin(t: Task): string {
   if (first && PEOPLE[first.who as PersonKey]) return `Added by ${PEOPLE[first.who as PersonKey].short} · ${first.date}`
   return ''
 }
-/** someone else's task: remind them — it pops up on their screen — and, when it's late, it counts as checking in */
+/** someone else's task: remind them — it pops up on their screen — and, when it's late, it counts as checking in. For
+ *  whoever reminded, it's off their Today now and back tomorrow if it still isn't done: nothing left to stare at, nothing
+ *  lost */
 function remindTask(t: Task) {
   const st = useStore.getState()
   const me = meOf(st.role)
   const late = taskBucket(t) === 'overdue' || (t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') < TODAY)
+  const mine = t.owner === me
   st.commit((x) => {
     const y = x.tasks.find((z) => z.id === t.id)
     if (!y) return
     y.nudge = { by: me, at: Date.now().toString(36), day: TODAY }
     if (late) y.checkIn = { by: me, day: TODAY }
+    if (!mine) y.quiet = { ...(y.quiet || {}), [me]: TOMORROW }
     ;(y.log ||= []).push({ date: NOW, who: me, text: `Reminded ${PEOPLE[y.owner]?.short || ''}` })
-  }, `Reminder sent to ${PEOPLE[t.owner]?.short || 'them'}`, { sub: 'It pops up on their screen, and it’s on their Today.', undo: false })
+  }, `Reminder sent to ${PEOPLE[t.owner]?.short || 'them'}`, { sub: mine ? 'It pops up on their screen, and it’s on their Today.' : 'It pops up on their screen. It’s off your Today — back tomorrow if it isn’t done.', undo: false })
 }
+/** off my Today for now: I reminded its person — it's back tomorrow if it isn't done */
+export const quietForMe = (t: Task, me: PersonKey | null) => !!me && (t.quiet?.[me] || '') > TODAY
 
+/* ================= one task: what it is, whose it is, what happens next — nothing else in the way =================
+ * On top: the project, the task, when it's due and whose it is. Under it, in one sentence, what happens next (when the
+ * button alone doesn't say it), what it's about, and the newest note — every note one tap away. At the bottom the next
+ * step: Done (or its own button), Not today, Waiting on someone — someone else's: Remind them, or the admin takes it over.
+ * Changing the task itself is in ··· : its person moves its day; the admin also hands it to someone else, sets who
+ * follows it and puts it on everyone's Today. Everyone else sees it and reminds — nobody changes what isn't theirs. */
 export function TaskModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
@@ -858,135 +897,201 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const [as, setAs] = React.useState<PersonKey | null>(null)
   const [waitOpen, setWaitOpen] = React.useState(false)
   const [laterOpen, setLaterOpen] = React.useState(false)
-  const [dueOpen, setDueOpen] = React.useState(false)
+  const [notes, setNotes] = React.useState(false)
+  /* a change from ··· opens in place of the task, with Back to it */
+  const [panel, setPanel] = React.useState<null | 'date' | 'hand' | 'follow'>(null)
+  /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
+     someone else — the window closes by itself (the pop-up says what happened). Taking it over keeps it open: it's
+     yours to do now */
+  const snap = (x?: Task) => (x ? { st: x.state, owner: x.owner, due: x.due || '' } : null)
+  const first = React.useRef(snap(t))
+  const top = s.modals.length - 1 === level
+  React.useEffect(() => {
+    const a = first.current
+    const b2 = snap(t)
+    if (!a || !top) return
+    const handedOn = !!b2 && b2.owner !== a.owner && b2.owner !== meOf(s.role)
+    if (b2 && b2.st === a.st && b2.due === a.due && !handedOn) { if (b2.owner !== a.owner) first.current = b2; return }
+    const tm = setTimeout(() => useStore.getState().closeLevel(level), 400)
+    return () => clearTimeout(tm)
+  }, [t?.state, t?.owner, t?.due, top])
   if (!t) return null
   const job = s.jobs[t.jobId]
   const me = meOf(s.role)
-  /* someone else's: you see whose it is, what it's for and where it came from — you remind them or take it over; only
-     its person finishes it (no "Done" for anyone else — nothing ends up nowhere) */
   const theirs = t.owner !== me && !isMine(t, s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
+  const canDate = t.state === 'now' && (!theirs || admin)
   const from = taskOrigin(t)
   const hasAction = !!t.action && t.state !== 'done' && t.action.kind !== 'open-job'
   const b = taskBucket(t)
+  const log = t.log || []
+  const last = log[log.length - 1]
+  const owner = PEOPLE[t.owner]?.short || 'They'
+  const whoName = (w: string) => (w === 'system' ? 'Tile OS' : w === me ? 'You' : PEOPLE[w as PersonKey]?.short || w)
   const addNote = () => { if (!note.trim()) return; s.noteTask(t.id, note.trim(), as || undefined); setNote('') }
-  /* one pill says where it stands — the date lives inside it, tap it to change the date */
-  const pill =
-    t.state === 'now' ? (
-      <Pop open={dueOpen} onOpenChange={setDueOpen} align="start" width={360} trigger={
-        <button className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[0.78125rem] font-semibold transition', b === 'overdue' ? 'bg-bad-50 text-bad-700 hover:bg-bad-100' : b === 'today' ? 'bg-warn-50 text-warn-700 hover:bg-warn-100' : 'border border-line bg-white text-ink-2 hover:bg-wash')}>
-          <CalendarDays className="h-3.5 w-3.5" />{b === 'overdue' ? (/late/i.test(t.due || '') ? t.due : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${t.due}` : 'No date'}
-        </button>
-      }>
-        <div className="mb-3 text-[0.875rem] font-medium text-ink">Change the date</div>
-        <DatePresets value={t.due} onPick={(d) => { s.setTaskDue(t.id, d); setDueOpen(false) }} />
-      </Pop>
-    ) : t.state === 'waiting' ? <Status tone="warn">Waiting on {t.waitingOn} · back {t.followUp}</Status>
-      : t.state === 'later' ? <Status tone="neutral">Set aside · back {t.laterUntil}</Status>
-        : <Status tone="ok">Done{t.doneAt ? ` ${t.doneAt}` : ''}</Status>
+  const when =
+    t.state === 'now' ? { text: b === 'overdue' ? (/late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${t.due}` : 'No date', cls: b === 'overdue' ? 'text-bad-700' : b === 'today' ? 'text-warn-700' : 'text-ink-2' }
+      : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
+        : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
+          : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
+  /* what happens next, in one sentence — when the button alone doesn't say it */
+  const next =
+    t.state === 'done' ? (t.result ? `Done — ${t.result}` : null)
+      : theirs ? (t.state === 'waiting' ? `${owner} is waiting on ${t.waitingOn || 'someone'} — it’s back on ${owner}’s list ${t.followUp}.` : `${owner} does it. Remind ${owner} — it pops up on their screen, and it’s off your Today until tomorrow.${admin ? ' Or take it over.' : ''}`)
+        : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'} — it comes back to you ${t.followUp}.`
+          : t.state === 'later' ? `Set aside — it comes back ${t.laterUntil}.`
+            : null
+
+  const items: React.ReactNode[] = [
+    canDate && <MenuItem key="date" icon={<CalendarDays className="h-4 w-4" />} onSelect={() => setPanel('date')}>Change the date</MenuItem>,
+    admin && t.state !== 'done' && <MenuItem key="hand" icon={<UserRound className="h-4 w-4" />} onSelect={() => setPanel('hand')}>Hand it to someone else</MenuItem>,
+    admin && <MenuItem key="follow" icon={<Eye className="h-4 w-4" />} onSelect={() => setPanel('follow')}>Who follows it</MenuItem>,
+    admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
+    !admin && t.owner !== me && <MenuItem key="me" icon={<Eye className="h-4 w-4" />} checked={followersOf(t).includes(me)} onSelect={() => toggleFollow(t.id, me)}>Follow it</MenuItem>,
+    job && <MenuItem key="job" icon={<Building2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'job', id: job.id })}>Open {job.name}</MenuItem>,
+  ].filter(Boolean)
+  const more = items.length > 0 && (
+    <Menu align="end" width={250} trigger={<button aria-label="More" title="More" data-task-more className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
+      {items}
+    </Menu>
+  )
 
   const header = (
-    <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4">
+    <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pr-14">
       <div className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted">
         <Building2 className="h-3.5 w-3.5 shrink-0 text-faint" />
-        {job ? <button onClick={() => s.open({ t: 'job', id: job.id })} className="truncate font-medium text-ink-2 hover:text-brand-700">{job.name}</button> : <span>Company</span>}
-        {t.where && <span className="truncate">· {t.where}</span>}
+        <span className="shrink-0 font-medium text-ink-2">{job ? job.name : 'Company'}</span>
+        {t.where && <span className="min-w-0 truncate">· {t.where}</span>}
+        {more && <span className="-my-1.5 ml-auto pl-2">{more}</span>}
       </div>
-      <h2 className="font-display mt-1.5 text-[1.3125rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{cleanTitle(t.title, job)}</h2>
-      {from && <div className="mt-1 text-[0.78125rem] text-muted" data-task-from>{from}</div>}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {pill}
-        <Menu align="start" width={250} trigger={<button className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-white pl-0.5 pr-2.5 text-[0.78125rem] font-semibold text-ink-2 hover:bg-wash"><Avatar who={t.owner} size={22} />{PEOPLE[t.owner].short} has it</button>}>
-          <MenuLabel>Hand it to</MenuLabel>
-          {(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={t.owner === p} onSelect={() => s.reassignTask(t.id, p)} hint={PEOPLE[p]?.roleLabel}>{PEOPLE[p]?.name || p}</MenuItem>)}
-        </Menu>
-        {t.repeat && <span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-ink-2"><Repeat className="h-3.5 w-3.5 text-muted" />{REPEAT_LABEL[t.repeat]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>}
-        {t.blocks && t.state !== 'done' && <span className="inline-flex items-center gap-1.5 text-[0.78125rem] font-medium text-bad-700"><Ban className="h-3.5 w-3.5" />Holds up {t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}</span>}
+      <h2 className="font-display mt-1 text-[1.3125rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{cleanTitle(t.title, job)}</h2>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[0.8125rem]">
+        <span className={cn('inline-flex items-center gap-1.5 font-medium', when.cls)} data-task-when><CalendarDays className="h-3.5 w-3.5" />{when.text}</span>
+        <span className="inline-flex items-center gap-1.5 text-ink-2" data-task-owner><Avatar who={t.owner} size={18} />{t.owner === me ? 'Yours' : `${owner} has it`}</span>
+        {t.repeat && <span className="inline-flex items-center gap-1.5 text-ink-2"><Repeat className="h-3.5 w-3.5 text-muted" />{REPEAT_LABEL[t.repeat]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>}
+        {t.blocks && t.state !== 'done' && <span className="inline-flex items-center gap-1.5 font-medium text-bad-700"><Ban className="h-3.5 w-3.5" />Holds up {t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}</span>}
       </div>
     </div>
   )
 
-  const footer =
-    t.state === 'done' ? (
-      <>
-        <span className="text-[0.84375rem] text-muted">{t.result ? `Result: ${t.result}` : 'Finished and logged.'}</span>
-        {(!theirs || admin) && <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>}
-      </>
-    ) : theirs ? (
-      <>
-        <Button variant="ghost" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {PEOPLE[t.owner]?.short || 'them'}</Button>
-        {admin && <Button className="ml-auto" icon={<UserRound />} onClick={() => s.reassignTask(t.id, me)} data-take-task>Take it over</Button>}
-      </>
-    ) : (
-      <>
-        {t.state === 'waiting' ? (
-          <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
-            <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
+  const footer = panel ? (
+    <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
+  ) : t.state === 'done' ? (
+    <>
+      <span className="text-[0.84375rem] text-muted">{t.result ? 'Finished and logged.' : 'Finished and logged.'}</span>
+      {(!theirs || admin) && <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>}
+    </>
+  ) : theirs ? (
+    <>
+      {admin && <Button icon={<UserRound />} onClick={() => s.reassignTask(t.id, me)} data-take-task>Take it over</Button>}
+      <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button>
+    </>
+  ) : (
+    <>
+      {t.state === 'waiting' ? (
+        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
+          <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
+        </Pop>
+      ) : t.state !== 'now' ? (
+        <Button variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Back on my list</Button>
+      ) : (
+        <>
+          <Pop open={laterOpen} onOpenChange={setLaterOpen} side="top" width={360} trigger={<Button variant="ghost" icon={<MoonStar />}>Not today</Button>}>
+            <LaterPicker onCancel={() => setLaterOpen(false)} onSave={(u) => { setLaterOpen(false); s.laterTask(t.id, u); s.close() }} />
           </Pop>
-        ) : t.state !== 'now' ? (
-          <Button variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Back on my list</Button>
-        ) : (
-          <>
-            <Pop open={laterOpen} onOpenChange={setLaterOpen} side="top" width={360} trigger={<Button variant="ghost" icon={<MoonStar />}>Not today</Button>}>
-              <LaterPicker onCancel={() => setLaterOpen(false)} onSave={(u) => { setLaterOpen(false); s.laterTask(t.id, u); s.close() }} />
-            </Pop>
-            <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={420} trigger={<Button variant="ghost" icon={<Clock3 />}><span className="max-sm:hidden">Waiting on someone</span><span className="sm:hidden">Waiting</span></Button>}>
-              <WaitPicker defaultWho={t.waitingOn} onCancel={() => setWaitOpen(false)} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
-            </Pop>
-          </>
-        )}
-        {hasAction ? (
-          <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
-        ) : (
-          isRequest(t) && t.owner === meOf(s.role) ? <span className="ml-auto max-sm:flex-1"><TripButtons t={t} size="md" onDone={() => s.close()} /></span> : <Button variant="primary" className="ml-auto max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }}>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
-        )}
-      </>
-    )
+          <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={420} trigger={<Button variant="ghost" icon={<Clock3 />}><span className="max-sm:hidden">Waiting on someone</span><span className="sm:hidden">Waiting</span></Button>}>
+            <WaitPicker defaultWho={t.waitingOn} onCancel={() => setWaitOpen(false)} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
+          </Pop>
+        </>
+      )}
+      {hasAction ? (
+        <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
+      ) : (
+        isRequest(t) && t.owner === meOf(s.role) ? <span className="ml-auto max-sm:flex-1"><TripButtons t={t} size="md" onDone={() => s.close()} /></span> : <Button variant="primary" className="ml-auto max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }}>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
+      )}
+    </>
+  )
+
+  const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
+  const body = panel === 'date' ? (
+    <div data-task-panel="date">
+      <div className="mb-3 text-[0.9375rem] font-semibold text-ink">Move it to</div>
+      <DatePresets value={t.due} onPick={(d) => { s.setTaskDue(t.id, d); setPanel(null) }} />
+    </div>
+  ) : panel === 'hand' ? (
+    <div data-task-panel="hand">
+      <div className="mb-2 text-[0.9375rem] font-semibold text-ink">Hand it to</div>
+      <div className="-mx-2 flex flex-col">
+        {people.map((p) => (
+          <button key={p} type="button" onClick={() => { s.reassignTask(t.id, p); setPanel(null) }} aria-pressed={t.owner === p} className={cn('flex min-w-0 items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-wash', t.owner === p && 'bg-brand-50')}>
+            <Avatar who={p} size={28} />
+            <span className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[p]?.name || p}</span><span className="block truncate text-[0.75rem] text-muted">{PEOPLE[p]?.roleLabel}</span></span>
+            {t.owner === p && <Check className="h-4 w-4 shrink-0 text-brand-600" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : panel === 'follow' ? (
+    <div data-task-panel="follow">
+      <div className="text-[0.9375rem] font-semibold text-ink">Who follows it</div>
+      <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">They see it and hear when it moves — {t.owner === me ? 'you' : owner} still {t.owner === me ? 'do' : 'does'} it.</div>
+      <div className="flex flex-wrap gap-1.5">
+        {ASSIGNABLE.filter((p) => p !== t.owner).map((p) => <Chip key={p} on={followersOf(t).includes(p)} onClick={() => toggleFollow(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{PEOPLE[p]?.short || p}</Chip>)}
+      </div>
+    </div>
+  ) : (
+    <>
+      {next && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-wash px-3.5 py-3 text-[0.875rem] leading-snug text-ink-2" data-task-next {...(theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : {})}>
+          <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+          <span className="min-w-0">{next}</span>
+        </div>
+      )}
+      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', next && 'mt-3')} data-task-detail>{t.detail}</p>}
+      {(log.length > 0 || t.state !== 'done') && (
+        <div className={cn((next || t.detail) && 'mt-4 border-t border-line-2 pt-3')} data-task-notes>
+          {notes ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[0.8125rem] font-semibold text-ink">Notes</span>
+                <button type="button" onClick={() => setNotes(false)} className="text-[0.8125rem] font-semibold text-muted hover:text-ink">Hide</button>
+              </div>
+              {from && <div className="mt-0.5 text-[0.75rem] text-muted" data-task-from>{from}</div>}
+              <div className="-mx-2 mt-1">
+                {[...log].reverse().map((l, i) => <ActivityRow key={i} jobId={t.jobId || undefined} e={{ date: l.date, who: l.who, kind: 'system', title: l.text }} compact />)}
+              </div>
+              {t.state !== 'done' && (
+                <div className="mt-2 flex items-center gap-2">
+                  {s.role === 'owner' && (
+                    <Menu align="start" width={260} trigger={<button aria-label="Write it as" title={as ? `Writing for ${PEOPLE[as].name}` : 'Writing as you'} className={cn('inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border px-1.5', as ? 'border-warn-300 bg-warn-50' : 'border-line bg-white hover:bg-wash')}><Avatar who={as || me} size={26} /></button>}>
+                      <MenuLabel>Write it as</MenuLabel>
+                      <MenuItem icon={<Avatar who={me} size={20} />} checked={!as} onSelect={() => setAs(null)}>Me</MenuItem>
+                      {s.team.filter((m) => m.key !== me && m.status !== 'off').map((m) => <MenuItem key={m.key} icon={<Avatar who={m.key} size={20} />} checked={as === m.key} hint="marked as written by you" onSelect={() => setAs(m.key)}>{PEOPLE[m.key].name}</MenuItem>)}
+                    </Menu>
+                  )}
+                  <TextInput autoFocus={!log.length} value={note} onChange={(e) => setNote(e.target.value)} placeholder={as ? `A note for ${PEOPLE[as].short}…` : 'Add a note…'} onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} />
+                  <Button disabled={!note.trim()} onClick={addNote}>Add</Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <button type="button" onClick={() => setNotes(true)} className="group flex w-full min-w-0 items-center gap-2.5 text-left" data-notes-open>
+              <MessageSquare className="h-4 w-4 shrink-0 text-faint" />
+              {last
+                ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{last.text}<span className="text-muted"> · {whoName(last.who)} · {last.date}</span></span>
+                : <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold text-brand-700">Add a note</span>}
+              {log.length > 0 && <span className="shrink-0 text-[0.75rem] font-semibold text-muted group-hover:text-ink">Notes ({log.length})</span>}
+              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  )
 
   return (
     <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 py-5 max-sm:px-4">
-      {theirs && t.state !== 'done' && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl bg-wash px-3.5 py-2.5 text-[0.875rem] text-ink-2" data-theirs-task>
-          <Avatar who={t.owner} size={28} plain />
-          <span className="min-w-0 flex-1">It’s <b className="font-semibold text-ink">{PEOPLE[t.owner]?.short}</b>’s{t.state === 'waiting' ? ` — waiting on ${t.waitingOn || 'someone'}, back ${t.followUp}` : t.due ? ` — due ${t.due}` : ''}. {PEOPLE[t.owner]?.short} finishes it; you can remind them{admin ? ' or take it over' : ''}.</span>
-        </div>
-      )}
-      {(t.detail || !(t.log || []).length) && <p className="text-[0.9375rem] leading-relaxed text-ink">{t.detail || t.title}</p>}
-      {/* who else sees it */}
-      <div className={cn('flex flex-wrap items-center gap-2 rounded-[0.75rem] border border-line px-3 py-2', (t.detail || !(t.log || []).length) && 'mt-4')}>
-        <span className="text-[0.78125rem] font-semibold text-muted">Following</span>
-        <span className="flex -space-x-1.5">{followersOf(t).map((p) => <Avatar key={p} who={p} size={24} ring />)}</span>
-        <Menu align="start" width={260} trigger={<button className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.78125rem] font-semibold text-brand-600 hover:bg-brand-50"><UserPlus className="h-3.5 w-3.5" />{followersOf(t).length ? 'Change' : 'Add people'}</button>}>
-          <MenuLabel>They see it and hear when it moves</MenuLabel>
-          {ASSIGNABLE.filter((p) => p !== t.owner).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={followersOf(t).includes(p)} hint={PEOPLE[p].roleLabel} onSelect={() => toggleFollow(t.id, p)}>{PEOPLE[p].name}</MenuItem>)}
-        </Menu>
-        {t.owner !== me && !followersOf(t).includes(me) && <button onClick={() => toggleFollow(t.id, me)} className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-[0.78125rem] font-semibold text-vio-600 hover:bg-vio-50"><Eye className="h-3.5 w-3.5" />Follow</button>}
-        <button onClick={() => setEveryone(t.id, !t.everyone)} className="ml-auto inline-flex items-center gap-2 text-[0.78125rem] font-semibold text-ink-2" aria-pressed={!!t.everyone}>
-          <Megaphone className={cn('h-3.5 w-3.5', t.everyone ? 'text-warn-600' : 'text-faint')} />On everyone’s Today
-          <span className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition', t.everyone ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute h-4 w-4 rounded-full bg-white shadow transition', t.everyone ? 'left-[1.125rem]' : 'left-0.5')} /></span>
-        </button>
-      </div>
-      <div className="mt-6 flex items-center justify-between">
-        <span className="text-[0.8125rem] font-semibold text-ink">Notes and history</span>
-        {job && <button onClick={() => s.open({ t: 'job', id: job.id })} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Open {job.name}</button>}
-      </div>
-      <div className="mt-1.5 -mx-2">
-        {[...(t.log || [])].reverse().map((l, i) => <ActivityRow key={i} jobId={t.jobId || undefined} e={{ date: l.date, who: l.who, kind: 'system', title: l.text }} compact />)}
-        {!(t.log || []).length && <div className="px-2 text-[0.84375rem] text-muted">Nothing yet.</div>}
-      </div>
-      {t.state !== 'done' && (
-        <div className="mt-3 flex items-center gap-2">
-          {s.role === 'owner' && (
-            <Menu align="start" width={260} trigger={<button aria-label="Write it as" title={as ? `Writing for ${PEOPLE[as].name}` : 'Writing as you'} className={cn('inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border px-1.5', as ? 'border-warn-300 bg-warn-50' : 'border-line bg-white hover:bg-wash')}><Avatar who={as || me} size={26} /></button>}>
-              <MenuLabel>Write it as</MenuLabel>
-              <MenuItem icon={<Avatar who={me} size={20} />} checked={!as} onSelect={() => setAs(null)}>Me</MenuItem>
-              {s.team.filter((m) => m.key !== me && m.status !== 'off').map((m) => <MenuItem key={m.key} icon={<Avatar who={m.key} size={20} />} checked={as === m.key} hint="marked as written by you" onSelect={() => setAs(m.key)}>{PEOPLE[m.key].name}</MenuItem>)}
-            </Menu>
-          )}
-          <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder={as ? `A note for ${PEOPLE[as].short}…` : 'Add a note…'} onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} />
-          <Button disabled={!note.trim()} onClick={addNote}>Add</Button>
-        </div>
-      )}
+      {body}
     </Modal>
   )
 }

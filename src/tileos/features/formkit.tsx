@@ -59,7 +59,7 @@ export function projectsFor(s: Pick<Store, 'jobs'>, keep?: (j: Job) => boolean) 
 
 /** the project, typed: start typing a name, an address or a client and pick it — no list of every project; the few on
  *  the go show only when you click into it */
-export function ProjectField({ value, onChange, keep, placeholder = 'Type the project — its name, address or client', autoFocus, invalid }: {
+export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid }: {
   value: string
   onChange: (id: string) => void
   keep?: (j: Job) => boolean

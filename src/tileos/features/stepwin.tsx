@@ -33,7 +33,7 @@ import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
 import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
-import { PaperRead } from './paperread'
+import { PaperRead, useReadBusy } from './paperread'
 import { AddRoomButton } from './roomedit'
 import { LayoutsList, fillSuggestions } from './layout'
 import { PrintSheetsButton, sheetRooms, sheetRows } from './roomsheets'
@@ -425,19 +425,72 @@ export function StepInline({ job, v, onClose, onGo }: { job: Job; v: StepView; o
 export function PartPath({ job, list, at, onPick, label }: { job: Job; list: StepView[]; at: string; onPick: (k: string) => void; label: string }) {
   const s = useStore()
   const me = meOf(s.role)
+  /* each step its own bar — they don't hang on one line (several go on at the same time); each says where it is now */
+  return (
+    <div role="tablist" aria-label={label} className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-2 max-sm:grid-cols-3" style={{ '--n': list.length } as React.CSSProperties} data-step-bars>
+      {list.map((x) => {
+        const w = stepNow(x, me)
+        const on = x.key === at
+        return (
+          <button
+            key={x.key}
+            role="tab"
+            aria-selected={on}
+            onClick={() => onPick(x.key)}
+            data-step={x.key}
+            data-track-step={x.key}
+            data-state={x.state}
+            {...(on ? { 'data-on': '' } : {})}
+            title={w.full}
+            className={cn('flex min-w-0 flex-col rounded-[0.75rem] border px-2.5 pb-2 pt-2 text-left transition', on ? 'border-brand-400 bg-brand-50/60 ring-1 ring-brand-200' : 'border-line bg-white hover:border-[#d6cfc3]')}
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <StepIcon state={x.state} size={15} />
+              <span className="min-w-0 truncate text-[0.78125rem] font-semibold text-ink max-sm:text-[0.75rem]">{stepShort(s, job, x)}</span>
+            </span>
+            <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[#ece8e1]" data-step-bar={w.pct}>
+              <span className={cn('block h-full rounded-full', w.bar)} style={{ width: `${w.pct}%` }} />
+            </span>
+            <span className={cn('mt-1 line-clamp-2 text-[0.71875rem] leading-snug', w.tone)} data-step-now>{w.text}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+/** where a step is, in a few words that change with it — "Being revised · back Nov 4", "Delivery Nov 5", "Delivered
+ *  Oct 30", "3 of 6 matched" — and how full its own bar is */
+export function stepNow(x: StepView, me: PersonKey): { text: string; full: string; pct: number; bar: string; tone: string } {
   const day = (iso: string) => (iso === TODAY ? 'today' : labelFromIso(iso))
-  const circle = (x: StepView, i: number): CircleStep => {
-    const mine = x.owner === me
-    const state: CircleState = x.state === 'done' ? 'done' : x.state === 'bad' ? 'bad' : x.state === 'wait' ? 'wait' : x.state === 'now' ? (mine ? 'now' : 'todo') : 'later'
-    const who = mine ? 'You' : PEOPLE[x.owner]?.short || ''
-    const sub = x.state === 'done' ? (x.doneOn ? x.doneOn : 'Done')
-      : x.state === 'bad' ? `${who} · problem`
-        : x.state === 'wait' ? `${who} · ${x.due ? `back ${day(x.due)}` : 'waiting'}`
-          : x.state === 'now' ? `${who}${x.due ? ` · ${x.due < TODAY ? 'late' : day(x.due)}` : ''}`
-            : x.state === 'na' ? 'Not needed' : who
-    return { key: x.key, label: stepShort(s, job, x), sub, state, center: String(i + 1), attrs: { 'data-step': x.key, 'data-track-step': x.key, 'data-state': x.state, ...(x.key === at ? { 'data-on': '' } : {}) } }
+  const note = (x.note || '').trim()
+  const frac = note.match(/(\d+) of (\d+)/)
+  const part = frac && Number(frac[2]) ? Math.round((Number(frac[1]) / Number(frac[2])) * 100) : undefined
+  const who = x.owner === me ? 'Your turn' : PEOPLE[x.owner]?.short || ''
+  const cut = (t: string) => t.replace(/\s*·\s*uploaded\s*/i, ' · ').replace(/^(.{0,60}).*$/s, '$1')
+  if (x.state === 'done') {
+    const text = x.key === 'getpaper' ? `Got it${x.doneOn ? ` · ${x.doneOn}` : ''}`
+      : x.key === 'delivered' ? `Delivered${x.doneOn ? ` ${x.doneOn}` : ''}`
+        : x.key === 'order' && /delivery (.+)$/i.test(note) ? `Delivery ${note.match(/delivery (.+)$/i)![1]}`
+          : x.key === 'qty' ? 'Enough of every tile'
+            : note && note.length <= 40 && !/^done$/i.test(note) ? note
+              : `Done${x.doneOn ? ` ${x.doneOn}` : ''}`
+    return { text, full: note || text, pct: 100, bar: 'bg-[#2c8a5b]', tone: 'text-[#2c6b4b]' }
   }
-  return <Circles groups={[{ key: 'part', steps: list.map(circle) }]} at={at} onPick={onPick} size={34} label={label} />
+  if (x.state === 'bad') return { text: cut(note) || 'A problem', full: note, pct: part ?? 100, bar: 'bg-bad-500', tone: 'font-medium text-bad-700' }
+  if (x.state === 'wait') {
+    const text = x.key === 'qty' ? `Being revised${x.due ? ` · back ${day(x.due)}` : ''}`
+      : x.key === 'delivered' && x.due ? `Coming ${day(x.due)}`
+        : x.key === 'order' && x.due ? `Asked · back ${day(x.due)}`
+          : cut(note) || `Waiting${x.due ? ` · back ${day(x.due)}` : ''}`
+    return { text, full: note || text, pct: part ?? 55, bar: 'bg-warn-500', tone: 'text-warn-700' }
+  }
+  if (x.state === 'now') {
+    const late = !!x.due && x.due < TODAY
+    const text = [who, part != null ? frac![0] : x.key === 'delivered' && x.due ? `coming ${day(x.due)}` : '', late ? 'late' : ''].filter(Boolean).join(' · ')
+    return { text, full: note || text, pct: part ?? 8, bar: 'bg-brand-500', tone: late ? 'font-medium text-bad-600' : x.owner === me ? 'font-medium text-brand-700' : 'text-muted' }
+  }
+  if (x.state === 'na') return { text: 'Not needed', full: 'Not needed on this project', pct: 0, bar: '', tone: 'text-faint' }
+  return { text: 'Not yet', full: note || 'Not yet', pct: 0, bar: '', tone: 'text-faint' }
 }
 
 /** one part of getting ready in its own window (from Today, a task, a link) — the same as on the project: its steps as
@@ -455,6 +508,19 @@ export function StepModal({ jobId, k, level }: { jobId: string; k: string; level
   const v = list.find((x) => x.key === k)
   const body = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { body.current?.scrollTo?.({ top: 0 }) }, [k])
+  /* opened to do the step: once it's done — or handed on (waiting on someone, not needed) — the window closes by itself;
+     the pop-up says what happened. Opened to look at a step that was already done or waiting: it stays */
+  const open = !!v && (v.state === 'now' || v.state === 'bad')
+  const opened = React.useRef<{ k: string; open: boolean } | null>(null)
+  if (v && opened.current?.k !== k) opened.current = { k, open }
+  const top = s.modals.length - 1 === level
+  /* the paperwork being read, or what it entered on screen (with Take it back): it stays until that's seen */
+  const busy = useReadBusy(jobId)
+  React.useEffect(() => {
+    if (!top || busy || !opened.current || opened.current.k !== k || !opened.current.open || open) return
+    const t = setTimeout(() => useStore.getState().closeLevel(level), 450)
+    return () => clearTimeout(t)
+  }, [open, k, top, busy])
   if (!job || !v) return null
   const go = (key: string) => { if (key !== k) s.swap({ t: 'step', jobId, k: key }) }
   const c = stepCounts(list)

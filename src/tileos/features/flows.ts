@@ -1055,7 +1055,7 @@ export const billsUs = (p?: PO) => !!p && (p.kind !== 'tile' || p.paidBy === 'us
  * order number goes on it), the PO is our call for the delivery. What comes is checked in against it — all of it, or
  * part (how much of each tile), and whatever didn't come stays open on the same PO until it does. */
 export type TilePOLine = { tag: string; name: string; n: number; unit: string; price?: number }
-export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string; /** more of the same tile, on top of what was ordered */ more?: boolean; /** the shortage it reorders */ shortId?: string }) {
+export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string; /** more of the same tile, on top of what was ordered */ more?: boolean; /** the shortage it reorders */ shortId?: string; /** one of several POs sent together (tile from two stores) — no pop-up, the window stays */ quiet?: boolean; /** what the last one's pop-up says instead */ says?: string }) {
   const id = nextPO()
   const us = o.paidBy === 'us'
   const amount = us ? Math.round(o.lines.reduce((n, l) => n + (l.price || 0) * l.n, 0) * 100) / 100 : 0
@@ -1095,8 +1095,8 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
     /* whoever sent it gets the store's yes: it waits on their list and is back on their Today tomorrow */
     newTask(s, { jobId, title: `${id} · get ${o.supplier}’s confirmation`, type: 'Materials', owner: me(), for: [s.role], state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[jobId]?.name || ''} · tile ${tags.join(', ')}`, action: { label: 'Mark confirmed', kind: 'po:' + id } })
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · tile ${tags.join(', ')}`, detail: o.lines.map((l) => `${l.tag} ${l.n} ${l.unit}`).join(', ') + (ref ? ` · their order ${ref}` : ''), ref: { t: 'po', id } })
-  }, `${id} sent to ${o.supplier}`, { sub: `${o.more ? 'More tile' : 'Tile'} ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
-  S().close()
+  }, o.quiet ? undefined : o.says || `${id} sent to ${o.supplier}`, o.quiet ? { undo: false } : { sub: `${o.more ? 'More tile' : 'Tile'} ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
+  if (!o.quiet) S().close()
   if (mailLive()) void emailPO(id)
   return id
 }

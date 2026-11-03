@@ -208,7 +208,8 @@ const partWords = (x: TrackView) => `${x.label} — ${x.state === 'done' ? 'done
 function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */ words?: boolean }) {
   const s = useStore()
   if (pastReady(j)) {
-    if (words) { const f = howFar(s, j); return <span className={cn('truncate text-[0.8125rem] tnum', f.tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-progress={f.pct}>{f.text}</span> }
+    /* a phone: a little bar beside the project, and how far in words */
+    if (words) { const f = howFar(s, j); return <span className="flex min-w-0 items-center gap-2" data-progress={f.pct}><span className="relative h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-[#e5e0d7]" data-phone-bar><span className="absolute inset-y-0 left-0 rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(0, Math.min(100, f.pct))}%` }} /></span><span className={cn('truncate text-[0.8125rem] tnum', f.tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{f.text}</span></span> }
     return <FarBar s={s} j={j} />
   }
   const tracks = tracksFor(s, j).filter((x) => x.key !== 'other')
@@ -218,7 +219,18 @@ function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */
   if (words) {
     const t = typeOf(j)
     const w = all ? (t === 'coming' ? 'Ready' : '') : `${done} of ${tracks.length} ready`
-    return w ? <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')} data-mini-line>{w}</span> : null
+    /* a phone: the five parts as five little bars beside the project — green done, red a problem — and the words */
+    return (
+      <span className="flex min-w-0 items-center gap-2" data-mini-line>
+        <span className="flex shrink-0 items-center gap-[0.1875rem]" data-phone-bar>
+          {TRACKS.map((tk) => {
+            const x = tracks.find((y) => y.key === tk.key)
+            return <span key={tk.key} title={x ? partWords(x) : tk.label} className={cn('h-1.5 w-2.5 rounded-full', !x ? 'bg-[#efebe4]' : x.state === 'done' ? 'bg-[#2c8a5b]' : x.state === 'bad' ? 'bg-bad-500' : x.done > 0 ? 'bg-[#9fc7b1]' : 'bg-[#e5e0d7]')} />
+          })}
+        </span>
+        {w && <span className={cn('truncate text-[0.8125rem] tnum', all ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{w}</span>}
+      </span>
+    )
   }
   /* the five go on at the same time, not one after another — so no line through them, just the five circles */
   return (

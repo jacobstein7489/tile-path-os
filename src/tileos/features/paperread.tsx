@@ -33,6 +33,8 @@ const useReads = create<{ by: Record<string, State> }>(() => ({ by: {} }))
 const setRead = (jobId: string, st: State) => useReads.setState((x) => ({ by: { ...x.by, [jobId]: st } }))
 const ctls: Record<string, AbortController> = {}
 export function stopRead(jobId: string) { ctls[jobId]?.abort(); setRead(jobId, { k: 'idle' }) }
+/** the paperwork is being read on this project, or what it entered is on screen — its window stays open for it */
+export const useReadBusy = (jobId: string) => useReads((x) => { const k = x.by[jobId]?.k; return k === 'reading' || k === 'entered' })
 async function runRead(job: Job, list: File[], already?: boolean) {
   const files = list.filter((f) => /pdf|image/.test(f.type) || /\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name))
   if (!files.length) { setRead(job.id, { k: 'idle', msg: 'Pick a PDF or photos of the paperwork.', tone: 'warn' }); return }

@@ -47,9 +47,9 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
       title="Tile"
       count={all.length}
       action={(all.length > 6 || !simple) ? (
-        <span className="flex items-center gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-2">
           {all.length > 6 && (
-            <label className="relative block w-[15rem] max-sm:w-[10rem]">
+            <label className="relative block w-[15rem] max-sm:order-last max-sm:w-full">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-8 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
             </label>

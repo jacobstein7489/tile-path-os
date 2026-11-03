@@ -82,7 +82,9 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
   const pickStore = () => (tags?.length ? storeOf(tags[0]) : '') || jobStores[0] || tileStores[0] || ''
   const [store, setStore] = React.useState(pickStore)
   React.useEffect(() => { setStore(pickStore()) }, [job])
-  const fromHere = (tag: string) => !storeOf(tag) || storeOf(tag) === store
+  /* more tile: each tile goes to its own store — nothing to pick (tile from two stores makes a PO for each) */
+  const each = !!more && jobStores.length > 1
+  const fromHere = (tag: string) => each || !storeOf(tag) || storeOf(tag) === store
   const [ref, setRef] = React.useState('')
   /* more tile: needed today, unless you say otherwise; nothing else to fill in — who pays follows the tile, the PO
      number is made by itself */
@@ -99,7 +101,16 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
   const send = () => {
     if (!job || !picked.length) return
     const paidBy = pays === 'us' ? 'us' : first?.suppliedBy === 'Owner' ? 'Owner' : 'GC'
-    createTilePO(job, { supplier: store, paidBy, storeRef: pays === 'client' ? ref : undefined, neededBy: needed, memo, more, shortId, lines: picked.map((l) => ({ tag: l.tag, name: l.name, n: l.n, unit: l.unit, ...(pays === 'us' ? { price: l.price } : {}) })) })
+    const lineOf = (l: Draft) => ({ tag: l.tag, name: l.name, n: l.n, unit: l.unit, ...(pays === 'us' ? { price: l.price } : {}) })
+    if (each) {
+      /* one PO for each store the checked tile comes from */
+      const groups = new Map<string, Draft[]>()
+      picked.forEach((l) => { const st = storeOf(l.tag) || store; groups.set(st, [...(groups.get(st) || []), l]) })
+      const list = [...groups.entries()]
+      list.forEach(([st, ls], i) => createTilePO(job, { supplier: st, paidBy, neededBy: needed, more, shortId, lines: ls.map(lineOf), quiet: i < list.length - 1, says: list.length > 1 ? `${list.length} POs sent — ${list.map(([x]) => x).join(' and ')}` : undefined }))
+      return
+    }
+    createTilePO(job, { supplier: store, paidBy, storeRef: pays === 'client' ? ref : undefined, neededBy: needed, memo, more, shortId, lines: picked.map(lineOf) })
   }
   return (
     <Modal
@@ -113,7 +124,7 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
         <>
           <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices — the client’s tile'}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} disabled={!job || !picked.length || !store.trim()} onClick={send} data-send-tile-po>{mailLive() ? `Send it to ${store}` : 'Save the PO'}</Button>
+          <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} disabled={!job || !picked.length || (!each && !store.trim())} onClick={send} data-send-tile-po>{mailLive() ? (each ? 'Send it' : `Send it to ${store}`) : 'Save the PO'}</Button>
         </>
       }
     >
@@ -130,8 +141,10 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
         )}
         <FormRow label="Store" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />{jobStores.length === 1 ? `Where this project’s tile comes from · delivered to ${j.address}` : jobStores.length ? `This project’s tile comes from ${jobStores.join(' and ')} · delivered to ${j.address}` : `No store on this project’s tile yet — it’s kept with the tile from this PO on · delivered to ${j.address}`}</span> : undefined}>
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2 max-sm:grid-cols-1">
-            {jobStores.length === 1
-              ? <div className="flex h-10 min-w-0 items-center rounded-[0.625rem] border border-line bg-wash px-3 text-[0.875rem] font-semibold text-ink" data-store-fixed>{store}</div>
+            {/* the store is the tile's own — nothing to change (a regular tile PO from a project with two stores picks one
+                of those two; with no store on the tile yet, one is picked once and kept) */}
+            {jobStores.length === 1 || each || (more && store && jobStores.length)
+              ? <div className="flex h-10 min-w-0 items-center rounded-[0.625rem] border border-line bg-wash px-3 text-[0.875rem] font-semibold text-ink" data-store-fixed>{each ? jobStores.join(' · ') : store}</div>
               : <SearchSelect label="Store" value={store} onChange={setStore} search={stores.length > 8} width={340} options={stores.map((v) => ({ key: v, label: v }))} placeholder="Pick the tile store" />}
             <SearchSelect label="Needed on site by" value={needed} onChange={setNeeded} search={false} width={260} options={days.map((d) => ({ key: d.key, label: byDay(d.label, 'Needed by') }))} plain />
           </div>
@@ -152,7 +165,7 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
               <input type="checkbox" checked={l.on} onChange={(e) => set(i, { on: e.target.checked })} aria-label={`Put ${l.tag} on the PO`} className="h-4 w-4 accent-[#2650cf]" />
               <span className="flex min-w-0 items-center gap-2.5">
                 <TileImg tile={tileOf(job, l.tag)} size={30} radius={6} />
-                <span className="min-w-0 truncate text-[0.875rem] text-ink"><b className="font-semibold">{l.tag}</b> {l.name}</span>
+                <span className="min-w-0 truncate text-[0.875rem] text-ink"><b className="font-semibold">{l.tag}</b> {l.name}{each && storeOf(l.tag) ? <span className="block truncate text-[0.75rem] text-muted">{storeOf(l.tag)}</span> : null}</span>
               </span>
               <input inputMode="decimal" aria-label={`How much ${l.tag}`} value={l.n || ''} onChange={(e) => set(i, { n: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0), on: true })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" />
               <select aria-label={`Unit for ${l.tag}`} value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} className="h-8 rounded-md border border-line bg-white px-1.5 text-[0.8125rem] text-ink max-sm:hidden">

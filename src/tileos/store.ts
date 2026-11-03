@@ -148,6 +148,8 @@ interface Actions {
   go: (r: Route) => void
   open: (m: Modal) => void
   close: () => void
+  /** close one window by its place in the stack (it finished what it was opened for) — the ones above it stay */
+  closeLevel: (i: number) => void
   closeAll: () => void
   swap: (m: Modal) => void
   setPalette: (v: boolean) => void
@@ -398,6 +400,10 @@ export const useStore = create<Store>()(
     close: () =>
       set((s) => {
         s.modals.pop()
+      }),
+    closeLevel: (i) =>
+      set((s) => {
+        if (i >= 0 && i < s.modals.length) s.modals.splice(i, 1)
       }),
     closeAll: () =>
       set((s) => {

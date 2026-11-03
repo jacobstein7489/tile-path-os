@@ -181,7 +181,7 @@ export function DesktopTopBar() {
       <div className="mx-auto flex h-full w-full max-w-[156.5rem] items-center gap-4" data-top-bar>
         <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
           <Search className="h-4 w-4" />
-          <span className="flex-1 truncate text-left">Search projects, clients, tasks, POs…</span>
+          <span className="flex-1 truncate text-left">Search projects, tasks, POs…</span>
           <Kbd>⌘K</Kbd>
         </button>
         <div className="ml-auto flex items-center gap-3">
@@ -221,7 +221,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&
-        phoneNav(nav).more.map((k) => {
+        phoneNav(nav, role).more.map((k) => {
           const Icon = NAV[k].icon
           return (
             <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: k as Page })}>
@@ -239,10 +239,15 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
 
 /* Phones and tablets: four pages sit in a bar at the bottom; everything else is under More. */
 const PHONE_ORDER = ['today', 'inbox', 'projects', 'estimates', 'upcoming', 'money', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers']
-export function phoneNav(navIn: string[]) {
-  const nav = navKeys(navIn)
-  const bar = PHONE_ORDER.filter((k) => nav.includes(k)).slice(0, 4)
-  return { bar, more: nav.filter((k) => !bar.includes(k)) }
+/** the phone's bar: two on each side of the + — the fifth is More when there's more than four */
+export function phoneNav(navIn: string[], role?: string) {
+  /* the site manager's phone: his day, messages, projects and the schedule — nothing else (no installers list) */
+  const nav = navKeys(navIn).filter((k) => role !== 'site' || !['subs', 'clients', 'designers', 'suppliers', 'directory'].includes(k))
+  const order = PHONE_ORDER.filter((k) => nav.includes(k))
+  const rest = nav.filter((k) => !order.includes(k))
+  const all = [...order, ...rest]
+  const bar = all.length <= 4 ? all : all.slice(0, 3)
+  return { bar, more: all.filter((k) => !bar.includes(k)) }
 }
 /** + New on the phone: a round button in the middle of the tab bar */
 function PhonePlus() {
@@ -258,7 +263,7 @@ export function BottomNav() {
   const go = useStore((s) => s.go)
   const badge = useBadges()
   const active = activeNav(route.page)
-  const { bar, more } = phoneNav(useNav())
+  const { bar, more } = phoneNav(useNav(), role)
   const moreOn = more.includes(active)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main" data-phone-tabs>
@@ -269,8 +274,8 @@ export function BottomNav() {
           const n = badge(k)
           return (
             <React.Fragment key={k}>
-              {/* + New in the middle, where the thumb is */}
-              {i === Math.min(2, bar.length) && <PhonePlus />}
+              {/* + New in the very middle, where the thumb is */}
+              {i === 2 && <PhonePlus />}
               <button onClick={() => go({ page: k as Page })} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold transition-colors', on ? 'text-brand-600' : 'text-muted')}>
                 <span className="relative">
                   <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2 : 1.7} />
@@ -281,8 +286,8 @@ export function BottomNav() {
             </React.Fragment>
           )
         })}
-        {bar.length < 2 && <PhonePlus />}
-        <Menu
+        {bar.length <= 2 && <PhonePlus />}
+        {more.length > 0 && <Menu
           align="end"
           width={240}
           trigger={
@@ -301,7 +306,7 @@ export function BottomNav() {
             )
           })}
           {role === 'owner' && <><MenuSep /><MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings' })}>Settings</MenuItem></>}
-        </Menu>
+        </Menu>}
       </div>
     </nav>
   )
@@ -382,7 +387,7 @@ export function CommandPalette() {
             <Command label="Search everything" loop filter={paletteFilter}>
               <div className="flex h-16 items-center gap-3 border-b border-line-2 px-5">
                 <Search className="h-5 w-5 text-faint" />
-                <Command.Input autoFocus placeholder="Search projects, clients, tasks, or type an action…" className="h-full flex-1 bg-transparent text-[1.03125rem] text-ink placeholder:text-faint focus:outline-none" />
+                <Command.Input autoFocus enterKeyHint="search" placeholder="Search projects, tasks, POs…" className="h-full flex-1 bg-transparent text-[1.03125rem] text-ink placeholder:text-faint focus:outline-none" />
                 <Kbd>Esc</Kbd>
               </div>
               <Command.List className="scroll-soft max-h-[min(28.75rem,60vh)] overflow-y-auto p-2">
