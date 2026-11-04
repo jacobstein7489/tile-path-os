@@ -1,5 +1,5 @@
 /* Tile OS on the device — so the app opens with no signal (a basement, a new building).
- *   the page: from the network first; the last copy when there's no signal
+ *   the page: from the network first; the last copy when there's no signal, or no answer within a few seconds
  *   the app's files (scripts, styles, pictures, fonts): kept the first time they load, then served from here — their
  *   names change with every new version, so nothing goes stale
  * The company's data never goes through here: the app keeps its own copy and sends what was done once the signal is
@@ -46,13 +46,24 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_serverFn') || url.pathname.startsWith('/_server')) return
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
-      try {
-        const res = await fetch(req)
-        if (res.ok && url.pathname === '/') { const c = await caches.open(CACHE); await c.put(PAGE, res.clone()) }
+      const c = await caches.open(CACHE)
+      const kept = await c.match(PAGE)
+      const net = fetch(req).then(async (res) => {
+        if (res.ok && url.pathname === '/') await c.put(PAGE, res.clone())
         return res
+      })
+      if (!kept) {
+        try { return await net } catch { return (await c.match(req)) || Response.error() }
+      }
+      /* the network first — but one bar (a basement) can keep it waiting a minute: after a few seconds the kept copy
+         opens, and the network's answer still updates it for next time */
+      try {
+        const first = await Promise.race([net, new Promise((r) => setTimeout(() => r(null), 3000))])
+        if (first) return first
+        e.waitUntil(net.catch(() => null))
+        return kept
       } catch {
-        const c = await caches.open(CACHE)
-        return (await c.match(PAGE)) || (await c.match(req)) || Response.error()
+        return kept
       }
     })())
     return

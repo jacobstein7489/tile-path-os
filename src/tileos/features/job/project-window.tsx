@@ -3,7 +3,7 @@
  * work · Tiles · Orders · Billing · People · Documents. Billing has its own tab — it never sits on top of the work;
  * the contract in the header opens it. */
 import * as React from 'react'
-import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock } from 'lucide-react'
+import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks } from 'lucide-react'
 import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep, Pop } from '@/tileos/components/ui/overlay'
@@ -129,9 +129,12 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
   const unread = msgs.slice(s.seen?.[`${job.id}|${me}`]?.n || 0).filter((m) => m.who !== me).length
   const canEdit = ['owner', 'pm', 'office', 'estimator'].includes(role)
   const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : (() => { const b = s.bookings.find((x) => x.jobId === job.id); return b ? `${md(b.start)} – ${md(b.end)}` : '' })()
-  /* ··· holds only what changes the project itself — everything else is on the project, one tap away */
+  /* ··· holds only what changes the project itself — everything else is on the project, one tap away. The office
+     says where it's up to straight out: the client, where it stands, who's on it — no going through its steps */
+  const setsWhere = ['owner', 'pm', 'office'].includes(role)
   const more = (canEdit || ['owner', 'pm'].includes(role)) ? (
     <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} />}>
+      {setsWhere && <MenuItem icon={<ListChecks className="h-4 w-4" />} onSelect={() => s.open({ t: 'catchup', id: job.id })}>Update where it’s up to</MenuItem>}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>

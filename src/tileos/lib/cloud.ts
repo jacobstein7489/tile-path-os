@@ -200,7 +200,8 @@ function schedule(ms = 400) {
 }
 export async function flush() {
   if (!synced) return
-  if (sending) { again = true; return }
+  /* opened from the device's copy, the newest still coming down: what's done waits for it, then goes up on top */
+  if (sending || catching) { again = true; return }
   const now = pickNow()
   const c = diff(synced, now)
   if (!c.up.length && !c.del.length) return
@@ -311,14 +312,88 @@ export function reconnect(): Promise<boolean> {
     } finally { reconnecting = null }
   })())
 }
+/* ---------------- opened from the device's copy: the newest comes down right after ---------------- */
+/* Opened before on this device, the app opens straight from its copy — no waiting on the database — and the newest
+ * comes down a moment later with anything done meanwhile laid on top (as when the signal comes back). Until it's down,
+ * what's done waits on the device. No answer for a while (a basement with one bar): it carries on from the copy and
+ * tries again, as with no signal. */
+let catching = false
+let catchTurn = 0
+let catchP: Promise<void> | null = null
+const CATCH_WAIT = 20_000
+/** a start that waits for the database (the first time on a device, or after a problem) — the next open, once */
+const FULL = 'tileos-full-load'
+function catchUp() {
+  const turn = ++catchTurn
+  catching = true
+  const giveUp = setTimeout(() => {
+    if (turn !== catchTurn || !catching) return
+    catchTurn++
+    catching = false
+    offline = true
+    setSaveStatus({ saving: false, problem: OFFLINE_WORDS })
+    if (again) { again = false; schedule(50) }
+  }, CATCH_WAIT)
+  catchP = (async () => {
+    try {
+      /* a sign-in that ran out is renewed first */
+      await supabase.auth.getSession().catch(() => null)
+      const rows = (await loadAll()).map(fresh)
+      if (turn !== catchTurn || !synced) return
+      const now = pickNow()
+      /* what this device did since its copy was last in step — never sent, or done just now */
+      const mine = diff(synced, now)
+      const db = assemble(rows, undefined)
+      let data = assemble(rows, freshData(initialData()))
+      const cleaned = withoutSample(data)
+      if (cleaned) data = cleaned.data
+      if (mine.up.length || mine.del.length) data = patch(data, mine.up, mine.del)
+      ensureTiles(data as any)
+      seedCounters(JSON.stringify(data))
+      synced = db
+      const was = offline
+      offline = false
+      useStore.setState(data as any)
+      lastLook = Date.now()
+      setSaveStatus({ saving: false, problem: undefined })
+      if (was) showPop({ title: 'Back online', sub: 'Everything is up to date.' })
+      if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
+      if (!channel) channel = sb.channel('tileos-records').on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, receive).subscribe()
+      void startQbSync()
+      catching = false
+      again = false
+      /* whatever the clean start filled in, and what was done meanwhile, goes up */
+      schedule(30)
+      keepCopy(0)
+    } catch (e) {
+      if (turn !== catchTurn) return
+      const k = kindOf(e)
+      catching = false
+      if (k === 'network') {
+        offline = true
+        setSaveStatus({ saving: false, problem: OFFLINE_WORDS })
+        if (again) { again = false; schedule(50) }
+        return
+      }
+      /* not let in, or the database isn't set up: open again the way that waits for it — it says what's wrong */
+      try { sessionStorage.setItem(FULL, '1') } catch { /* private window */ }
+      location.reload()
+    } finally {
+      clearTimeout(giveUp)
+    }
+  })()
+}
+
 /** pull down to refresh: send what's waiting, then bring the newest down */
 export async function refreshNow(): Promise<'ok' | 'offline' | 'none'> {
   if (!synced) return 'none'
+  /* just opened, the newest already on its way: that is the refresh */
+  if (catching && catchP) { await Promise.race([catchP, new Promise((r) => setTimeout(r, CATCH_WAIT))]); return offline || catching ? 'offline' : 'ok' }
   await flush().catch(() => null)
   return (await reconnect()) ? 'ok' : 'offline'
 }
-const onOnline = () => { void reconnect() }
-const onLook = () => { if (document.visibilityState === 'visible' && Date.now() - lastLook > 60_000) void reconnect() }
+const onOnline = () => { if (!catching) void reconnect() }
+const onLook = () => { if (!catching && document.visibilityState === 'visible' && Date.now() - lastLook > 60_000) void reconnect() }
 let retry: ReturnType<typeof setInterval> | null = null
 
 /* ---------------- the sample never lives in the company's data ---------------- */
@@ -367,12 +442,33 @@ if (import.meta.hot) import.meta.hot.on('vite:beforeUpdate', () => { if (synced)
 /* ---------------- starting: load, sign the person in, then keep in step ---------------- */
 export type StartResult = { ok: true; member: Member } | { ok: false; why: CloudProblem; detail?: string }
 /** is there a copy of this person's data on this device (to open with no signal) */
-export async function hasCopy(userId: string) { try { return !!(await getLocal<Copy>('copy:' + userId))?.data } catch { return false } }
+let copyRead: { uid: string; p: Promise<Copy | undefined> } | null = null
+const readCopy = (userId: string) => {
+  if (copyRead?.uid !== userId) copyRead = { uid: userId, p: getLocal<Copy>('copy:' + userId).catch(() => undefined) }
+  return copyRead.p
+}
+export async function hasCopy(userId: string) { try { return !!(await readCopy(userId))?.data } catch { return false } }
+/** a copy good to open from: in step with the database not two weeks ago */
+const usable = (c?: Copy): c is Copy => !!(c?.data && c.synced && Date.now() - c.at < 14 * DAY)
+/** the collections a newer version of the app added, which an older copy doesn't have yet */
+function withGaps(d: Data): Data {
+  const missing = DATA_KEYS.filter((k) => (d as any)[k] === undefined)
+  if (!missing.length) return d
+  const base: any = freshData(initialData())
+  const out: any = { ...d }
+  for (const k of missing) out[k] = base[k]
+  return out as Data
+}
 export async function startCloud(user: User, opts: { admin: boolean; name: string; appRoles: string[] }): Promise<StartResult> {
   uid = user.id
-  const copy = await getLocal<Copy>('copy:' + user.id).catch(() => undefined)
+  const copy = await readCopy(user.id)
+  copyRead = null
+  /* opened here before: straight from the copy, the newest right after (see catchUp) */
+  let full = false
+  try { full = sessionStorage.getItem(FULL) === '1'; sessionStorage.removeItem(FULL) } catch { /* private window */ }
+  const quick = !full && usable(copy)
   let rows: Row[] | null = null
-  try { rows = await loadAll() } catch (e: any) {
+  if (!quick) try { rows = await loadAll() } catch (e: any) {
     const k = kindOf(e)
     /* no signal: open from this device's copy — it all goes up when the signal is back */
     if (k !== 'network' || !copy?.data || !copy.synced) return { ok: false, why: k, detail: e?.message }
@@ -398,12 +494,13 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
     offline = false
     useStore.getState().replaceData(data)
   } else {
-    const data = copy!.data
+    const data = withGaps(copy!.data)
     ensureTiles(data as any)
     seedCounters(JSON.stringify(data))
     ID.sfx = '.' + CLIENT.slice(0, 4)
     synced = copy!.synced
-    offline = true
+    /* the copy because there's no signal — or because it's quicker, the newest on its way */
+    offline = !quick
     useStore.getState().replaceData(data)
   }
   REAL.cloud = true
@@ -442,11 +539,11 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.refresh = refreshNow
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: offline ? OFFLINE_WORDS : undefined })
   const member = linkMember(user, opts)
-  if (!offline) void startQbSync()
+  if (!offline && !quick) void startQbSync()
   if (cleaned) showPop({ title: `Took the sample out of your data`, sub: `${cleaned.jobs} sample project${cleaned.jobs === 1 ? '' : 's'} (115 Park, 118 Park…) and everything tied to them. Your own work wasn’t touched.` })
   /* whatever the clean start filled in (the first time: everything) goes up right away */
-  if (!offline) schedule(30)
-  keepCopy(0)
+  if (!offline && !quick) schedule(30)
+  if (!quick) keepCopy(0)
   lastLook = Date.now()
   unsub?.()
   unsub = useStore.subscribe((s, prev) => { if (DATA_KEYS.some((k) => (s as any)[k] !== (prev as any)[k])) { schedule(); keepCopy() } })
@@ -457,12 +554,15 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   window.addEventListener('online', onOnline)
   document.addEventListener('visibilitychange', onLook)
   if (retry) clearInterval(retry)
-  retry = setInterval(() => { if (offline) void reconnect() }, 30_000)
+  retry = setInterval(() => { if (offline && !catching) void reconnect() }, 30_000)
+  if (quick) catchUp()
   return { ok: true, member }
 }
 /* the tests (in development only) can hand in a change as if someone else made it */
 if (import.meta.env.DEV && typeof window !== 'undefined') (window as any).__tileosCloud = { receive, flush, applyNow: () => applyInbox(), client: CLIENT }
 export function stopCloud() {
+  catchTurn++
+  catching = false
   stopQbSync()
   unsub?.(); unsub = null
   channel?.unsubscribe(); channel = null

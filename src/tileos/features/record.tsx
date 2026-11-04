@@ -189,7 +189,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     <FormRow label={type === 'meeting' ? 'About' : 'Project'}>
       {type === 'meeting' ? (
         <div className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
-          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project — or leave it for a company meeting" /></div>
+          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project — or leave it for a company meeting" picks={false} /></div>
           {jobId && <Button variant="ghost" icon={<Building2 className="h-4 w-4" />} onClick={() => setJobId('')}>Company meeting</Button>}
         </div>
       ) : (
@@ -203,7 +203,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title="Log what happened" bodyClass="px-6 py-5 max-sm:px-4">
       <div key={type || 'type'} className="animate-fade-up">
         {!type && (
-          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <div className="grid grid-cols-2 gap-2 max-sm:gap-2.5">
             {TPL.filter((t) => allowedFor(s.role, t.key)).map((t) => (
               <KindChoice key={t.key} k={t.key} big onClick={() => { setType(t.key); setKind(''); setDelivery(''); setInvoice('') }} />
             ))}

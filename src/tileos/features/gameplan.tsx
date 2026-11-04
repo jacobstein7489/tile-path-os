@@ -18,21 +18,9 @@ import { rowsOf, installerOf } from './upcoming'
 import { mondayOf, addDays } from './schedule'
 import { TODAY, MONDAY, addDays as addDaysT } from '@/tileos/lib/today'
 import { isOff } from './active'
+import { usePhone } from '@/tileos/lib/phone'
 
 type View = 'week' | '2weeks' | 'month'
-/** a phone-sized screen — kept up to date as it turns or resizes */
-function usePhone() {
-  const q = '(max-width: 767.98px)'
-  const [on, setOn] = React.useState(() => (typeof window !== 'undefined' ? window.matchMedia(q).matches : false))
-  React.useEffect(() => {
-    const mq = window.matchMedia(q)
-    const f = () => setOn(mq.matches)
-    f()
-    mq.addEventListener('change', f)
-    return () => mq.removeEventListener('change', f)
-  }, [])
-  return on
-}
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', o)
 const dow = (iso: string) => new Date(iso + 'T12:00:00').getDay()
 const isWeekday = (iso: string) => { const d = dow(iso); return d > 0 && d < 6 }

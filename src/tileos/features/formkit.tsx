@@ -5,11 +5,13 @@
  *   at the bottom, a photo button where it fits, and the one button that saves it. */
 import * as React from 'react'
 import * as PO from '@radix-ui/react-popover'
-import { Building2, Camera, Check, Search, UserPlus, X } from 'lucide-react'
-import { useStore, type Store } from '@/tileos/store'
+import { flushSync } from 'react-dom'
+import { Building2, Camera, Check, ChevronRight, Search, UserPlus, X } from 'lucide-react'
+import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
+import { useSmall } from '@/tileos/lib/phone'
 import { PEOPLE, STAGE_LABEL, type Job, type PersonKey } from '@/tileos/data/model'
 import { addDays, dayShort, dow, TODAY, labelFromIso } from '@/tileos/lib/today'
 import { KIND, PART_TINT } from './newpicker'
@@ -58,19 +60,24 @@ export function projectsFor(s: Pick<Store, 'jobs'>, keep?: (j: Job) => boolean) 
 }
 
 /** the project, typed: start typing a name, an address or a client and pick it — no list of every project; the few on
- *  the go show only when you click into it */
-export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid }: {
+ *  the go show only when you click into it. On a phone (picks): the ones on the go as big rows to tap instead — yours
+ *  first — so nothing is typed and no keyboard comes up; Another project types one; Change brings the rows back */
+export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid, picks = true }: {
   value: string
   onChange: (id: string) => void
   keep?: (j: Job) => boolean
   placeholder?: string
   autoFocus?: boolean
   invalid?: boolean
+  /** on a phone, big rows to tap before one is picked — off where the project is only if you like */
+  picks?: boolean
 }) {
   const s = useStore()
   const [q, setQ] = React.useState('')
   const [open, setOpen] = React.useState(false)
   const [hi, setHi] = React.useState(0)
+  const [typing, setTyping] = React.useState(false)
+  const small = useSmall()
   const input = React.useRef<HTMLInputElement>(null)
   const cur = value ? s.jobs[value] : undefined
   const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
@@ -78,13 +85,36 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
   /* nothing typed yet: the few on the go; typed: whatever matches */
   const shown = (words.length ? all.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))) : all).slice(0, words.length ? 8 : 5)
   React.useEffect(() => setHi(0), [q])
-  const pick = (id: string) => { onChange(id); setQ(''); setOpen(false) }
+  const pick = (id: string) => { onChange(id); setQ(''); setOpen(false); setTyping(false) }
+  const tap = small && picks
+  if (tap && !cur && !typing) {
+    const me = meOf(s.role)
+    const mine = (j: Job) => j.site === me || j.pm === me || j.crew === me || j.estimator === me
+    const list = [...all.filter(mine), ...all.filter((j) => !mine(j))].slice(0, 6)
+    if (list.length) return (
+      <div className="flex flex-col gap-2" data-project-picks>
+        {list.map((j) => (
+          <button key={j.id} type="button" onClick={() => pick(j.id)} data-project-pick={j.id} className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-2 text-left transition active:scale-[0.99] active:bg-wash">
+            <Building2 className="h-5 w-5 shrink-0 text-faint" />
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[1rem] font-semibold text-ink">{j.name}</span>
+              <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{j.client}</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-faint" />
+          </button>
+        ))}
+        <button type="button" onClick={() => { flushSync(() => { setTyping(true); setOpen(true) }); input.current?.focus() }} data-project-other className="flex h-12 items-center justify-center gap-2 rounded-xl border border-dashed border-[#d6cfc3] text-[0.9375rem] font-semibold text-brand-700 active:bg-wash">
+          <Search className="h-4 w-4" />Another project
+        </button>
+      </div>
+    )
+  }
   if (cur && !open) {
     return (
-      <div className={cn('flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white pl-3 pr-1.5', invalid && 'border-bad-300')} data-project-field={cur.id}>
-        <Building2 className="h-4 w-4 shrink-0 text-faint" />
-        <span className="min-w-0 flex-1 truncate text-[0.875rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted">{cur.client}</span></span>
-        <button type="button" onClick={() => { setOpen(true); setTimeout(() => input.current?.focus(), 10) }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50">Change</button>
+      <div className={cn('flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white pl-3 pr-1.5 max-sm:h-14 max-sm:rounded-xl max-sm:pl-3.5', invalid && 'border-bad-300')} data-project-field={cur.id}>
+        <Building2 className="h-4 w-4 shrink-0 text-faint max-sm:h-5 max-sm:w-5" />
+        <span className="min-w-0 flex-1 truncate text-[0.875rem] max-sm:text-[1rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted max-sm:text-[0.8125rem]">{cur.client}</span></span>
+        <button type="button" onClick={() => { if (tap) { setTyping(false); onChange(''); return } setOpen(true); setTimeout(() => input.current?.focus(), 10) }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50 max-sm:text-[0.9375rem]" data-project-change>Change</button>
       </div>
     )
   }
@@ -225,13 +255,13 @@ export function WhoWhen({ who, onWho, when, onWhen, whoLabel = 'Who', whenLabel 
 }
 
 /** a photo or two with it — the same button on every form */
-export function PhotoButton({ photos, onAdd, label = 'Add photo' }: { photos: File[]; onAdd: (f: File[]) => void; label?: string }) {
+export function PhotoButton({ photos, onAdd, label = 'Add photo', big }: { photos: File[]; onAdd: (f: File[]) => void; label?: string; /** thumb-sized, for the phone */ big?: boolean }) {
   const ref = React.useRef<HTMLInputElement>(null)
   return (
     <>
       <input ref={ref} type="file" accept="image/*" multiple className="hidden" aria-label="Photos" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) onAdd(l) }} />
-      <button type="button" onClick={() => ref.current?.click()} className="inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d9d3c9] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink-2 shadow-xs transition hover:border-[#c9c2b7] hover:bg-wash hover:text-ink">
-        <Camera className="h-4 w-4" />{photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : label}
+      <button type="button" onClick={() => ref.current?.click()} data-photo-button className={cn('inline-flex items-center gap-2 border border-[#d9d3c9] bg-white font-semibold text-ink-2 shadow-xs transition hover:border-[#c9c2b7] hover:bg-wash hover:text-ink', big ? 'h-12 rounded-xl px-4 text-[1rem]' : 'h-9 rounded-[0.5625rem] px-3.5 text-[0.84375rem]')}>
+        <Camera className={big ? 'h-5 w-5' : 'h-4 w-4'} />{photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : label}
       </button>
     </>
   )

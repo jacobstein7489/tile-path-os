@@ -3,7 +3,17 @@
 import * as React from 'react'
 import { Search, Clock3, Smile, PersonStanding, PawPrint, Apple, Plane, Volleyball, Lightbulb, Hash, Flag, X } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
-import { EMOJI_GROUPS } from '@/tileos/data/emoji'
+import type { EmojiGroup } from '@/tileos/data/emoji'
+
+/* the full list (70 KB of names and search words) comes in the first time a picker opens — not with the app's start */
+let GROUPS: EmojiGroup[] | null = null
+let loading: Promise<EmojiGroup[]> | null = null
+const loadGroups = () => (loading ||= import('@/tileos/data/emoji').then((m) => (GROUPS = m.EMOJI_GROUPS)))
+function useGroups(): EmojiGroup[] {
+  const [g, setG] = React.useState<EmojiGroup[]>(() => GROUPS || [])
+  React.useEffect(() => { if (!GROUPS) void loadGroups().then(setG) }, [])
+  return g
+}
 
 const KEY = 'tileos-emoji-recent'
 const START = ['👍', '❤️', '😂', '🙏', '✅', '👌', '🔥', '😊', '👏', '💪', '🎉', '😅', '🤝', '👀', '😮', '😢']
@@ -19,6 +29,7 @@ const ICONS: Record<string, React.ElementType> = { recent: Clock3, smileys: Smil
 export const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
 export function EmojiPicker({ onPick, className, autoFocus }: { onPick: (e: string) => void; className?: string; autoFocus?: boolean }) {
+  const EMOJI_GROUPS = useGroups()
   const [q, setQ] = React.useState('')
   const [recent, setRecent] = React.useState(readRecent)
   const [tab, setTab] = React.useState('recent')

@@ -6,9 +6,10 @@ import { PackageX, Shuffle, PackageMinus, Droplets, TriangleAlert, Camera, Check
 import { useStore, meOf, newTask, addHist, NOW, type Store } from '@/tileos/store'
 import { Button, TextArea, Stepper } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { FormHead, FormRow, ProjectField, WhoWhen, PhotoButton } from './formkit'
+import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
+import { useSmall } from '@/tileos/lib/phone'
 import { keepFiles } from '@/tileos/lib/files'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import { tilesOf } from '@/tileos/data/jobs'
@@ -37,6 +38,9 @@ function deskFor(s: Store, k: Kind): PersonKey {
 
 export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: number }) {
   const s = useStore()
+  /* on a phone it goes one thing at a time, in big taps: the project, what's wrong, which tile and how many — each
+     answer folds to one line (Change opens it again) — then a few words if you like, the photos, Log it */
+  const small = useSmall()
   const [jobId, setJobId] = React.useState(j0 || '')
   const job = jobId ? s.jobs[jobId] : undefined
   const me = meOf(s.role)
@@ -75,48 +79,94 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
       title="Log a problem"
       header={<FormHead k="problem" kicker={j0 && job ? job.name : undefined} title="Log a problem" />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={
+      footer={small ? (
+        <>
+          <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} label="Photos" big />
+          <Button className="flex-1 max-md:h-12 max-md:text-[1rem]" variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
+        </>
+      ) : (
         <>
           <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} label="Add photos" />
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" disabled={!ok} onClick={save}>Log it</Button>
+          <Button variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
         </>
-      }
+      )}
     >
-      {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
-      <FormRow label="What’s wrong?">
-        {/* tap one — no list to open. Picked, only that one stays (Change brings the others back) */}
-        {/* on a phone: two small tiles a row, the words only — the whole window fits without scrolling */}
-        <div className="grid grid-cols-2 gap-2" data-problem-kinds>
-          {KINDS.filter((x) => !kind || kind === x.k).map((x) => {
-            const on = kind === x.k
-            return (
-              <button key={x.k} type="button" onClick={() => choose(on ? ('' as Kind) : x.k)} aria-pressed={on} data-problem-kind={x.k}
-                className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition max-sm:gap-2 max-sm:px-2.5 max-sm:py-2', on ? 'col-span-2 border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2')}>
-                <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:h-8 max-sm:w-8', on ? 'bg-bad-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-[1.125rem] w-[1.125rem]" /></span>
-                <span className="min-w-0 flex-1 leading-tight"><span className="block text-[0.875rem] font-semibold text-ink max-sm:text-[0.8125rem]">{x.label}</span><span className={cn('block truncate text-[0.75rem] text-muted', !on && 'max-sm:hidden')}>{x.sub}</span></span>
-                {on && <span className="shrink-0 text-[0.8125rem] font-semibold text-brand-700" data-problem-change>Change</span>}
-              </button>
-            )
-          })}
-        </div>
-      </FormRow>
-      {isTile(kind || undefined) && (
-        <FormRow label="Which tile">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 max-sm:grid-cols-1">
-            <SearchSelect label="Which tile" value={tag} onChange={setTag} placeholder={tiles.length ? 'Pick the tile' : 'No tiles on this project yet'} search={tiles.length > 8} width={340} options={tiles.map((t) => ({ key: t.tag, label: `${t.tag} · ${t.name}`, hint: [t.size, t.supplier].filter(Boolean).join(' · ') }))} />
-            <Stepper value={n} onChange={setN} min={1} max={999} suffix={n === 1 ? 'box' : 'boxes'} />
-          </div>
-        </FormRow>
+      {!j0 && <FormRow label={small && !jobId ? 'Which project?' : 'Project'}><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={keepJob} autoFocus /></FormRow>}
+      {/* on a phone the project comes first — the rest once it's picked */}
+      {(!small || !!jobId) && (
+        <>
+          <FormRow label="What’s wrong?">
+            {/* tap one — no list to open. Picked, only that one stays (Change brings the others back) */}
+            <div className={cn('grid grid-cols-2 gap-2', small && !kind && 'gap-2.5')} data-problem-kinds>
+              {KINDS.filter((x) => !kind || kind === x.k).map((x) => {
+                const on = kind === x.k
+                /* on a phone, before one is picked: big tiles, the icon on top — like + New */
+                if (small && !on) return (
+                  <button key={x.k} type="button" onClick={() => choose(x.k)} aria-pressed={false} data-problem-kind={x.k}
+                    className="flex h-[6.5rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-white px-2 text-center shadow-[0_1px_2px_rgba(20,26,36,.05)] transition active:scale-[0.97] active:bg-wash">
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.8125rem] bg-[#fdecea] text-[#c4311f]"><x.icon className="h-[1.375rem] w-[1.375rem]" /></span>
+                    <span className="line-clamp-2 text-[0.9375rem] font-semibold leading-snug text-ink">{x.label}</span>
+                  </button>
+                )
+                return (
+                  <button key={x.k} type="button" onClick={() => choose(on ? ('' as Kind) : x.k)} aria-pressed={on} data-problem-kind={x.k}
+                    className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition max-sm:min-h-14', on ? 'col-span-2 border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2')}>
+                    <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', on ? 'bg-bad-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-[1.125rem] w-[1.125rem]" /></span>
+                    <span className="min-w-0 flex-1 leading-tight"><span className="block text-[0.875rem] font-semibold text-ink max-sm:text-[0.9375rem]">{x.label}</span><span className="block truncate text-[0.75rem] text-muted max-sm:text-[0.8125rem]">{x.sub}</span></span>
+                    {on && <span className="shrink-0 text-[0.8125rem] font-semibold text-brand-700 max-sm:text-[0.9375rem]" data-problem-change>Change</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </FormRow>
+          {isTile(kind || undefined) && (small && tiles.length > 0 && tiles.length <= 8 ? (
+            <>
+              <FormRow label="Which tile">
+                {/* each tile a big row to tap; picked, only it stays */}
+                <div className="flex flex-col gap-2" data-problem-tiles>
+                  {tiles.filter((t) => !tag || t.tag === tag).map((t) => {
+                    const on = t.tag === tag
+                    return (
+                      <button key={t.tag} type="button" aria-pressed={on} onClick={() => setTag(on && tiles.length > 1 ? '' : t.tag)} data-problem-tile={t.tag}
+                        className={cn('flex min-h-14 min-w-0 items-center gap-3 rounded-xl border px-3.5 py-2 text-left transition', on ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-line bg-white active:bg-wash')}>
+                        <span className="shrink-0 text-[1rem] font-bold tnum text-ink">{t.tag}</span>
+                        <span className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[0.9375rem] text-ink-2">{t.name}</span>{t.size && <span className="block truncate text-[0.8125rem] text-muted">{t.size}</span>}</span>
+                        {on && tiles.length > 1 && <span className="shrink-0 text-[0.9375rem] font-semibold text-brand-700">Change</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </FormRow>
+              <FormRow label={kind === 'short' ? 'How many boxes are missing' : `How many boxes came ${kind}`}>
+                <Stepper value={n} onChange={setN} min={1} max={999} suffix={n === 1 ? 'box' : 'boxes'} big />
+              </FormRow>
+            </>
+          ) : (
+            <FormRow label="Which tile">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 max-sm:grid-cols-1">
+                <SearchSelect label="Which tile" value={tag} onChange={setTag} placeholder={tiles.length ? 'Pick the tile' : 'No tiles on this project yet'} search={tiles.length > 8} width={340} options={tiles.map((t) => ({ key: t.tag, label: `${t.tag} · ${t.name}`, hint: [t.size, t.supplier].filter(Boolean).join(' · ') }))} />
+                <Stepper value={n} onChange={setN} min={1} max={999} suffix={n === 1 ? 'box' : 'boxes'} big={small} />
+              </div>
+            </FormRow>
+          ))}
+          {kind === 'site' && (
+            <FormRow label="What isn’t ready">
+              {small ? (
+                <div className="grid grid-cols-2 gap-2" data-problem-site>
+                  {SITE.map((x) => <button key={x} type="button" aria-pressed={what === x} onClick={() => setWhat(x)} className={cn('flex min-h-12 items-center justify-center rounded-xl border px-2 text-center text-[0.9375rem] font-semibold transition', what === x ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 active:bg-wash', x === SITE[SITE.length - 1] && 'col-span-2')}>{x}</button>)}
+                </div>
+              ) : <SearchSelect label="What isn’t ready" value={what} onChange={setWhat} search={false} width={300} options={SITE.map((x) => ({ key: x, label: x }))} />}
+            </FormRow>
+          )}
+          {(!small || !!kind) && (
+            <FormRow label={kind === 'other' ? 'What’s wrong' : small ? 'A few words (if you like)' : 'What happened'}>
+              <TextArea aria-label="What happened" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="min-h-[3.75rem] max-sm:text-[1rem]" placeholder={kind === 'site' ? 'e.g. The GC says the water is on Friday' : kind === 'other' ? 'Say it in a few words' : small ? 'e.g. 3 boxes cracked in the corner' : 'e.g. 3 boxes cracked in the corner — the driver saw it (optional)'} />
+            </FormRow>
+          )}
+        </>
       )}
-      {kind === 'site' && (
-        <FormRow label="What isn’t ready">
-          <SearchSelect label="What isn’t ready" value={what} onChange={setWhat} search={false} width={300} options={SITE.map((x) => ({ key: x, label: x }))} />
-        </FormRow>
-      )}
-      <FormRow label={kind === 'other' ? 'What’s wrong' : 'What happened'}>
-        <TextArea aria-label="What happened" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="min-h-[3.75rem]" placeholder={kind === 'site' ? 'e.g. The GC says the water is on Friday' : kind === 'other' ? 'Say it in a few words' : 'e.g. 3 boxes cracked in the corner — the driver saw it (optional)'} />
-      </FormRow>
     </Modal>
   )
 }
+const keepJob = (j: { stage: string }) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)

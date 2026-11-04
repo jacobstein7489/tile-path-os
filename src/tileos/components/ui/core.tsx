@@ -350,12 +350,12 @@ export function TextArea({ mic = true, ...props }: React.TextareaHTMLAttributes<
   return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute bottom-2.5 right-2" /></span>
 }
 
-export function Stepper({ value, onChange, min = 0, max = 99, suffix }: { value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string }) {
+export function Stepper({ value, onChange, min = 0, max = 99, suffix, big }: { value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string; /** a thumb-sized one, for the phone */ big?: boolean }) {
   return (
-    <div className="inline-flex h-10 items-center rounded-lg border border-line bg-white">
-      <button className="h-full w-10 rounded-l-lg text-[1.0625rem] text-ink-2 hover:bg-wash" onClick={() => onChange(Math.max(min, value - 1))}>−</button>
-      <span className="min-w-[4.25rem] text-center text-[0.90625rem] font-medium tnum text-ink">{value}{suffix ? ' ' + suffix : ''}</span>
-      <button className="h-full w-10 rounded-r-lg text-[1.0625rem] text-ink-2 hover:bg-wash" onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+    <div className={cn('inline-flex items-center rounded-lg border border-line bg-white', big ? 'h-14 w-full justify-between rounded-xl' : 'h-10')} data-stepper>
+      <button type="button" aria-label="One less" className={cn('h-full rounded-l-lg text-ink-2 hover:bg-wash', big ? 'w-16 rounded-l-xl text-[1.625rem] active:bg-wash-2' : 'w-10 text-[1.0625rem]')} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+      <span className={cn('text-center font-medium tnum text-ink', big ? 'flex-1 text-[1.125rem] font-semibold' : 'min-w-[4.25rem] text-[0.90625rem]')}>{value}{suffix ? ' ' + suffix : ''}</span>
+      <button type="button" aria-label="One more" className={cn('h-full rounded-r-lg text-ink-2 hover:bg-wash', big ? 'w-16 rounded-r-xl text-[1.625rem] active:bg-wash-2' : 'w-10 text-[1.0625rem]')} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
     </div>
   )
 }

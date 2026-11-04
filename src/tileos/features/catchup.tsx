@@ -1,15 +1,19 @@
 /* Bring projects up to date. The ones brought in (from Asana, or from their estimates) come in with only what Asana
  * knew — not who the site manager is, how far the crew got, which parts of getting ready are done. One project at a
- * time, a few taps each: where it stands, what's done already, the installer, the site manager, how far, the start and
- * the finish — and its estimate and tile paperwork if they're handy (the rooms and the tiles fill in by themselves).
- * Save & next saves it and goes on to the next one; it remembers which are done, so you can stop and come back. */
+ * time, a few taps each: the client, where it stands, what's done already, the installer, the site manager, how far,
+ * the start and the finish — and its estimate and tile paperwork if they're handy (the rooms and the tiles fill in by
+ * themselves). Save & next saves it and goes on to the next one; it remembers which are done, so you can stop and come
+ * back. The same form, for one project, is the office's say on where it's up to — from the project's ··· menu,
+ * without going through its steps one by one. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, ExternalLink, FileText, ListChecks, PauseCircle, Sparkles, Upload } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, ListChecks, PauseCircle, Sparkles, Upload } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
+import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, CREWS, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
+import { PEOPLE, CREWS, type Customer, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
+import { CUSTOMERS } from '@/tileos/data/jobs'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { companySteps } from './steps'
 import { tracksFor, type TrackKey } from './tracks'
@@ -22,13 +26,26 @@ const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 const BEFORE_START: Stage[] = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
 const BEFORE = 'Done before Tile OS'
 const brought = (s: Pick<Store, 'hist'>, j: Job) => (s.hist[j.id] || []).find((h) => /^Brought in/.test(h.title))
+/** came in from Asana or an estimate, rather than made here step by step */
+const broughtIn = (s: Pick<Store, 'hist'>, j: Job) => !!brought(s, j) || j.keyDate?.label === 'Brought in'
+/** a project that's going — won, not finished */
+const isOpen = (j: Job) => !PRICING.includes(j.stage) && !['closeout', 'complete'].includes(j.stage)
 /** brought in and not gone through yet */
-export const needsCatchUp = (s: Pick<Store, 'hist'>, j: Job) => !j.caughtUp && !PRICING.includes(j.stage) && !['closeout', 'complete'].includes(j.stage) && !!brought(s, j)
-/** the ones to go through — the busiest first: in progress, touch-ups, then getting ready */
+export const needsCatchUp = (s: Pick<Store, 'hist'>, j: Job) => !j.caughtUp && isOpen(j) && broughtIn(s, j)
+/** the busiest first: in progress, touch-ups, then getting ready */
+const rank = (j: Job) => (j.stage === 'installation' ? 0 : j.stage === 'punch' ? 1 : 2)
+/** the ones to go through */
 export function catchUpList(s: Store): Job[] {
-  const rank = (j: Job) => (j.stage === 'installation' ? 0 : j.stage === 'punch' ? 1 : 2)
   return Object.values(s.jobs).filter((j) => needsCatchUp(s, j)).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
 }
+/** every open project — the ones nobody went through yet first */
+export function allOpenList(s: Store): Job[] {
+  return Object.values(s.jobs).filter(isOpen).sort((a, b) => Number(!!a.caughtUp) - Number(!!b.caughtUp) || rank(a) - rank(b) || a.name.localeCompare(b.name))
+}
+/** the stand-in client a job came in with when Asana didn't say whose it was */
+const TO_CONFIRM = /^client to confirm$/i
+const clientSet = (s: Store, j: Job) => !!j.clientId && !TO_CONFIRM.test(j.client || '') && !TO_CONFIRM.test((s.clients[j.clientId] || CUSTOMERS[j.clientId])?.name || '')
+const GC_WORDS = /\b(llc|inc|corp|co|construction|builders?|group|development|properties|homes|contracting|realty|management)\b/i
 
 type Where = 'new' | 'ready' | 'installing' | 'touchups' | 'done'
 const WHERE: { key: Where; label: string }[] = [
@@ -44,16 +61,16 @@ const PARTS: { key: TrackKey; label: string }[] = [
 ]
 /** ready for the crew = these three are done */
 const READY_PARTS: TrackKey[] = ['scope', 'tile', 'site']
-type Draft = { where: Where; parts: TrackKey[]; crew: string; site: string; pct: string; start: string; finish: string; hold: boolean; why: string }
+type Draft = { clientId: string; where: Where; parts: TrackKey[]; crew: string; site: string; pct: string; start: string; finish: string; hold: boolean; why: string }
 function draftOf(s: Store, j: Job): Draft {
   const done = tracksFor(s, j).filter((t) => t.state === 'done').map((t) => t.key)
   const where: Where = j.stage === 'installation' ? 'installing' : j.stage === 'punch' ? 'touchups' : ['closeout', 'complete'].includes(j.stage) ? 'done' : READY_PARTS.every((k) => done.includes(k)) ? 'ready' : 'new'
   const prep = s.prep[j.id]
   const startIso = BEFORE_START.includes(j.stage) ? prep?.targetISO : isoFromLabel(j.dates?.start)
-  /* the site manager only when Asana named one — otherwise it was a stand-in, so it's asked */
-  const site = j.caughtUp || /Site manager:/.test(brought(s, j)?.detail || '') ? j.site || '' : ''
+  /* a brought-in project's site manager only when Asana named one — otherwise it was a stand-in, so it's asked */
+  const site = !broughtIn(s, j) || j.caughtUp || /Site manager:/.test(brought(s, j)?.detail || '') ? j.site || '' : ''
   const crew = j.crew || (prep?.installer && prep.installer !== 'tbd' ? String(prep.installer) : '')
-  return { where, parts: done, crew, site, pct: j.pct ? String(j.pct) : '', start: startIso || '', finish: isoFromLabel(j.dates?.finish) || '', hold: !!j.hold, why: j.hold?.reason || '' }
+  return { clientId: clientSet(s, j) ? j.clientId : '', where, parts: done, crew, site, pct: j.pct ? String(j.pct) : '', start: startIso || '', finish: isoFromLabel(j.dates?.finish) || '', hold: !!j.hold, why: j.hold?.reason || '' }
 }
 /** the link back to the job in Asana — from its history */
 const asanaOf = (s: Store, j: Job) => (s.hist[j.id] || []).map((h) => h.detail?.match(/https:\/\/app\.asana\.com\/[^\s—]+/)?.[0]).find(Boolean)
@@ -66,13 +83,17 @@ const NEXT_UP: { part: TrackKey; text: string; owner: PersonKey }[] = [
   { part: 'materials', text: 'Order the materials', owner: 'ys' },
 ]
 
-/** save one project the way it was set: where it stands (and what's checked off with it), the people, how far, dates */
-function save(jobId: string, d: Draft) {
+/** save one project the way it was set: the client, where it stands (and what's checked off with it), the people, how
+ *  far, dates — said with a pop and closed when it's the one project (msg) */
+function save(jobId: string, d: Draft, msg?: string) {
   const st0 = useStore.getState()
   const me = meOf(st0.role)
   st0.commit((st) => {
     const j = st.jobs[jobId]
     if (!j) return
+    /* whose it is */
+    const c = d.clientId ? st.clients[d.clientId] || CUSTOMERS[d.clientId] : undefined
+    if (c && c.id !== j.clientId) { j.clientId = c.id; j.client = c.name }
     const stage: Stage = d.where === 'installing' ? 'installation' : d.where === 'touchups' ? 'punch' : d.where === 'done' ? 'complete' : BEFORE_START.includes(j.stage) ? j.stage : 'setup'
     j.stage = stage
     /* what's done already: everything once the crew started; while it's getting ready, the parts that were tapped */
@@ -120,13 +141,26 @@ function save(jobId: string, d: Draft) {
     }
     j.caughtUp = NOW
     addHist(st, jobId, { who: me, kind: 'setup', title: 'Brought up to date', detail: [whereWord(d.where), crew ? `installer ${PEOPLE[crew]?.short || crew}` : '', d.site ? `site manager ${PEOPLE[d.site as PersonKey]?.short || d.site}` : '', stage === 'installation' ? `${j.pct}% in` : '', j.hold ? 'on hold' : ''].filter(Boolean).join(' · ') })
-  }, undefined, { undo: false })
+  }, msg, msg ? { close: true } : { undo: false })
+}
+/** a client typed that isn't on the list: the one by that name, or a new one */
+function clientNamed(name: string): string | undefined {
+  const nm = name.trim()
+  if (!nm || TO_CONFIRM.test(nm)) return undefined
+  const key = nm.toLowerCase().replace(/\s+/g, ' ')
+  const s = useStore.getState()
+  const had = Object.values(s.clients).find((c) => c.name.trim().toLowerCase().replace(/\s+/g, ' ') === key)
+  if (had) return had.id
+  const id = 'c' + Date.now().toString(36)
+  s.commit((st) => { st.clients[id] = { id, name: nm, kind: GC_WORDS.test(nm) ? 'General contractor' : 'Homeowner', address: '', phone: '', email: '', notes: '', contacts: [] } as Customer }, undefined, { undo: false })
+  return id
 }
 
-export function CatchUpModal({ level }: { level: number }) {
+/** one project (id) — from its ··· menu; every open project (all) — from Projects; or else the brought-in ones */
+export function CatchUpModal({ level, id: one, all }: { level: number; id?: string; all?: boolean }) {
   const s = useStore()
   /* the list as it was when it opened — saving one doesn't shuffle the rest */
-  const [ids] = React.useState(() => catchUpList(useStore.getState()).map((j) => j.id))
+  const [ids] = React.useState(() => (one ? [one] : (all ? allOpenList : catchUpList)(useStore.getState()).map((j) => j.id)))
   const [at, setAt] = React.useState(0)
   const [saved, setSaved] = React.useState<string[]>([])
   /* each project's answers, kept while you go back and forth */
@@ -142,32 +176,46 @@ export function CatchUpModal({ level }: { level: number }) {
     setSaved((x) => Array.from(new Set([...x, job.id])))
     go(at + 1)
   }
+  if (one) {
+    if (!job || !d) return null
+    const set = (p: Partial<Draft>) => setDrafts((x) => ({ ...x, [job.id]: { ...d, ...p } }))
+    return (
+      <Modal
+        level={level}
+        size="md"
+        onClose={s.close}
+        title="Where it’s up to"
+        sub={job.name}
+        footer={<><Button className="ml-auto max-sm:flex-1" variant="ghost" onClick={s.close}>Cancel</Button><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved')} data-catchup-save>Save</Button></>}
+        bodyClass="px-6 py-5 max-sm:px-4"
+      >
+        <CatchUpForm job={job} d={d} set={set} />
+      </Modal>
+    )
+  }
+  const title = all ? 'Go through projects' : 'Bring projects up to date'
   if (!job || !d) return (
-    <Modal level={level} size="md" onClose={s.close} title="Bring projects up to date" footer={<Button className="ml-auto" variant="primary" onClick={s.close} data-catchup-close>Done</Button>}>
+    <Modal level={level} size="md" onClose={s.close} title={title} footer={<Button className="ml-auto" variant="primary" onClick={s.close} data-catchup-close>Done</Button>}>
       <div className="flex flex-col items-center gap-2 py-6 text-center" data-catchup="done">
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#e6f4ec] text-[#2c8a5b]"><Check className="h-6 w-6" strokeWidth={3} /></span>
-        <div className="text-[1.0625rem] font-semibold text-ink">{ids.length ? `${saved.length} of ${ids.length} brought up to date` : 'Every project is up to date'}</div>
-        {ids.length > saved.length && <div className="text-[0.875rem] text-muted">{ids.length - saved.length} skipped — they stay on the list for next time.</div>}
+        <div className="text-[1.0625rem] font-semibold text-ink">{ids.length ? `${saved.length} of ${ids.length} ${all ? 'gone through' : 'brought up to date'}` : all ? 'No open projects' : 'Every project is up to date'}</div>
+        {ids.length > saved.length && <div className="text-[0.875rem] text-muted">{ids.length - saved.length} skipped{all ? '.' : ' — they stay on the list for next time.'}</div>}
       </div>
     </Modal>
   )
   const set = (p: Partial<Draft>) => setDrafts((x) => ({ ...x, [job.id]: { ...d, ...p } }))
-  const crews = CREWS.filter((c) => !isOff(s, 'crew', c) || c === d.crew)
-  const sites = s.team.filter((m) => m.role === 'site' && m.status !== 'off').map((m) => m.key as PersonKey)
-  const siteList = Array.from(new Set([...sites, ...(d.site ? [d.site as PersonKey] : [])]))
   const link = asanaOf(s, job)
-  const getting = d.where === 'new' || d.where === 'ready'
   const pctDone = Math.round((saved.length / ids.length) * 100)
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
-      title="Bring projects up to date"
+      title={title}
       header={
         <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>
           <div className="flex items-center gap-3 text-[0.8125rem] text-muted">
-            <span className="font-semibold text-ink-2">Bring projects up to date</span>
+            <span className="font-semibold text-ink-2">{title}</span>
             <span className="tnum" data-catchup-count>{at + 1} of {ids.length}</span>
             <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-16" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pctDone}%` }} /></span>
           </div>
@@ -178,7 +226,7 @@ export function CatchUpModal({ level }: { level: number }) {
               <button type="button" onClick={() => s.open({ t: 'job', id: job.id })} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">Open the project</button>
             </span>
           </div>
-          <div className="mt-0.5 truncate text-[0.875rem] text-muted">{[job.client, job.address && job.address !== job.name ? job.address : ''].filter(Boolean).join(' · ')}</div>
+          {job.address && job.address !== job.name && <div className="mt-0.5 truncate text-[0.875rem] text-muted">{job.address}</div>}
         </div>
       }
       footer={
@@ -191,69 +239,97 @@ export function CatchUpModal({ level }: { level: number }) {
       }
       bodyClass="px-6 py-5 max-sm:px-4"
     >
-      <div className="flex flex-col gap-5" data-catchup={job.id}>
-        <Field label="Where it stands">
-          <Chips value={d.where} items={WHERE} onPick={(w) => set({ where: w, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} data="where" />
-        </Field>
-        {getting && (
-          <Field label="Done already" hint="Tap each part that’s done. What’s left goes on people’s lists.">
-            <div className="flex flex-wrap gap-2">
-              {PARTS.map((p) => {
-                const on = d.parts.includes(p.key)
-                const tap = () => {
-                  const parts = on ? d.parts.filter((x) => x !== p.key) : [...d.parts, p.key]
-                  /* ready for the crew means design, tile and site are done — taking one off makes it getting ready again */
-                  set({ parts, where: d.where === 'ready' && !READY_PARTS.every((k) => parts.includes(k)) ? 'new' : d.where })
-                }
-                return <button key={p.key} type="button" aria-pressed={on} onClick={tap} data-catchup-part={p.key} className={cn('inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[0.875rem] font-semibold transition', on ? 'border-[#2c8a5b] bg-[#e6f4ec] text-[#1f6b45]' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-4 w-4" strokeWidth={3} />}{p.label}</button>
-              })}
-            </div>
-          </Field>
-        )}
-        {d.where !== 'done' && (
-          <Field label="Installer">
-            <Chips value={d.crew} items={[...crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c })), { key: '', label: 'Not picked yet' }]} onPick={(c) => set({ crew: c })} data="crew" />
-          </Field>
-        )}
-        <Field label="Site manager">
-          <Chips value={d.site} items={[...siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p })), ...(d.site ? [] : [{ key: '', label: 'Not set' }])]} onPick={(p) => set({ site: p })} data="site" />
-        </Field>
-        {d.where === 'installing' && (
-          <Field label="How far">
-            <div className="flex flex-wrap items-center gap-2">
-              {[10, 25, 50, 75, 90].map((n) => <button key={n} type="button" aria-pressed={d.pct === String(n)} onClick={() => set({ pct: String(n) })} data-catchup-pctpick={n} className={cn('inline-flex h-10 min-w-[3.75rem] items-center justify-center rounded-full border px-3 text-[0.875rem] font-semibold tnum transition', d.pct === String(n) ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{n}%</button>)}
-              <span className="relative w-28"><TextInput inputMode="numeric" value={[10, 25, 50, 75, 90].map(String).includes(d.pct) ? '' : d.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="Other" aria-label="Percent installed" className="h-10 pr-8" data-catchup-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">%</span></span>
-            </div>
-          </Field>
-        )}
-        {d.where !== 'done' && (
-          <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-            <Field label={getting ? 'Planned start' : 'Started'}>
-              <DateBox value={d.start} onChange={(v) => set({ start: v })} label="Start" data="start" />
-            </Field>
-            {!getting && (
-              <Field label={d.where === 'touchups' ? 'Finished the install' : 'Planned finish'}>
-                <DateBox value={d.finish} min={d.start} onChange={(v) => set({ finish: v })} label="Finish" data="finish" />
-              </Field>
-            )}
-          </div>
-        )}
-        {d.where !== 'done' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => set({ hold: !d.hold })} aria-pressed={d.hold} data-catchup-hold className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition', d.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
-            {d.hold && <span className="min-w-[14rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
-          </div>
-        )}
-        <Papers key={job.id} job={job} />
-      </div>
+      <CatchUpForm key={job.id} job={job} d={d} set={set} papers />
     </Modal>
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/** the answers for one project: whose it is, where it stands, what's done, who's on it, how far, the dates, on hold */
+function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Partial<Draft>) => void; papers?: boolean }) {
+  const s = useStore()
+  const crews = CREWS.filter((c) => !isOff(s, 'crew', c) || c === d.crew)
+  const sites = s.team.filter((m) => m.role === 'site' && m.status !== 'off').map((m) => m.key as PersonKey)
+  const siteList = Array.from(new Set([...sites, ...(d.site ? [d.site as PersonKey] : [])]))
+  const getting = d.where === 'new' || d.where === 'ready'
+  const clients = Object.values(s.clients).filter((c) => !TO_CONFIRM.test(c.name)).sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <div className="flex flex-col gap-5" data-catchup={job.id}>
+      <Field label="Client" hint={d.clientId ? undefined : 'Not set yet'} warn={!d.clientId}>
+        <SearchSelect
+          label="Client"
+          value={d.clientId}
+          options={clients.map((c) => ({ key: c.id, label: c.name, hint: c.kind }))}
+          onChange={(id) => set({ clientId: id })}
+          onCreate={(t) => { const id = clientNamed(t); if (id) set({ clientId: id }) }}
+          createLabel={(t) => `Add “${t}” as a new client`}
+          placeholder="Pick the client"
+          icon={<Building2 />}
+          search
+          width={380}
+          className="w-full"
+        />
+      </Field>
+      <Field label="Where it stands">
+        <Chips value={d.where} items={WHERE} onPick={(w) => set({ where: w, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} data="where" />
+      </Field>
+      {getting && (
+        <Field label="Done already" hint="Tap each part that’s done. What’s left goes on people’s lists.">
+          <div className="flex flex-wrap gap-2">
+            {PARTS.map((p) => {
+              const on = d.parts.includes(p.key)
+              const tap = () => {
+                const parts = on ? d.parts.filter((x) => x !== p.key) : [...d.parts, p.key]
+                /* ready for the crew means design, tile and site are done — taking one off makes it getting ready again */
+                set({ parts, where: d.where === 'ready' && !READY_PARTS.every((k) => parts.includes(k)) ? 'new' : d.where })
+              }
+              return <button key={p.key} type="button" aria-pressed={on} onClick={tap} data-catchup-part={p.key} className={cn('inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[0.875rem] font-semibold transition', on ? 'border-[#2c8a5b] bg-[#e6f4ec] text-[#1f6b45]' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-4 w-4" strokeWidth={3} />}{p.label}</button>
+            })}
+          </div>
+        </Field>
+      )}
+      {d.where !== 'done' && (
+        <Field label="Installer">
+          <Chips value={d.crew} items={[...crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c })), { key: '', label: 'Not picked yet' }]} onPick={(c) => set({ crew: c })} data="crew" />
+        </Field>
+      )}
+      <Field label="Site manager">
+        <Chips value={d.site} items={[...siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p })), ...(d.site ? [] : [{ key: '', label: 'Not set' }])]} onPick={(p) => set({ site: p })} data="site" />
+      </Field>
+      {d.where === 'installing' && (
+        <Field label="How far">
+          <div className="flex flex-wrap items-center gap-2">
+            {[10, 25, 50, 75, 90].map((n) => <button key={n} type="button" aria-pressed={d.pct === String(n)} onClick={() => set({ pct: String(n) })} data-catchup-pctpick={n} className={cn('inline-flex h-10 min-w-[3.75rem] items-center justify-center rounded-full border px-3 text-[0.875rem] font-semibold tnum transition', d.pct === String(n) ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{n}%</button>)}
+            <span className="relative w-28"><TextInput inputMode="numeric" value={[10, 25, 50, 75, 90].map(String).includes(d.pct) ? '' : d.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="Other" aria-label="Percent installed" className="h-10 pr-8" data-catchup-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">%</span></span>
+          </div>
+        </Field>
+      )}
+      {d.where !== 'done' && (
+        <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+          <Field label={getting ? 'Planned start' : 'Started'}>
+            <DateBox value={d.start} onChange={(v) => set({ start: v })} label="Start" data="start" />
+          </Field>
+          {!getting && (
+            <Field label={d.where === 'touchups' ? 'Finished the install' : 'Planned finish'}>
+              <DateBox value={d.finish} min={d.start} onChange={(v) => set({ finish: v })} label="Finish" data="finish" />
+            </Field>
+          )}
+        </div>
+      )}
+      {d.where !== 'done' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => set({ hold: !d.hold })} aria-pressed={d.hold} data-catchup-hold className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition', d.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
+          {d.hold && <span className="min-w-[14rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
+        </div>
+      )}
+      {papers && <Papers key={job.id} job={job} />}
+    </div>
+  )
+}
+
+function Field({ label, hint, warn, children }: { label: string; hint?: string; warn?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2"><span className="text-[0.875rem] font-semibold text-ink">{label}</span>{hint && <span className="text-[0.8125rem] text-muted">{hint}</span>}</div>
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2"><span className="text-[0.875rem] font-semibold text-ink">{label}</span>{hint && <span className={cn('text-[0.8125rem]', warn ? 'font-semibold text-[#8f5207]' : 'text-muted')}>{hint}</span>}</div>
       {children}
     </div>
   )

@@ -1208,7 +1208,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       {!jobId && (
         <FormRow label="Project" hint="Leave it empty for something for the whole company">
           <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1"><ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} /></div>
+            <div className="min-w-0 flex-1"><ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} picks={false} /></div>
             {job && <button type="button" onClick={() => { setJob(''); setJobPicked(true); setHeard('') }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink">Company-wide</button>}
           </div>
         </FormRow>

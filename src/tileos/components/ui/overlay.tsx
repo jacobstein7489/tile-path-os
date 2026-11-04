@@ -46,13 +46,12 @@ export function Modal({
             onPointerDownOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onOpenAutoFocus={(e) => {
+              e.preventDefault()
               const el = (e.currentTarget as HTMLElement)?.querySelector?.('[data-autofocus]') as HTMLElement | null
-              if (el) {
-                e.preventDefault()
-                el.focus()
-              } else {
-                e.preventDefault()
-              }
+              /* on a phone a box doesn't take the cursor by itself — the keyboard would cover the window before
+                 anything's picked; you tap the box you want to type in */
+              const phone = window.matchMedia('(max-width: 639.98px)').matches && window.matchMedia('(pointer: coarse)').matches
+              if (el && !(phone && /^(INPUT|TEXTAREA)$/.test(el.tagName))) el.focus()
             }}
             className={cn(
               'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1rem] bg-white shadow-modal outline-none animate-modal-in max-sm:max-h-[94dvh] max-sm:rounded-b-none',

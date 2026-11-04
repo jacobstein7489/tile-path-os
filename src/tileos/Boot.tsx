@@ -184,9 +184,11 @@ export default function Boot() {
     started.current = user.id
     setPhase({ k: 'loading' })
     /* let in = has a role; the first person to sign up was made the admin by the database — with no signal, what this
-       device knew last time */
+       device knew last time. Opened here before (who they are and a copy of the data on this device): straight in with
+       that, and it's checked again right after */
     const kept = infoOf(user.id)
-    let found = offlineUser && kept ? ({ ok: true, roles: kept.roles, name: kept.name } as Found) : await lookUp(user.id)
+    const quick = !offlineUser && !!kept && !ARRIVED && !DIRECT && (await hasCopy(user.id))
+    let found = (offlineUser || quick) && kept ? ({ ok: true, roles: kept.roles, name: kept.name } as Found) : await lookUp(user.id)
     if (!found.ok && kept && (await hasCopy(user.id))) found = { ok: true, roles: kept.roles, name: kept.name }
     if (!found.ok) { started.current = null; setPhase({ k: 'problem', why: 'network', detail: found.error?.message }); return }
     const appRoles = found.roles
@@ -213,6 +215,21 @@ export default function Boot() {
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
     setPhase({ k: 'ready' })
+    /* came straight in on what this device knew: who they are, checked now — taken off the team, they're out; a
+       different login type, the app opens again with it */
+    if (quick && kept) void lookUp(user.id).then((now) => {
+      if (!now.ok || started.current !== user.id) return
+      if (!now.roles.length) {
+        try { localStorage.removeItem(INFO_KEY(user.id)) } catch { /* fine */ }
+        stopCloud()
+        started.current = null
+        setPhase({ k: 'waiting', email: user.email || '', name })
+        return
+      }
+      keepInfo(user.id, now.roles, now.name || kept.name)
+      const same = now.roles.length === kept.roles.length && now.roles.every((r) => kept.roles.includes(r))
+      if (!same) location.reload()
+    })
     /* back from QuickBooks (connecting it): open Settings → Connections and say how it went */
     const qbBack = OPENED.hash.match(/^#\/settings\/(qb-[a-z]+|qb)\/connections/)
     if (qbBack && !sample) {
@@ -226,7 +243,23 @@ export default function Boot() {
   React.useEffect(() => { keepAppOnDevice() }, [])
   React.useEffect(() => {
     let live = true
-    const go = () => supabase.auth.getSession().then(({ data }) => { if (live) void begin(data.session) })
+    /* opened here before: if the sign-in takes long to answer (a basement with one bar), the app opens from what's on
+       this device — the sign-in carries on by itself */
+    const go = async () => {
+      const answer = supabase.auth.getSession().then(({ data }) => data.session, () => null)
+      const u = keptUser()
+      const ready = !!u && !!infoOf(u.id) && !ARRIVED && !DIRECT && (await hasCopy(u.id))
+      /* renewing a sign-in that ran out takes well under a second with signal; with none it keeps trying for half a
+         minute — so after a moment (none at all with the phone offline) it opens from the device */
+      const got = ready ? await Promise.race([answer, pause(noSignal() ? 0 : 1500).then(() => 'slow' as const)]) : await answer
+      if (!live) return
+      if (got === 'slow') {
+        void begin(null)
+        void answer.then((sess) => { if (live && sess) void begin(sess) })
+        return
+      }
+      void begin(got)
+    }
     if (DIRECT || (LINK.access && LINK.refresh)) void linkSignIn().then(() => { void go() })
     else void go()
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
