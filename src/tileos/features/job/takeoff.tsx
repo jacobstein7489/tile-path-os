@@ -44,7 +44,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   const tags = ws.length ? all.filter((tag) => { const t = tileOf(job.id, tag); const hay = [tag, t?.name, t?.size, t?.supplier, t?.grout && GROUTS[t.grout]?.name, ...whereOf(tag)].filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => hay.includes(w)) }) : all
   return (
     <Section
-      title="Tile"
+      title="Tile selection"
       count={all.length}
       action={(all.length > 6 || !simple) ? (
         <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -58,6 +58,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
           {/* the same as Our materials: one blue button for what you do most, the other one white */}
           {!simple && all.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more tile</Button>}
           {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })} data-tile-po-new>Tile PO</Button>}
+          {/* a tile by hand — no paperwork needed: its name, size, store; then it can be ordered like any other */}
+          {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add>Add a tile</Button>}
         </span>
       ) : undefined}
     >
@@ -103,7 +105,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
         })}
         {!all.length && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
-            <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered.</span>
+            <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered, or add one by hand.</span>
+            {!simple && <Button size="sm" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add-empty>Add a tile</Button>}
             <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         )}

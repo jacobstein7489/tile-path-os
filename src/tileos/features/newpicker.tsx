@@ -49,9 +49,9 @@ export function ColorTile({ label, hint, icon: I, color, onClick, selected }: { 
  *  the books don't log site issues or decisions) */
 const FOR: Record<string, Role[]> = {
   /* the site manager's + New stays short — only the extras: a problem, what's needed on site, more tile, touch-ups,
-     a delivery, a note, a meeting (a walkthrough with the designer, the GC). The daily update isn't here: it's on his
-     Today every work day by itself. No tasks, POs, change orders or new projects */
-  task: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials', 'accounting'],
+     a delivery, a task, a note, a meeting (a walkthrough with the designer, the GC). The daily update isn't here: it's
+     on his Today every work day by itself. No POs, change orders or new projects */
+  task: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials', 'accounting', 'site'],
   meeting: ['owner', 'pm', 'office', 'takeoff', 'estimator', 'materials', 'site'],
   po: ['owner', 'pm', 'office', 'estimator', 'materials'],
   moretile: ['owner', 'pm', 'office', 'estimator', 'materials', 'site'],
@@ -113,7 +113,7 @@ const TOP: Partial<Record<Role, string[]>> = {
   owner: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   pm: ['need', 'problem', 'punch', 'task', 'note', 'meeting'],
   office: ['need', 'problem', 'task', 'note', 'meeting', 'po'],
-  site: ['problem', 'need', 'moretile', 'punch', 'delivery', 'note', 'meeting'],
+  site: ['problem', 'need', 'moretile', 'punch', 'delivery', 'task', 'note', 'meeting'],
   materials: ['need', 'moretile', 'delivery', 'problem', 'po', 'task'],
   accounting: ['payment', 'task', 'note'],
   estimator: ['task', 'note', 'meeting', 'change'],

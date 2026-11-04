@@ -11,7 +11,8 @@
  */
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
-import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs, type Data } from '@/tileos/store'
+import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs, ME_OF, type Data } from '@/tileos/store'
+import { oneEach, twinsOf, mergeTwins } from '@/tileos/lib/twins'
 import { REAL, redate, seedCounters, setSaveStatus, appUrl, OFFLINE_WORDS } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
@@ -255,7 +256,7 @@ function applyInbox() {
   if (!synced || (!up.length && !del.length)) return
   /* lay it on both copies, so it isn't sent back up; anything we changed meanwhile still goes */
   synced = patch(synced, up, del)
-  const next = patch(pickNow(), up, del)
+  const next = onePlace(patch(pickNow(), up, del), false)
   ensureTiles(next as any)
   useStore.setState(next as any)
   keepCopy()
@@ -281,6 +282,23 @@ function keepCopy(ms = 1200) {
     void putLocal('copy:' + uid, { at: Date.now(), data: pickNow(), synced } satisfies Copy).catch(() => { /* no room on the device — it still saves online */ })
   }, ms)
 }
+/** each person in one place on the team (lib/twins): two places for one person become one, and the site manager's
+ *  untaken built-in place folds into the company's own site manager (`all`: on a full load — a live change only
+ *  checks for two places). Whoever is signed in moves along with it. */
+function onePlace(d: Data, all = true): Data {
+  let data: Data | null = null
+  let to = new Map<string, string>()
+  if (all) { const r = oneEach(d); if (r) { data = r.data; to = r.to } }
+  else { const tw = twinsOf(d.team); if (tw.length) { data = mergeTwins(d, tw); tw.forEach((t) => t.drop.forEach((k) => to.set(k, t.keep))) } }
+  if (!data) return d
+  const me = REAL.me
+  if (me && to.has(me)) {
+    const k = to.get(me)! as any
+    REAL.me = k
+    ME_OF[useStore.getState().role] = k
+  }
+  return data
+}
 /** is the app working from the device's copy right now (no signal) */
 export const isOffline = () => offline
 /** the newest from the database, with what this device did meanwhile laid on top — then that goes up */
@@ -295,7 +313,7 @@ export function reconnect(): Promise<boolean> {
       const now = pickNow()
       const mine = diff(synced, now)
       const db = assemble(rows, now)
-      const merged = patch(db, mine.up, mine.del)
+      const merged = onePlace(patch(db, mine.up, mine.del))
       ensureTiles(merged as any)
       synced = db
       useStore.setState(merged as any)
@@ -348,6 +366,7 @@ function catchUp() {
       const cleaned = withoutSample(data)
       if (cleaned) data = cleaned.data
       if (mine.up.length || mine.del.length) data = patch(data, mine.up, mine.del)
+      data = onePlace(data)
       ensureTiles(data as any)
       seedCounters(JSON.stringify(data))
       synced = db
@@ -487,6 +506,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
       const mine = diff(copy.synced, copy.data)
       if (mine.up.length || mine.del.length) data = patch(data, mine.up, mine.del)
     }
+    data = onePlace(data)
     ensureTiles(data as any)
     seedCounters(JSON.stringify(data))
     ID.sfx = '.' + CLIENT.slice(0, 4)
@@ -494,7 +514,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
     offline = false
     useStore.getState().replaceData(data)
   } else {
-    const data = withGaps(copy!.data)
+    const data = onePlace(withGaps(copy!.data))
     ensureTiles(data as any)
     seedCounters(JSON.stringify(data))
     ID.sfx = '.' + CLIENT.slice(0, 4)
@@ -652,11 +672,19 @@ export const APP_ROLE: Record<Role, string> = { owner: 'admin', pm: 'pm', office
 function linkMember(user: User, opts: { admin: boolean; name: string; appRoles: string[] }): Member {
   const s = useStore.getState()
   const email = (user.email || '').toLowerCase()
+  const role = ROLE_OF[opts.appRoles[0]] || 'office'
   let m = s.team.find((x) => x.uid === user.id) || (email ? s.team.find((x) => (x.email || '').toLowerCase() === email) : undefined)
   /* the first admin to sign in is the owner on the team list */
   if (!m && opts.admin) m = s.team.find((x) => x.role === 'owner' && !x.uid)
-  if (!m) {
-    const role = ROLE_OF[opts.appRoles[0]] || 'office'
+  /* not on the list yet: the empty place for their job (the site manager's, the back office's) — the same one Let in
+     gives them, so signing in before the admin's Let in has reached this phone doesn't make a second place for them */
+  const spot = !m && !opts.admin ? s.team.find((x) => !x.uid && !x.email && x.role === role && x.status !== 'off') : undefined
+  if (spot) {
+    const [first, ...rest] = (opts.name || email.split('@')[0] || '').split(' ').filter(Boolean)
+    const key = spot.key
+    s.commit((x) => { const t = x.team.find((y) => y.key === key); if (t) { if (!t.last && first) { t.first = first; t.last = rest.join(' ') || undefined } t.uid = user.id; t.email = user.email || undefined; t.status = 'active' } })
+    m = useStore.getState().team.find((x) => x.key === key)
+  } else if (!m) {
     const [first, ...rest] = (opts.name || email.split('@')[0] || 'New person').split(' ')
     const key = ('u' + user.id.replace(/-/g, '').slice(0, 8)) as any
     m = { key, first, last: rest.join(' ') || undefined, email: user.email || undefined, role, status: 'active', uid: user.id }
@@ -691,7 +719,9 @@ export async function letIn(p: Waiting, role: Role, memberKey?: string) {
   if (error && !/duplicate/i.test(error.message || '')) throw error
   const s = useStore.getState()
   s.commit((x) => {
-    const t = memberKey ? x.team.find((y) => y.key === memberKey) : undefined
+    /* the place they already have (their sign-in, their email) — or the one the admin picked for them */
+    const mail = p.email.trim().toLowerCase()
+    const t = x.team.find((y) => y.uid === p.uid) || (mail ? x.team.find((y) => (y.email || '').trim().toLowerCase() === mail) : undefined) || (memberKey ? x.team.find((y) => y.key === memberKey) : undefined)
     if (t) {
       /* an empty spot on the team (no email yet) takes their name */
       if (!t.email && p.name) { const [first, ...rest] = p.name.split(' '); t.first = first; t.last = rest.join(' ') || undefined }

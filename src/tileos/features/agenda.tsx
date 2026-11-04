@@ -12,7 +12,7 @@ import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLab
 import { busyFor, removeEvent, moveEvent } from './calendar'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { nextForMe } from './jobglance'
+import { realOwner } from './steps'
 
 type EvKind = 'meeting' | 'walkthrough' | 'report' | 'delivery' | 'follow' | 'due' | 'start'
 type Ev = { id: string; when?: number; dur?: number; kind: EvKind; title: string; sub?: string; people?: PersonKey[]; run: () => void }
@@ -143,8 +143,9 @@ export function EventModal({ id, level }: { id: string; level: number }) {
   const job = e.jobId ? s.jobs[e.jobId] : undefined
   const ours = insidePeople(s)
   const what = e.kind === 'walkthrough' ? 'walkthrough' : 'meeting'
-  /* a meeting about a project: where it stands, and the one thing that's mine on it — not the whole project */
-  const next = job ? nextForMe(s, job) : undefined
+  const me = meOf(s.role)
+  /* who's in it, by their whole name — the site manager's untaken place is the company's own site manager */
+  const people = Array.from(new Set(e.people.map((p) => realOwner(s, p))))
   /* moved: that's what it was opened for — the window closes, the pop-up says where it went */
   const save = () => { moveEvent(e.id, { date: isoFromLabel(day) || e.date, start: time, people: who }); setMoving(false); s.close() }
   return (
@@ -170,7 +171,6 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           <>
             <Button variant="ghost" icon={<Trash2 />} onClick={() => setCanceling(true)}>Cancel the {what}</Button>
             <Button className="ml-auto" onClick={() => setMoving(true)}>Move it</Button>
-            {next && job && <Button variant="primary" className="max-sm:flex-1" onClick={() => s.open({ t: 'step', jobId: job.id, k: next.v.key })} data-meeting-next><span className="truncate">{next.label}</span></Button>}
           </>
         )
       }
@@ -201,19 +201,18 @@ export function EventModal({ id, level }: { id: string; level: number }) {
         <div className="flex flex-col gap-5">
         <dl className="flex flex-col gap-4 text-[0.875rem]">
           <Row icon={<Clock3 />} label="When">{dayLabel(e.date)} · {rangeLabel(e.start, e.dur)}</Row>
-          {job && <Row icon={<Building2 />} label="Project">{job.name} · <span className="text-muted">{job.address}</span></Row>}
+          {job && <Row icon={<Building2 />} label="Project">{job.name}{job.address && job.address.trim().toLowerCase() !== job.name.trim().toLowerCase() ? <span className="text-muted"> · {job.address}</span> : null}</Row>}
           {e.where && e.where !== job?.address && <Row icon={<MapPin />} label="Where">{e.where}</Row>}
           <Row icon={<Users />} label="Who">
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {e.people.map((p) => <span key={p} className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{PEOPLE[p]?.short}</span>)}
+              {people.map((p) => <span key={p} className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{p === me ? 'You' : PEOPLE[p]?.name}</span>)}
               {e.with && <span className="text-muted">with {e.with}</span>}
             </span>
           </Row>
           {e.by && <Row icon={<CalendarDays />} label="Set by">{PEOPLE[e.by]?.name || 'Someone'}</Row>}
           {e.note && <Row icon={<Flag />} label="About">{e.note}</Row>}
         </dl>
-        {/* the meeting, and nothing else — not the project's whole getting ready (most of it is other people's). The
-            one thing that's yours on the project, if there is one, is the button at the bottom */}
+        {/* the meeting, and nothing else — not the project's whole getting ready, nor a step of it */}
         {job && <button onClick={() => s.swap({ t: 'job', id: job.id })} className="self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-open-project>See all of {job.name}</button>}
         </div>
       )}

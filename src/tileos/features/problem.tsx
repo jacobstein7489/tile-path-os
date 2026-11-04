@@ -65,7 +65,9 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
     const where = isTile(kind) && tile ? `${tile.tag} · ${tile.name}` : kind === 'site' ? what : undefined
     const detail = note.trim() || (kind === 'broken' ? 'Get replacements from the store' : kind === 'wrong' ? 'Send it back — get the right tile' : kind === 'short' ? 'Find out when the rest comes' : kind === 'site' ? 'Find out when it will be ready' : undefined)
     s.commit((st) => {
-      newTask(st, { jobId, title, detail, where, type: isTile(kind) ? 'Materials' : 'Field', owner, for: role ? [role] : [s.role], watch: owner === me ? [] : [s.role], state: 'now', due, tone: 'bad', log: [{ date: NOW, who: me, text: 'Logged as a problem' }] })
+      newTask(st, { jobId, title, detail, where, type: isTile(kind) ? 'Materials' : 'Field', owner, for: role ? [role] : [s.role], watch: owner === me ? [] : [s.role], state: 'now', due, tone: 'bad', log: [{ date: NOW, who: me, text: 'Logged as a problem' }],
+        /* tile broken, wrong or missing: one tap orders it — a PO to the store with that tile and those boxes, then their yes, then it coming in */
+        ...(isTile(kind) && tag ? { action: { label: 'Order more tile', kind: `moretile:${tag}:${n}:boxes` } } : {}) })
       addHist(st, jobId, { who: me, kind: isTile(kind) ? 'material' : 'question', title: `Problem: ${title}`, detail: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || undefined })
     }, 'Problem logged', { sub: `${owner === me ? 'On your desk' : `On ${PEOPLE[owner]?.short}’s desk`} — it stays red on ${job.name} until it’s sorted.` })
     if (photos.length) void keepFiles(jobId, photos, 'photo', { quiet: true })

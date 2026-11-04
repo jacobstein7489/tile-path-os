@@ -9,7 +9,7 @@ import { Path } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, md, TODAY } from '@/tileos/lib/today'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, markTileOrdered, checkInTile, addJobStep, removeJobStep, emptySpot, type StepView, type StepState } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, markTileOrdered, checkInTile, addJobStep, removeJobStep, emptySpot, realOwner, type StepView, type StepState } from './steps'
 import { REAL } from '@/tileos/lib/save'
 import { stepShort } from './tracks'
 
@@ -18,6 +18,15 @@ export function insidePeople(s: Pick<Store, 'team'>): PersonKey[] {
   /* the real app: a login spot nobody has taken ("Estimator") isn't a person — it's never offered as one */
   const keys = s.team.filter((m) => m.status !== 'off' && m.role !== 'client' && m.role !== 'crew' && !(REAL.cloud && emptySpot(s, m.key))).map((m) => m.key)
   return Array.from(new Set(keys))
+}
+/** who can do or check work on site — real people only: the project's site manager first, then the company's site
+ *  managers, then its admins */
+export function fieldPeople(s: Pick<Store, 'team' | 'rules'>, job?: Pick<Job, 'site'>): PersonKey[] {
+  const ours = insidePeople(s)
+  const roleOf = (k: string) => s.team.find((m) => m.key === k)?.role || ''
+  const list = ours.filter((k) => ['site', 'owner', 'pm'].includes(roleOf(k)))
+  const site = job?.site ? realOwner(s, job.site as PersonKey) : undefined
+  return Array.from(new Set([...(site && list.includes(site) ? [site] : []), ...list.filter((k) => roleOf(k) === 'site'), ...list]))
 }
 
 /* the marks on a track's path: ✓ done · blue your turn · dark ring someone's turn · amber waiting on someone outside ·

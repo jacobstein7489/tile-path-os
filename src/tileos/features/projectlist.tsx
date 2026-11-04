@@ -83,13 +83,17 @@ export function ProjectsPage() {
     <Page
       title="Projects"
       /* the projects already going when Tile OS starts: from their estimates, a stack at once */
-      actions={allowedFor(s.role, 'bringin') ? <>
-        {/* every open project, one at a time: the client, where it's up to, who's on it */}
-        <Button icon={<ListChecks />} onClick={() => s.open({ t: 'catchup', all: true })} data-open-goall>Go through projects</Button>
-        <Button icon={<Upload />} onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button>
-      </> : undefined}
+      actions={allowedFor(s.role, 'bringin') ? (
+        /* on a phone, side by side on one line — the projects start right under the bubbles */
+        <div className="flex items-center gap-2.5 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:gap-2">
+          {/* every open project, one at a time: the client, where it's up to, who's on it */}
+          <Button icon={<ListChecks />} className="max-md:w-full max-md:justify-center max-md:px-2" onClick={() => s.open({ t: 'catchup', all: true })} data-open-goall>Go through projects</Button>
+          <Button icon={<Upload />} className="max-md:w-full max-md:justify-center max-md:px-2" onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button>
+        </div>
+      ) : undefined}
       top={
         <Bubbles
+          four
           items={[
             { key: 'active', label: 'All open', count: won.filter((j) => typeOf(j) !== 'done').length, icon: <Layers />, color: 'indigo', on: view === 'active', onClick: () => setView('active') },
             { key: 'coming', label: 'Getting ready', count: n('coming'), icon: <ClipboardList />, color: 'violet', on: view === 'coming', onClick: pick('coming'), gapBefore: true },
@@ -107,7 +111,8 @@ export function ProjectsPage() {
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
             <Filter icon={<HardHat />} label="Installer" value={crew} options={CREWS.map((c) => ({ key: c, label: PEOPLE[c].name }))} onChange={setCrew} />
             <ClearFilters show={client !== 'all' || crew !== 'all' || att !== 'all' || !!q} onClear={() => { setClient('all'); setCrew('all'); setAtt('all'); setQ('') }} />
-            <ToolbarSearch value={q} onChange={setQ} placeholder="Search projects" />
+            {/* on a phone the search on top finds a project — the filters fit on one line, nothing slides sideways */}
+            <ToolbarSearch value={q} onChange={setQ} placeholder="Search projects" className="max-md:hidden" />
           </div>
         </>
       }

@@ -48,7 +48,7 @@ function shortOf(s: Store, jobId: string, tag: string): { n: number; unit?: stri
 
 /** a tile PO — or, "Order more tile" (more): more of the same tile when the project came up short, on top of what was
  *  ordered. It goes to the store with its number, like any tile PO; a shortage reported on the tile is reordered on it */
-export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { jobId?: string; tags?: string[]; qty?: Record<string, number>; more?: boolean; shortId?: string; level: number }) {
+export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }: { jobId?: string; tags?: string[]; qty?: Record<string, number>; /** what the amounts are in (a problem logged in boxes) */ units?: Record<string, string>; more?: boolean; shortId?: string; level: number }) {
   const s = useStore()
   const [job, setJob] = React.useState(jobId || '')
   const j = s.jobs[job]
@@ -62,7 +62,7 @@ export function NewTilePOModal({ jobId, tags, qty, more, shortId, level }: { job
       /* more tile: only what's short is filled in — the rest is 0 until you type how much */
       if (more) {
         const sh = qty?.[tag] != null ? { n: qty[tag] } : shortOf(s, job, tag)
-        const unit = ('unit' in sh && sh.unit) || c?.unit || t?.paper?.unit || 'SF'
+        const unit = units?.[tag] || ('unit' in sh && sh.unit) || c?.unit || t?.paper?.unit || 'SF'
         return { tag, name, on: (tags ? tags.includes(tag) : true) && sh.n > 0, n: sh.n, unit, price: 0 }
       }
       const left = toCome(s, job, tag)

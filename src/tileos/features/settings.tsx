@@ -78,7 +78,7 @@ export function SettingsPage() {
   return (
     <Page title="Settings" sub="The team, how the work flows, and the company’s rules — one part at a time." bare>
       <div className="grid grid-cols-[15.5rem_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
-        <nav aria-label="Settings" className="sticky top-4 flex flex-col gap-4 max-lg:static max-lg:-mx-1 max-lg:flex-row max-lg:gap-1.5 max-lg:overflow-x-auto max-lg:px-1 max-lg:pb-1 no-scrollbar">
+        <nav aria-label="Settings" className="sticky top-4 flex flex-col gap-4 max-lg:static max-lg:flex-row max-lg:flex-wrap max-lg:gap-1.5 max-lg:pb-1">
           {SECTIONS.map((g) => (
             <div key={g.group} className="flex flex-col gap-0.5 max-lg:contents">
               <div className="flex items-center gap-2 px-3 pb-1 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden"><span className="h-1.5 w-1.5 rounded-full" style={{ background: GROUP_TINT[g.group].fg }} />{g.group}</div>
@@ -207,7 +207,7 @@ function WaitingToJoin() {
     try {
       /* someone already on the team list with the same email becomes this login — or the empty spot for that job
          (the "Back office" or "Accounting" on a fresh team), so the tasks already there are theirs */
-      const same = s.team.find((m) => !m.uid && m.email && m.email.toLowerCase() === p.email.toLowerCase()) || s.team.find((m) => !m.uid && !m.email && m.role === role && m.status !== 'off')
+      const same = s.team.find((m) => m.uid === p.uid) || s.team.find((m) => !!m.email && m.email.toLowerCase() === p.email.toLowerCase()) || s.team.find((m) => !m.uid && !m.email && m.role === role && m.status !== 'off')
       await REAL.people!.letIn(p, role, same?.key)
       setList((xs) => (xs || []).filter((x) => x.uid !== p.uid))
       toast(`${p.name} can sign in now`, { description: `As ${short(role)} — they see what that login sees.` })
@@ -282,7 +282,7 @@ function MemberRow({ k }: { k: PersonKey }) {
           )}
           {!admin && !m.uid && m.role !== 'client'
             ? <Button size="sm" variant={m.invited ? 'ghost' : undefined} icon={<Send className="h-4 w-4" />} aria-label={m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'} onClick={() => s.open({ t: 'invite', key: k })}><span className="max-sm:hidden">{m.invited ? (sentNotIn ? 'Invite again' : 'Invited') : 'Invite'}</span></Button>
-            : <span className="w-[4.75rem] text-right max-sm:hidden"><Pill tone="ok" size="sm">{m.uid ? 'Signs in' : 'Active'}</Pill></span>}
+            : <span className="w-[4.75rem] text-right max-sm:hidden"><Pill tone="ok" size="sm">{m.uid ? 'Joined' : 'Active'}</Pill></span>}
           <Menu align="end" width={220} trigger={<button aria-label={`More for ${PEOPLE[k].name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-wash-2">⋯</button>}>
             <MenuItem icon={<LogIn className="h-4 w-4" />} onSelect={() => signInAs(k)}>See what they see</MenuItem>
             {!admin && !m.uid && <MenuItem icon={<Send className="h-4 w-4" />} onSelect={() => s.open({ t: 'invite', key: k })}>{m.invited ? 'Invite again' : 'Invite them'}</MenuItem>}
@@ -421,11 +421,17 @@ export function AddPersonModal({ level }: { level: number }) {
   const ok = first.trim() && /\S+@\S+\.\S+/.test(email) && (role !== 'client' || !!client)
   const [busy, setBusy] = React.useState(false)
   const [failed, setFailed] = React.useState('')
+  /* the email is someone's on the team already — said, and nothing is added */
+  const [taken, setTaken] = React.useState('')
+  React.useEffect(() => setTaken(''), [email])
   const [sent, setSent] = React.useState<SentResult | null>(null)
   /* the real app emails the invite right away and says what happened; the preview just adds them to the team */
   const add = async () => {
     if (!ok || busy) return
-    setBusy(true); setFailed('')
+    /* someone on the team already has this email: not a second place for them */
+    const there = s.team.find((m) => (m.email || '').trim().toLowerCase() === email.trim().toLowerCase())
+    if (there) { setTaken(`${PEOPLE[there.key]?.name || 'Someone'} already has this email — they’re on the team.`); return }
+    setBusy(true); setFailed(''); setTaken('')
     try {
       const r = REAL.invite && role !== 'client' ? await REAL.invite({ email: email.trim(), name: `${first.trim()} ${last.trim()}`.trim(), role }) : null
       addMember({ first: first.trim(), last: last.trim() || undefined, email: email.trim(), phone: phone.trim() || undefined, role, clientId: role === 'client' ? client : undefined, ...(r ? { invited: TODAY } : {}) })
@@ -442,7 +448,7 @@ export function AddPersonModal({ level }: { level: number }) {
       footer={
         <>
           <Button variant="ghost" icon={<Eye />} onClick={() => s.setRole(role)}>See what a {short(role)} login sees</Button>
-          {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
+          {(taken || failed) && <span className="text-[0.8125rem] font-medium text-bad-600" data-email-taken={taken ? '' : undefined}>{taken || failed}</span>}
           <Button className="ml-auto" variant="ghost" onClick={s.close}>{sent ? 'Close' : 'Cancel'}</Button>
           {sent ? <Button variant="primary" icon={<Check />} onClick={s.close}>Done</Button> : <Button variant="primary" icon={<Mail />} disabled={!ok || busy} onClick={add}>{busy ? 'Sending…' : REAL.invite ? 'Send the invite' : 'Add them'}</Button>}
         </>

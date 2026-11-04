@@ -11,6 +11,7 @@ import { OUTCOMES } from '@/tileos/data/work'
 import type { Pricing } from '@/tileos/data/jobs'
 import { assignEstimator, requestDoc, markDocIn, startEstimating, toggleArea, answerEstimQuestion, estimateReady, setRevAmount, sendProposal, recordFollowUp, award } from './flows'
 import { weekOf, monthName } from '@/tileos/lib/today'
+import { revTotal } from '@/tileos/data/estimates'
 
 function pricingNodes(job: Job, p: Pricing): StepNode[] {
   const order = ['request', 'estimating', 'proposal', 'followup']
@@ -410,109 +411,89 @@ export function FollowUpModal({ jobId, outcome: initial, level }: { jobId: strin
   )
 }
 
-/* ---------------- award popup ---------------- */
+/* ---------------- award popup ----------------
+ * The estimate they approved becomes a project: which revision (picked by itself when there's one — the one sent, else
+ * the newest), the contract amount (that revision's total, from the estimate), the deposit, their PO, when it starts,
+ * the project manager. One screen, nothing on the side — each person's part lands on their Today when it's made. */
 export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
   const job = useStore((s) => s.jobs[jobId])
   const p = useStore((s) => s.pricing[jobId])
+  const est = useStore((s) => s.estimates.find((e) => e.jobId === jobId))
   const rules = useStore((s) => s.rules)
   const close = useStore((s) => s.close)
-  const revs = p ? [...p.revs].reverse().filter((r) => r.amount) : []
-  const [rev, setRev] = React.useState(revs.find((r) => r.status === 'Sent')?.r || revs[0]?.r || '')
-  const chosen = revs.find((r) => r.r === rev)
+  /* the estimate's revisions with a total — newest first; else the old pricing record's */
+  const fromEst = est ? [...est.revs].reverse().filter((r) => revTotal(r) > 0).map((r) => ({ key: 'E' + r.n, title: `Revision ${r.n}`, amount: Math.round(revTotal(r)), sub: [r.what, r.status === 'sent' || r.sentOn ? `sent ${r.sentOn || r.date}` : r.status === 'approved' ? 'approved' : 'not sent'].filter(Boolean).join(' · '), sent: r.status === 'sent' })) : []
+  const fromPricing = p ? [...p.revs].reverse().filter((r) => r.amount).map((r) => ({ key: r.r, title: r.r, amount: r.amount!, sub: `${r.what} · ${r.date === '—' ? 'not sent' : 'sent ' + r.date}`, sent: r.status === 'Sent' })) : []
+  const revs = fromEst.length ? fromEst : fromPricing
+  const [rev, setRev] = React.useState(revs.find((r) => r.sent)?.key || revs[0]?.key || '')
+  const chosen = revs.find((r) => r.key === rev)
   const [amount, setAmount] = React.useState(chosen?.amount ? fmtMoney(chosen.amount) : '')
   const [dep, setDep] = React.useState(rules.depositPct)
   const [custPO, setCustPO] = React.useState<boolean | null>(null)
   const [start, setStart] = React.useState('')
   const [pm, setPm] = React.useState<PersonKey>('ys')
   React.useEffect(() => setAmount(chosen?.amount ? fmtMoney(chosen.amount) : ''), [rev])
-  if (!job || !p) return null
-  const amt = Number(String(amount).replace(/[^0-9]/g, ''))
-  const missing = [!rev && 'the revision', custPO === null && 'client PO', !start && 'start window'].filter(Boolean) as string[]
-  const handoff = [
-    { who: 'office' as PersonKey, what: 'Build the project', sub: 'Rooms, surfaces, finish records, who supplies what' },
-    ...(dep ? [{ who: 'accounting' as PersonKey, what: `Deposit invoice · ${fmtMoney(Math.round((amt * dep) / 100))}`, sub: `${dep}% · ${rules.depositRule === 'warn' ? 'warning, with reminders' : 'blocks the start'} until received` }] : []),
-    { who: 'materials' as PersonKey, what: 'Check the tile order against our takeoff', sub: 'Then plan our setting materials and POs' },
-    ...(custPO ? [{ who: 'office' as PersonKey, what: 'Collect the client PO', sub: 'Waiting on the client, back Friday' }] : []),
-    { who: pm, what: 'Review the setup · plan the start', sub: start ? `Start window: ${start}` : 'Start window not set' },
-  ]
+  if (!job) return null
+  const amt = Number(String(amount).replace(/[^0-9.]/g, '')) || 0
+  /* no revision with a total (brought in from Asana): type the amount — nothing to pick */
+  const missing = [revs.length > 0 && !rev && 'which revision', !amt && 'the contract amount', custPO === null && 'their PO', !start && 'the start'].filter(Boolean) as string[]
   return (
     <Modal
       level={level}
-      size="xl"
+      size="lg"
       onClose={close}
       title={`${job.name} — approved`}
       sub="It becomes a project and goes on the Schedule to get ready."
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{missing.length ? `Still needed: ${missing.join(', ')}` : `${handoff.length} people get their part the moment you press it.`}</span>
+          <span className="text-[0.84375rem] text-muted" data-award-missing>{missing.length ? `Still needed: ${missing.join(', ')}` : 'Each person gets their part on their Today.'}</span>
           <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
-          <Button size="lg" variant="primary" icon={<Trophy className="h-[1.125rem] w-[1.125rem]" />} disabled={missing.length > 0 || !amt} onClick={() => award(jobId, { rev, amount: amt, depositPct: dep, custPO: !!custPO, start, pm })}>
+          <Button size="lg" variant="primary" icon={<Trophy className="h-[1.125rem] w-[1.125rem]" />} disabled={missing.length > 0} onClick={() => award(jobId, { rev, amount: amt, depositPct: dep, custPO: !!custPO, start, pm })} data-award-go>
             Make it a project
           </Button>
         </>
       }
     >
-      <div className="grid grid-cols-[1fr_25rem] gap-8 max-md:grid-cols-1 max-md:gap-6">
-        <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-award>
+        {revs.length > 1 && (
           <Field label="Which revision did they approve?">
             <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
               {revs.map((r) => (
-                <OptionCard key={r.r} on={rev === r.r} onClick={() => setRev(r.r)} title={`${r.r} · ${fmtMoney(r.amount!)}`} sub={`${r.what} · ${r.date === '—' ? 'not sent' : 'sent ' + r.date}`} />
+                <OptionCard key={r.key} on={rev === r.key} onClick={() => setRev(r.key)} title={`${r.title} · ${fmtMoney(r.amount)}`} sub={r.sub} />
               ))}
             </div>
           </Field>
-          <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
-            <Field label="Contract amount" hint="Frozen as what was sold.">
-              <TextInput value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </Field>
-            <Field label="Deposit" hint={dep ? `${fmtMoney(Math.round((amt * dep) / 100))} · company rule: ${rules.depositRule === 'warn' ? 'warn before start' : 'block start'}` : 'No deposit on this project'}>
-              <div className="flex gap-2">
-                {[0, 10, 20, 30].map((d) => (
-                  <Chip key={d} on={dep === d} onClick={() => setDep(d)} className="h-11 px-3.5">{d ? d + '%' : 'None'}</Chip>
-                ))}
-              </div>
-            </Field>
-          </div>
-          <Field label="Do they need to send us a PO or contract?">
-            <div className="flex gap-2">
-              <Chip on={custPO === true} onClick={() => setCustPO(true)}>Yes — we need their PO</Chip>
-              <Chip on={custPO === false} onClick={() => setCustPO(false)}>No</Chip>
-            </div>
+        )}
+        <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
+          <Field label="Contract amount" hint={chosen ? `${chosen.title} of the estimate — change it if what was sold is different` : 'No estimate total — type what was sold'}>
+            <TextInput value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="$0" data-award-amount />
           </Field>
-          <Field label="Expected start">
-            <div className="flex flex-wrap gap-2">
-              {[weekOf(1), weekOf(2), monthName(1), 'Not known yet'].map((w) => (
-                <Chip key={w} on={start === w} onClick={() => setStart(w)}>{w}</Chip>
+          <Field label="Deposit" hint={dep ? `${fmtMoney(Math.round((amt * dep) / 100))} · company rule: ${rules.depositRule === 'warn' ? 'warn before start' : 'block start'}` : 'No deposit on this project'}>
+            <div className="flex gap-2">
+              {[0, 10, 20, 30].map((d) => (
+                <Chip key={d} on={dep === d} onClick={() => setDep(d)} className="h-11 px-3.5">{d ? d + '%' : 'None'}</Chip>
               ))}
-            </div>
-          </Field>
-          <Field label="Project manager">
-            <div className="flex gap-2">
-              <Chip on={pm === 'ys'} onClick={() => setPm('ys')} icon={<Avatar who="ys" size={22} />}>Yaakov Stein</Chip>
             </div>
           </Field>
         </div>
-        <div className="self-start rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/70 to-white p-5">
-          <div className="flex items-center gap-2.5">
-            <IconCircle tone="info" size={34}><Sparkles className="h-4 w-4" /></IconCircle>
-            <div className="text-[0.96875rem] font-semibold text-ink">Who gets what</div>
+        <Field label="Do they need to send us a PO or contract?">
+          <div className="flex gap-2">
+            <Chip on={custPO === true} onClick={() => setCustPO(true)}>Yes — we need their PO</Chip>
+            <Chip on={custPO === false} onClick={() => setCustPO(false)}>No</Chip>
           </div>
-          <div className="mt-4 flex flex-col gap-3">
-            {handoff.map((h, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
-                <Avatar who={h.who} size={32} />
-                <div className="min-w-0">
-                  <div className="text-[0.78125rem] font-semibold text-muted">{PEOPLE[h.who].roleLabel}</div>
-                  <div className="text-[0.875rem] font-semibold text-ink">{h.what}</div>
-                  <div className="text-[0.78125rem] text-muted">{h.sub}</div>
-                </div>
-              </div>
+        </Field>
+        <Field label="Expected start">
+          <div className="flex flex-wrap gap-2">
+            {[weekOf(1), weekOf(2), monthName(1), 'Not known yet'].map((w) => (
+              <Chip key={w} on={start === w} onClick={() => setStart(w)}>{w}</Chip>
             ))}
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-line bg-white/60 p-3 text-[0.8125rem] text-muted">
-              <CalendarDays className="h-4 w-4" /> Scheduling sees it coming — awarded is not the same as ready.
-            </div>
           </div>
-        </div>
+        </Field>
+        <Field label="Project manager">
+          <div className="flex gap-2">
+            <Chip on={pm === 'ys'} onClick={() => setPm('ys')} icon={<Avatar who="ys" size={22} />}>{PEOPLE.ys?.name || 'Admin'}</Chip>
+          </div>
+        </Field>
       </div>
     </Modal>
   )

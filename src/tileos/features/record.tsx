@@ -21,6 +21,7 @@ import { busyFor, clashesWith, nextFree, addEvent } from './calendar'
 import { recordEvent, recordPayment, receivePO, receiveTile } from './flows'
 import { KIND, KindChoice, allowedFor } from './newpicker'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
+import { insidePeople } from './steps-ui'
 
 type Color = 'amber' | 'violet' | 'red' | 'teal' | 'indigo' | 'cyan' | 'blue' | 'green' | 'orange'
 
@@ -235,7 +236,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                 values={[...people, ...others.map((o) => 'x:' + o)]}
                 onChange={(v) => { setPeople(v.filter((k) => !k.startsWith('x:')) as PersonKey[]); setOthers(v.filter((k) => k.startsWith('x:')).map((k) => k.slice(2))) }}
                 options={[
-                  ...OUR_PEOPLE.filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> })),
+                  ...insidePeople(s).filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> })),
                   ...OTHERS.map((o) => ({ key: 'x:' + o, label: o, hint: 'Not from Cobblestone' })),
                 ]}
                 placeholder="Who’s in it"
@@ -398,7 +399,6 @@ const STEP_LABEL: Record<StepKey, (t?: Tpl) => string> = {
   note: () => 'Save',
 }
 
-const OUR_PEOPLE: PersonKey[] = ['ys', 'yakov', 'office', 'estimator', 'materials', 'accounting']
 const OTHERS = ['Installer', 'Designer', 'GC / super', 'Client', 'Plumber', 'Tile store']
 const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((h) => h * 60)
 function Label({ children }: { children: React.ReactNode }) {

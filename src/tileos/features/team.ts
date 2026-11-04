@@ -8,10 +8,15 @@ const S = () => useStore.getState()
 const roleName = (r: Role) => ROLES.find((x) => x.key === r)?.label.split(' · ')[0] || r
 
 export function addMember(m: Omit<Member, 'key' | 'status'>) {
-  const key = ('u' + Date.now().toString(36)) as PersonKey
+  /* already on the team with this email: that place, brought up to date — never a second one */
+  const mail = (m.email || '').trim().toLowerCase()
+  const there = mail ? S().team.find((x) => (x.email || '').trim().toLowerCase() === mail) : undefined
+  const key = (there?.key || 'u' + Date.now().toString(36)) as PersonKey
   S().commit(
     (s) => {
-      s.team.push({ ...m, key, status: 'invited' })
+      const t = there && s.team.find((x) => x.key === key)
+      if (t) Object.assign(t, { ...m, uid: t.uid, status: t.uid ? t.status : 'invited' })
+      else s.team.push({ ...m, key, status: 'invited' })
     },
     `${[m.first, m.last].filter(Boolean).join(' ')} is invited`,
     { undo: false, sub: `${m.email ? `An email goes to ${m.email}. ` : ''}They pick a password and land on their Today as ${roleName(m.role)}.` },

@@ -4,7 +4,8 @@
 import { smp, REAL } from '@/tileos/lib/save'
 import * as React from 'react'
 import { Paperclip, Lock, Check, Mail } from 'lucide-react'
-import { useStore } from '@/tileos/store'
+import { useStore, meOf } from '@/tileos/store'
+import { cn } from '@/tileos/lib/utils'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -32,10 +33,12 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     const j = s.jobs[d.jobId]
     const id = d.id || 'PO-new'
     const total = d.lines.reduce((n, l) => n + l.n * l.price, 0)
-    from = fromBox(mail.other, sender(matBy(s)))
+    /* the real app: from the address Settings → Email has for it, else from whoever sends it — as it goes out */
+    from = REAL.cloud ? (mail.other ? fromBox(mail.other, '') : `${PEOPLE[meOf(s.role)]?.name || 'Cobblestone'} · Cobblestone Tile${REAL.email ? ` <${REAL.email}>` : ''}`) : fromBox(mail.other, sender(matBy(s)))
     to = `${d.supplier} · orders desk`
     subject = `${id} · ${j?.name} · needed ${d.neededBy}`
-    attach = `${id}.pdf`
+    /* the real email is the message itself — no file attached */
+    attach = REAL.cloud ? '' : `${id}.pdf`
     greeting = `Hi ${d.supplier} team,`
     body = REAL.cloud
       ? <>Here is our purchase order <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. Please reply to confirm it and the delivery date.</>
@@ -49,8 +52,13 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     /* a tile PO: the tiles and how much — no prices on the client's tile, and their order number on it */
     if (po?.kind === 'tile') {
       const priced = po.paidBy === 'us'
-      subject = `${id} · tile${po.storeRef ? ` · your order ${po.storeRef}` : ''} · ${j?.name} · needed ${d.neededBy}`
-      body = <>{priced ? <>Here is our tile purchase order <b>{id}</b></> : <>Please deliver the tile below{po.storeRef ? <> from order <b>{po.storeRef}</b></> : null} — our reference is <b>{id}</b></>} for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. Please reply to confirm the delivery date, with {id} in the subject.</>
+      /* word for word what the store gets (mailout): more tile asks them to add it */
+      subject = `${id}${po.more ? ' · more tile' : ' · tile'}${po.storeRef ? ` · your order ${po.storeRef}` : ''} · ${j?.name}${d.neededBy ? ` · needed ${d.neededBy}` : ''}`
+      const intro = po.more && !priced ? <>We need more of the tile below{po.storeRef ? <> on order <b>{po.storeRef}</b></> : null} — please add it and deliver it. Our reference is <b>{id}</b>.</>
+        : po.more ? <>Here is our purchase order <b>{id}</b> for more of the same tile.</>
+          : !priced ? <>Please deliver the tile below{po.storeRef ? <> from order <b>{po.storeRef}</b></> : null} — our reference is <b>{id}</b>.</>
+            : <>Here is our tile purchase order <b>{id}</b>{po.storeRef ? <> (your order {po.storeRef})</> : null}.</>
+      body = <>{intro} Please reply to confirm it and the delivery date, with {id} in the subject.<br /><br /><b>Project:</b> {j?.name}<br /><b>Deliver to:</b> {j?.address}{d.neededBy ? <><br /><b>Needed on site:</b> {d.neededBy}</> : null}</>
       doc = (
         <Doc title={priced ? 'Tile purchase order' : 'Tile delivery'} refNo={id} rows={[['Ship to', j?.address || ''], ['Needed by', d.neededBy], ['Project', j?.name || ''], ...(po.storeRef ? [['Your order', po.storeRef] as [string, string]] : []), ['Contact', `${PEOPLE[matBy(s)]?.name} · site`]]}>
           <div className="divide-y divide-[#e8eaee] border-y border-[#e8eaee]">
@@ -179,8 +187,8 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
             <p className="mt-5 text-[0.8125rem] leading-relaxed text-[#66707f]">{REAL.cloud ? 'Questions about it? Just reply to this email.' : 'Questions? Reply to this email — it lands on the project in Tile OS.'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 border-t border-line-2 px-5 py-3 text-[0.8125rem] text-muted max-sm:px-4">
-          <Paperclip className="h-4 w-4" /><span className="truncate">{attach}</span>
+        <div className={cn('flex items-center gap-2 border-t border-line-2 px-5 py-3 text-[0.8125rem] text-muted max-sm:px-4', !attach && what.kind !== 'invoice' && 'hidden')}>
+          {attach && <><Paperclip className="h-4 w-4" /><span className="truncate">{attach}</span></>}
           {what.kind === 'invoice' && <span className="ml-auto inline-flex shrink-0 items-center gap-1.5"><Lock className="h-3.5 w-3.5" />Card details stay with QuickBooks Payments</span>}
         </div>
       </div>

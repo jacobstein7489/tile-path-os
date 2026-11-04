@@ -43,7 +43,7 @@ function MatTabs({ job, part, setPart }: { job: Job; part: MatPart; setPart: (p:
   )
   return (
     <div role="tablist" className="flex h-11 w-full items-center gap-1 rounded-[0.6875rem] border border-line bg-wash-2 p-1 max-sm:h-14 sm:w-auto sm:self-start" data-mat-tabs>
-      {tab('tile', 'Tile', tileWords, tileShort > 0)}
+      {tab('tile', 'Tile selection', tileWords, tileShort > 0)}
       {tab('ours', 'Our materials', ourWords)}
     </div>
   )

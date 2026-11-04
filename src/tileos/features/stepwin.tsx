@@ -196,7 +196,7 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
           : v.state === 'bad' ? 'A problem'
             : mine ? 'Your turn' : `${name}’s turn`
   /* nobody has this part's login yet: it's yours until someone does — said, so it doesn't look like someone else's */
-  const cover = mine && open && v.cover ? `No ${v.cover.toLowerCase()} on the team yet, so it’s yours until there is one. ` : ''
+  const cover = mine && open && v.cover ? `Yours for now — no ${v.cover.toLowerCase()} on the team yet. ` : ''
   const sub = v.state === 'later'
     ? `It opens when ${v.waitsFor || 'the step before'} is done${v.waitsOn ? ` — ${v.waitsOn === me ? 'you have' : `${PEOPLE[v.waitsOn]?.short} has`} that` : ''}. Then it’s ${mine ? 'yours' : `${name}’s`}.`
     : what || cover ? `${cover}${what || ''}${!mine && open && onSite && v.state === 'now' ? ' — on site' : ''}` : undefined
@@ -265,7 +265,8 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
     case 'rooms':
       return (
         <ResultBox title="What was entered from the paperwork" empty="No tile on the paperwork yet.">
-          {tiles.map((t) => <ResultRow key={t.tag} icon={<Grid2x2 />} title={<><b className="font-semibold">{t.tag}</b> {t.name}</>} sub={[t.size, t.supplier].filter(Boolean).join(' · ')} right={t.paper ? `${t.paper.qty.toLocaleString('en-US')} ${t.paper.unit === 'boxes' ? 'boxes' : 'SF'}` : '—'} onClick={scope} />)}
+          {/* each tile: how much the paperwork has of it — or, with no amount on it, what its walls and floors need */}
+          {tiles.map((t) => { const q = qtyRow(s, job.id, t); return <ResultRow key={t.tag} icon={<Grid2x2 />} title={<><b className="font-semibold">{t.tag}</b> {t.name}</>} sub={[t.size, t.supplier, q.sf ? `${q.sf.toLocaleString('en-US')} SF on the walls and floors` : 'not on a wall or floor yet'].filter(Boolean).join(' · ')} right={t.paper ? `${t.paper.qty.toLocaleString('en-US')} ${unitWord(t.paper.unit === 'boxes' ? 'boxes' : 'SF', t.paper.qty)} on the paperwork` : q.need != null ? `${q.need.toLocaleString('en-US')} ${unitWord(q.unit, q.need)} needed` : 'No amount'} onClick={scope} /> })}
         </ResultBox>
       )
     case 'qty':
@@ -518,22 +519,15 @@ export function stepNow(x: StepView, me: PersonKey): { text: string; full: strin
   return { text: 'Not yet', full: note || 'Not yet', pct: 0, bar: '', tone: 'text-faint' }
 }
 
-/** one part of getting ready in its own window (from Today, a task, a link) — the same as on the project: its steps as
- *  circles on top, the one that's picked under them with its work. Tap another and it shows instead. */
+/** one step in its own small window (from Today, a task, the project's list, a link): the step and its work — or,
+ *  done, what came of it — and nothing else. The part's other steps aren't in it. */
 export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
   const all = job ? stepsFor(s, job) : []
   /* a step that's part of another (Enter tile & grout → Enter paperwork) opens that one */
-  const k0 = all.find((x) => x.key === k0raw)?.into || k0raw
-  const k = k0
-  const at = all.find((x) => x.key === k)
-  /* only this track's steps (the deposit, on none, keeps its own part) */
-  const tk = at ? trackOf(at) : null
-  /* in the part's own order — the same as on the project */
-  const order = tk ? TRACKS.find((t) => t.key === tk)?.steps || [] : []
-  const list = at ? all.filter((x) => (tk ? trackOf(x) === tk : x.phase === at.phase) && (x.state !== 'na' || x.key === k)).sort((a, b) => (order.indexOf(a.key) + 1 || 99) - (order.indexOf(b.key) + 1 || 99)) : []
-  const v = list.find((x) => x.key === k)
+  const k = all.find((x) => x.key === k0raw)?.into || k0raw
+  const v = all.find((x) => x.key === k)
   const body = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { body.current?.scrollTo?.({ top: 0 }) }, [k])
   /* opened to do the step: once it's done — or handed on (waiting on someone, not needed) — the window closes by itself;
@@ -550,27 +544,20 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
     return () => clearTimeout(t)
   }, [open, k, top, busy])
   if (!job || !v) return null
-  const go = (key: string) => { if (key !== k) s.swap({ t: 'step', jobId, k: key }) }
-  const c = stepCounts(list)
+  const tk = trackOf(v)
   const part = (tk && TRACKS.find((t) => t.key === tk)?.label) || PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
   const title = v.named ? v.label : TITLE[v.key] || v.label
   return (
     <Modal
       level={level}
-      size="lg"
+      size="md"
       onClose={s.close}
-      className="h-[min(48rem,92vh)] max-sm:h-[94dvh]"
-      title={part}
-      sub={`${job.name} · ${c.done === c.total ? 'all done' : `${c.done} of ${c.total} done`}${c.bad ? ` · ${c.bad} with a problem` : ''}`}
-      bodyClass="flex min-h-0 flex-col overflow-hidden p-0"
+      title={title}
+      sub={`${part} · ${job.name}`}
+      bodyClass="p-0"
     >
-      {/* its steps, like the estimate's path — they stay put */}
-      <div data-track-steps data-part-path className="shrink-0 border-b border-line-2 px-3 pb-2 pt-3 max-sm:px-1">
-        <PartPath job={job} list={list} at={k} onPick={go} label={`${part} — its steps`} />
-      </div>
-      <div ref={body} className="scroll-soft min-h-0 min-w-0 flex-1 overflow-y-auto" data-step-view={v.key}>
+      <div ref={body} className="min-w-0" data-step-view={v.key}>
         <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
-          <h3 className="mb-3 text-[1.125rem] font-semibold leading-snug text-ink">{title}</h3>
           <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
         </div>
       </div>

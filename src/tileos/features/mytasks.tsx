@@ -45,7 +45,20 @@ const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setu
 export type DailyItem = { kind: 'daily'; jobId: string; crew: PersonKey; workers?: number; missed?: string }
 export function dailyDue(s: Store, role: Role): DailyItem[] {
   if (role !== 'site' || (s.rules.autoOff || []).includes('daily-update')) return []
-  const working = (iso: string) => s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && ['installation', 'punch'].includes(s.jobs[b.jobId].stage))
+  const booked = (iso: string) => s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && ['installation', 'punch'].includes(s.jobs[b.jobId].stage))
+  /* a project that's installing with its installer on it but no days on the calendar (brought in, or gone through by
+     hand) still gets its update — every work day from its start date to its finish, when they're set */
+  const workDay = (iso: string) => ![0, 6].includes(new Date(iso + 'T12:00:00').getDay())
+  /* (no start date: no "yesterday's is late" — it isn't known when they started) */
+  const installing = (iso: string) => !workDay(iso) ? [] : Object.values(s.jobs).filter((j) => {
+    if (j.stage !== 'installation' || j.hold || s.bookings.some((b) => b.jobId === j.id)) return false
+    const crew = j.crew || (s.prep[j.id]?.installer !== 'tbd' ? s.prep[j.id]?.installer : undefined)
+    if (!crew) return false
+    const start = j.dates?.start ? isoFromLabel(j.dates.start) : undefined
+    const finish = j.dates?.finish ? isoFromLabel(j.dates.finish) : undefined
+    return (!start || start <= iso) && (!finish || finish >= iso)
+  }).map((j) => ({ id: 'job:' + j.id, jobId: j.id, crew: (j.crew || s.prep[j.id]?.installer) as string, start: (j.dates?.start && isoFromLabel(j.dates.start)) || '9999-12-31', end: iso, workers: undefined as number | undefined }))
+  const working = (iso: string) => [...booked(iso), ...installing(iso)]
   const sent = (jobId: string, iso: string) => (s.diary[jobId] || []).some((d) => d.date === md(iso) || (iso === TODAY_ISO && d.date === NOW))
   /* the last work day before today (Friday, on a Monday) */
   let prev = addDays(TODAY_ISO, -1)
@@ -708,14 +721,15 @@ export function MyTasksPage() {
       sub={TODAY_LABEL}
       top={<>
         <Bubbles
+          /* each number is what its list shows — with a person or a project picked, theirs */
           items={[
-            { key: 'today', label: 'Today', count: today.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
-            { key: 'tomorrow', label: 'Tomorrow', count: tomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
+            { key: 'today', label: 'Today', count: shownToday.length + shownCheckins.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
+            { key: 'tomorrow', label: 'Tomorrow', count: shownTomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
             /* the site manager: today and tomorrow — that's all he needs on the go */
             ...(simple ? [] : [
-              { key: 'later', label: 'Later', count: later.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
-              { key: 'waiting', label: 'Waiting on others', count: waiting.length + waitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
-              { key: 'done', label: 'Done', count: done.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
+              { key: 'later', label: 'Later', count: shownLater.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
+              { key: 'waiting', label: 'Waiting on others', count: shownWaiting.length + shownWaitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+              { key: 'done', label: 'Done', count: shownDone.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
             ] as any[]),
           ]}
         />
@@ -740,7 +754,9 @@ export function MyTasksPage() {
       <Loose.Provider value={grouping === 'job' && view !== 'done'}>
       {/* the columns: What · Whose (everyone's list) · Project (not when grouped by project) · When — each as wide as its
           widest line, the same space between them */}
-      <div data-even-list data-first-wide style={{ '--n': todoN(whoCol, grouping === 'job' && view !== 'done'), '--rest': todoN(whoCol, grouping === 'job' && view !== 'done') - 1 } as React.CSSProperties}>
+      {/* the columns spread evenly across the list, the same space between each two — What on the left, Next on the
+          right, Project and When evenly between (not What taking the room and the rest pushed right) */}
+      <div data-even-list style={{ '--n': todoN(whoCol, grouping === 'job' && view !== 'done') } as React.CSSProperties}>
         {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* urgent: before anything else, in red — whichever way the list is grouped (by time it's the day's first part) */}
         {view === 'today' && grouping !== 'time' && urgentToday.length > 0 && (
@@ -765,9 +781,9 @@ export function MyTasksPage() {
             {undated.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
-        {view === 'today' && shownToday.length > 0 && tomorrow.length + backTomorrow.length > 0 && (
+        {view === 'today' && shownToday.length > 0 && shownTomorrow.length + backTomorrow.length > 0 && (
           <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted row-hover hover:text-ink', PX)}>
-            <CalendarDays className="h-4 w-4" />{tomorrow.length + backTomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
+            <CalendarDays className="h-4 w-4" />{shownTomorrow.length + backTomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
           </button>
         )}
 

@@ -128,7 +128,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'book': return <BookInstallerModal jobId={m.jobId} crew={m.crew} level={level} />
     case 'newpo': return <NewPOModal jobId={m.jobId} prefill={m.prefill} fromEstimate={m.fromEstimate} fromTakeoff={m.fromTakeoff} level={level} />
     case 'newtilepo': return <NewTilePOModal jobId={m.jobId} tags={m.tags} level={level} />
-    case 'moretile': return <NewTilePOModal jobId={m.jobId} tags={m.tags} qty={m.qty} shortId={m.shortId} more level={level} />
+    case 'moretile': return <NewTilePOModal jobId={m.jobId} tags={m.tags} qty={m.qty} units={m.units} shortId={m.shortId} more level={level} />
     case 'commission': return <CommissionModal jobId={m.jobId} level={level} />
     case 'clientsales': return <ClientSalesModal clientId={m.clientId} level={level} />
     case 'salespeople': return <SalesPeopleModal level={level} />

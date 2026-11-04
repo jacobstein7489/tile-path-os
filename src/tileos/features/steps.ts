@@ -20,12 +20,13 @@ import { installerOf } from './upcoming'
 import { matBy, runTaskAction } from './flows'
 import { companyTeam } from './estflow'
 import { REAL } from '@/tileos/lib/save'
+import { siteSpotHolder } from '@/tileos/lib/twins'
 
 /* ---------------- who a step really goes to ----------------
  * The real app starts with login spots for each part of the work ("Estimator", "Accounting"…) that a person takes
  * when they join. A spot nobody has taken isn't a person — a step that still points at one goes to whoever does that
  * part: from who does what, else whoever has that kind of login, else the admin. (The sample's spots are its people.) */
-const SPOT: Record<string, string> = { office: 'Back office', takeoff: 'Takeoff estimator', estimator: 'Estimator', materials: 'Materials', accounting: 'Accounting' }
+const SPOT: Record<string, string> = { office: 'Back office', takeoff: 'Takeoff estimator', estimator: 'Estimator', materials: 'Materials', accounting: 'Accounting', yakov: 'Yakov' }
 export function emptySpot(s: Pick<Store, 'team'>, key?: string) {
   if (!key || !SPOT[key]) return false
   const m = s.team.find((y) => y.key === key)
@@ -47,9 +48,14 @@ export function realOwner(s: Pick<Store, 'team' | 'rules'>, key: PersonKey, avoi
     office: [holder('office'), person(t.follow)],
     materials: [person(matBy(s as Store)), holder('site')],
     accounting: [holder('accounting')],
+    /* the site manager's place from the clean start, never taken: the company's site manager */
+    yakov: [(siteSpotHolder(s.team) || undefined) as PersonKey | undefined, holder('site')],
   }
   return (order[key] || []).find(Boolean) || holder('owner') || key
 }
+
+/** a project's site manager — a real person (the untaken built-in place is the company's own site manager) */
+export const siteOf = (s: Pick<Store, 'team' | 'rules'>, job?: { site?: string }): PersonKey => realOwner(s, ((job?.site || 'yakov') as PersonKey))
 
 const S = () => useStore.getState()
 
@@ -306,7 +312,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const tiled = flat.filter((x) => takesTile(x.name))
       if (tiled.length && tiled.every((x) => x.tile)) return { state: 'done', note: 'In — every wall and floor has its tile' }
       if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'In before this list' }
-      return { state: 'now', note: 'Ask the tile store for it, then upload it here', action: { label: 'Get it' } }
+      return { state: 'now', note: 'Ask the tile store for it, then upload it here', action: { label: 'Upload it' } }
     }
     case 'rooms': {
       if (!rooms.length) return { state: 'now', note: 'No rooms yet — they come from the estimate', action: { label: 'Add the rooms' } }

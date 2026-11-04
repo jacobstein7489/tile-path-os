@@ -16,6 +16,7 @@ import type { PunchItem } from '@/tileos/data/work'
 import { setPunch } from './flows'
 import { isOff } from './active'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
+import { fieldPeople } from './steps-ui'
 
 const ORDER: Record<PunchItem['status'], number> = { open: 0, working: 0, verify: 1, verified: 2 }
 
@@ -115,7 +116,7 @@ function TouchupLine({ p }: { p: PunchItem }) {
   const waiting = !!p.note && /^waiting/i.test(p.note)
   const set = (patch: Partial<PunchItem>, msg: string) => s.commit((st) => { const x = st.punch.find((y) => y.id === p.id); if (x) Object.assign(x, patch) }, msg)
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c))
-  const people: PersonKey[] = [...crews, ...(['yakov', 'ys'] as PersonKey[]).filter((k) => PEOPLE[k])]
+  const people: PersonKey[] = [...crews, ...fieldPeople(s, s.jobs[p.jobId])]
   const where = [p.where !== 'To place' ? p.where : '', PEOPLE[p.owner]?.short].filter(Boolean).join(' · ')
   const note = p.note ? <span className={cn('inline-flex min-w-0 items-center gap-1', waiting ? 'text-warn-700' : 'text-ink-2')}>{waiting && <Hourglass className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{p.note}</span></span> : null
   return (

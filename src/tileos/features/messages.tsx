@@ -18,6 +18,7 @@ import type { Notice } from '@/tileos/data/work'
 import { TODAY, isoFromLabel, addDays } from '@/tileos/lib/today'
 import { REAL } from '@/tileos/lib/save'
 import { keepFiles, fileUrl, isImage, sizeLabel } from '@/tileos/lib/files'
+import { siteOf } from './steps'
 
 const S = () => useStore.getState()
 const timeNow = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -354,7 +355,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
   /* while it's open, what lands in it is read */
   React.useEffect(() => { if (!outside) readThread(jobId) }, [jobId, all.length, outside])
   const job = s.jobs[jobId]
-  const people = Array.from(new Set<PersonKey>([...(['ys', 'yakov'] as PersonKey[]), ...(job?.crew ? [job.crew as PersonKey] : []), ...s.team.filter((x) => x.status !== 'off' && x.role !== 'client').map((x) => x.key as PersonKey), 'gcpp'])).filter((p) => p !== me)
+  const people = Array.from(new Set<PersonKey>([job?.pm || 'ys', siteOf(s, job), ...(job?.crew ? [job.crew as PersonKey] : []), ...s.team.filter((x) => x.status !== 'off' && x.role !== 'client').map((x) => x.key as PersonKey), 'gcpp'])).filter((p) => p !== me)
   /* my last message: who has seen it */
   const lastMine = (() => { for (let i = all.length - 1; i >= 0; i--) if (all[i].who === me && !all[i].deleted && (!outside || !all[i].internal)) return i; return -1 })()
   const seenBy = lastMine < 0 ? [] : people.filter((p) => (s.seen?.[`${jobId}|${p}`]?.n || 0) > lastMine)
@@ -543,7 +544,7 @@ export function ProjectFace({ id, name, size = 48 }: { id: string; name: string;
 /** who's in a project's conversation from our side */
 export const convoTeam = (s: ReturnType<typeof useStore.getState>, jobId: string): PersonKey[] => {
   const j = s.jobs[jobId]
-  return j ? (Array.from(new Set([j.pm || 'ys', 'yakov', ...(j.crew ? [j.crew] : [])])) as PersonKey[]) : []
+  return j ? (Array.from(new Set([j.pm || 'ys', siteOf(s, j), ...(j.crew ? [j.crew] : [])])) as PersonKey[]) : []
 }
 export function ConvoHead({ jobId, onBack, backLabel = 'Back', backClass, right }: { jobId: string; onBack?: () => void; backLabel?: string; backClass?: string; right?: React.ReactNode }) {
   const s = useStore()
@@ -569,7 +570,7 @@ export function MessagesModal({ jobId, level }: { jobId: string; level: number }
   const job = s.jobs[jobId]
   if (!job) return null
   const c = CUSTOMERS[job.clientId]
-  const team: PersonKey[] = Array.from(new Set([job.pm || 'ys', 'yakov', ...(job.crew ? [job.crew as PersonKey] : [])]))
+  const team: PersonKey[] = Array.from(new Set([job.pm || 'ys', siteOf(s, job), ...(job.crew ? [job.crew as PersonKey] : [])]))
   return (
     <Modal level={level} size="lg" tall onClose={s.close} title={`Messages · ${job.name}`} sub={`Our team, the crew and ${c?.name || job.client} — photos, voice notes, questions, answers.`} bodyClass="p-0">
       <div className="flex h-full min-h-0 flex-col">

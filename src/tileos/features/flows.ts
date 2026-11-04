@@ -4,7 +4,8 @@
 import { toast } from '@/tileos/lib/pop'
 import { isoOfDay, parseTime } from '@/tileos/data/calendar'
 import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
-import type { PersonKey, Stage, SwatchKey, Role } from '@/tileos/data/model'
+import type { PersonKey, Stage, SwatchKey, Role, Member } from '@/tileos/data/model'
+import { siteSpotHolder } from '@/tileos/lib/twins'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
 import type { Task, MoneyItem, PO, TileCheck } from '@/tileos/data/work'
 import { needWithWaste } from '@/tileos/data/work'
@@ -14,7 +15,7 @@ import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
 import { qbLive, pushBill, pushPayment, emailBill, pushEstimate } from './qbsync'
 import { mailLive, emailPO, emailIPO } from './mailout'
-import { stepsFor } from './steps'
+import { stepsFor, siteOf } from './steps'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, isoFromLabel } from '@/tileos/lib/today'
 
@@ -24,7 +25,12 @@ const L = (who: PersonKey, text: string) => ({ date: NOW, who, text })
 
 /* ---------------- task actions ---------------- */
 /** who orders our materials and takes deliveries (Settings → Company rules; the site manager by default) */
-export const matBy = (s: { rules: { matBy?: PersonKey } }): PersonKey => s.rules?.matBy || 'yakov'
+/** who checks the materials in and reorders: the company's rule, else the site manager — in the real app the site
+ *  manager's untaken built-in place is the company's own site manager */
+export const matBy = (s: { rules: { matBy?: PersonKey }; team?: (Partial<Member> & { key: PersonKey; role: Role })[] }): PersonKey => {
+  const k = s.rules?.matBy || 'yakov'
+  return (k === 'yakov' && REAL.cloud && s.team ? (siteSpotHolder(s.team) as PersonKey | null) : null) || k
+}
 export const matFor = (s: { rules: { matBy?: PersonKey }; team?: { key: PersonKey; role: Role }[] }): Role[] => [((s.team || []).find((m) => m.key === matBy(s))?.role || 'site') as Role]
 
 export function runTaskAction(t: Task) {
@@ -43,7 +49,7 @@ export function runTaskAction(t: Task) {
   if (kind.startsWith('order:')) return s.open({ t: 'newpo', jobId: kind.slice(6), fromTakeoff: true })
   if (kind.startsWith('short:')) return s.open({ t: 'short', id: kind.slice(6) })
   /* a tile found short when it came in: Order more tile, the difference filled in */
-  if (kind.startsWith('moretile:')) { const [, tag, q] = kind.split(':'); return s.open({ t: 'moretile', jobId: t.jobId, tags: [tag], qty: { [tag]: Number(q) || 0 } }) }
+  if (kind.startsWith('moretile:')) { const [, tag, q, unit] = kind.split(':'); return s.open({ t: 'moretile', jobId: t.jobId, tags: [tag], qty: { [tag]: Number(q) || 0 }, ...(unit ? { units: { [tag]: unit } } : {}) }) }
   if (kind.startsWith('heights:')) return s.open({ t: 'heights', jobId: kind.slice(8), taskId: t.id })
   if (kind.startsWith('pay:')) { const [, crew, week] = kind.split(':'); return s.open({ t: 'pay', crew, week }) }
   if (kind === 'crewreport') return s.open({ t: 'crewreport', taskId: t.id })
@@ -211,7 +217,7 @@ export function recordFollowUp(jobId: string, o: { how: string; outcome: string;
   const j0 = s0.jobs[jobId]
   if (o.outcome === 'approved') {
     s0.commit((s) => {
-      s.pricing[jobId].fu.push({ date: NOW, how: o.how, outcome: 'Approved', by: me(), note: o.note })
+      s.pricing[jobId]?.fu.push({ date: NOW, how: o.how, outcome: 'Approved', by: me(), note: o.note })
       addHist(s, jobId, { who: me(), kind: 'pricing', title: `${o.how} — approved`, detail: o.note })
     })
     s0.swap({ t: 'award', jobId })
@@ -285,15 +291,17 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
   S().commit((s) => {
     const j = s.jobs[jobId]
     const p = s.pricing[jobId]
-    p.revs.forEach((r) => {
+    /* the revision they approved: one of the estimate's ("E3") — or, on an old pricing record, its own */
+    const estRev = /^E\d+$/.test(o.rev) ? Number(o.rev.slice(1)) : undefined
+    p?.revs.forEach((r) => {
       if (r.r === o.rev) r.status = 'Approved'
       else if (r.status === 'Sent') r.status = 'Superseded'
     })
     j.stage = 'setup'
     j.contract = o.amount
     j.pm = o.pm
-    j.site = 'yakov'
-    approveEstimateInAward(s, jobId)
+    j.site = siteOf(s, j)
+    approveEstimateInAward(s, jobId, estRev)
     j.swatch = AWARD_SWATCH[jobId] || 'bianco'
     j.keyDate = { label: 'Awarded', value: NOW }
     j.stageDates = { won: NOW }
@@ -1154,6 +1162,9 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
     })
     /* the shortage it reorders: reordered, on this PO */
     if (short) shortReordered(s, short.id, { by: us ? 'Us' : o.paidBy === 'Owner' ? 'Client' : 'GC', from: o.supplier, eta: o.neededBy, po: id })
+    /* what asked for this tile — a problem logged on site, a shortage found when it came in — is on this PO now: done;
+       the PO itself carries it on (their yes, then it coming in) */
+    closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.state !== 'done' && tags.some((g) => (t.action?.kind || '').startsWith(`moretile:${g}:`))).map((t) => t.id), `Ordered on ${id}`)
     /* whoever sent it gets the store's yes: it waits on their list and is back on their Today tomorrow */
     newTask(s, { jobId, title: `${id} · get ${o.supplier}’s confirmation`, type: 'Materials', owner: me(), for: [s.role], state: 'waiting', waitingOn: o.supplier, followUp: 'Tomorrow', tone: 'warn', where: `${s.jobs[jobId]?.name || ''} · tile ${tags.join(', ')}`, action: { label: 'Mark confirmed', kind: 'po:' + id } })
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · tile ${tags.join(', ')}`, detail: o.lines.map((l) => `${l.tag} ${l.n} ${l.unit}`).join(', ') + (ref ? ` · their order ${ref}` : ''), ref: { t: 'po', id } })

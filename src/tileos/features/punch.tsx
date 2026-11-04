@@ -11,6 +11,8 @@ import { PEOPLE, CREWS, type PersonKey } from '@/tileos/data/model'
 import { isOff } from './active'
 import { keepFiles } from '@/tileos/lib/files'
 import { FormHead, FormRow, ProjectField } from './formkit'
+import { installerOf } from './upcoming'
+import { fieldPeople } from './steps-ui'
 
 /** a small rounded picker — the same as on a new task */
 const CHIP = 'h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial'
@@ -29,11 +31,18 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
   const [rows, setRows] = React.useState<Line[]>([{ id: 1, text: '', files: [] }, { id: 2, text: '', files: [] }, { id: 3, text: '', files: [] }])
   const next = React.useRef(4)
   const inputs = React.useRef<Record<number, HTMLInputElement | null>>({})
-  const crew0 = (job?.crew || s.bookings.find((b) => b.jobId === jobId)?.crew) as PersonKey | undefined
+  /* the project's installer does them, its site manager checks them — the next project picked, its own */
+  const crew0 = (job ? installerOf(s, job) || job.crew : undefined) as PersonKey | undefined
+  const checkers = fieldPeople(s, job)
   const [who, setWho] = React.useState<PersonKey | ''>(crew0 || '')
   const [due, setDue] = React.useState('Fri')
-  const [checker, setChecker] = React.useState<PersonKey>('yakov')
-  React.useEffect(() => { if (!who && crew0) setWho(crew0) }, [jobId])
+  const [checker, setChecker] = React.useState<PersonKey>(checkers[0] || meOf(s.role))
+  const first = React.useRef(true)
+  React.useEffect(() => {
+    if (first.current) { first.current = false; return }
+    setWho(crew0 || '')
+    setChecker(checkers[0] || meOf(s.role))
+  }, [jobId])
   const filled = rows.filter((r) => r.text.trim())
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage))
   const setText = (id: number, text: string) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, text } : r)))
@@ -120,13 +129,13 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       {/* who does them and by when — the same two dropdowns as every form; who checks, when a crew does them */}
       <FormRow label="Who does them">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'On this job' : 'Installer', lead: <Avatar who={c} size={22} /> })), ...(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))]} placeholder="Who does them" width={280} plain />
+          <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).sort((a, b) => Number(b === crew0) - Number(a === crew0)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'The installer on this project' : 'Installer', lead: <Avatar who={c} size={22} /> })), ...checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))]} placeholder="Who does them" width={280} plain />
           <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={220} icon={<CalendarDays />} />
         </div>
       </FormRow>
       {who && PEOPLE[who]?.crew && (
         <FormRow label="Who checks them">
-          <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={(['yakov', 'ys'] as PersonKey[]).map((p) => ({ key: p, label: `${PEOPLE[p].short} checks`, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))} search={false} width={260} icon={<CheckCheck />} plain />
+          <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: p === checkers[0] && job?.site ? `${PEOPLE[p].roleLabel || 'Site manager'} on this project` : PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))} search={false} width={300} icon={<CheckCheck />} plain />
         </FormRow>
       )}
     </Modal>

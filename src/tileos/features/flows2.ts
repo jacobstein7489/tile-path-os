@@ -178,12 +178,14 @@ export function roomsFromEstimate(e: Estimate, items: { id: string; surface?: st
   return rooms
 }
 /** called from the award: the estimate is approved and its scope carries over */
-export function approveEstimateInAward(s: any, jobId: string) {
+export function approveEstimateInAward(s: any, jobId: string, revN?: number) {
   const e: Estimate | undefined = s.estimates.find((x: Estimate) => x.jobId === jobId)
   if (!e) return
   e.status = 'approved'
   e.approvedOn = NOW
-  const r = [...e.revs].reverse().find((x) => x.status === 'sent') || curRev(e)
+  /* the revision picked on the window — else the one sent, else the newest */
+  const r = (revN != null ? e.revs.find((x) => x.n === revN) : undefined) || [...e.revs].reverse().find((x) => x.status === 'sent') || curRev(e)
+  if (!r) { e.log.push(L(meOf(s.role), 'Approved — it became the project')); return }
   e.revs.forEach((x) => { if (x !== r && x.status === 'sent') x.status = 'superseded' })
   r.status = 'approved'
   e.log.push(L(meOf(s.role), `Approved — revision ${r.n} became the project`))
