@@ -89,7 +89,8 @@ export function dailyDue(s: Store, role: Role): DailyItem[] {
   /* the last work day before today (Friday, on a Monday) */
   let prev = addDays(TODAY_ISO, -1)
   while ([0, 6].includes(new Date(prev + 'T12:00:00').getDay())) prev = addDays(prev, -1)
-  const late = working(prev).filter((b) => b.start <= prev && !sent(b.jobId, prev)).map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers, missed: prev }))
+  /* yesterday's not sent is late — until today's goes out (it says where the job is now) */
+  const late = working(prev).filter((b) => b.start <= prev && !sent(b.jobId, prev) && !sent(b.jobId, TODAY_ISO)).map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers, missed: prev }))
   const today = working(TODAY_ISO).filter((b) => !sent(b.jobId, TODAY_ISO)).map((b) => ({ kind: 'daily' as const, jobId: b.jobId, crew: b.crew as PersonKey, workers: b.workers }))
   return [...late, ...today]
 }
@@ -324,6 +325,48 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
   )
 }
 
+/** the day's daily updates, one row: how many jobs, and how many are late — tap it: every job, each sent from there */
+function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
+  const s = useStore()
+  const ds = x.ds || []
+  const jobs = Array.from(new Set(ds.map((d) => d.jobId)))
+  const missed = new Set(ds.filter((d) => d.missed).map((d) => d.jobId)).size
+  const open = () => s.open({ t: 'dailies', who: x.who })
+  return (
+    <TodoRow
+      onClick={open}
+      title="Daily updates"
+      detail={jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(' · ')}
+      owner={showOwner ? x.who : undefined}
+      project={`${jobs.length} jobs`}
+      when={missed ? `${missed} late` : 'End of day'}
+      whenTone={missed ? 'bad' : 'strong'}
+      action={<Button size="sm" className={TBTN} onClick={open} data-dailies-open>Send updates</Button>}
+    />
+  )
+}
+/** what's to be brought to the jobs, one row: how many things, for which job (or how many jobs) — tap it: the whole
+ *  pickup list, each one On my way / Dropped off right there */
+function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
+  const s = useStore()
+  const ts = x.ts || []
+  const jobs = Array.from(new Set(ts.map((t) => t.jobId)))
+  const one = jobs.length === 1 ? s.jobs[jobs[0]] : undefined
+  const open = () => s.open({ t: 'trips', who: x.who, day: isNow(x.b) ? 'now' : x.b })
+  return (
+    <TodoRow
+      onClick={open}
+      title={`Bring to the ${jobs.length > 1 ? 'jobs' : 'job'} · ${ts.length} things`}
+      detail={ts.map((t) => t.req?.what || t.title).join(' · ')}
+      owner={showOwner ? x.who : undefined}
+      project={one ? one.name : `${jobs.length} jobs`}
+      when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
+      whenTone={x.b === 'overdue' ? 'bad' : undefined}
+      action={<Button size="sm" className={TBTN} onClick={open} data-trips-open>Open</Button>}
+    />
+  )
+}
+
 /** the crew list on Today until it's sent: tomorrow's after 3 in the afternoon, today's first thing — one tap */
 function CrewRow() {
   const s = useStore()
@@ -462,7 +505,7 @@ export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
 const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
 
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
-export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
+export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin' | 'dailies' | 'trips'; t?: Task; d?: DailyItem; /** one row for many: the day's daily updates */ ds?: DailyItem[]; /** one row for many: what to bring to the jobs */ ts?: Task[]; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
 const AHEAD = 21
 /** everything that's mine: tasks, the daily updates I send, the pay week, my meetings, checklist steps that are my turn */
 export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateItem[] {
@@ -523,12 +566,42 @@ function teamPlate(s: Store): PlateItem[] {
   s.events.filter((e) => e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
   return sortPlate(Array.from(seen.values()))
 }
+/* The same kind of thing many times is one row: the day's daily updates (one row, every job in it), and what's to be
+ * brought to the jobs (one row, every pickup in it) — each person's own. Tap it: the whole list, each one done right
+ * there. The row stays until every one in it is done. One alone stays its own row; an urgent one stays its own row. */
+const BUCKET_ORDER: Bucket[] = ['overdue', 'today', 'tomorrow', 'week', 'later', 'aside']
+export function collapse(items: PlateItem[]): PlateItem[] {
+  const out: PlateItem[] = []
+  const dailies = new Map<string, PlateItem[]>()
+  const trips = new Map<string, PlateItem[]>()
+  const add = (m: Map<string, PlateItem[]>, k: string, x: PlateItem) => m.set(k, [...(m.get(k) || []), x])
+  items.forEach((x) => {
+    if (x.kind === 'daily') return add(dailies, x.who || '', x)
+    /* what's to be brought — today's (and late) together; a day ahead stays with that day */
+    if (x.kind === 'task' && x.t && isRequest(x.t) && x.t.state === 'now' && !x.t.urgent) return add(trips, `${x.who || x.t.owner}|${isNow(x.b) ? 'now' : x.b}`, x)
+    out.push(x)
+  })
+  const first = (xs: PlateItem[]) => xs.reduce((a, x) => (BUCKET_ORDER.indexOf(x.b) < BUCKET_ORDER.indexOf(a.b) || (x.b === a.b && (x.iso || '9') < (a.iso || '9')) ? x : a))
+  dailies.forEach((xs, who) => {
+    if (xs.length < 2) return out.push(...xs)
+    const f = first(xs)
+    out.push({ key: 'dailies:' + who, b: f.b, iso: f.iso, time: 17 * 60, kind: 'dailies', who: (who || undefined) as PersonKey | undefined, ds: xs.map((x) => x.d!) })
+  })
+  trips.forEach((xs, k) => {
+    if (xs.length < 2) return out.push(...xs)
+    const f = first(xs)
+    out.push({ key: 'trips:' + k, b: f.b, iso: f.iso, time: null, kind: 'trips', who: f.who, ts: xs.map((x) => x.t!) })
+  })
+  return sortPlate(out)
+}
 /** the number on Today in the menu: what's due today or late — the same number the page shows */
-export const todayCount = (s: Store, role: Role) => plateOf(s, role).filter((x) => isNow(x.b)).length
+export const todayCount = (s: Store, role: Role) => collapse(plateOf(s, role)).filter((x) => isNow(x.b)).length
 
 function PlateRow({ x, showOwner, followed, overdue }: { x: PlateItem; showOwner?: boolean; followed?: boolean; overdue?: boolean }) {
   if (x.kind === 'meet') return <MeetingRow e={x.e!} showOwner={showOwner} />
   if (x.kind === 'daily') return <DailyRow d={x.d!} showOwner={showOwner} />
+  if (x.kind === 'dailies') return <DailiesRow x={x} showOwner={showOwner} />
+  if (x.kind === 'trips') return <TripsRow x={x} showOwner={showOwner} />
   if (x.kind === 'crew') return <CrewRow />
   if (x.kind === 'rounds') return <RoundsRow />
   if (x.kind === 'pay') return <PayRow />
@@ -627,7 +700,9 @@ export function MyTasksPage() {
   }
 
   /* the counts never change with the filters — they're the facts */
-  const plate = all ? teamPlate(s) : plateOf(s, role)
+  /* the same kind of thing many times is one row — unless one project is picked: then each is its own */
+  const plate0 = all ? teamPlate(s) : plateOf(s, role)
+  const plate = job === 'all' ? collapse(plate0) : plate0
   const pick = (x: PlateItem) => (job === 'all' || (x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId) === job) && (!all || who === 'all' || (who === 'follow' ? followsIt(x.t) : x.who === who || (x.kind === 'meet' && x.e!.people.includes(who as PersonKey))))
   const today = plate.filter((x) => isNow(x.b))
   const late = plate.filter((x) => x.b === 'overdue')
@@ -690,14 +765,15 @@ export function MyTasksPage() {
   }
 
   /* by project: one section per job — what to check, do, hand over or record there, whatever day it's on */
-  const jobOfItem = (x: PlateItem) => x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || ''
+  const manyJob = (ids: string[]) => { const u = Array.from(new Set(ids)); return u.length === 1 ? u[0] : '*' }
+  const jobOfItem = (x: PlateItem) => (x.ds ? manyJob(x.ds.map((d) => d.jobId)) : x.ts ? manyJob(x.ts.map((t) => t.jobId)) : x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || '')
   const byProject = (items: PlateItem[], tasksOnly?: Task[]) => {
-    const keyOf = (id: string) => (id && s.jobs[id] ? s.jobs[id].name : '\uffff')
+    const keyOf = (id: string) => (id === '*' ? '' : id && s.jobs[id] ? s.jobs[id].name : '\uffff')
     const ids = Array.from(new Set(tasksOnly ? tasksOnly.map((t) => t.jobId || '') : items.map(jobOfItem))).sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
     const countOf = (id: string) => items.filter((x) => jobOfItem(x) === id).length + (tasksOnly || []).filter((t) => (t.jobId || '') === id).length
     /* a project with just one thing: one line, its name in gray — no band of its own (a screen of bands one row each
        is busy); the gray band is for a project with two or more */
-    const singles = ids.filter((id) => !!id && countOf(id) === 1)
+    const singles = ids.filter((id) => !!id && id !== '*' && countOf(id) === 1)
     const banded = ids.filter((id) => !singles.includes(id))
     const oneEach = singles.length > 0 && (
       <InJob.Provider key="one-each" value><Loose.Provider value><section aria-label="One each" data-one-each>
@@ -718,7 +794,7 @@ export function MyTasksPage() {
           <div className={cn(BAND_STRONG, PX)} style={bandStyle('neutral')} data-band>
             {j ? (
               <button onClick={() => s.open({ t: 'job', id })} className={cn(bandLabel('neutral'), 'min-w-0 text-left hover:text-brand-700')}>{j.name}</button>
-            ) : <span className={bandLabel('neutral')}>Not on a project</span>}
+            ) : <span className={bandLabel('neutral')}>{id === '*' ? 'Across projects' : 'Not on a project'}</span>}
             <BandCount n={rows.length + ts.length} />
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}

@@ -19,7 +19,7 @@ import type { Task } from '@/tileos/data/work'
 
 export type TrackKey = 'scope' | 'tile' | 'site' | 'installer' | 'materials' | 'other'
 /** the five tracks of getting ready, and the steps each one walks through, in order */
-export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
+export const TRACKS: { key: TrackKey; label: string; /** where room is tight (the names over the circles on Projects) */ short?: string; steps: string[] }[] = [
   /* Design: the meeting (set it, it happened, what was decided), the scope after it, the layouts */
   { key: 'scope', label: 'Design', steps: ['design', 'change', 'layouts'] },
   /* Tile: everything about the tile itself — the paperwork, the grout and a picture for each, the delivery */
@@ -29,7 +29,7 @@ export const TRACKS: { key: TrackKey; label: string; steps: string[] }[] = [
   /* Installer: pick him (that sends his PO), walk him through the job, then he accepts */
   { key: 'installer', label: 'Installer', steps: ['installer', 'walk', 'confirmed'] },
   /* Materials: what goes under the tile decides what we order — then order it, then it comes */
-  { key: 'materials', label: 'Materials', steps: ['setup', 'materials', 'matin'] },
+  { key: 'materials', label: 'Setting materials', short: 'Materials', steps: ['setup', 'materials', 'matin'] },
 ]
 /** a question added on one project sits in the track of the part it was added to */
 const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }

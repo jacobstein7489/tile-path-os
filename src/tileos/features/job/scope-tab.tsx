@@ -6,7 +6,7 @@
  * (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
 import { sellsTile } from '@/tileos/data/directory'
-import { Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown } from 'lucide-react'
+import { Upload, Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea, SearchField } from '@/tileos/components/ui/core'
 import { Modal, Pop, Tip } from '@/tileos/components/ui/overlay'
@@ -25,6 +25,7 @@ import { scopeLock, takesTile } from '../steps'
 import { surfaceFix } from './overview'
 import { Section, Empty, Group, Strip, GREEN, SHEET } from './kit'
 import { AddSurfaceButton, AddRoomButton } from '../roomedit'
+import { estimateInto } from '../bringin'
 import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
@@ -76,20 +77,37 @@ type Hits = ReturnType<typeof scopeMatches>
  * and every wall and floor in them — one line each, what goes on it, and the square feet on the right. Once the crew
  * is on it, each line shows how far it is. Tap a line to change it; tap a tile for the tile. */
 const IN_FIELD_ = ['installation', 'punch', 'closeout', 'complete']
+/** no rooms yet (a project made here, not from an approved estimate): set the scope up right here — its estimate (the
+ *  rooms, walls and floors read from it by themselves), or a room at a time by hand */
+export function ScopeStart({ job }: { job: Job }) {
+  const s = useStore()
+  const can = scopeLock(s, job.id).canEdit
+  const file = React.useRef<HTMLInputElement>(null)
+  const [now, setNow] = React.useState<'' | 'reading' | 'bad'>('')
+  const read = (f?: File) => {
+    if (!f) return
+    setNow('reading')
+    void estimateInto(job.id, f).then(() => setNow(''), () => setNow('bad'))
+  }
+  return (
+    <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-5 py-4 max-sm:px-4" data-scope-start>
+      <div className="text-[0.9375rem] font-semibold text-ink">No rooms yet</div>
+      <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Add its estimate — the rooms, walls and floors fill in by themselves. Or add the rooms one at a time.' : 'They come from its estimate — the office adds it.'}</div>
+      {can && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
+          <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
+          <Button variant="primary" size="sm" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Add its estimate'}</Button>
+          <AddRoomButton jobId={job.id} have={(s.rooms[job.id] || []).map((r) => r.name)} label="Add a room" size="sm" />
+        </div>
+      )}
+      {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
+    </div>
+  )
+}
 export function ScopeTab({ job }: { job: Job }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
-  if (!rooms.length)
-    return (
-      <Section title="Scope of work">
-        <div className="flex flex-col items-center px-5 py-12 text-center">
-          <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><Building2 className="h-6 w-6" /></span>
-          <div className="text-[1rem] font-semibold text-ink">No rooms yet</div>
-          <div className="mt-1 max-w-sm text-[0.875rem] text-muted">When an estimate is approved its rooms come over by themselves. For this one, build them from the paperwork.</div>
-          <Button className="mt-4" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'buildrooms', jobId: job.id })}>Build rooms</Button>
-        </div>
-      </Section>
-    )
+  if (!rooms.length) return <ScopeStart job={job} />
   return <ScopeBody job={job} rooms={rooms} />
 }
 function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {

@@ -10,7 +10,7 @@
  *   Once getting ready is done it isn't shown any more (it's done): what's next and the stage (the crew, the
  *     installing, the touch-ups), and beside it the open items — anything still open, each thing once. */
 import * as React from 'react'
-import { ChevronDown, ChevronRight, Plus, Truck, HardHat, CalendarDays, Receipt, TriangleAlert, ListTodo, Package } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, Truck, HardHat, CalendarDays, Receipt, TriangleAlert, ListTodo, Package } from 'lucide-react'
 import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel, Modal } from '@/tileos/components/ui/overlay'
@@ -20,7 +20,8 @@ import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
 import { stepsFor, type StepView } from '../steps'
 import { StepIcon, stepWords } from '../steps-ui'
-import { todoOf, chainsOf, stepNow } from '../stepwin'
+import { todoOf, chainsOf, stepNow, StepInline } from '../stepwin'
+import { useSmall } from '@/tileos/lib/phone'
 import { NextUp } from './next'
 import { nextOn } from './plan'
 import { installerOf } from '../upcoming'
@@ -109,7 +110,6 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
  * step, whose it is, where it's at — done, what came of it. Nothing folds and nothing opens inside the list: tap a
  * step and its own window opens. Steps that follow each other are joined by a line down the left. On a wide screen
  * the parts are in two columns (in order, down the first and on into the second), so every step is in view at once. */
-const LINE_COLS = 'md:grid md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.85fr)_minmax(0,1.4fr)] md:items-center md:gap-x-5'
 function stateOf(s: Store, job: Job, x: StepView, me: PersonKey): { text: string; tone: string } {
   const late = x.state === 'now' && !!x.due && x.due < TODAY
   if (x.state === 'now') return late ? { text: `Late · was due ${labelFromIso(x.due!)}`, tone: 'font-medium text-bad-600' } : x.owner === me ? { text: 'Your turn', tone: 'font-semibold text-brand-700' } : { text: 'To do', tone: 'text-ink-2' }
@@ -202,49 +202,54 @@ function PartCard({ job, t, me, onOpen }: { job: Job; t: TrackView; me: PersonKe
     </button>
   )
 }
-/** a part's window: every one of its steps, one line each — the step, whose it is, where it's at, what came of it.
- *  Tap a step: its own window, on top of this one. */
+/** a part's window: its steps down the left — each with whose it is and where it's at — and the one picked open on the
+ *  right, done right here: nothing opens on top of it, nothing sends you somewhere else. It opens on the step the part is
+ *  at. On a phone: that step, with "All N steps" over it to pick another. */
+const STAY = () => {}
 export function PartModal({ jobId, track, level }: { jobId: string; track: TrackKey; level: number }) {
   const s = useStore()
+  const small = useSmall()
   const job = s.jobs[jobId]
-  if (!job) return null
   const me = meOf(s.role)
-  const t = tracksFor(s, job).find((x) => x.key === track)
-  if (!t) return null
-  const list = t.steps.filter((x) => x.state !== 'na')
+  const t = job ? tracksFor(s, job).find((x) => x.key === track) : undefined
+  const list = t ? t.steps.filter((x) => x.state !== 'na') : []
+  const [at, setAt] = React.useState<string>(() => (t?.lead || list.find((x) => x.state !== 'done') || list[0])?.key || '')
+  const [picking, setPicking] = React.useState(false)
+  if (!job || !t) return null
+  const v = list.find((x) => x.key === at) || list[0]
   const finished = t.state === 'done'
+  const pick = (k: string) => { setAt(k); setPicking(false) }
   return (
     <Modal level={level} size="lg" onClose={s.close} title={t.label} sub={`${job.name} · ${finished ? `done${t.doneOn ? ` ${t.doneOn}` : ''}` : `${t.done} of ${t.total} done`}`} bodyClass="p-0">
-      <div data-track={t.key} data-step-track={t.key} data-state={t.state}>
-        <div className={cn(HEAD_ROW, LINE_COLS, 'px-5 max-md:hidden')}><span>Step</span><span>Whose</span><span>Where it is</span></div>
-        <div data-part-path>
-          {chainsOf(list).map((g) => g.map((x, i) => <StepLine key={x.key} job={job} x={x} me={me} up={g.length > 1 && i > 0} down={g.length > 1 && i < g.length - 1} onClick={() => s.open({ t: 'step', jobId: job.id, k: x.key })} />))}
-        </div>
+      <div className="grid min-h-full md:grid-cols-[17.5rem_minmax(0,1fr)]" data-track={t.key} data-step-track={t.key} data-state={t.state}>
+        {(!small || picking) && (
+          <nav className="border-line py-2 md:border-r" aria-label={`${t.label} steps`} data-part-path>
+            {list.map((x) => <StepPick key={x.key} job={job} x={x} me={me} on={!small && x.key === v?.key} onClick={() => pick(x.key)} />)}
+          </nav>
+        )}
+        {(!small || !picking) && v && (
+          <div className="min-w-0 px-6 pb-6 pt-5 max-sm:px-4 max-sm:pt-3" data-part-open={v.key}>
+            {small && list.length > 1 && <button type="button" onClick={() => setPicking(true)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-[0.875rem] font-semibold text-brand-700" data-part-all><ChevronLeft className="h-4 w-4" />All {list.length} steps</button>}
+            <h3 className="mb-3 text-[1.0625rem] font-semibold leading-snug text-ink" data-part-step-name>{stepShort(s, job, v)}</h3>
+            <StepInline key={v.key} job={job} v={v} onClose={STAY} />
+          </div>
+        )}
       </div>
     </Modal>
   )
 }
-/** one step, one line: its mark (joined to the steps before and after it when they follow each other), its name,
- *  whose it is, where it's at — in full, on as many lines as it takes. Tap it: its own window. */
-function StepLine({ job, x, me, up, down, onClick }: { job: Job; x: StepView; me: PersonKey; up: boolean; down: boolean; onClick: () => void }) {
+/** one step in a part's window: its mark, its name, whose it is and where it's at — tap it and it opens beside the list */
+function StepPick({ job, x, me, on, onClick }: { job: Job; x: StepView; me: PersonKey; on: boolean; onClick: () => void }) {
   const s = useStore()
   const st = stateOf(s, job, x, me)
   const who = x.owner === me ? 'You' : PEOPLE[x.owner]?.short || ''
-  const lineTone = (k: boolean) => (k ? 'bg-[#2c8a5b]' : 'bg-[#d9d3c9]')
   return (
-    <button type="button" onClick={onClick} data-track-step={x.key} data-state={x.state} className={cn('relative block min-h-11 w-full border-t border-line-2 px-5 py-1.5 text-left transition row-hover max-sm:min-h-12 max-sm:px-4 max-sm:py-2', LINE_COLS)}>
-      {/* the line joining it to the step before and the one after */}
-      {up && <span className={cn('absolute left-[1.71875rem] top-0 h-[calc(50%-0.625rem)] w-0.5 max-sm:left-[1.46875rem]', lineTone(x.state === 'done'))} aria-hidden />}
-      {down && <span className={cn('absolute bottom-0 left-[1.71875rem] h-[calc(50%-0.625rem)] w-0.5 max-sm:left-[1.46875rem]', lineTone(x.state === 'done'))} aria-hidden />}
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="relative z-[1] inline-flex h-5 w-5 shrink-0 items-center justify-center bg-inherit"><StepIcon state={x.state} size={18} /></span>
-        <span className="min-w-0 flex-1">
-          <span className={cn('block text-[0.9375rem] leading-snug', x.state === 'later' ? 'font-medium text-ink-2' : 'font-semibold text-ink')} data-step-name>{stepShort(s, job, x)}</span>
-          <span className={cn('block text-[0.8125rem] leading-snug md:hidden', st.tone)}>{[who, st.text].filter(Boolean).join(' · ')}</span>
-        </span>
+    <button type="button" onClick={onClick} aria-current={on ? 'step' : undefined} data-track-step={x.key} data-state={x.state} {...(on ? { 'data-on': '' } : {})} className={cn('flex min-h-12 w-full min-w-0 items-start gap-3 border-l-[0.1875rem] px-4 py-2.5 text-left transition', on ? 'border-brand-500 bg-brand-50/70' : 'border-transparent hover:bg-wash')}>
+      <span className="mt-0.5 shrink-0"><StepIcon state={x.state} size={18} /></span>
+      <span className="min-w-0 flex-1">
+        <span className={cn('block text-[0.9375rem] leading-snug', x.state === 'later' ? 'font-medium text-ink-2' : 'font-semibold text-ink')} data-step-name>{stepShort(s, job, x)}</span>
+        <span className={cn('block text-[0.8125rem] leading-snug', st.tone)} data-step-now>{[who, st.text].filter(Boolean).join(' · ')}</span>
       </span>
-      <span className="flex min-w-0 items-center gap-2 max-md:hidden">{x.owner && PEOPLE[x.owner] && <Avatar who={x.owner} size={20} />}<span className={cn('min-w-0 text-[0.875rem] leading-snug', x.owner === me ? 'font-medium text-ink' : 'text-ink-2')}>{who}</span></span>
-      <span className={cn('min-w-0 text-[0.875rem] leading-snug max-md:hidden', st.tone)} data-step-now>{st.text}</span>
     </button>
   )
 }

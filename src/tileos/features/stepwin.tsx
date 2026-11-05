@@ -157,14 +157,15 @@ export function remindStep(job: Job, v: StepView) {
 const StepHost = React.createContext<{ close: () => void } | null>(null)
 export const useStepHost = () => React.useContext(StepHost)
 
-/** who may do what with a step: only its person does it, and only once the steps before it are done. Who has each step
- *  comes from Who does what — the admin can take one over, or give it to someone else on one project. */
+/** who may do what with a step: its person does it — even before the steps it usually comes after are done (it's done
+ *  right where it's opened, never sent somewhere else first). Who has each step comes from Who does what — the admin can
+ *  take one over, or give it to someone else on one project. */
 function stepRights(s: Store, v: StepView) {
   const me = meOf(s.role)
   const mine = v.owner === me
   const admin = s.role === 'owner' || s.role === 'pm'
   const locked = v.state === 'later'
-  return { me, mine, admin, locked, viewOnly: !mine || locked }
+  return { me, mine, admin, locked, viewOnly: !mine }
 }
 /** what's happened with a step, from the project's history — newest first */
 const HIST_OF: Record<string, RegExp> = {
@@ -198,11 +199,11 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
   /* nobody has this part's login yet: it's yours until someone does — said, so it doesn't look like someone else's */
   const cover = mine && open && v.cover ? `Yours for now — no ${v.cover.toLowerCase()} on the team yet. ` : ''
   const sub = v.state === 'later'
-    ? `It opens when ${v.waitsFor || 'the step before'} is done${v.waitsOn ? ` — ${v.waitsOn === me ? 'you have' : `${PEOPLE[v.waitsOn]?.short} has`} that` : ''}. Then it’s ${mine ? 'yours' : `${name}’s`}.`
+    ? (mine ? `It usually comes after ${v.waitsFor || 'the step before'} — you can do it now, right here.` : `It usually comes after ${v.waitsFor || 'the step before'}. Then it’s ${name}’s.`)
     : what || cover ? `${cover}${what || ''}${!mine && open && onSite && v.state === 'now' ? ' — on site' : ''}` : undefined
   return (
     <div className={cn('flex min-w-0 items-start gap-3 rounded-xl border px-3.5 py-3', look.box)} data-step-status data-step-state={v.state} {...(v.state === 'later' ? { 'data-locked': '' } : {})} {...(!mine && open && v.state !== 'later' ? { 'data-not-mine': '' } : {})} {...(cover ? { 'data-covering': v.cover } : {})}>
-      {v.state === 'now' && !mine ? <Avatar who={v.owner} size={30} plain /> : v.state === 'later' ? <span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#bfb8ad] bg-white text-faint"><Lock className="h-3.5 w-3.5" /></span> : <StepIcon state={v.state} size={30} />}
+      {v.state === 'now' && !mine ? <Avatar who={v.owner} size={30} plain /> : <StepIcon state={v.state} size={30} />}
       <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
         <div className="min-w-[min(100%,13rem)] flex-1">
           <div className={cn('text-[0.90625rem] font-semibold leading-snug', look.head)}>
@@ -212,8 +213,8 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
           {sub && <div className="mt-0.5 text-[0.84375rem] leading-snug text-ink-2">{sub}</div>}
         </div>
         {!mine && open && v.state !== 'later' && <span className="flex shrink-0 items-center gap-1.5"><Button size="sm" onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>{admin && <Button size="sm" onClick={() => setStepOwner(job.id, take, me)}>Take it over</Button>}</span>}
-        {/* not yet: straight to the step it waits for — nothing ends here */}
-        {v.state === 'later' && v.waitsKey && goTo && <Button size="sm" className="shrink-0" iconRight={<ChevronRight />} onClick={() => goTo(v.waitsKey!)} data-go-waits={v.waitsKey}><span className="max-w-[13rem] truncate">Go to {v.waitsFor || 'the step before'}</span></Button>}
+        {/* not started, someone else's: the admin can take it and do it now — here */}
+        {!mine && v.state === 'later' && admin && <Button size="sm" className="shrink-0" onClick={() => setStepOwner(job.id, take, me)} data-take-later>Take it over</Button>}
       </div>
       {admin && <StepMore job={job} v={v} />}
     </div>
@@ -376,9 +377,9 @@ function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boo
       {v.state === 'done' ? (
         <div className={cn('flex flex-col gap-3', gap)} data-step-done>
           <StepResult job={job} v={v} />
-          {mine && !locked && <DoneChange job={job} v={v} />}
+          {mine && <DoneChange job={job} v={v} />}
         </div>
-      ) : mine && !locked ? (
+      ) : mine ? (
         <fieldset className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
       ) : v.state === 'bad' ? (
         <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', gap)} data-problem-view><Body job={job} v={v} /></fieldset>

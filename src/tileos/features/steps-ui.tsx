@@ -63,11 +63,8 @@ export function stepWords(s: Store, job: Job, v: StepView, me: PersonKey): { tex
     case 'done': return { text: v.doneOn ? `Done ${v.doneOn}` : 'Done', tone: 'text-muted' }
     case 'na': return { text: 'Not needed on this project', tone: 'text-faint' }
     case 'bad': return { text: `Problem${mine ? ' · your turn' : ''}`, tone: 'font-semibold text-bad-600' }
-    case 'later': {
-      const before = v.waitsKey ? stepsFor(s, job).find((x) => x.key === v.waitsKey) : undefined
-      const name = before ? stepShort(s, job, before) : v.waitsFor
-      return { text: name ? `After ${name}` : 'Not yet', tone: 'text-muted' }
-    }
+    /* not started — it can be done any time; its own window says what it usually comes after */
+    case 'later': return { text: 'Not yet', tone: 'text-muted' }
     case 'wait': {
       if (['delivered', 'matin'].includes(v.key)) return { text: v.due ? `Coming ${day(v.due)}` : 'On the way', tone: 'text-warn-700' }
       if (['design', 'walk'].includes(v.key)) return { text: v.due ? `Set for ${day(v.due)}` : 'Set', tone: 'text-warn-700' }

@@ -35,6 +35,7 @@ import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { edgeKind, edgeWords, parseMetal, METAL_PROFILES, METAL_FINISHES } from '@/tileos/data/catalog'
 import { FinishDot } from '../metalpick'
+import { ScopeStart } from './scope-tab'
 
 /** a part of the job: its title (and what it is) on the left, its links on the right — then one white sheet */
 function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
@@ -164,7 +165,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           {rooms.length > 0 && canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
         </span>
       </header>
-      {!rooms.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted">No rooms yet — they come from the approved estimate.</div>}
+      {!rooms.length && <ScopeStart job={job} />}
       {rooms.length > 0 && ws.length > 0 && !groups.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted" data-scope-none>Nothing matches “{q}”. <button className="font-semibold text-brand-700 hover:underline" onClick={() => setQ('')}>Show everything</button></div>}
       {rooms.length > 0 && groups.length > 0 && (
         <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">

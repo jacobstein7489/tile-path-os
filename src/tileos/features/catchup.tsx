@@ -65,7 +65,7 @@ const WHERE: { key: Where; label: string }[] = [
 ]
 const whereWord = (w: Where) => WHERE.find((x) => x.key === w)!.label
 const PARTS: { key: TrackKey; label: string }[] = [
-  { key: 'scope', label: 'Design' }, { key: 'tile', label: 'Tile' }, { key: 'site', label: 'Site' }, { key: 'installer', label: 'Installer' }, { key: 'materials', label: 'Materials' },
+  { key: 'scope', label: 'Design' }, { key: 'tile', label: 'Tile' }, { key: 'site', label: 'Site' }, { key: 'installer', label: 'Installer' }, { key: 'materials', label: 'Setting materials' },
 ]
 /** ready for the crew = these three are done */
 const READY_PARTS: TrackKey[] = ['scope', 'tile', 'site']

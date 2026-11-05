@@ -65,7 +65,7 @@ export function AddSurfaceButton({ jobId, room, have, className }: { jobId: stri
 }
 
 /** one more room on the project */
-export function AddRoomButton({ jobId, have, label = 'Add a room', className }: { jobId: string; have: string[]; label?: string; className?: string }) {
+export function AddRoomButton({ jobId, have, label = 'Add a room', className, size = 'xs' }: { jobId: string; have: string[]; label?: string; className?: string; size?: 'xs' | 'sm' | 'md' }) {
   const [open, setOpen] = React.useState(false)
   const [name, setName] = React.useState('')
   const [picked, setPicked] = React.useState<string[]>(['Floor', 'Walls'])
@@ -74,7 +74,7 @@ export function AddRoomButton({ jobId, have, label = 'Add a room', className }: 
   const save = () => { if (!name.trim() || clash) return; addRoom(jobId, name, picked); setName(''); setPicked(['Floor', 'Walls']); setOpen(false) }
   if (!canEdit) return null
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={340} trigger={<Button size="xs" icon={<Plus />} className={className}>{label}</Button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={340} trigger={<Button size={size} icon={<Plus />} className={className} data-add-room>{label}</Button>}>
       <div className="text-[0.84375rem] font-semibold text-ink">A room that isn’t on the list</div>
       <form onSubmit={(e) => { e.preventDefault(); save() }}>
         <TextInput autoFocus aria-label="Room name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Powder room" className="mt-2 h-9 w-full" />

@@ -168,7 +168,7 @@ function ListHead({ parts }: { /** a project getting ready is on the list: the f
       <span className="max-xl:hidden">Client</span>
       {parts ? (
         <span className="flex min-w-0 items-center" data-part-names title="Getting ready — its five parts. A project that started shows how far it is instead.">
-          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.8125rem]')}>{t.label}</span>)}
+          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.8125rem]')} title={t.label}>{t.short || t.label}</span>)}
         </span>
       ) : <span data-part-names>How far</span>}
       <span>Now</span>

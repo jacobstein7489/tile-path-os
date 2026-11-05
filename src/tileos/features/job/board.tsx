@@ -124,7 +124,7 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
     case 'files': return page('Files and photos', <FilesTab job={job} />)
     case 'scope': return page('Scope of work', <ScopeTab job={job} />, 'every wall and floor — its tile, grout and layout')
     case 'log': return page('What happened', <HistoryTab job={job} />)
-    case 'orders': return page('Materials', <MaterialsTab job={job} onScope={() => setView({ t: 'scope' })} />)
+    case 'orders': return page('Tile & materials', <MaterialsTab job={job} onScope={() => setView({ t: 'scope' })} />)
     case 'money': return page('Billing', <MoneyTab job={job} />, 'alongside the job the whole time — billed, paid, the changes')
     /* on a phone the layouts open from the scope of work, with Back on top — no extra tab to slide to */
     case 'layouts': return page('Layouts', <LayoutsBoard job={job} />, 'every wall and floor, drawn to scale')
@@ -182,7 +182,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
           { key: 'scope', label: 'Scope of work', short: 'Scope' },
           /* a computer: its own tab. A phone: a button in the scope of work (the tabs fit across, nothing slides) */
           { key: 'layouts', label: 'Layouts', wide: true },
-          { key: 'materials', label: 'Materials' },
+          { key: 'materials', label: 'Tile & materials', short: 'Materials' },
           ...(money ? [{ key: 'billing' as BoardTab, label: 'Billing' }] : []),
           { key: 'people', label: 'People' },
           { key: 'files', label: 'Documents', short: 'Docs' },
