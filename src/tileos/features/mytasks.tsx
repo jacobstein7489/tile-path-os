@@ -1127,7 +1127,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       <div className="text-[0.9375rem] font-semibold text-ink">Who follows it</div>
       <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">They see it and hear when it moves — {t.owner === me ? 'you' : owner} still {t.owner === me ? 'do' : 'does'} it.</div>
       <div className="flex flex-wrap gap-1.5">
-        {ASSIGNABLE.filter((p) => p !== t.owner).map((p) => <Chip key={p} on={followersOf(t).includes(p)} onClick={() => toggleFollow(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{PEOPLE[p]?.short || p}</Chip>)}
+        {/* you first, as "Me" — two people can share a first name */}
+        {ASSIGNABLE.filter((p) => p !== t.owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={followersOf(t).includes(p)} onClick={() => toggleFollow(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
       </div>
     </div>
   ) : (
@@ -1341,7 +1342,8 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
             <div>
               <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who follows it — they see every note and when it’s done</div>
               <div className="flex flex-wrap gap-1.5">
-                {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{PEOPLE[p]?.short || p}</Chip>)}
+                {/* you first, as "Me" — two people can share a first name */}
+                {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
                 {people.length < 2 && <span className="self-center text-[0.8125rem] text-muted">Nobody else on the team yet — add people in Settings → Team.</span>}
               </div>
             </div>
