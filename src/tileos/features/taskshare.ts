@@ -1,5 +1,6 @@
-/* One person does it; everyone who needs to can see it.
+/* One person does it — or two, whoever gets to it first; everyone who needs to can see it.
  *   owner     — the one person whose job it is (always exactly one)
+ *   also      — others who can do it too: on their Today as well; whoever does it first closes it for all
  *   followers — see it under "Following" and get told when it moves
  *   everyone  — pinned to the top of every login's Today until it's done */
 import { useStore, NOW, meOf } from '@/tileos/store'
@@ -24,6 +25,25 @@ export function toggleFollow(id: string, who: PersonKey) {
     },
     on ? `${PEOPLE[who].short} follows it now` : `${PEOPLE[who].short} stopped following`,
     { undo: false, sub: on ? 'It shows under Following, and they hear when it moves.' : undefined },
+  )
+}
+/** someone else can do it too: it's on their Today as well, and whoever does it first closes it for both */
+export function toggleAlso(id: string, who: PersonKey) {
+  const t0 = S().tasks.find((x) => x.id === id)
+  if (!t0 || who === t0.owner) return
+  const on = !(t0.also || []).includes(who)
+  S().commit(
+    (s) => {
+      const t = s.tasks.find((x) => x.id === id)!
+      const cur = (t.also || []).filter((p) => p !== t.owner)
+      const next = on ? [...cur, who] : cur.filter((p) => p !== who)
+      t.also = next.length ? next : undefined
+      const r = s.team.find((m) => m.key === who)?.role as Role | undefined
+      if (on && r && !t.for.includes(r)) t.for = [...t.for, r]
+      t.log.push({ date: NOW, who: meOf(s.role), text: on ? `${PEOPLE[who].name} can do it too` : `${PEOPLE[who].name} taken off it` })
+    },
+    on ? `On ${PEOPLE[who].short}’s Today too` : `Off ${PEOPLE[who].short}’s Today`,
+    { undo: false, sub: on ? 'Whoever does it first closes it for both.' : undefined },
   )
 }
 export function setEveryone(id: string, on: boolean) {

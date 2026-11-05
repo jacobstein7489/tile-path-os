@@ -223,7 +223,7 @@ export function DatePresets({ value, onPick, presets = DATE_PRESETS }: { value?:
   )
 }
 
-export const WAIT_WHO = ['GC', 'Client', 'Designer', 'Supplier', 'Tile store', 'Plumber', 'Someone inside']
+export const WAIT_WHO = ['GC', 'Installer', 'Client', 'Designer', 'Supplier', 'Tile store', 'Plumber', 'Someone inside']
 
 export function WaitPicker({ onSave, defaultWho, onCancel }: { onSave: (who: string, back: string) => void; defaultWho?: string; onCancel?: () => void }) {
   const [who, setWho] = React.useState(defaultWho || '')

@@ -23,7 +23,7 @@ const write = (k: string, v: string[]) => { try { localStorage.setItem(k, JSON.s
 const tag = (t: Task, me?: string) => (me && t.owner !== me ? `${t.id}:f:${me}` : `${t.id}:${t.owner}`) + (t.nudge && t.nudge.by !== me && t.owner === me ? `:n${t.nudge.at}` : '')
 const evTag = (e: CalEvent) => `ev:${e.id}:${e.date}:${e.start}`
 /** what's on my plate right now that someone (or a hand-off) put there */
-const mineNow = (s: Store) => { const me = meOf(s.role); return s.tasks.filter((t) => (t.owner === me || t.followers?.includes(me)) && t.state === 'now' && (t.log?.[0]?.who !== me || (t.owner === me && !!t.nudge && t.nudge.by !== me))) }
+const mineNow = (s: Store) => { const me = meOf(s.role); return s.tasks.filter((t) => (t.owner === me || t.also?.includes(me) || t.followers?.includes(me)) && t.state === 'now' && (t.log?.[0]?.who !== me || (t.owner === me && !!t.nudge && t.nudge.by !== me))) }
 /** my steps someone reminded me about */
 const stepTag = (j: Job, v: StepView, at: string) => `st:${j.id}:${v.key}:${at}`
 const nudgedSteps = (s: Store) => { const me = meOf(s.role); return stepTodos(s, me).map(({ job, step }) => ({ job, step, n: s.stepRecs[job.id]?.[step.key]?.nudge })).filter((x) => x.n && x.n.by !== me) }

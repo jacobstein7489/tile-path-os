@@ -468,7 +468,7 @@ export const useStore = create<Store>()(
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
         /* a request from the site: whoever asked hears it's there, in their inbox */
-        const hear = Array.from(new Set([t.by, ...(t.followers || [])].filter((p): p is PersonKey => !!p && p !== meOf(s.role))))
+        const hear = Array.from(new Set([t.by, t.owner, ...(t.also || []), ...(t.followers || [])].filter((p): p is PersonKey => !!p && p !== meOf(s.role))))
         if (hear.length) s.notices.unshift({ id: 'nt' + Date.now(), jobId: t.jobId, text: isRequest(t) ? `Dropped off · ${t.req?.what || t.title.replace(/^(Get to the site|Short on site) · /, '')}${s.jobs[t.jobId] ? ` at ${s.jobs[t.jobId].name}` : ''} — ${PEOPLE[meOf(s.role)]?.short || 'someone'}` : `Done · ${t.title} — ${PEOPLE[meOf(s.role)]?.short || 'someone'}`, when: 'Just now', kind: isRequest(t) ? 'material' : 'field', unread: true, open: { t: 'task', id: t.id }, for: hear })
         if (t.repeat) repeatTask(s, t)
       }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : isRequest(get().tasks.find((x) => x.id === id)) ? 'Dropped off!' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),

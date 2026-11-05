@@ -135,7 +135,7 @@ export function SearchSelect({
 
 /* Pick several: people for a meeting, who else is coming. The chosen ones show in the field; tap to change. */
 export type MultiOption = SelectOption & { lead?: React.ReactNode }
-export function MultiSelect({ values, options, onChange, placeholder = 'Pick', className, width = 340, icon, label, summary }: {
+export function MultiSelect({ values, options, onChange, placeholder = 'Pick', className, width = 340, icon, label, summary, autoOpen }: {
   values: string[]
   options: MultiOption[]
   onChange: (keys: string[]) => void
@@ -146,8 +146,10 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   label?: string
   /** what the closed field says, e.g. "You and Yakov" */
   summary?: (picked: MultiOption[]) => React.ReactNode
+  /** open as soon as it shows (switched to from a one-pick box) */
+  autoOpen?: boolean
 }) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(!!autoOpen)
   const [q, setQ] = React.useState('')
   const searchable = options.length > 8
   const picked = options.filter((o) => values.includes(o.key))
