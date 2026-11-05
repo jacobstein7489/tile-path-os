@@ -4,12 +4,12 @@
  * the start and the finish — and its estimate and tile paperwork if they're handy (the rooms and the tiles fill in by
  * themselves).
  * It opens on the list: every one of them, what's set up (✓) and what isn't yet — and what's still missing on it (the
- * client, the installer, the site manager, the start). Tap any one; Save & next saves it and opens the next one that
- * isn't set up. Nothing's laid out as a wall of choices: each answer is one box you tap (the installer is typed to
+ * client, the installer, the site manager, the start). Tap any one; Save & close saves it and goes back to the list,
+ * where it's ticked — you pick the next one yourself. Nothing's laid out as a wall of choices: each answer is one box you tap (the installer is typed to
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, ListChecks, PauseCircle, Sparkles, Upload, UserRound } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, ListChecks, Sparkles, Upload, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
@@ -92,8 +92,8 @@ const NEXT_UP: { part: TrackKey; text: string; owner: PersonKey }[] = [
 ]
 
 /** save one project the way it was set: the client, where it stands (and what's checked off with it), the people, how
- *  far, dates — said with a pop and closed when it's the one project (msg) */
-function save(jobId: string, d: Draft, msg?: string) {
+ *  far, dates — said with a pop (msg); closed when it's the one project (close) */
+function save(jobId: string, d: Draft, msg?: string, opts?: { close?: boolean; sub?: string }) {
   const st0 = useStore.getState()
   const me = meOf(st0.role)
   st0.commit((st) => {
@@ -149,7 +149,7 @@ function save(jobId: string, d: Draft, msg?: string) {
     }
     j.caughtUp = NOW
     addHist(st, jobId, { who: me, kind: 'setup', title: 'Brought up to date', detail: [whereWord(d.where), crew ? `installer ${PEOPLE[crew]?.short || crew}` : '', d.site ? `site manager ${PEOPLE[d.site as PersonKey]?.short || d.site}` : '', stage === 'installation' ? `${j.pct}% in` : '', j.hold ? 'on hold' : ''].filter(Boolean).join(' · ') })
-  }, msg, msg ? { close: true } : { undo: false })
+  }, msg, msg ? { ...opts } : { undo: false })
 }
 /** a client typed that isn't on the list: the one by that name, or a new one */
 function clientNamed(name: string): string | undefined {
@@ -196,7 +196,7 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
         onClose={s.close}
         title="Where it’s up to"
         sub={job.name}
-        footer={<><Button className="ml-auto max-sm:flex-1" variant="ghost" onClick={s.close}>Cancel</Button><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved')} data-catchup-save>Save</Button></>}
+        footer={<><Button className="ml-auto max-sm:flex-1" variant="ghost" onClick={s.close}>Cancel</Button><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved', { close: true })} data-catchup-save>Save</Button></>}
         bodyClass="px-6 py-5 max-sm:px-4"
       >
         <CatchUpForm job={job} d={d} set={set} />
@@ -265,12 +265,10 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
   /* ---- one project ---- */
   const link = asanaOf(s, job)
   const at = ids.indexOf(job.id)
-  const next = () => {
-    save(job.id, d)
-    setDrafts((x) => ({ ...x, [job.id]: d }))
-    setCur(nextAfter(job.id))
-  }
-  const skip = () => setCur(nextAfter(job.id) || null)
+  /* back to the list — what was typed and not saved is let go, so the form shows only what's saved */
+  const toList = () => { setDrafts((x) => { const y = { ...x }; delete y[job.id]; return y }); setCur(null) }
+  /* saved: back on the list, ticked — the next one is yours to pick */
+  const saveClose = () => { save(job.id, d, 'Saved', { sub: `${job.name} is set up` }); toList() }
   return (
     <Modal
       level={level}
@@ -281,7 +279,7 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
       header={
         <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>
           <div className="flex items-center gap-3 text-[0.8125rem] text-muted">
-            <button type="button" onClick={() => setCur(null)} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline" data-catchup-list-back><ChevronLeft className="h-4 w-4" />All {jobs.length}</button>
+            <button type="button" onClick={toList} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline" data-catchup-list-back><ChevronLeft className="h-4 w-4" />All {jobs.length}</button>
             <span className="tnum" data-catchup-at>{at + 1} of {jobs.length}</span>
             <span className="tnum">· {setN} set up</span>
           </div>
@@ -297,9 +295,8 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
       }
       footer={
         <>
-          <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setCur(null)} className="max-sm:hidden">All projects</Button>
-          <Button variant="ghost" onClick={skip} data-catchup-skip>Skip</Button>
-          <Button className="ml-auto max-sm:flex-1" variant="primary" iconRight={<ChevronRight />} onClick={next} data-catchup-next>{nextAfter(job.id) ? 'Save & next' : 'Save'}</Button>
+          <Button className="ml-auto max-sm:flex-1" variant="ghost" onClick={toList} data-catchup-cancel>Cancel</Button>
+          <Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={saveClose} data-catchup-save-close>Save &amp; close</Button>
         </>
       }
       bodyClass="px-6 py-5 max-sm:px-4"
@@ -381,10 +378,14 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
         </Line>
       )}
       {d.where !== 'done' && (
-        <Line label="On hold">
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => set({ hold: !d.hold })} aria-pressed={d.hold} data-catchup-hold className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition', d.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />{d.hold ? 'On hold' : 'No'}</button>
-            {d.hold && <span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
+        <Line label="On hold?">
+          {/* a question with its two answers side by side — the one that's true is filled in */}
+          <div className="flex flex-wrap items-center gap-2" data-catchup-hold={d.hold ? 'yes' : 'no'}>
+            {([['no', 'No'], ['yes', 'Yes']] as const).map(([k, l]) => {
+              const on = (k === 'yes') === d.hold
+              return <button key={k} type="button" aria-pressed={on} onClick={() => set({ hold: k === 'yes' })} data-catchup-hold-pick={k} className={cn('inline-flex h-10 min-w-[4.5rem] items-center justify-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition max-sm:h-11', on ? (k === 'yes' ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-brand-300 bg-brand-50 text-brand-800') : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}{l}</button>
+            })}
+            {d.hold &&<span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
           </div>
         </Line>
       )}
