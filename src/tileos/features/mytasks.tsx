@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame, MoreHorizontal, ArrowRight, MessageSquare } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame, MoreHorizontal, ArrowRight, MessageSquare, MapPinned } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -25,7 +25,7 @@ import { followersOf, toggleFollow, setEveryone } from './taskshare'
 import { stepTodos, stepsFor, isGettingReady, realOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
-import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md } from '@/tileos/lib/today'
+import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow } from '@/tileos/lib/today'
 import { REAL, awayFromMe } from '@/tileos/lib/save'
 import { checkIns, checkInDays, reportOn, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
@@ -34,6 +34,7 @@ import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField } from './formkit'
 import { useSmall } from '@/tileos/lib/phone'
+import { roundsToday, roundsOn } from './rounds'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -61,10 +62,25 @@ export function workingOn(s: Store, iso: string): { jobId: string; crew: string;
   }).map((j) => ({ jobId: j.id, crew: (j.crew || s.prep[j.id]?.installer) as string, start: (j.dates?.start && isoFromLabel(j.dates.start)) || '9999-12-31', workers: j.onSite?.workers, booked: false }))
   return [...booked, ...installing]
 }
-/** the morning crew report: where the crews are today, and is it in yet (every project on it reported today) */
+/** the crew list: where the crews are and how many people. Until 3 in the afternoon it's today's; after, it's the
+ *  next work day's (Friday: Monday's) — planned the night before, while there's still time to sort a problem out */
+export const CREW_EVENING = 15
+export const crewEvening = () => {
+  let h = new Date().getHours()
+  try { const t = localStorage.getItem('tileos-test-hour'); if (t != null && t !== '') h = Number(t) } catch { /* fine */ }
+  return h >= CREW_EVENING
+}
+export const nextWorkDay = (iso: string) => workday(addDays(iso, 1))
+/** the day the crew list is for right now */
+export const crewDay = () => (crewEvening() ? nextWorkDay(TODAY_ISO) : TODAY_ISO)
+export const crewsOn = (s: Store, day: string) => workingOn(s, day)
 export const crewsToday = (s: Store) => workingOn(s, TODAY_ISO)
-export const crewSentToday = (s: Store) => { const l = crewsToday(s); return l.length > 0 && l.every((c) => s.jobs[c.jobId]?.onSite?.day === TODAY_ISO) }
+/** in for that day: every project on it has its people — sent the night before, or that morning */
+export const crewSentFor = (s: Store, day: string) => { const l = workingOn(s, day); return l.length > 0 && l.every((c) => { const j = s.jobs[c.jobId]; return j?.onSite?.day === day || j?.crewPlan?.day === day }) }
+export const crewSentToday = (s: Store) => crewSentFor(s, TODAY_ISO)
 export const crewReportOn = (s: Pick<Store, 'rules'>) => !(s.rules.autoOff || []).includes('crew-morning')
+/** "today", "tomorrow", or the day's name (Friday night: "Monday") */
+export const crewWhen = (day: string) => (day === TODAY_ISO ? 'today' : day === TOMORROW ? 'tomorrow' : dayLongFull(day).split(',')[0])
 
 export function dailyDue(s: Store, role: Role): DailyItem[] {
   if (role !== 'site' || (s.rules.autoOff || []).includes('daily-update')) return []
@@ -303,19 +319,38 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
   )
 }
 
-/** first thing in the morning: where the crews are today — one tap to send it */
+/** the crew list on Today until it's sent: tomorrow's after 3 in the afternoon, today's first thing — one tap */
 function CrewRow() {
   const s = useStore()
-  const n = crewsToday(s).length
+  const day = crewDay()
+  const n = crewsOn(s, day).length
+  const go = () => s.open({ t: 'crewreport', day })
   return (
     <TodoRow
-      onClick={() => s.open({ t: 'crewreport' })}
+      onClick={go}
       icon={<HardHat />}
-      title="Where the crews are today"
+      title={`Where the crews are ${crewWhen(day)}`}
       detail={`${n} ${n === 1 ? 'project' : 'projects'} — how many people on each`}
-      when="First thing"
+      when={day === TODAY_ISO ? 'First thing' : 'Tonight'}
       whenTone="strong"
-      action={<Button size="sm" className={TBTN} onClick={() => s.open({ t: 'crewreport' })} data-crew-row>Send it</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send it</Button>}
+    />
+  )
+}
+/** the admin's rounds on Today: every job site with work going on, until a video has gone out from each */
+function RoundsRow() {
+  const s = useStore()
+  const r = roundsToday(s, meOf(s.role))
+  const go = () => s.open({ t: 'rounds' })
+  return (
+    <TodoRow
+      onClick={go}
+      icon={<MapPinned />}
+      title="Visit the jobs"
+      detail="Google Maps through all of them, a video from each"
+      project={r.done ? `${r.done} of ${r.left + r.done} done` : `${r.left} job ${r.left === 1 ? 'site' : 'sites'}`}
+      when="Anytime"
+      action={<Button size="sm" className={TBTN} onClick={go} data-rounds-row>{r.done ? 'Keep going' : 'Start'}</Button>}
     />
   )
 }
@@ -422,7 +457,7 @@ export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
 const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
 
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
-export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
+export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin'; t?: Task; d?: DailyItem; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
 const AHEAD = 21
 /** everything that's mine: tasks, the daily updates I send, the pay week, my meetings, checklist steps that are my turn */
 export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateItem[] {
@@ -430,8 +465,10 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   const out: PlateItem[] = []
   const last = addDays(TODAY, AHEAD)
   s.events.filter((e) => e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
-  /* the site manager's first thing: where the crews are today, until it's sent */
-  if (role === 'site' && crewReportOn(s) && crewsToday(s).length && !crewSentToday(s)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: 7 * 60, kind: 'crew', who: me || meOf('site') })
+  /* the site manager's crew list, until it's sent: tomorrow's after 3 in the afternoon, today's first thing */
+  if (role === 'site' && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : 15 * 60, kind: 'crew', who: me || meOf('site') }) }
+  /* the admin's rounds: the job sites with work going on, on a work day, until a video has gone out from each */
+  if (role === 'owner' && (!me || me === meOf('owner')) && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
   dailyDue(s, role).forEach((d) => out.push(d.missed ? { key: 'dm' + d.jobId, b: 'overdue', iso: d.missed, time: null, kind: 'daily', d, who: 'yakov' } : { key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who: 'yakov' }))
   if ((!me || me === meOf('owner')) && (role === 'owner' || role === 'pm') && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: meOf('owner') })
   if ((!me || me === meOf('accounting')) && role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: meOf('accounting') })
@@ -487,6 +524,7 @@ function PlateRow({ x, showOwner, followed, overdue }: { x: PlateItem; showOwner
   if (x.kind === 'meet') return <MeetingRow e={x.e!} showOwner={showOwner} />
   if (x.kind === 'daily') return <DailyRow d={x.d!} showOwner={showOwner} />
   if (x.kind === 'crew') return <CrewRow />
+  if (x.kind === 'rounds') return <RoundsRow />
   if (x.kind === 'pay') return <PayRow />
   if (x.kind === 'bill') return <BillRow />
   const late = overdue ? { text: x.iso ? md(x.iso) : 'Late', tone: 'bad' as const } : undefined
@@ -795,10 +833,10 @@ export function MyTasksPage() {
             {urgentToday.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
-        {/* the site manager's first thing — where the crews are today — on top, until it's sent */}
+        {/* the site manager's crew list — on top, until it's sent: first thing in the morning, tomorrow's in the evening */}
         {view === 'today' && shownToday.some((x) => x.kind === 'crew') && (
           <section data-first-thing>
-            <Group label="First thing" count={1} tone="info" strong />
+            <Group label={crewDay() === TODAY_ISO ? 'First thing' : 'For tomorrow'} count={1} tone="info" strong />
             <CrewRow />
           </section>
         )}
@@ -1323,8 +1361,9 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   )
 }
 
-/** the morning crew report pops up by itself: the site manager's first look on a work day, when a project should
- *  have a crew and it isn't sent yet (Later: it waits at the top of his Today) — before the day's other pop-up */
+/** the crew list pops up by itself for the site manager: after 3 in the afternoon, the next work day's (the first time
+ *  he opens the app or comes back to it); in the morning, today's — only if last night's wasn't sent. Once each
+ *  (Later: it waits at the top of his Today) — before the day's other pop-up */
 export function CrewWatcher() {
   React.useEffect(() => {
     let quiet = false
@@ -1332,14 +1371,21 @@ export function CrewWatcher() {
     if (quiet) return
     const check = () => {
       const s = useStore.getState()
-      if (s.role !== 'site' || s.modals.length || !crewReportOn(s) || crewSentToday(s) || !crewsToday(s).length) return
+      if (s.role !== 'site' || s.modals.length || !crewReportOn(s)) return
+      const day = crewDay()
+      if (crewSentFor(s, day) || !crewsOn(s, day).length) return
       const key = `tileos-crew-asked:${REAL.email || 'preview'}:${meOf('site')}`
-      try { if (localStorage.getItem(key) === TODAY_ISO) return; localStorage.setItem(key, TODAY_ISO) } catch { return }
-      s.open({ t: 'crewreport', auto: true })
+      const slot = `${day}:${day === TODAY_ISO ? 'am' : 'pm'}`
+      try { if (localStorage.getItem(key) === slot) return; localStorage.setItem(key, slot) } catch { return }
+      s.open({ t: 'crewreport', auto: true, day })
     }
     const t = setTimeout(check, 1200)
     const off = useStore.subscribe((st, prev) => { if (st.role !== prev.role) setTimeout(check, 800) })
-    return () => { clearTimeout(t); off() }
+    /* back in the app (or left open past 3): the evening one comes up then too */
+    const back = () => { if (document.visibilityState === 'visible') setTimeout(check, 800) }
+    document.addEventListener('visibilitychange', back)
+    const every = setInterval(check, 10 * 60 * 1000)
+    return () => { clearTimeout(t); off(); document.removeEventListener('visibilitychange', back); clearInterval(every) }
   }, [])
   return null
 }
@@ -1348,11 +1394,15 @@ export function CrewWatcher() {
  * First thing every work day it pops up on the site manager's phone: every project that should have a crew today,
  * with the installer and how many people were there last time filled in. He changes what's different — fewer people,
  * nobody there (0), a crew somewhere else (Another project) — and taps Send. It goes to the office. */
-export function CrewReportModal({ taskId, level }: { taskId?: string; level: number }) {
+export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string; level: number; day?: string }) {
   const s = useStore()
   const small = useSmall()
   const boss = PEOPLE[meOf('owner')]?.short || 'the office'
-  const [rows, setRows] = React.useState(() => crewsToday(s).map((c) => ({ jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? s.jobs[c.jobId]?.onSite?.workers ?? 2, note: '' })))
+  /* the day it's for: the one it was opened for, else today's until 3 and the next work day's after */
+  const [day] = React.useState(() => day0 || crewDay())
+  const today = day === TODAY_ISO
+  /* filled in: that day's booking, else what was planned for it, else the last report — 2 when nothing's known */
+  const [rows, setRows] = React.useState(() => crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? (j?.crewPlan?.day === day ? j.crewPlan.workers : undefined) ?? j?.onSite?.workers ?? 2, note: '' } }))
   const [adding, setAdding] = React.useState(false)
   const [addJob, setAddJob] = React.useState('')
   const people = rows.reduce((n, r) => n + r.workers, 0)
@@ -1370,13 +1420,13 @@ export function CrewReportModal({ taskId, level }: { taskId?: string; level: num
       level={level}
       size="md"
       onClose={s.close}
-      title="Where the crews are today"
-      sub={`${dayShort(TODAY)} · how many people on each project — it goes to ${boss}`}
+      title={`Where the crews are ${crewWhen(day)}`}
+      sub={`${dayShort(day)} · how many people on each project — it goes to ${boss}`}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted max-sm:hidden">{on} {on === 1 ? 'project' : 'projects'} · {people} {people === 1 ? 'person' : 'people'}</span>
           <Button className="ml-auto max-sm:hidden" variant="ghost" onClick={s.close}>Later</Button>
-          <Button variant="primary" className={cn(small && 'h-12 flex-1 text-[1rem]')} disabled={!rows.length} onClick={() => { sendCrewReport(taskId, rows); s.close() }} data-crew-send>{small ? `Send · ${people} ${people === 1 ? 'person' : 'people'}` : 'Send'}</Button>
+          <Button variant="primary" className={cn(small && 'h-12 flex-1 text-[1rem]')} disabled={!rows.length} onClick={() => { sendCrewReport(taskId, rows, day); s.close() }} data-crew-send>{small ? `Send · ${people} ${people === 1 ? 'person' : 'people'}` : 'Send'}</Button>
         </>
       }
     >
@@ -1388,13 +1438,13 @@ export function CrewReportModal({ taskId, level }: { taskId?: string; level: num
               <Avatar who={r.crew} size={32} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[0.9375rem] font-semibold text-ink">{j?.name}</div>
-                <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? 'Nobody there today' : `${PEOPLE[r.crew]?.name || 'The crew'}`}</div>
+                <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? (today ? 'Nobody there today' : 'Nobody there') : `${PEOPLE[r.crew]?.name || 'The crew'}`}</div>
               </div>
               <div className={cn(small && 'w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>
             </div>
           )
         })}
-        {!rows.length && !adding && <div className="px-6 py-8 text-center text-[0.875rem] text-muted max-sm:px-4">No project has a crew today.</div>}
+        {!rows.length && !adding && <div className="px-6 py-8 text-center text-[0.875rem] text-muted max-sm:px-4">No project has a crew {today ? 'today' : crewWhen(day) === 'tomorrow' ? 'tomorrow' : `on ${crewWhen(day)}`}.</div>}
         {/* a crew on a project that isn't here */}
         <div className="px-6 py-3 max-sm:px-4">
           {adding ? (

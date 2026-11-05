@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { refFor, refLabel } from '../activity'
-import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Loader2, MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react'
+import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, Video, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Loader2, MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, historyOf } from '@/tileos/store'
 import { Card, CardHeader, Button, Pill, Avatar, Chip, Empty } from '@/tileos/components/ui/core'
@@ -135,13 +135,13 @@ function FileMenu({ f }: { f: FileRec }) {
 function PhotoTile({ f, all }: { f: FileRec; all: FileRec[] }) {
   const s = useStore()
   const view = async () => {
-    const items = await Promise.all(all.slice().reverse().map(async (p) => ({ id: p.id, kind: 'photo' as const, url: (await fileUrl(p).catch(() => undefined)) || p.thumb, cap: p.name, day: p.at, who: p.by })))
+    const items = await Promise.all(all.slice().reverse().map(async (p) => ({ id: p.id, kind: /^video\//i.test(p.type) ? ('video' as const) : ('photo' as const), url: (await fileUrl(p).catch(() => undefined)) || p.thumb, cap: p.name, day: p.at, who: p.by })))
     s.open({ t: 'media', items, index: Math.max(0, items.findIndex((x) => x.id === f.id)) })
   }
   return (
     <div className="group relative overflow-hidden rounded-xl border border-line">
       <button onClick={view} className="block aspect-square w-full bg-wash-2" aria-label={`Photo ${f.name}`}>
-        {f.thumb ? <img src={f.thumb} alt={f.name} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-faint"><Camera className="h-6 w-6" /></span>}
+        {f.thumb ? <img src={f.thumb} alt={f.name} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-faint">{/^video\//i.test(f.type) ? <Video className="h-6 w-6" /> : <Camera className="h-6 w-6" />}</span>}
       </button>
       <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-2 pb-1.5 pt-5 text-[0.6875rem] font-medium text-white">{f.at} · {PEOPLE[f.by]?.short}</span>
       <span className="absolute right-1 top-1 opacity-0 transition group-hover:opacity-100 max-sm:opacity-100"><FileMenu f={f} /></span>

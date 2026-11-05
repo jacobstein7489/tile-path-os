@@ -262,6 +262,10 @@ export interface Job {
   hold?: { reason: string; since: string; by: PersonKey; shortage?: string }
   /** the morning crew report: who was on site, how many people, the day it was said */
   onSite?: { day: string; crew: string; workers: number; by: string }
+  /** the crew list sent the night before for the next work day — that day's crew, until that morning's says otherwise */
+  crewPlan?: { day: string; crew: string; workers: number; by: string }
+  /** the admin's rounds: the last day someone went by, and whether a video went out from it */
+  visit?: { day: string; by: string; video?: boolean }
   /** brought in (from Asana, or from its estimate) and gone through since — where it stands, the installer, the site
    *  manager, how far, the dates: the day it was brought up to date */
   caughtUp?: string

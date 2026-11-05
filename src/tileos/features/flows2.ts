@@ -16,7 +16,7 @@ import { peopleOn, namesOf, rolesOf, estSteps } from './estpeople'
 import { matBy, matFor } from './flows'
 import { mailLive, emailIPO } from './mailout'
 import { qbLive, pushEstimate } from './qbsync'
-import { shiftText, labelFromIso, workday, addDays, TODAY } from '@/tileos/lib/today'
+import { shiftText, labelFromIso, workday, addDays, dayShort, TODAY } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
@@ -406,19 +406,25 @@ export function setSurfaceSF(jobId: string, room: string, surface: string, sf: n
 }
 
 /* ================= recurring tasks and the daily crew report ================= */
-export function sendCrewReport(taskId: string | undefined, rows: { jobId: string; crew: PersonKey; workers: number; note: string }[]) {
+/** the crew list: where each crew is and how many people — for today (that morning), or for the next work day (sent
+ *  the night before: the plan, which stands as that day's unless that morning's says otherwise) */
+export function sendCrewReport(taskId: string | undefined, rows: { jobId: string; crew: PersonKey; workers: number; note: string }[], day: string = TODAY) {
   const people = rows.reduce((n, r) => n + r.workers, 0)
+  const ahead = day > TODAY
+  const when = !ahead ? 'today' : day === addDays(TODAY, 1) ? 'tomorrow' : `on ${dayShort(day)}`
   S().commit((s) => {
     rows.forEach((r) => {
-      const b = s.bookings.find((x) => x.jobId === r.jobId && x.crew === r.crew)
+      const b = s.bookings.find((x) => x.jobId === r.jobId && x.crew === r.crew && x.start <= day && x.end >= day) || s.bookings.find((x) => x.jobId === r.jobId && x.crew === r.crew)
       if (b && r.workers > 0) b.workers = r.workers
-      /* on the project: who's there today and how many — the office sees it, and tomorrow's starts from it */
+      /* on the project: who's there that day and how many — the office sees it, and the next one starts from it */
       const j = s.jobs[r.jobId]
-      if (j) j.onSite = { day: TODAY, crew: r.crew, workers: r.workers, by: me() }
-      addHist(s, r.jobId, { who: me(), kind: 'field', title: r.workers ? `Crew report · ${PEOPLE[r.crew]?.name || 'the crew'}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'} on site` : 'Crew report · nobody on site today', detail: r.note || undefined })
+      const at = { day, crew: r.crew, workers: r.workers, by: me() }
+      if (j) { if (ahead) j.crewPlan = at; else j.onSite = at }
+      const who = PEOPLE[r.crew]?.name || 'the crew'
+      addHist(s, r.jobId, { who: me(), kind: 'field', title: ahead ? (r.workers ? `Crew for ${dayShort(day)} · ${who}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'}` : `Crew for ${dayShort(day)} · nobody there`) : r.workers ? `Crew report · ${who}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'} on site` : 'Crew report · nobody on site today', detail: r.note || undefined })
     })
     const on = rows.filter((r) => r.workers > 0)
-    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crews today, from ${PEOPLE[me()].short}: ${on.map((r) => `${s.jobs[r.jobId]?.name} ${r.workers}`).join(' · ') || 'nobody on site'} — ${people} people`, when: 'Just now', kind: 'field', unread: true })
+    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crews ${when}, from ${PEOPLE[me()].short}: ${on.map((r) => `${s.jobs[r.jobId]?.name} ${r.workers}`).join(' · ') || 'nobody on site'} — ${people} people`, when: 'Just now', kind: 'field', unread: true })
     const t = taskId ? s.tasks.find((x) => x.id === taskId) : s.tasks.find((x) => x.action?.kind === 'crewreport' && x.state === 'now')
     if (t) {
       t.state = 'done'
@@ -426,7 +432,7 @@ export function sendCrewReport(taskId: string | undefined, rows: { jobId: string
       t.log.push(L(me(), `Sent — ${rows.length} jobs, ${people} people`))
       if (t.repeat) repeatTask(s, t)
     }
-  }, `Sent — ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: 'The office has it.' })
+  }, `Sent — ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: ahead ? `The office has ${when === 'tomorrow' ? 'tomorrow’s' : `${dayShort(day)}’s`} crews.` : 'The office has it.' })
 }
 
 export function estFollowUp(estId: string, o: { how: string; outcome: string; next: string }) {

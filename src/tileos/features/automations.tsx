@@ -2,7 +2,7 @@
  * manager's daily updates, the pay week, estimate follow-ups, invoice reminders…) and the repeating tasks the admin
  * sets for anyone ("send me how many people are on each job, every weekday at 4"). Each can be turned off. */
 import * as React from 'react'
-import { Repeat, AlarmClock, ClipboardList, HandCoins, BadgeCheck, PhoneCall, ListChecks, Receipt, Mail, Truck, Plus, Trash2, Building2, ChevronDown, Clock3, HardHat } from 'lucide-react'
+import { Repeat, AlarmClock, ClipboardList, HandCoins, BadgeCheck, PhoneCall, ListChecks, Receipt, Mail, Truck, Plus, Trash2, Building2, ChevronDown, Clock3, HardHat, MapPinned } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Button, CardHeader, IconCircle } from '@/tileos/components/ui/core'
 import { Card } from '@/tileos/components/ui/page'
@@ -26,7 +26,8 @@ const boss = (s: Store) => meOf('owner')
 const siteMgr = (s: Store) => roleHolder(s, 'site') || (onTeam(s, 'yakov') ? 'yakov' : boss(s))
 const books = (s: Store) => roleHolder(s, 'accounting') || (onTeam(s, 'accounting') ? 'accounting' : boss(s))
 export const AUTOS: AutoDef[] = [
-  { key: 'crew-morning', who: siteMgr, what: 'Where the crews are today', sub: 'First thing every work day it pops up: each project with a crew, the people already filled in — he fixes what’s different and sends it to you', when: () => 'Every work day, first thing', icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count/i },
+  { key: 'crew-morning', who: siteMgr, what: 'Where the crews are tomorrow', sub: 'After 3 in the afternoon it pops up: each project with a crew the next work day, the people already filled in — he fixes what’s different and sends it to you. Not sent by the morning: it comes up again then, for that day.', when: () => 'The night before', icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count|tomorrow/i },
+  { key: 'rounds', who: boss, what: 'Visit the jobs', sub: 'Every work day on your Today: each job site with work going on, in driving order from where you are — Google Maps through all of them, and a video from each one (it goes out on WhatsApp and stays with the project)', when: () => 'Every work day', icon: MapPinned, toggle: true, words: /visit|rounds|route|google maps|video/i },
   { key: 'daily-update', who: siteMgr, what: 'Daily update for each crew on site', sub: 'One per project with a crew working — how far each wall and floor moved, with photos. It’s what installer pay is figured from.', when: () => 'Every work day', icon: ClipboardList, toggle: true, words: /daily|update|progress|how far/i },
   { key: 'delivery', who: (s) => matBy(s), what: 'Check in each delivery', sub: 'On the day it’s due — all here, or short, wrong or broken', when: () => 'On the delivery day', icon: Truck, toggle: false, words: /deliver|check in|arriv/i },
   { key: 'pay-review', who: boss, what: 'Approve installer pay for the week', sub: 'Every installer’s week from the daily updates, next to his bill', when: () => 'Every Monday', icon: HandCoins, toggle: true, words: /\bpay\b|payroll|approve/i },

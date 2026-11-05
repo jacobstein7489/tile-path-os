@@ -34,7 +34,7 @@ const asDataUrl = (b: Blob) => new Promise<string>((res) => { const r = new File
 
 export type Kept = { recs: FileRec[]; problem?: string }
 /** keep files with a project; says so in its history. Storage that isn't set up yet doesn't stop the work. */
-export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind'], o: { quiet?: boolean; doc?: string } = {}): Promise<Kept> {
+export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind'], o: { quiet?: boolean; doc?: string; /** only what made it into storage (a video that didn't go up waits to try again) */ stored?: boolean; /** the history already says it (a site visit's video) */ hist?: boolean } = {}): Promise<Kept> {
   const s = useStore.getState()
   const me = meOf(s.role)
   const recs: FileRec[] = []
@@ -53,14 +53,14 @@ export async function keepFiles(jobId: string, list: File[], kind: FileRec['kind
     }
     let path: string | undefined
     if (REAL.files) {
-      try { path = await REAL.files.put(jobId, id, body, name) } catch (e: any) { problem = e?.message || 'Couldn’t keep the file' }
+      try { path = await REAL.files.put(jobId, id, body, name) } catch (e: any) { problem = e?.message || 'Couldn’t keep the file'; if (o.stored) continue }
     } else LOCAL.set(id, URL.createObjectURL(body))
     recs.push({ id, jobId, name, size: body.size, type: body.type || f.type || 'application/octet-stream', kind, ...(path ? { path } : {}), ...(thumb ? { thumb } : {}), ...(o.doc ? { doc: o.doc } : {}), by: me, at: NOW })
   }
   if (recs.length)
     s.commit((st) => {
       st.files.push(...recs)
-      addHist(st, jobId, { who: me, kind: kind === 'photo' ? 'field' : 'setup', title: recs.length === 1 ? `${kind === 'photo' ? 'Photo' : 'File'} added · ${recs[0].name}` : `${recs.length} ${kind === 'photo' ? 'photos' : 'files'} added`, detail: recs.map((r) => r.name).join(', ') })
+      if (o.hist !== false) addHist(st, jobId, { who: me, kind: kind === 'photo' ? 'field' : 'setup', title: recs.length === 1 ? `${/^video\//i.test(recs[0].type) ? 'Video' : kind === 'photo' ? 'Photo' : 'File'} added · ${recs[0].name}` : `${recs.length} ${kind === 'photo' ? 'photos' : 'files'} added`, detail: recs.map((r) => r.name).join(', ') })
     }, problem || o.quiet ? undefined : recs.length === 1 ? `${recs[0].name} added` : `${recs.length} ${kind === 'photo' ? 'photos' : 'files'} added`)
   return { recs, problem }
 }

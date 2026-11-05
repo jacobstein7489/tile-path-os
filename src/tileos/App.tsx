@@ -76,6 +76,7 @@ import { noAutofill } from '@/tileos/lib/noautofill'
 import { OfflineBar, PullToRefresh, QuietTyping } from '@/tileos/components/shell/device-ui'
 import { CommissionsPage, CommissionModal, ClientSalesModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
 import { TileInModal } from './features/tilein'
+import { RoundsModal, ClipsUploader } from './features/rounds'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
   switch (m.t) {
@@ -117,7 +118,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'scopewin': return <ScopeWinModal jobId={m.jobId} level={level} />
     case 'orderswin': return <OrdersWinModal jobId={m.jobId} level={level} />
     case 'moneywin': return <MoneyWinModal jobId={m.jobId} level={level} />
-    case 'crewreport': return <CrewReportModal taskId={m.taskId} level={level} />
+    case 'crewreport': return <CrewReportModal taskId={m.taskId} day={m.day} level={level} />
+    case 'rounds': return <RoundsModal level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {
       /* a change asked on site has its own window: price it, send it, approve it */
@@ -298,6 +300,7 @@ export default function App() {
           <IncomingWatcher />
           <AppBadge />
           <CrewWatcher />
+          <ClipsUploader />
           <LateWatcher />
         </div>
       )}

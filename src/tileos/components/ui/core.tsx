@@ -32,6 +32,8 @@ const BTN_S: Record<BtnSize, string> = {
   sm: 'h-8 px-3 text-[0.8125rem] rounded-[0.5rem] gap-1.5 max-md:h-10 max-md:px-3.5 max-md:text-[0.875rem]',
   xs: 'h-7 px-2.5 text-[0.78125rem] rounded-[0.4375rem] gap-1.5 max-md:h-9 max-md:px-3 max-md:text-[0.8125rem]',
 }
+/** a link that looks like a button — one that leaves the app (Google Maps) has to be a real link on a phone */
+export const btnClass = (variant: BtnVariant = 'secondary', size: BtnSize = 'md') => cn('inline-flex shrink-0 items-center justify-center whitespace-nowrap font-semibold transition-colors duration-150 select-none [&_svg]:h-4 [&_svg]:w-4', BTN_S[size], BTN_V[variant])
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'secondary', size = 'md', icon, iconRight, full, className, children, ...rest },
   ref,
