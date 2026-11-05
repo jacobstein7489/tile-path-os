@@ -1,7 +1,8 @@
-/* A text box that knows the usual ones. While it's empty the usual ones sit under it as chips — tap one and its words
- * go in the box (nothing else changes: not who does it, not when). Start typing and the ones that match show in a list
- * under it. The × empties the box and the chips come back, so picking a different one is one tap.
- * Arrow keys move, Enter picks, Esc closes the list (a second Esc closes the window). */
+/* A text box that knows the usual ones. Nothing sits under it while it's empty — no wall of bubbles. Start typing and
+ * the ones that match show in a list under it; tap one and its words go in the box (nothing else changes: not who
+ * does it, not when). The × empties the box and shows the usual ones, so picking a different one is one tap.
+ * Arrow keys move (↓ in an empty box shows the usual ones), Enter picks, Esc closes the list (a second Esc closes the
+ * window). */
 import * as React from 'react'
 import * as PO from '@radix-ui/react-popover'
 import { X } from 'lucide-react'
@@ -76,16 +77,6 @@ export function SuggestInput({
           </span>
         </span>
       </PO.Anchor>
-      {/* the usual ones, as chips under the box while it's empty — one tap */}
-      {!value && suggestions.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5" data-suggest-chips aria-label={listLabel}>
-          {suggestions.slice(0, Math.min(max, 4)).map((x) => (
-            <button key={x} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(x)} className="inline-flex h-8 max-w-full items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-brand-300 hover:text-brand-700 max-md:h-10 max-md:px-3.5 max-md:text-[0.875rem]">
-              <span className="truncate">{x}</span>
-            </button>
-          ))}
-        </div>
-      )}
       <PO.Portal>
         <PO.Content
           {...scrollHere}

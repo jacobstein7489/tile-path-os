@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, Flame, MoreHorizontal, ArrowRight, MessageSquare, MapPinned } from 'lucide-react'
+import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -1224,6 +1224,11 @@ const COMMON_TASKS: { t: string; for: Role[] }[] = [
   { t: 'Send the deposit invoice', for: ['owner', 'office', 'accounting'] },
   { t: 'Call the client about the open invoice', for: ['owner', 'office', 'accounting'] },
 ]
+/** a day typed in the words ("thursday") — its name in the When box */
+const DAY_NAME: Record<string, string> = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', 'Next Mon': 'Next Monday' }
+/* A new task, calm: what it is, the project, who does it, when — one box each, nothing laid out as a wall of bubbles.
+ * Urgent is one line. Whoever gives a task to someone else follows it by itself: they hear when it's done (others can
+ * be added, or it can go on everyone's Today, from the task's own ··· once it's made). */
 export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?: string; /** made from this message on the project: it starts filled in */ fromMsg?: string }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -1236,9 +1241,6 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const [picked, setPicked] = React.useState(false)
   const [repeat, setRepeat] = React.useState<'' | NonNullable<Task['repeat']>>('')
   const [at, setAt] = React.useState('4 PM')
-  const [fol, setFol] = React.useState<PersonKey[]>([])
-  const [all, setAll] = React.useState(false)
-  const [more, setMore] = React.useState(false)
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage) || j.id === jobId)
   const [jobPicked, setJobPicked] = React.useState(!!jobId)
   const [heard, setHeard] = React.useState('')
@@ -1260,13 +1262,19 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
     const j = s.jobs[job]
     const clean = (j && heard ? withoutProject(title.trim(), j) : title.trim()) || title.trim()
     const role = s.team.find((m) => m.key === owner)?.role
-    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: fol.filter((p) => p !== owner), everyone: all || undefined })
+    /* given to someone else: you follow it — you hear when it's done */
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, due: repeat ? 'Today' : due, for: role ? [role] : ROLE_OF[owner] || ['owner'], state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: owner !== me ? [me] : undefined })
     if (msg && jobId) markMessageTask(jobId, msg.id)
     s.close()
   }
-  /* the same frame as every + New: a box with a dropdown look */
-  const chip = 'flex h-10 w-full min-w-0 items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink transition hover:border-[#cdc7bc] data-[state=open]:border-brand-300 data-[state=open]:ring-[0.1875rem] data-[state=open]:ring-brand-50'
-  const whenLabel = repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : WHEN.find(([k]) => k === due)?.[1] || due
+  const whenLabel = repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : WHEN.find(([k]) => k === due)?.[1] || DAY_NAME[due] || due
+  /* who: one box — you first, as "Me"; everyone else by their whole name (two can share a first name) */
+  const whoOptions = [me, ...(people.length ? people : ASSIGNABLE).filter((p) => p !== me)].map((p) => ({ key: p as string, label: p === me ? 'Me' : PEOPLE[p]?.name || p, hint: p === me ? undefined : PEOPLE[p]?.roleLabel, lead: <Avatar who={p} size={20} /> }))
+  /* when: one box — a day, or every day / week / month (then the time beside it) */
+  const days: [string, string][] = [...WHEN, ...(WHEN.some(([k]) => k === due) ? [] : [[due, DAY_NAME[due] || due] as [string, string]])]
+  const whenOptions = [...days.map(([k, l]) => ({ key: k, label: l })), ...(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => ({ key: 'r:' + r, label: REPEAT_LABEL[r], hint: 'Comes back by itself' }))]
+  const whenValue = repeat ? 'r:' + repeat : due
+  const pickWhen = (k: string) => { if (k.startsWith('r:')) setRepeat(k.slice(2) as NonNullable<Task['repeat']>); else { setRepeat(''); setDue(k); setPicked(true) } }
   return (
     <Modal
       level={level}
@@ -1277,7 +1285,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{owner === me ? 'On your Today' : `On ${PEOPLE[owner].short}’s Today`} {repeat ? `· ${REPEAT_LABEL[repeat].toLowerCase()}` : `· ${whenLabel.toLowerCase()}`}</span>
+          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden" data-task-says>{owner === me ? 'On your Today' : `On ${PEOPLE[owner].short}’s Today`} {repeat ? `· ${REPEAT_LABEL[repeat].toLowerCase()}` : `· ${whenLabel.toLowerCase()}`}{owner !== me ? ' · you hear when it’s done' : ''}</span>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
           <Button variant="primary" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating task' : 'Add task'}</Button>
         </>
@@ -1301,60 +1309,24 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
           </div>
         </FormRow>
       )}
-      {/* who: tap a face — you, unless you pick someone else */}
       <FormRow label="Who does it">
-        <div className="flex flex-wrap gap-1.5" data-task-who>
-          {[me, ...(people.length ? people : ASSIGNABLE).filter((p) => p !== me)].map((p) => (
-            <button key={p} type="button" onClick={() => setOwner(p)} aria-pressed={owner === p} data-who-chip={p}
-              className={cn('inline-flex h-9 items-center gap-2 rounded-full border pl-1 pr-3 text-[0.84375rem] font-medium transition', owner === p ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}>
-              <Avatar who={p} size={26} />{p === me ? 'Me' : PEOPLE[p]?.short || p}
-            </button>
-          ))}
-        </div>
+        <span className="block" data-task-who={owner}>
+          <SearchSelect label="Who does it" value={owner} options={whoOptions} onChange={(p) => setOwner(p as PersonKey)} search={whoOptions.length > 8} width={340} className="w-full" />
+        </span>
       </FormRow>
-      {/* when: tap a day — today unless you say otherwise; "Repeats" for the ones that come back */}
       <FormRow label="When">
-        <div className="flex flex-wrap items-center gap-1.5" data-task-when>
-          {WHEN.slice(0, 4).map(([k, l]) => (
-            <button key={k} type="button" onClick={() => { setRepeat(''); setDue(k); setPicked(true) }} aria-pressed={!repeat && due === k}
-              className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.84375rem] font-medium transition', !repeat && due === k ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}>{l}</button>
-          ))}
-          <Menu align="start" width={240} trigger={<button type="button" aria-label="Repeats" className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[0.84375rem] font-medium transition', repeat ? 'border-brand-300 bg-brand-50 text-brand-800 ring-2 ring-brand-100' : 'border-line bg-white text-ink-2 hover:border-[#d6cfc3]')}><Repeat className="h-3.5 w-3.5" />{repeat ? `${REPEAT_LABEL[repeat]} · ${at}` : 'Repeats'}</button>}>
-            <MenuLabel>Repeats</MenuLabel>
-            {(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => <MenuItem key={r} icon={<Repeat className="h-4 w-4" />} checked={repeat === r} onSelect={() => setRepeat(r)}>{REPEAT_LABEL[r]}</MenuItem>)}
-            {repeat && <><MenuSep /><MenuLabel>At</MenuLabel>{['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}</>}
-          </Menu>
+        <div className={cn('grid gap-2', repeat && 'grid-cols-[minmax(0,1fr)_8.5rem]')} data-task-when={whenValue}>
+          <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={300} className="w-full" />
+          {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} className="w-full" />}
         </div>
       </FormRow>
-      {/* urgent: on top of their Today, in red */}
-      <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent className={cn('mb-1 flex w-full items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', urgent ? 'border-bad-300 bg-bad-50' : 'border-line hover:bg-wash')}>
-        <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', urgent ? 'bg-bad-600 text-white' : 'bg-wash-2 text-muted')}><Flame className="h-3.5 w-3.5" /></span>
-        <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Urgent</span><span className="block text-[0.75rem] text-muted">On top of {owner === me ? 'your' : `${PEOPLE[owner]?.short || 'their'}’s`} Today, in red, until it’s done</span></span>
-        <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', urgent ? 'bg-bad-600' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', urgent ? 'left-[1.125rem]' : 'left-0.5')} /></span>
-      </button>
-      {!more ? (
-        <button type="button" onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:text-brand-800">
-          <Plus className="h-3.5 w-3.5" />Someone follows it, or show it to everyone
+      {/* urgent: one line — on top of their Today, in red */}
+      <FormRow label="Urgent">
+        <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent className="flex min-h-10 w-full items-center gap-3 text-left">
+          <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', urgent ? 'bg-bad-600' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', urgent ? 'left-[1.125rem]' : 'left-0.5')} /></span>
+          <span className={cn('min-w-0 text-[0.8125rem]', urgent ? 'font-medium text-bad-700' : 'text-muted')}>On top of {owner === me ? 'your' : `${PEOPLE[owner]?.short || 'their'}’s`} Today, in red, until it’s done</span>
         </button>
-      ) : (
-        <FormRow label="Others">
-          <div className="flex flex-col gap-3">
-            <div>
-              <div className="mb-1.5 text-[0.78125rem] font-semibold text-muted">Who follows it — they see every note and when it’s done</div>
-              <div className="flex flex-wrap gap-1.5">
-                {/* you first, as "Me" — two people can share a first name */}
-                {(people.length ? people : ASSIGNABLE).filter((p) => p !== owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={fol.includes(p)} onClick={() => setFol(fol.includes(p) ? fol.filter((x) => x !== p) : [...fol, p])} className="h-8 px-2.5 text-[0.8125rem]" icon={<Avatar who={p} size={18} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
-                {people.length < 2 && <span className="self-center text-[0.8125rem] text-muted">Nobody else on the team yet — add people in Settings → Team.</span>}
-              </div>
-            </div>
-            <button type="button" onClick={() => setAll(!all)} className={cn('flex items-center gap-3 rounded-[0.6875rem] border px-3 py-2 text-left transition', all ? 'border-warn-300 bg-warn-50' : 'border-line hover:bg-wash')}>
-              <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', all ? 'bg-warn-500 text-white' : 'bg-wash-2 text-muted')}><Megaphone className="h-3.5 w-3.5" /></span>
-              <span className="min-w-0 flex-1"><span className="block text-[0.84375rem] font-semibold text-ink">Show it on everyone’s Today</span><span className="block text-[0.75rem] text-muted">For the big ones — pinned for the whole team until it’s done</span></span>
-              <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', all ? 'bg-warn-500' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', all ? 'left-[1.125rem]' : 'left-0.5')} /></span>
-            </button>
-          </div>
-        </FormRow>
-      )}
+      </FormRow>
     </Modal>
   )
 }
