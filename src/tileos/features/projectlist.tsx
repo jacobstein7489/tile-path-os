@@ -2,7 +2,7 @@
  *   Project · Client · Where it stands · Next · Who · Start · Contract
  * No status column: the group it's under already says it. Red only for a problem. */
 import * as React from 'react'
-import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check, Upload, ListChecks } from 'lucide-react'
+import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, ClipboardList, Flag, Sparkles, PauseCircle, Layers, TriangleAlert, Check } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -20,7 +20,6 @@ import { SearchSelect } from '@/tileos/components/ui/select'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
 import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
-import { CatchUpBar } from './catchup'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 export type ProjType = 'hold' | 'coming' | 'progress' | 'touchups' | 'repairs' | 'done'
@@ -82,18 +81,11 @@ export function ProjectsPage() {
   return (
     <Page
       title="Projects"
-      /* the projects already going when Tile OS starts: from their estimates, a stack at once */
-      actions={allowedFor(s.role, 'bringin') ? (
-        /* on a phone, side by side on one line — the projects start right under the bubbles */
-        <div className="flex items-center gap-2.5 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:gap-2">
-          {/* every open project, one at a time: the client, where it's up to, who's on it */}
-          <Button icon={<ListChecks />} className="max-md:w-full max-md:justify-center max-md:px-2" onClick={() => s.open({ t: 'catchup', all: true })} data-open-goall>Go through projects</Button>
-          <Button icon={<Upload />} className="max-md:w-full max-md:justify-center max-md:px-2" onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button>
-        </div>
-      ) : undefined}
+      /* bringing in the projects that were going before Tile OS, and going through them, is one-time work: it's in
+         Settings, not on this page every day */
       top={
         <Bubbles
-          four
+          row
           items={[
             { key: 'active', label: 'All open', count: won.filter((j) => typeOf(j) !== 'done').length, icon: <Layers />, color: 'indigo', on: view === 'active', onClick: () => setView('active') },
             { key: 'coming', label: 'Getting ready', count: n('coming'), icon: <ClipboardList />, color: 'violet', on: view === 'coming', onClick: pick('coming'), gapBefore: true },
@@ -117,8 +109,6 @@ export function ProjectsPage() {
         </>
       }
     >
-      {/* brought in without where they're up to: go through them, one at a time */}
-      <CatchUpBar />
       <div style={{ '--list': LIST, '--list-xl': LIST_XL } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
@@ -141,10 +131,11 @@ export function ProjectsPage() {
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
-/* One line per project, five columns that line up top to bottom and share the width:
- *   Project · Client · Design Tile Site Installer Materials · Now · Start
- * The five parts of getting ready, as five circles, for every project — the same five, in the same place, under their
- * names on top. They go on at the same time, so there's no line through them; each circle says its part — ✓ done,
+/* One line per project, columns that line up top to bottom and share the width:
+ *   Project · Client · Estimate Paperwork Design Site Installer Materials Delivery · Now · Start
+ * The things getting ready takes, as circles, for every project — the same ones as on the project, in the same order
+ * and place, under their names on top (a smaller screen: closer together, under "Getting ready"). They go on at the
+ * same time, so there's no line through them; each circle says its part — ✓ done,
  * ! a problem, a dark ring under way, amber waiting on someone outside, light gray not started.
  * Now: always something — the step that's up (yours in blue), the crew's days, how far the installing is, the touch-ups
  * left, why it's on hold. Problems are counted on the right of it ("2 problems"), never squeezed into the words: point
@@ -157,9 +148,10 @@ const COLS = 'grid items-center gap-x-6 max-md:block'
  *  and a long one is cut short — so nothing runs into the next column, whatever the names */
 const LIST = 'minmax(0,1fr) max-content minmax(0,1.4fr) max-content max-content'
 const LIST_XL = 'minmax(0,1fr) minmax(0,0.8fr) max-content minmax(0,1.4fr) max-content max-content'
-/** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
- *  (the widest name, Materials, fits), the same on top and in every row */
-const slot = (_k?: string) => 'flex w-[4.25rem] shrink-0 justify-center'
+/** each circle's place — all the same width, so the circles are evenly spaced, each one right under its name (the
+ *  widest name, Paperwork, fits), the same on top and in every row. Where there isn't room for seven names (under a
+ *  wide screen) the circles sit closer, under one "Getting ready" — point at one for what it is */
+const slot = (_k?: string) => 'flex w-7 shrink-0 justify-center 2xl:w-[4.25rem]'
 
 function ListHead({ parts }: { /** a project getting ready is on the list: the five names over its circles */ parts: boolean }) {
   return (
@@ -167,8 +159,9 @@ function ListHead({ parts }: { /** a project getting ready is on the list: the f
       <span>Project</span>
       <span className="max-xl:hidden">Client</span>
       {parts ? (
-        <span className="flex min-w-0 items-center" data-part-names title="Getting ready — its five parts. A project that started shows how far it is instead.">
-          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.8125rem]')} title={t.label}>{t.short || t.label}</span>)}
+        <span className="flex min-w-0 items-center" data-part-names title={`Getting ready — ${TRACKS.map((t) => t.label).join(', ')}. A project that started shows how far it is instead.`}>
+          <span className="whitespace-nowrap 2xl:hidden" data-part-names-one>Getting ready</span>
+          {TRACKS.map((t) => <span key={t.key} className={cn(slot(t.key), 'whitespace-nowrap text-[0.8125rem] max-2xl:hidden')} title={t.label} data-part-name>{t.short || t.label}</span>)}
         </span>
       ) : <span data-part-names>How far</span>}
       <span>Now</span>

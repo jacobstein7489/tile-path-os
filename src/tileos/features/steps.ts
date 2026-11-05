@@ -168,6 +168,7 @@ export interface StepView {
 /** the lanes of the flow: one line each on the project. A lane with more than one step (the installer: his PO, show
  *  him the job, his yes) reads like progress — the line says which step it's on, and the dots say how far. */
 export const PHASES: { key: string; label: string }[] = [
+  { key: 'estimate', label: 'Estimate' },
   { key: 'paper', label: 'Tile paperwork' },
   { key: 'setup', label: 'Underlayment' },
   { key: 'meet', label: 'Design meeting' },
@@ -182,27 +183,30 @@ export const PHASES: { key: string; label: string }[] = [
   { key: 'own', label: 'Your own steps' },
 ]
 
-/* the company's checklist, in the order Cobblestone works once a project is won: the paperwork first (someone gets it
- * from the store, the takeoff person enters it and checks the quantities), then the meeting, the site, the installer
- * and the deliveries. The meeting, the estimate check after it, the layouts and showing the installer the job are
- * checked off (or set on the calendar); the rest read themselves from what happened. */
+/* the company's checklist, in the order Cobblestone works once a project is won: the estimate in (what we're tiling —
+ * the rooms, walls and floors come from it), the tile paperwork (what tile goes where: someone gets it from the store,
+ * it's uploaded and matched, the quantities check themselves), the meeting, the site check (levels and all), the
+ * installer and his PO (made from the estimate), our setting materials, and the tile delivery — received and counted.
+ * The meeting, the scope after it, the layouts and showing the installer the job are checked off (or set on the
+ * calendar); the rest read themselves from what happened. */
 export const STEP_DEFAULTS: StepDef[] = [
+  { key: 'estimate', phase: 'estimate', label: 'The estimate in — what we’re tiling, room by room', short: 'Add the estimate', owner: 'estimator' },
   { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get paperwork', owner: 'estimator' },
-  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile on its walls and floors, with its picture and grout', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper'] },
+  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile on its walls and floors, with its picture and grout', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper', 'estimate'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Check quantities', owner: 'takeoff', after: ['rooms'] },
-  { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['rooms'] },
+  { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['estimate'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
   { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm scope', owner: 'yakov', after: ['design'], custom: true },
   { key: 'tile', phase: 'grout', label: 'Tile and grout entered — a picture and the grout for every tile', short: 'Enter tile & grout', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Set layouts', owner: 'office', after: ['design'], custom: true },
-  { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['rooms'] },
-  { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['rooms'] },
+  { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['estimate'] },
+  { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['estimate'] },
   { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
-  { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['tile', 'layouts'], custom: true },
-  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Pick installer & send PO', owner: 'ys', after: ['rooms'] },
+  { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['heights', 'tile', 'layouts'], custom: true },
+  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Pick installer & send PO', owner: 'ys', after: ['estimate'] },
   { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
   { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates — after the walk-through', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
-  { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['rooms'] },
+  { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['getpaper'] },
   { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Receive tile', owner: 'yakov', after: ['order'] },
   { key: 'materials', phase: 'materials', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
   { key: 'matin', phase: 'materials', label: 'Our materials delivered', short: 'Receive materials', owner: 'matBy', after: ['materials'] },
@@ -213,6 +217,14 @@ const OLD_KEYS = new Set(['rooms', 'tile', 'design', 'installer', 'setup', 'orde
 const OURS = new Set(STEP_DEFAULTS.map((d) => d.key))
 export const BUILT_IN = new Set(STEP_DEFAULTS.filter((d) => !d.custom).map((d) => d.key))
 
+/** what Go through projects says on a step done before the project was in Tile OS */
+export const BEFORE_TILE_OS = 'Done before Tile OS'
+/** a step done outside this list — nobody did it here, so it isn't shown as done, and doesn't count */
+export const NOT_TRACKED = 'Not tracked — from before Tile OS'
+/** the steps that follow a part's main one, or only happen when something was found: "done already" on a part never
+ *  ticks them — the part is done without them */
+export const FOLLOW_UPS = new Set(['change', 'layouts', 'walk', 'sheets', 'fixes'])
+
 export const READY_STAGES = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
 /** the job has started — on site, touch-ups, closing out, done */
 export const IN_FIELD_STAGES = ['installation', 'punch', 'closeout', 'complete']
@@ -220,9 +232,9 @@ export const isGettingReady = (j: Job) => j.kind !== 'repair' && READY_STAGES.in
 /** the company's checklist: ours, in our order, with whoever the company put on each step — plus its own steps.
  *  A list saved before the paperwork was split gets the new steps, and keeps only the people the company really changed. */
 const OLD_OWNER: Record<string, string> = { rooms: 'estimator', tile: 'estimator', design: 'office', installer: 'ys', setup: 'office', order: 'office', deposit: 'accounting', heights: 'yakov', materials: 'matBy', delivered: 'yakov', walk: 'yakov' }
-export const STEPS_V = 5
+export const STEPS_V = 6
 /** built-in steps added after a version — a company list saved before that gets them */
-const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'], 5: ['sheets'] }
+const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'], 5: ['sheets'], 6: ['estimate'] }
 /** a step whose person changed in a version: a list saved before it, still on the old person, gets the new one */
 const MOVED: Record<number, Record<string, [string, string]>> = { 4: { change: ['office', 'yakov'] } }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
@@ -303,6 +315,14 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
   const flat = rooms.flatMap((r) => r.surfaces)
   const openJob = (tab: string) => () => s.open({ t: 'job', id: j.id, tab })
   switch (key) {
+    case 'estimate': {
+      /* what we're tiling: the rooms, walls and floors come from the estimate — in once the rooms are */
+      const sf = flat.reduce((n, x) => n + (x.sf || 0), 0)
+      if (rooms.length) return { state: 'done', note: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}` }
+      if (rec.done) return { state: 'done', note: rec.note || 'In' }
+      if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'In before this list' }
+      return { state: 'now', note: 'Add it — the rooms, walls and floors come from it', action: { label: 'Add the estimate' } }
+    }
     case 'getpaper': {
       const files = s.files.filter((f) => f.jobId === j.id && f.kind === 'paperwork')
       const last = files[files.length - 1]
@@ -315,7 +335,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       return { state: 'now', note: 'Ask the tile store for it, then upload it here', action: { label: 'Upload it' } }
     }
     case 'rooms': {
-      if (!rooms.length) return { state: 'now', note: 'No rooms yet — they come from the estimate', action: { label: 'Add the rooms' } }
+      if (!rooms.length) return { state: 'now', note: 'After the estimate is in — the tile goes on its walls and floors', action: { label: 'Add the estimate' } }
       const tiled = flat.filter((x) => takesTile(x.name))
       const picked = tiled.filter((x) => x.tile).length
       if (rec.done) return { state: 'done', note: rec.note || 'Every tile is matched to its walls and floors' }
@@ -394,6 +414,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'level': {
       const fl = floorRooms(rooms)
       if (rec.done) return { state: 'done', note: rec.note || 'Measured' }
+      /* no estimate in yet: the floors come from it — part of the site check all the same */
+      if (!rooms.length) return { state: 'now', note: 'The floors come from the estimate — the high and the low point of each' }
       if (!fl.length) return { state: 'na', note: 'No floors on this project' }
       const toDo = fl.filter((f) => !f.mud)
       if (!toDo.length) return { state: 'done', note: 'Mud beds — they level themselves' }
@@ -536,8 +558,9 @@ export function stepsFor(s: Store, j: Job): StepView[] {
       if (!rec.done && !rec.na && ev) raw = ev.date < TODAY ? { state: 'done', note: `${ev.kind === 'walkthrough' ? 'Walked through' : 'Met'} ${labelFromIso(ev.date)}` } : { state: 'wait', due: ev.date, note: `Set for ${labelFromIso(ev.date)}` }
       else if (!rec.done && !rec.na && (d.key === 'design' || d.key === 'walk')) raw = { state: 'now', due: rec.due, note: d.key === 'design' ? 'With the designer or the client — tile, layout, grout' : 'Show him the job before he starts', action: { label: d.key === 'design' ? 'Set the meeting' : 'Set the walkthrough', run: () => s.open({ t: 'record', type: 'meeting', jobId: j.id, title: d.key === 'design' ? 'Design meeting' : 'Walkthrough with the installer', meetKind: d.key === 'walk' ? 'walkthrough' : 'meeting' }) } }
     }
-    /* the estimate check after the meeting, and the layouts: checked off — projects past setup had theirs before this list */
-    if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts' || d.key === 'sheets') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'done', note: 'Done before this list' }
+    /* the scope after the meeting, the layouts, the room sheets: a project that was past setup before this list had them
+       outside it — not tracked here (not "done": nobody did them here) */
+    if (!raw && !rec.done && !rec.na && (d.key === 'change' || d.key === 'layouts' || d.key === 'sheets') && !d.only && !['awarded', 'setup', 'verification'].includes(j.stage)) raw = { state: 'na', note: NOT_TRACKED }
     /* the room sheets: one page a room — print them, hang one in each before the crew starts */
     if (!raw && !rec.done && !rec.na && d.key === 'sheets' && !d.only) {
       const n = (s.rooms[j.id] || []).filter((r) => r.surfaces.some((x) => x.tile && takesTile(x.name))).length
@@ -560,7 +583,11 @@ export function stepsFor(s: Store, j: Job): StepView[] {
           ? { state: 'na', note: 'Not needed on this project' }
           : { state: 'now', due: rec.due, note: rec.note || (d.key === 'rough' ? 'Boxes, valves and drains where the layout needs them' : d.only ? 'Added for this project' : 'Your own step — check it off when it’s done'), action: { label: d.key === 'rough' ? 'Checked — all good' : 'Mark done', pick: 'check' } }
     }
-    if (rec.na && raw.state !== 'done') raw = { state: 'na', note: 'Not needed on this project' }
+    /* "done already" on Go through projects used to tick every step of a part — the follow-ups nobody did (the scope
+       after the meeting, the layouts, the walk-through, the room sheets) and Fix problems with nothing found: those
+       aren't tracked, not done */
+    if (raw.state === 'done' && rec.done && rec.note === BEFORE_TILE_OS && FOLLOW_UPS.has(d.key)) raw = { state: 'na', note: NOT_TRACKED }
+    if (rec.na && raw.state !== 'done') raw = { state: 'na', note: rec.note === BEFORE_TILE_OS ? NOT_TRACKED : 'Not needed on this project' }
     if (d.off && raw.state !== 'done') raw = { state: 'na', note: 'Turned off in Settings — not on our projects' }
     /* waiting on someone outside: off the list until the day it's due back — then "did it come?" */
     if (rec.wait && raw.state !== 'done' && raw.state !== 'na') {

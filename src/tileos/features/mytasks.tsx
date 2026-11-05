@@ -721,15 +721,10 @@ export function MyTasksPage() {
   const prefKey = `tileos-today-byjob:${role}`
   const [byJob, setByJob] = React.useState<boolean>(() => { try { const v = localStorage.getItem(prefKey); return v ? v === '1' : role === 'site' } catch { return role === 'site' } })
   const groupBy = (on: boolean) => { setByJob(on); try { localStorage.setItem(prefKey, on ? '1' : '0') } catch { /* private window */ } }
-  /* everyone's list: each person's things together (late first) — or by project — never one mixed list unless asked */
-  const teamKey = `tileos-today-teamgroup:${role}`
-  const [teamGroup, setTeamGroup] = React.useState<'person' | 'job' | 'time'>(() => { try { const v = localStorage.getItem(teamKey); return v === 'job' || v === 'time' ? v : 'person' } catch { return 'person' } })
-  const grouping: 'person' | 'job' | 'time' = all ? teamGroup : byJob ? 'job' : 'time'
-  const setGrouping = (g: 'person' | 'job' | 'time') => {
-    if (!all) { groupBy(g === 'job'); return }
-    setTeamGroup(g)
-    try { localStorage.setItem(teamKey, g) } catch { /* private window */ }
-  }
+  /* everyone's list is each person's things together (late first) — that's what Everyone means: no other way to
+     group it, nothing more to pick */
+  const grouping: 'person' | 'job' | 'time' = all ? 'person' : byJob ? 'job' : 'time'
+  const setGrouping = (g: 'person' | 'job' | 'time') => groupBy(g === 'job')
 
   /* the counts never change with the filters — they're the facts */
   /* the same kind of thing many times is one row — unless one project is picked: then each is its own */
@@ -903,14 +898,16 @@ export function MyTasksPage() {
       sub={TODAY_LABEL}
       top={<>
         <Bubbles
-          /* each number is what its list shows — with a person or a project picked, theirs */
+          /* a phone: the five on one row — the list starts right under them */
+          row
+          /* each number is what its list shows — with a project picked, its */
           items={[
             { key: 'today', label: 'Today', count: shownToday.length + shownCheckins.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'tomorrow', label: 'Tomorrow', count: shownTomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
             /* the site manager: today and tomorrow — that's all he needs on the go */
             ...(simple ? [] : [
               { key: 'later', label: 'Later', count: shownLater.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
-              { key: 'waiting', label: 'Waiting on others', count: shownWaiting.length + shownWaitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+              { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: shownWaiting.length + shownWaitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
               { key: 'done', label: 'Done', count: shownDone.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
             ] as any[]),
           ]}
@@ -919,12 +916,14 @@ export function MyTasksPage() {
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
           {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
-          {/* one person's list — the admin and the office see what's on anyone's plate */}
-          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
-          {view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={all ? [{ key: 'person', label: 'By person', icon: <UserRound /> }, { key: 'job', label: 'By project', icon: <Building2 /> }, { key: 'time', label: 'By time', icon: <Clock3 /> }] : [{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
+          {/* your own list: in the order it happens, or a project at a time. Everyone's is by person — nothing to pick */}
+          {!all && view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
-          <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
-          <ClearFilters show={job !== 'all' || who !== 'all'} onClear={() => { setJob('all'); setWho('all') }} />
+          {/* one project's things — on a computer; a phone keeps to one line (By project does it there) */}
+          <span className="contents max-sm:hidden">
+            <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
+            <ClearFilters show={job !== 'all'} onClear={() => setJob('all')} />
+          </span>
         </div>
       }
     >

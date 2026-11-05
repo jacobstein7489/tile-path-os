@@ -125,7 +125,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'dailies': return <DailiesModal who={m.who} level={level} />
     case 'trips': return <TripsModal who={m.who} day={m.day} level={level} />
     case 'stepbatch': return <StepBatchModal k={m.k} jobs={m.jobs || []} level={level} />
-    case 'part': return <PartModal jobId={m.jobId} track={m.track} level={level} />
+    case 'part': return <PartModal jobId={m.jobId} track={m.track} step={m.step} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {
       /* a change asked on site has its own window: price it, send it, approve it */

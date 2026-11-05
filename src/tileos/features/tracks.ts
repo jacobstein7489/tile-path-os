@@ -2,9 +2,11 @@
  *   THE LINE — like the estimate's path: Approved → Getting ready → Crew scheduled → Installing → Touch-ups → Closed.
  *     The crew can't be scheduled until getting ready is done. Billing isn't on the line: it runs alongside the whole
  *     time and never stops anything.
- *   GETTING READY — five tracks at the same time: Scope, Tile, Site, Installer, Materials. Each one is a short path of
- *     steps; every step is one person's task, and it moves by itself when the thing really happens (the PO goes out,
- *     the tile is checked in, the scope is confirmed). Nothing to check off.
+ *   GETTING READY — the things a new job needs, the way the office says them: the estimate in (what we're tiling),
+ *     the tile paperwork (what tile goes where), the design meeting, the site check (the levels and the rest), the
+ *     installer and his PO, our setting materials, the tile delivery (received and counted). Each one is a short path
+ *     of steps; every step is one person's task, and it moves by itself when the thing really happens (the PO goes out,
+ *     the tile is checked in). What's done is out of the way.
  *   THE ROOMS — the scope of work from the approved estimate, each room where it really is: not ready (and why), ready,
  *     installing (how far), stopped, done. */
 import { meOf, isRequest, type Store } from '@/tileos/store'
@@ -17,24 +19,31 @@ import { installerOf } from './upcoming'
 import { pictureOf } from './progressbill'
 import type { Task } from '@/tileos/data/work'
 
-export type TrackKey = 'scope' | 'tile' | 'site' | 'installer' | 'materials' | 'other'
-/** the five tracks of getting ready, and the steps each one walks through, in order */
+export type TrackKey = 'estimate' | 'tile' | 'scope' | 'site' | 'installer' | 'materials' | 'delivery' | 'other'
+/** the things getting a project ready takes, in the order the job goes, and the steps each one walks through */
 export const TRACKS: { key: TrackKey; label: string; /** where room is tight (the names over the circles on Projects) */ short?: string; steps: string[] }[] = [
-  /* Design: the meeting (set it, it happened, what was decided), the scope after it, the layouts */
-  { key: 'scope', label: 'Design', steps: ['design', 'change', 'layouts'] },
-  /* Tile: everything about the tile itself — the paperwork, the grout and a picture for each, the delivery */
-  { key: 'tile', label: 'Tile', steps: ['getpaper', 'rooms', 'qty', 'tile', 'order', 'delivered'] },
-  /* Site: the site check, the floor levels, the room sheets (fixing what the check found, only when it found something) */
-  { key: 'site', label: 'Site', steps: ['heights', 'level', 'fixes', 'sheets'] },
-  /* Installer: pick him (that sends his PO), walk him through the job, then he accepts */
+  /* the estimate: so the system knows what we're tiling — the rooms, walls and floors come from it */
+  { key: 'estimate', label: 'Estimate', steps: ['estimate'] },
+  /* the tile paperwork: so it knows what tile goes where — get it from the store, upload it (every tile on its walls
+     and floors, with its picture and grout), the quantities check themselves */
+  { key: 'tile', label: 'Tile paperwork', short: 'Paperwork', steps: ['getpaper', 'rooms', 'tile', 'qty'] },
+  /* the design meeting: set it, it happened — then the scope after it and the layouts */
+  { key: 'scope', label: 'Design meeting', short: 'Design', steps: ['design', 'change', 'layouts'] },
+  /* the site check: power, water, drains, the rough-in, the floor levels — fixing what it found only when it found
+     something — and the room sheets up */
+  { key: 'site', label: 'Site check', short: 'Site', steps: ['heights', 'level', 'fixes', 'sheets'] },
+  /* the installer: pick him and send his PO (made from the estimate), walk him through the job, he accepts */
   { key: 'installer', label: 'Installer', steps: ['installer', 'walk', 'confirmed'] },
-  /* Materials: what goes under the tile decides what we order — then order it, then it comes */
+  /* our setting materials: what goes under the tile decides what we order — then order it, then it comes */
   { key: 'materials', label: 'Setting materials', short: 'Materials', steps: ['setup', 'materials', 'matin'] },
+  /* the tile delivery: when the store brings it — then it's received: counted, so we know what we got */
+  { key: 'delivery', label: 'Tile delivery', short: 'Delivery', steps: ['order', 'delivered'] },
 ]
 /** a question added on one project sits in the track of the part it was added to */
-const GROUP_TRACK: Record<string, TrackKey> = { design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
+const GROUP_TRACK: Record<string, TrackKey> = { estimate: 'estimate', design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials', delivery: 'delivery' }
 /** each step's name on its track's path — what has to happen, said plainly */
 export const STEP_SHORT: Record<string, string> = {
+  estimate: 'Add the estimate',
   design: 'Design meeting', change: 'Confirm scope', tile: 'Enter tile & grout', setup: 'Decide underlayment', layouts: 'Set layouts',
   getpaper: 'Get paperwork', rooms: 'Enter paperwork', qty: 'Check quantities', order: 'Get delivery date', delivered: 'Receive tile',
   heights: 'Site check', level: 'Floor levels', fixes: 'Fix problems', sheets: 'Hang room sheets',
@@ -86,7 +95,7 @@ export function trackOf(v: StepView): TrackKey | null {
 /** getting ready, track by track — a company's own steps (if any) on a sixth, "Your own" */
 export function tracksFor(s: Store, job: Job, all: StepView[] = stepsFor(s, job)): TrackView[] {
   const me = meOf(s.role)
-  const lists: Record<TrackKey, StepView[]> = { scope: [], tile: [], site: [], installer: [], materials: [], other: [] }
+  const lists: Record<TrackKey, StepView[]> = { estimate: [], tile: [], scope: [], site: [], installer: [], materials: [], delivery: [], other: [] }
   all.forEach((v) => { const k = trackOf(v); if (k) lists[k].push(v) })
   /* in the track's own order; a question added on this project goes at the end of its track */
   TRACKS.forEach((t) => lists[t.key].sort((a, b) => (t.steps.indexOf(a.key) + 1 || 99) - (t.steps.indexOf(b.key) + 1 || 99)))
@@ -230,10 +239,10 @@ export const issueKind = (t: Task) => (isRequest(t) ? 'Needed on site' : t.tone 
 
 /** what's wrong on the project right now: a step that hit a problem ("No water on site") and any problem raised on it —
  *  the same list on Projects (the red "1 problem") and on the project (Open items) */
-/** what's holding a project up, the first one first — in the order the job goes (design, tile, site, installer,
- *  materials): what's first in line leads. A stuck step and the problem reported about it are one item, in the step's
+/** what's holding a project up, the first one first — in the order the job goes (the estimate, the paperwork, the
+ *  meeting, the site, the installer, materials, the delivery): what's first in line leads. A stuck step and the problem reported about it are one item, in the step's
  *  place; any other problem goes with its part (tile, materials, site…), and the oldest leads among the rest. */
-const TYPE_TRACK: Record<string, TrackKey> = { Tile: 'tile', Materials: 'materials', Field: 'site', Schedule: 'installer', Design: 'scope' }
+const TYPE_TRACK: Record<string, TrackKey> = { Tile: 'delivery', Materials: 'materials', Field: 'site', Schedule: 'installer', Design: 'scope' }
 export function problemsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)): { key: string; text: string; step?: string; task?: string }[] {
   const tasks = issuesOf(s, job).filter((t) => t.tone === 'bad')
   /* tile that came short and was reported: it's its own item (reordered, coming) — the delivery isn't a second problem */
@@ -258,7 +267,7 @@ export function problemsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, j
      names a tile goes with the tile */
   oldest.forEach((t, i) => {
     if (used.has(t.id)) return
-    const tr = TRACKS.find((x) => x.key === (tagOf(t.title) ? 'tile' : TYPE_TRACK[t.type]))
+    const tr = TRACKS.find((x) => x.key === (tagOf(t.title) ? 'delivery' : TYPE_TRACK[t.type]))
     out.push({ key: t.id, text: t.title, task: t.id, r: (tr ? rank(tr.steps[tr.steps.length - 1]) + 0.5 : order.length + 1) + i / 1000 })
   })
   return out.sort((a, b) => a.r - b.r).map(({ r: _, ...x }) => x)

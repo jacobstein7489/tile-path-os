@@ -75,7 +75,7 @@ export function AddRoomButton({ jobId, have, label = 'Add a room', className, si
   if (!canEdit) return null
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={340} trigger={<Button size={size} icon={<Plus />} className={className} data-add-room>{label}</Button>}>
-      <div className="text-[0.84375rem] font-semibold text-ink">A room that isn’t on the list</div>
+      <div className="text-[0.84375rem] font-semibold text-ink">{have.length ? 'A room that isn’t on the list' : 'A room — and what gets tiled in it'}</div>
       <form onSubmit={(e) => { e.preventDefault(); save() }}>
         <TextInput autoFocus aria-label="Room name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Powder room" className="mt-2 h-9 w-full" />
         {clash && <div className="mt-1 text-[0.75rem] font-medium text-bad-600">That room is already there.</div>}

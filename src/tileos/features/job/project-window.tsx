@@ -43,7 +43,7 @@ export function sectionOf(job: Job): PTab {
 }
 
 /** a link that names a track ("installer", "orders"…) opens that track on the step it's on */
-const TAB_TRACK: Record<string, TrackKey> = { installer: 'installer', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope' }
+const TAB_TRACK: Record<string, TrackKey> = { estimate: 'estimate', installer: 'installer', paperwork: 'tile', tile: 'tile', site: 'site', design: 'scope', delivery: 'delivery' }
 function openFromTab(job: Job | undefined, tab?: string): OpenTrack {
   if (!job || !tab) return null
   const s = useStore.getState()

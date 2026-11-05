@@ -185,7 +185,8 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   /* each part in its own place — what your login adds most first in it */
   const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !FOLDED.has(x.k)).sort((a, b) => rank(a.k) - rank(b.k))
   const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
-  const starts = STARTS.filter(ok)
+  /* bringing in the projects that were going before Tile OS is one-time work — it's in Settings, not on + New */
+  const starts = STARTS.filter((x) => ok(x) && x.k !== 'bringin')
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'

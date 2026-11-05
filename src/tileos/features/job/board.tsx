@@ -176,7 +176,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         value={at}
         onChange={pick}
         size="lg"
-        className="shrink-0 bg-white px-5 max-sm:px-4 max-sm:[&>button+button]:ml-5"
+        className="shrink-0 bg-white px-5 max-sm:px-3.5"
         items={[
           { key: 'stands', label: 'Where it stands', short: 'Status' },
           { key: 'scope', label: 'Scope of work', short: 'Scope' },

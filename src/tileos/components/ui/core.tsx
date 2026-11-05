@@ -219,7 +219,7 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
             className={cn(
               'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-0.5 font-semibold transition-colors',
               /* a window's main parts: on a phone they spread across the width, so all of them show */
-              size === 'lg' ? 'h-12 text-[0.96875rem] [&+&]:ml-8 max-sm:text-[0.875rem] max-sm:[&+&]:ml-0' : size === 'md' ? 'h-11 text-[0.875rem] [&+&]:ml-6 max-sm:[&+&]:ml-5' : 'h-10 text-[0.84375rem] [&+&]:ml-6 max-sm:[&+&]:ml-5',
+              size === 'lg' ? 'h-12 text-[0.96875rem] [&+&]:ml-8 max-sm:text-[0.8125rem] max-sm:[&+&]:ml-0' : size === 'md' ? 'h-11 text-[0.875rem] [&+&]:ml-6 max-sm:[&+&]:ml-5' : 'h-10 text-[0.84375rem] [&+&]:ml-6 max-sm:[&+&]:ml-5',
               on ? 'text-ink' : 'text-muted hover:text-ink-2',
               it.wide && 'max-sm:hidden',
             )}

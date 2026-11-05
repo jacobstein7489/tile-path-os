@@ -23,7 +23,7 @@ export function comingWords(s: Store, job: Job, me: PersonKey): { text: string; 
   if (job.hold?.shortage) return { text: 'On hold — waiting for the tile', tone: 'warn' }
   const tracks = tracksFor(s, job)
   /* the tile isn't all here: the day it comes (or was due), or that some of it is still missing */
-  const d = tracks.find((t) => t.key === 'tile')?.steps.find((v) => v.key === 'delivered')
+  const d = tracks.flatMap((t) => t.steps).find((v) => v.key === 'delivered')
   if (d && d.state !== 'done' && d.state !== 'na') {
     if (d.state === 'bad') return { text: 'Waiting for the rest of the tile', tone: 'warn' }
     if (d.due) return { text: d.due >= TODAY ? `Waiting for the tile — it comes ${labelFromIso(d.due).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}` : `Waiting for the tile — it was due ${labelFromIso(d.due)}`, tone: 'warn' }

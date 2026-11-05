@@ -496,14 +496,14 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
-export type Bubble = { key: string; label: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
+export type Bubble = { key: string; label: string; /** its name on a phone, where they're all on one row ("Waiting") */ short?: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 /** how many bubbles a row on a phone, so no row is left part empty when it needn't be */
 const phoneCols = (n: number, four?: boolean) => (n <= 1 ? 'max-sm:grid-cols-1' : n === 2 ? 'max-sm:grid-cols-2' : n === 4 ? (four ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-2') : four && n > 6 ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-3')
-export function Bubbles({ items, arrows, wrap, four }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row (many bubbles: two rows, not three) */ four?: boolean }) {
+export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row (many bubbles: two rows, not three) */ four?: boolean; /** on a phone, small: the number and a short name, no icon — all on one row (Today's five), or four a row (more) */ row?: boolean }) {
   return (
     /* on a phone: every one in sight at once, nothing to slide sideways, and the rows filled — two bubbles share the
        width, four go two by two, more go three a row (four, with many) */
-    <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5', 'max-sm:mx-0 max-sm:mb-0 max-sm:grid max-sm:gap-1.5 max-sm:overflow-visible max-sm:px-0 max-sm:pb-0', phoneCols(items.length, four))} role="tablist" data-bubbles>
+    <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5', 'max-sm:mx-0 max-sm:mb-0 max-sm:gap-1.5 max-sm:overflow-visible max-sm:px-0 max-sm:pb-0', row && items.length > 2 && items.length <= 5 ? 'max-sm:flex' : cn('max-sm:grid', phoneCols(items.length, four || row)))} role="tablist" data-bubbles>
       {items.map((b, i) => {
         const c = BC[b.color]
         /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
@@ -518,19 +518,21 @@ export function Bubbles({ items, arrows, wrap, four }: { items: Bubble[]; arrows
               className={cn(
                 'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
                 /* phone: the number big on top, the name under it, the icon small in the corner */
-                'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', four ? 'max-sm:px-2' : 'max-sm:px-2.5',
+                'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', row ? cn('max-sm:min-h-[3.25rem] max-sm:px-2', items.length <= 5 && 'max-sm:flex-auto max-sm:basis-auto') : four ? 'max-sm:px-2' : 'max-sm:px-2.5',
                 b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5" style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1">
                 <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
                 {/* on a phone a long name ("Waiting on others") goes on two lines rather than being cut */}
-                <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:whitespace-normal max-sm:break-words max-sm:leading-[0.875rem]', four && 'max-sm:text-[0.71875rem]', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>
+                {row && b.short
+                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block truncate text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? 'text-white/90' : 'text-ink-2')}>{b.short}</span></>
+                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:leading-[0.875rem]', row ? cn('max-sm:text-[0.6875rem]', items.length > 5 && 'max-sm:whitespace-normal') : 'max-sm:whitespace-normal max-sm:break-words', four && !row && 'max-sm:text-[0.71875rem]', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>}
               </span>
             </button>
           </React.Fragment>

@@ -9,7 +9,7 @@
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, ListChecks, Sparkles, Upload, UserRound } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, Sparkles, Upload, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
@@ -19,16 +19,15 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, type Customer, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
-import { companySteps } from './steps'
-import { tracksFor, type TrackKey } from './tracks'
+import { companySteps, FOLLOW_UPS, BEFORE_TILE_OS } from './steps'
+import { tracksFor, TRACKS, type TrackKey } from './tracks'
 import { isOff } from './active'
 import { estimateInto } from './bringin'
 import { readPaperworkFor, useReadWords } from './paperread'
-import { allowedFor } from './newpicker'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 const BEFORE_START: Stage[] = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
-const BEFORE = 'Done before Tile OS'
+const BEFORE = BEFORE_TILE_OS
 const brought = (s: Pick<Store, 'hist'>, j: Job) => (s.hist[j.id] || []).find((h) => /^Brought in/.test(h.title))
 /** came in from Asana or an estimate, rather than made here step by step */
 const broughtIn = (s: Pick<Store, 'hist'>, j: Job) => !!brought(s, j) || j.keyDate?.label === 'Brought in'
@@ -64,11 +63,11 @@ const WHERE: { key: Where; label: string }[] = [
   { key: 'done', label: 'Finished' },
 ]
 const whereWord = (w: Where) => WHERE.find((x) => x.key === w)!.label
-const PARTS: { key: TrackKey; label: string }[] = [
-  { key: 'scope', label: 'Design' }, { key: 'tile', label: 'Tile' }, { key: 'site', label: 'Site' }, { key: 'installer', label: 'Installer' }, { key: 'materials', label: 'Setting materials' },
-]
-/** ready for the crew = these three are done */
-const READY_PARTS: TrackKey[] = ['scope', 'tile', 'site']
+/** what's done already, one tap each — the same things, in the same words, as on the project. The estimate isn't one:
+ *  it's in once it's uploaded (Papers, below — or on the project), so the rooms are really there */
+const PARTS: { key: TrackKey; label: string }[] = TRACKS.filter((t) => t.key !== 'estimate').map((t) => ({ key: t.key, label: t.label }))
+/** ready for the crew = every one of them is done */
+const READY_PARTS: TrackKey[] = PARTS.map((p) => p.key)
 type Draft = { clientId: string; where: Where; parts: TrackKey[]; crew: string; site: string; pct: string; start: string; finish: string; hold: boolean; why: string }
 function draftOf(s: Store, j: Job): Draft {
   const done = tracksFor(s, j).filter((t) => t.state === 'done').map((t) => t.key)
@@ -84,11 +83,12 @@ function draftOf(s: Store, j: Job): Draft {
 const asanaOf = (s: Store, j: Job) => (s.hist[j.id] || []).map((h) => h.detail?.match(/https:\/\/app\.asana\.com\/[^\s—]+/)?.[0]).find(Boolean)
 /** what's up next on a project that's getting ready — the first part that isn't done */
 const NEXT_UP: { part: TrackKey; text: string; owner: PersonKey }[] = [
-  { part: 'scope', text: 'Finish the design', owner: 'ys' },
   { part: 'tile', text: 'Get the tile paperwork', owner: 'estimator' },
+  { part: 'scope', text: 'Set the design meeting', owner: 'office' },
   { part: 'site', text: 'Check the site', owner: 'yakov' },
   { part: 'installer', text: 'Send the installer his PO', owner: 'ys' },
-  { part: 'materials', text: 'Order the materials', owner: 'ys' },
+  { part: 'materials', text: 'Order the setting materials', owner: 'ys' },
+  { part: 'delivery', text: 'Receive the tile', owner: 'yakov' },
 ]
 
 /** save one project the way it was set: the client, where it stands (and what's checked off with it), the people, how
@@ -104,16 +104,25 @@ function save(jobId: string, d: Draft, msg?: string, opts?: { close?: boolean; s
     if (c && c.id !== j.clientId) { j.clientId = c.id; j.client = c.name }
     const stage: Stage = d.where === 'installing' ? 'installation' : d.where === 'touchups' ? 'punch' : d.where === 'done' ? 'complete' : BEFORE_START.includes(j.stage) ? j.stage : 'setup'
     j.stage = stage
-    /* what's done already: everything once the crew started; while it's getting ready, the parts that were tapped */
+    /* what's done already: everything once the crew started; while it's getting ready, what was tapped — its main
+       steps. What only follows them (the scope after the meeting, the layouts, the walk-through, the room sheets) isn't
+       said to be done — nobody did it here: it's not tracked on this project. Fix problems is only ever there when the
+       site check found something, and the estimate is in once its rooms are */
     const all = !BEFORE_START.includes(stage)
     const tracks = tracksFor(st, j)
     const recs = (st.stepRecs[jobId] ||= {})
     const partOf = (k: string) => tracks.find((t) => t.steps.some((v) => v.key === k))?.key
     companySteps(st).forEach((def) => {
+      const r = recs[def.key]
+      if (def.key === 'estimate') return
+      if (def.key === 'fixes') { if (r?.note === BEFORE) delete recs.fixes; return }
       const part = partOf(def.key)
       const on = all || def.key === 'deposit' || (!!part && d.parts.includes(part))
-      const r = recs[def.key]
-      if (on) { if (!r?.done && !r?.na) recs[def.key] = { ...(r || {}), done: NOW, by: me, note: BEFORE } }
+      const follow = FOLLOW_UPS.has(def.key)
+      if (on) {
+        if (!r?.done && !r?.na) recs[def.key] = follow ? { ...(r || {}), na: true, by: me, note: BEFORE } : { ...(r || {}), done: NOW, by: me, note: BEFORE }
+        else if (follow && r?.done && r.note === BEFORE) { const { done: _, ...rest } = r; recs[def.key] = { ...rest, na: true } }
+      }
       else if (r?.note === BEFORE) delete recs[def.key]
     })
     /* the people */
@@ -144,7 +153,7 @@ function save(jobId: string, d: Draft, msg?: string, opts?: { close?: boolean; s
     if (stage === 'installation') j.next = { text: 'Keep the daily updates going', owner: site }
     else if (stage === 'punch') j.next = { text: 'Finish the touch-ups', owner: site }
     else if (BEFORE_START.includes(stage)) {
-      const up = NEXT_UP.find((n) => !d.parts.includes(n.part))
+      const up = !(st.rooms[jobId] || []).length ? { text: 'Add the estimate', owner: 'estimator' as PersonKey } : NEXT_UP.find((n) => !d.parts.includes(n.part))
       j.next = up ? { text: up.text, owner: up.owner, due: 'This week' } : { text: 'Schedule the crew', owner: 'ys', due: 'This week' }
     }
     j.caughtUp = NOW
@@ -175,7 +184,7 @@ export function missingOf(s: Store, j: Job): string[] {
   return out
 }
 
-/** one project (id) — from its ··· menu; every open project (all) — from Projects; or else the brought-in ones */
+/** one project (id) — from its ··· menu; every open project (all) — from Settings → Bring in projects; or else the brought-in ones */
 export function CatchUpModal({ level, id: one, all }: { level: number; id?: string; all?: boolean }) {
   const s = useStore()
   /* the list as it was when it opened — saving one doesn't shuffle the rest */
@@ -338,7 +347,7 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
         </span>
       </Line>
       {getting && (
-        <Line label="Done already" hint="Tap each part that’s done">
+        <Line label="Done already" hint="Tap each one that’s done">
           <div className="flex flex-wrap gap-1.5">
             {PARTS.map((p) => {
               const on = d.parts.includes(p.key)
@@ -446,21 +455,3 @@ function Papers({ job }: { job: Job }) {
   )
 }
 
-/** on Projects, while some brought-in projects haven't been gone through: how many, and the button to start */
-export function CatchUpBar() {
-  const s = useStore()
-  if (!allowedFor(s.role, 'bringin')) return null
-  const list = catchUpList(s)
-  if (!list.length) return null
-  const going = list.filter((j) => j.stage === 'installation' || j.stage === 'punch').length
-  return (
-    <div className={cn('flex items-center gap-3 border-b border-[#d9e3f5] bg-[#f3f7fd] py-3 max-sm:flex-col max-sm:items-stretch', 'px-5 max-sm:px-4')} data-catchup-bar>
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-700 shadow-[0_0_0_1px_#d9e3f5] max-sm:hidden"><ListChecks className="h-[1.125rem] w-[1.125rem]" /></span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[0.9375rem] font-semibold text-ink">{list.length} {list.length === 1 ? 'project came' : 'projects came'} in without where they’re up to</div>
-        <div className="text-[0.8125rem] text-muted">Go through them one at a time: where it stands, the installer, the site manager, the dates{going ? ` — the ${going} going now first` : ''}.</div>
-      </div>
-      <Button variant="primary" onClick={() => s.open({ t: 'catchup' })} data-open-catchup>Go through them</Button>
-    </div>
-  )
-}

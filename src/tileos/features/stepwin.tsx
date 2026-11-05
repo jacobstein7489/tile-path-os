@@ -21,20 +21,21 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { mailLive, emailText } from './mailout'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
 import { confirmSetting } from './setting'
 import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
-import { pickInstaller, sendDraftIPO, setSurfaceTile } from './flows2'
+import { pickInstaller, pencilInstaller, sendDraftIPO, setSurfaceTile } from './flows2'
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
 import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
 import { PaperRead, useReadBusy } from './paperread'
 import { AddRoomButton } from './roomedit'
+import { ScopeStart } from './job/scope-tab'
 import { LayoutsList, fillSuggestions } from './layout'
 import { PrintSheetsButton, sheetRooms, sheetRows } from './roomsheets'
 import { NoNote, SitePick, type SiteVal } from './answer'
@@ -45,6 +46,7 @@ import { trackOf, TRACKS, stepShort, softWrap } from './tracks'
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
 export const TITLE: Record<string, string> = {
+  estimate: 'Add the estimate — what we’re tiling',
   getpaper: 'Get the tile paperwork from the store',
   rooms: 'Enter the tile paperwork',
   qty: 'Check the quantities on the paperwork',
@@ -68,6 +70,7 @@ export const TITLE: Record<string, string> = {
 }
 /** what to do, said the way you'd say it — the line on Today and on the project */
 export const TODO: Record<string, string> = {
+  estimate: 'Add the estimate',
   getpaper: 'Get the tile paperwork from the store',
   rooms: 'Enter the tile paperwork',
   qty: 'Check the quantities on the paperwork',
@@ -91,6 +94,7 @@ export const TODO: Record<string, string> = {
 }
 /** one line under the title: what this step is for */
 export const WHAT: Record<string, string> = {
+  estimate: 'Upload it and its rooms, walls and floors fill in by themselves — so the system knows what we’re tiling. The installer’s PO and our materials are made from it.',
   getpaper: 'Ask the tile store for the paperwork — what they’re sending, how much of each. Upload it here when it comes.',
   rooms: 'Upload it and AI reads it: every tile matched to the walls and floors from the estimate. Fix what it got wrong, pick what it couldn’t.',
   qty: 'Is there enough of every tile, with the extra for cuts? Short — send them the right quantities, and it waits for the new paperwork.',
@@ -190,7 +194,7 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
         : v.state === 'now' && mine ? { box: 'border-brand-100 bg-brand-50/60', head: 'text-brand-800' }
           : v.state === 'later' ? { box: 'border-dashed border-[#d6cfc3] bg-[#faf8f5]', head: 'text-ink-2' }
             : { box: 'border-line bg-[#faf8f5]', head: 'text-ink' }
-  const head = v.state === 'done' ? `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${v.doneBy === me ? 'you' : PEOPLE[v.doneBy]?.short}` : ''}`
+  const head = v.state === 'done' ? (v.note === BEFORE_TILE_OS ? BEFORE_TILE_OS : `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${v.doneBy === me ? 'you' : PEOPLE[v.doneBy]?.short}` : ''}`)
     : v.state === 'na' ? 'Not needed on this project'
       : v.state === 'later' ? 'Not yet'
         : v.state === 'wait' ? 'Waiting'
@@ -198,7 +202,10 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
             : mine ? 'Your turn' : `${name}’s turn`
   /* nobody has this part's login yet: it's yours until someone does — said, so it doesn't look like someone else's */
   const cover = mine && open && v.cover ? `Yours for now — no ${v.cover.toLowerCase()} on the team yet. ` : ''
-  const sub = v.state === 'later'
+  /* the installer's PO is made from the estimate: it can't be done before it — said plainly, the estimate right under it */
+  const sub = v.state === 'later' && v.key === 'installer' && v.waitsKey === 'estimate'
+    ? `His PO is made from the estimate — what we’re tiling, room by room. ${mine ? 'Add the estimate first, right here:' : `Then it’s ${name}’s.`}`
+    : v.state === 'later'
     ? (mine ? `It usually comes after ${v.waitsFor || 'the step before'} — you can do it now, right here.` : `It usually comes after ${v.waitsFor || 'the step before'}. Then it’s ${name}’s.`)
     : what || cover ? `${cover}${what || ''}${!mine && open && onSite && v.state === 'now' ? ' — on site' : ''}` : undefined
   return (
@@ -212,7 +219,7 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
           </div>
           {sub && <div className="mt-0.5 text-[0.84375rem] leading-snug text-ink-2">{sub}</div>}
         </div>
-        {!mine && open && v.state !== 'later' && <span className="flex shrink-0 items-center gap-1.5"><Button size="sm" onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>{admin && <Button size="sm" onClick={() => setStepOwner(job.id, take, me)}>Take it over</Button>}</span>}
+        {!mine && open && v.state !== 'later' && <span className="flex flex-wrap items-center gap-1.5"><Button size="sm" onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>{admin && <Button size="sm" onClick={() => setStepOwner(job.id, take, me)} data-take-step>Take it over</Button>}</span>}
         {/* not started, someone else's: the admin can take it and do it now — here */}
         {!mine && v.state === 'later' && admin && <Button size="sm" className="shrink-0" onClick={() => setStepOwner(job.id, take, me)} data-take-later>Take it over</Button>}
       </div>
@@ -255,6 +262,16 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
   const rec = s.stepRecs[job.id]?.[v.key]
   const scope = () => s.open({ t: 'scopewin', jobId: job.id })
   switch (v.key) {
+    case 'estimate': return <Tiling job={job} />
+    case 'level': {
+      const fl = floorRooms(s.rooms[job.id] || [])
+      const measured = fl.filter((f) => f.mud || f.word)
+      return (
+        <ResultBox title="The floors" empty={rec?.note === BEFORE_TILE_OS ? 'Checked before the project was in Tile OS — no readings kept here.' : 'Marked done — no readings kept with it.'}>
+          {measured.map((f) => <ResultRow key={f.room.name} icon={<Ruler />} title={f.room.name} sub={f.mud ? 'Mud bed — it levels itself' : `High ${f.room.level?.high ?? '—'} · low ${f.room.level?.low ?? '—'}`} right={f.mud ? 'Mud bed' : f.word?.label} tone={f.word?.tone === 'bad' ? 'bad' : f.word?.tone === 'warn' ? 'warn' : 'ok'} />)}
+        </ResultBox>
+      )
+    }
     case 'getpaper': {
       const files = s.files.filter((f) => f.jobId === job.id && f.kind === 'paperwork')
       return (
@@ -347,9 +364,9 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
     case 'walk': {
       const ev = s.events.filter((e) => e.jobId === job.id && (v.key === 'design' ? e.kind === 'meeting' : e.kind === 'walkthrough'))
       return (
-        <ResultBox title={v.key === 'design' ? 'The meeting' : 'The walk-through'} empty={rec?.note || 'It happened — no notes kept with it.'}>
+        <ResultBox title={v.key === 'design' ? 'The meeting' : 'The walk-through'} empty={rec?.note === BEFORE_TILE_OS ? 'It happened before the project was in Tile OS.' : rec?.note || 'It happened — no notes kept with it.'}>
           {ev.map((e) => <ResultRow key={e.id} icon={<CalendarDays />} title={e.title} sub={[labelFromIso(e.date), timeLabel(e.start), e.people.map((p) => PEOPLE[p]?.short).filter(Boolean).join(', ')].filter(Boolean).join(' · ')} />)}
-          {rec?.note ? <ResultRow title="Notes" sub={rec.note} /> : null}
+          {rec?.note && rec.note !== BEFORE_TILE_OS ? <ResultRow title="Notes" sub={rec.note} /> : null}
         </ResultBox>
       )
     }
@@ -662,6 +679,7 @@ function TileNotYet({ job }: { job: Job }) {
 
 function Body({ job, v }: { job: Job; v: StepView }) {
   switch (v.key) {
+    case 'estimate': return <EstimateStep job={job} />
     case 'getpaper': return <GetPaper job={job} v={v} />
     case 'rooms': return <EnterPaper job={job} v={v} />
     /* tile & grout is part of entering the paperwork now — the same rows have the picture and the grout */
@@ -686,6 +704,27 @@ function Body({ job, v }: { job: Job; v: StepView }) {
     case 'sheets': if (!v.only) return <Sheets job={job} v={v} />
   }
   return <Custom job={job} v={v} />
+}
+
+/* ================= the estimate: what we're tiling ================= */
+/** no rooms yet: add the estimate right here (it's read, and the rooms, walls and floors fill in) — or a room at a
+ *  time. Once it's in: what we're tiling, one tap from the scope of work */
+function EstimateStep({ job }: { job: Job }) {
+  const s = useStore()
+  if (!(s.rooms[job.id] || []).length) return <ScopeStart job={job} bare />
+  return <Tiling job={job} />
+}
+function Tiling({ job }: { job: Job }) {
+  const s = useStore()
+  const rooms = s.rooms[job.id] || []
+  const sf = rooms.reduce((n, r) => n + r.surfaces.reduce((m, x) => m + (x.sf || 0), 0), 0)
+  const files = s.files.filter((f) => f.jobId === job.id && /estimate/i.test(`${f.doc || ''} ${f.name}`))
+  return (
+    <ResultBox title="What we’re tiling" empty="No rooms on it yet.">
+      {rooms.length > 0 && <ResultRow icon={<Ruler />} title={`${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`} sub={rooms.map((r) => r.name).join(', ')} onClick={() => s.open({ t: 'scopewin', jobId: job.id })} />}
+      {files.map((f) => <ResultRow key={f.id} icon={<FileText />} title={f.name} sub={[PEOPLE[f.by]?.short, f.at].filter(Boolean).join(' · ')} onClick={() => openFile(f)} />)}
+    </ResultBox>
+  )
 }
 
 /* ================= the tile paperwork: get it, enter it, check the quantities ================= */
@@ -1265,6 +1304,53 @@ function Installer({ job }: { job: Job }) {
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const free = crewFree(s).filter((c) => !isOff(s, 'crew', c.crew))
   const [pick, setPick] = React.useState<PersonKey | undefined>(crew)
+  const rooms = (s.rooms[job.id] || []).length
+  const picker = (
+    <Field label="Who installs it">
+      <Menu align="start" width={330} trigger={
+        <button className="flex h-12 w-full items-center gap-3 rounded-[0.625rem] border border-line bg-white px-3 text-left transition hover:border-[#cdc7bc]" aria-label="Pick the installer" data-installer-pick>
+          {pick ? <><Avatar who={pick} size={30} /><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[pick].name} <span className="font-normal text-muted">· {freeWord(free.find((f) => f.crew === pick)?.iso)}</span></span></> : <span className="flex-1 text-[0.9375rem] text-muted">Pick who installs it</span>}
+          <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
+        </button>
+      }>
+        <MenuLabel>Who’s free first</MenuLabel>
+        {free.map(({ crew: c, iso }) => <MenuItem key={c} icon={<Avatar who={c} size={22} />} checked={pick === c} hint={freeWord(iso)} onSelect={() => setPick(c)}>{PEOPLE[c].name}</MenuItem>)}
+      </Menu>
+    </Field>
+  )
+  /* no estimate yet: his PO is made from it — what we're tiling, room by room. Add it right here; he can be penciled
+     in meanwhile (a PO drafted before it, with nothing on it, waits for it too) */
+  if (!rooms && (!ipo || ipo.status === 'Draft' || ipo.status === 'Rejected')) {
+    const who = ipo?.status === 'Draft' ? ipo.crew : crew
+    return (
+      <div className="flex flex-col gap-4" data-installer-needs-estimate>
+        <ScopeStart job={job} bare />
+        {who ? (
+          <div className="flex items-center gap-3 rounded-xl border border-line px-4 py-3" data-installer-penciled={who}>
+            <Avatar who={who} size={34} />
+            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[who]?.name}</span><span className="block text-[0.8125rem] text-muted">Penciled in — his PO once the estimate is in</span></span>
+          </div>
+        ) : (
+          <>
+            {picker}
+            <Actions><Button disabled={!pick} onClick={() => pick && pencilInstaller(job.id, pick)} data-pencil-in>Pencil him in</Button></Actions>
+          </>
+        )}
+      </div>
+    )
+  }
+  /* a PO drafted before the estimate was in, with nothing on it: make it again from the estimate */
+  if (ipo?.status === 'Draft' && rooms && !ipo.lines.some((l) => (l.amount || 0) > 0)) {
+    return (
+      <div className="flex flex-col gap-4" data-installer-redo>
+        <div className="flex items-center gap-3 rounded-xl border border-line px-4 py-3">
+          <Avatar who={ipo.crew} size={34} />
+          <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew]?.name}</span><span className="block text-[0.8125rem] text-muted">{ipo.id} has nothing on it yet — it was made before the estimate was in</span></span>
+        </div>
+        <Actions><Button variant="primary" onClick={() => pickInstaller(job.id, ipo.crew)} data-installer-from-estimate>Make his PO from the estimate</Button></Actions>
+      </div>
+    )
+  }
   if (ipo && ipo.status !== 'Rejected') {
     const r = poRatio(s, ipo)
     const said = ipo.status === 'Draft' ? 'Not sent yet' : ipo.status === 'Sent' ? 'Sent — waiting for him to accept' : `Accepted ${ipo.date}`
@@ -1289,17 +1375,7 @@ function Installer({ job }: { job: Job }) {
   return (
     <div className="flex flex-col gap-4">
       {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
-      <Field label="Who installs it">
-        <Menu align="start" width={330} trigger={
-          <button className="flex h-12 w-full items-center gap-3 rounded-[0.625rem] border border-line bg-white px-3 text-left transition hover:border-[#cdc7bc]" aria-label="Pick the installer">
-            {pick ? <><Avatar who={pick} size={30} /><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[pick].name} <span className="font-normal text-muted">· {freeWord(free.find((f) => f.crew === pick)?.iso)}</span></span></> : <span className="flex-1 text-[0.9375rem] text-faint">Pick the installer</span>}
-            <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
-          </button>
-        }>
-          <MenuLabel>Who’s free first</MenuLabel>
-          {free.map(({ crew: c, iso }) => <MenuItem key={c} icon={<Avatar who={c} size={22} />} checked={pick === c} hint={freeWord(iso)} onSelect={() => setPick(c)}>{PEOPLE[c].name}</MenuItem>)}
-        </Menu>
-      </Field>
+      {picker}
       <Actions><Button variant="primary" disabled={!pick} onClick={() => pick && pickInstaller(job.id, pick)}>Make his PO</Button></Actions>
     </div>
   )
@@ -1392,7 +1468,11 @@ function Order({ job, v }: { job: Job; v: StepView }) {
           <span>It goes on {receiver === me ? 'your' : <b className="font-semibold text-ink">{PEOPLE[receiver]?.short}’s</b>} list that day, to check it in.</span>
         </div>
       )}
-      <Actions><Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when); (host || s).close() }}>Save the delivery date</Button></Actions>
+      <Actions>
+        {/* it came already: today's the day — checking it in is next, right here */}
+        <Button icon={<PackageCheck />} onClick={() => markTileOrdered(job.id, 'Today')} data-tile-here>It’s here already</Button>
+        <Button variant="primary" icon={<Truck />} onClick={() => { markTileOrdered(job.id, when); (host || s).close() }}>Save the delivery date</Button>
+      </Actions>
     </div>
   )
 }

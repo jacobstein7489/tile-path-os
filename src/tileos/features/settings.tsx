@@ -1,6 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
+import { Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -22,6 +22,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { AutomationsTab } from './automations'
 import { estSteps, EST_FOLLOW, companyPeople, peopleOn, setCompanyPeople, addCompanyEstStep, renameCompanyEstStep, removeCompanyEstStep, namesOf } from './estpeople'
 import { realOwner } from './steps'
+import { catchUpList, allOpenList } from './catchup'
 import { WHAT as STEP_WHAT } from './stepwin'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
@@ -29,14 +30,14 @@ import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/sav
 import { QbConnectCard, EmailCard, LaterList } from './qbui'
 import { TODAY } from '@/tileos/lib/today'
 
-type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'testdata' | 'startover'
+type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
 /* one thing at a time: a list of the parts on the left (on a phone, across the top), the part you picked on the right */
-type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'practice' | 'startover'
-const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', practice: 'practice', testdata: 'practice', startover: 'startover' }
+type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover'
+const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover' }
 /** each group has its own soft color — the icons in the list and the header say which group you're in */
 const GROUP_TINT: Record<string, { bg: string; fg: string }> = {
   People: { bg: '#ebf1fd', fg: '#2c53c0' },
@@ -58,6 +59,7 @@ const SECTIONS: { group: string; items: { key: Section; label: string; sub: stri
     { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', about: 'What each material covers. Every project’s material list is worked out from these — set them to how your crews really work.', icon: Calculator },
     { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', about: 'Tile OS runs the operation; these keep the paperwork and conversations in one place.', icon: Plug },
     { key: 'email', label: 'Email', sub: 'Who sends, who’s copied', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
+    { key: 'bringin', label: 'Bring in projects', sub: 'And go through them', about: 'The projects that were going before Tile OS: bring them in from their estimates, then go through them one at a time — the client, where each one stands, who’s on it. Kept here, for when you need it.', icon: Upload },
     { key: 'practice', label: 'Practice and samples', sub: 'Try it without real work', about: 'Learn on a practice project, or open the sample projects — nothing reaches a client or QuickBooks.', icon: RotateCcw },
     { key: 'startover', label: 'Start over', sub: 'Clear the projects', about: 'Delete every project, estimate, client and task at once. The team, logins, items and settings stay.', icon: Trash2 },
   ] },
@@ -117,6 +119,7 @@ export function SettingsPage() {
           {tab === 'connections' && <ConnectionsTab />}
           {tab === 'email' && <EmailTab />}
           {tab === 'practice' && <div className="flex flex-col gap-6">{REAL.cloud && REAL.admin && <SampleCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+          {tab === 'bringin' && <BringInTab />}
           {tab === 'startover' && <StartOverCard />}
         </div>
       </div>
@@ -495,10 +498,11 @@ export function AddPersonModal({ level }: { level: number }) {
 }
 
 /* ================= who does what: the steps every project goes through, by part ================= */
-/* The same parts as on a project — Design, Tile, Site, Installer, Materials — each with its steps in order. Every step
- * is someone's: pick who. Rename one (the new name shows everywhere), turn one off (it's off every project), or add your
- * own under the part it belongs to. One place for all of it. */
-const PART_GROUP: Record<string, string> = { scope: 'design', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials' }
+/* The same things as on a project, in the same order — Estimate, Tile paperwork, Design meeting, Site check, Installer,
+ * Setting materials, Tile delivery — each with its steps in order. Every step is someone's: pick who. Rename one (the
+ * new name shows everywhere), turn one off (it's off every project), or add your own under the one it belongs to. One
+ * place for all of it. */
+const PART_GROUP: Record<string, string> = { estimate: 'estimate', scope: 'design', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials', delivery: 'delivery' }
 function ChecklistTab() {
   const s = useStore()
   const steps = companySteps(s)
@@ -509,6 +513,10 @@ function ChecklistTab() {
   return (
     <div className="flex flex-col gap-4" data-steps-settings>
       <EstimateSteps />
+      <div className="mt-2 px-1" data-ready-head>
+        <h3 className="text-[1.0625rem] font-semibold text-ink">Getting a project ready</h3>
+        <p className="mt-0.5 text-[0.84375rem] text-muted">The same things, in the same order, as on every project. Pick who does each step — or turn off one you don’t do (···).</p>
+      </div>
       {parts.map((p) => <PartSteps key={p.key} part={p.key} label={p.label} list={p.list} all={steps} />)}
     </div>
   )
@@ -683,8 +691,9 @@ function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[
   const [name, setName] = React.useState(d.short)
   const nameOf = (x: StepDef) => (x.named ? x.short : STEP_SHORT[x.key] || x.short)
   const shown = nameOf(d)
-  const after = (d.after || []).map((k) => all.find((x) => x.key === k)).filter(Boolean).map((x) => nameOf(x!).toLowerCase())
-  const next = all.filter((x) => !x.off && (x.after || []).includes(d.key)).map((x) => nameOf(x).toLowerCase())
+  const low = (t: string) => t.toLowerCase().replace(/\bpo\b/g, 'PO')
+  const after = (d.after || []).map((k) => all.find((x) => x.key === k)).filter(Boolean).map((x) => low(nameOf(x!)))
+  const next = all.filter((x) => !x.off && (x.after || []).includes(d.key)).map((x) => low(nameOf(x)))
   const save = () => { if (name.trim() && name.trim() !== shown) renameCompanyStep(d.key, name.trim()); setEditing(false) }
   if (editing) {
     return (
@@ -1096,6 +1105,35 @@ function DecStepper({ value, step, min, max, onChange }: { value: number; step: 
       <button aria-label="Less" className="h-full w-9 rounded-l-lg text-[1rem] text-ink-2 hover:bg-wash disabled:opacity-40" disabled={value <= min} onClick={() => onChange(Math.max(min, r(value - step)))}>−</button>
       <span className="min-w-[3rem] text-center text-[0.875rem] font-semibold tnum text-ink">{r(value)}</span>
       <button aria-label="More" className="h-full w-9 rounded-r-lg text-[1rem] text-ink-2 hover:bg-wash disabled:opacity-40" disabled={value >= max} onClick={() => onChange(Math.min(max, r(value + step)))}>+</button>
+    </div>
+  )
+}
+
+/** bringing in the projects that were going before Tile OS, and going through them — one-time work, kept here rather
+ *  than on Projects every day */
+function BringInTab() {
+  const s = useStore()
+  const waiting = catchUpList(s).length
+  const open = allOpenList(s).length
+  const row = (icon: React.ReactNode, title: string, sub: string, button: React.ReactNode, data: string) => (
+    <Card>
+      <div className="flex items-start gap-4 p-5 max-sm:flex-wrap" data-bring={data}>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2 [&_svg]:h-5 [&_svg]:w-5">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-semibold text-ink">{title}</div>
+          <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">{sub}</div>
+        </div>
+        <span className="shrink-0 max-sm:w-full max-sm:[&>*]:w-full">{button}</span>
+      </div>
+    </Card>
+  )
+  return (
+    <div className="flex flex-col gap-4">
+      {row(<Upload />, 'Bring in projects', 'The ones already going — from their estimates, a stack at once. Each comes in with its rooms; you set the rest when you go through them.',
+        <Button variant="primary" icon={<Upload />} onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button>, 'bringin')}
+      {row(<ListChecks />, 'Go through projects', waiting ? `${waiting} ${waiting === 1 ? 'project came' : 'projects came'} in without where ${waiting === 1 ? 'it’s' : 'they’re'} up to — one at a time: the client, where it stands, what’s done already, who’s on it.` : `Every open project (${open}), one at a time: the client, where it stands, what’s done already, who’s on it. The ones nobody went through come first.`,
+        /* every open project — the ones nobody went through yet on top */
+        <Button variant={waiting ? 'primary' : undefined} icon={<ListChecks />} onClick={() => s.open({ t: 'catchup', all: true })} data-open-goall>Go through projects</Button>, 'goall')}
     </div>
   )
 }

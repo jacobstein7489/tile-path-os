@@ -79,7 +79,7 @@ type Hits = ReturnType<typeof scopeMatches>
 const IN_FIELD_ = ['installation', 'punch', 'closeout', 'complete']
 /** no rooms yet (a project made here, not from an approved estimate): set the scope up right here — its estimate (the
  *  rooms, walls and floors read from it by themselves), or a room at a time by hand */
-export function ScopeStart({ job }: { job: Job }) {
+export function ScopeStart({ job, bare }: { job: Job; /** just the buttons — where what it's for is said already (the estimate step) */ bare?: boolean }) {
   const s = useStore()
   const can = scopeLock(s, job.id).canEdit
   const file = React.useRef<HTMLInputElement>(null)
@@ -89,6 +89,18 @@ export function ScopeStart({ job }: { job: Job }) {
     setNow('reading')
     void estimateInto(job.id, f).then(() => setNow(''), () => setNow('bad'))
   }
+  if (bare) return (
+    <div data-scope-start data-bare>
+      {can ? (
+        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
+          <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
+          <Button variant="primary" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Upload the estimate'}</Button>
+          <AddRoomButton jobId={job.id} have={(s.rooms[job.id] || []).map((r) => r.name)} label="Add a room by hand" />
+        </div>
+      ) : <div className="text-[0.84375rem] text-muted">{PEOPLE[scopeLock(s, job.id).owner]?.short || 'The office'} adds it.</div>}
+      {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
+    </div>
+  )
   return (
     <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-5 py-4 max-sm:px-4" data-scope-start>
       <div className="text-[0.9375rem] font-semibold text-ink">No rooms yet</div>

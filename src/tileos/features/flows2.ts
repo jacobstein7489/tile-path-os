@@ -262,6 +262,15 @@ export function pickInstaller(jobId: string, crew: PersonKey | 'tbd') {
   }, `${PEOPLE[crew].name} picked — his PO is drafted for you to approve`)
   if (id) S().open({ t: 'ipo', id })
 }
+/** the installer penciled in before his PO can be made (no estimate yet — the PO is made from it): he's the one, and
+ *  his PO follows the estimate */
+export function pencilInstaller(jobId: string, crew: PersonKey) {
+  if (!S().jobs[jobId]) return
+  S().commit((s) => {
+    s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: crew }
+    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer penciled in · ${PEOPLE[crew].name}`, detail: 'His PO once the estimate is in' })
+  }, `${PEOPLE[crew].short} penciled in`, { sub: 'His PO is made once the estimate is in.' })
+}
 /** book the installer: his PO (lines from the project scope) is created and sent to him in one step.
  *  It shows in Purchase orders and on the project; he accepts or turns it down. */
 export function bookInstaller(jobId: string, crew: PersonKey, o: { send: boolean; note?: string } = { send: true }) {
