@@ -1,19 +1,24 @@
 /* The same kind of thing many times, in one window — its row on Today is one line (see collapse in mytasks).
  *   Daily updates: every job a crew is on today, sent or not. Tap one: its update (it opens over this list and comes
  *     back here once it's sent). The row stays on Today until every one is sent.
- *   Things to bring: every pickup for the jobs, by project — On my way / Dropped off right on each line. */
+ *   Things to bring: every pickup for the jobs, by project — On my way / Dropped off right on each line.
+ *   The same step on many projects (get the tile paperwork from the store): the projects down the left, the one picked
+ *     open on the right, done right there. */
 import * as React from 'react'
-import { Check, PackageCheck, Truck } from 'lucide-react'
+import { Check, ChevronLeft, PackageCheck, Truck } from 'lucide-react'
 import { useStore, meOf, isRequest } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { BAND_STRONG, bandStyle, bandLabel } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, type PersonKey } from '@/tileos/data/model'
+import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { md, TODAY } from '@/tileos/lib/today'
 import type { Task } from '@/tileos/data/work'
 import { dailyDue, taskIso } from './mytasks'
-import { siteOf, realOwner } from './steps'
+import { siteOf, realOwner, stepsFor, type StepView } from './steps'
+import { StepIcon, stepWords } from './steps-ui'
+import { StepInline, todoOf } from './stepwin'
+import { useSmall } from '@/tileos/lib/phone'
 import { TripButtons } from './requests'
 
 
@@ -114,6 +119,51 @@ export function TripsModal({ who, day, level }: { who?: PersonKey; day?: string;
           </section>
         ))}
         {!list.length && <div className="px-6 py-10 text-center text-[0.875rem] text-muted">Nothing to bring.</div>}
+      </div>
+    </Modal>
+  )
+}
+
+/** the same step on many projects — the projects down the left (each: where it's at), the one picked open on the right,
+ *  done right there. It opens on the first that isn't done. A phone: that project's step, with "All N projects" over it */
+const STAY = () => {}
+export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; level: number }) {
+  const s = useStore()
+  const small = useSmall()
+  const me = meOf(s.role)
+  const items = jobs.map((id) => { const job = s.jobs[id]; const v = job ? stepsFor(s, job).find((x) => x.key === k) : undefined; return job && v ? { job, v } : null }).filter((x): x is { job: Job; v: StepView } => !!x)
+  const [at, setAt] = React.useState(() => items.find((x) => x.v.state !== 'done' && x.v.state !== 'na')?.job.id || items[0]?.job.id || '')
+  const [picking, setPicking] = React.useState(false)
+  if (!items.length) return null
+  const cur = items.find((x) => x.job.id === at) || items[0]
+  const doneN = items.filter((x) => x.v.state === 'done' || x.v.state === 'na').length
+  return (
+    <Modal level={level} size="lg" onClose={s.close} title={todoOf(items[0].v)} sub={`${items.length} projects · ${doneN} done`} bodyClass="p-0">
+      <div className="grid md:grid-cols-[17.5rem_minmax(0,1fr)]" data-step-batch={k}>
+        {(!small || picking) && (
+          <nav className="border-line py-2 md:border-r" aria-label="The projects" data-batch-list>
+            {items.map((x) => {
+              const on = !small && x.job.id === cur.job.id
+              const w = stepWords(s, x.job, x.v, me)
+              return (
+                <button key={x.job.id} type="button" onClick={() => { setAt(x.job.id); setPicking(false) }} data-batch-job={x.job.id} data-state={x.v.state} {...(on ? { 'data-on': '' } : {})} className={cn('flex min-h-12 w-full min-w-0 items-start gap-3 border-l-[0.1875rem] px-4 py-2.5 text-left transition', on ? 'border-brand-500 bg-brand-50/70' : 'border-transparent hover:bg-wash')}>
+                  <span className="mt-0.5 shrink-0"><StepIcon state={x.v.state} size={18} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.9375rem] font-semibold leading-snug text-ink">{x.job.name}</span>
+                    <span className={cn('block truncate text-[0.8125rem] leading-snug', w.tone)}>{w.text}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        )}
+        {(!small || !picking) && (
+          <div className="min-w-0 px-6 pb-6 pt-5 max-sm:px-4 max-sm:pt-3" data-batch-open={cur.job.id}>
+            {small && <button type="button" onClick={() => setPicking(true)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-[0.875rem] font-semibold text-brand-700" data-batch-all><ChevronLeft className="h-4 w-4" />All {items.length} projects</button>}
+            <h3 className="mb-3 text-[1.0625rem] font-semibold leading-snug text-ink" data-batch-name>{cur.job.name}</h3>
+            <StepInline key={cur.job.id + ':' + k} job={cur.job} v={cur.v} onClose={STAY} />
+          </div>
+        )}
       </div>
     </Modal>
   )

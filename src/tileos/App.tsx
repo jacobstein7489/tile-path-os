@@ -77,7 +77,7 @@ import { OfflineBar, PullToRefresh, QuietTyping } from '@/tileos/components/shel
 import { CommissionsPage, CommissionModal, ClientSalesModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
 import { TileInModal } from './features/tilein'
 import { RoundsModal, ClipsUploader } from './features/rounds'
-import { DailiesModal, TripsModal } from './features/batches'
+import { DailiesModal, TripsModal, StepBatchModal } from './features/batches'
 import { PartModal } from './features/job/standing'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
@@ -124,6 +124,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'rounds': return <RoundsModal level={level} />
     case 'dailies': return <DailiesModal who={m.who} level={level} />
     case 'trips': return <TripsModal who={m.who} day={m.day} level={level} />
+    case 'stepbatch': return <StepBatchModal k={m.k} jobs={m.jobs || []} level={level} />
     case 'part': return <PartModal jobId={m.jobId} track={m.track} level={level} />
     case 'activity': return <ActivityModal entry={m.entry} jobId={m.jobId} level={level} />
     case 'money': {

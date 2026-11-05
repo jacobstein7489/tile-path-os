@@ -177,7 +177,8 @@ function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
       {!inJob && <span>Project</span>}
       <span>What</span>
       {who && <span>Whose</span>}
-      <span className="text-right">Next</span>
+      {/* the end of the row: its day or time — no buttons, so no name over it */}
+      <span aria-hidden />
     </div>
   )
 }
@@ -228,9 +229,11 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       </div>
       {who && <span className="flex min-w-0 items-center gap-2 max-md:hidden">{owner && PEOPLE[owner] ? <><Avatar who={owner} size={20} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-medium text-ink' : 'text-ink-2')}>{ownerName}</span></> : null}</span>}
       {quiet && <span className="sr-only">{quiet}</span>}
-      <div className={NEXT_CELL} onClick={(e) => e.stopPropagation()} data-todo-next>
+      {/* a computer: no button — the row itself does what's next (one less thing on the screen); its day or time, and a
+          quiet arrow. A row that doesn't open anything keeps its button */}
+      <div className={NEXT_CELL} onClick={onClick ? undefined : (e) => e.stopPropagation()} data-todo-next>
         {w && <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span>}
-        {action}
+        {onClick ? <ChevronRight className="h-4 w-4 shrink-0 text-faint" aria-hidden data-todo-go /> : action}
       </div>
     </div>
   )
@@ -342,6 +345,25 @@ function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       when={missed ? `${missed} late` : 'End of day'}
       whenTone={missed ? 'bad' : 'strong'}
       action={<Button size="sm" className={TBTN} onClick={open} data-dailies-open>Send updates</Button>}
+    />
+  )
+}
+/** the same step on many projects, one row: what it is, how many projects — tap it: every project in one window, the
+ *  step done right there on each */
+function StepsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
+  const s = useStore()
+  const vs = x.vs || []
+  const open = () => s.open({ t: 'stepbatch', k: vs[0]?.v.key, jobs: vs.map((y) => y.job.id) })
+  return (
+    <TodoRow
+      onClick={open}
+      title={vs[0] ? todoOf(vs[0].v) : ''}
+      detail={vs.map((y) => y.job.name).join(' · ')}
+      owner={showOwner ? x.who : undefined}
+      project={`${vs.length} projects`}
+      when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
+      whenTone={x.b === 'overdue' ? 'bad' : undefined}
+      action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
     />
   )
 }
@@ -505,7 +527,7 @@ export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
 const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
 
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
-export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin' | 'dailies' | 'trips'; t?: Task; d?: DailyItem; /** one row for many: the day's daily updates */ ds?: DailyItem[]; /** one row for many: what to bring to the jobs */ ts?: Task[]; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
+export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin' | 'dailies' | 'trips' | 'steps'; t?: Task; d?: DailyItem; /** one row for many: the day's daily updates */ ds?: DailyItem[]; /** one row for many: what to bring to the jobs */ ts?: Task[]; /** one row for many: the same step on many projects */ vs?: { job: Job; v: StepView }[]; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
 const AHEAD = 21
 /** everything that's mine: tasks, the daily updates I send, the pay week, my meetings, checklist steps that are my turn */
 export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateItem[] {
@@ -566,19 +588,23 @@ function teamPlate(s: Store): PlateItem[] {
   s.events.filter((e) => e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
   return sortPlate(Array.from(seen.values()))
 }
-/* The same kind of thing many times is one row: the day's daily updates (one row, every job in it), and what's to be
- * brought to the jobs (one row, every pickup in it) — each person's own. Tap it: the whole list, each one done right
- * there. The row stays until every one in it is done. One alone stays its own row; an urgent one stays its own row. */
+/* The same kind of thing many times is one row: the day's daily updates (one row, every job in it), what's to be
+ * brought to the jobs (one row, every pickup in it), and the same step on many projects (get the tile paperwork from
+ * the store — one row, every project in it) — each person's own. Tap it: the whole list, each one done right there.
+ * The row stays until every one in it is done. One alone stays its own row; an urgent one, or a problem, too. */
 const BUCKET_ORDER: Bucket[] = ['overdue', 'today', 'tomorrow', 'week', 'later', 'aside']
 export function collapse(items: PlateItem[]): PlateItem[] {
   const out: PlateItem[] = []
   const dailies = new Map<string, PlateItem[]>()
   const trips = new Map<string, PlateItem[]>()
+  const steps = new Map<string, PlateItem[]>()
   const add = (m: Map<string, PlateItem[]>, k: string, x: PlateItem) => m.set(k, [...(m.get(k) || []), x])
   items.forEach((x) => {
     if (x.kind === 'daily') return add(dailies, x.who || '', x)
     /* what's to be brought — today's (and late) together; a day ahead stays with that day */
     if (x.kind === 'task' && x.t && isRequest(x.t) && x.t.state === 'now' && !x.t.urgent) return add(trips, `${x.who || x.t.owner}|${isNow(x.b) ? 'now' : x.b}`, x)
+    /* the same step on many projects — a problem stays its own row */
+    if (x.kind === 'step' && x.v && x.job && x.v.state !== 'bad') return add(steps, `${x.who || x.v.owner}|${x.v.key}|${isNow(x.b) ? 'now' : x.b}`, x)
     out.push(x)
   })
   const first = (xs: PlateItem[]) => xs.reduce((a, x) => (BUCKET_ORDER.indexOf(x.b) < BUCKET_ORDER.indexOf(a.b) || (x.b === a.b && (x.iso || '9') < (a.iso || '9')) ? x : a))
@@ -592,6 +618,11 @@ export function collapse(items: PlateItem[]): PlateItem[] {
     const f = first(xs)
     out.push({ key: 'trips:' + k, b: f.b, iso: f.iso, time: null, kind: 'trips', who: f.who, ts: xs.map((x) => x.t!) })
   })
+  steps.forEach((xs, k) => {
+    if (xs.length < 2) return out.push(...xs)
+    const f = first(xs)
+    out.push({ key: 'steps:' + k, b: f.b, iso: f.iso, time: null, kind: 'steps', who: f.who, vs: xs.map((x) => ({ job: x.job!, v: x.v! })) })
+  })
   return sortPlate(out)
 }
 /** the number on Today in the menu: what's due today or late — the same number the page shows */
@@ -602,6 +633,7 @@ function PlateRow({ x, showOwner, followed, overdue }: { x: PlateItem; showOwner
   if (x.kind === 'daily') return <DailyRow d={x.d!} showOwner={showOwner} />
   if (x.kind === 'dailies') return <DailiesRow x={x} showOwner={showOwner} />
   if (x.kind === 'trips') return <TripsRow x={x} showOwner={showOwner} />
+  if (x.kind === 'steps') return <StepsRow x={x} showOwner={showOwner} />
   if (x.kind === 'crew') return <CrewRow />
   if (x.kind === 'rounds') return <RoundsRow />
   if (x.kind === 'pay') return <PayRow />
@@ -766,7 +798,7 @@ export function MyTasksPage() {
 
   /* by project: one section per job — what to check, do, hand over or record there, whatever day it's on */
   const manyJob = (ids: string[]) => { const u = Array.from(new Set(ids)); return u.length === 1 ? u[0] : '*' }
-  const jobOfItem = (x: PlateItem) => (x.ds ? manyJob(x.ds.map((d) => d.jobId)) : x.ts ? manyJob(x.ts.map((t) => t.jobId)) : x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || '')
+  const jobOfItem = (x: PlateItem) => (x.ds ? manyJob(x.ds.map((d) => d.jobId)) : x.ts ? manyJob(x.ts.map((t) => t.jobId)) : x.vs ? manyJob(x.vs.map((y) => y.job.id)) : x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || '')
   const byProject = (items: PlateItem[], tasksOnly?: Task[]) => {
     const keyOf = (id: string) => (id === '*' ? '' : id && s.jobs[id] ? s.jobs[id].name : '\uffff')
     const ids = Array.from(new Set(tasksOnly ? tasksOnly.map((t) => t.jobId || '') : items.map(jobOfItem))).sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
