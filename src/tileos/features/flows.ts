@@ -1,7 +1,7 @@
 /* Every "button that does something" lives here.
  * Each flow records the event once and routes the consequences:
  * stage, tasks for the right people, money, materials, schedule, and history. */
-import { toast } from '@/tileos/lib/pop'
+import { toast, showPop } from '@/tileos/lib/pop'
 import { isoOfDay, parseTime } from '@/tileos/data/calendar'
 import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
 import type { PersonKey, Stage, SwatchKey, Role, Member } from '@/tileos/data/model'
@@ -705,6 +705,45 @@ function enoughTile(s: Store, jobId: string, tags: string[]): { tag: string; sho
     addHist(s, jobId, { who: me(), kind: 'material', title: `${tag}: ${short} ${c.unit} short`, detail: `Found when it came in — the rooms need ${need} ${c.unit} with the extra` })
   })
   return out
+}
+/** the tile came in, counted in boxes on site: how many boxes of each, and what's in a box (asked once per tile, then
+ *  kept with it). Boxes become square feet; each tile is checked in — the GC's tile that Tile OS never saw ordered
+ *  too — and checked against what its walls and floors need, with the extra. Short: said right away, and Order more
+ *  tile is on the Today of whoever orders the tile, with the difference filled in. */
+export function receiveBoxes(jobId: string, rows: { tag: string; boxes: number; boxSF?: number }[]) {
+  const got = rows.filter((r) => r.boxes > 0)
+  if (!got.length) return
+  let short: { tag: string; short: number; unit: string }[] = []
+  const said: string[] = []
+  S().commit((s) => {
+    got.forEach((r) => {
+      const t = s.tiles[jobId]?.[r.tag]
+      if (t && r.boxSF && t.boxSF !== r.boxSF) t.boxSF = r.boxSF
+      const per = r.boxSF || t?.boxSF
+      let c = s.checks.find((x) => x.jobId === jobId && x.tag === r.tag)
+      if (!c) {
+        /* nothing ordered through Tile OS (the GC bought it): it's here now — that's what's counted */
+        const on = (s.rooms[jobId] || []).flatMap((rm) => rm.surfaces.filter((x) => x.tile === r.tag).map((x) => `${rm.name} ${x.name.toLowerCase()}`))
+        s.checks.push({ jobId, tag: r.tag, where: on.join(' · '), unit: per ? 'SF' : 'boxes', measured: 0, wastePct: 0, ordered: 0, received: 0, supplier: t?.supplier || '', suppliedBy: t?.suppliedBy || 'GC' })
+        c = s.checks[s.checks.length - 1]
+      }
+      const qty = /box/i.test(c.unit) ? r.boxes : per ? Math.round(r.boxes * per) : 0
+      if (!qty) return
+      /* more than was on order came (or nothing was): what came is what's ordered */
+      if (c.received + qty > c.ordered) c.ordered = c.received + qty
+      takeIn(s, jobId, r.tag, qty)
+      said.push(`${r.tag}: ${r.boxes} ${r.boxes === 1 ? 'box' : 'boxes'}${per && !/box/i.test(c.unit) ? ` · ${qty.toLocaleString('en-US')} SF` : ''}`)
+    })
+    short = enoughTile(s, jobId, got.map((r) => r.tag))
+  })
+  /* one pop-up, said after it's counted: what came, what's still to come, and anything short — with Undo */
+  const s1 = S()
+  const undo = () => S().undo()
+  const left = got.map((r) => { const c = s1.checks.find((x) => x.jobId === jobId && x.tag === r.tag); return c && c.ordered > c.received ? `${r.tag}: ${(c.ordered - c.received).toLocaleString('en-US')} ${c.unit} still to come` : '' }).filter(Boolean)
+  const known = got.every((r) => { const c = s1.checks.find((x) => x.jobId === jobId && x.tag === r.tag); return !!c && needOf(s1, jobId, c) != null })
+  if (short.length) showPop({ title: `${short.map((x) => `${x.tag} is ${x.short.toLocaleString('en-US')} ${x.unit} short`).join(' · ')} of what ${short.length > 1 ? 'their' : 'its'} walls and floors need`, sub: 'Order more tile is on the Today of whoever orders the tile — the difference filled in.', tone: 'warn', undo })
+  else showPop({ title: 'Tile checked in', sub: [said.join(' · '), left.length ? left.join(' · ') : known ? 'Enough for every wall and floor it goes on' : ''].filter(Boolean).join(' — '), undo })
+  S().close()
 }
 /** one tile came in (part of it is fine — the rest stays to come) */
 export function receiveTile(jobId: string, tag: string, qty: number) {

@@ -411,10 +411,14 @@ export function sendCrewReport(taskId: string | undefined, rows: { jobId: string
   S().commit((s) => {
     rows.forEach((r) => {
       const b = s.bookings.find((x) => x.jobId === r.jobId && x.crew === r.crew)
-      if (b) b.workers = r.workers
-      addHist(s, r.jobId, { who: me(), kind: 'field', title: `Crew report · ${PEOPLE[r.crew].name}’s crew, ${r.workers} ${r.workers === 1 ? 'person' : 'people'} · ${s.jobs[r.jobId]?.pct ?? 0}%`, detail: r.note || undefined })
+      if (b && r.workers > 0) b.workers = r.workers
+      /* on the project: who's there today and how many — the office sees it, and tomorrow's starts from it */
+      const j = s.jobs[r.jobId]
+      if (j) j.onSite = { day: TODAY, crew: r.crew, workers: r.workers, by: me() }
+      addHist(s, r.jobId, { who: me(), kind: 'field', title: r.workers ? `Crew report · ${PEOPLE[r.crew]?.name || 'the crew'}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'} on site` : 'Crew report · nobody on site today', detail: r.note || undefined })
     })
-    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crew report from ${PEOPLE[me()].short} — ${rows.length} jobs, ${people} people`, when: 'Just now', kind: 'field', unread: true })
+    const on = rows.filter((r) => r.workers > 0)
+    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crews today, from ${PEOPLE[me()].short}: ${on.map((r) => `${s.jobs[r.jobId]?.name} ${r.workers}`).join(' · ') || 'nobody on site'} — ${people} people`, when: 'Just now', kind: 'field', unread: true })
     const t = taskId ? s.tasks.find((x) => x.id === taskId) : s.tasks.find((x) => x.action?.kind === 'crewreport' && x.state === 'now')
     if (t) {
       t.state = 'done'
@@ -422,7 +426,7 @@ export function sendCrewReport(taskId: string | undefined, rows: { jobId: string
       t.log.push(L(me(), `Sent — ${rows.length} jobs, ${people} people`))
       if (t.repeat) repeatTask(s, t)
     }
-  }, `Report sent — ${rows.length} jobs, ${people} people`)
+  }, `Sent — ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: 'The office has it.' })
 }
 
 export function estFollowUp(estId: string, o: { how: string; outcome: string; next: string }) {

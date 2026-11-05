@@ -35,6 +35,11 @@ export function Modal({
   className?: string
 }) {
   const z = 60 + level * 4
+  /* a phone shows the window's name on its top bar only once the window's own header has scrolled away — never the
+     name twice on the screen */
+  const headRef = React.useRef<HTMLDivElement>(null)
+  const [past, setPast] = React.useState(false)
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => { const p = e.currentTarget.scrollTop > Math.max(32, (headRef.current?.offsetHeight || 0) - 24); if (p !== past) setPast(p) }
   return (
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
@@ -69,12 +74,12 @@ export function Modal({
                   <CloseButton onClick={onClose} />
                 </div>
                 <div className={cn('hidden shrink-0 items-center gap-3 border-b border-line-2 bg-white pb-2 pl-4 pr-3 pt-2 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
-                  <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{tall && typeof title === 'string' ? title : ''}</span>
+                  <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink transition-opacity duration-150', !past && 'opacity-0')} aria-hidden={!past} data-phone-bar-title>{tall && typeof title === 'string' ? title : ''}</span>
                   <CloseButton onClick={onClose} />
                 </div>
                 <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Details'}</Dialog.Title>
-                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE}>
-                  <div className="shrink-0">{header}</div>
+                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE} onScroll={tall ? onScroll : undefined}>
+                  <div className="shrink-0" ref={headRef}>{header}</div>
                   <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto max-sm:flex-none max-sm:overflow-visible', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')}>{children}</div>
                 </div>
               </>

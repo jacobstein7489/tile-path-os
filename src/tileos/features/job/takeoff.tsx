@@ -5,7 +5,7 @@
  *   Our materials: what we buy for the job — thinset, grout, boards, membranes, metal edges — worked out from the square
  *     feet and what each wall and floor is set on. Tap one to see how it was worked out. */
 import * as React from 'react'
-import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search } from 'lucide-react'
+import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search, Truck } from 'lucide-react'
 import { logTileOrder } from '../flows2'
 import { useStore } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -46,7 +46,7 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
     <Section
       title="Tile selection"
       count={all.length}
-      action={(all.length > 6 || !simple) ? (
+      action={all.length > 0 || !simple ? (
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           {all.length > 6 && (
             <label className="relative block w-[15rem] max-sm:order-last max-sm:w-full">
@@ -56,6 +56,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
           )}
           {/* a tile order — or our call for the client's tile to be delivered — with its own number */}
           {/* the same as Our materials: one blue button for what you do most, the other one white */}
+          {/* the tile came: count the boxes — everyone who takes deliveries */}
+          {all.length > 0 && <Button size="sm" variant={simple ? 'primary' : undefined} icon={<Truck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })} data-tile-in>Tile came in</Button>}
           {!simple && all.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more tile</Button>}
           {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })} data-tile-po-new>Tile PO</Button>}
           {/* a tile by hand — no paperwork needed: its name, size, store; then it can be ordered like any other */}
@@ -78,7 +80,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
           const boxes = t?.boxSF && unit === 'SF' ? Math.ceil(need / t.boxSF) : 0
           /* the site manager only checks deliveries in — ordering and settling quantities are the office's */
           const action = !c
-            ? sf > 0 && !simple ? { label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) } : null
+            ? sf > 0 && !simple ? { label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) }
+              : simple ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
             : short && !simple ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag }) }
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (

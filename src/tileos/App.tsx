@@ -7,7 +7,7 @@ import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
-import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal } from '@/tileos/features/mytasks'
+import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher } from '@/tileos/features/mytasks'
 import { InboxPage } from '@/tileos/features/inbox'
 import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
@@ -75,6 +75,7 @@ import { watchKeyboard } from '@/tileos/lib/viewport'
 import { noAutofill } from '@/tileos/lib/noautofill'
 import { OfflineBar, PullToRefresh, QuietTyping } from '@/tileos/components/shell/device-ui'
 import { CommissionsPage, CommissionModal, ClientSalesModal, SalesPeopleModal, CommissionRateModal } from '@/tileos/features/commissions'
+import { TileInModal } from './features/tilein'
 
 function ModalSwitch({ m, level }: { m: any; level: number }) {
   switch (m.t) {
@@ -195,7 +196,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'thinset': return <ThinsetModal level={level} />
     case 'qty': return <QtyModal jobId={m.jobId} tag={m.tag} level={level} />
     case 'receive': return <ReceiveModal matId={m.matId} level={level} />
-    case 'receivetile': return <ReceiveTileModal jobId={m.jobId} tag={m.tag} level={level} />
+    case 'receivetile': return <TileInModal jobId={m.jobId} tag={m.tag} level={level} />
     case 'verify': return <VerifyModal taskId={m.taskId} level={level} />
     case 'roles': return <RolesModal level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
@@ -296,6 +297,7 @@ export default function App() {
           <BottomNav />
           <IncomingWatcher />
           <AppBadge />
+          <CrewWatcher />
           <LateWatcher />
         </div>
       )}

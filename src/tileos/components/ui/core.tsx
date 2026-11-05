@@ -350,11 +350,27 @@ export function TextArea({ mic = true, ...props }: React.TextareaHTMLAttributes<
   return <span className="relative block w-full">{box}<Mic size="sm" onText={(t) => sayInto(props.onChange, props.value, t)} className="absolute bottom-2.5 right-2" /></span>
 }
 
-export function Stepper({ value, onChange, min = 0, max = 99, suffix, big }: { value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string; /** a thumb-sized one, for the phone */ big?: boolean }) {
+export function Stepper({ value, onChange, min = 0, max = 99, suffix, big, typed }: { value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string; /** a thumb-sized one, for the phone */ big?: boolean; /** the number can be typed in too — for counts that run high (40 boxes is one tap and two digits, not 40 taps) */ typed?: boolean }) {
   return (
     <div className={cn('inline-flex items-center rounded-lg border border-line bg-white', big ? 'h-14 w-full justify-between rounded-xl' : 'h-10')} data-stepper>
       <button type="button" aria-label="One less" className={cn('h-full rounded-l-lg text-ink-2 hover:bg-wash', big ? 'w-16 rounded-l-xl text-[1.625rem] active:bg-wash-2' : 'w-10 text-[1.0625rem]')} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
-      <span className={cn('text-center font-medium tnum text-ink', big ? 'flex-1 text-[1.125rem] font-semibold' : 'min-w-[4.25rem] text-[0.90625rem]')}>{value}{suffix ? ' ' + suffix : ''}</span>
+      {typed ? (
+        /* the number and its word the same size — a phone types in 16px (so it doesn't zoom), the word matches it */
+        <label className={cn('flex h-full cursor-text items-center justify-center gap-1 font-medium tnum text-ink', big ? 'flex-1 text-[1rem] font-semibold' : 'min-w-[5.5rem] text-[0.90625rem]')}>
+          <input
+            inputMode="numeric"
+            value={String(value)}
+            onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => { const n = Number(e.target.value.replace(/[^\d]/g, '').slice(0, 4) || 0); onChange(Math.max(min, Math.min(max, n))) }}
+            aria-label={suffix ? `How many ${suffix}` : 'How many'}
+            className={cn('h-full min-w-0 bg-transparent text-right tnum text-ink outline-none', big ? 'w-14' : 'w-9')}
+            data-stepper-n
+          />
+          {suffix && <span className="text-left">{suffix}</span>}
+        </label>
+      ) : (
+        <span className={cn('text-center font-medium tnum text-ink', big ? 'flex-1 text-[1.125rem] font-semibold' : 'min-w-[4.25rem] text-[0.90625rem]')}>{value}{suffix ? ' ' + suffix : ''}</span>
+      )}
       <button type="button" aria-label="One more" className={cn('h-full rounded-r-lg text-ink-2 hover:bg-wash', big ? 'w-16 rounded-r-xl text-[1.625rem] active:bg-wash-2' : 'w-10 text-[1.0625rem]')} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
     </div>
   )

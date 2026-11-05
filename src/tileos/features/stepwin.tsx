@@ -16,7 +16,7 @@ import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { GROUTS, JOINTS, byTag, type Tile, type Surface } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, byTag, tilesOf, type Tile, type Surface } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
@@ -1786,7 +1786,10 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
       <Actions>
         <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
         {v.due && v.state !== 'wait' && <TileNotYet job={job} />}
-        <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); (host || s).close() }}>All of it is here</Button>
+        {/* the tile on the project is known: count the boxes (it says what that is, and anything short) */}
+        {tilesOf(job.id).length
+          ? <Button variant="primary" icon={<PackageCheck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })} data-step-tilein>Check it in</Button>
+          : <Button variant="primary" icon={<PackageCheck />} onClick={() => { checkInTile(job.id); (host || s).close() }}>All of it is here</Button>}
       </Actions>
     </div>
   )
