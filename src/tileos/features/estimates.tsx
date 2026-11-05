@@ -11,7 +11,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, EVEN, evenVars, ROW_H, type CircleState } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, type CircleState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -142,7 +142,7 @@ export function EstimatesPage() {
         </>
       }
     >
-      <div style={{ ...EST_WIDE, '--n': 3, '--n-lg': 4 } as React.CSSProperties} data-even-list>
+      <div style={{ '--n': 3, '--n-lg': 4 } as React.CSSProperties} data-even-list>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
           (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
@@ -175,9 +175,9 @@ export function EstimatesPage() {
 /* One line per estimate, four things, no lines between them: Estimate · Whose turn · Date · Amount. No status column
    and no "next" — the group it's under says where it is, and whose turn it is says who moves it (what they do is
    inside, and when you point at the row). On a phone: the name and the amount, then whose turn and the date. */
-const EST_COLS = cn('grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_8rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7rem] max-md:block', EVEN)
+/** Estimate · Whose turn · Date · Amount — the four share the width evenly (on a smaller screen, without the date) */
+const EST_COLS = 'grid items-center gap-x-6 max-md:block'
 /** on a wide screen: Estimate · Whose turn · Date · Amount, each with its room and the rest shared evenly */
-const EST_WIDE = evenVars([14, 11, 8, 6], { fixedLast: true })
 function EstHead() {
   return (
     <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
@@ -389,6 +389,8 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
             <Menu align="end" width={250} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
               <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => setPanel({ t: 'log' })}>What happened</MenuItem>
+              {/* the client said yes before it went through every step here (or while it's being revised): make it a project */}
+              {['estimating', 'revision'].includes(st) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project — pick the revision they approved" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>The client approved it</MenuItem>}
               {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
               {PRICING_STAGES.includes(j.stage) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Building2 className="h-4 w-4" />} hint="Same job, two names? Put it on the project" onSelect={() => setPanel({ t: 'same' })}>It’s for a project we have…</MenuItem>}
               <MenuSep />

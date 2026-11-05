@@ -181,7 +181,7 @@ export function RoundsModal({ level }: { level: number }) {
       footer={
         left.length ? (
           <a href={route} target="_blank" rel="noopener noreferrer" className={cn(btnClass('primary', 'md'), 'ml-auto gap-2', small && 'h-12 flex-1 text-[1rem]')} data-rounds-start>
-            <Navigation className="h-[1.125rem] w-[1.125rem]" />{left.length > 10 ? 'Start · the first 10 in Google Maps' : 'Start in Google Maps'}
+            <Navigation className="h-[1.125rem] w-[1.125rem]" />{left.length > 10 ? 'Start in Google Maps · stops 1–10' : 'Start in Google Maps'}
           </a>
         ) : (
           <Button className={cn('ml-auto', small && 'h-12 flex-1 text-[1rem]')} variant="primary" onClick={s.close}>Done for today</Button>
@@ -194,7 +194,10 @@ export function RoundsModal({ level }: { level: number }) {
           const clip = clips[j.id]
           const line = [j.address, crewLine(s, j)].filter(Boolean).join(' · ')
           return (
-            <div key={j.id} className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-stop={j.id}>
+            <React.Fragment key={j.id}>
+            {/* Google Maps takes ten stops at a time: where the first trip ends, and that the rest come after */}
+            {i === 10 && <div className="border-b border-line-2 bg-[#f6f6f4] px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time — these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
+            <div className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-stop={j.id}>
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[0.8125rem] font-bold text-brand-700 tnum">{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[0.9375rem] font-semibold text-ink">{j.name}</div>
@@ -206,6 +209,7 @@ export function RoundsModal({ level }: { level: number }) {
                 : <Button size="sm" icon={<Video />} onClick={() => shoot(j.id)} data-rounds-video>Video</Button>}
               <button type="button" aria-label={`Skip ${j.name} today`} title="Not today" onClick={() => skip(j.id)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink" data-rounds-skip><X className="h-4 w-4" /></button>
             </div>
+            </React.Fragment>
           )
         })}
         {!jobs.length && <div className="px-6 py-8 text-center text-[0.875rem] text-muted max-sm:px-4">No job has work going on today.</div>}

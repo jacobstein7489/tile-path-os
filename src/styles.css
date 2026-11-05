@@ -225,22 +225,21 @@ button:disabled { cursor: not-allowed; }
   html.kb-open [data-modal-frame] { top: var(--vvt, 0px); bottom: auto; height: var(--vvh, 100%); }
   html.kb-open [data-modal-frame] > [role="dialog"] { max-height: calc(var(--vvh, 100dvh) - 0.5rem); }
 }
-/* A list (Today, Projects, Estimates) on a computer: each column as wide as its widest line, and the same space between
-   every two columns — the first on the left, the last on the right, the rest evenly between, whatever the screen. Every
-   line takes the list's columns (subgrid), so they line up top to bottom; a group's band, a note or the "Now" line spans
-   the whole width; sections step aside so their lines are lines of the list. --n is how many columns (--n-lg, --n-xl
-   when a column shows only on a bigger screen). */
+/* A list (Today, Projects, Estimates) on a computer: its columns share the width evenly — each starts where it would if
+   the list were cut into equal parts, the last ends on the right edge — so there's never one wide gap after a short
+   column, and a long name is cut short (…) rather than pushing the rest over. A column that holds something of its own
+   size (the five circles, a count, a date, the row's button) is as wide as that; the rest share what's left evenly.
+   Every line takes the list's columns (subgrid), so they line up top to bottom; a group's band, a note or the "Now"
+   line spans the whole width; sections step aside so their lines are lines of the list. A list says its columns with
+   --list (and --list-lg, --list-xl when one shows only on a bigger screen); without it, --n equal columns. */
 @media (min-width: 768px) {
-  [data-even-list] { display: grid; grid-template-columns: repeat(var(--n, 3), auto); justify-content: space-between; column-gap: 2.5rem; }
+  [data-even-list] { display: grid; grid-template-columns: var(--list, repeat(var(--n, 3), minmax(0, 1fr))); column-gap: 2.5rem; }
   [data-even-list] > *, [data-even-list] section > *, [data-even-list] [data-contents] > * { grid-column: 1 / -1; }
   [data-even-list] section, [data-even-list] [data-contents] { display: contents; }
   [data-even-list] [data-subrow] { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; column-gap: normal; }
-  /* a list whose first column is the thing itself (Today's What): it takes the room, the rest sit snug on the right —
-     no wide gaps between short columns. --rest is how many come after it */
-  [data-even-list][data-first-wide] { grid-template-columns: minmax(0, 1fr) repeat(var(--rest, 2), auto); justify-content: stretch; }
 }
-@media (min-width: 1024px) { [data-even-list] { grid-template-columns: repeat(var(--n-lg, var(--n, 3)), auto); } }
-@media (min-width: 1280px) { [data-even-list] { grid-template-columns: repeat(var(--n-xl, var(--n-lg, var(--n, 3))), auto); } }
+@media (min-width: 1024px) { [data-even-list] { grid-template-columns: var(--list-lg, var(--list, repeat(var(--n-lg, var(--n, 3)), minmax(0, 1fr)))); } }
+@media (min-width: 1280px) { [data-even-list] { grid-template-columns: var(--list-xl, var(--list-lg, var(--list, repeat(var(--n-xl, var(--n-lg, var(--n, 3))), minmax(0, 1fr))))); } }
 /* phones: anything you type in is 16px, so iOS doesn't zoom the page when a box gets focus */
 @media (max-width: 767.98px) { input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { font-size: 16px !important; } }
 /* Page ground and type, outside the layers so they also win over the host page's own reset. */

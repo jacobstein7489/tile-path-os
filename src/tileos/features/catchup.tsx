@@ -2,13 +2,17 @@
  * knew — not who the site manager is, how far the crew got, which parts of getting ready are done. One project at a
  * time, a few taps each: the client, where it stands, what's done already, the installer, the site manager, how far,
  * the start and the finish — and its estimate and tile paperwork if they're handy (the rooms and the tiles fill in by
- * themselves). Save & next saves it and goes on to the next one; it remembers which are done, so you can stop and come
- * back. The same form, for one project, is the office's say on where it's up to — from the project's ··· menu,
- * without going through its steps one by one. */
+ * themselves).
+ * It opens on the list: every one of them, what's set up (✓) and what isn't yet — and what's still missing on it (the
+ * client, the installer, the site manager, the start). Tap any one; Save & next saves it and opens the next one that
+ * isn't set up. Nothing's laid out as a wall of choices: each answer is one box you tap (the installer is typed to
+ * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
+ * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, ListChecks, PauseCircle, Sparkles, Upload } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, ListChecks, PauseCircle, Sparkles, Upload, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
+import { Group } from '@/tileos/components/ui/page'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
@@ -37,6 +41,10 @@ const rank = (j: Job) => (j.stage === 'installation' ? 0 : j.stage === 'punch' ?
 /** the ones to go through */
 export function catchUpList(s: Store): Job[] {
   return Object.values(s.jobs).filter((j) => needsCatchUp(s, j)).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
+}
+/** every brought-in project that's open — gone through or not (the list a run works through) */
+export function broughtOpenList(s: Store): Job[] {
+  return Object.values(s.jobs).filter((j) => isOpen(j) && broughtIn(s, j)).sort((a, b) => Number(!!a.caughtUp) - Number(!!b.caughtUp) || rank(a) - rank(b) || a.name.localeCompare(b.name))
 }
 /** every open project — the ones nobody went through yet first */
 export function allOpenList(s: Store): Job[] {
@@ -156,29 +164,31 @@ function clientNamed(name: string): string | undefined {
   return id
 }
 
+/** what's still missing on a project — said on the list, so it's plain which ones aren't set up properly */
+export function missingOf(s: Store, j: Job): string[] {
+  const d = draftOf(s, j)
+  const out: string[] = []
+  if (!d.clientId) out.push('client')
+  if (!d.crew && (d.where === 'installing' || d.where === 'touchups' || d.where === 'ready')) out.push('installer')
+  if (!d.site && d.where !== 'done') out.push('site manager')
+  if (!d.start && d.where !== 'done') out.push(d.where === 'new' || d.where === 'ready' ? 'planned start' : 'start date')
+  return out
+}
+
 /** one project (id) — from its ··· menu; every open project (all) — from Projects; or else the brought-in ones */
 export function CatchUpModal({ level, id: one, all }: { level: number; id?: string; all?: boolean }) {
   const s = useStore()
   /* the list as it was when it opened — saving one doesn't shuffle the rest */
-  const [ids] = React.useState(() => (one ? [one] : (all ? allOpenList : catchUpList)(useStore.getState()).map((j) => j.id)))
-  const [at, setAt] = React.useState(0)
-  const [saved, setSaved] = React.useState<string[]>([])
+  const [ids] = React.useState(() => (one ? [one] : (all ? allOpenList : broughtOpenList)(useStore.getState()).map((j) => j.id)))
+  /* the project open in the form — none: the list */
+  const [cur, setCur] = React.useState<string | null>(null)
   /* each project's answers, kept while you go back and forth */
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({})
-  const id = ids[at]
-  const job = id ? s.jobs[id] : undefined
+  const job = cur ? s.jobs[cur] : one ? s.jobs[one] : undefined
   const d = job ? drafts[job.id] || draftOf(s, job) : undefined
-  const go = (i: number) => setAt(Math.max(0, Math.min(ids.length, i)))
-  const next = () => {
-    if (!job || !d) return
-    save(job.id, d)
-    setDrafts((x) => ({ ...x, [job.id]: d }))
-    setSaved((x) => Array.from(new Set([...x, job.id])))
-    go(at + 1)
-  }
+  const set = (p: Partial<Draft>) => { if (job && d) setDrafts((x) => ({ ...x, [job.id]: { ...d, ...p } })) }
   if (one) {
     if (!job || !d) return null
-    const set = (p: Partial<Draft>) => setDrafts((x) => ({ ...x, [job.id]: { ...d, ...p } }))
     return (
       <Modal
         level={level}
@@ -194,30 +204,86 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
     )
   }
   const title = all ? 'Go through projects' : 'Bring projects up to date'
-  if (!job || !d) return (
-    <Modal level={level} size="md" onClose={s.close} title={title} footer={<Button className="ml-auto" variant="primary" onClick={s.close} data-catchup-close>Done</Button>}>
-      <div className="flex flex-col items-center gap-2 py-6 text-center" data-catchup="done">
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#e6f4ec] text-[#2c8a5b]"><Check className="h-6 w-6" strokeWidth={3} /></span>
-        <div className="text-[1.0625rem] font-semibold text-ink">{ids.length ? `${saved.length} of ${ids.length} ${all ? 'gone through' : 'brought up to date'}` : all ? 'No open projects' : 'Every project is up to date'}</div>
-        {ids.length > saved.length && <div className="text-[0.875rem] text-muted">{ids.length - saved.length} skipped{all ? '.' : ' — they stay on the list for next time.'}</div>}
-      </div>
-    </Modal>
+  const jobs = ids.map((k) => s.jobs[k]).filter((j): j is Job => !!j)
+  const isSet = (j: Job) => !!j.caughtUp
+  const setN = jobs.filter(isSet).length
+  const pct = jobs.length ? Math.round((setN / jobs.length) * 100) : 100
+  /* the next one that isn't set up — after this one, else from the top */
+  const nextAfter = (k: string | null) => {
+    const i = k ? ids.indexOf(k) : -1
+    const after = [...ids.slice(i + 1), ...ids.slice(0, Math.max(0, i))]
+    return after.find((x) => x !== k && s.jobs[x] && !s.jobs[x].caughtUp) || null
+  }
+  const progress = (
+    <div className="flex items-center gap-3 text-[0.8125rem] text-muted" data-catchup-progress>
+      <span className="font-semibold text-ink-2">{title}</span>
+      <span className="tnum" data-catchup-count>{setN} of {jobs.length} set up</span>
+      <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-16" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pct}%` }} /></span>
+    </div>
   )
-  const set = (p: Partial<Draft>) => setDrafts((x) => ({ ...x, [job.id]: { ...d, ...p } }))
+  /* ---- the list: what's set up and what isn't ---- */
+  if (!job || !d) {
+    const todo = jobs.filter((j) => !isSet(j))
+    const done = jobs.filter(isSet)
+    const row = (j: Job) => {
+      const miss = missingOf(s, j)
+      const ok = isSet(j)
+      return (
+        <button key={j.id} type="button" onClick={() => setCur(j.id)} data-catchup-row={j.id} data-set={ok ? '1' : '0'} className="flex min-h-[3.25rem] w-full items-center gap-3 border-t border-line-2 px-6 py-2 text-left transition row-hover max-sm:px-4">
+          <span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full', ok ? 'bg-[#e6f4ec] text-[#2c8a5b]' : 'border-2 border-[#d9d3c9]')}>{ok && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
+            <span className={cn('block truncate text-[0.8125rem]', miss.length ? (ok ? 'text-muted' : 'font-medium text-[#8f5207]') : 'text-muted')}>
+              {miss.length ? `No ${miss.join(' · no ')}` : ok ? `Set up${j.caughtUp ? ` ${j.caughtUp}` : ''}` : whereWord(draftOf(s, j).where)}
+            </span>
+          </span>
+          <span className="shrink-0 text-[0.8125rem] text-muted max-sm:hidden">{whereWord(draftOf(s, j).where)}</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+        </button>
+      )
+    }
+    const first = nextAfter(null)
+    return (
+      <Modal
+        level={level}
+        size="lg"
+        tall
+        onClose={s.close}
+        title={title}
+        header={<div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>{progress}<h2 className="font-display mt-2 text-[1.375rem] font-semibold leading-tight text-ink">{todo.length ? `${todo.length} to set up` : 'Every one is set up'}</h2><div className="mt-0.5 text-[0.875rem] text-muted">Tap one to set it up — what’s still missing is said on each.</div></div>}
+        footer={first ? <Button className="ml-auto max-sm:flex-1" variant="primary" iconRight={<ChevronRight />} onClick={() => setCur(first)} data-catchup-start>{setN ? 'Go on with the next one' : 'Start with the first one'}</Button> : <Button className="ml-auto max-sm:flex-1" variant="primary" onClick={s.close} data-catchup-close>Done</Button>}
+        bodyClass="p-0"
+      >
+        <div data-catchup-list>
+          {todo.length > 0 && <><Group label="Not set up yet" count={todo.length} tone="warn" />{todo.map(row)}</>}
+          {done.length > 0 && <><Group label="Set up" count={done.length} tone="ok" />{done.map(row)}</>}
+          {!jobs.length && <div className="px-6 py-10 text-center text-[0.875rem] text-muted" data-catchup="done">{all ? 'No open projects.' : 'Every project is up to date.'}</div>}
+        </div>
+      </Modal>
+    )
+  }
+  /* ---- one project ---- */
   const link = asanaOf(s, job)
-  const pctDone = Math.round((saved.length / ids.length) * 100)
+  const at = ids.indexOf(job.id)
+  const next = () => {
+    save(job.id, d)
+    setDrafts((x) => ({ ...x, [job.id]: d }))
+    setCur(nextAfter(job.id))
+  }
+  const skip = () => setCur(nextAfter(job.id) || null)
   return (
     <Modal
       level={level}
       size="lg"
+      tall
       onClose={s.close}
       title={title}
       header={
         <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>
           <div className="flex items-center gap-3 text-[0.8125rem] text-muted">
-            <span className="font-semibold text-ink-2">{title}</span>
-            <span className="tnum" data-catchup-count>{at + 1} of {ids.length}</span>
-            <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-16" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pctDone}%` }} /></span>
+            <button type="button" onClick={() => setCur(null)} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline" data-catchup-list-back><ChevronLeft className="h-4 w-4" />All {jobs.length}</button>
+            <span className="tnum" data-catchup-at>{at + 1} of {jobs.length}</span>
+            <span className="tnum">· {setN} set up</span>
           </div>
           <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 className="font-display min-w-0 max-w-full truncate text-[1.375rem] font-semibold leading-tight text-ink" data-catchup-name>{job.name}</h2>
@@ -231,10 +297,9 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
       }
       footer={
         <>
-          <Button variant="ghost" icon={<ChevronLeft />} disabled={at === 0} onClick={() => go(at - 1)} data-catchup-back>Back</Button>
-          <Button variant="ghost" onClick={() => go(at + 1)} data-catchup-skip>Skip</Button>
-          <Button variant="ghost" className="max-sm:hidden" onClick={s.close}>Stop for now</Button>
-          <Button className="ml-auto max-sm:flex-1" variant="primary" iconRight={<ChevronRight />} onClick={next} data-catchup-next>{at + 1 === ids.length ? 'Save' : 'Save & next'}</Button>
+          <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setCur(null)} className="max-sm:hidden">All projects</Button>
+          <Button variant="ghost" onClick={skip} data-catchup-skip>Skip</Button>
+          <Button className="ml-auto max-sm:flex-1" variant="primary" iconRight={<ChevronRight />} onClick={next} data-catchup-next>{nextAfter(job.id) ? 'Save & next' : 'Save'}</Button>
         </>
       }
       bodyClass="px-6 py-5 max-sm:px-4"
@@ -244,7 +309,8 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
   )
 }
 
-/** the answers for one project: whose it is, where it stands, what's done, who's on it, how far, the dates, on hold */
+/** the answers for one project, one line each — the question on the left, one box to tap on the right: whose it is,
+ *  where it stands, what's done, who's on it, how far, the dates, on hold */
 function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Partial<Draft>) => void; papers?: boolean }) {
   const s = useStore()
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c) || c === d.crew)
@@ -253,8 +319,8 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
   const getting = d.where === 'new' || d.where === 'ready'
   const clients = Object.values(s.clients).filter((c) => !TO_CONFIRM.test(c.name)).sort((a, b) => a.name.localeCompare(b.name))
   return (
-    <div className="flex flex-col gap-5" data-catchup={job.id}>
-      <Field label="Client" hint={d.clientId ? undefined : 'Not set yet'} warn={!d.clientId}>
+    <div className="flex flex-col gap-3.5" data-catchup={job.id}>
+      <Line label="Client" warn={!d.clientId} hint={d.clientId ? undefined : 'Not set yet'}>
         <SearchSelect
           label="Client"
           value={d.clientId}
@@ -268,13 +334,15 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
           width={380}
           className="w-full"
         />
-      </Field>
-      <Field label="Where it stands">
-        <Chips value={d.where} items={WHERE} onPick={(w) => set({ where: w, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} data="where" />
-      </Field>
+      </Line>
+      <Line label="Where it stands">
+        <span data-catchup-where={d.where}>
+          <SearchSelect label="Where it stands" value={d.where} options={WHERE.map((w) => ({ key: w.key, label: w.label }))} onChange={(w) => set({ where: w as Where, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} search={false} width={300} className="w-full" />
+        </span>
+      </Line>
       {getting && (
-        <Field label="Done already" hint="Tap each part that’s done. What’s left goes on people’s lists.">
-          <div className="flex flex-wrap gap-2">
+        <Line label="Done already" hint="Tap each part that’s done">
+          <div className="flex flex-wrap gap-1.5">
             {PARTS.map((p) => {
               const on = d.parts.includes(p.key)
               const tap = () => {
@@ -282,68 +350,61 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
                 /* ready for the crew means design, tile and site are done — taking one off makes it getting ready again */
                 set({ parts, where: d.where === 'ready' && !READY_PARTS.every((k) => parts.includes(k)) ? 'new' : d.where })
               }
-              return <button key={p.key} type="button" aria-pressed={on} onClick={tap} data-catchup-part={p.key} className={cn('inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[0.875rem] font-semibold transition', on ? 'border-[#2c8a5b] bg-[#e6f4ec] text-[#1f6b45]' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-4 w-4" strokeWidth={3} />}{p.label}</button>
+              return <button key={p.key} type="button" aria-pressed={on} onClick={tap} data-catchup-part={p.key} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition max-sm:h-11 max-sm:px-3.5', on ? 'border-[#2c8a5b] bg-[#e6f4ec] text-[#1f6b45]' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}{p.label}</button>
             })}
           </div>
-        </Field>
+        </Line>
       )}
       {d.where !== 'done' && (
-        <Field label="Installer">
-          <Chips value={d.crew} items={[...crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c })), { key: '', label: 'Not picked yet' }]} onPick={(c) => set({ crew: c })} data="crew" />
-        </Field>
+        <Line label="Installer" warn={!d.crew && !getting}>
+          <span data-catchup-crew={d.crew || 'none'}>
+            <SearchSelect label="Installer" value={d.crew} options={crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c }))} emptyLabel="Not picked yet" onChange={(c) => set({ crew: c })} placeholder="Type his name" icon={<HardHat />} search width={320} className="w-full" />
+          </span>
+        </Line>
       )}
-      <Field label="Site manager">
-        <Chips value={d.site} items={[...siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p })), ...(d.site ? [] : [{ key: '', label: 'Not set' }])]} onPick={(p) => set({ site: p })} data="site" />
-      </Field>
+      <Line label="Site manager" warn={!d.site && d.where !== 'done'}>
+        <span data-catchup-site={d.site || 'none'}>
+          <SearchSelect label="Site manager" value={d.site} options={siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p }))} emptyLabel="Not set" onChange={(p) => set({ site: p })} icon={<UserRound />} search={siteList.length > 8} width={300} className="w-full" />
+        </span>
+      </Line>
       {d.where === 'installing' && (
-        <Field label="How far">
-          <div className="flex flex-wrap items-center gap-2">
-            {[10, 25, 50, 75, 90].map((n) => <button key={n} type="button" aria-pressed={d.pct === String(n)} onClick={() => set({ pct: String(n) })} data-catchup-pctpick={n} className={cn('inline-flex h-10 min-w-[3.75rem] items-center justify-center rounded-full border px-3 text-[0.875rem] font-semibold tnum transition', d.pct === String(n) ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{n}%</button>)}
-            <span className="relative w-28"><TextInput inputMode="numeric" value={[10, 25, 50, 75, 90].map(String).includes(d.pct) ? '' : d.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="Other" aria-label="Percent installed" className="h-10 pr-8" data-catchup-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">%</span></span>
-          </div>
-        </Field>
+        <Line label="How far">
+          <span className="relative block w-32"><TextInput inputMode="numeric" value={d.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="0" aria-label="Percent installed" className="h-10 pr-8" data-catchup-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">% in</span></span>
+        </Line>
       )}
       {d.where !== 'done' && (
-        <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-          <Field label={getting ? 'Planned start' : 'Started'}>
+        <Line label={getting ? 'Planned start' : d.where === 'touchups' ? 'Started · finished' : 'Started · finish'}>
+          <div className={cn('grid gap-2', !getting && 'grid-cols-2')}>
             <DateBox value={d.start} onChange={(v) => set({ start: v })} label="Start" data="start" />
-          </Field>
-          {!getting && (
-            <Field label={d.where === 'touchups' ? 'Finished the install' : 'Planned finish'}>
-              <DateBox value={d.finish} min={d.start} onChange={(v) => set({ finish: v })} label="Finish" data="finish" />
-            </Field>
-          )}
-        </div>
+            {!getting && <DateBox value={d.finish} min={d.start} onChange={(v) => set({ finish: v })} label="Finish" data="finish" />}
+          </div>
+        </Line>
       )}
       {d.where !== 'done' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => set({ hold: !d.hold })} aria-pressed={d.hold} data-catchup-hold className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition', d.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
-          {d.hold && <span className="min-w-[14rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
-        </div>
+        <Line label="On hold">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => set({ hold: !d.hold })} aria-pressed={d.hold} data-catchup-hold className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition', d.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />{d.hold ? 'On hold' : 'No'}</button>
+            {d.hold && <span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
+          </div>
+        </Line>
       )}
       {papers && <Papers key={job.id} job={job} />}
     </div>
   )
 }
+/** one question: its name on the left, the answer on the right — stacked on a phone */
+function Line({ label, hint, warn, children }: { label: string; hint?: string; warn?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[10rem_minmax(0,1fr)] items-center gap-4 max-sm:grid-cols-1 max-sm:gap-1.5" data-catchup-line={label}>
+      <span className="min-w-0">
+        <span className={cn('block text-[0.875rem] font-semibold', warn ? 'text-[#8f5207]' : 'text-ink')}>{label}</span>
+        {hint && <span className="block text-[0.75rem] text-muted">{hint}</span>}
+      </span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
 
-function Field({ label, hint, warn, children }: { label: string; hint?: string; warn?: boolean; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2"><span className="text-[0.875rem] font-semibold text-ink">{label}</span>{hint && <span className={cn('text-[0.8125rem]', warn ? 'font-semibold text-[#8f5207]' : 'text-muted')}>{hint}</span>}</div>
-      {children}
-    </div>
-  )
-}
-function Chips<T extends string>({ value, items, onPick, data }: { value: T; items: { key: T; label: string }[]; onPick: (k: T) => void; data: string }) {
-  return (
-    <div className="flex flex-wrap gap-2" data-catchup-chips={data}>
-      {items.map((it) => {
-        const on = it.key === value
-        return <button key={it.key || 'none'} type="button" aria-pressed={on} onClick={() => onPick(it.key)} data-chip={it.key || 'none'} className={cn('inline-flex h-10 items-center rounded-full border px-4 text-[0.875rem] font-semibold transition', on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash', !it.key && !on && 'border-dashed font-medium text-muted')}>{it.label}</button>
-      })}
-    </div>
-  )
-}
 function DateBox({ value, min, onChange, label, data }: { value: string; min?: string; onChange: (v: string) => void; label: string; data: string }) {
   return <input type="date" value={value} min={min || undefined} onChange={(e) => onChange(e.target.value)} aria-label={label} data-catchup-date={data} className="h-10 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.9375rem] text-ink focus:border-brand-300 focus:outline-none" />
 }

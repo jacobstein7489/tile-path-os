@@ -7,7 +7,7 @@ import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, B
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
+import { Page, Filter, ClearFilters, Group, EmptyState, Status, Bubbles, PX, ViewSwitch, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, ROW_H } from '@/tileos/components/ui/page'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -160,32 +160,25 @@ const InJob = React.createContext(false)
 const Loose = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
-/** the columns: what · (whose, on everyone's list) · project (not when grouped by project) · when — the same on the
- *  column names on top and on every row, so everything lines up, and they share the whole width */
-export const todoCols = (who: boolean, inJob: boolean) =>
-  cn(who
-    ? inJob ? 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,0.9fr)_7rem_9rem]' : 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,1fr)_7rem_9rem]'
-    : inJob ? 'md:grid md:grid-cols-[minmax(0,1fr)_7rem_9rem]' : 'md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_7rem_9rem]', EVEN)
-/** on a wide screen: each column its room, the rest shared evenly — When and Next stay on the right */
-export const todoWide = (who: boolean, inJob: boolean) =>
-  evenVars(who ? (inJob ? [24, 8, 6, 9] : [22, 8, 12, 6, 9]) : inJob ? [30, 6, 9] : [24, 12, 6, 9], { fixedLast: true })
-/** how many columns a Today list has — What, Whose (everyone's list), Project (not grouped by project), When, Next */
-export const todoN = (who: boolean, inJob: boolean) => 3 + (who ? 1 : 0) + (inJob ? 0 : 1)
+/** a Today list's columns on a computer: the project first (where — not when grouped by project, its band says it),
+ *  what to do, whose (on everyone's list), and the row's button on the right with its time or date beside it. The
+ *  project and what share the width evenly, whose a little less, the button column as wide as its button. */
+export const todoList = (who: boolean, inJob: boolean) => [inJob ? '' : 'minmax(0,1fr)', 'minmax(0,1fr)', who ? 'minmax(0,0.6fr)' : '', 'max-content'].filter(Boolean).join(' ')
 /** the column names over a Today list */
 function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
   return (
-    <div className={cn(HEAD_ROW, todoCols(who, inJob), 'gap-x-6 max-md:hidden', PX)} style={todoWide(who, inJob)} data-todo-head data-subrow>
+    <div className={cn(HEAD_ROW, 'gap-x-6 max-md:hidden md:grid', PX)} data-todo-head data-subrow>
+      {!inJob && <span>Project</span>}
       <span>What</span>
       {who && <span>Whose</span>}
-      {!inJob && <span>Project</span>}
-      <span className="text-right">When</span>
       <span className="text-right">Next</span>
     </div>
   )
 }
 /** the row's one button, in its own column on a computer — what happens next, always in sight. Every row's is the same
- *  button, the same size (a long label is cut short), no icons — one even column down the list */
-const NEXT_CELL = 'flex min-w-0 items-center justify-end max-md:hidden [&_button]:h-8 [&_button]:w-[10.5rem] [&_button]:max-w-none [&_button]:justify-center [&_button]:px-3 [&_button_svg]:hidden'
+ *  button, the same size (a long label is cut short), no icons — one even column down the list; its time or date (a
+ *  meeting's hour, the day it was due) sits just before it */
+const NEXT_CELL = 'flex min-w-0 items-center justify-end gap-4 max-md:hidden [&_button]:h-8 [&_button]:w-[10.5rem] [&_button]:max-w-none [&_button]:justify-center [&_button]:px-3 [&_button_svg]:hidden'
 
 function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
@@ -196,7 +189,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
   /* grouped by project, the group's name says it — it's still on the row for a screen reader. A row under no
-     project's band says its project after its name (and under it on a phone). */
+     project's band says its project after its name (and over it on a phone). */
   const inline = loose ? project : undefined
   const quiet = inJob && !loose ? project : undefined
   if (inJob && !loose) project = undefined
@@ -211,25 +204,28 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
       data-subrow
-      style={todoWide(who, inJob)}
-      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3', ROW_H, todoCols(who, inJob), PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
+      {/* a computer: the project first — where */}
+      {!inJob && <span className="min-w-0 truncate text-[0.875rem] text-ink-2 max-md:hidden" data-row-where>{project}</span>}
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
+          {/* a phone: the project (and whose) over the task */}
+          {(project || (who && owner)) && <div className="truncate text-[0.75rem] text-muted md:hidden">{[project, who && owner ? ownerName : ''].filter(Boolean).join(' · ')}</div>}
           <div className="flex min-w-0 items-baseline gap-3">
             <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
-            {/* on a phone the time sits at the end of the title's line, and the project goes under it */}
+            {/* on a phone the time sits at the end of the task's line */}
             {w && <span className={cn('shrink-0 text-[0.75rem] tnum md:hidden', whenCls)}>{w}</span>}
           </div>
-          {(project || (who && owner)) && <div className="mt-0.5 truncate text-[0.75rem] text-muted md:hidden">{[who && owner ? ownerName : '', project].filter(Boolean).join(' · ')}</div>}
         </div>
       </div>
       {who && <span className="flex min-w-0 items-center gap-2 max-md:hidden">{owner && PEOPLE[owner] ? <><Avatar who={owner} size={20} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-medium text-ink' : 'text-ink-2')}>{ownerName}</span></> : null}</span>}
-      {!inJob && <span className="min-w-0 truncate text-[0.8125rem] text-muted max-md:hidden">{project}</span>}
       {quiet && <span className="sr-only">{quiet}</span>}
-      <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', whenCls)}>{w}</span>
-      <div className={NEXT_CELL} onClick={(e) => e.stopPropagation()} data-todo-next>{action}</div>
+      <div className={NEXT_CELL} onClick={(e) => e.stopPropagation()} data-todo-next>
+        {w && <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span>}
+        {action}
+      </div>
     </div>
   )
 }
@@ -824,7 +820,7 @@ export function MyTasksPage() {
           widest line, the same space between them */}
       {/* the columns spread evenly across the list, the same space between each two — What on the left, Next on the
           right, Project and When evenly between (not What taking the room and the rest pushed right) */}
-      <div data-even-list style={{ '--n': todoN(whoCol, grouping === 'job' && view !== 'done') } as React.CSSProperties}>
+      <div data-even-list style={{ '--list': todoList(whoCol, grouping === 'job' && view !== 'done') } as React.CSSProperties}>
         {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* urgent: before anything else, in red — whichever way the list is grouped (by time it's the day's first part) */}
         {view === 'today' && grouping !== 'time' && urgentToday.length > 0 && (

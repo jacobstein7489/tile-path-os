@@ -6,7 +6,7 @@ import { Plus, Wrench, CalendarClock, CircleCheckBig, Building2, HardHat, Clipbo
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, DatePresets, Tip } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, EVEN, evenVars, ROW_H } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -119,7 +119,7 @@ export function ProjectsPage() {
     >
       {/* brought in without where they're up to: go through them, one at a time */}
       <CatchUpBar />
-      <div style={{ ...WIDE, '--n': 5, '--n-xl': 6 } as React.CSSProperties} data-even-list>
+      <div style={{ '--list': LIST, '--list-xl': LIST_XL } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
@@ -151,9 +151,12 @@ const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | '
  * at the count for the list, open the project for all of them.
  * Each group (On hold, Getting ready…) is a gray band with its color dot. On a phone: the name and how far it is, then
  * what's going on now. */
-const COLS = cn('grid grid-cols-[minmax(0,1fr)_21.25rem_minmax(0,1.1fr)_4.5rem_5rem] items-center gap-x-6 max-md:block', EVEN)
-/** on a wide screen: Project · Client · the five · Now · Problems · Start, each with its room and the rest shared evenly */
-const WIDE = evenVars([9.5, 8, 21.25, 14.5, 4.5, 4], { fixedLast: true })
+const COLS = 'grid items-center gap-x-6 max-md:block'
+/** the columns: Project · (Client, on a wide screen) · the five circles · Now · Problems · Start. The five circles, the
+ *  count and the date are as wide as they are; the names and Now share the rest (Now a little more — it says what's up)
+ *  and a long one is cut short — so nothing runs into the next column, whatever the names */
+const LIST = 'minmax(0,1fr) max-content minmax(0,1.4fr) max-content max-content'
+const LIST_XL = 'minmax(0,1fr) minmax(0,0.8fr) max-content minmax(0,1.4fr) max-content max-content'
 /** each circle's place — the five the same width, so the circles are evenly spaced, each one right under its name
  *  (the widest name, Materials, fits), the same on top and in every row */
 const slot = (_k?: string) => 'flex w-[4.25rem] shrink-0 justify-center'
@@ -198,7 +201,7 @@ function FarBar({ s, j }: { s: Store; j: Job }) {
   const f = howFar(s, j)
   return (
     <span className="flex min-w-0 items-center gap-3" data-progress={f.pct} aria-label={f.text}>
-      <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#e5e0d7]">
+      <span className="relative h-1.5 min-w-[11rem] flex-1 overflow-hidden rounded-full bg-[#e5e0d7]">
         <span className="line-grow absolute inset-y-0 left-0 rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(0, Math.min(100, f.pct))}%` }} />
       </span>
       <span className={cn('w-[7.5rem] shrink-0 truncate text-[0.78125rem] tnum', f.tone === 'ok' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{f.text}</span>

@@ -1,13 +1,11 @@
 /* Where the project stands.
  *   THE LINE (in the header), like the estimate's path: Approved → Getting ready → Crew scheduled → Installing →
  *     Touch-ups → Closed. "Crew scheduled" is locked until getting ready is done.
- *   WHERE IT STANDS (the first tab), while getting ready — one screen, nothing on the side, nothing folded:
+ *   WHERE IT STANDS (the first tab), while getting ready — calm, a few things to look at, nothing folded:
  *     on top, what's yours on the project (or whose turn it is);
- *     then every part (Design · Tile · Site · Installer · Materials) in a band, every one of its steps under it, one
- *       line each — the step, whose it is, and where it's at: done, what came of it (3 rooms · 5 surfaces, all 3
- *       tiles here · Oct 28); open, whose turn it is. On a wide screen the parts sit in two columns, so it's all there
- *       at once. Steps that follow each other are joined by a line down the left.
- *     Tap a step and its own small window opens — the step and nothing else. Nothing opens inside the list.
+ *     then the five parts (Design · Tile · Site · Installer · Materials) side by side, one card each: how far it is (a
+ *       dot a step), and the one step it's on — whose, and where it's at; a part that's done says so, and what came
+ *       of it. Tap a part: its own window with every one of its steps (each opens its own window too).
  *     Under the parts: the open items.
  *   Once getting ready is done it isn't shown any more (it's done): what's next and the stage (the crew, the
  *     installing, the touch-ups), and beside it the open items — anything still open, each thing once. */
@@ -15,7 +13,7 @@ import * as React from 'react'
 import { ChevronDown, ChevronRight, Plus, Truck, HardHat, CalendarDays, Receipt, TriangleAlert, ListTodo, Package } from 'lucide-react'
 import { useStore, meOf, isRequest, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
+import { Menu, MenuItem, MenuLabel, Modal } from '@/tileos/components/ui/overlay'
 import { Circles, Circle, ProgressRing, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, HEAD_ROW, BandCount, type CircleState, type CircleStep } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
@@ -95,12 +93,12 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
       </div>
     )
   }
-  /* getting ready: one screen — what's yours on top, then every part with every step under it, and the open items */
+  /* getting ready: what's yours on top, then the five parts (one card each) and the open items — only as tall as that */
   return (
     <div data-phase={phase} className="flex min-w-0 flex-col gap-3 lg:h-full lg:gap-4">
-      <div data-stands-main className={COL}>
+      <div data-stands-main className={COL.replace(' lg:[&>*:last-child]:grow', '')}>
         <NextUp job={job} onStep={pick} />
-        <ReadyList job={job} tracks={tracks} onPick={pick} />
+        <ReadyList job={job} tracks={tracks} />
       </div>
     </div>
   )
@@ -151,51 +149,79 @@ function resultOf(s: Store, job: Job, x: StepView, me: PersonKey): string {
     default: return plain()
   }
 }
-function ReadyList({ job, tracks, onPick }: { job: Job; tracks: TrackView[]; onPick: (k: string) => void }) {
+function ReadyList({ job, tracks }: { job: Job; tracks: TrackView[] }) {
   const s = useStore()
   const me = meOf(s.role)
   const n = tracks.length
   const done = tracks.filter((t) => t.state === 'done').length
-  const parts = tracks.map((t) => ({ t, list: t.steps.filter((x) => x.state !== 'na') }))
-  /* two columns on a wide screen: the parts in order, down the first and on into the second — split where the two
-     come out closest to the same height */
-  const size = (ps: typeof parts) => ps.reduce((k, p) => k + p.list.length + 1, 0)
-  let cut = parts.length
-  for (let i = 1, best = Infinity; i < parts.length; i++) {
-    const tall = Math.max(size(parts.slice(0, i)), size(parts.slice(i)))
-    if (tall < best) { best = tall; cut = i }
-  }
-  const cols = [parts.slice(0, cut), parts.slice(cut)].filter((c) => c.length)
-  const part = ({ t, list }: (typeof parts)[number]) => {
-    const finished = t.state === 'done'
-    return (
-      <div key={t.key} data-track={t.key} data-step-track={t.key} data-state={t.state}>
-        <div data-track-head className={cn(BAND_STRONG, 'w-full px-5 text-left max-sm:px-4')} style={bandStyle(finished ? 'ok' : 'neutral')}>
-          <span className={bandLabel(finished ? 'ok' : 'neutral')}>{t.label}</span>
-          <span className={cn('text-[0.8125rem] tnum', finished ? 'font-semibold text-[#1f6b45]' : 'text-muted')} data-part-count>{finished ? `Done${t.doneOn ? ` ${t.doneOn}` : ''}` : `${t.done} of ${t.total} done`}</span>
-        </div>
-        <div data-part-path>
-          {chainsOf(list).map((g) => g.map((x, i) => <StepLine key={x.key} job={job} x={x} me={me} up={g.length > 1 && i > 0} down={g.length > 1 && i < g.length - 1} onClick={() => onPick(x.key)} />))}
-        </div>
-      </div>
-    )
-  }
   return (
     <section data-tracks className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex min-w-0 items-baseline gap-2.5 px-5 pb-3 pt-4 max-sm:px-4">
         <h3 className="shrink-0 text-[1.0625rem] font-semibold text-ink">Getting ready</h3>
         <span className={cn('min-w-0 truncate text-[0.875rem]', done === n ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{done === n ? `all ${n} parts done` : `${done} of ${n} parts done`}</span>
       </header>
-      <div className={cn('min-w-0', cols.length > 1 && 'xl:grid xl:grid-cols-2 xl:divide-x xl:divide-line-2')} data-part-cols={cols.length}>
-        {cols.map((c, i) => (
-          <div key={i} className="min-w-0" data-part-col={i}>
-            <div className={cn(HEAD_ROW, LINE_COLS, 'px-5 max-md:hidden', i > 0 && 'max-xl:hidden')}><span>Step</span><span>Whose</span><span>Where it is</span></div>
-            {c.map(part)}
-          </div>
-        ))}
+      {/* the five parts, one card each — what it's on, at a glance; tap one for all its steps */}
+      <div className="grid gap-2.5 px-5 pb-4 max-sm:px-4 sm:grid-cols-2 lg:grid-cols-5" data-part-cards>
+        {tracks.map((t) => <PartCard key={t.key} job={job} t={t} me={me} onOpen={() => s.open({ t: 'part', jobId: job.id, track: t.key })} />)}
       </div>
       <OpenIssues job={job} band />
     </section>
+  )
+}
+/** a step's mark in a part's row of dots: done, a problem, under way, waiting on someone, not yet */
+const dotOf = (x: StepView) => (x.state === 'done' ? 'bg-[#2c8a5b]' : x.state === 'bad' ? 'bg-bad-500' : x.state === 'now' ? 'bg-brand-600' : x.state === 'wait' ? 'bg-[#d98c0b]' : 'bg-[#e2ddd4]')
+/** one part of getting ready: its name and a dot a step; the step it's on — whose, where it's at; done: what came of it */
+function PartCard({ job, t, me, onOpen }: { job: Job; t: TrackView; me: PersonKey; onOpen: () => void }) {
+  const s = useStore()
+  const list = t.steps.filter((x) => x.state !== 'na')
+  const finished = t.state === 'done'
+  const lead = t.lead || list.find((x) => x.state !== 'done')
+  const last = [...list].reverse().find((x) => x.state === 'done')
+  const st = lead ? stateOf(s, job, lead, me) : undefined
+  const who = lead?.owner ? (lead.owner === me ? 'You' : PEOPLE[lead.owner]?.short || '') : ''
+  const yours = !!lead && lead.owner === me && lead.state === 'now'
+  return (
+    <button type="button" onClick={onOpen} data-part-card={t.key} data-state={t.state} className={cn('flex min-w-0 flex-col rounded-xl border px-3.5 pb-3 pt-2.5 text-left transition max-sm:pb-2.5 max-sm:pt-2 hover:border-[#cdc7bc] hover:bg-[#fcfbf9]', finished ? 'border-[#cfe6d8] bg-[#f6fbf8]' : t.state === 'bad' ? 'border-bad-200' : yours ? 'border-brand-200' : 'border-line')}>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className={cn('truncate text-[0.75rem] font-bold uppercase tracking-[0.07em]', finished ? 'text-[#1f6b45]' : 'text-[#4c5361]')}>{t.label}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-[0.1875rem]" aria-label={`${t.done} of ${t.total} done`} data-part-dots>
+          {list.map((x) => <span key={x.key} className={cn('h-1.5 w-3 rounded-full', dotOf(x))} />)}
+        </span>
+      </span>
+      {finished ? (
+        <>
+          <span className="mt-1.5 text-[0.9375rem] font-semibold text-[#1f6b45] max-sm:mt-1">Done{t.doneOn ? ` · ${t.doneOn}` : ''}</span>
+          {last && <span className="mt-0.5 truncate text-[0.8125rem] text-muted max-sm:hidden">{stepShort(s, job, last)} — {resultOf(s, job, last, me)}</span>}
+        </>
+      ) : lead ? (
+        <>
+          <span className="mt-1.5 truncate text-[0.9375rem] font-semibold text-ink" data-part-step={lead.key}>{stepShort(s, job, lead)}</span>
+          <span className={cn('mt-0.5 line-clamp-2 text-[0.8125rem] leading-snug', st?.tone)}>{[who, st?.text].filter(Boolean).join(' · ')}</span>
+        </>
+      ) : null}
+    </button>
+  )
+}
+/** a part's window: every one of its steps, one line each — the step, whose it is, where it's at, what came of it.
+ *  Tap a step: its own window, on top of this one. */
+export function PartModal({ jobId, track, level }: { jobId: string; track: TrackKey; level: number }) {
+  const s = useStore()
+  const job = s.jobs[jobId]
+  if (!job) return null
+  const me = meOf(s.role)
+  const t = tracksFor(s, job).find((x) => x.key === track)
+  if (!t) return null
+  const list = t.steps.filter((x) => x.state !== 'na')
+  const finished = t.state === 'done'
+  return (
+    <Modal level={level} size="lg" onClose={s.close} title={t.label} sub={`${job.name} · ${finished ? `done${t.doneOn ? ` ${t.doneOn}` : ''}` : `${t.done} of ${t.total} done`}`} bodyClass="p-0">
+      <div data-track={t.key} data-step-track={t.key} data-state={t.state}>
+        <div className={cn(HEAD_ROW, LINE_COLS, 'px-5 max-md:hidden')}><span>Step</span><span>Whose</span><span>Where it is</span></div>
+        <div data-part-path>
+          {chainsOf(list).map((g) => g.map((x, i) => <StepLine key={x.key} job={job} x={x} me={me} up={g.length > 1 && i > 0} down={g.length > 1 && i < g.length - 1} onClick={() => s.open({ t: 'step', jobId: job.id, k: x.key })} />))}
+        </div>
+      </div>
+    </Modal>
   )
 }
 /** one step, one line: its mark (joined to the steps before and after it when they follow each other), its name,
