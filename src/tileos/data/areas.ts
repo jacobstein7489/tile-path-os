@@ -41,6 +41,21 @@ export const SURFACES: SurfaceDef[] = [
   { key: 'showerdrain', label: 'Shower drain', itemId: 'i-drain' },
 ]
 
+/** what each tile surface is called on the scope of work — the same wall or floor whether the scope came from an
+ *  estimate or was built by hand. The rest (underlayment, waterproofing, metals, a saddle, a drain) aren't lines on the
+ *  scope: they're how a wall or floor is set, its edges, a note. */
+export const SCOPE_NAME: Record<string, string> = {
+  floor: 'Floor', wall: 'Walls', accent: 'Accent wall', splash: 'Backsplash', showerfloor: 'Shower floor', tubwalls: 'Tub walls',
+  niche: 'Niche', window: 'Window wrap', base: 'Base', bench: 'Shower bench', kneewall: 'Knee wall', tubapron: 'Tub apron',
+  steps: 'Steps', risers: 'Risers', border: 'Border',
+}
+/** a floor written any way ("1st Floor", "first floor") reads as the one on the list */
+export function floorName(f?: string): string | undefined {
+  if (!f || !f.trim()) return undefined
+  const hit = FLOORS.find((x) => x.toLowerCase() === f.trim().toLowerCase())
+  return hit || f.trim()
+}
+
 export interface AreaPreset { name: string; surfaces: string[]; custom?: boolean }
 export const AREA_PRESETS: AreaPreset[] = [
   { name: 'Kitchen', surfaces: ['floor', 'splash'] },

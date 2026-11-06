@@ -8,7 +8,7 @@ import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/com
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { FLOORS, uniqueArea, sortAreas, guessSurfaces, isOutside } from '@/tileos/data/areas'
+import { FLOORS, uniqueArea, sortAreas, guessSurfaces, isOutside, type SurfaceDef } from '@/tileos/data/areas'
 import type { EstTeam } from '@/tileos/data/estimates'
 import { TODAY, addDays, md, workday, dow, dayShort } from '@/tileos/lib/today'
 import { companyTeam, companyAreas, companySurfaces, surfaceOf, newEstimate, projectLike, addCompanyArea, TEAM_KEYS, TEAM_LABEL, EST_PEOPLE } from './estflow'
@@ -57,21 +57,21 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
 
 /** pick surfaces for an area — tick as many as you need; it stays open until Done. Without onRemove the ones
  *  already there stay ticked (the estimate window adds lines; removing is done on the line itself). */
-export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces' }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string }) {
+export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, title = 'Tick every surface it has' }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string; /** just some of the company's surfaces (the scope: only the walls and floors) */ only?: (d: SurfaceDef) => boolean; title?: string }) {
   const s = useStore()
   const [open, setOpen] = React.useState(false)
   const [t, setT] = React.useState('')
-  const all = companySurfaces(s)
+  const all = companySurfaces(s).filter((d) => !only || only(d))
   const own = have.filter((k) => !all.some((x) => x.key === k))
   const add = () => { if (!t.trim()) return; onAdd(t.trim()); setT('') }
   /* the checklist opens right under the room — one scroll for the whole window, nothing floating on top */
   return (
     <>
-      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c6bfb4] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
+      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} data-surface-add onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c6bfb4] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
       {open && (
         <div className="order-last mt-1 basis-full rounded-xl border border-brand-100 bg-white p-3 shadow-xs">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[0.8125rem] font-semibold text-ink">Tick every surface it has</span>
+            <span className="text-[0.8125rem] font-semibold text-ink">{title}</span>
             <span className="text-[0.75rem] text-muted">{have.length} picked</span>
           </div>
           <div role="group" aria-label="Surfaces" className="mt-2 grid grid-cols-4 gap-x-1 max-lg:grid-cols-3 max-sm:grid-cols-2">

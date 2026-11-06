@@ -36,7 +36,7 @@ if (typeof window !== "undefined") {
     if (reloadOnce()) e.preventDefault();
   });
 }
-const Boot = React.lazy(() =>
+const loadBoot = () =>
   import("@/tileos/Boot")
     .then((m) => {
       sessionStorage.removeItem(RELOAD_KEY);
@@ -45,8 +45,10 @@ const Boot = React.lazy(() =>
     .catch((err) => {
       if (reloadOnce()) return new Promise<never>(() => {});
       throw err;
-    }),
-);
+    });
+/* the app's code starts coming the moment this page runs — not after the page has drawn itself first */
+const bootEarly = typeof window !== "undefined" ? loadBoot() : null;
+const Boot = React.lazy(() => bootEarly || loadBoot());
 
 export const Route = createFileRoute("/")({
   ssr: false,

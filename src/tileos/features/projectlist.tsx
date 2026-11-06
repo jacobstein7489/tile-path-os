@@ -73,6 +73,8 @@ export function ProjectsPage() {
     (!q || `${j.name} ${j.client} ${j.address} ${j.headline}`.toLowerCase().includes(q.toLowerCase()))
   const inView = (j: Job) => (view === 'active' ? typeOf(j) !== 'done' : typeOf(j) === view)
   const list = won.filter(match).filter(inView)
+  /* the columns this list needs: no Problems or Start column when no project on it has one */
+  const cols: ListCols = { probs: list.some((j) => problemsOf(s, j).length > 0), start: list.some((j) => !!startWords(s, j).text) }
   const startOf = (j: Job) => s.prep[j.id]?.targetISO || '9999'
   list.sort((a, b) => PROJ_TYPES.findIndex((t) => t.key === typeOf(a)) - PROJ_TYPES.findIndex((t) => t.key === typeOf(b)) || (typeOf(a) === 'coming' ? startOf(a).localeCompare(startOf(b)) : 0) || TONE_ORDER[a.status] - TONE_ORDER[b.status])
   const n = (k: ProjType) => won.filter((j) => typeOf(j) === k).length
@@ -109,8 +111,8 @@ export function ProjectsPage() {
         </>
       }
     >
-      <div style={{ '--list': LIST, '--list-xl': LIST_XL } as React.CSSProperties} data-even-list>
-        {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} />}
+      <div style={{ '--list': listCols(cols, false), '--list-xl': listCols(cols, true) } as React.CSSProperties} data-even-list>
+        {!!list.length && <ListHead parts={list.some((j) => !pastReady(j))} cols={cols} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
               const rows = list.filter((j) => typeOf(j) === t.key)
@@ -118,11 +120,11 @@ export function ProjectsPage() {
               return (
                 <section key={t.key}>
                   <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />
-                  {rows.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
+                  {rows.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} cols={cols} />)}
                 </section>
               )
             })
-          : list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} />)}
+          : list.map((j) => <ProjectRow key={j.id} j={j} crew={crewOf(j)} cols={cols} />)}
         {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
@@ -146,14 +148,15 @@ const COLS = 'grid items-center gap-x-6 max-md:block'
 /** the columns: Project · (Client, on a wide screen) · the five circles · Now · Problems · Start. The five circles, the
  *  count and the date are as wide as they are; the names and Now share the rest (Now a little more — it says what's up)
  *  and a long one is cut short — so nothing runs into the next column, whatever the names */
-const LIST = 'minmax(0,1fr) max-content minmax(0,1.4fr) max-content max-content'
-const LIST_XL = 'minmax(0,1fr) minmax(0,0.8fr) max-content minmax(0,1.4fr) max-content max-content'
+/** Problems and Start are columns only when a project on the list has one — no empty columns */
+type ListCols = { probs: boolean; start: boolean }
+const listCols = (c: ListCols, xl: boolean) => [xl ? 'minmax(0,1fr) minmax(0,0.8fr)' : 'minmax(0,1fr)', 'max-content minmax(0,1.4fr)', c.probs ? 'max-content' : '', c.start ? 'max-content' : ''].filter(Boolean).join(' ')
 /** each circle's place — all the same width, so the circles are evenly spaced, each one right under its name (the
  *  widest name, Paperwork, fits), the same on top and in every row. Where there isn't room for seven names (under a
  *  wide screen) the circles sit closer, under one "Getting ready" — point at one for what it is */
 const slot = (_k?: string) => 'flex w-7 shrink-0 justify-center 2xl:w-[4.25rem]'
 
-function ListHead({ parts }: { /** a project getting ready is on the list: the five names over its circles */ parts: boolean }) {
+function ListHead({ parts, cols }: { /** a project getting ready is on the list: the names over its circles */ parts: boolean; cols: ListCols }) {
   return (
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>Project</span>
@@ -165,8 +168,8 @@ function ListHead({ parts }: { /** a project getting ready is on the list: the f
         </span>
       ) : <span data-part-names>How far</span>}
       <span>Now</span>
-      <span className="text-center" data-problems-head title="Problems on the project — point at the red number to see them">Problems</span>
-      <span className="text-right">Start</span>
+      {cols.probs && <span className="text-center" data-problems-head title="Problems on the project — point at the red number to see them">Problems</span>}
+      {cols.start && <span className="text-right" data-start-head>Start</span>}
     </div>
   )
 }
@@ -258,7 +261,7 @@ function StandsCell({ j, words }: { j: Job; /** a phone: in words, no circles */
 }
 
 /** the day the crew starts (amber once it's passed and they haven't) — or the day they started */
-function startOf(s: Store, j: Job): { text: string; late?: boolean } {
+function startWords(s: Store, j: Job): { text: string; late?: boolean } {
   if (typeOf(j) === 'coming') {
     const b = bookingOf(s, j)
     if (b) return { text: md(b.start) }
@@ -331,9 +334,9 @@ function NowLine({ w }: { w: NowWords }) {
   )
 }
 
-function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
+function ProjectRow({ j, cols }: { j: Job; crew?: PersonKey; cols: ListCols }) {
   const s = useStore()
-  const st = startOf(s, j)
+  const st = startWords(s, j)
   const probs = problemsOf(s, j)
   const now = nowOf(s, j)
   const open = () => s.open({ t: 'job', id: j.id })
@@ -355,8 +358,8 @@ function ProjectRow({ j }: { j: Job; crew?: PersonKey }) {
       <span className="min-w-0 truncate text-[0.8125rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="min-w-0 max-md:hidden"><StandsCell j={j} /></div>
       <div className="flex min-w-0 items-center max-md:hidden" data-now><NowLine w={now} /></div>
-      <div className="flex justify-center max-md:hidden" data-problems-cell><Problems list={probs} /></div>
-      <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', st.late ? 'font-medium text-warn-700' : 'text-muted')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span>
+      {cols.probs && <div className="flex justify-center max-md:hidden" data-problems-cell><Problems list={probs} /></div>}
+      {cols.start && <span className={cn('truncate text-right text-[0.8125rem] tnum max-md:hidden', st.late ? 'font-medium text-warn-700' : 'text-muted')} title={st.late ? 'The start date passed' : undefined}>{st.text}</span>}
       {/* a phone: the name and how far it is; under it what's going on now, and the problems counted */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-center gap-3">

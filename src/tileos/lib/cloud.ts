@@ -33,13 +33,17 @@ const ALL = '__all'
 /** this tab — its own changes coming back live are skipped */
 const CLIENT = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4)
 
-type Shape = 'map' | 'list' | 'one'
+/* keys: the company's settings — one row per setting ("k:email", "k:steps"…), so a phone with an older copy that
+ * changes one setting can never put the others back the way they were. (They used to go up as one "__all" row: what's
+ * in it is still read, under the settings saved one by one since.) */
+type Shape = 'map' | 'list' | 'one' | 'keys'
+const KEY = 'k:'
 const SHAPE: Partial<Record<keyof Data, Shape>> = {
   jobs: 'map', clients: 'map', tiles: 'map', pricing: 'map', hist: 'map', rooms: 'map', diary: 'map', prep: 'map', notes: 'map', pay: 'map',
   messages: 'map', stepRecs: 'map', jobSteps: 'map', seen: 'map',
   tasks: 'list', money: 'list', pos: 'list', mats: 'list', checks: 'list', bookings: 'list', notices: 'list', punch: 'list', ipos: 'list', files: 'list',
   items: 'list', estimates: 'list', designers: 'list', suppliers: 'list', events: 'list', team: 'list', shortages: 'list',
-  ready: 'one', lost: 'one', rules: 'one', access: 'one', inactive: 'one',
+  ready: 'one', lost: 'one', rules: 'keys', access: 'keys', inactive: 'one',
 }
 const shapeOf = (k: string): Shape => (SHAPE as any)[k] || 'one'
 export function idOf(k: string, el: any): string {
@@ -62,6 +66,13 @@ export function diff(a: Data, b: Data): Change {
     if (x === y) continue
     const shape = shapeOf(k)
     if (shape === 'one') { up.push({ collection: k, id: ALL, data: y ?? null }); continue }
+    if (shape === 'keys') {
+      /* only the settings that changed — each its own row (taken out: an empty row) */
+      const xo = x || {}, yo = y || {}
+      for (const id of Object.keys(yo)) if (xo[id] !== yo[id]) up.push({ collection: k, id: KEY + id, data: yo[id] ?? null })
+      for (const id of Object.keys(xo)) if (!(id in yo)) up.push({ collection: k, id: KEY + id, data: null })
+      continue
+    }
     if (shape === 'map') {
       const xo = x || {}, yo = y || {}
       for (const id of Object.keys(yo)) if (xo[id] !== yo[id]) up.push({ collection: k, id, data: yo[id] })
@@ -89,6 +100,13 @@ export function assemble(rows: Row[], base?: Data): Data {
     if (!rs?.length) { d[k] = base ? (base as any)[k] : empty(k); continue }
     const shape = shapeOf(k)
     if (shape === 'one') d[k] = rs.find((r) => r.id === ALL)?.data ?? (base ? (base as any)[k] : undefined)
+    else if (shape === 'keys') {
+      /* the old whole copy (or the clean start's), then each setting saved on its own on top */
+      const all = rs.find((r) => r.id === ALL)?.data
+      const o: any = { ...((all && typeof all === 'object' ? all : base ? (base as any)[k] : null) || {}) }
+      rs.forEach((r) => { if (!r.id.startsWith(KEY)) return; const id = r.id.slice(KEY.length); if (r.data == null) delete o[id]; else o[id] = r.data })
+      d[k] = o
+    }
     else if (shape === 'map') d[k] = Object.fromEntries(rs.map((r) => [r.id, r.data]))
     else {
       const order: string[] = rs.find((r) => r.id === ORDER)?.data || []
@@ -106,13 +124,23 @@ export function patch(data: Data, rows: Row[], dels: { collection: string; id: s
     if (touched.has(k)) return
     touched.add(k)
     const shape = shapeOf(k)
-    d[k] = shape === 'map' ? { ...(d[k] || {}) } : shape === 'list' ? [...(d[k] || [])] : d[k]
+    d[k] = shape === 'map' || shape === 'keys' ? { ...(d[k] || {}) } : shape === 'list' ? [...(d[k] || [])] : d[k]
   }
   for (const r of rows) {
     if (!(DATA_KEYS as string[]).includes(r.collection)) continue
     const k = r.collection
     const shape = shapeOf(k)
     if (shape === 'one') { if (r.id === ALL) d[k] = r.data; continue }
+    /* a setting: just that one. (An app that hasn't updated yet still sends the whole thing — the settings saved one
+       by one are newer, so it's left for the next full load, which reads it under them.) */
+    if (shape === 'keys') {
+      if (!r.id.startsWith(KEY)) continue
+      own(k)
+      const id = r.id.slice(KEY.length)
+      if (r.data == null) delete d[k][id]
+      else d[k][id] = r.data
+      continue
+    }
     own(k)
     if (shape === 'map') { d[k][r.id] = r.data; continue }
     const list: any[] = d[k]
@@ -130,7 +158,7 @@ export function patch(data: Data, rows: Row[], dels: { collection: string; id: s
     if (!(DATA_KEYS as string[]).includes(x.collection)) continue
     const k = x.collection
     const shape = shapeOf(k)
-    if (shape === 'one') continue
+    if (shape === 'one' || shape === 'keys') continue
     own(k)
     if (shape === 'map') delete d[k][x.id]
     else d[k] = (d[k] as any[]).filter((e) => idOf(k, e) !== x.id)
@@ -459,7 +487,7 @@ export function withoutSample(d: Data): { data: Data; jobs: number } | null {
 if (import.meta.hot) import.meta.hot.on('vite:beforeUpdate', () => { if (synced) location.reload() })
 
 /* ---------------- starting: load, sign the person in, then keep in step ---------------- */
-export type StartResult = { ok: true; member: Member } | { ok: false; why: CloudProblem; detail?: string }
+export type StartResult = { ok: true; member: Member; /** the data came from this device's copy, or the database */ from?: 'device' | 'database' } | { ok: false; why: CloudProblem; detail?: string }
 /** is there a copy of this person's data on this device (to open with no signal) */
 let copyRead: { uid: string; p: Promise<Copy | undefined> } | null = null
 const readCopy = (userId: string) => {
@@ -576,7 +604,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   if (retry) clearInterval(retry)
   retry = setInterval(() => { if (offline && !catching) void reconnect() }, 30_000)
   if (quick) catchUp()
-  return { ok: true, member }
+  return { ok: true, member, from: rows ? 'database' : 'device' }
 }
 /* the tests (in development only) can hand in a change as if someone else made it */
 if (import.meta.env.DEV && typeof window !== 'undefined') (window as any).__tileosCloud = { receive, flush, applyNow: () => applyInbox(), client: CLIENT }

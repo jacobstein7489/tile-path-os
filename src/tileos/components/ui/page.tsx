@@ -23,6 +23,10 @@ export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
  *  slides sideways. Its name ("All open 13") goes — the colored bubble you picked already says it. */
 const PHONE_BAR = 'max-md:flex-wrap max-md:[&>div]:ml-0 max-md:[&>div]:flex-wrap max-md:[&_.bar-title]:hidden'
 
+/** how wide a page gets — centered on a big screen. The top bar's search and your name line up with it */
+export const PAGE_MAX = 'max-w-[84rem]'
+export const TOPBAR_MAX = 'max-w-[80.5rem]'
+
 export function Page({
   title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare, phoneTitle,
 }: {
@@ -71,8 +75,9 @@ export function Page({
   }, [!!(tabs || toolbar)])
   return (
     <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
-      {/* the whole screen (only a very wide one gets margins) — the lists space their columns evenly across it */}
-      <div className="mx-auto w-full max-w-[160rem]" style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
+      {/* centered: as wide as a laptop's screen at most — a big monitor gets even margins on both sides, so nothing is
+          stretched edge to edge with big gaps in the rows (the top bar lines up with it) */}
+      <div className={cn('mx-auto w-full', PAGE_MAX)} style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
         <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>

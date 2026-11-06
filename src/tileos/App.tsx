@@ -71,6 +71,7 @@ import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
 import { BringInModal } from '@/tileos/features/bringin'
 import { CatchUpModal } from '@/tileos/features/catchup'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
+import { markScreen } from './lib/opentime'
 import { watchKeyboard } from '@/tileos/lib/viewport'
 import { noAutofill } from '@/tileos/lib/noautofill'
 import { OfflineBar, PullToRefresh, QuietTyping } from '@/tileos/components/shell/device-ui'
@@ -248,6 +249,8 @@ export default function App() {
   const narrow = useNarrow()
   /* the phone's keyboard: the bar on top and the windows stay where they belong while typing */
   React.useEffect(() => { watchKeyboard(); noAutofill() }, [])
+  /* the first screen is on: how long opening took is kept (the account menu shows it) */
+  React.useEffect(() => { requestAnimationFrame(() => requestAnimationFrame(markScreen)) }, [])
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const away = useStore((s) => awayFromMe(s))
@@ -299,7 +302,7 @@ export default function App() {
             <TopBar />
             <DesktopTopBar />
             <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
-              {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[160rem] px-7 pb-20 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
+              {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[84rem] px-7 pb-20 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
             </main>
           </div>
           <BottomNav />

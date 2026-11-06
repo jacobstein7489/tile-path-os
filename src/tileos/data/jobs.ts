@@ -1,6 +1,6 @@
 import type { Job, Customer, PersonKey, SwatchKey, Tone } from './model'
 import { TODAY, dayLongFull } from '@/tileos/lib/today'
-import { floorRank } from './areas'
+import { floorRank, floorName } from './areas'
 
 /* Demo "today" is Monday, September 28 (2026). */
 export const TODAY_LABEL = dayLongFull(TODAY)
@@ -475,8 +475,9 @@ const FLOOR_ORDER = (f: string) => (f === 'Rooms' ? 99 : floorRank(f))
 export function floorsOf(rooms: Room[]) {
   const groups: { floor: string; rooms: Room[] }[] = []
   rooms.forEach((r) => {
-    const f = r.floor || 'Rooms'
-    const g = groups.find((x) => x.floor === f)
+    /* "1st Floor" read off a PDF and "1st floor" picked here are the same floor */
+    const f = floorName(r.floor) || 'Rooms'
+    const g = groups.find((x) => x.floor.toLowerCase() === f.toLowerCase())
     if (g) g.rooms.push(r)
     else groups.push({ floor: f, rooms: [r] })
   })

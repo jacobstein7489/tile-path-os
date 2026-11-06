@@ -149,8 +149,14 @@ function taskBucket(t: Task): Bucket {
   if (/this week/i.test(t.due || '')) return 'week'
   return bucketOfIso(taskIso(t))
 }
-/** a task's title without the project tacked on the end — the project has its own column */
-const cleanTitle = (title: string, job?: Job) => (job ? title.replace(new RegExp(`\\s*[—·-]\\s*${job.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '') : title)
+/** a task's title without the project in it — the project has its own column: "Bring to 222 Acadamy: Tile" is
+ *  "Bring Tile", "Call the GC — 222 Acadamy" is "Call the GC" */
+const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+export const cleanTitle = (title: string, jobName?: string | Job) => {
+  const name = typeof jobName === 'string' ? jobName : jobName?.name
+  if (!name) return title
+  return title.replace(new RegExp(`^Bring to ${esc(name)}:\\s*`), 'Bring ').replace(new RegExp(`\\s*[—·-]\\s*${esc(name)}$`), '')
+}
 
 /* ---------------- one row, the same for everything: what · project · when ----------------
  * Calm on purpose: no lines between columns, no icon on every row, no small print under the title (it's in the task's
@@ -389,19 +395,21 @@ function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   )
 }
 
-/** the crew list on Today until it's sent: tomorrow's after 3 in the afternoon, today's first thing — one tap */
+/** the crew list on Today until it's sent — something to do today: send tomorrow's (after 3 in the afternoon), or
+ *  today's first thing — one tap */
 function CrewRow() {
   const s = useStore()
   const day = crewDay()
   const n = crewsOn(s, day).length
   const go = () => s.open({ t: 'crewreport', day })
+  const whose = day === TODAY_ISO ? 'today’s' : day === TOMORROW ? 'tomorrow’s' : `${crewWhen(day)}’s`
   return (
     <TodoRow
       onClick={go}
       icon={<HardHat />}
-      title={`Where the crews are ${crewWhen(day)}`}
+      title={`Send ${whose} crew list`}
       detail={`${n} ${n === 1 ? 'project' : 'projects'} — how many people on each`}
-      when={day === TODAY_ISO ? 'First thing' : 'Tonight'}
+      when={day === TODAY_ISO ? 'First thing' : 'Before you leave'}
       whenTone="strong"
       action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send it</Button>}
     />
@@ -451,27 +459,35 @@ function PayRow() {
  *  window. */
 function CheckInSection({ items }: { items: PlateItem[] }) {
   const s = useStore()
-  const rows = items.flatMap((x) => (x.ci ? x.ci.items.map((c) => ({ who: x.ci!.who, c })) : []))
-  if (!rows.length) return null
+  const all = items.flatMap((x) => (x.ci ? x.ci.items.map((c) => ({ who: x.ci!.who, c })) : []))
+  if (!all.length) return null
   const open = (who: PersonKey) => s.open({ t: 'checkin', who })
+  /* one row per person and project — what's late there said once, the project only in its column */
+  const groups = Array.from(new Set(all.map((r) => `${r.who}|${r.c.jobName}`))).map((k) => all.filter((r) => `${r.who}|${r.c.jobName}` === k))
   return (
     <section data-day="checkin" data-checkins>
-      <Group label="Check in on the team" count={rows.length} tone="neutral" strong />
-      {rows.map(({ who, c }) => (
-        <div key={c.key} data-checkin-row={who} data-contents>
-          <TodoRow
-            onClick={() => open(who)}
-            icon={<UserRoundCheck />}
-            title={c.title}
-            detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
-            project={[PEOPLE[who]?.short, c.jobName].filter(Boolean).join(' · ')}
-            owner={who}
-            when={`${c.late} ${c.late === 1 ? 'day' : 'days'} late`}
-            whenTone="bad"
-            action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
-          />
-        </div>
-      ))}
+      <Group label="Check in on the team" count={groups.length} tone="neutral" strong />
+      {groups.map((g) => {
+        const { who, c } = g[0]
+        const titles = g.map((r) => cleanTitle(r.c.title, r.c.jobName))
+        const bring = titles.every((t) => /^Bring /.test(t))
+        const late = Math.max(...g.map((r) => r.c.late))
+        return (
+          <div key={c.key} data-checkin-row={who} data-contents>
+            <TodoRow
+              onClick={() => open(who)}
+              icon={<UserRoundCheck />}
+              title={g.length === 1 ? titles[0] : bring ? `Bring ${g.length} things: ${titles.map((t) => t.replace(/^Bring /, '')).join(', ')}` : `${g.length} things late: ${titles.join(', ')}`}
+              detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
+              project={[PEOPLE[who]?.short, c.jobName].filter(Boolean).join(' · ')}
+              owner={who}
+              when={`${late} ${late === 1 ? 'day' : 'days'} late`}
+              whenTone="bad"
+              action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
+            />
+          </div>
+        )
+      })}
     </section>
   )
 }
@@ -722,7 +738,7 @@ export function MyTasksPage() {
   const [byJob, setByJob] = React.useState<boolean>(() => { try { const v = localStorage.getItem(prefKey); return v ? v === '1' : role === 'site' } catch { return role === 'site' } })
   const groupBy = (on: boolean) => { setByJob(on); try { localStorage.setItem(prefKey, on ? '1' : '0') } catch { /* private window */ } }
   /* everyone's list is each person's things together (late first) — that's what Everyone means: no other way to
-     group it, nothing more to pick */
+     group it (the Person filter picks one person) */
   const grouping: 'person' | 'job' | 'time' = all ? 'person' : byJob ? 'job' : 'time'
   const setGrouping = (g: 'person' | 'job' | 'time') => groupBy(g === 'job')
 
@@ -750,7 +766,7 @@ export function MyTasksPage() {
   const nowMin = now.getHours() * 60 + now.getMinutes()
 
   /* one day: what's late (today only), then the day in time order — timed things first, then anytime */
-  const dayBlock = (iso: string, items: PlateItem[], withLate = false) => {
+  const dayBlock = (iso: string, items: PlateItem[], withLate = false, lead?: React.ReactNode) => {
     /* urgent: first of all, in red — then what's late, then the day */
     const urgentRows = withLate ? items.filter((x) => x.t?.urgent && x.t.state === 'now') : []
     items = items.filter((x) => !urgentRows.includes(x))
@@ -773,9 +789,10 @@ export function MyTasksPage() {
             {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
-        {(rows.length > 0 || !lateRows.length) && (
+        {(rows.length > 0 || !lateRows.length || !!lead) && (
           <section data-day={iso}>
-            <Group label={dayHead(iso)} count={rows.length} tone="info" strong />
+            <Group label={dayHead(iso)} count={rows.length + (lead ? 1 : 0)} tone="info" strong />
+            {lead}
             {timed.map((x, i) => (
               <React.Fragment key={x.key}>
                 {i === nowAt && <NowLine min={nowMin} />}
@@ -784,7 +801,7 @@ export function MyTasksPage() {
             ))}
             {iso === TODAY && timed.length > 0 && nowAt === -1 && <NowLine min={nowMin} />}
             {any.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
-            {!rows.length && <div className={cn('border-t border-line-2 py-6 text-[0.84375rem] text-muted', PX)}>Nothing on {dayHead(iso).toLowerCase() === 'today' ? 'today' : dayHead(iso)}.</div>}
+            {!rows.length && !lead && <div className={cn('border-t border-line-2 py-6 text-[0.84375rem] text-muted', PX)}>Nothing on {dayHead(iso).toLowerCase() === 'today' ? 'today' : dayHead(iso)}.</div>}
           </section>
         )}
       </React.Fragment>
@@ -916,13 +933,15 @@ export function MyTasksPage() {
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2">
           {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
-          {/* your own list: in the order it happens, or a project at a time. Everyone's is by person — nothing to pick */}
+          {/* Everyone's is by person — pick one person to see just theirs (no switch for how it's grouped: it's by person) */}
+          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
+          {/* your own list: in the order it happens, or a project at a time */}
           {!all && view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
           {/* one project's things — on a computer; a phone keeps to one line (By project does it there) */}
           <span className="contents max-sm:hidden">
             <Filter icon={<Building2 />} label="Project" value={job} options={jobsWithTasks.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} onChange={setJob} width={280} />
-            <ClearFilters show={job !== 'all'} onClear={() => setJob('all')} />
+            <ClearFilters show={job !== 'all' || who !== 'all'} onClear={() => { setJob('all'); setWho('all') }} />
           </span>
         </div>
       }
@@ -946,10 +965,11 @@ export function MyTasksPage() {
             {urgentToday.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
         )}
-        {/* the site manager's crew list — on top, until it's sent: first thing in the morning, tomorrow's in the evening */}
-        {view === 'today' && shownToday.some((x) => x.kind === 'crew') && (
+        {/* the site manager's crew list — something to do today, until it's sent (first thing in the morning; tomorrow's
+            before he leaves): by time it's the first row of Today; by project or person, on top under Today */}
+        {view === 'today' && grouping !== 'time' && shownToday.some((x) => x.kind === 'crew') && (
           <section data-first-thing>
-            <Group label={crewDay() === TODAY_ISO ? 'First thing' : 'For tomorrow'} count={1} tone="info" strong />
+            <Group label="Today" count={1} tone="info" strong />
             <CrewRow />
           </section>
         )}
@@ -961,7 +981,7 @@ export function MyTasksPage() {
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
         {view === 'today' && undated.length > 0 && (
           <section>

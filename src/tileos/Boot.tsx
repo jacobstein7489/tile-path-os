@@ -10,6 +10,9 @@ import { startCloud, startSample, stopCloud, hasCopy, isOffline, type CloudProbl
 import { keepAppOnDevice } from './lib/device'
 import { qbArrived } from './features/qbsync'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
+import { markFiles, markData } from './lib/opentime'
+
+markFiles()
 
 type Phase =
   | { k: 'loading' }
@@ -216,6 +219,7 @@ export default function Boot() {
     for (let i = 0; i < 2 && !res.ok && res.why === 'network' && !noSignal(); i++) { await pause(1500 * (i + 1)); res = await startCloud(user, { admin, name, appRoles }) }
     if (!res.ok) { started.current = null; setPhase({ k: 'problem', why: res.why, detail: res.detail }); return }
     REAL.signOut = () => void signOut()
+    markData(res.ok && res.from === 'database' ? 'database' : 'device')
     setPhase({ k: 'ready' })
     /* came straight in on what this device knew: who they are, checked now — taken off the team, they're out; a
        different login type, the app opens again with it */
@@ -252,8 +256,8 @@ export default function Boot() {
       const u = keptUser()
       const ready = !!u && !!infoOf(u.id) && !ARRIVED && !DIRECT && (await hasCopy(u.id))
       /* renewing a sign-in that ran out takes well under a second with signal; with none it keeps trying for half a
-         minute — so after a moment (none at all with the phone offline) it opens from the device */
-      const got = ready ? await Promise.race([answer, pause(noSignal() ? 0 : 1500).then(() => 'slow' as const)]) : await answer
+         minute — so after a moment (0.6 s; none at all with the phone offline) it opens from the device */
+      const got = ready ? await Promise.race([answer, pause(noSignal() ? 0 : 600).then(() => 'slow' as const)]) : await answer
       if (!live) return
       if (got === 'slow') {
         void begin(null)

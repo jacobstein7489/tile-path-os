@@ -1,6 +1,6 @@
 /* The v8 flows: estimates → projects, the installer PO loop, materials from the estimate,
  * tile selection, recurring tasks and the daily crew report. Every step logs itself with a link to its record. */
-import { SURFACES } from '@/tileos/data/areas'
+import { SURFACES, SCOPE_NAME, floorName } from '@/tileos/data/areas'
 import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask } from '@/tileos/store'
 import type { PersonKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE, PRICING_STAGES } from '@/tileos/data/model'
@@ -148,33 +148,46 @@ const NOT_TILE: Record<string, (x: { name: string }) => Partial<Record<'prep' | 
   drain: (x) => (/shower floor/i.test(x.name) ? { notes: 'Linear drain' } : null),
   showerdrain: (x) => (/shower floor/i.test(x.name) ? { notes: 'Shower drain' } : null),
 }
+/** a surface that isn't tile (waterproofing, metals, a saddle…) — true when it's one of the details above */
+export const isDetailKey = (key: string) => !!NOT_TILE[key]
+/** put a detail (waterproofing, metals, a saddle, a drain) on the walls and floors of a room it belongs to */
+export function detailInto(r: Room, key: string) {
+  const f = NOT_TILE[key]
+  if (!f) return
+  r.surfaces.forEach((x) => {
+    const add = f(x)
+    if (!add) return
+    if (add.prep && !x.prep) x.prep = add.prep
+    else if (add.prep && x.prep && !x.prep.toLowerCase().includes(add.prep.toLowerCase())) x.prep = `${x.prep} + ${add.prep.toLowerCase()}`
+    if (add.edge && !x.edge) x.edge = add.edge
+    if (add.notes && !(x.notes || '').includes(add.notes)) x.notes = x.notes ? `${x.notes} · ${add.notes}` : add.notes
+  })
+}
 const SURF_KEY = (label?: string) => SURFACES.find((x) => x.label.toLowerCase() === (label || '').toLowerCase())?.key
 export function roomsFromEstimate(e: Estimate, items: { id: string; surface?: string; type?: string }[]): Room[] {
   const rooms: Room[] = []
   const later: { area: string; key: string }[] = []
+  /* each room on the floor it's on in the estimate, with the note next to it on the paper */
+  const meta = curRev(e).areas || []
   curRev(e).lines.forEach((l) => {
     const it = items.find((i) => i.id === l.itemId)
     const key = SURF_KEY(l.surface)
     if (key && NOT_TILE[key]) { later.push({ area: l.area, key }); return }
-    const surface = l.surface && it?.type === 'labor' && it.id !== 'i-wp' && it.id !== 'i-prep' && it.id !== 'i-edge' ? l.surface : it?.surface
+    const named = l.surface && it?.type === 'labor' && it.id !== 'i-wp' && it.id !== 'i-prep' && it.id !== 'i-edge' ? l.surface : it?.surface
+    /* the same names as a scope built by hand: Floor, Walls, Niche — not "Floor tile", "Tile niche" */
+    const surface = named && key && SCOPE_NAME[key] && named === l.surface ? SCOPE_NAME[key] : named
     if (!surface) return
     let r = rooms.find((x) => x.name === l.area)
-    if (!r) rooms.push((r = { name: l.area, pct: 0, surfaces: [] }))
+    if (!r) {
+      const m = meta.find((a) => a.name === l.area)
+      const floor = floorName(m?.floor)
+      rooms.push((r = { name: l.area, pct: 0, surfaces: [], ...(floor ? { floor } : {}), ...(m?.note ? { note: m.note } : {}) }))
+    }
     const ex = r.surfaces.find((x) => x.name === surface)
     if (ex) ex.sf = (ex.sf || 0) + l.qty
     else r.surfaces.push({ name: surface, tile: l.tile || '', state: 'notstarted', sf: l.qty, itemId: l.itemId })
   })
-  later.forEach(({ area, key }) => {
-    const r = rooms.find((x) => x.name === area)
-    r?.surfaces.forEach((x) => {
-      const add = NOT_TILE[key](x)
-      if (!add) return
-      if (add.prep && !x.prep) x.prep = add.prep
-      else if (add.prep && x.prep && !x.prep.includes(add.prep)) x.prep = `${x.prep} + ${add.prep.toLowerCase()}`
-      if (add.edge && !x.edge) x.edge = add.edge
-      if (add.notes) x.notes = x.notes ? `${x.notes} · ${add.notes}` : add.notes
-    })
-  })
+  later.forEach(({ area, key }) => { const r = rooms.find((x) => x.name === area); if (r) detailInto(r, key) })
   return rooms
 }
 /** called from the award: the estimate is approved and its scope carries over */

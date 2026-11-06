@@ -12,6 +12,8 @@ import { payOpen } from '@/tileos/features/pay'
 import { inboxUnread } from '@/tileos/features/inbox'
 import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
+import { TOPBAR_MAX } from '@/tileos/components/ui/page'
+import { lastOpened } from '@/tileos/lib/opentime'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
 import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent } from 'lucide-react'
@@ -179,7 +181,7 @@ export function DesktopTopBar() {
   return (
     <header className="sticky top-0 z-20 h-14 bg-canvas px-7 max-xl:px-6 max-lg:hidden">
       {/* the same width as the page under it, so the search and your name line up with the page's edges */}
-      <div className="mx-auto flex h-full w-full max-w-[156.5rem] items-center gap-4" data-top-bar>
+      <div className={cn('mx-auto flex h-full w-full items-center gap-4', TOPBAR_MAX)} data-top-bar>
         <button onClick={() => setPalette(true)} className="flex h-9 w-[25rem] max-w-[48%] items-center gap-2.5 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-faint shadow-xs transition hover:border-[#cdc7bc] hover:text-muted">
           <Search className="h-4 w-4" />
           <span className="flex-1 truncate text-left">Search projects, tasks, POs…</span>
@@ -234,6 +236,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {REAL.sampleView && <MenuItem icon={<Undo2 className="h-4 w-4" />} onSelect={leaveSample} hint="Leave the sample projects">Back to my projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
+      {REAL.cloud && lastOpened() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-opened>{lastOpened()}</div>}
     </>
   )
 }
