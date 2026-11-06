@@ -36,6 +36,8 @@ import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { edgeKind, edgeWords, parseMetal, METAL_PROFILES, METAL_FINISHES } from '@/tileos/data/catalog'
 import { FinishDot } from '../metalpick'
 import { ScopeStart } from './scope-tab'
+import { PatternPic, isPattern } from '../patternpic'
+import { splitLayout } from '../tiles'
 
 /** a part of the job: its title (and what it is) on the left, its links on the right — then one white sheet */
 function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
@@ -80,8 +82,8 @@ function roomWord(r: RoomView): { text: string; cls: string } {
 }
 /** wall or floor · its tile (with its picture) · size · grout · edges · SF · (how far) — everything about it on its line,
  *  nothing to open. A phone stacks them: the name and SF, the tile and size under it, the grout and edges under that */
-const SURF_COLS = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem] lg:items-center lg:gap-x-5'
-const SURF_COLS_FIELD = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.45fr)_5.5rem_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem_4.5rem] lg:items-center lg:gap-x-5'
+const SURF_COLS = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.4fr)_5rem_minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.1fr)_4.5rem] lg:items-center lg:gap-x-5'
+const SURF_COLS_FIELD = 'lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.4fr)_5rem_minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.1fr)_4.5rem_4.5rem] lg:items-center lg:gap-x-5'
 /** "Fully tiled", "48″ wainscot" — how high a wall goes, short */
 const heightShort = (h?: string) => (h ? h.split(' — ')[0] : '')
 /** the edges of a wall or floor, short, with a sample of the metal's color: "Mitered", "Jolly · Brushed nickel" */
@@ -165,13 +167,14 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           {rooms.length > 0 && canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
         </span>
       </header>
-      {!rooms.length && <ScopeStart job={job} />}
+      {/* building it by hand: once the first room is on, the scope opens to go on with it */}
+      {!rooms.length && <ScopeStart job={job} onAdded={() => open({ t: 'scope' })} />}
       {rooms.length > 0 && ws.length > 0 && !groups.length && <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-4 py-3 text-[0.84375rem] text-muted" data-scope-none>Nothing matches “{q}”. <button className="font-semibold text-brand-700 hover:underline" onClick={() => setQ('')}>Show everything</button></div>}
       {rooms.length > 0 && groups.length > 0 && (
         <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">
           {/* the column names, then each room as a band with its walls and floors under it — every line the same */}
           <div className={cn(HEAD_ROW, cols, 'px-5 max-lg:hidden')}>
-            <span>Wall or floor</span><span>Tile</span><span>Size</span><span>Grout</span><span>Edges</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
+            <span>Wall or floor</span><span>Tile</span><span>Size</span><span>Pattern</span><span>Grout</span><span>Edges</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
           </div>
           {groups.map((g) => (
             <section key={g.floor}>
@@ -199,6 +202,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
                       const g = x.grout || t?.grout
                       const h = heightShort(x.height)
+                      const pat = isPattern(splitLayout(x.layout).pattern) ? splitLayout(x.layout).pattern : ''
                       const sfText = x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '—'
                       /* the line says it all — nothing to open (the room's own page is on its band) */
                       return (
@@ -212,8 +216,10 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                             <span className="min-w-0 truncate">{t ? <><span className="font-semibold text-ink">{t.tag}</span> <span className="text-ink-2">{t.name}</span>{t.size ? <span className="text-muted lg:hidden"> · {t.size}</span> : null}</> : <span className="text-muted">{takesTile(x.name) ? (x.tile || 'No tile yet') : 'Not tiled'}</span>}</span>
                           </span>
                           <span className="truncate tnum text-ink-2 max-lg:hidden" data-surface-size>{t?.size || <span className="text-faint">—</span>}</span>
+                          <span className="flex min-w-0 items-center gap-1.5 max-lg:hidden" data-surface-pattern>{pat ? <><PatternPic pattern={pat} w={22} /><span className="truncate text-ink-2">{pat}</span></> : <span className="text-faint">—</span>}</span>
                           {/* a phone: the grout and the edges on one line under the tile; a computer: their own columns */}
-                          <span className={cn('mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.78125rem] lg:contents lg:text-[0.8125rem]', !g && !x.edge && 'max-lg:hidden')}>
+                          <span className={cn('mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.78125rem] lg:contents lg:text-[0.8125rem]', !g && !x.edge && !pat && 'max-lg:hidden')}>
+                            {pat && <span className="flex min-w-0 items-center gap-1.5 lg:hidden"><PatternPic pattern={pat} w={18} /><span className="truncate text-ink-2">{pat}</span></span>}
                             <span className={cn('flex min-w-0 items-center gap-1.5', !g && 'max-lg:hidden')} data-surface-grout>{g ? <><GroutDot grout={g} size={13} /><span className="truncate text-ink-2">{GROUTS[g]?.name || g}{x.joint ? <span className="text-muted"> · {x.joint}</span> : null}</span></> : <span className="text-faint">—</span>}</span>
                             <span className="flex min-w-0 items-center" data-surface-edge><EdgeCell edge={x.edge} /></span>
                           </span>

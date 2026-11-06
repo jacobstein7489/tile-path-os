@@ -521,14 +521,15 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
               onClick={b.onClick}
               disabled={!b.onClick}
               className={cn(
-                'group relative flex h-[3.25rem] min-w-[9.375rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default',
+                /* many (Projects' eight): they share the row — the icons step aside on a laptop so every one shows whole */
+                'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default', items.length >= 7 ? 'min-w-[6.5rem]' : 'min-w-[9.375rem]',
                 /* phone: the number big on top, the name under it, the icon small in the corner */
                 'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', row ? cn('max-sm:min-h-[3.25rem] max-sm:px-2', items.length <= 5 && 'max-sm:flex-auto max-sm:basis-auto') : four ? 'max-sm:px-2' : 'max-sm:px-2.5',
                 b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden', items.length >= 7 && 'sm:max-2xl:hidden')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}

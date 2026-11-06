@@ -22,8 +22,8 @@ import { printNode } from '@/tileos/lib/print'
 
 export type Pattern = 'stack' | 'half' | 'third' | 'vertical'
 export const PATTERNS: { key: Pattern; label: string }[] = [
-  { key: 'stack', label: 'Straight' },
-  { key: 'half', label: '½ offset' },
+  { key: 'stack', label: 'Stacked' },
+  { key: 'half', label: 'Brick' },
   { key: 'third', label: '⅓ offset' },
   { key: 'vertical', label: 'Vertical stack' },
 ]

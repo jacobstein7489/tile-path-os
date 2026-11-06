@@ -27,7 +27,7 @@ import { WHAT as STEP_WHAT } from './stepwin'
 import { TestDataTab } from './testdata'
 import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/save'
-import { QbConnectCard, EmailCard, LaterList } from './qbui'
+import { QbConnectCard, EmailCard } from './qbui'
 import { TODAY } from '@/tileos/lib/today'
 
 type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover'
@@ -35,36 +35,32 @@ const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.ke
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
-/* one thing at a time: a list of the parts on the left (on a phone, across the top), the part you picked on the right */
+/* one thing at a time: a plain list of the parts on the left (on a phone, across the top), the part you picked on the
+ * right — its name, one line, and the part itself. The one-time tools are last, under Tools. */
 type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover'
 const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover' }
-/** each group has its own soft color — the icons in the list and the header say which group you're in */
-const GROUP_TINT: Record<string, { bg: string; fg: string }> = {
-  People: { bg: '#ebf1fd', fg: '#2c53c0' },
-  'How the work flows': { bg: '#f1edfd', fg: '#6347c7' },
-  Company: { bg: '#e5f4f0', fg: '#167565' },
-}
-const SECTIONS: { group: string; items: { key: Section; label: string; sub: string; about: string; icon: React.ElementType }[] }[] = [
+const SECTIONS: { group: string; items: { key: Section; label: string; about: string; icon: React.ElementType }[] }[] = [
   { group: 'People', items: [
-    { key: 'team', label: 'Team', sub: 'Invite, change, remove', about: 'Everyone signs in with their own email and sees only their part. Invite them — they make their own password.', icon: Users },
-    { key: 'access', label: 'What each login sees', sub: 'The pages each login opens', about: 'The pages each type of login opens. Turn a page on or off for everyone with that login.', icon: Eye },
+    { key: 'team', label: 'Team', about: 'Everyone signs in with their own email and sees only their part.', icon: Users },
+    { key: 'access', label: 'What each login sees', about: 'The pages each type of login opens.', icon: Eye },
   ] },
-  { group: 'How the work flows', items: [
-    { key: 'checklist', label: 'Who does what', sub: 'Estimates and projects', about: 'Who does each step — an estimate’s, and getting a project ready. When the step before it is done, it lands on their Today.', icon: ListChecks },
-    { key: 'estimates', label: 'Estimates', sub: 'Areas and surfaces', about: 'The areas a new estimate offers, and your own surfaces.', icon: Layers },
-    { key: 'autos', label: 'Automations', sub: 'What runs by itself', about: 'What lands on each person’s Today by itself — turn any of it off, or add your own reminders.', icon: CornerDownRight },
+  { group: 'The work', items: [
+    { key: 'checklist', label: 'Who does what', about: 'Who does each step. When the step before it is done, it lands on their Today.', icon: ListChecks },
+    { key: 'estimates', label: 'Rooms and surfaces', about: 'The rooms a new estimate or scope offers, and what each comes with.', icon: Layers },
+    { key: 'autos', label: 'Automations', about: 'What lands on someone’s Today by itself.', icon: CornerDownRight },
   ] },
   { group: 'Company', items: [
-    { key: 'rules', label: 'Company rules', sub: 'Deposit, retainage, waste', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
-    { key: 'numbers', label: 'Material numbers', sub: 'What each material covers', about: 'What each material covers. Every project’s material list is worked out from these — set them to how your crews really work.', icon: Calculator },
-    { key: 'connections', label: 'Connections', sub: 'QuickBooks, email, calendar', about: 'Tile OS runs the operation; these keep the paperwork and conversations in one place.', icon: Plug },
-    { key: 'email', label: 'Email', sub: 'Who sends, who’s copied', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
-    { key: 'bringin', label: 'Bring in projects', sub: 'And go through them', about: 'The projects that were going before Tile OS: bring them in from their estimates, then go through them one at a time — the client, where each one stands, who’s on it. Kept here, for when you need it.', icon: Upload },
-    { key: 'practice', label: 'Practice and samples', sub: 'Try it without real work', about: 'Learn on a practice project, or open the sample projects — nothing reaches a client or QuickBooks.', icon: RotateCcw },
-    { key: 'startover', label: 'Start over', sub: 'Clear the projects', about: 'Delete every project, estimate, client and task at once. The team, logins, items and settings stay.', icon: Trash2 },
+    { key: 'rules', label: 'Company rules', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
+    { key: 'numbers', label: 'Material numbers', about: 'What each material covers — every material list is worked out from these.', icon: Calculator },
+    { key: 'email', label: 'Email', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
+    { key: 'connections', label: 'QuickBooks', about: 'Invoices, estimates and payments go to QuickBooks by themselves.', icon: Plug },
+  ] },
+  { group: 'Tools', items: [
+    { key: 'bringin', label: 'Bring in projects', about: 'The projects from before Tile OS: bring them in from their estimates, then go through them.', icon: Upload },
+    { key: 'practice', label: 'Practice and samples', about: 'Try anything — nothing reaches a client or QuickBooks.', icon: RotateCcw },
+    { key: 'startover', label: 'Start over', about: 'Delete every project, estimate, client and task. The team and settings stay.', icon: Trash2 },
   ] },
 ]
-const groupOf = (k: Section) => SECTIONS.find((g) => g.items.some((x) => x.key === k))!.group
 
 export function SettingsPage() {
   const s = useStore()
@@ -78,22 +74,18 @@ export function SettingsPage() {
     : tab === 'numbers' ? <Button size="sm" variant="ghost" icon={<RotateCcw className="h-4 w-4" />} onClick={() => s.commit((st) => { st.rules.mat = { ...MAT_RULES0 } }, 'Material numbers back to standard', { undo: false })}>Standard numbers</Button>
     : null
   return (
-    <Page title="Settings" sub="The team, how the work flows, and the company’s rules — one part at a time." bare>
-      <div className="grid grid-cols-[15.5rem_minmax(0,1fr)] items-start gap-6 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
-        <nav aria-label="Settings" className="sticky top-4 flex flex-col gap-4 max-lg:static max-lg:flex-row max-lg:flex-wrap max-lg:gap-1.5 max-lg:pb-1">
+    <Page title="Settings" bare>
+      <div className="grid grid-cols-[14rem_minmax(0,1fr)] items-start gap-8 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
+        <nav aria-label="Settings" className="sticky top-[calc(var(--app-top)+1rem)] flex flex-col gap-5 max-lg:static max-lg:flex-row max-lg:flex-wrap max-lg:gap-1.5 max-lg:pb-1">
           {SECTIONS.map((g) => (
-            <div key={g.group} className="flex flex-col gap-0.5 max-lg:contents">
-              <div className="flex items-center gap-2 px-3 pb-1 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden"><span className="h-1.5 w-1.5 rounded-full" style={{ background: GROUP_TINT[g.group].fg }} />{g.group}</div>
+            <div key={g.group} className={cn('flex flex-col max-lg:contents', g.group === 'Tools' && 'border-t border-line pt-4')}>
+              <div className="px-3 pb-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden">{g.group}</div>
               {g.items.map((it) => {
                 const on = tab === it.key
-                const tint = GROUP_TINT[g.group]
                 return (
-                  <button key={it.key} onClick={() => setTab(it.key)} aria-current={on ? 'page' : undefined} data-section={it.key} className={cn('flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition max-lg:shrink-0 max-lg:rounded-full max-lg:border max-lg:py-1.5', on ? 'bg-white text-ink shadow-card max-lg:border-brand-300 max-lg:bg-brand-50 max-lg:shadow-none' : 'text-ink-2 hover:bg-white/70 max-lg:border-line max-lg:bg-white')}>
-                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition max-lg:hidden" style={{ background: tint.bg, color: tint.fg, opacity: on ? 1 : 0.85 }}><it.icon className="h-4 w-4" /></span>
-                    <span className="min-w-0 leading-tight">
-                      <span className={cn('block truncate text-[0.875rem]', on ? 'font-semibold' : 'font-medium')}>{it.label}</span>
-                      <span className="block truncate text-[0.71875rem] text-muted max-lg:hidden">{it.sub}</span>
-                    </span>
+                  <button key={it.key} onClick={() => setTab(it.key)} aria-current={on ? 'page' : undefined} data-section={it.key} className={cn('flex h-9 min-w-0 items-center gap-2.5 rounded-lg px-3 text-left text-[0.875rem] transition max-lg:h-8 max-lg:shrink-0 max-lg:rounded-full max-lg:border', on ? 'bg-white font-semibold text-ink shadow-card max-lg:border-brand-300 max-lg:bg-brand-50 max-lg:shadow-none' : 'font-medium text-ink-2 hover:bg-white/60 max-lg:border-line max-lg:bg-white')}>
+                    <it.icon className={cn('h-4 w-4 shrink-0 max-lg:hidden', on ? 'text-brand-600' : 'text-faint')} />
+                    <span className="truncate">{it.label}</span>
                   </button>
                 )
               })}
@@ -101,11 +93,10 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="min-w-0" data-settings-section={tab}>
-          <div className="mb-4 flex items-start gap-3.5 max-lg:mb-3" data-settings-head>
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl max-sm:hidden" style={{ background: GROUP_TINT[groupOf(tab)].bg, color: GROUP_TINT[groupOf(tab)].fg }}><cur.icon className="h-5 w-5" /></span>
+          <div className="mb-4 flex items-end gap-3 max-lg:mb-3" data-settings-head>
             <div className="min-w-0 flex-1">
               <h2 className="text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{cur.label}</h2>
-              <div className="mt-0.5 max-w-[46rem] text-[0.84375rem] leading-snug text-muted">{cur.about}</div>
+              <div className="mt-1 text-[0.84375rem] leading-snug text-muted">{cur.about}</div>
             </div>
             {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
           </div>
@@ -132,7 +123,7 @@ function SampleCard() {
   return (
     <Card>
       <div className="flex items-start gap-4 p-5" data-sample-card>
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: GROUP_TINT.Company.bg, color: GROUP_TINT.Company.fg }}><FlaskConical className="h-5 w-5" /></span>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><FlaskConical className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-semibold text-ink">Sample projects</div>
           <div className="mt-0.5 max-w-[44rem] text-[0.84375rem] leading-snug text-muted">A whole made-up company — every kind of project and estimate, at every point — to try anything. Nothing there is saved, nothing goes out, and your own projects aren’t touched. “Back to my projects” on top brings you back.</div>
@@ -945,33 +936,14 @@ function NumbersTab() {
 }
 
 function ConnectionsTab() {
-  /* the real app: QuickBooks and email for real — connected or not, and exactly what's missing */
-  if (REAL.cloud && REAL.qb) return <div className="flex flex-col gap-4" data-connections><QbConnectCard /><EmailCard /><LaterList /></div>
+  /* the real app: QuickBooks for real — connected or not, and exactly what's missing */
+  if (REAL.cloud && REAL.qb) return <div className="flex flex-col gap-4" data-connections><QbConnectCard /></div>
   return (
-    <Card pad={false}>
-      <div className="grid grid-cols-3 gap-3 p-6 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:p-4">
-        {[
-          { i: BookOpen, t: 'QuickBooks Online', d: 'Items, invoices, bills and payments. Tile OS creates them and reads back what’s paid.', on: !REAL.cloud },
-          { i: Mail, t: 'Gmail', d: 'Estimates, POs and invoices go out from your address. Replies land on the right project.', on: false },
-          { i: Calendar, t: 'Google Calendar', d: 'Meetings and walkthroughs show on everyone’s phone calendar.', on: false },
-          { i: MessageCircle, t: 'Text / WhatsApp', d: 'Crews get their job and POs by text; site photos come back to the project.', on: false },
-          { i: FolderOpen, t: 'Google Drive / Dropbox', d: 'Plans, spec books and finish schedules with their revisions.', on: false },
-        ].map((c) => (
-          <div key={c.t} className="flex flex-col rounded-2xl border border-line p-4">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><c.i className="h-5 w-5" /></span>
-              <div className="text-[0.9375rem] font-semibold text-ink">{c.t}</div>
-            </div>
-            <div className="mt-3 flex-1 text-[0.84375rem] leading-snug text-muted">{c.d}</div>
-            {c.on ? (
-              <div className="mt-4 inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Connected</div>
-            ) : REAL.cloud ? (
-              <div className="mt-4 text-[0.8125rem] font-semibold text-muted">{c.t === 'QuickBooks Online' ? 'Next up — it needs your QuickBooks sign-in once' : 'Coming later'}</div>
-            ) : (
-              <Button size="sm" className="mt-4 self-start" onClick={() => toast(`${c.t} connects in the real app`)}>Connect</Button>
-            )}
-          </div>
-        ))}
+    <Card pad={false} data-connections>
+      <div className="flex items-center gap-3 px-5 py-4 max-sm:px-4">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><BookOpen className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">QuickBooks Online</span><span className="block text-[0.8125rem] text-muted">Invoices, estimates and payments — it connects in the real app.</span></span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-[0.84375rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Connected</span>
       </div>
     </Card>
   )
@@ -996,6 +968,8 @@ function FromCell({ k, title }: { k: MailKind; title: string }) {
   React.useEffect(() => setV(saved), [saved])
   const bad = !!v.trim() && !EMAIL_OK(v)
   const save = () => { const t = v.trim(); if (t === saved || bad) return; setEmailRule({ [k]: t || undefined }, t ? `${title} come from ${t}` : `${title}: back to the person who sends them`) }
+  /* saved a moment after the last key, too — closing the page right after typing doesn't lose it */
+  React.useEffect(() => { const t = v.trim(); if (t === saved || (t && !EMAIL_OK(t))) return; const id = setTimeout(save, 1500); return () => clearTimeout(id) }, [v])
   return (
     <span className="flex w-full flex-col gap-1">
       <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="The person who sends it" aria-label={`${title} come from`} className={cn('w-full', bad && 'border-bad-300')} data-email-from={k} />
@@ -1015,6 +989,7 @@ function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEst
     if (bad || list.join(', ') === saved) return
     setEmailRule({ [field]: list.length ? list : undefined }, list.length ? `${title}: ${list.join(', ')} copied` : `${title}: nobody copied`)
   }
+  React.useEffect(() => { if (bad || list.join(', ') === saved) return; const id = setTimeout(save, 1500); return () => clearTimeout(id) }, [v])
   const savedList = (s.rules.email?.[field] || [])
   return (
     <span className="flex w-full flex-col gap-1">
@@ -1043,10 +1018,11 @@ function EmailTab() {
   const small = 'text-[0.75rem] font-medium text-faint md:hidden'
   return (
     <div className="flex flex-col gap-4" data-email-settings>
+      <EmailCard compact />
       <Card pad={false} className="overflow-hidden">
         <div className={cn(HEAD_ROW, MAIL_COLS, 'px-5 max-md:hidden')}>
           <span>Email</span>
-          <span>Comes from — replies go back there</span>
+          <span>Comes from</span>
           <span>Copy (Cc)</span>
         </div>
         {MAIL_KINDS.map((m, i) => (
@@ -1071,8 +1047,8 @@ function EmailTab() {
           </div>
         )}
       </Card>
-      <p className="max-w-[48rem] px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        What you put in “Comes from” is used for that kind of email whoever sends it. Leave it empty and it comes from the person who sends it (an invite, from you). Replies go back to that address, and it gets its own copy of each estimate, invoice and PO it sends. Copy (Cc): as many addresses as you want, with commas between them. Estimates and invoices go out with QuickBooks’ PDF (invoices with its Pay button); a PO goes to the supplier, an installer’s PO to him. Every email is noted on its estimate, bill or PO. Password emails come from Lovable: <b className="font-semibold text-ink-2">More → Emails</b> in Lovable sends them from @cobblestonenj.com.
+      <p className="px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
+        Empty: it comes from whoever sends it. Replies go back to the address it comes from — and that address gets its own copy.
       </p>
     </div>
   )

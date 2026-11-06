@@ -242,7 +242,7 @@ export function QbConnectCard() {
   )
 }
 
-export function EmailCard() {
+export function EmailCard({ compact }: { /** one line: is it sending, from where — with the test button (Settings → Email) */ compact?: boolean } = {}) {
   const s = useStore()
   const [st, setSt] = React.useState<{ configured: boolean; domains: { name: string; status: string }[] | null } | null>(null)
   const [busy, setBusy] = React.useState(false)
@@ -277,6 +277,21 @@ export function EmailCard() {
         </p>
         {REAL.email && <Button size="sm" className="self-start" icon={<Send className="h-3.5 w-3.5" />} disabled={busy} onClick={test} data-mail-test>{busy ? 'Sending…' : 'Send a test email to me'}</Button>}
       </>
+    )
+  }
+  if (compact) {
+    const line = !st ? 'Checking the email…'
+      : !st.configured ? 'Email isn’t set up yet — POs aren’t emailed, invoices go from QuickBooks'
+        : verified.length ? `Sending from @${verified.join(', @')}`
+          : waiting.length ? `${waiting.join(', ')} isn’t verified in Resend yet` : 'Sending'
+    return (
+      <Card pad={false}>
+        <div className="flex min-h-[3.25rem] flex-wrap items-center gap-x-3 gap-y-2 px-5 py-2.5 max-sm:px-4" data-mail-card={st?.configured ? 'on' : 'off'}>
+          {status}
+          <span className="min-w-0 flex-1 text-[0.875rem] text-ink-2">{line}</span>
+          {st?.configured && REAL.email && <Button size="sm" icon={<Send className="h-3.5 w-3.5" />} disabled={busy} onClick={test} data-mail-test>{busy ? 'Sending…' : 'Send me a test'}</Button>}
+        </div>
+      </Card>
     )
   }
   return (

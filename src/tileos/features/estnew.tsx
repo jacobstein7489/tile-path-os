@@ -57,7 +57,7 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
 
 /** pick surfaces for an area — tick as many as you need; it stays open until Done. Without onRemove the ones
  *  already there stay ticked (the estimate window adds lines; removing is done on the line itself). */
-export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, title = 'Tick every surface it has' }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string; /** just some of the company's surfaces (the scope: only the walls and floors) */ only?: (d: SurfaceDef) => boolean; title?: string }) {
+export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, title = 'Tick every surface it has', nameOf }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string; /** just some of the company's surfaces (the scope: only the walls and floors) */ only?: (d: SurfaceDef) => boolean; title?: string; /** what each is called there (the scope: Floor, Walls, Niche) */ nameOf?: (key: string, label: string) => string }) {
   const s = useStore()
   const [open, setOpen] = React.useState(false)
   const [t, setT] = React.useState('')
@@ -75,7 +75,7 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, ti
             <span className="text-[0.75rem] text-muted">{have.length} picked</span>
           </div>
           <div role="group" aria-label="Surfaces" className="mt-2 grid grid-cols-4 gap-x-1 max-lg:grid-cols-3 max-sm:grid-cols-2">
-            {[...all.map((x) => ({ key: x.key, label: x.label })), ...own.map((k) => ({ key: k, label: surfaceOf(s, k).label }))].map((x) => {
+            {[...all.map((x) => ({ key: x.key, label: nameOf ? nameOf(x.key, x.label) : x.label })), ...own.map((k) => ({ key: k, label: nameOf ? nameOf(k, surfaceOf(s, k).label) : surfaceOf(s, k).label }))].map((x) => {
               const on = have.includes(x.key)
               const locked = on && !onRemove
               return (

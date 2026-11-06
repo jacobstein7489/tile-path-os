@@ -16,6 +16,7 @@ import type { Item } from '@/tileos/data/items'
 import { paperGroups } from '../estpaper'
 import { DocHead, DocFoot, docLine, DOC_GREEN, DOC_GRAY, DOC_FONT } from '../docpaper'
 import { coverageOf } from '../roomsheets'
+import { splitLayout, PATTERNS } from '../tiles'
 
 type Line = { id: string; text: string; qty: string }
 type Area = { name: string; note?: string; lines: Line[] }
@@ -53,7 +54,7 @@ function fromProject(items: Item[], rooms: { name: string; floor?: string; note?
     areas: g.rooms.map((r) => ({
       name: r.name, note: coverageOf(r as any).join('; ') || r.note,
       lines: [
-        ...r.surfaces.map((x) => ({ id: x.name, text: `${surfaceWords(x.name)}${x.height ? ` — ${heightWords(x.height)}` : ''}`, qty: x.sf ? `${x.sf} SF` : '1 EA' })),
+        ...r.surfaces.map((x) => { const pat0 = splitLayout(x.layout).pattern; const pat = PATTERNS.includes(pat0) ? pat0 : ''; return { id: x.name, text: `${surfaceWords(x.name)}${x.height ? ` — ${heightWords(x.height)}` : ''}${pat ? ` · ${pat.toLowerCase()} pattern` : ''}`, qty: x.sf ? `${x.sf} SF` : '1 EA' } }),
         ...extra(r.name).map((l) => ({ id: l.id, text: estText(items, l), qty: qtyText(l.qty, unitOf(items, l)) })),
       ],
     })),

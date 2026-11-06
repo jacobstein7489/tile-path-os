@@ -254,9 +254,15 @@ html { font-size: 16px; }
 @media (max-width: 1023.98px) { :root { --app-top: calc(3.5rem + env(safe-area-inset-top, 0px)); --inbox-bottom: calc(4.375rem + env(safe-area-inset-bottom, 0px)); } }
 /* a phone: a step up too — the lists read like an iPhone app's (15px), not small print */
 @media (max-width: 639.98px) { html { font-size: 17px; } }
-@media (min-width: 1500px) { html { font-size: 17px; } }
-@media (min-width: 1800px) { html { font-size: 18px; } }
-@media (min-width: 2200px) { html { font-size: 19px; } }
+/* a computer at 100%: a step up for every ~240px of screen, so a big monitor (2560 wide) reads as big as a laptop
+   does — the same steps for every page, the side menu and the windows, since all of it is sized from this */
+@media (min-width: 1440px) { html { font-size: 17px; } }
+@media (min-width: 1680px) { html { font-size: 18px; } }
+@media (min-width: 1920px) { html { font-size: 19px; } }
+@media (min-width: 2160px) { html { font-size: 20px; } }
+@media (min-width: 2320px) { html { font-size: 21px; } }
+@media (min-width: 2480px) { html { font-size: 22px; } }
+@media (min-width: 2800px) { html { font-size: 23px; } }
 
 /* cmdk */
 [cmdk-item][data-selected="true"] { background: var(--color-brand-50); }

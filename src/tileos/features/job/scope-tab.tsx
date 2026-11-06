@@ -24,7 +24,7 @@ import { settingStatus } from '../setting'
 import { scopeLock, takesTile } from '../steps'
 import { surfaceFix } from './overview'
 import { Section, Empty, Group, Strip, GREEN, SHEET } from './kit'
-import { AddSurfaceButton, AddRoomButton } from '../roomedit'
+import { ScopeAreaAdder, AreaPicker, RoomMenu, RoomLines } from '../roomedit'
 import { estimateInto } from '../bringin'
 import { LayoutArt } from './rooms'
 import {
@@ -32,6 +32,7 @@ import {
   TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, HEIGHTS,
 } from '../tiles'
 import { EdgePicker } from '../metalpick'
+import { PatternPic, PatternPick } from '../patternpic'
 
 const SURF_STATUS: Record<string, string> = { done: 'Done', working: 'Working', ready: 'Ready', blocked: 'Blocked', waitmat: 'Waiting on material', hold: 'On hold', notstarted: 'Not started', unknown: 'To check' }
 const IN_FIELD = ['scheduled', 'installation', 'punch', 'closeout', 'complete']
@@ -79,7 +80,7 @@ type Hits = ReturnType<typeof scopeMatches>
 const IN_FIELD_ = ['installation', 'punch', 'closeout', 'complete']
 /** no rooms yet (a project made here, not from an approved estimate): set the scope up right here — its estimate (the
  *  rooms, walls and floors read from it by themselves), or a room at a time by hand */
-export function ScopeStart({ job, bare }: { job: Job; /** just the buttons — where what it's for is said already (the estimate step) */ bare?: boolean }) {
+export function ScopeStart({ job, bare, onAdded }: { job: Job; /** just the buttons — where what it's for is said already (the estimate step) */ bare?: boolean; /** a room was added by hand — the scope opens to go on with it */ onAdded?: () => void }) {
   const s = useStore()
   const can = scopeLock(s, job.id).canEdit
   const file = React.useRef<HTMLInputElement>(null)
@@ -95,7 +96,8 @@ export function ScopeStart({ job, bare }: { job: Job; /** just the buttons — w
         <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
           <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
           <Button variant="primary" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Upload the estimate'}</Button>
-          <AddRoomButton jobId={job.id} have={(s.rooms[job.id] || []).map((r) => r.name)} label="Add a room by hand" />
+          {/* the whole scope is built in one place: this window gives way to the scope of work */}
+          <Button icon={<Layers3 />} onClick={() => s.swap({ t: 'scopewin', jobId: job.id })} data-scope-by-hand>Build it by hand</Button>
         </div>
       ) : <div className="text-[0.84375rem] text-muted">{PEOPLE[scopeLock(s, job.id).owner]?.short || 'The office'} adds it.</div>}
       {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
@@ -104,15 +106,20 @@ export function ScopeStart({ job, bare }: { job: Job; /** just the buttons — w
   return (
     <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-5 py-4 max-sm:px-4" data-scope-start>
       <div className="text-[0.9375rem] font-semibold text-ink">No rooms yet</div>
-      <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Add its estimate — the rooms, walls and floors fill in by themselves. Or add the rooms one at a time.' : 'They come from its estimate — the office adds it.'}</div>
+      <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Upload its estimate — the rooms, walls and floors fill in by themselves. Or build it here, floor by floor.' : 'They come from its estimate — the office adds it.'}</div>
       {can && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
-          <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
-          <Button variant="primary" size="sm" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Add its estimate'}</Button>
-          <AddRoomButton jobId={job.id} have={(s.rooms[job.id] || []).map((r) => r.name)} label="Add a room" size="sm" />
-        </div>
+        <>
+          <div className="mt-3">
+            <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
+            <Button variant="primary" size="sm" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Upload the estimate'}</Button>
+          </div>
+          {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
+          <div className="mt-4 border-t border-line-2 pt-3.5" data-scope-build>
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers3 className="h-4 w-4 text-muted" />Or build it here<span className="font-normal text-muted">— pick the floor, then each room; it comes with its usual walls and floors</span></div>
+            <AreaPicker jobId={job.id} onAdded={() => onAdded?.()} />
+          </div>
+        </>
       )}
-      {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
     </div>
   )
 }
@@ -137,7 +144,6 @@ function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {
           ? <span className="text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{hits.lines.size}</b> of {total} walls and floors{hits.tiles.size ? <> · <b className="font-semibold text-ink">{hits.tiles.size}</b> tile{hits.tiles.size === 1 ? '' : 's'}</> : null}</span>
           : <ScopeNumbers job={job} />}
         <span className="ml-auto flex shrink-0 items-center gap-2 max-md:ml-0">
-          {lock.canEdit && <AddRoomButton jobId={job.id} have={rooms.map((r) => r.name)} />}
           {rooms.some((r) => r.surfaces.some((x) => x.tile)) && <Button size="sm" icon={<LayoutGrid />} onClick={() => s.open({ t: 'layouts', jobId: job.id })}>Layouts</Button>}
           <Button size="sm" icon={<FileText />} onClick={() => s.open({ t: 'sow', jobId: job.id })}>Print the scope of work</Button>
         </span>
@@ -148,6 +154,7 @@ function ScopeBody({ job, rooms }: { job: Job; rooms: Room[] }) {
             {(!hits || hits.tiles.size > 0) && <TileSchedule job={job} hits={hits} />}
             {(!hits || hits.lines.size > 0) && <ScopeSheet job={job} hits={hits} />}
           </>}
+      {lock.canEdit && !hits && <ScopeAreaAdder jobId={job.id} />}
     </div>
   )
 }
@@ -231,6 +238,7 @@ export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; comp
   const rooms = hits ? all.map((r) => ({ ...r, surfaces: r.surfaces.filter((x) => hits.lines.has(`${r.name}|${x.name}`)) })).filter((r) => r.surfaces.length) : all
   const inField = IN_FIELD_.includes(job.stage)
   const groups = floorsOf(rooms)
+  const canEdit = scopeLock(s, job.id).canEdit
   /* compact: every room is one line — tap it for its walls and floors */
   const [openRooms, setOpenRooms] = React.useState<Record<string, boolean>>({})
   return (
@@ -258,12 +266,12 @@ export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; comp
                 ) : (
                   <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
                     <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
-                    {!hits && <AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" />}
                     <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
+                    {canEdit && !hits && <RoomMenu jobId={job.id} room={r} />}
                   </div>
                 )}
                 {shown && r.surfaces.map((x) => <ScopeLine key={x.name} job={job} room={r} x={x} inField={inField} />)}
-                {shown && compact && !hits && <div className="border-t border-line-2 bg-[#faf8f5] px-5 py-1.5 max-sm:px-4"><AddSurfaceButton jobId={job.id} room={r.name} have={r.surfaces.map((x) => x.name)} className="h-6 bg-white" /></div>}
+                {shown && canEdit && !hits && <div className="flex flex-wrap items-center gap-1.5 border-t border-line-2 px-5 py-1.5 max-sm:px-4" data-add-row>{!r.surfaces.length && <span className="mr-1 text-[0.8125rem] text-muted">No walls or floors yet</span>}<RoomLines jobId={job.id} room={r} /></div>}
               </div>
             )
           })}
@@ -281,7 +289,7 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
   const problem = ['blocked', 'waitmat', 'hold', 'unknown'].includes(x.state) && (x.reason || x.pending)
   const tone = SURF_TONE[x.state]
   const pct = surfacePct(x)
-  const details = [x.grout ? `${GROUTS[x.grout]?.name} grout` : '', lay.pattern, METHODS[m.key]?.short ? `${METHODS[m.key].short}${m.auto ? ' (suggested)' : ''}` : '', x.height || ''].filter(Boolean)
+  const details = [lay.pattern, x.grout ? `${GROUTS[x.grout]?.name} grout` : '', METHODS[m.key]?.short ? `${METHODS[m.key].short}${m.auto ? ' (suggested)' : ''}` : '', x.height || ''].filter(Boolean)
   return (
     <button onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} aria-label={`${room.name} · ${x.name}`} className="grid min-h-[2.5rem] w-full grid-cols-[minmax(7rem,11rem)_minmax(0,1fr)_5.5rem] items-center gap-4 border-t border-line-2 px-5 py-1 text-left transition first:border-t-0 row-hover max-sm:grid-cols-[minmax(0,1fr)_4.5rem] max-sm:gap-x-3 max-sm:px-4">
       <span className="min-w-0 text-[0.875rem] font-semibold text-ink max-sm:col-span-1">{x.name}</span>
@@ -291,7 +299,7 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
           <span className="block truncate text-[0.84375rem] text-ink-2">{t ? <><b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? <span className="text-muted">No tile yet</span> : <span className="text-muted">Not tiled — goes under the tile</span>}</span>
           {problem
             ? <span className={cn('block truncate text-[0.75rem] font-semibold', tone === 'bad' ? 'text-bad-600' : 'text-ink-2')}>{x.pending ? `${x.pending.co} · waiting on approval` : x.reason}</span>
-            : details.length > 0 && <span className="block truncate text-[0.75rem] text-muted">{details.join(' · ')}</span>}
+            : details.length > 0 && <span className="flex min-w-0 items-center gap-1.5 text-[0.75rem] text-muted">{lay.pattern && <PatternPic pattern={lay.pattern} w={18} />}<span className="truncate">{details.join(' · ')}</span></span>}
         </span>
       </span>
       <span className="text-right max-sm:row-start-1 max-sm:col-start-2">
@@ -444,10 +452,12 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           <SearchSelect label="Joint" value={joint} onChange={setJoint} options={JOINTS.map((j) => ({ key: j, label: j }))} placeholder="Joint" search={false} width={160} />
         </div>
       </Row>
-      <Row label="Layout" hint={x.dims ? 'Drawn to scale — the crew’s sheet shows every cut' : t ? 'Draw it to scale to see the cuts and the best place to start' : undefined}>
-        <div className="flex items-start gap-3">
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 max-sm:grid-cols-1">
-            <SearchSelect label="Pattern" value={pattern} onChange={setPattern} options={opts(PATTERNS, pattern)} placeholder="Pattern" emptyLabel="Not set" onCreate={setPattern} createLabel={(q) => `Use “${q}”`} search={false} width={280} />
+      <Row label="Pattern">
+        <PatternPick value={pattern} onChange={setPattern} drain={kind === 'shower-floor'} />
+      </Row>
+      <Row label="Where it starts" hint={x.dims ? 'Drawn to scale — the crew’s sheet shows every cut' : t ? 'Draw it to scale to see the cuts and the best place to start' : undefined}>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
             <SearchSelect label="Where it starts" value={start} onChange={setStart} options={opts(STARTS, start)} placeholder="Where it starts" emptyLabel="Not set" onCreate={setStart} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
           </div>
           <Tip label={t ? 'Draw it to scale — every cut, no slivers' : 'Pick the tile first'}>

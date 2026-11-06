@@ -290,7 +290,25 @@ export function readPhoto(file: File, max = 480): Promise<{ photo: string; color
 export const TILE_SIZES = ['1 × 1 mosaic', '2″ hex', '2 × 2 mosaic', '3 × 6', '3 × 12', '4 × 4', '4 × 12', '2 × 8', '6 × 6', '6 × 24', '8 × 8', '8 × 48', '12 × 12', '12 × 24', '24 × 24', '24 × 48', '32 × 32', '48 × 48', '48 × 96 slab']
 export const FINISHES = ['Matte', 'Honed', 'Polished', 'Gloss', 'Textured', 'Lappato']
 export const WHO_ORDERS: { key: string; label: string }[] = [{ key: 'GC', label: 'The GC' }, { key: 'Us', label: 'Us' }, { key: 'Owner', label: 'The owner' }]
-export const PATTERNS = ['Straight lay', 'Offset ½', 'Offset ⅓', 'Vertical stack', 'Herringbone', 'Diagonal', 'Basketweave', 'Pitched to the drain', 'Field tile · mitered edges']
+/** how the tile is laid — the same words on the scope, the crew's sheet and the layout drawing */
+export const PATTERNS = ['Stacked', 'Brick', '⅓ offset', 'Vertical stack', 'Herringbone', 'Chevron', 'Basketweave', 'Diagonal', 'Pitched to the drain']
+/** the pattern a layout's first words mean — old words too ("Straight lay", "Offset ½" → Stacked, Brick) */
+export function patternOf(first: string): string {
+  const f = first.trim()
+  if (!f) return ''
+  const known = PATTERNS.find((p) => p.toLowerCase() === f.toLowerCase())
+  if (known) return known
+  if (/vertical/i.test(f)) return 'Vertical stack'
+  if (/1\/3|⅓|third/i.test(f)) return '⅓ offset'
+  if (/1\/2|½|half|offset|brick|running/i.test(f)) return 'Brick'
+  if (/^straight|^stack|^grid/i.test(f)) return 'Stacked'
+  if (/herring/i.test(f)) return 'Herringbone'
+  if (/chevron/i.test(f)) return 'Chevron'
+  if (/basket/i.test(f)) return 'Basketweave'
+  if (/diagonal/i.test(f)) return 'Diagonal'
+  if (/pitched|to the drain/i.test(f)) return 'Pitched to the drain'
+  return f
+}
 export const STARTS = ['Best start — no slivers', 'Centered', 'Full tile at the door', 'Full tile at the doorway', 'Full tile at the floor', 'From the top', 'Centered on the niche', 'Centered on the tub', 'Centered on the window', 'Long side to the door']
 export const EDGES = ['Schluter JOLLY · satin brass · 10 mm', 'Schluter JOLLY · brushed nickel · 10 mm', 'Schluter JOLLY · matte black · 10 mm', 'Schluter JOLLY · aluminum · 10 mm', 'Schluter RONDEC · brushed stainless', 'Mitered', 'Bullnose tile', 'Pencil liner', 'Marble saddle at the door', 'Flush to the wood floor', 'Metal transition strip']
 /** how high a wall is tiled — fully, half, wet walls only, or a height */
@@ -300,14 +318,7 @@ export const HEIGHTS = ['Fully tiled — to the ceiling', 'Half tiled — to 4 f
 export function splitLayout(layout?: string): { pattern: string; start: string } {
   if (!layout) return { pattern: '', start: '' }
   const [first, ...rest] = layout.split(' · ')
-  const start = rest.join(' · ')
-  const known = PATTERNS.find((p) => p.toLowerCase() === first.toLowerCase())
-  if (known) return { pattern: known, start }
-  if (/1\/2|½/i.test(first)) return { pattern: 'Offset ½', start }
-  if (/1\/3|⅓/i.test(first)) return { pattern: 'Offset ⅓', start }
-  if (/^straight|^stack/i.test(first)) return { pattern: 'Straight lay', start }
-  if (/^vertical/i.test(first)) return { pattern: 'Vertical stack', start }
-  return { pattern: first, start }
+  return { pattern: patternOf(first), start: rest.join(' · ') }
 }
 export const joinLayout = (pattern: string, start: string) => [pattern, start ? start.charAt(0).toLowerCase() + start.slice(1) : ''].filter(Boolean).join(' · ')
 /** is the edge a metal profile (it goes on the materials order) */
