@@ -34,7 +34,7 @@ export function WinHead({ place, title, who, whoText, state, tone, problem, more
   attrs?: Record<string, string | undefined>
 }) {
   return (
-    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1" data-win-head {...attrs}>
+    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-win-head {...attrs}>
       <div className="flex min-h-5 min-w-0 items-center gap-2 text-[0.8125rem] text-muted">
         <span className="min-w-0 truncate" data-win-place>{place}</span>
         {more && <span className="-my-1.5 ml-auto shrink-0 pl-2">{more}</span>}

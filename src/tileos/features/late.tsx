@@ -140,7 +140,7 @@ export function LateWatcher() {
 function Row({ x, me }: { x: PlateItem; me?: boolean }) {
   const s = useStore()
   const job = jobOf(s, x)
-  const open = () => { s.close(); x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : s.open({ t: 'task', id: x.t!.id }) }
+  const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : s.open({ t: 'task', id: x.t!.id }) }
   return (
     <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0 max-sm:flex-wrap" data-late-key={x.key}>
       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><AlarmClock className="h-4 w-4" /></span>
@@ -165,7 +165,7 @@ function TodayRow({ x }: { x: PlateItem }) {
   const s = useStore()
   const job = x.kind === 'meet' ? (x.e!.jobId ? s.jobs[x.e!.jobId] : undefined) : jobOf(s, x)
   const title = x.kind === 'meet' ? x.e!.title : titleOf(x)
-  const open = () => { s.close(); x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : x.kind === 'meet' ? s.open({ t: 'event', id: x.e!.id }) : s.open({ t: 'task', id: x.t!.id }) }
+  const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : x.kind === 'meet' ? s.open({ t: 'event', id: x.e!.id }) : s.open({ t: 'task', id: x.t!.id }) }
   return (
     <button onClick={open} className="flex w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 row-hover">
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">{x.kind === 'meet' ? <CalendarDays className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}</span>

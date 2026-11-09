@@ -27,7 +27,7 @@ export function FormHead({ k, kicker, title, right }: { k: string; kicker?: Reac
   const c = PART_TINT[k === 'problem' ? 'bad' : kind?.g || 'office']
   const I = kind?.i
   return (
-    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1" data-form-head={k}>
+    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-form-head={k}>
       <div className="flex items-center gap-3">
         {I && <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]" style={{ background: c.bg, color: c.fg }}><I className="h-[1.125rem] w-[1.125rem]" /></span>}
         <div className="min-w-0">

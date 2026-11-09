@@ -4,7 +4,7 @@ import * as DM from '@radix-ui/react-dropdown-menu'
 import * as CM from '@radix-ui/react-context-menu'
 import * as PO from '@radix-ui/react-popover'
 import * as TT from '@radix-ui/react-tooltip'
-import { Check } from 'lucide-react'
+import { Check, ChevronLeft } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 import { CloseButton, Chip, Button } from './core'
 import { TODAY, addDays, dow } from '@/tileos/lib/today'
@@ -36,6 +36,9 @@ export function Modal({
   className?: string
 }) {
   const z = 60 + level * 4
+  /* a window opened from another window: Back takes you to that one — never closed and opened again */
+  const stacked = level > 0
+  const back = <button type="button" onClick={onClose} aria-label="Back" data-back className="-ml-1.5 inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-3 text-[0.875rem] font-semibold text-ink-2 transition hover:bg-wash-2 hover:text-ink"><ChevronLeft className="h-[1.125rem] w-[1.125rem]" />Back</button>
   /* a phone shows the window's name on its top bar only once the window's own header has scrolled away — never the
      name twice on the screen */
   const headRef = React.useRef<HTMLDivElement>(null)
@@ -48,6 +51,7 @@ export function Modal({
         <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
           <Dialog.Content
             aria-describedby={undefined}
+            data-stacked={stacked ? '' : undefined}
             /* the pop-up in the middle (Done! · Undo · OK) isn't outside the window — tapping it keeps the window open */
             onPointerDownOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
@@ -71,12 +75,15 @@ export function Modal({
               <>
                 {/* big headers scroll away with the content on phones; the way out stays put — on a computer the × in the
                     corner, on a phone a bar on top with a real Close button (and the window's name, on the big ones) */}
-                <div className="absolute right-4 top-4 z-20 max-sm:hidden">
-                  <CloseButton onClick={onClose} />
-                </div>
+                {stacked ? <div className="shrink-0 px-6 pt-3.5 max-sm:hidden">{back}</div> : (
+                  <div className="absolute right-4 top-4 z-20 max-sm:hidden">
+                    <CloseButton onClick={onClose} />
+                  </div>
+                )}
                 <div className={cn('hidden shrink-0 items-center gap-3 bg-white pb-1 pl-4 pr-3 pt-2.5 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
+                  {stacked && back}
                   <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink transition-opacity duration-150', !past && 'opacity-0')} aria-hidden={!past} data-phone-bar-title>{tall && typeof title === 'string' ? title : ''}</span>
-                  <CloseButton onClick={onClose} />
+                  {!stacked && <CloseButton onClick={onClose} />}
                 </div>
                 <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Details'}</Dialog.Title>
                 <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE} onScroll={tall ? onScroll : undefined}>
@@ -86,12 +93,13 @@ export function Modal({
               </>
             ) : (
               <>
-                <div className="flex shrink-0 items-start justify-between gap-4 px-6 pb-1 pt-5 max-sm:px-4 max-sm:pb-0 max-sm:pt-4">
+                {stacked && <div className="shrink-0 px-6 pt-3.5 max-sm:px-4 max-sm:pt-2.5">{back}</div>}
+                <div className={cn('flex shrink-0 items-start justify-between gap-4 px-6 pb-1 pt-5 max-sm:px-4 max-sm:pb-0 max-sm:pt-4', stacked && 'pt-1.5 max-sm:pt-1.5')}>
                   <div className="min-w-0 pt-0.5">
                     <Dialog.Title className="font-display text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{title}</Dialog.Title>
                     {sub && <div className="mt-0.5 text-[0.875rem] text-muted max-sm:text-[0.84375rem]">{sub}</div>}
                   </div>
-                  <CloseButton onClick={onClose} />
+                  {!stacked && <CloseButton onClick={onClose} />}
                 </div>
                 <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 pb-5 pt-4 max-sm:px-4 max-sm:pb-5 max-sm:pt-4', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
               </>

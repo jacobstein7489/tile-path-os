@@ -89,7 +89,7 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
           return (
             <button
               key={t.id}
-              onClick={() => { markSeen(keys); s.close(); s.open({ t: 'task', id: t.id }) }}
+              onClick={() => { markSeen(keys); s.open({ t: 'task', id: t.id }) }}
               data-incoming-urgent={t.urgent ? '' : undefined}
               className={cn('group flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition', t.urgent ? 'border-bad-200 bg-bad-50/50 hover:border-bad-300' : 'border-line bg-white hover:border-brand-200 hover:bg-brand-50/40')}
             >
@@ -107,7 +107,7 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
           return (
             <button
               key={e.id}
-              onClick={() => { markSeen(keys); s.close(); s.open({ t: 'event', id: e.id }) }}
+              onClick={() => { markSeen(keys); s.open({ t: 'event', id: e.id }) }}
               className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
             >
               {e.by ? <Avatar who={e.by} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"><CalendarDays className="h-4 w-4" /></span>}
@@ -122,7 +122,7 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
         {steps.map(({ job, step, n: nu }) => (
           <button
             key={`${job.id}:${step.key}`}
-            onClick={() => { markSeen(keys); s.close(); openStep(job.id, step.key) }}
+            onClick={() => { markSeen(keys); openStep(job.id, step.key) }}
             className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
           >
             {nu?.by ? <Avatar who={nu.by} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><BellRing className="h-4 w-4" /></span>}

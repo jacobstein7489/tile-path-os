@@ -455,39 +455,50 @@ function PayRow() {
   )
 }
 
-/** the admin's: what's late on the team past the company's line — its own part of Today, one row for each late
- *  thing: what it is, whose, the day it was due, how late, and where it came from. "Check in" opens that person's
- *  window. */
+/** the admin's: what's late on the team past the company's line — and what you asked for or follow that's due today or
+ *  late — its own part of Today, by person: each one's circle and name once, then their things, one line each: the
+ *  project, what, how late. A late line opens the check-in with them; a followed one opens the task. */
 function CheckInSection({ items, follow = [] }: { items: PlateItem[]; follow?: Task[] }) {
   const s = useStore()
   const all = items.flatMap((x) => (x.ci ? x.ci.items.map((c) => ({ who: x.ci!.who, c })) : []))
   if (!all.length && !follow.length) return null
   const open = (who: PersonKey) => s.open({ t: 'checkin', who })
-  /* one row per person and project — what's late there said once, the project only in its column */
-  const groups = Array.from(new Set(all.map((r) => `${r.who}|${r.c.jobName}`))).map((k) => all.filter((r) => `${r.who}|${r.c.jobName}` === k))
+  const people = Array.from(new Set([...follow.map((t) => t.owner), ...all.map((r) => r.who)]))
+  const count = follow.length + new Set(all.map((r) => `${r.who}|${r.c.jobName}`)).size
   return (
     <section data-day="checkin" data-checkins>
-      <Group label="Check in on the team" count={follow.length + groups.length} tone="neutral" strong />
-      {/* what someone else is doing for you that's due today or late: whose, what, when — it opens the task */}
-      {follow.map((t) => <FollowRow key={t.id} t={t} />)}
-      {groups.map((g) => {
-        const { who, c } = g[0]
-        const titles = g.map((r) => cleanTitle(r.c.title, r.c.jobName))
-        const bring = titles.every((t) => /^Bring /.test(t))
-        const late = Math.max(...g.map((r) => r.c.late))
+      <Group label="Check in on the team" count={count} tone="neutral" strong />
+      {people.map((who) => {
+        const late = all.filter((r) => r.who === who)
+        /* what's late on one project said once — "Bring 2 things: …" */
+        const groups = Array.from(new Set(late.map((r) => r.c.jobName))).map((j) => late.filter((r) => r.c.jobName === j))
         return (
-          <div key={c.key} data-checkin-row={who} data-contents>
-            <TodoRow
-              onClick={() => open(who)}
-              icon={<UserRoundCheck />}
-              title={g.length === 1 ? titles[0] : bring ? `Bring ${g.length} things: ${titles.map((t) => t.replace(/^Bring /, '')).join(', ')}` : `${g.length} things late: ${titles.join(', ')}`}
-              detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
-              project={[PEOPLE[who]?.short, c.jobName].filter(Boolean).join(' · ')}
-              owner={who}
-              when={`${late} ${late === 1 ? 'day' : 'days'} late`}
-              whenTone="bad"
-              action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
-            />
+          <div key={who} data-checkin-person={who} data-contents>
+            <div className={cn('flex min-w-0 items-center gap-2 pb-0.5 pt-3', PX)} data-checkin-who>
+              <Avatar who={who} size={22} />
+              <span className="truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[who]?.short || 'Someone'}</span>
+            </div>
+            {follow.filter((t) => t.owner === who).map((t) => <FollowRow key={t.id} t={t} />)}
+            {groups.map((g) => {
+              const { c } = g[0]
+              const titles = g.map((r) => cleanTitle(r.c.title, r.c.jobName))
+              const bring = titles.every((t) => /^Bring /.test(t))
+              const lateBy = Math.max(...g.map((r) => r.c.late))
+              return (
+                <div key={c.key} data-checkin-row={who} data-contents>
+                  <TodoRow
+                    onClick={() => open(who)}
+                    icon={<UserRoundCheck />}
+                    title={g.length === 1 ? titles[0] : bring ? `Bring ${g.length} things: ${titles.map((t) => t.replace(/^Bring /, '')).join(', ')}` : `${g.length} things late: ${titles.join(', ')}`}
+                    detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
+                    project={c.jobName}
+                    when={`${lateBy} ${lateBy === 1 ? 'day' : 'days'} late`}
+                    whenTone="bad"
+                    action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
+                  />
+                </div>
+              )
+            })}
           </div>
         )
       })}
@@ -507,8 +518,7 @@ function FollowRow({ t }: { t: Task }) {
         onClick={open}
         icon={<Eye />}
         title={cleanTitle(t.title, job)}
-        project={[PEOPLE[t.owner]?.short, job?.name || 'Company'].filter(Boolean).join(' · ')}
-        owner={t.owner}
+        project={job?.name || 'Company'}
         when={t.urgent ? 'Urgent' : late ? (/late/i.test(t.due || '') ? t.due : `Was due ${t.due}`) : 'Today'}
         whenTone={t.urgent || late ? 'bad' : 'quiet'}
         action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
@@ -1222,7 +1232,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
 
   const header = (
     <WinHead
-      place={<>{job ? job.name : 'Company'}{t.where ? ` · ${t.where}` : ''}</>}
+      place={<>{job ? job.name : 'Company'}{t.where && t.where.trim() !== job?.name ? ` · ${t.where}` : ''}</>}
       title={cleanTitle(t.title, job)}
       who={t.owner}
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' and ')} — whoever gets to it first` : t.owner === me ? 'Yours' : `${owner} has it`}</span>}
@@ -1302,41 +1312,32 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     <>
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
       {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3')} data-task-detail>{t.detail}</p>}
+      {/* the notes, right here — newest first, no click to see them; one box to add one */}
       {(log.length > 0 || t.state !== 'done') && (
         <div className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4')} data-task-notes>
-          {notes ? (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[0.8125rem] font-semibold text-ink">Notes</span>
-                <button type="button" onClick={() => setNotes(false)} className="text-[0.8125rem] font-semibold text-muted hover:text-ink">Hide</button>
-              </div>
-              {from && <div className="mt-0.5 text-[0.75rem] text-muted" data-task-from>{from}</div>}
-              <div className="-mx-2 mt-1">
-                {[...log].reverse().map((l, i) => <ActivityRow key={i} jobId={t.jobId || undefined} e={{ date: l.date, who: l.who, kind: 'system', title: l.text }} compact />)}
-              </div>
-              {t.state !== 'done' && (
-                <div className="mt-2 flex items-center gap-2">
-                  {s.role === 'owner' && (
-                    <Menu align="start" width={260} trigger={<button aria-label="Write it as" title={as ? `Writing for ${PEOPLE[as].name}` : 'Writing as you'} className={cn('inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border px-1.5', as ? 'border-warn-300 bg-warn-50' : 'border-line bg-white hover:bg-wash')}><Avatar who={as || me} size={26} /></button>}>
-                      <MenuLabel>Write it as</MenuLabel>
-                      <MenuItem icon={<Avatar who={me} size={20} />} checked={!as} onSelect={() => setAs(null)}>Me</MenuItem>
-                      {s.team.filter((m) => m.key !== me && m.status !== 'off').map((m) => <MenuItem key={m.key} icon={<Avatar who={m.key} size={20} />} checked={as === m.key} hint="marked as written by you" onSelect={() => setAs(m.key)}>{PEOPLE[m.key].name}</MenuItem>)}
-                    </Menu>
-                  )}
-                  <TextInput autoFocus={!log.length} value={note} onChange={(e) => setNote(e.target.value)} placeholder={as ? `A note for ${PEOPLE[as].short}…` : 'Add a note…'} onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} />
-                  <Button disabled={!note.trim()} onClick={addNote}>Add</Button>
-                </div>
+          {log.length > 0 && (
+            <ul className="scroll-soft -mx-1 max-h-[14rem] overflow-y-auto px-1" data-task-log>
+              {[...log].reverse().map((l, i) => (
+                <li key={i} className="flex min-w-0 items-start gap-2.5 py-1.5">
+                  {PEOPLE[l.who as PersonKey] ? <Avatar who={l.who as PersonKey} size={22} /> : <span className="mt-0.5 inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.625rem] font-semibold text-muted">OS</span>}
+                  <span className="min-w-0 flex-1 pt-px text-[0.875rem] leading-snug text-ink-2">{l.text}</span>
+                  <span className="shrink-0 pt-0.5 text-[0.75rem] tnum text-faint">{whoName(l.who)} · {l.date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {t.state !== 'done' && (
+            <div className="mt-2 flex items-center gap-2">
+              {s.role === 'owner' && (
+                <Menu align="start" width={260} trigger={<button aria-label="Write it as" title={as ? `Writing for ${PEOPLE[as].name}` : 'Writing as you'} className={cn('inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border px-1.5', as ? 'border-warn-300 bg-warn-50' : 'border-line bg-white hover:bg-wash')}><Avatar who={as || me} size={26} /></button>}>
+                  <MenuLabel>Write it as</MenuLabel>
+                  <MenuItem icon={<Avatar who={me} size={20} />} checked={!as} onSelect={() => setAs(null)}>Me</MenuItem>
+                  {s.team.filter((m) => m.key !== me && m.status !== 'off').map((m) => <MenuItem key={m.key} icon={<Avatar who={m.key} size={20} />} checked={as === m.key} hint="marked as written by you" onSelect={() => setAs(m.key)}>{PEOPLE[m.key].name}</MenuItem>)}
+                </Menu>
               )}
-            </>
-          ) : (
-            <button type="button" onClick={() => setNotes(true)} className="group flex w-full min-w-0 items-center gap-2.5 text-left" data-notes-open>
-              <MessageSquare className="h-4 w-4 shrink-0 text-faint" />
-              {last
-                ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{last.text}<span className="text-muted"> · {whoName(last.who)} · {last.date}</span></span>
-                : <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold text-brand-700">Add a note</span>}
-              {log.length > 0 && <span className="shrink-0 text-[0.75rem] font-semibold text-muted group-hover:text-ink">Notes ({log.length})</span>}
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-            </button>
+              <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder={as ? `A note for ${PEOPLE[as].short}…` : 'Add a note…'} onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} aria-label="Add a note" data-task-note />
+              {note.trim() && <Button onClick={addNote}>Add</Button>}
+            </div>
           )}
         </div>
       )}

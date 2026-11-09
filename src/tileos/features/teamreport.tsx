@@ -140,9 +140,11 @@ export function recordCheckIn(who: PersonKey, items: CheckItem[], note?: string)
 }
 
 /* ---------------- the check-in window ---------------- */
+/** "Bring to 222 Acadamy Terrace: Tile" is "Bring Tile" — the project is on the line under it */
+const cleanTitleOf = (t: string, job: string) => (job ? t.replace(`Bring to ${job}: `, 'Bring ').replace(new RegExp(`\\s*[—·-]\\s*${job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '') : t)
+/* opened on top of the check-in — Back comes right back to it */
 const openItem = (go: { kind: 'task'; id: string } | { kind: 'step'; jobId: string; k: string }) => {
   const s = useStore.getState()
-  s.close()
   if (go.kind === 'step') openStep(go.jobId, go.k)
   else s.open({ t: 'task', id: go.id })
 }
@@ -162,10 +164,10 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
   return (
     <Modal
       level={level}
-      size="md"
+      size="sm"
       onClose={s.close}
-      title={<span className="inline-flex items-center gap-2.5"><Avatar who={who} size={34} />Check in with {p?.short || 'them'}</span>}
-      sub={items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} still not done ${n}+ work days after the day ${items.length === 1 ? 'it was' : 'they were'} set for.` : 'Nothing to check in on right now.'}
+      title={<span className="inline-flex items-center gap-2.5"><Avatar who={who} size={28} />Check in with {p?.short || 'them'}</span>}
+      sub={items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} late` : 'Nothing to check in on right now.'}
       footer={items.length ? (
         <>
           <Button variant="ghost" icon={<BellRing />} onClick={() => done('remind')} data-checkin-remind>Remind {p?.short}</Button>
@@ -173,26 +175,22 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
         </>
       ) : <Button className="ml-auto" variant="primary" onClick={s.close}>OK</Button>}
     >
+      {/* what's late, one line each: what, the project, how late — tap one: it opens on top, Back comes back here */}
       {items.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-line" data-checkin-items>
+        <section className="-mx-2" data-checkin-items>
           {items.map((c) => (
-            <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0 row-hover">
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><AlarmClock className="h-4 w-4" /></span>
+            <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-2 text-left transition row-hover" data-from={c.from || undefined}>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{c.title}</span>
-                <span className="block truncate text-[0.78125rem] text-muted">{c.jobName} · due {md(c.setFor)} · <b className="font-semibold text-bad-600">{workDays(c.late)} late</b>{c.rolls ? ` · moved ${c.rolls}×` : ''}</span>
-                {c.from && <span className="block truncate text-[0.75rem] text-faint" data-from>{c.from.charAt(0).toUpperCase() + c.from.slice(1)}</span>}
+                <span className="block truncate text-[0.9375rem] font-medium text-ink">{cleanTitleOf(c.title, c.jobName)}</span>
+                <span className="block truncate text-[0.8125rem] text-muted">{c.jobName}</span>
               </span>
+              <span className="shrink-0 text-[0.8125rem] font-medium tnum text-bad-600">{workDays(c.late)} late</span>
               <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
             </button>
           ))}
         </section>
       )}
-      {items.length > 0 && (
-        <Field label="What they said (optional)" className="mt-4">
-          <TextInput mic value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. waiting on the GC — done Thursday" aria-label="What they said" />
-        </Field>
-      )}
+      {items.length > 0 && <TextInput mic value={note} onChange={(e) => setNote(e.target.value)} placeholder="What they said (optional)" aria-label="What they said" className="mt-3" />}
     </Modal>
   )
 }
