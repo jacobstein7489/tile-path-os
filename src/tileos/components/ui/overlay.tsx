@@ -15,7 +15,8 @@ const WIDTHS = {
   md: 'w-[min(43.75rem,94vw)]',
   lg: 'w-[min(56.25rem,95vw)]',
   xl: 'w-[min(75rem,96vw)]',
-  full: 'w-[min(93.75rem,calc(100vw-2.5rem))]',
+  /* a project, an estimate: big, in the middle — on a wide screen, even margins on both sides like the pages */
+  full: 'w-[min(80rem,calc(100vw-2.5rem))]',
 }
 /** pinned list headers inside a window sit at the top of its scrolling area */
 const INSIDE = { '--app-top': '0px', '--bar': '0px', '--head': '0px' } as React.CSSProperties

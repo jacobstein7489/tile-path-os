@@ -8,6 +8,7 @@
 import * as React from 'react'
 import { UserRound } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
+import { Avatar } from '@/tileos/components/ui/core'
 import { Filter } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
@@ -28,6 +29,26 @@ export type LeftRow = {
   late?: boolean
   tone: 'bad' | 'now' | 'wait'
   open: () => void
+}
+
+/** whose it is: their little circle and their name ("You" for yours) — the same as on Estimates */
+export function Whose({ who, size = 20, className }: { who?: PersonKey; size?: number; className?: string }) {
+  const s = useStore()
+  if (!who || !PEOPLE[who]) return <span className={className} />
+  const me = meOf(s.role)
+  return (
+    <span className={cn('flex min-w-0 items-center gap-2', className)} data-whose={who}>
+      <Avatar who={who} size={size} />
+      <span className={cn('min-w-0 truncate text-[0.875rem]', who === me ? 'font-medium text-ink' : 'text-ink-2')} data-who-name>{who === me ? 'You' : PEOPLE[who].short || firstName(who)}</span>
+    </span>
+  )
+}
+
+/** a step in words, the same everywhere (Today, Projects, a project's To do): what to do — or, with the installer
+ *  already picked, "Send Leo his PO" */
+export function stepWords(s: Store, job: Job, v: StepView): string {
+  const crew = v.key === 'installer' ? installerOf(s, job) : undefined
+  return crew ? `Send ${PEOPLE[crew]?.short || 'him'} his PO` : todoOf(v)
 }
 
 /** the steps a step keeps for itself ("Enter tile & grout" is part of "Enter the paperwork") */
@@ -69,10 +90,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
       return
     }
     const late = !!v.due && v.due < TODAY
-    /* the installer already picked (penciled in): what's left is sending him his PO */
-    const crew = v.key === 'installer' ? installerOf(s, job) : undefined
-    const what = crew ? `Send ${PEOPLE[crew]?.short || 'him'} his PO` : todoOf(v)
-    rows.push({ key: 's:' + v.key, what, who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : undefined, late, tone: 'now', open: openStep(v.key) })
+    rows.push({ key: 's:' + v.key, what: stepWords(s, job, v), who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : undefined, late, tone: 'now', open: openStep(v.key) })
   })
   /* the project's own tasks */
   issuesOf(s, job).forEach((t) => {
@@ -109,7 +127,6 @@ export function WhatsLeft({ job }: { job: Job }) {
   /* the people who have something here — you first */
   const people = Array.from(new Set([...all.map((r) => r.who), ...tracks.flatMap((t) => t.steps.filter((v) => v.state === 'now' || v.state === 'wait' || v.state === 'bad').map((v) => v.owner))].filter(Boolean) as PersonKey[]))
     .sort((a, b) => Number(b === me) - Number(a === me))
-  const name = (p?: PersonKey) => (!p ? '' : p === me ? 'You' : firstName(p))
   const openPart = (t: TrackView) => {
     const k = (t.lead || [...t.steps].reverse().find((v) => v.state === 'done') || t.steps[0])?.key
     if (k) s.open({ t: 'step', jobId: job.id, k })
@@ -143,10 +160,10 @@ export function WhatsLeft({ job }: { job: Job }) {
           <button key={r.key} type="button" onClick={r.open} className={ROW} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
             <span className={cn('min-w-0 truncate text-[0.9375rem]', r.tone === 'bad' ? 'font-semibold text-bad-600' : r.tone === 'wait' ? 'text-muted' : 'font-medium text-ink')} title={r.what} data-left-what>{r.what}</span>
             {/* a phone: whose and when under what, one line */}
-            <span className={cn('min-w-0 truncate text-[0.875rem] max-sm:hidden', r.who === me ? 'font-semibold text-brand-700' : 'text-ink-2')} data-left-who>{name(r.who)}</span>
+            <span className="min-w-0 max-sm:hidden" data-left-who><Whose who={r.who} /></span>
             <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum max-sm:hidden', r.late ? 'font-medium text-bad-600' : 'text-muted')} data-left-when>{r.when || ''}</span>
-            <span className="hidden min-w-0 text-right text-[0.8125rem] leading-tight max-sm:block">
-              <span className={cn('block truncate', r.who === me ? 'font-semibold text-brand-700' : 'text-ink-2')}>{name(r.who)}</span>
+            <span className="hidden min-w-0 flex-col items-end gap-0.5 text-right text-[0.8125rem] leading-tight max-sm:flex">
+              <Whose who={r.who} size={18} className="justify-end" />
               {r.when && <span className={cn('block truncate tnum', r.late ? 'font-medium text-bad-600' : 'text-muted')}>{r.when}</span>}
             </span>
           </button>

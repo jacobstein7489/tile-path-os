@@ -112,10 +112,13 @@ export function EstimatesPage() {
       title="Estimates"
       actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
       top={
+        /* the same as Projects: All open first, picked when the page opens — then each step, then how they ended */
         <Bubbles
           arrows
+          row
           items={[
-            { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request') },
+            { key: 'open', label: 'All open', count: list.filter((e) => OPEN_C.includes(catOf(e))).length, icon: <Layers />, color: 'indigo', on: view === 'open', onClick: () => setView('open') },
+            { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request'), gapBefore: true },
             { key: 'estimating', label: CAT.estimating.label, count: of('estimating').length, icon: CAT.estimating.icon, color: 'blue', on: view === 'estimating', onClick: pick('estimating') },
             { key: 'sent', label: CAT.sent.label, count: of('sent').length, icon: CAT.sent.icon, color: 'cyan', on: view === 'sent', onClick: pick('sent') },
             { key: 'revision', label: CAT.revision.label, count: of('revision').length, icon: CAT.revision.icon, color: 'amber', on: view === 'revision', onClick: pick('revision') },
@@ -126,13 +129,7 @@ export function EstimatesPage() {
       }
       toolbar={
         <>
-          {/* the bubble on top says which ones these are — no title in here; a picked one can be cleared */}
-          {view !== 'open' && (
-            <span className="inline-flex h-9 items-center gap-2 rounded-full border border-brand-600 bg-brand-50 pl-3.5 pr-1.5 text-[0.84375rem] font-semibold text-brand-700">
-              {CAT[view].label} <span className="text-brand-600">{shown.length + lostOld.length}</span>
-              <button onClick={() => setView('open')} aria-label="Show open estimates" className="inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-brand-100">×</button>
-            </span>
-          )}
+          {/* the bubble on top says which ones these are — All open takes you back */}
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
             <Filter icon={<UserRound />} label="Whose turn" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />

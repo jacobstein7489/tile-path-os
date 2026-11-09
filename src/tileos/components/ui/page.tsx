@@ -23,9 +23,10 @@ export const PAGE_PX = 'px-7 max-xl:px-6 max-lg:px-5 max-sm:px-3'
  *  slides sideways. Its name ("All open 13") goes — the colored bubble you picked already says it. */
 const PHONE_BAR = 'max-md:flex-wrap max-md:[&>div]:ml-0 max-md:[&>div]:flex-wrap max-md:[&_.bar-title]:hidden'
 
-/** how wide a page gets — centered on a big screen. The top bar's search and your name line up with it */
-export const PAGE_MAX = 'max-w-[84rem]'
-export const TOPBAR_MAX = 'max-w-[80.5rem]'
+/** how wide a page gets — in the middle, with even margins on both sides once the screen is wider than a laptop's
+ *  (a 1920 screen: about 180px each side). The top bar's search and your name line up with it */
+export const PAGE_MAX = 'max-w-[72rem]'
+export const TOPBAR_MAX = 'max-w-[68.5rem]'
 
 export function Page({
   title, sub, actions, tabs, tab, onTab, toolbar, children, className, aside, top, bare, phoneTitle,
@@ -521,7 +522,7 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
               onClick={b.onClick}
               disabled={!b.onClick}
               className={cn(
-                /* many (Projects' eight): they share the row — the icons step aside on a laptop so every one shows whole */
+                /* many (Projects' and Estimates' seven): they share the row — no icons, so every name shows whole */
                 'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default', items.length >= 7 ? 'min-w-[6.5rem]' : 'min-w-[9.375rem]',
                 /* phone: the number big on top, the name under it, the icon small in the corner */
                 'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', row ? cn('max-sm:min-h-[3.25rem] max-sm:px-2', items.length <= 5 && 'max-sm:flex-auto max-sm:basis-auto') : four ? 'max-sm:px-2' : 'max-sm:px-2.5',
@@ -529,7 +530,7 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
               )}
               style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden', items.length >= 7 && 'sm:max-2xl:hidden')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden', items.length >= 7 && 'sm:hidden')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}
@@ -601,7 +602,8 @@ export function Table({ children, minWidth, className, auto }: { children: React
 const EDGE = 'first:pl-5 last:pr-5 max-sm:first:pl-4 max-sm:last:pr-4'
 export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
   return (
-    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-9 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.75rem] font-medium text-faint xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
+    /* the same column names as every list (Projects, Estimates): dark gray, semibold, near the size of the rows */
+    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-10 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.875rem] font-semibold text-[#363b45] xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
       {children}
     </th>
   )

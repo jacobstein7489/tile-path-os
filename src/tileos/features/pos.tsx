@@ -84,10 +84,12 @@ export function POsPage() {
       sub={tab === 'calc' ? `${fmtMoney(calcTotal)} to order` : undefined}
       actions={<><Button icon={<Plus />} onClick={() => s.open({ t: 'newtilepo' })} data-new-tile-po>Tile PO</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newpo' })}>New PO</Button></>}
       top={
+        /* the same as Projects and Estimates: All open first, picked when the page opens */
         <Bubbles
           arrows
           items={[
-            { key: 'calc', label: 'To order', count: calc.length, sub: calcTotal ? fmtMoney(calcTotal) : undefined, icon: <Calculator />, color: 'cyan', on: tab === 'calc', onClick: pick('calc') },
+            { key: 'open', label: 'All open', count: scoped.filter((r) => bucketOfPO(r) !== 'done').length, icon: <Layers />, color: 'indigo', on: tab === 'open', onClick: () => setTab('open') },
+            { key: 'calc', label: 'To order', count: calc.length, sub: calcTotal ? fmtMoney(calcTotal) : undefined, icon: <Calculator />, color: 'cyan', on: tab === 'calc', onClick: pick('calc'), gapBefore: true },
             { key: 'draft', label: 'Draft', count: nB('draft'), icon: <FilePen />, color: 'violet', on: tab === 'draft', onClick: pick('draft') },
             { key: 'waiting', label: 'Sent', count: nB('waiting'), icon: <Hourglass />, color: 'amber', on: tab === 'waiting', onClick: pick('waiting') },
             { key: 'coming', label: 'Confirmed', count: nB('coming'), icon: <Truck />, color: 'blue', on: tab === 'coming', onClick: pick('coming') },
@@ -98,7 +100,7 @@ export function POsPage() {
       }
       toolbar={
         <>
-          <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ open: 'Open POs', all: 'All POs', calc: 'To order — worked out from each scope', draft: 'Draft', waiting: 'Sent — waiting to confirm', coming: 'Confirmed — on the way', late: 'Late', done: 'Received' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{tab === 'calc' ? calc.length : list.length}</span></span>
+          {/* the bubble on top says which ones these are — All open takes you back */}
           <Filter icon={<Layers />} label="Type" value={type} options={[{ key: 'material', label: 'Materials · suppliers' }, { key: 'tile', label: 'Tile · stores' }, { key: 'installer', label: 'Installers · subs' }]} onChange={setType} />
           <Filter icon={<Package />} label="Vendor" value={vendor} options={vendors.map((v) => ({ key: v, label: v }))} onChange={setVendor} />
           <Filter icon={<Building2 />} label="Project" value={job} options={jobs.map((id) => ({ key: id, label: s.jobs[id].name }))} onChange={setJob} width={260} />

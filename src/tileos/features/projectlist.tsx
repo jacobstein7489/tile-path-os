@@ -13,7 +13,8 @@ import { CUSTOMERS } from '@/tileos/data/jobs'
 import { billingOf } from './job/money-tab'
 import { stepsFor, companySteps, IN_FIELD_STAGES } from './steps'
 import { pictureOf } from './progressbill'
-import { tracksFor, bookingOf, problemsOf, gateOpen, leadWords, stepShort } from './tracks'
+import { tracksFor, bookingOf, problemsOf, gateOpen, leadWords } from './tracks'
+import { Whose, stepWords } from './job/whatsleft'
 import { installerOf } from './upcoming'
 import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -76,7 +77,8 @@ export function ProjectsPage() {
   /* a date column only when a project on the list has a date */
   const when = list.some((j) => !!whenOf(s, j).text)
   /* in each group: the ones with a problem first, then yours, then by the day they start */
-  const rank = (j: Job) => { const w = nowOf(s, j); return w.tone === 'bad' ? 0 : w.tone === 'mine' ? 1 : 2 }
+  const me = meOf(s.role)
+  const rank = (j: Job) => { const w = nowOf(s, j); return w.tone === 'bad' ? 0 : w.who === me && w.tone !== 'quiet' ? 1 : 2 }
   const startOf = (j: Job) => bookingOf(s, j)?.start || s.prep[j.id]?.targetISO || '9999'
   list.sort((a, b) => PROJ_TYPES.findIndex((t) => t.key === typeOf(a)) - PROJ_TYPES.findIndex((t) => t.key === typeOf(b)) || rank(a) - rank(b) || (typeOf(a) === 'coming' ? startOf(a).localeCompare(startOf(b)) : 0) || TONE_ORDER[a.status] - TONE_ORDER[b.status])
   const n = (k: ProjType) => won.filter((j) => typeOf(j) === k).length
@@ -135,15 +137,18 @@ export function ProjectsPage() {
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 
-/* One line per project, three things on it — the project · the one thing that matters now · its date:
- *   Project · (Client, on a wide screen) · Now · When
- * Now is always one thing: the first problem, in red (and how many more), or else the step that's up (yours in blue),
- * or how far it is (51% installed · 3 to fix). When is the day it starts, or the day it's to be done. Nothing to
- * decode — no circles, no bars, no counts to point at. On a phone: the name and the date, the one thing under it. */
+/* One line per project — the same as Estimates: the project's name (bold — it's the line's name), the client (gray),
+ * what's going on now, whose turn it is (their little circle and name), and the date:
+ *   Project · (Client, on a wide screen) · Now · Whose turn · Date
+ * Now is always one thing: the first problem, in red (and how many more), or else the step that's up — in the same
+ * words as on Today — or how far it is (51% installed · 2 to fix). The date is the day it starts, or the day it's to
+ * be done. One color means something — red, a problem. Nothing else to decode. On a phone: the name and the date,
+ * what's up and whose under it. */
 const COLS = 'grid items-center gap-x-6 max-md:block'
-/** the columns: the names and Now share the width (Now more — it says what's up), the date is as wide as it is; a long
- *  one is cut short, so nothing runs into the next column. When is a column only when a project on the list has a date */
-const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,1fr) minmax(0,0.75fr)' : 'minmax(0,1fr)', 'minmax(0,1.7fr)', when ? 'max-content' : ''].filter(Boolean).join(' ')
+/** the columns: the names and Now share the width (Now more — it says what's up); whose turn and the date are as wide
+ *  as they need. A long one is cut short, so nothing runs into the next column. Date is a column only when a project on
+ *  the list has one */
+const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,1fr) minmax(0,0.75fr)' : 'minmax(0,1fr)', 'minmax(0,1.6fr)', 'minmax(0,9rem)', when ? 'max-content' : ''].filter(Boolean).join(' ')
 
 function ListHead({ when }: { when: boolean }) {
   return (
@@ -151,7 +156,8 @@ function ListHead({ when }: { when: boolean }) {
       <span>Project</span>
       <span className="max-xl:hidden">Client</span>
       <span>Now</span>
-      {when && <span className="text-right" data-when-head>When</span>}
+      <span>Whose turn</span>
+      {when && <span className="text-right" data-when-head>Date</span>}
     </div>
   )
 }
@@ -198,41 +204,44 @@ export function whenOf(s: Store, j: Job): { text: string; late?: boolean } {
 /** the date, shorter, for a phone ("Nov 23", "ends Nov 20") */
 const whenShort = (w: string) => w.replace(/^Starts /, '').replace(/^(Ends|Back) /, (m) => m.toLowerCase()).replace(/^Booked /, '')
 
-/** the one thing on a project now, in a few words — always something: a problem (red), the step that's up (yours in
- *  blue), how far it is */
-export type NowWords = { text: string; who?: string; more?: number; tone?: 'bad' | 'mine' | 'quiet' }
-export function nowOf(s: Store, j: Job, probs: { text: string }[] = problemsOf(s, j)): NowWords {
-  if (probs.length) return { text: probs[0].text, more: probs.length - 1, tone: 'bad' }
+/** the one thing on a project now, in a few words — always something: a problem (red), the step that's up, how far it
+ *  is — and whose it is */
+export type NowWords = { text: string; who?: PersonKey; more?: number; tone?: 'bad' | 'quiet' }
+export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = problemsOf(s, j)): NowWords {
+  const steps = stepsFor(s, j)
+  if (probs.length) {
+    const p = probs[0]
+    const who = (p.task ? s.tasks.find((t) => t.id === p.task)?.owner : p.step ? steps.find((v) => v.key === p.step)?.owner : undefined) as PersonKey | undefined
+    return { text: p.text, who, more: probs.length - 1, tone: 'bad' }
+  }
   const t = typeOf(j)
   const me = meOf(s.role)
   const b = bookingOf(s, j)
   const crew = (b?.crew || j.crew || installerOf(s, j)) as PersonKey | undefined
-  const name = (p?: PersonKey) => (!p ? undefined : p === me ? 'You' : PEOPLE[p]?.short || undefined)
   const cap = (x: string) => x.replace(/^./, (c) => c.toUpperCase())
   if (t === 'hold') return { text: j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold', tone: 'quiet' }
-  if (t === 'progress') return crew ? { text: `${j.pct ?? 0}% installed`, who: name(crew) } : { text: 'No installer on it', tone: 'mine' }
-  if (t === 'touchups') return crew ? { text: howFar(s, j).text, who: name(crew) } : { text: 'Pick who fixes them', tone: 'mine' }
-  if (t === 'repairs') return crew ? { text: s.punch.some((p) => p.jobId === j.id) ? howFar(s, j).text : j.scope || 'Repair', who: name(crew) } : { text: 'Pick a crew', tone: 'mine' }
-  if (t === 'done') { const bl = billingOf(j); return bl.paidPct >= 100 ? { text: 'Paid and closed', tone: 'quiet' } : bl.billedPct >= 100 ? { text: 'Waiting to be paid', tone: 'quiet' } : { text: 'Bill the rest', tone: 'mine' } }
+  if (t === 'progress') return crew ? { text: `${j.pct ?? 0}% installed`, who: crew } : { text: 'No installer on it' }
+  if (t === 'touchups') return crew ? { text: cap(howFar(s, j).text), who: crew } : { text: 'Pick who fixes them' }
+  if (t === 'repairs') return crew ? { text: s.punch.some((p) => p.jobId === j.id) ? cap(howFar(s, j).text) : j.scope || 'Repair', who: crew } : { text: 'Pick a crew' }
+  if (t === 'done') { const bl = billingOf(j); return bl.paidPct >= 100 ? { text: 'Paid and closed', tone: 'quiet' } : bl.billedPct >= 100 ? { text: 'Waiting to be paid', tone: 'quiet' } : { text: 'Bill the rest' } }
   /* getting ready: the step that's up — yours first, then the first one someone has to do (in the job's order), then
      what it waits on */
-  const tracks = tracksFor(s, j)
-  if (gateOpen(tracks)) return b ? { text: 'Crew booked', who: name(b.crew as PersonKey) } : { text: 'Ready — book the crew', tone: 'mine' }
+  const tracks = tracksFor(s, j, steps)
+  if (gateOpen(tracks)) return b ? { text: 'Crew booked', who: b.crew as PersonKey } : { text: 'Ready — book the crew', who: steps.find((v) => v.key === 'installer')?.owner }
   const open = tracks.filter((x) => x.state !== 'done' && x.lead)
   const leads = open.map((x) => x.lead!)
   const v = leads.find((x) => x.state === 'now' && x.owner === me) || leads.find((x) => x.state === 'now') || leads.find((x) => x.state === 'wait') || leads.find((x) => x.state === 'later') || leads[0]
   if (!v) return { text: 'Getting ready', tone: 'quiet' }
-  const step = stepShort(s, j, v)
-  if (v.state === 'wait') return { text: `${step} · ${leadWords(s, j, open.find((x) => x.lead === v)!).top.replace(/^./, (c) => c.toLowerCase())}`, tone: 'quiet' }
-  if (v.state === 'later') return { text: step, who: name(v.owner), tone: 'quiet' }
-  return v.owner === me ? { text: step, who: 'your turn', tone: 'mine' } : { text: step, who: name(v.owner) }
+  const step = stepWords(s, j, v)
+  if (v.state === 'wait') return { text: `${step} · ${leadWords(s, j, open.find((x) => x.lead === v)!).top.replace(/^./, (c) => c.toLowerCase())}`, who: v.owner, tone: 'quiet' }
+  if (v.state === 'later') return { text: step, who: v.owner, tone: 'quiet' }
+  return { text: step, who: v.owner }
 }
 
 function NowLine({ w, all }: { w: NowWords; /** every problem, for pointing at the line */ all: { text: string }[] }) {
   return (
-    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'font-medium text-bad-600' : w.tone === 'mine' ? 'font-medium text-brand-700' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
+    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'font-medium text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink')}>
       {w.text}
-      {w.who && <span className={w.tone === 'mine' ? undefined : 'text-muted'}> · {w.who}</span>}
       {!!w.more && <span className="font-normal text-muted" data-more={w.more}> · +{w.more} more</span>}
     </span>
   )
@@ -263,14 +272,18 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       </div>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="flex min-w-0 items-center max-md:hidden" data-now><NowLine w={now} all={probs} /></div>
-      {hasWhen && date('text-right text-[0.875rem] max-md:hidden', w.text)}
-      {/* a phone: the name and the date; the one thing under it */}
+      <span className="min-w-0 max-md:hidden" data-turn={now.who || ''}><Whose who={now.who} /></span>
+      {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when>—</span>)}
+      {/* a phone: the name and the date; what's up and whose under it */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-baseline gap-3">
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
-        <div className="mt-0.5 flex min-w-0" data-now><NowLine w={now} all={probs} /></div>
+        <div className="mt-0.5 flex min-w-0 items-center gap-3">
+          <span className="flex min-w-0 flex-1" data-now><NowLine w={now} all={probs} /></span>
+          {now.who && <Whose who={now.who} size={16} className="shrink-0 [&_[data-who-name]]:text-[0.8125rem]" />}
+        </div>
       </div>
     </div>
   )

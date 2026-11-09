@@ -579,12 +579,13 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
     /* a login spot nobody took ("Estimator") is never shown as a person — it's whoever has that login */
     out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: realOwner(s, t.owner) })
   })
-  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: t.owner }))
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner) }))
   /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t)).forEach((t) => {
     const iso = isoFromLabel(t.followUp)
     if (!iso || iso > TODAY) return
-    out.push({ key: t.id, b: bucketOfIso(iso), iso, kind: 'task', t, who: t.owner })
+    /* the same: an untaken login spot is whoever has that job — never a second "Yakov" */
+    out.push({ key: t.id, b: bucketOfIso(iso), iso, kind: 'task', t, who: realOwner(s, t.owner) })
   })
   stepTodos(s, me || 'all').forEach(({ job, step: v }) => {
     /* a step with no date of its own is due a week before the start (everything left has to be done by then) — no start yet, it's due now */
