@@ -41,7 +41,7 @@ import { PrintSheetsButton, sheetRooms, sheetRows } from './roomsheets'
 import { NoNote, SitePick, type SiteVal } from './answer'
 import { HeightsInline } from './heights'
 import { SiteChangeForm } from './field'
-import { trackOf, TRACKS, stepShort, softWrap } from './tracks'
+import { trackOf, tracksFor, TRACKS, stepShort, softWrap } from './tracks'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -549,7 +549,8 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   const body = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { body.current?.scrollTo?.({ top: 0 }) }, [k])
   /* opened to do the step: once it's done — or handed on (waiting on someone, not needed) — the window closes by itself;
-     the pop-up says what happened. Opened to look at a step that was already done or waiting: it stays */
+     the pop-up says what happened. Opened to look at a step that was already done or waiting: it stays. It never
+     moves on to another step by itself */
   const open = !!v && (v.state === 'now' || v.state === 'bad')
   const opened = React.useRef<{ k: string; open: boolean } | null>(null)
   if (v && opened.current?.k !== k) opened.current = { k, open }
@@ -577,9 +578,41 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
       <div ref={body} className="min-w-0" data-step-view={v.key}>
         <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
           <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
+          <LineSteps job={job} v={v} onPick={(key) => s.swap({ t: 'step', jobId, k: key })} />
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** the other steps of its part, in order, each in a few words — done (when, who), whose turn, waiting, later. The
+ *  path of it, quiet, at the bottom: made → sent → accepted. Tap one to see it */
+function LineSteps({ job, v, onPick }: { job: Job; v: StepView; onPick: (k: string) => void }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const tk = trackOf(v)
+  const t = tk ? tracksFor(s, job).find((x) => x.key === tk) : undefined
+  const list = t ? t.steps.filter((x) => x.state !== 'na' && !x.into) : []
+  if (!t || list.length < 2) return null
+  const words = (x: StepView) => x.state === 'done' ? `Done${x.doneOn ? ` ${x.doneOn}` : ''}${x.doneBy ? ` · ${x.doneBy === me ? 'you' : PEOPLE[x.doneBy]?.short || ''}` : ''}`
+    : x.state === 'later' ? 'Later' : x.state === 'wait' ? 'Waiting' : x.state === 'bad' ? 'A problem' : x.owner === me ? 'Your turn' : `${PEOPLE[x.owner]?.short || 'Their'}’s turn`
+  return (
+    <div className="mt-5 border-t border-line-2 pt-3" data-line-steps={t.key}>
+      <div className="mb-1 text-[0.75rem] font-semibold text-muted">{t.label}</div>
+      <ul className="flex flex-col">
+        {list.map((x) => {
+          const on = x.key === v.key
+          return (
+            <li key={x.key}>
+              <button type="button" onClick={() => onPick(x.key)} disabled={on} data-line-step={x.key} data-state={x.state} {...(on ? { 'data-on': '' } : {})} className="flex min-h-9 w-full min-w-0 items-baseline gap-3 py-1 text-left text-[0.875rem] disabled:cursor-default">
+                <span className={cn('min-w-0 flex-1 truncate', on ? 'font-semibold text-ink' : 'text-ink-2 hover:text-ink')}>{todoOf(x)}</span>
+                <span className={cn('shrink-0 text-[0.8125rem]', x.state === 'done' ? 'text-[#2c6b4b]' : x.state === 'bad' ? 'font-medium text-bad-600' : x.state === 'now' && x.owner === me ? 'font-medium text-brand-700' : 'text-muted')}>{words(x)}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 

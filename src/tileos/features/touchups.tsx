@@ -52,7 +52,7 @@ export function TouchupsList({ job }: { job: Job }) {
           {canAdd && <Button className="mt-4" variant={started ? 'primary' : undefined} icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>{started ? 'Add touch-ups' : 'Add touch-ups anyway'}</Button>}
         </div>
       )}
-      {open.length > 0 && <Part label="To do" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {open.length > 0 && <Part label="To fix" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {done.length > 0 && (
         <div>
