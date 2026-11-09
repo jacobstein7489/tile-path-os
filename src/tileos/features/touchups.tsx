@@ -203,7 +203,7 @@ export function NoteModal({ jobId: j0, level }: { jobId?: string; level: number 
       footer={
         <>
           <PhotoButton photos={files} onAdd={(l) => setFiles((x) => [...x, ...l])} label="Photos or videos" />
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!text.trim() || !job} onClick={save}>Save the note</Button>
         </>
       }

@@ -79,7 +79,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       title={editId ? 'Client details' : 'New client'}
       header={<FormHead k="newclient" kicker={editId ? 'Client details' : 'Start something new'} title={editId ? was?.name : 'New client'} right={editId ? undefined : <span className="hidden text-[0.8125rem] text-muted sm:inline">QuickBooks gets the same client by itself</span>} />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
+      footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
     >
       <FormRow label="Who they are">
         <Segmented value={kind} onChange={setKind} items={[{ key: 'company', label: 'A company — GC, developer' }, { key: 'person', label: 'A person — homeowner' }]} />

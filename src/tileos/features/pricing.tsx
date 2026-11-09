@@ -353,7 +353,7 @@ export function FollowUpModal({ jobId, outcome: initial, level }: { jobId: strin
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{outcome && ['reviewing', 'noanswer', 'later'].includes(outcome) ? `It leaves Today and comes back ${next}.` : outcome === 'approved' ? 'Next: it becomes a project.' : ''}</span>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button
             variant={outcome === 'lost' ? 'danger' : 'primary'}
             disabled={!outcome || (outcome === 'lost' && !reason)}
@@ -447,7 +447,7 @@ export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
       footer={
         <>
           <span className="text-[0.84375rem] text-muted" data-award-missing>{missing.length ? `Still needed: ${missing.join(', ')}` : 'Each person gets their part on their Today.'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button size="lg" variant="primary" icon={<Trophy className="h-[1.125rem] w-[1.125rem]" />} disabled={missing.length > 0} onClick={() => award(jobId, { rev, amount: amt, depositPct: dep, custPO: !!custPO, start, pm })} data-award-go>
             Make it a project
           </Button>

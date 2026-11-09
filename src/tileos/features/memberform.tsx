@@ -39,7 +39,7 @@ export function MemberModal({ k, level }: { k: PersonKey; level: number }) {
       onClose={s.close}
       title={[m.first, m.last].filter(Boolean).join(' ') || 'Team member'}
       sub={role ? `${role} login` : undefined}
-      footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>Save</Button></>}
+      footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>Save</Button></>}
     >
       <div className="flex flex-col gap-3.5" data-member-form>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">

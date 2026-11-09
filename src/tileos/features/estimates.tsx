@@ -110,7 +110,7 @@ export function EstimatesPage() {
   return (
     <Page
       title="Estimates"
-      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>}
+      actions={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New project</Button>}
       top={
         /* the same as Projects: All open first, picked when the page opens — then each step, then how they ended */
         <Bubbles
@@ -163,7 +163,7 @@ export function EstimatesPage() {
         ))}
         {!shown.length && !lostOld.length && (list.length
           ? <EmptyState title="No estimates here" sub="Try another filter." />
-          : <EmptyState icon={<FileText />} title="No estimates yet" sub="Upload the plans — it goes straight to whoever does the takeoff, and the estimate is built from there." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>Price a new project</Button>} />)}
+          : <EmptyState icon={<FileText />} title="No estimates yet" sub="Upload the plans — it goes straight to whoever does the takeoff, and the estimate is built from there." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New project</Button>} />)}
       </div>
     </Page>
   )
@@ -1097,7 +1097,7 @@ export function EstChangesModal({ id, level }: { id: string; level: number }) {
       sub={`One line for each thing they asked — revision ${cur.n + 1} starts with all of them, and each one is checked off as it’s done`}
       footer={
         <>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!list.length} onClick={go}>Start revision {cur.n + 1}{list.length > 1 ? ` · ${list.length} changes` : ''}</Button>
         </>
       }

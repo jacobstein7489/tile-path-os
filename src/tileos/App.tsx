@@ -31,7 +31,7 @@ import { ImportClientsModal, ImportModal } from '@/tileos/features/importclients
 import { FreshModal } from './features/testdata'
 import { DeleteModal } from '@/tileos/features/cleanup-ui'
 import { NewEstimateModal } from '@/tileos/features/estnew'
-import { NewAutomationModal } from '@/tileos/features/automations'
+import { NewAutomationModal, AutomationModal } from '@/tileos/features/automations'
 import { PunchNewModal } from '@/tileos/features/punch'
 import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } from '@/tileos/features/pos'
 import { NewTilePOModal, PartCameModal } from '@/tileos/features/tilepo'
@@ -109,7 +109,8 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
     case 'fresh': return <FreshModal mode={m.mode} level={level} />
     case 'delete': return <DeleteModal kind={m.kind} id={m.id} level={level} />
-    case 'newauto': return <NewAutomationModal who={m.who} level={level} />
+    case 'newauto': return <NewAutomationModal who={m.who} id={m.id} level={level} />
+    case 'auto': return <AutomationModal k={m.k} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} fromMsg={m.fromMsg} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
     case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />
@@ -145,7 +146,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'commrate': return <CommissionRateModal level={level} />
     case 'popart': return <PartCameModal id={m.id} level={level} />
     case 'newrepair': return <NewRepairModal level={level} />
-    case 'newproject': return <NewProjectModal level={level} />
+    case 'newproject': return <NewProjectModal level={level} name={m.name} address={m.address} />
     case 'bringin': return <BringInModal level={level} />
     case 'catchup': return <CatchUpModal level={level} id={m.id} all={m.all} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />
@@ -194,7 +195,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'heights': return <HeightsModal jobId={m.jobId} taskId={m.taskId} level={level} />
     case 'followup': return <FollowUpModal jobId={m.jobId} outcome={m.outcome} level={level} />
     case 'award': return <AwardModal jobId={m.jobId} level={level} />
-    case 'newreq': return <NewEstimateModal level={level} />
+    case 'newreq': return <NewEstimateModal level={level} name={m.name} address={m.address} />
     case 'lost': return <LostModal level={level} />
     case 'customer': return <ClientProfile id={m.id} level={level} />
     case 'assign': return <AssignModal jobId={m.jobId} crew={m.crew} start={m.start} level={level} />

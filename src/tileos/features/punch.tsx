@@ -94,7 +94,7 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       footer={
         <>
           <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{who && PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : filled.length ? `${filled.length} on the list` : 'Each line its own touch-up, with its own photos'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Sparkles />} disabled={!jobId || !filled.length || !who} onClick={save}>Log {filled.length || ''} touch-up{filled.length === 1 ? '' : 's'}</Button>
         </>
       }

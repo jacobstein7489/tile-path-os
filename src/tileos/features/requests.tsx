@@ -98,7 +98,7 @@ export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number 
     <Modal level={level} size="md" onClose={s.close} title="Need something on site"
       header={<FormHead k="need" kicker={job && j0 ? job.name : undefined} />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={<><PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} /><span className="truncate text-[0.8125rem] text-muted max-sm:hidden">On your list for today</span><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Add it</Button></>}>
+      footer={<><PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} /><span className="truncate text-[0.8125rem] text-muted max-sm:hidden">On your list for today</span><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Truck />} disabled={!ok} onClick={() => void send()}>Add it</Button></>}>
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} autoFocus /></FormRow>}
       <FormRow label="What do you need?">
         <div className="flex flex-wrap gap-1.5" data-need-quick>

@@ -575,7 +575,7 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
       onClose={s.close}
       title="Project details"
       sub={j.name}
-      footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>Save</Button></>}
+      footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>Save</Button></>}
     >
       <div className="flex flex-col gap-4">
         <Field label="Project name"><TextInput data-autofocus value={name} onChange={(e) => setName(e.target.value)} /></Field>

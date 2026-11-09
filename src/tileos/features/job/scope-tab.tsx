@@ -395,7 +395,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           )}
           {lock.canEdit ? (
             <>
-              <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+              <div className="ml-auto" aria-hidden />
               <Button variant="primary" onClick={save}>Save</Button>
             </>
           ) : <Button className="ml-auto" onClick={s.close}>Close</Button>}
@@ -549,7 +549,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
               </Pop>
             )
           )}
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!ok || busy} onClick={save}>{cur ? 'Save' : 'Add the tile'}</Button>
         </>
       }

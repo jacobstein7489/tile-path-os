@@ -60,7 +60,7 @@ export function Modal({
               if (el && !(phone && /^(INPUT|TEXTAREA)$/.test(el.tagName))) el.focus()
             }}
             className={cn(
-              'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1rem] bg-white shadow-modal outline-none animate-modal-in max-sm:max-h-[94dvh] max-sm:rounded-b-none',
+              'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-modal outline-none animate-modal-in max-sm:max-h-[94dvh] max-sm:rounded-b-none',
               WIDTHS[size],
               'max-sm:w-full',
               tall && (size === 'full' ? 'h-[calc(100dvh-2.5rem)] max-h-[calc(100dvh-2.5rem)] max-sm:h-[100dvh] max-sm:max-h-[100dvh]' : 'h-[92vh] max-sm:h-[94dvh]'),
@@ -74,7 +74,7 @@ export function Modal({
                 <div className="absolute right-4 top-4 z-20 max-sm:hidden">
                   <CloseButton onClick={onClose} />
                 </div>
-                <div className={cn('hidden shrink-0 items-center gap-3 border-b border-line-2 bg-white pb-2 pl-4 pr-3 pt-2 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
+                <div className={cn('hidden shrink-0 items-center gap-3 bg-white pb-1 pl-4 pr-3 pt-2.5 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
                   <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink transition-opacity duration-150', !past && 'opacity-0')} aria-hidden={!past} data-phone-bar-title>{tall && typeof title === 'string' ? title : ''}</span>
                   <CloseButton onClick={onClose} />
                 </div>
@@ -86,17 +86,17 @@ export function Modal({
               </>
             ) : (
               <>
-                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-6 pb-4 pt-5 max-sm:px-4 max-sm:pb-3.5 max-sm:pt-4">
+                <div className="flex shrink-0 items-start justify-between gap-4 px-6 pb-1 pt-5 max-sm:px-4 max-sm:pb-0 max-sm:pt-4">
                   <div className="min-w-0 pt-0.5">
                     <Dialog.Title className="font-display text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{title}</Dialog.Title>
                     {sub && <div className="mt-0.5 text-[0.875rem] text-muted max-sm:text-[0.84375rem]">{sub}</div>}
                   </div>
                   <CloseButton onClick={onClose} />
                 </div>
-                <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
+                <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 pb-5 pt-4 max-sm:px-4 max-sm:pb-5 max-sm:pt-4', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
               </>
             )}
-            {footer && <div className="flex shrink-0 items-center gap-2.5 border-t border-line bg-white px-6 py-3.5 max-sm:flex-wrap max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem]">{footer}</div>}
+            {footer && <div className="flex shrink-0 items-center gap-2.5 bg-white px-6 pb-5 pt-2.5 max-sm:flex-wrap max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem]">{footer}</div>}
           </Dialog.Content>
         </div>
       </Dialog.Portal>
@@ -125,9 +125,10 @@ export function Menu({ trigger, children, align = 'end', width = 248 }: { trigge
     </DM.Root>
   )
 }
-export function MenuItem({ icon, children, onSelect, hint, danger, checked }: { icon?: React.ReactNode; children: React.ReactNode; onSelect?: () => void; hint?: React.ReactNode; danger?: boolean; checked?: boolean }) {
+export function MenuItem({ icon, children, onSelect, hint, danger, checked, ...rest }: { icon?: React.ReactNode; children: React.ReactNode; onSelect?: () => void; hint?: React.ReactNode; danger?: boolean; checked?: boolean } & { [k: `data-${string}`]: string | boolean | undefined }) {
   return (
     <DM.Item
+      {...rest}
       onSelect={(e) => {
         onSelect?.()
       }}

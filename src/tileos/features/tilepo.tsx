@@ -123,7 +123,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices — the client’s tile'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} disabled={!job || !picked.length || (!each && !store.trim())} onClick={send} data-send-tile-po>{mailLive() ? (each ? 'Send it' : `Send it to ${store}`) : 'Save the PO'}</Button>
         </>
       }
@@ -203,7 +203,7 @@ export function PartCameModal({ id, level }: { id: string; level: number }) {
       sub={`${s.jobs[p.jobId]?.name || ''} · ${p.supplier}`}
       footer={
         <>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<PackageCheck />} disabled={!any} onClick={() => receivePOPart(p.id, counts, said.trim() || undefined)} data-save-part>Save what came</Button>
         </>
       }

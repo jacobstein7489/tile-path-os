@@ -89,7 +89,7 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
       ) : (
         <>
           <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} label="Add photos" />
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
         </>
       )}

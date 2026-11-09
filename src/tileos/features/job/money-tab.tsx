@@ -305,7 +305,7 @@ export function BilledBeforeModal({ jobId, level }: { jobId: string; level: numb
       sub={`${job.name} — for a project that was already going: what QuickBooks shows on it so far.`}
       footer={
         <>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" onClick={save}>Save</Button>
         </>
       }

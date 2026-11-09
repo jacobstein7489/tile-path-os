@@ -120,8 +120,9 @@ const TOP: Partial<Record<Role, string[]>> = {
   takeoff: ['task', 'note', 'meeting'],
 }
 const STARTS: (Pick & { c: TileColor })[] = [
-  { k: 'newreq', l: 'Price a new project', h: 'Upload the plans', i: FileText, c: 'blue', m: () => ({ t: 'newreq' }) },
-  { k: 'newproject', l: 'New project', h: 'Won already', i: Building2, c: 'teal', m: () => ({ t: 'newproject' }) },
+  /* one New project: it opens priced first, with Won already one tap away in the same window */
+  { k: 'newreq', l: 'New project', h: 'Price it, or won already', i: FileText, c: 'blue', m: () => ({ t: 'newreq' }) },
+  { k: 'newproject', l: 'New project', h: 'Price it, or won already', i: Building2, c: 'teal', m: () => ({ t: 'newreq' }) },
   { k: 'bringin', l: 'Bring in projects', h: 'From their estimates', i: Upload, c: 'teal', m: () => ({ t: 'bringin' }) },
   { k: 'newrepair', l: 'New repair', h: 'A small job or a callback', i: Wrench, c: 'orange', m: () => ({ t: 'newrepair' }) },
   { k: 'newclient', l: 'New client', h: 'A GC, a designer, an owner', i: ContactRound, c: 'violet', m: () => ({ t: 'newclient' }) },
@@ -186,7 +187,7 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !FOLDED.has(x.k)).sort((a, b) => rank(a.k) - rank(b.k))
   const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
   /* bringing in the projects that were going before Tile OS is one-time work — it's in Settings, not on + New */
-  const starts = STARTS.filter((x) => ok(x) && x.k !== 'bringin')
+  const starts = STARTS.filter((x) => ok(x) && x.k !== 'bringin' && x.k !== 'newreq')
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'

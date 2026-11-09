@@ -15,6 +15,7 @@ import { stepsFor, companySteps, IN_FIELD_STAGES } from './steps'
 import { pictureOf } from './progressbill'
 import { tracksFor, bookingOf, problemsOf, gateOpen, leadWords } from './tracks'
 import { Whose, stepWords } from './job/whatsleft'
+import { NewProjectKind } from './estnew'
 import { installerOf } from './upcoming'
 import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -337,7 +338,7 @@ export function NewRepairModal({ level }: { level: number }) {
       footer={
         <>
           <span className="text-[0.8125rem] text-muted">It goes straight to Projects → Repairs</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!clientId || !name.trim() || !what.trim() || billable === null} onClick={create}>Add repair</Button>
         </>
       }
@@ -378,12 +379,12 @@ const OPEN_AT: Record<Exclude<At, 'new'>, string[]> = {
   tile: ['order', 'delivered', 'installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
   ready: ['installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
 }
-export function NewProjectModal({ level }: { level: number }) {
+export function NewProjectModal({ level, name: name0, address: address0 }: { level: number; name?: string; address?: string }) {
   const s = useStore()
   const [at, setAt] = React.useState<At>('new')
   const [clientId, setClientId] = React.useState('')
-  const [name, setName] = React.useState('')
-  const [address, setAddress] = React.useState('')
+  const [name, setName] = React.useState(name0 || '')
+  const [address, setAddress] = React.useState(address0 || '')
   const [contract, setContract] = React.useState('')
   const [start, setStart] = React.useState('')
   const [pm, setPm] = React.useState<PersonKey>('ys')
@@ -438,15 +439,15 @@ export function NewProjectModal({ level }: { level: number }) {
       size="md"
       onClose={s.close}
       title="New project"
-      header={<FormHead k="newproject" kicker="Won already — to price one, use Estimates" />}
+      header={<FormHead k="newproject" />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <Button variant="ghost" onClick={s.close}>Cancel</Button>
           <Button className="ml-auto" variant="primary" disabled={!clientId || !finalName} onClick={create}>Create project</Button>
         </>
       }
     >
+      <NewProjectKind value="won" onChange={(v) => { if (v === 'price') s.swap({ t: 'newreq', name, address }) }} />
       <FormRow label="Client">
         <div className="flex gap-2">
           <div className="min-w-0 flex-1"><SearchSelect label="Client" value={clientId} onChange={setClientId} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} search /></div>

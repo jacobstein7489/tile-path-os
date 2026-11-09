@@ -205,7 +205,7 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
         onClose={s.close}
         title="Where it’s up to"
         sub={job.name}
-        footer={<><Button className="ml-auto max-sm:flex-1" variant="ghost" onClick={s.close}>Cancel</Button><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved', { close: true })} data-catchup-save>Save</Button></>}
+        footer={<><div className="ml-auto" aria-hidden /><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved', { close: true })} data-catchup-save>Save</Button></>}
         bodyClass="px-6 py-5 max-sm:px-4"
       >
         <CatchUpForm job={job} d={d} set={set} />

@@ -441,7 +441,6 @@ function AsanaList() {
       })}
       <div className="sticky bottom-0 -mx-6 -mb-5 flex flex-wrap items-center gap-2 border-t border-line bg-white px-6 py-3 max-sm:-mx-4 max-sm:px-4">
         <span className="min-w-0 flex-1 text-[0.8125rem] text-muted">{pick.length - priced} on Projects · {priced} on Estimates</span>
-        <Button variant="ghost" onClick={s.close}>Cancel</Button>
         <Button variant="primary" icon={<Check />} disabled={!pick.length} onClick={go} data-asana-bring>Bring in {pick.length}</Button>
       </div>
     </div>

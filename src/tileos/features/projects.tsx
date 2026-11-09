@@ -69,7 +69,7 @@ export function ProjectsPage() {
           <>
             <ProjectViews value="list" />
             <Button variant="ghost" icon={<Archive className="h-4 w-4" />} onClick={() => open({ t: 'lost' })}>{lost.length} not won</Button>
-            {role !== 'accounting' && <Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => open({ t: 'newreq' })}>New price request</Button>}
+            {role !== 'accounting' && <Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => open({ t: 'newreq' })}>New project</Button>}
           </>
         }
       />

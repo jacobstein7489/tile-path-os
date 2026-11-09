@@ -363,7 +363,6 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
       sub="One item for one thing that has to happen."
       footer={
         <>
-          <Button variant="ghost" onClick={close}>Cancel</Button>
           <Button
             className="ml-auto"
             variant="primary"

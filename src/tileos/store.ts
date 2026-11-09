@@ -538,7 +538,7 @@ export const useStore = create<Store>()(
         } as Task)
         /* urgent, for someone else: it pops up for them too, and opens the task */
         if (p.urgent && other) s.notices.unshift({ id: 'nu' + Date.now(), jobId: p.jobId || undefined, text: `Urgent from ${PEOPLE[me]?.short || 'the office'}: ${p.title}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id }, for: [p.owner as PersonKey] })
-      }, p.urgent ? 'Urgent — on top of the list' : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : undefined)
+      }, p.urgent ? 'Urgent — on top of the list' : other ? `On ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s list` : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : other && (p.by === me || (p.followers || []).includes(me)) ? { sub: 'You follow it: it’s under your Waiting on others, and on your Today the day it’s due.' } : undefined)
     },
   })),
 )

@@ -459,7 +459,7 @@ export function NewPOModal({ jobId, prefill, level }: { jobId: string; prefill?:
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">The supplier’s confirmation comes back as its own step — nothing to remember.</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} disabled={!lines.some((l) => l.item.trim())} onClick={() => createPO(jobId, { supplier, lines: lines.filter((l) => l.item.trim()), amount, what: prefill?.what || (jobId === '530' ? 'Floor prep' : 'Setting materials'), neededBy: needed, replaces: prefill?.replaces, tag: prefill?.tag, addQty: prefill?.addQty })}>
             Send PO to {supplier}
           </Button>

@@ -40,7 +40,7 @@ export function DrainModal({ level }: { level: number }) {
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">The answer becomes a permanent installation direction.</span>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={pick === null} onClick={() => resolveDrain(pick!)}>Save answer</Button>
         </>
       }
@@ -80,7 +80,7 @@ export function CO004Modal({ level }: { level: number }) {
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{how === 'Verbal' ? 'Verbal is allowed — a “get it in writing” item is created.' : 'One approval updates six departments.'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!by || !how} icon={<ShieldCheck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => approveCO004({ by, how })}>Record approval</Button>
         </>
       }
@@ -141,7 +141,7 @@ export function ThinsetModal({ level }: { level: number }) {
       header={<JobHead jobId="828" kicker="PO-1039 · Infinity" title="Thinset is 23 days late — chase or reorder?" right={<Pill tone="bad">Return on hold</Pill>} />}
       footer={
         <>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!pick} onClick={() => thinsetDecision(pick as any)}>{pick === 'reorder' ? 'Set up the new PO' : 'Save decision'}</Button>
         </>
       }
@@ -180,7 +180,7 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">Settled now — not when the crew is standing there.</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!pick} onClick={() => settleQty(jobId, tag, pick as any)}>{pick === 'order' ? 'Set up the PO' : 'Save'}</Button>
         </>
       }
@@ -229,7 +229,7 @@ export function ReceiveModal({ matId, level }: { matId: string; level: number })
       header={<JobHead jobId={m.jobId} kicker={`${m.po} · ${m.where}`} title={`Receive · ${m.name}`} right={<Pill tone="warn">4 of 6 here</Pill>} />}
       footer={
         <>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => receiveMat(matId, qty, cond)}>Save receipt</Button>
         </>
       }

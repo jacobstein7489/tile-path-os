@@ -458,16 +458,18 @@ function PayRow() {
 /** the admin's: what's late on the team past the company's line — its own part of Today, one row for each late
  *  thing: what it is, whose, the day it was due, how late, and where it came from. "Check in" opens that person's
  *  window. */
-function CheckInSection({ items }: { items: PlateItem[] }) {
+function CheckInSection({ items, follow = [] }: { items: PlateItem[]; follow?: Task[] }) {
   const s = useStore()
   const all = items.flatMap((x) => (x.ci ? x.ci.items.map((c) => ({ who: x.ci!.who, c })) : []))
-  if (!all.length) return null
+  if (!all.length && !follow.length) return null
   const open = (who: PersonKey) => s.open({ t: 'checkin', who })
   /* one row per person and project — what's late there said once, the project only in its column */
   const groups = Array.from(new Set(all.map((r) => `${r.who}|${r.c.jobName}`))).map((k) => all.filter((r) => `${r.who}|${r.c.jobName}` === k))
   return (
     <section data-day="checkin" data-checkins>
-      <Group label="Check in on the team" count={groups.length} tone="neutral" strong />
+      <Group label="Check in on the team" count={follow.length + groups.length} tone="neutral" strong />
+      {/* what someone else is doing for you that's due today or late: whose, what, when — it opens the task */}
+      {follow.map((t) => <FollowRow key={t.id} t={t} />)}
       {groups.map((g) => {
         const { who, c } = g[0]
         const titles = g.map((r) => cleanTitle(r.c.title, r.c.jobName))
@@ -490,6 +492,28 @@ function CheckInSection({ items }: { items: PlateItem[] }) {
         )
       })}
     </section>
+  )
+}
+
+/** someone else's task you asked for or follow, due today or late: their name and the project, what, when */
+function FollowRow({ t }: { t: Task }) {
+  const s = useStore()
+  const job = s.jobs[t.jobId]
+  const late = taskBucket(t) === 'overdue'
+  const open = () => s.open({ t: 'task', id: t.id })
+  return (
+    <div data-follow-row={t.id} data-contents>
+      <TodoRow
+        onClick={open}
+        icon={<Eye />}
+        title={cleanTitle(t.title, job)}
+        project={[PEOPLE[t.owner]?.short, job?.name || 'Company'].filter(Boolean).join(' · ')}
+        owner={t.owner}
+        when={t.urgent ? 'Urgent' : late ? (/late/i.test(t.due || '') ? t.due : `Was due ${t.due}`) : 'Today'}
+        whenTone={t.urgent || late ? 'bad' : 'quiet'}
+        action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
+      />
+    </div>
   )
 }
 
@@ -758,6 +782,9 @@ export function MyTasksPage() {
   const theirsIFollow = (t: Task) => t.owner !== me && t.state !== 'done' && (t.by === me || followersOf(t).includes(me))
   const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && ((t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && theirsIFollow(t))))
     .sort((a, b) => (taskIso(a) || '9999').localeCompare(taskIso(b) || '9999'))
+  /* what someone else is doing for you that's due today or late: on your Today too, under Check in on the team */
+  const othersToday = all ? [] : waiting.filter((t) => theirsIFollow(t) && !t.everyone && t.state === 'now' && isNow(taskBucket(t)) && (job === 'all' || t.jobId === job))
+  const othersIds = new Set(othersToday.map((t) => t.id))
   /* someone else's: its day — red once it's late */
   const theirWhen = (t: Task): { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } | undefined => {
     if (t.owner === me || t.state !== 'now') return undefined
@@ -894,7 +921,8 @@ export function MyTasksPage() {
   /* urgent first, in its own red part — the rest grouped as asked */
   const urgentToday = shownToday.filter((x) => x.t?.urgent && x.t.state === 'now')
   const restToday = shownToday.filter((x) => !urgentToday.includes(x) && x.kind !== 'crew')
-  const shownCheckins = all ? [] : today.filter((x) => x.kind === 'checkin')
+  /* the team's late things — not again what's already there because you follow it */
+  const shownCheckins = all ? [] : today.filter((x) => x.kind === 'checkin' && !x.ci?.items.some((c) => c.x.kind === 'task' && !!c.x.t && othersIds.has(c.x.t.id)))
   /* a task with no day on it still shows up — under today's, as "No day set" — so nothing gets lost */
   const undated = plate.filter((x) => x.kind === 'task' && x.t && x.t.state === 'now' && !taskIso(x.t) && !/this week/i.test(x.t.due || '')).filter(pick)
   const shownTomorrow = tomorrow.filter(pick)
@@ -917,7 +945,7 @@ export function MyTasksPage() {
   /* whose each row is: on everyone's list — unless it's grouped by person already — and on Waiting on others */
   const whoCol = all ? !(grouping === 'person' && view !== 'done') : view === 'waiting'
   /* the column names show over a list that has rows */
-  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
+  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + othersToday.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
   return (
     <Page
@@ -930,7 +958,7 @@ export function MyTasksPage() {
           row
           /* each number is what its list shows — with a project picked, its */
           items={[
-            { key: 'today', label: 'Today', count: shownToday.length + shownCheckins.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
+            { key: 'today', label: 'Today', count: shownToday.length + shownCheckins.length + othersToday.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'tomorrow', label: 'Tomorrow', count: shownTomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
             /* the site manager: today, tomorrow and what he's waiting on — that's all he needs on the go */
             ...(simple ? [] : [{ key: 'later', label: 'Later', count: shownLater.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') }] as any[]),
@@ -990,8 +1018,8 @@ export function MyTasksPage() {
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !shownCheckins.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
-        {view === 'today' && shownCheckins.length > 0 && <CheckInSection items={shownCheckins} />}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !shownCheckins.length && !othersToday.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownCheckins.length > 0 || othersToday.length > 0) && <CheckInSection items={shownCheckins} follow={othersToday} />}
         {view === 'today' && undated.length > 0 && (
           <section>
             <Group label="No day set" count={undated.length} tone="neutral" strong />
@@ -1136,7 +1164,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const [laterOpen, setLaterOpen] = React.useState(false)
   const [notes, setNotes] = React.useState(false)
   /* a change from ··· opens in place of the task, with Back to it */
-  const [panel, setPanel] = React.useState<null | 'date' | 'hand' | 'follow' | 'share'>(null)
+  const [panel, setPanel] = React.useState<null | 'date' | 'hand' | 'follow' | 'share' | 'later' | 'wait'>(null)
   /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
      someone else — the window closes by itself (the pop-up says what happened). Taking it over keeps it open: it's
      yours to do now */
@@ -1171,7 +1199,13 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
         : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
           : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
+  /* one button at the bottom — everything else is here */
+  const following = followersOf(t).includes(me)
   const items: React.ReactNode[] = [
+    !theirs && t.state === 'now' && <MenuItem key="later" icon={<MoonStar className="h-4 w-4" />} onSelect={() => setPanel('later')} data-task-later>Not today</MenuItem>,
+    !theirs && t.state === 'now' && <MenuItem key="wait" icon={<Clock3 className="h-4 w-4" />} onSelect={() => setPanel('wait')} data-task-wait>Waiting on someone</MenuItem>,
+    theirs && admin && t.state !== 'done' && <MenuItem key="take" icon={<UserRound className="h-4 w-4" />} onSelect={() => s.reassignTask(t.id, me)} data-take-task>Take it over</MenuItem>,
+    t.owner !== me && t.state !== 'done' && <MenuItem key="me" icon={<Eye className="h-4 w-4" />} checked={following} onSelect={() => toggleFollow(t.id, me)} data-follow-task>Follow it</MenuItem>,
     canDate && <MenuItem key="date" icon={<CalendarDays className="h-4 w-4" />} onSelect={() => setPanel('date')}>Change the date</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="hand" icon={<UserRound className="h-4 w-4" />} onSelect={() => setPanel('hand')}>Hand it to someone else</MenuItem>,
     admin && <MenuItem key="follow" icon={<Eye className="h-4 w-4" />} onSelect={() => setPanel('follow')}>Who follows it</MenuItem>,
@@ -1200,40 +1234,22 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
     />
   )
-  /* someone else's: follow it — it waits under Waiting on others until it's done, and you hear when it moves */
-  const following = followersOf(t).includes(me)
-  const followBtn = t.owner !== me && t.state !== 'done' && (
-    <Button icon={following ? <Check /> : <Eye />} onClick={() => toggleFollow(t.id, me)} aria-pressed={following} data-follow-task className={following ? 'border-brand-200 bg-brand-50 text-brand-700' : undefined}>{following ? 'Following' : 'Follow'}</Button>
-  )
 
   const footer = panel ? (
     <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
   ) : t.state === 'done' ? (
     (!theirs || admin) ? <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)} data-reopen-task>Reopen</Button> : undefined
   ) : theirs ? (
-    <>
-      {admin && <Button icon={<UserRound />} onClick={() => s.reassignTask(t.id, me)} data-take-task>Take it over</Button>}
-      {followBtn}
-      <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button>
-    </>
+    <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button>
   ) : (
     <>
       {t.state === 'waiting' ? (
-        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
+        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button variant="ghost" icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
           <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
         </Pop>
       ) : t.state !== 'now' ? (
         <Button variant="ghost" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Back on my list</Button>
-      ) : (
-        <>
-          <Pop open={laterOpen} onOpenChange={setLaterOpen} side="top" width={360} trigger={<Button variant="ghost" icon={<MoonStar />}>Not today</Button>}>
-            <LaterPicker onCancel={() => setLaterOpen(false)} onSave={(u) => { setLaterOpen(false); s.laterTask(t.id, u); s.close() }} />
-          </Pop>
-          <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={420} trigger={<Button variant="ghost" icon={<Clock3 />}><span className="max-sm:hidden">Waiting on someone</span><span className="sm:hidden">Waiting</span></Button>}>
-            <WaitPicker defaultWho={t.waitingOn} onCancel={() => setWaitOpen(false)} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
-          </Pop>
-        </>
-      )}
+      ) : null}
       {hasAction ? (
         <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
       ) : (
@@ -1243,7 +1259,11 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   )
 
   const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
-  const body = panel === 'date' ? (
+  const body = panel === 'later' ? (
+    <div data-task-panel="later"><LaterPicker onSave={(u) => { s.laterTask(t.id, u); s.close() }} /></div>
+  ) : panel === 'wait' ? (
+    <div data-task-panel="wait"><WaitPicker defaultWho={t.waitingOn} onSave={(w, bk) => { s.waitTask(t.id, w, bk); s.close() }} /></div>
+  ) : panel === 'date' ? (
     <div data-task-panel="date">
       <div className="mb-3 text-[0.9375rem] font-semibold text-ink">Move it to</div>
       <DatePresets value={t.due} onPick={(d) => { s.setTaskDue(t.id, d); setPanel(null) }} />
@@ -1283,7 +1303,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
       {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3')} data-task-detail>{t.detail}</p>}
       {(log.length > 0 || t.state !== 'done') && (
-        <div className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4 border-t border-line-2 pt-3')} data-task-notes>
+        <div className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4')} data-task-notes>
           {notes ? (
             <>
               <div className="flex items-center justify-between gap-3">
@@ -1324,7 +1344,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   )
 
   return (
-    <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 py-5 max-sm:px-4">
+    <Modal level={level} size="sm" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
       {body}
     </Modal>
   )
@@ -1435,7 +1455,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       footer={
         <>
           <span className="truncate text-[0.8125rem] text-muted max-sm:hidden" data-task-says>{shared ? `On ${owners.map((p) => (p === me ? 'your' : `${PEOPLE[p]?.short || p}’s`)).join(' and ')} Today` : owner === me ? 'On your Today' : `On ${PEOPLE[owner].short}’s Today`} {repeat ? `· ${REPEAT_LABEL[repeat].toLowerCase()}` : `· ${whenLabel.toLowerCase()}`}{shared ? ' · whoever does it first' : ''}{!owners.includes(me) ? ' · you hear when it’s done' : ''}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating task' : 'Add task'}</Button>
         </>
       }

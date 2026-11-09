@@ -499,7 +499,7 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
     }, cur ? `${rec.name} saved` : `${rec.name} added`, { close: true })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New supplier'} sub="Who we buy from — the name shows on every PO" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the supplier'}</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New supplier'} sub="Who we buy from — the name shows on every PO" footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the supplier'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Name', <TextInput data-autofocus aria-label="Supplier name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Infinity" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That supplier is already on the list.</div>}
@@ -554,7 +554,7 @@ export function DesignerFormModal({ id, level }: { id?: string; level: number })
     s.commit((x) => { x.designers.push({ id: nid, ...rec, clients: [] }) }, `${rec.name} added`, { close: true })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New designer'} sub="The firm, who to talk to, and how to reach them" footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the designer'}</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New designer'} sub="The firm, who to talk to, and how to reach them" footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the designer'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Firm', <TextInput data-autofocus aria-label="Firm" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Ivy Lane Interiors" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That designer is already on the list.</div>}
@@ -595,7 +595,7 @@ export function InstallerFormModal({ id, level }: { id?: PersonKey; level: numbe
     }, `${f.name.trim()} added`, { close: true, sub: 'He shows on the schedule, the installer list and when you pick who installs a job.' })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title={id ? PEOPLE[id]?.name || 'Installer' : 'New installer'} sub={id ? 'His phone, email and where he works' : 'He shows up on the schedule, in Installer pay, and when you pick who installs a job'} footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={save}>{id ? 'Save' : 'Add the installer'}</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={id ? PEOPLE[id]?.name || 'Installer' : 'New installer'} sub={id ? 'His phone, email and where he works' : 'He shows up on the schedule, in Installer pay, and when you pick who installs a job'} footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok} onClick={save}>{id ? 'Save' : 'Add the installer'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Name', <TextInput data-autofocus aria-label="Installer name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Marco" className="h-10" />)}
         {taken && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">There’s already an installer with that name.</div>}

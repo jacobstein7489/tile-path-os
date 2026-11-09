@@ -54,7 +54,7 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
       footer={
         <>
           {was && index ? <Button variant="ghost" className="text-bad-600" icon={<Trash2 />} onClick={remove}>Take them off</Button> : null}
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{was ? 'Save' : 'Add them'}</Button>
         </>
       }

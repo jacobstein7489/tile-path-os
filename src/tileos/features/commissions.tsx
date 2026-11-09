@@ -435,7 +435,7 @@ export function CommissionRateModal({ level }: { level: number }) {
   const n = Number(rate)
   const ok = rate !== '' && n >= 0 && n <= 50
   return (
-    <Modal level={level} size="sm" onClose={s.close} title="Commission rate" sub="On what’s invoiced on a project — for each salesperson on it." footer={<><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" disabled={!ok || (n === now && !all)} onClick={() => { setCompanyRate(n, all); s.close() }} data-save-rate>Save</Button></>}>
+    <Modal level={level} size="sm" onClose={s.close} title="Commission rate" sub="On what’s invoiced on a project — for each salesperson on it." footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok || (n === now && !all)} onClick={() => { setCompanyRate(n, all); s.close() }} data-save-rate>Save</Button></>}>
       <div className="flex flex-col gap-4">
         <Field label="Rate">
           <div className="flex items-center gap-2">

@@ -567,7 +567,6 @@ export function BuildRoomsModal({ jobId, level }: { jobId: string; level: number
       sub="Read from the finish schedule. Keep only what Cobblestone is tiling — the site manager verifies it later."
       footer={
         <>
-          <Button variant="ghost" onClick={close}>Cancel</Button>
           <Button className="ml-auto" variant="primary" disabled={!pick.length} onClick={() => buildRooms(jobId, proposal.filter((p) => pick.includes(p.name)))}>
             Create {pick.length} rooms
           </Button>

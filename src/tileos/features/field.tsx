@@ -343,7 +343,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
           {step > 0 ? (
             <Button className="ml-auto" variant="ghost" icon={<ChevronLeft className="h-4 w-4" />} onClick={() => setStep(step - 1)}>Back</Button>
           ) : (
-            <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+            <div className="ml-auto" aria-hidden />
           )}
           {step < 2 ? (
             <Button variant="primary" iconRight={<ChevronRight className="h-4 w-4" />} onClick={() => setStep(step + 1)}>Next</Button>
@@ -784,7 +784,7 @@ export function SiteChangeModal({ jobId, room, surface, level }: { jobId: string
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{f.ready ? `One click starts ${f.count} things — nobody has to remember the rest.` : 'Pick what they want now.'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
         </>
       }
@@ -957,7 +957,7 @@ export function MeetingModal({ taskId, jobId: jid, kind, level }: { taskId?: str
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">It leaves your list and comes back on the day.</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<CalendarClock className="h-[1.125rem] w-[1.125rem]" />} onClick={save}>{walk ? 'Set the walkthrough' : 'Set the meeting'}</Button>
         </>
       }
@@ -1003,7 +1003,7 @@ export function HeightsModal({ jobId, taskId, level }: { jobId: string; taskId?:
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{filled.length} of {walls.length} walls</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!filled.length} icon={<Ruler className="h-[1.125rem] w-[1.125rem]" />} onClick={() => recordHeights(jobId, taskId, filled.map((w) => ({ room: w.room, surface: w.sf.name, height: h[w.room + '::' + w.sf.name] })))}>Save heights</Button>
         </>
       }

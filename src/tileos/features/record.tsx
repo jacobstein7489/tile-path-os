@@ -179,7 +179,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
       {type !== 'meeting' && type !== 'payment' && type !== 'daily' && (
         <>
           <PhotoButton photos={photos} onAdd={(f) => setPhotos((p) => [...p, ...f])} />
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!ready} onClick={save}>Save</Button>
         </>
       )}

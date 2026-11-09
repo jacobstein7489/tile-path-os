@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
-import { Button, Avatar, TextInput, TextArea, Chip } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, TextArea, Chip, Segmented } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -171,10 +171,15 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
 /* Price a new project: the project, the client, the bid date — and the plans. That's all it takes: it goes straight to
  * whoever does the takeoff (Malisa, unless Settings says otherwise), with the plans on the project, and lands on her
  * Today. She builds the rooms and the takeoff from the plans — nobody has to set up the estimate first. */
-export function NewEstimateModal({ level }: { level: number }) {
+/** one New project: priced first (the usual way), or won already — the same window, the same few boxes; switching keeps what's typed */
+export function NewProjectKind({ value, onChange }: { value: 'price' | 'won'; onChange: (v: 'price' | 'won') => void }) {
+  return <Segmented value={value} onChange={onChange} className="mb-4 grid w-full grid-cols-2 [&>button]:justify-center" items={[{ key: 'price', label: 'Price it' }, { key: 'won', label: 'Won already' }]} />
+}
+
+export function NewEstimateModal({ level, name: name0, address: address0 }: { level: number; name?: string; address?: string }) {
   const s = useStore()
-  const [name, setName] = React.useState('')
-  const [address, setAddress] = React.useState('')
+  const [name, setName] = React.useState(name0 || '')
+  const [address, setAddress] = React.useState(address0 || '')
   const [cq, setCq] = React.useState('')
   const [client, setClient] = React.useState<{ id: string; name: string } | null>(null)
   /* an estimate is due right away unless you say otherwise */
@@ -209,8 +214,8 @@ export function NewEstimateModal({ level }: { level: number }) {
       level={level}
       size="lg"
       onClose={s.close}
-      title="Price a new project"
-      header={<FormHead k="newreq" kicker="Start something new" right={<span className="hidden text-[0.8125rem] text-muted sm:inline">Upload the plans — {team.takeoff === me ? 'you do' : `${tk.short} does`} the takeoff</span>} />}
+      title="New project"
+      header={<FormHead k="newreq" />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
@@ -218,11 +223,12 @@ export function NewEstimateModal({ level }: { level: number }) {
             <Avatar who={team.takeoff} size={22} plain />
             <span className="truncate">{team.takeoff === me ? 'Lands on your Today' : `Lands on ${tk.short}’s Today`}{files.length ? ` · ${files.length} file${files.length === 1 ? '' : 's'}` : ''}</span>
           </span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<ArrowRight />} disabled={!ok} onClick={create}>{team.takeoff === me ? 'Start the takeoff' : 'Send for the takeoff'}</Button>
         </>
       }
     >
+      <NewProjectKind value="price" onChange={(v) => { if (v === 'won') s.swap({ t: 'newproject', name, address }) }} />
       <FormRow label="Project">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
           <TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name — e.g. Leeds Residence" className="h-10" />

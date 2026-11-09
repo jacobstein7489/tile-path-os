@@ -1,6 +1,7 @@
 /* Automations — what lands on each person's Today by itself. The system's own hand-offs and reminders (the site
  * manager's daily updates, the pay week, estimate follow-ups, invoice reminders…) and the repeating tasks the admin
- * sets for anyone ("send me how many people are on each job, every weekday at 4"). Each can be turned off. */
+ * sets for anyone ("send me how many people are on each job, every weekday at 4"). Tap any one — the app's own too —
+ * and one small window changes it: who gets it (where the company sets that), on or off; your own also what and when. */
 import * as React from 'react'
 import { Repeat, AlarmClock, ClipboardList, HandCoins, BadgeCheck, PhoneCall, ListChecks, Receipt, Mail, Truck, Plus, Trash2, Building2, ChevronDown, Clock3, HardHat, MapPinned } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
@@ -13,6 +14,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import { REPEAT_LABEL, type Task } from '@/tileos/data/work'
 import { companyTeam } from './estflow'
+import { setCompanyPeople } from './estpeople'
 import { insidePeople } from './steps-ui'
 import { matBy } from './flows'
 
@@ -39,6 +41,21 @@ export const AUTOS: AutoDef[] = [
   { key: 'billing-day', who: books, what: 'Bill last week’s progress', sub: 'What got installed on every project last week, from the daily updates — what to bill each client, one click per bill', when: () => 'Every Monday', icon: Receipt, toggle: true, words: /\bbill|billing/i },
 ]
 export const autoOn = (s: Pick<Store, 'rules'>, key: string) => !(s.rules.autoOff || []).includes(key)
+/** who gets each of the app's own: changed right in its window where the company sets it (the estimate's final review
+ *  and follow-up, who checks in the deliveries); the rest say who it goes to, and where that's set */
+const WHO_EDIT: Record<string, { set?: (p: PersonKey) => void; note?: string; go?: 'checklist' | 'team' }> = {
+  'est-final': { set: (p) => setCompanyPeople('final', [p]) },
+  'est-followup': { set: (p) => setCompanyPeople('follow', [p]) },
+  delivery: { set: (p) => S().commit((st) => { st.rules.matBy = p }, `${PEOPLE[p]?.short || 'They'} checks in the deliveries`) },
+  steps: { note: 'Each step has its own person', go: 'checklist' },
+  'crew-morning': { note: 'Each project’s site manager', go: 'team' },
+  'daily-update': { note: 'Each project’s site manager', go: 'team' },
+  'inv-remind': { note: 'Whoever does the books', go: 'team' },
+  'billing-day': { note: 'Whoever does the books', go: 'team' },
+  rounds: { note: 'The admin' },
+  'pay-review': { note: 'The admin' },
+  late: { note: 'Each person gets their own — the admin also sees the team’s' },
+}
 export function toggleAuto(key: string) {
   const on = autoOn(S(), key)
   const def = AUTOS.find((a) => a.key === key)
@@ -85,7 +102,7 @@ export function AutomationsTab() {
             {autos.map((a) => {
               const on = autoOn(s, a.key)
               return (
-                <div key={a.key} className={cn(ROW, !on && 'opacity-60')}>
+                <div key={a.key} role="button" tabIndex={0} onClick={() => s.open({ t: 'auto', k: a.key })} onKeyDown={(e) => { if (e.key === 'Enter') s.open({ t: 'auto', k: a.key }) }} className={cn(ROW, 'cursor-pointer row-hover', !on && 'opacity-60')} data-auto={a.key}>
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.5625rem] bg-wash-2 text-ink-2"><a.icon className="h-4 w-4" /></span>
                   <span className="min-w-0">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{a.what}</span>
@@ -93,12 +110,12 @@ export function AutomationsTab() {
                     <span className="block truncate text-[0.78125rem] font-medium text-ink-2 md:hidden">{a.when(s)}</span>
                   </span>
                   <span className="truncate text-[0.8125rem] text-ink-2 max-md:hidden">{a.when(s)}</span>
-                  <span className="flex justify-end">{a.toggle ? <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} /> : <span className="text-[0.75rem] font-medium text-faint">Always on</span>}</span>
+                  <span className="flex justify-end" onClick={(e) => e.stopPropagation()}>{a.toggle ? <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} /> : <span className="text-[0.75rem] font-medium text-faint">Always on</span>}</span>
                 </div>
               )
             })}
             {mine.map((t) => (
-              <div key={t.id} className={cn(ROW, t.paused && 'opacity-60')}>
+              <div key={t.id} role="button" tabIndex={0} onClick={() => s.open({ t: 'newauto', id: t.id })} onKeyDown={(e) => { if (e.key === 'Enter') s.open({ t: 'newauto', id: t.id }) }} className={cn(ROW, 'cursor-pointer row-hover', t.paused && 'opacity-60')} data-auto={t.id}>
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.5625rem] bg-brand-50 text-brand-600"><Repeat className="h-4 w-4" /></span>
                 <span className="min-w-0">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink">{t.title}<span className="ml-2 align-[0.0625rem] text-[0.71875rem] font-medium text-brand-600">yours</span></span>
@@ -106,7 +123,7 @@ export function AutomationsTab() {
                   <span className="block truncate text-[0.78125rem] font-medium text-ink-2 md:hidden">{REPEAT_LABEL[t.repeat!]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>
                 </span>
                 <span className="truncate text-[0.8125rem] text-ink-2 max-md:hidden">{REPEAT_LABEL[t.repeat!]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>
-                <span className="flex items-center justify-end gap-1.5">
+                <span className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <Switch on={!t.paused} onClick={() => pauseRepeating(t.id)} label={t.title} />
                   <button aria-label={`Remove ${t.title}`} onClick={() => removeRepeating(t.id)} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-faint hover:bg-bad-50 hover:text-bad-600"><Trash2 className="h-3.5 w-3.5" /></button>
                 </span>
@@ -132,18 +149,24 @@ const COMMON_REMINDERS: { t: string; repeat: NonNullable<Task['repeat']>; at: st
 ]
 
 /* ================= a new automation: what, who, how often ================= */
-export function NewAutomationModal({ level, who: who0 }: { level: number; who?: PersonKey }) {
+export function NewAutomationModal({ level, who: who0, id }: { level: number; who?: PersonKey; id?: string }) {
   const s = useStore()
-  const [title, setTitle] = React.useState('')
-  const [owner, setOwner] = React.useState<PersonKey>(who0 || siteMgr(s))
+  const cur = id ? s.tasks.find((t) => t.id === id && t.repeat) : undefined
+  const [title, setTitle] = React.useState(cur?.title || '')
+  const [owner, setOwner] = React.useState<PersonKey>(cur?.owner || who0 || siteMgr(s))
   /* the words match something the system already does by itself — say so */
   const built = title.trim().length > 3 ? AUTOS.find((a) => a.words.test(title)) : undefined
-  const [repeat, setRepeat] = React.useState<NonNullable<Task['repeat']>>('weekdays')
-  const [at, setAt] = React.useState('4 PM')
-  const [job, setJob] = React.useState('')
+  const [repeat, setRepeat] = React.useState<NonNullable<Task['repeat']>>(cur?.repeat || 'weekdays')
+  const [at, setAt] = React.useState(cur?.repeatAt || '4 PM')
+  const [job, setJob] = React.useState(cur?.jobId || '')
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(j.stage))
   const add = () => {
     if (!title.trim()) return
+    if (cur) {
+      s.commit((st) => { const t = st.tasks.find((x) => x.id === cur.id); if (!t) return; Object.assign(t, { title: title.trim(), owner, for: roleOf(s, owner), repeat, repeatAt: at, jobId: job, where: `${REPEAT_LABEL[repeat]} at ${at}` }) }, 'Saved', { sub: `${PEOPLE[owner]?.short} · ${REPEAT_LABEL[repeat].toLowerCase()} at ${at}` })
+      s.close()
+      return
+    }
     s.addTask({ jobId: job, title: title.trim(), type: 'Field', owner, due: 'Today', for: roleOf(s, owner), state: 'now', tone: 'info', repeat, repeatAt: at, where: `${REPEAT_LABEL[repeat]} at ${at}`, watch: owner === meOf(s.role) ? [] : [s.role] })
     s.close()
   }
@@ -153,13 +176,13 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
       level={level}
       size="md"
       onClose={s.close}
-      title="A reminder that repeats"
-      sub="It lands on their Today on schedule. It’s a reminder — it doesn’t do the work by itself."
+      title={cur ? 'Your reminder' : 'A reminder that repeats'}
+      sub="It lands on their Today on schedule."
       footer={
         <>
-          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{PEOPLE[owner]?.short} · {REPEAT_LABEL[repeat].toLowerCase()} at {at}</span>
-          <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>
-          <Button variant="primary" disabled={!title.trim()} onClick={add}>Add the reminder</Button>
+          {cur && <Button variant="ghost" icon={<Trash2 />} onClick={() => { removeRepeating(cur.id); s.close() }}>Remove</Button>}
+          <div className="ml-auto" aria-hidden />
+          <Button variant="primary" disabled={!title.trim()} onClick={add}>{cur ? 'Save' : 'Add the reminder'}</Button>
         </>
       }
     >
@@ -187,6 +210,41 @@ export function NewAutomationModal({ level, who: who0 }: { level: number; who?: 
           {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
         </Menu>
         <SearchSelect value={job} onChange={setJob} emptyLabel="Company — not one project" placeholder="Project" icon={<Building2 />} width={340} label="For one project" className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
+      </div>
+    </Modal>
+  )
+}
+
+/* ================= one of the app's own: what it does, who gets it, on or off ================= */
+export function AutomationModal({ level, k }: { level: number; k: string }) {
+  const s = useStore()
+  const a = AUTOS.find((x) => x.key === k)
+  if (!a) return null
+  const on = autoOn(s, a.key)
+  const who = a.who(s)
+  const e = WHO_EDIT[a.key] || {}
+  const go = (tab: string) => { s.closeAll(); s.go({ page: 'settings', tab }) }
+  const pill = <span className="inline-flex h-9 min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-3 text-[0.875rem] font-medium text-ink"><Avatar who={who} size={26} /><span className="truncate">{PEOPLE[who]?.name || 'Nobody yet'}</span>{e.set && <ChevronDown className="h-4 w-4 shrink-0 text-faint" />}</span>
+  return (
+    <Modal level={level} size="sm" onClose={s.close} title={a.what} sub={a.when(s)}>
+      <p className="text-[0.875rem] leading-relaxed text-ink-2" data-auto-what>{a.sub}</p>
+      <div className="mt-5">
+        <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2">Who gets it</div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-auto-who={who}>
+          {e.set ? (
+            <Menu align="start" width={260} trigger={<button type="button" aria-label="Who gets it" className="min-w-0 hover:opacity-90">{pill}</button>}>
+              <MenuLabel>Who gets it</MenuLabel>
+              {peopleOf(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={who === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => e.set!(p)}>{PEOPLE[p]?.name}</MenuItem>)}
+            </Menu>
+          ) : pill}
+          {e.note && <span className="text-[0.8125rem] text-muted">{e.note}</span>}
+          {e.go === 'checklist' && <Button size="sm" variant="ghost" onClick={() => go('checklist')}>Who does what</Button>}
+          {e.go === 'team' && <Button size="sm" variant="ghost" onClick={() => go('team')}>Team</Button>}
+        </div>
+      </div>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <span className="text-[0.84375rem] font-semibold text-ink-2">{a.toggle ? (on ? 'On' : 'Off') : 'Always on — every project needs it'}</span>
+        {a.toggle && <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} />}
       </div>
     </Modal>
   )

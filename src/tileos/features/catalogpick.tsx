@@ -42,7 +42,7 @@ export function CatalogModal({ level }: { level: number }) {
       title="Add from the list"
       sub="Pick it — nothing to type. It goes into Items with no price yet."
       footer={tab === 'setting'
-        ? <><span className="text-[0.8125rem] text-muted">{on.length ? `${on.length} picked` : 'Tick what you buy'}</span><Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button><Button variant="primary" icon={<Plus />} disabled={!on.length} onClick={addSetting} data-catalog-add>Add to Items</Button></>
+        ? <><span className="text-[0.8125rem] text-muted">{on.length ? `${on.length} picked` : 'Tick what you buy'}</span><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Plus />} disabled={!on.length} onClick={addSetting} data-catalog-add>Add to Items</Button></>
         : <><span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{mItem ? mItem.name : 'Pick the profile, the finish and the size'}</span><Button variant="ghost" onClick={s.close}>Done</Button><Button variant="primary" icon={<Plus />} disabled={!mItem} onClick={addMetal} data-catalog-metal-add>Add to Items</Button></>}
     >
       <ChipTabs value={tab} onChange={(v) => setTab(v as 'setting' | 'metal')} items={[{ key: 'setting', label: 'Thinset, grout and more' }, { key: 'metal', label: 'Metals' }]} />

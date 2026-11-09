@@ -432,8 +432,7 @@ export function CommandPalette() {
                 <Command.Group heading="Actions">
                   {[
                     { l: 'Log what happened', k: 'record log update event site issue', f: () => open({ t: 'new' }) },
-                    ...(role !== 'accounting' ? [{ l: 'New project', k: 'new project create job won', f: () => open({ t: 'newproject' }) }, { l: 'Touch-ups or punch list', k: 'punch touch up list repair', f: () => open({ t: 'punchnew' }) }] : []),
-                    ...(role !== 'accounting' ? [{ l: 'New price request', k: 'new request bid', f: () => open({ t: 'newreq' }) }] : []),
+                    ...(role !== 'accounting' ? [{ l: 'New project', k: 'new project create job won price request bid estimate', f: () => open({ t: 'newreq' }) }, { l: 'Touch-ups or punch list', k: 'punch touch up list repair', f: () => open({ t: 'punchnew' }) }] : []),
                     { l: 'Go to Billing', k: 'billing money invoice payment deposit', f: () => go({ page: 'money' }) },
                     ...(role !== 'accounting' ? [{ l: 'Go to the Schedule', k: 'game plan schedule crew calendar month', f: () => go({ page: 'upcoming' }) }] : []),
                     { l: 'How the whole process works', k: 'how it works process map flow', f: () => go({ page: 'flow' }) },

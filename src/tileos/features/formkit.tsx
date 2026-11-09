@@ -27,11 +27,12 @@ export function FormHead({ k, kicker, title, right }: { k: string; kicker?: Reac
   const c = PART_TINT[k === 'problem' ? 'bad' : kind?.g || 'office']
   const I = kind?.i
   return (
-    <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-form-head={k}>
+    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1" data-form-head={k}>
       <div className="flex items-center gap-3">
-        {I && <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.6875rem]" style={{ background: c.bg, color: c.fg }}><I className="h-5 w-5" /></span>}
+        {I && <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]" style={{ background: c.bg, color: c.fg }}><I className="h-[1.125rem] w-[1.125rem]" /></span>}
         <div className="min-w-0">
-          <div className="truncate text-[0.8125rem] font-medium text-muted">{kicker || 'New'}</div>
+          {/* "New" over the name — not when the name already says it (New project) */}
+          {(kicker || !/^New\b/.test(String(title || kind?.l || ''))) && <div className="truncate text-[0.8125rem] font-medium text-muted">{kicker || 'New'}</div>}
           <h2 className="truncate text-[1.25rem] font-bold tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{title || kind?.l}</h2>
         </div>
         {right && <span className="ml-auto shrink-0">{right}</span>}
@@ -40,11 +41,11 @@ export function FormHead({ k, kicker, title, right }: { k: string; kicker?: Reac
   )
 }
 
-/** one question of the form: the question on the left, the answer on the right (stacked on a phone) */
+/** one question of the form: the question over its answer — no lines between them, the same on a computer and a phone */
 export function FormRow({ label, children, hint, className }: { label: string; children: React.ReactNode; hint?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('grid grid-cols-[10rem_minmax(0,1fr)] items-start gap-x-5 gap-y-1.5 border-t border-line-2 py-3.5 first:border-t-0 first:pt-0 max-sm:grid-cols-1', className)}>
-      <div className="pt-2.5 text-[0.84375rem] font-semibold text-ink-2 max-sm:pt-0">{label}</div>
+    <div className={cn('py-2.5 first:pt-0', className)} data-form-row>
+      <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2">{label}</div>
       <div className="min-w-0">
         {children}
         {hint && <div className="mt-1.5 text-[0.78125rem] text-muted">{hint}</div>}

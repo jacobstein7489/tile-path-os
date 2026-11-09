@@ -501,13 +501,10 @@ function ChecklistTab() {
     { key: 'other', label: 'Your own', list: steps.filter((d) => !TRACKS.some((t) => t.steps.includes(d.key)) && !(d.group && Object.values(PART_GROUP).includes(d.group)) && d.key !== 'deposit') }]
     .map((p) => ({ ...p, list: [...p.list].sort((a, b) => { const t = TRACKS.find((x) => x.key === p.key); return (t ? (t.steps.indexOf(a.key) + 1 || 99) - (t.steps.indexOf(b.key) + 1 || 99) : 0) }) }))
     .filter((p) => p.key !== 'other' || p.list.length)
+  /* one short line per step — the step and who does it; tap the person to change it. Two columns on a wide screen */
   return (
-    <div className="flex flex-col gap-4" data-steps-settings>
+    <div className="columns-2 gap-4 max-xl:columns-1 [&>*]:mb-4 [&>*]:break-inside-avoid" data-steps-settings>
       <EstimateSteps />
-      <div className="mt-2 px-1" data-ready-head>
-        <h3 className="text-[1.0625rem] font-semibold text-ink">Getting a project ready</h3>
-        <p className="mt-0.5 text-[0.84375rem] text-muted">The same things, in the same order, as on every project. Pick who does each step — or turn off one you don’t do (···).</p>
-      </div>
       {parts.map((p) => <PartSteps key={p.key} part={p.key} label={p.label} list={p.list} all={steps} />)}
     </div>
   )
@@ -517,22 +514,13 @@ function ChecklistTab() {
  * Each step says what it is, when it starts and what comes after it, and who does it — one person or more (with two,
  * it's on both their Todays and either one does it). */
 function FlowRow({ n, last, name, what, starts, then, who, more, off, ...rest }: { n: number; last?: boolean; name: React.ReactNode; what?: string; starts: string; then: string; who?: React.ReactNode; more?: React.ReactNode; off?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
+  /* one line: its number, its name (what it is and when it starts on hover), who does it, ··· */
   return (
-    <div className={cn('grid grid-cols-[1.75rem_minmax(0,1fr)_auto_2.25rem] items-start gap-x-3 border-b border-line-2 px-5 py-3 last:border-b-0 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_2.25rem] max-sm:gap-y-2 max-sm:px-4', off && 'bg-[#faf9f6]')} {...rest}>
-      <span className="relative flex h-full justify-center">
-        <span className={cn('relative z-[1] inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.71875rem] font-semibold tnum', off ? 'bg-wash text-faint' : 'bg-[#e9edf9] text-brand-700')}>{n}</span>
-        {!last && <span aria-hidden className="absolute -bottom-3 top-6 w-px bg-[#d9d3c9]" />}
-      </span>
-      <span className="min-w-0">
-        <span className={cn('block text-[0.875rem] font-semibold', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
-        {what && <span className="block text-[0.78125rem] leading-snug text-muted">{what}</span>}
-        <span className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[0.75rem] text-faint">
-          <span><span className="font-medium text-muted">Starts</span> {starts}</span>
-          <span><span className="font-medium text-muted">Then</span> {then}</span>
-        </span>
-      </span>
-      <span className="self-center max-sm:col-start-2 max-sm:row-start-2 max-sm:self-start">{who}</span>
-      <span className="flex justify-end self-center max-sm:col-start-3 max-sm:row-start-1 max-sm:self-start">{more}</span>
+    <div className={cn('grid min-h-[2.875rem] grid-cols-[1.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-3 border-t border-line-2 px-4 py-1.5', off && 'bg-[#faf9f6]')} title={[what, `Starts ${starts}`, `Then ${then}`].filter(Boolean).join(' · ')} {...rest}>
+      <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold tnum', off ? 'bg-wash text-faint' : 'bg-[#e9edf9] text-brand-700')}>{n}</span>
+      <span className={cn('min-w-0 truncate text-[0.875rem] font-medium', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
+      <span className="min-w-0">{who}</span>
+      <span className="flex justify-end">{more}</span>
     </div>
   )
 }
@@ -544,9 +532,9 @@ function PeoplePick({ value, onChange, label }: { value: PersonKey[]; onChange: 
   const people = insidePeople(s)
   return (
     <Menu align="end" width={270} trigger={
-      <button type="button" aria-label={`Who does ${label}`} className="inline-flex h-9 min-w-0 max-w-[15rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash" data-people-pick={value.join(',')}>
+      <button type="button" aria-label={`Who does ${label}`} className="inline-flex h-8 w-[10.5rem] min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash" data-people-pick={value.join(',')}>
         <span className="flex shrink-0 -space-x-1.5">{value.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} ring={value.length > 1} />)}</span>
-        <span className="truncate">{namesOf(value, null, value.length === 1)}</span>
+        <span className="min-w-0 flex-1 truncate text-left">{namesOf(value, null, value.length === 1)}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
       </button>
     }>
@@ -575,9 +563,10 @@ function EstimateSteps() {
   return (
     <div data-steps-part="estimates">
       <Card pad={false} className="overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3 max-sm:px-4">
+        <div className="flex items-center gap-2 px-4 py-2.5">
           <h3 className="text-[0.96875rem] font-semibold text-ink">Estimates</h3>
-          <span className="text-[0.8125rem] text-muted">{all.length} steps</span>
+          <span className="text-[0.8125rem] tnum text-faint">{all.length}</span>
+          {!adding && <button onClick={() => setAdding(true)} className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-add-step="estimates"><Plus className="h-3.5 w-3.5" />Add step</button>}
         </div>
         {all.map((d, i) => {
           const prev = i > 0 ? all[i - 1] : undefined
@@ -624,9 +613,7 @@ function EstimateSteps() {
             <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>
             <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
           </form>
-        ) : (
-          <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 row-hover max-sm:px-4" data-add-step="estimates"><Plus className="h-4 w-4" />Add a step to Estimates</button>
-        )}
+        ) : null}
       </Card>
     </div>
   )
@@ -642,9 +629,10 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
   return (
     <div data-steps-part={part}>
     <Card pad={false} className="overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3 max-sm:px-4">
+      <div className="flex items-center gap-2 px-4 py-2.5">
         <h3 className="text-[0.96875rem] font-semibold text-ink">{label}</h3>
-        <span className="text-[0.8125rem] text-muted">{on} {on === 1 ? 'step' : 'steps'}</span>
+        <span className="text-[0.8125rem] tnum text-faint">{on}</span>
+        {part !== 'other' && !adding && <button onClick={() => setAdding(true)} className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-add-step={part}><Plus className="h-3.5 w-3.5" />Add step</button>}
       </div>
       {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} />)}
       {part !== 'other' && (adding ? (
@@ -654,9 +642,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
           <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>
           <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
         </form>
-      ) : (
-        <button onClick={() => setAdding(true)} className="flex w-full items-center gap-2 border-t border-line-2 px-5 py-2.5 text-left text-[0.84375rem] font-semibold text-brand-700 row-hover max-sm:px-4" data-add-step={part}><Plus className="h-4 w-4" />Add a step to {label}</button>
-      ))}
+      ) : null)}
     </Card>
     </div>
   )
@@ -667,7 +653,7 @@ function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'ma
   const s = useStore()
   const who = value === 'matBy' ? (s.rules.matBy || 'yakov') : realOwner(s, value)
   return (
-    <Menu align="end" width={260} trigger={<button type="button" className="inline-flex h-9 min-w-0 max-w-[13rem] items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash"><Avatar who={who as PersonKey} size={22} /><span className="truncate">{value === 'matBy' ? 'Whoever orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+    <Menu align="end" width={260} trigger={<button type="button" aria-label={`Who does ${label}`} className="inline-flex h-8 w-[10.5rem] min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash"><Avatar who={who as PersonKey} size={22} /><span className="min-w-0 flex-1 truncate text-left">{value === 'matBy' ? 'Who orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
       <MenuLabel>Who has “{label}”</MenuLabel>
       {matRule && <MenuItem checked={value === 'matBy'} onSelect={() => onChange('matBy')} hint="Company rules → who orders our materials">Whoever orders materials</MenuItem>}
       {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={value === p} hint={PEOPLE[p].roleLabel} onSelect={() => onChange(p)}>{PEOPLE[p].name}</MenuItem>)}

@@ -1,9 +1,9 @@
-/* Where it stands — one list of what's left on the project, one line each: what · whose · when.
- *   A problem first, in red. Then by the day. What waits on someone outside is quiet. Yours says You.
+/* Where it stands — what's left on the project, by person: yours first, then whoever has the most urgent thing.
+ *   Under each person, one line each — what · when — the most urgent first: a problem (red), what's late (red), then
+ *   by the day, then in the order the work goes. What waits on someone outside is quiet.
  *   Each part of getting ready is one line — where it is now, in words (made → sent → accepted is one line that
  *   changes as it goes; its steps are inside its window). The project's tasks are lines the same way.
- *   What can't start yet, and what's done, aren't lines: one quiet "Later" and "Done" at the bottom name them.
- *   A Person filter on top: just theirs.
+ *   What can't start yet, and what's done, aren't on it — just what's left.
  * Tap a line: that one thing in its own window — done there, it closes by itself; it never jumps to another step. */
 import * as React from 'react'
 import { UserRound } from 'lucide-react'
@@ -107,70 +107,41 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
   return rows.filter(mine).sort((a, b) => order(a) - order(b) || (a.iso || '9999').localeCompare(b.iso || '9999'))
 }
 
-/** the parts that can't start yet, and the ones that are done — named on one quiet line each */
-function partsBy(tracks: TrackView[]) {
-  const later = tracks.filter((t) => t.state !== 'done' && t.state !== 'na' && !t.steps.some((v) => v.state === 'now' || v.state === 'wait' || v.state === 'bad'))
-  const done = tracks.filter((t) => t.state === 'done')
-  return { later, done }
-}
-
-const ROW = 'grid min-h-[3.25rem] w-full grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,9rem)] items-center gap-x-6 border-t border-line-2 px-5 py-2 text-left transition row-hover max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3 max-sm:px-4'
+const ROW = 'grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 px-5 py-2 text-left transition row-hover max-sm:gap-x-3 max-sm:px-4'
 
 export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
   const me = meOf(s.role)
-  const [who, setWho] = React.useState<PersonKey | 'all'>('all')
-  const all = leftRows(s, job)
-  const rows = who === 'all' ? all : leftRows(s, job, who)
-  const tracks = tracksFor(s, job)
-  const { later, done } = partsBy(tracks)
-  /* the people who have something here — you first */
-  const people = Array.from(new Set([...all.map((r) => r.who), ...tracks.flatMap((t) => t.steps.filter((v) => v.state === 'now' || v.state === 'wait' || v.state === 'bad').map((v) => v.owner))].filter(Boolean) as PersonKey[]))
-    .sort((a, b) => Number(b === me) - Number(a === me))
-  const openPart = (t: TrackView) => {
-    const k = (t.lead || [...t.steps].reverse().find((v) => v.state === 'done') || t.steps[0])?.key
-    if (k) s.open({ t: 'step', jobId: job.id, k })
-  }
-  const partLine = (label: string, list: TrackView[], attr: Record<string, string | number>) => (
-    <div className="flex min-h-[2.75rem] min-w-0 items-baseline gap-2 border-t border-line-2 px-5 py-2.5 text-[0.875rem] max-sm:px-4" {...attr}>
-      <span className="shrink-0 font-semibold text-muted">{label}</span>
-      <span className="min-w-0 text-muted">
-        {list.map((t, i) => (
-          <React.Fragment key={t.key}>
-            {i > 0 && <span aria-hidden> · </span>}
-            <button type="button" onClick={() => openPart(t)} className="text-ink-2 underline-offset-2 hover:text-ink hover:underline" data-part={t.key}>{t.label}</button>
-          </React.Fragment>
-        ))}
-      </span>
-    </div>
-  )
+  const rows = leftRows(s, job)
+  /* by person: you first, then whoever has the most urgent thing (the list is in order of urgency already) */
+  const people = Array.from(new Set(rows.map((r) => r.who || ''))).sort((a, b) => Number(b === me) - Number(a === me))
   return (
     <section data-whats-left className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex min-h-[3.25rem] min-w-0 items-center gap-3 px-5 py-2 max-sm:px-4">
         <h3 className="text-[1.0625rem] font-semibold text-ink">To do</h3>
         <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length}</span>
-        {people.length > 1 && (
-          <span className="ml-auto">
-            <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={people.map((p) => ({ key: p, label: p === me ? 'You' : PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={(v) => setWho(v as PersonKey | 'all')} width={260} />
-          </span>
-        )}
       </header>
       <div data-left-rows>
-        {rows.map((r) => (
-          <button key={r.key} type="button" onClick={r.open} className={ROW} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
-            <span className={cn('min-w-0 truncate text-[0.9375rem]', r.tone === 'bad' ? 'font-semibold text-bad-600' : r.tone === 'wait' ? 'text-muted' : 'font-medium text-ink')} title={r.what} data-left-what>{r.what}</span>
-            {/* a phone: whose and when under what, one line */}
-            <span className="min-w-0 max-sm:hidden" data-left-who><Whose who={r.who} /></span>
-            <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum max-sm:hidden', r.late ? 'font-medium text-bad-600' : 'text-muted')} data-left-when>{r.when || ''}</span>
-            <span className="hidden min-w-0 flex-col items-end gap-0.5 text-right text-[0.8125rem] leading-tight max-sm:flex">
-              <Whose who={r.who} size={18} className="justify-end" />
-              {r.when && <span className={cn('block truncate tnum', r.late ? 'font-medium text-bad-600' : 'text-muted')}>{r.when}</span>}
-            </span>
-          </button>
-        ))}
-        {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>{who === 'all' ? 'Nothing left to do right now.' : `Nothing for ${who === me ? 'you' : firstName(who)} right now.`}</div>}
-        {who === 'all' && later.length > 0 && partLine('Later', later, { 'data-left-later': later.length })}
-        {who === 'all' && done.length > 0 && partLine(`Done · ${done.length}`, done, { 'data-left-done': done.length })}
+        {people.map((p) => {
+          const mine = rows.filter((r) => (r.who || '') === p)
+          const person = p ? PEOPLE[p as PersonKey] : undefined
+          return (
+            <div key={p || 'nobody'} className="border-t border-line-2 pb-1.5" data-left-person={p || 'nobody'}>
+              <div className="flex min-w-0 items-center gap-2 px-5 pb-0.5 pt-3 max-sm:px-4" data-left-who>
+                {person && <Avatar who={p as PersonKey} size={22} />}
+                <span className="truncate text-[0.875rem] font-semibold text-ink" data-who-name>{p === me ? 'You' : person ? person.short || firstName(p as PersonKey) : 'Nobody yet'}</span>
+                <span className="text-[0.8125rem] tnum text-faint">{mine.length}</span>
+              </div>
+              {mine.map((r) => (
+                <button key={r.key} type="button" onClick={r.open} className={ROW} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
+                  <span className={cn('min-w-0 truncate text-[0.9375rem]', r.tone === 'bad' ? 'font-semibold text-bad-600' : r.tone === 'wait' ? 'text-muted' : 'text-ink')} title={r.what} data-left-what>{r.what}</span>
+                  <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum', r.late ? 'font-medium text-bad-600' : 'text-muted')} data-left-when>{r.when || ''}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })}
+        {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
       </div>
     </section>
   )

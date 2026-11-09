@@ -342,7 +342,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{crew ? `${PEOPLE[crew as PersonKey].name} · ${isoLabel(start)} – ${isoLabel(end)}` : 'Pick a crew'}</span>
-          <Button className="ml-auto" variant="ghost" onClick={close}>Cancel</Button>
+          <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!crew} icon={<CalendarPlus className="h-[1.125rem] w-[1.125rem]" />} onClick={() => assignCrew(jobId, { crew: crew as PersonKey, start, days, workers, areas, confirm })}>
             Book {crew ? PEOPLE[crew as PersonKey].name : 'crew'}
           </Button>

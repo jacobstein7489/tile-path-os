@@ -578,20 +578,17 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
       size="md"
       onClose={s.close}
       title={title}
-      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem} more={admin ? <StepMore job={job} v={v} /> : undefined} attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
-      /* someone else's: Remind them — the admin can take it over. Yours: the work's own button does it */
-      footer={theirs && (v.state !== 'later' || admin) ? (
-        <>
-          {admin && <Button icon={<UserRound />} onClick={() => setStepOwner(job.id, take, me)} {...(v.state === 'later' ? { 'data-take-later': '' } : { 'data-take-step': '' })}>Take it over</Button>}
-          {v.state !== 'later' && <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>}
-        </>
+      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem} more={admin ? <StepMore job={job} v={v} take={theirs ? () => setStepOwner(job.id, take, me) : undefined} /> : undefined} attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
+      /* one button at the bottom: someone else's — Remind them (the admin takes it over from ···); yours — the work's
+         own button does it */
+      footer={theirs && v.state !== 'later' ? (
+        <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>
       ) : undefined}
       bodyClass="p-0"
     >
       <div ref={body} className="min-w-0" data-step-view={v.key}>
-        <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
+        <div className="px-6 pb-6 pt-3 max-sm:px-4" data-step-open={v.key}>
           <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy bare goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
-          <LineSteps job={job} v={v} onPick={(key) => s.swap({ t: 'step', jobId, k: key })} />
         </div>
       </div>
     </Modal>
@@ -654,7 +651,7 @@ export function Legend({ className }: { className?: string }) {
 
 /** the admin's few extra things with a step, in one small menu: not needed here, not done after all, give it to
  *  someone else on this project — and Who does what, where every step's person is set for every project */
-function StepMore({ job, v }: { job: Job; v: StepView }) {
+function StepMore({ job, v, take }: { job: Job; v: StepView; take?: () => void }) {
   const s = useStore()
   const rec = s.stepRecs[job.id]?.[v.key]
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
@@ -664,10 +661,13 @@ function StepMore({ job, v }: { job: Job; v: StepView }) {
       : [...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []), { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true) }]
   return (
     <Menu align="end" width={290} trigger={<button aria-label="More for this step" className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+      {/* someone else's: take it over — the one thing the admin does here besides Remind */}
+      {take && <MenuItem icon={<UserRound className="h-4 w-4" />} onSelect={take} {...(v.state === 'later' ? { 'data-take-later': '' } : { 'data-take-step': '' })}>Take it over</MenuItem>}
+      {take && items.length > 0 && <MenuSep />}
       {items.map((x) => <MenuItem key={x.label} onSelect={x.run}>{x.label}</MenuItem>)}
       {open && (
         <>
-          {items.length > 0 && <MenuSep />}
+          {(items.length > 0 || !!take) && <MenuSep />}
           <MenuLabel>Give it to someone else — this project only</MenuLabel>
           {insidePeople(s).filter((p) => p !== v.owner).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
         </>

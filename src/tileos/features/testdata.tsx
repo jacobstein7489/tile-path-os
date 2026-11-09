@@ -100,7 +100,7 @@ export function FreshModal({ mode, level }: { mode: 'fresh' | 'sample'; level: n
       size="sm"
       onClose={s.close}
       title={fresh ? 'Start fresh?' : 'Bring back the sample?'}
-      footer={<><Button variant="ghost" onClick={s.close}>Cancel</Button><Button className="ml-auto" variant={fresh ? 'danger' : 'primary'} onClick={go}>{fresh ? 'Clear it and start fresh' : 'Bring back the sample'}</Button></>}
+      footer={<><Button className="ml-auto" variant={fresh ? 'danger' : 'primary'} onClick={go}>{fresh ? 'Clear it and start fresh' : 'Bring back the sample'}</Button></>}
     >
       <div className="flex flex-col gap-3 text-[0.875rem] leading-snug text-ink-2">
         {fresh ? (
