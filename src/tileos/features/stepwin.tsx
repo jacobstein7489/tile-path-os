@@ -5,7 +5,7 @@
  * task or a link opens it; tap another circle and that step shows instead. */
 import * as React from 'react'
 import type { Task } from '@/tileos/data/work'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2, BellRing, UserRound } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -42,6 +42,7 @@ import { NoNote, SitePick, type SiteVal } from './answer'
 import { HeightsInline } from './heights'
 import { SiteChangeForm } from './field'
 import { trackOf, tracksFor, TRACKS, stepShort, softWrap } from './tracks'
+import { WinHead, type WinTone } from './winhead'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -377,7 +378,7 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
 /** the step itself, the same way every time: what's happening (the block on top), then the work — yours to do; or,
  *  someone else's, what they do there (read only); nothing yet while it waits for the step before — and what's
  *  happened with it. Once it's done: what came of it, for everyone — its person can still change it. */
-function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boolean; goTo?: (k: string) => void }) {
+function StepPanel({ job, v, roomy, goTo, bare }: { job: Job; v: StepView; roomy?: boolean; goTo?: (k: string) => void; /** in its own window: the top of the window says where it stands — no block for it here */ bare?: boolean }) {
   const s = useStore()
   const { me, mine, admin, locked, viewOnly } = stepRights(s, v)
   const name = PEOPLE[v.owner]?.short || 'someone else'
@@ -389,17 +390,17 @@ function StepPanel({ job, v, roomy, goTo }: { job: Job; v: StepView; roomy?: boo
   const gap = roomy ? 'mt-5' : 'mt-4'
   return (
     <>
-      <StepStatus job={job} v={v} me={me} mine={mine} admin={admin} onSite={onSite} take={take} goTo={goTo} />
+      {!bare && <StepStatus job={job} v={v} me={me} mine={mine} admin={admin} onSite={onSite} take={take} goTo={goTo} />}
       {/* done: what came of it, for everyone — its person can open the work again to change something */}
       {v.state === 'done' ? (
-        <div className={cn('flex flex-col gap-3', gap)} data-step-done>
+        <div className={cn('flex flex-col gap-3', !bare && gap)} data-step-done>
           <StepResult job={job} v={v} />
           {mine && <DoneChange job={job} v={v} />}
         </div>
       ) : mine ? (
-        <fieldset className={cn('m-0 min-w-0 border-0 p-0', gap)}><Body job={job} v={v} /></fieldset>
+        <fieldset className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)}><Body job={job} v={v} /></fieldset>
       ) : v.state === 'bad' ? (
-        <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', gap)} data-problem-view><Body job={job} v={v} /></fieldset>
+        <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)} data-problem-view><Body job={job} v={v} /></fieldset>
       ) : null}
       {hist.length > 0 && (
         <div className={cn('border-t border-line-2 pt-3', gap)} data-step-history>
@@ -566,23 +567,48 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   const tk = trackOf(v)
   const part = (tk && TRACKS.find((t) => t.key === tk)?.label) || PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
   const title = v.named ? v.label : TITLE[v.key] || v.label
+  const { me, mine, admin } = stepRights(s, v)
+  const h = stepHead(v, me, mine)
+  const theirs = !mine && v.state !== 'done' && v.state !== 'na'
+  /* checking the fixes again is the site manager's — taking it over takes the site check */
+  const take = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
       title={title}
-      sub={`${part} · ${job.name}`}
+      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem} more={admin ? <StepMore job={job} v={v} /> : undefined} attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
+      /* someone else's: Remind them — the admin can take it over. Yours: the work's own button does it */
+      footer={theirs && (v.state !== 'later' || admin) ? (
+        <>
+          {admin && <Button icon={<UserRound />} onClick={() => setStepOwner(job.id, take, me)} {...(v.state === 'later' ? { 'data-take-later': '' } : { 'data-take-step': '' })}>Take it over</Button>}
+          {v.state !== 'later' && <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>}
+        </>
+      ) : undefined}
       bodyClass="p-0"
     >
       <div ref={body} className="min-w-0" data-step-view={v.key}>
         <div className="px-6 pb-6 pt-5 max-sm:px-4" data-step-open={v.key}>
-          <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
+          <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy bare goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
           <LineSteps job={job} v={v} onPick={(key) => s.swap({ t: 'step', jobId, k: key })} />
         </div>
       </div>
     </Modal>
   )
+}
+
+/** where a step stands, for the top of its window: whose it is, when — or waiting, done, not yet — and a problem */
+function stepHead(v: StepView, me: PersonKey, mine: boolean): { who?: PersonKey; whoText?: string; state?: string; tone?: WinTone; problem?: string } {
+  const whose = mine ? 'Yours' : `${PEOPLE[v.owner]?.short || 'Someone'} has it`
+  const due = dueWords(v)
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
+  if (v.state === 'done') return { who: v.doneBy, whoText: v.doneBy ? (v.doneBy === me ? 'You' : PEOPLE[v.doneBy]?.short) : undefined, state: v.note === BEFORE_TILE_OS ? BEFORE_TILE_OS : `Done${v.doneOn ? ` ${v.doneOn}` : ''}`, tone: 'ok' }
+  if (v.state === 'na') return { state: 'Not needed on this project', tone: 'quiet' }
+  if (v.state === 'later') return { who: v.owner, whoText: whose, state: v.key === 'installer' && v.waitsKey === 'estimate' ? 'Not yet — his PO is made from the estimate' : `Not yet — after ${v.waitsFor || 'the step before'}`, tone: 'quiet' }
+  if (v.state === 'wait') return { who: v.owner, whoText: whose, state: v.note ? cap(v.note) : 'Waiting', tone: 'warn' }
+  const problem = v.state === 'bad' ? cap((v.note || '').split(' · ')[0].replace(/^No — /, '') || 'A problem') : undefined
+  return { who: v.owner, whoText: whose, state: due ? cap(due.text) : undefined, tone: due?.late ? 'late' : undefined, problem }
 }
 
 /** the other steps of its part, in order, each in a few words — done (when, who), whose turn, waiting, later. The

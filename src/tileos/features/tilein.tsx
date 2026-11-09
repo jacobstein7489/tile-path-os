@@ -90,7 +90,7 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
         </>
       }
     >
-      {!jobId0 && <FormRow label={small && !jobId ? 'Which project?' : 'Project'}><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} /></FormRow>}
+      {!jobId0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} /></FormRow>}
       {job && (
         <>
           <div className="text-[0.875rem] text-muted">How many boxes came of each{filled ? ' — what’s still coming is filled in' : ''}.</div>

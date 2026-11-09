@@ -1,7 +1,8 @@
 /* One person does it — or two, whoever gets to it first; everyone who needs to can see it.
  *   owner     — the one person whose job it is (always exactly one)
  *   also      — others who can do it too: on their Today as well; whoever does it first closes it for all
- *   followers — see it under "Following" and get told when it moves
+ *   followers — it waits under their "Waiting on others" until it's done, and they're told when it moves (only who
+ *               asked to follow it — the one who asked for it or handed it over follows it by itself) 
  *   everyone  — pinned to the top of every login's Today until it's done */
 import { useStore, NOW, meOf } from '@/tileos/store'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
@@ -9,8 +10,7 @@ import type { Task } from '@/tileos/data/work'
 
 const S = () => useStore.getState()
 const ROLE_PERSON: Partial<Record<Role, PersonKey>> = { owner: 'ys', pm: 'ys', site: 'yakov', office: 'office', estimator: 'estimator', takeoff: 'takeoff', materials: 'materials', accounting: 'accounting' }
-export const followersOf = (t: Task): PersonKey[] =>
-  Array.from(new Set(t.followers ?? ((t.watch || []).map((r) => ROLE_PERSON[r]).filter(Boolean) as PersonKey[]))).filter((p) => p !== t.owner)
+export const followersOf = (t: Task): PersonKey[] => Array.from(new Set(t.followers || [])).filter((p) => p !== t.owner)
 
 export function toggleFollow(id: string, who: PersonKey) {
   const t0 = S().tasks.find((x) => x.id === id)
@@ -23,8 +23,8 @@ export function toggleFollow(id: string, who: PersonKey) {
       t.followers = on ? [...cur, who] : cur.filter((p) => p !== who)
       t.log.push({ date: NOW, who: meOf(s.role), text: on ? `${PEOPLE[who].name} follows it` : `${PEOPLE[who].name} stopped following` })
     },
-    on ? `${PEOPLE[who].short} follows it now` : `${PEOPLE[who].short} stopped following`,
-    { undo: false, sub: on ? 'It shows under Following, and they hear when it moves.' : undefined },
+    who === meOf(S().role) ? (on ? 'You follow it' : 'You stopped following it') : on ? `${PEOPLE[who].short} follows it now` : `${PEOPLE[who].short} stopped following`,
+    { undo: false, sub: on ? (who === meOf(S().role) ? 'It waits under Waiting on others until it’s done.' : 'They hear when it moves.') : undefined },
   )
 }
 /** someone else can do it too: it's on their Today as well, and whoever does it first closes it for both */

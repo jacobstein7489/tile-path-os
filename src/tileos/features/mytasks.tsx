@@ -33,6 +33,7 @@ import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField } from './formkit'
+import { WinHead } from './winhead'
 import { useSmall } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
 
@@ -723,7 +724,7 @@ export function MyTasksPage() {
   const t0 = (s.route.tab as string) || 'today'
   /* the site manager's Today is just today and tomorrow */
   const simple = role === 'site'
-  const [view, setView] = React.useState<View>(t0 === 'tomorrow' ? 'tomorrow' : simple ? 'today' : t0 === 'waiting' ? 'waiting' : t0 === 'done' ? 'done' : t0 === 'later' || t0 === 'coming' ? 'later' : 'today')
+  const [view, setView] = React.useState<View>(t0 === 'tomorrow' ? 'tomorrow' : t0 === 'waiting' ? 'waiting' : simple ? 'today' : t0 === 'done' ? 'done' : t0 === 'later' || t0 === 'coming' ? 'later' : 'today')
   const inside = role !== 'crew' && role !== 'client'
   /* everyone's tasks are for the admin — every other login sees its own */
   const seesTeam = role === 'owner'
@@ -752,8 +753,17 @@ export function MyTasksPage() {
   const late = plate.filter((x) => x.b === 'overdue')
   const tomorrow = plate.filter((x) => x.b === 'tomorrow')
   const later = plate.filter((x) => x.b === 'week' || x.b === 'later' || x.b === 'aside')
-  /* waiting on others: what's out with the GC or a supplier — and what I asked for from the site, until it's delivered */
-  const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && ((t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && t.by === me && t.owner !== me && t.state !== 'done')))
+  /* waiting on others: what's out with the GC or a supplier — and what someone else is doing that you care about: what
+     you asked for or handed over, and what you follow. Each with whose it is and its day; it leaves when it's done */
+  const theirsIFollow = (t: Task) => t.owner !== me && t.state !== 'done' && (t.by === me || followersOf(t).includes(me))
+  const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && ((t.state === 'waiting' && (all ? true : isMine(t, role))) || (!all && theirsIFollow(t))))
+    .sort((a, b) => (taskIso(a) || '9999').localeCompare(taskIso(b) || '9999'))
+  /* someone else's: its day — red once it's late */
+  const theirWhen = (t: Task): { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } | undefined => {
+    if (t.owner === me || t.state !== 'now') return undefined
+    const b = taskBucket(t)
+    return b === 'overdue' ? { text: /late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`, tone: 'bad' } : b === 'today' ? { text: 'Today', tone: 'warn' } : t.due ? { text: t.due, tone: 'strong' } : { text: 'Anytime', tone: 'quiet' }
+  }
   /* steps waiting on someone outside — the store's tile, the installer's yes: they wait here with the day they're back */
   const waitSteps = Object.values(s.jobs).filter(isGettingReady).flatMap((j) => stepsFor(s, j).filter((v) => v.state === 'wait' && (all || v.owner === me)).map((v) => ({ job: j, v })))
   const done = s.tasks.filter((t) => t.state === 'done' && (all ? true : isMine(t, role)))
@@ -826,7 +836,7 @@ export function MyTasksPage() {
         {singles.map((id) => {
           const x = items.find((y) => jobOfItem(y) === id)
           const t = (tasksOnly || []).find((y) => (y.jobId || '') === id)
-          return x ? <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} /> : t ? <TaskRow key={t.id} t={t} showOwner={all} /> : null
+          return x ? <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} /> : t ? <TaskRow key={t.id} t={t} showOwner when={theirWhen(t)} /> : null
         })}
       </section></Loose.Provider></InJob.Provider>
     )
@@ -843,7 +853,7 @@ export function MyTasksPage() {
             <BandCount n={rows.length + ts.length} />
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
-          {ts.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
+          {ts.map((t) => <TaskRow key={t.id} t={t} showOwner when={theirWhen(t)} />)}
         </section></Loose.Provider></InJob.Provider>
       )
     }), oneEach]
@@ -904,8 +914,8 @@ export function MyTasksPage() {
   const [doneN, setDoneN] = React.useState(40)
   /* for everyone — once, on top (not again in the day's list) */
   const pinnedRows = pinned.filter((t) => !shownToday.some((x) => x.t?.id === t.id))
-  /* whose each row is: on everyone's list — unless it's grouped by person already */
-  const whoCol = all && !(grouping === 'person' && view !== 'done')
+  /* whose each row is: on everyone's list — unless it's grouped by person already — and on Waiting on others */
+  const whoCol = all ? !(grouping === 'person' && view !== 'done') : view === 'waiting'
   /* the column names show over a list that has rows */
   const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + shownCheckins.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
@@ -922,12 +932,10 @@ export function MyTasksPage() {
           items={[
             { key: 'today', label: 'Today', count: shownToday.length + shownCheckins.length, icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'tomorrow', label: 'Tomorrow', count: shownTomorrow.length + backTomorrow.length, icon: <CalendarDays />, color: 'violet', on: view === 'tomorrow', onClick: () => setView('tomorrow') },
-            /* the site manager: today and tomorrow — that's all he needs on the go */
-            ...(simple ? [] : [
-              { key: 'later', label: 'Later', count: shownLater.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') },
-              { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: shownWaiting.length + shownWaitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
-              { key: 'done', label: 'Done', count: shownDone.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
-            ] as any[]),
+            /* the site manager: today, tomorrow and what he's waiting on — that's all he needs on the go */
+            ...(simple ? [] : [{ key: 'later', label: 'Later', count: shownLater.length, icon: <CalendarRange />, color: 'slate', on: view === 'later', onClick: () => setView('later') }] as any[]),
+            { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: shownWaiting.length + shownWaitSteps.length, icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting'), gapBefore: true },
+            ...(simple ? [] : [{ key: 'done', label: 'Done', count: shownDone.length, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') }] as any[]),
           ]}
         />
       </>}
@@ -935,7 +943,7 @@ export function MyTasksPage() {
         <div className="flex w-full flex-wrap items-center gap-2">
           {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
           {/* Everyone's is by person — pick one person to see just theirs (no switch for how it's grouped: it's by person) */}
-          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={[{ key: 'follow', label: 'What I follow', hint: 'Things you watch' }, ...(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))]} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
+          {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {/* your own list: in the order it happens, or a project at a time */}
           {!all && view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
@@ -1029,11 +1037,11 @@ export function MyTasksPage() {
 
         {view === 'waiting' && (shownWaiting.length > 0 || shownWaitSteps.length > 0) && (
           <>
-            {grouping === 'job' ? byProject([], shownWaiting) : grouping === 'person' ? byPerson([], shownWaiting) : shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
-            {shownWaitSteps.map(({ job: j, v }) => <StepRowToday key={`w:${j.id}:${v.key}`} job={j} v={v} showOwner={all} when={waitWhen(v)} />)}
+            {grouping === 'job' ? byProject([], shownWaiting) : grouping === 'person' ? byPerson([], shownWaiting) : shownWaiting.map((t) => <TaskRow key={t.id} t={t} showOwner when={theirWhen(t)} />)}
+            {shownWaitSteps.map(({ job: j, v }) => <StepRowToday key={`w:${j.id}:${v.key}`} job={j} v={v} showOwner when={waitWhen(v)} />)}
           </>
         )}
-        {view === 'waiting' && !shownWaiting.length && !shownWaitSteps.length && <EmptyState icon={<Check />} title="Nothing waiting on others" sub="When you’re waiting on the store, the GC, a supplier or a client, it waits here with the day it comes back to you." />}
+        {view === 'waiting' && !shownWaiting.length && !shownWaitSteps.length && <EmptyState icon={<Check />} title="Nothing waiting on others" sub="What you asked someone for, what you follow, and what’s out with the GC or a supplier waits here until it’s done." />}
 
         {view === 'done' && shownDone.slice(0, doneN).map((t) => <TaskRow key={t.id} t={t} showOwner={all} />)}
         {view === 'done' && shownDone.length > doneN && <button onClick={() => setDoneN(doneN + 40)} className={cn('w-full border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-brand-700 hover:bg-brand-50/40', PX)}>Show older — {shownDone.length - doneN} more</button>}
@@ -1113,12 +1121,12 @@ function remindTask(t: Task) {
 /** off my Today for now: I reminded its person — it's back tomorrow if it isn't done */
 export const quietForMe = (t: Task, me: PersonKey | null) => !!me && (t.quiet?.[me] || '') > TODAY
 
-/* ================= one task: what it is, whose it is, what happens next — nothing else in the way =================
- * On top: the project, the task, when it's due and whose it is. Under it, in one sentence, what happens next (when the
- * button alone doesn't say it), what it's about, and the newest note — every note one tap away. At the bottom the next
- * step: Done (or its own button), Not today, Waiting on someone — someone else's: Remind them, or the admin takes it over.
- * Changing the task itself is in ··· : its person moves its day; the admin also hands it to someone else, sets who
- * follows it and puts it on everyone's Today. Everyone else sees it and reminds — nobody changes what isn't theirs. */
+/* ================= one task: the same window as a step — what it is, whose it is, when =================
+ * On top (the same as every window): the project, the task, whose it is and when. Under it what it's about and the
+ * newest note — every note one tap away. No sentences explaining how it works. At the bottom: yours — Done (or its own
+ * button), Not today, Waiting on someone; someone else's — Remind them, Follow it (you hear when it moves, and it waits
+ * under Waiting on others until it's done), and the admin can take it over. Changing the task itself is in ··· : its
+ * person moves its day; the admin also hands it to someone else, sets who follows it and puts it on everyone's Today. */
 export function TaskModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
@@ -1163,14 +1171,6 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
         : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
           : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
-  /* what happens next, in one sentence — when the button alone doesn't say it */
-  const next =
-    t.state === 'done' ? (t.result ? `Done — ${t.result}` : null)
-      : theirs ? (t.state === 'waiting' ? `${owner} is waiting on ${t.waitingOn || 'someone'} — it’s back on ${owner}’s list ${t.followUp}.` : `${owner} does it. Remind ${owner} — it pops up on their screen, and it’s off your Today until tomorrow.${admin ? ' Or take it over.' : ''}`)
-        : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'} — it comes back to you ${t.followUp}.`
-          : t.state === 'later' ? `Set aside — it comes back ${t.laterUntil}.`
-            : null
-
   const items: React.ReactNode[] = [
     canDate && <MenuItem key="date" icon={<CalendarDays className="h-4 w-4" />} onSelect={() => setPanel('date')}>Change the date</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="hand" icon={<UserRound className="h-4 w-4" />} onSelect={() => setPanel('hand')}>Hand it to someone else</MenuItem>,
@@ -1178,7 +1178,6 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     /* two can have it — whoever gets to it first */
     (admin || t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it — whoever gets to it first</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
-    !admin && t.owner !== me && <MenuItem key="me" icon={<Eye className="h-4 w-4" />} checked={followersOf(t).includes(me)} onSelect={() => toggleFollow(t.id, me)}>Follow it</MenuItem>,
     job && <MenuItem key="job" icon={<Building2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'job', id: job.id })}>Open {job.name}</MenuItem>,
   ].filter(Boolean)
   const more = items.length > 0 && (
@@ -1188,33 +1187,33 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   )
 
   const header = (
-    <div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pr-14">
-      <div className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted">
-        <Building2 className="h-3.5 w-3.5 shrink-0 text-faint" />
-        <span className="shrink-0 font-medium text-ink-2">{job ? job.name : 'Company'}</span>
-        {t.where && <span className="min-w-0 truncate">· {t.where}</span>}
-        {more && <span className="-my-1.5 ml-auto pl-2">{more}</span>}
-      </div>
-      <h2 className="font-display mt-1 text-[1.3125rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.1875rem]">{cleanTitle(t.title, job)}</h2>
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[0.8125rem]">
-        <span className={cn('inline-flex items-center gap-1.5 font-medium', when.cls)} data-task-when><CalendarDays className="h-3.5 w-3.5" />{when.text}</span>
-        <span className="inline-flex items-center gap-1.5 text-ink-2" data-task-owner><Avatar who={t.owner} size={18} />{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' and ')} — whoever gets to it first` : t.owner === me ? 'Yours' : `${owner} has it`}</span>
-        {t.repeat && <span className="inline-flex items-center gap-1.5 text-ink-2"><Repeat className="h-3.5 w-3.5 text-muted" />{REPEAT_LABEL[t.repeat]}{t.repeatAt ? ` at ${t.repeatAt}` : ''}</span>}
-        {t.blocks && t.state !== 'done' && <span className="inline-flex items-center gap-1.5 font-medium text-bad-700"><Ban className="h-3.5 w-3.5" />Holds up {t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}</span>}
-      </div>
-    </div>
+    <WinHead
+      place={<>{job ? job.name : 'Company'}{t.where ? ` · ${t.where}` : ''}</>}
+      title={cleanTitle(t.title, job)}
+      who={t.owner}
+      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' and ')} — whoever gets to it first` : t.owner === me ? 'Yours' : `${owner} has it`}</span>}
+      state={<span data-task-when>{when.text}</span>}
+      tone={b === 'overdue' && t.state === 'now' ? 'late' : t.state === 'waiting' || (b === 'today' && t.state === 'now') ? 'warn' : t.state === 'done' ? 'ok' : undefined}
+      extra={t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
+      problem={t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
+      more={more || undefined}
+      attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
+    />
+  )
+  /* someone else's: follow it — it waits under Waiting on others until it's done, and you hear when it moves */
+  const following = followersOf(t).includes(me)
+  const followBtn = t.owner !== me && t.state !== 'done' && (
+    <Button icon={following ? <Check /> : <Eye />} onClick={() => toggleFollow(t.id, me)} aria-pressed={following} data-follow-task className={following ? 'border-brand-200 bg-brand-50 text-brand-700' : undefined}>{following ? 'Following' : 'Follow'}</Button>
   )
 
   const footer = panel ? (
     <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
   ) : t.state === 'done' ? (
-    <>
-      <span className="text-[0.84375rem] text-muted">{t.result ? 'Finished and logged.' : 'Finished and logged.'}</span>
-      {(!theirs || admin) && <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>}
-    </>
+    (!theirs || admin) ? <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)} data-reopen-task>Reopen</Button> : undefined
   ) : theirs ? (
     <>
       {admin && <Button icon={<UserRound />} onClick={() => s.reassignTask(t.id, me)} data-take-task>Take it over</Button>}
+      {followBtn}
       <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button>
     </>
   ) : (
@@ -1281,15 +1280,10 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     </div>
   ) : (
     <>
-      {next && (
-        <div className="flex items-start gap-2.5 rounded-xl bg-wash px-3.5 py-3 text-[0.875rem] leading-snug text-ink-2" data-task-next {...(theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : {})}>
-          <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
-          <span className="min-w-0">{next}</span>
-        </div>
-      )}
-      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', next && 'mt-3')} data-task-detail>{t.detail}</p>}
+      {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
+      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3')} data-task-detail>{t.detail}</p>}
       {(log.length > 0 || t.state !== 'done') && (
-        <div className={cn((next || t.detail) && 'mt-4 border-t border-line-2 pt-3')} data-task-notes>
+        <div className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4 border-t border-line-2 pt-3')} data-task-notes>
           {notes ? (
             <>
               <div className="flex items-center justify-between gap-3">

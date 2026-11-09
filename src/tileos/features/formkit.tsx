@@ -6,7 +6,7 @@
 import * as React from 'react'
 import * as PO from '@radix-ui/react-popover'
 import { flushSync } from 'react-dom'
-import { Building2, Camera, Check, ChevronRight, Search, UserPlus, X } from 'lucide-react'
+import { Building2, Camera, Check, ChevronDown, ChevronRight, Search, UserPlus, X } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -18,7 +18,7 @@ import { KIND, PART_TINT } from './newpicker'
 import { insidePeople } from './steps-ui'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { isOff } from './active'
-import { scrollHere } from '@/tileos/components/ui/overlay'
+import { scrollHere, Modal } from '@/tileos/components/ui/overlay'
 
 /** the top of the form: the kind's icon in its color, the project, and what it is */
 export function FormHead({ k, kicker, title, right }: { k: string; kicker?: React.ReactNode; title?: React.ReactNode; right?: React.ReactNode }) {
@@ -60,8 +60,8 @@ export function projectsFor(s: Pick<Store, 'jobs'>, keep?: (j: Job) => boolean) 
 }
 
 /** the project, typed: start typing a name, an address or a client and pick it — no list of every project; the few on
- *  the go show only when you click into it. On a phone (picks): the ones on the go as big rows to tap instead — yours
- *  first — so nothing is typed and no keyboard comes up; Another project types one; Change brings the rows back */
+ *  the go show only when you click into it. On a phone (picks): one box, like any other — tap it and one small window
+ *  lists the projects on the go (yours first, nothing typed, no keyboard); tap one and the window closes by itself */
 export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid, picks = true }: {
   value: string
   onChange: (id: string) => void
@@ -69,14 +69,13 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
   placeholder?: string
   autoFocus?: boolean
   invalid?: boolean
-  /** on a phone, big rows to tap before one is picked — off where the project is only if you like */
+  /** on a phone, one box that opens the list in its own small window — off where the project is only if you like */
   picks?: boolean
 }) {
   const s = useStore()
   const [q, setQ] = React.useState('')
   const [open, setOpen] = React.useState(false)
   const [hi, setHi] = React.useState(0)
-  const [typing, setTyping] = React.useState(false)
   const small = useSmall()
   const input = React.useRef<HTMLInputElement>(null)
   const cur = value ? s.jobs[value] : undefined
@@ -85,28 +84,24 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
   /* nothing typed yet: the few on the go; typed: whatever matches */
   const shown = (words.length ? all.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))) : all).slice(0, words.length ? 8 : 5)
   React.useEffect(() => setHi(0), [q])
-  const pick = (id: string) => { onChange(id); setQ(''); setOpen(false); setTyping(false) }
+  const pick = (id: string) => { onChange(id); setQ(''); setOpen(false) }
   const tap = small && picks
-  if (tap && !cur && !typing) {
+  const [sheet, setSheet] = React.useState(false)
+  if (tap) {
     const me = meOf(s.role)
     const mine = (j: Job) => j.site === me || j.pm === me || j.crew === me || j.estimator === me
-    const list = [...all.filter(mine), ...all.filter((j) => !mine(j))].slice(0, 6)
-    if (list.length) return (
-      <div className="flex flex-col gap-2" data-project-picks>
-        {list.map((j) => (
-          <button key={j.id} type="button" onClick={() => pick(j.id)} data-project-pick={j.id} className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-2 text-left transition active:scale-[0.99] active:bg-wash">
-            <Building2 className="h-5 w-5 shrink-0 text-faint" />
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[1rem] font-semibold text-ink">{j.name}</span>
-              <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{j.client}</span>
-            </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-faint" />
-          </button>
-        ))}
-        <button type="button" onClick={() => { flushSync(() => { setTyping(true); setOpen(true) }); input.current?.focus() }} data-project-other className="flex h-12 items-center justify-center gap-2 rounded-xl border border-dashed border-[#d6cfc3] text-[0.9375rem] font-semibold text-brand-700 active:bg-wash">
-          <Search className="h-4 w-4" />Another project
+    return (
+      <>
+        <button type="button" onClick={() => setSheet(true)} data-project-open data-project-field={cur?.id || undefined}
+          className={cn('flex h-14 w-full min-w-0 items-center gap-3 rounded-xl border bg-white pl-3.5 pr-3 text-left transition active:bg-wash', invalid ? 'border-bad-300' : 'border-line')}>
+          <Building2 className="h-5 w-5 shrink-0 text-faint" />
+          {cur ? (
+            <span className="min-w-0 flex-1 truncate text-[1rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.8125rem] text-muted">{cur.client}</span></span>
+          ) : <span className="min-w-0 flex-1 truncate text-[1rem] text-faint">Pick the project</span>}
+          <ChevronDown className="h-5 w-5 shrink-0 text-faint" />
         </button>
-      </div>
+        {sheet && <ProjectSheet list={[...all.filter(mine), ...all.filter((j) => !mine(j))]} value={value} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}
+      </>
     )
   }
   if (cur && !open) {
@@ -114,7 +109,7 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
       <div className={cn('flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white pl-3 pr-1.5 max-sm:h-14 max-sm:rounded-xl max-sm:pl-3.5', invalid && 'border-bad-300')} data-project-field={cur.id}>
         <Building2 className="h-4 w-4 shrink-0 text-faint max-sm:h-5 max-sm:w-5" />
         <span className="min-w-0 flex-1 truncate text-[0.875rem] max-sm:text-[1rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted max-sm:text-[0.8125rem]">{cur.client}</span></span>
-        <button type="button" onClick={() => { if (tap) { setTyping(false); onChange(''); return } setOpen(true); setTimeout(() => input.current?.focus(), 10) }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50 max-sm:text-[0.9375rem]" data-project-change>Change</button>
+        <button type="button" onClick={() => { setOpen(true); setTimeout(() => input.current?.focus(), 10) }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50 max-sm:text-[0.9375rem]" data-project-change>Change</button>
       </div>
     )
   }
@@ -159,6 +154,40 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
         </PO.Content>
       </PO.Portal>
     </PO.Root>
+  )
+}
+
+/** a phone: the projects on the go in one small window — a list, yours first; a box on top finds one by name, address
+ *  or client (it takes the keyboard only when you tap it). Tap a project: it's picked and the window closes. */
+function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: string; onPick: (id: string) => void; onClose: () => void }) {
+  const [q, setQ] = React.useState('')
+  const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
+  const shown = words.length ? list.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))) : list
+  return (
+    <Modal level={9} size="sm" onClose={onClose} title="Pick the project" bodyClass="p-0">
+      <div data-project-sheet>
+        {list.length > 6 && (
+          <div className="px-4 pb-3 pt-1">
+            <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-xl border border-line bg-white px-3 focus-within:border-brand-300">
+              <Search className="h-4 w-4 shrink-0 text-faint" />
+              <input aria-label="Find a project" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a project" className="h-full min-w-0 flex-1 bg-transparent text-[1rem] text-ink placeholder:text-faint focus:outline-none" />
+              {q && <button type="button" aria-label="Clear" onClick={() => setQ('')} className="text-faint"><X className="h-4 w-4" /></button>}
+            </label>
+          </div>
+        )}
+        {shown.map((j) => (
+          <button key={j.id} type="button" onClick={() => onPick(j.id)} aria-pressed={j.id === value} data-project-pick={j.id}
+            className="flex min-h-[3.5rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left active:bg-wash">
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-[1rem] font-semibold text-ink">{j.name}</span>
+              {j.client && <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{j.client}</span>}
+            </span>
+            {j.id === value && <Check className="h-5 w-5 shrink-0 text-brand-600" strokeWidth={2.5} />}
+          </button>
+        ))}
+        {!shown.length && <div className="border-t border-line-2 px-4 py-6 text-center text-[0.9375rem] text-muted">No project like “{q}”.</div>}
+      </div>
+    </Modal>
   )
 }
 

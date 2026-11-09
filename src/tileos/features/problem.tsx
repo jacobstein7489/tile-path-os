@@ -94,7 +94,7 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
         </>
       )}
     >
-      {!j0 && <FormRow label={small && !jobId ? 'Which project?' : 'Project'}><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={keepJob} autoFocus /></FormRow>}
+      {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={keepJob} autoFocus /></FormRow>}
       {/* on a phone the project comes first — the rest once it's picked */}
       {(!small || !!jobId) && (
         <>
