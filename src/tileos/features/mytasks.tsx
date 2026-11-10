@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned } from 'lucide-react'
+import { CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -27,7 +27,7 @@ import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow } from '@/tileos/lib/today'
 import { REAL, awayFromMe } from '@/tileos/lib/save'
-import { checkIns, checkInDays, reportOn, type CheckItem } from './teamreport'
+import { checkIns, checkInDays, reportOn, handledOf, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
@@ -176,7 +176,8 @@ const TBTN = ROW_BTN
  *  project is as wide as the longest project name (up to a point — a longer one is cut short), so what to do starts
  *  right after it — no gap; whose as wide as its names; what to do takes the rest; the button column as wide as its
  *  button. */
-export const todoList = (who: boolean, inJob: boolean) => [inJob ? '' : 'fit-content(18rem)', 'minmax(0,1fr)', who ? 'fit-content(12rem)' : '', 'max-content'].filter(Boolean).join(' ')
+/* what first — it's the thing to do; then where (quiet), whose, and its day */
+export const todoList = (who: boolean, inJob: boolean) => ['minmax(0,1fr)', inJob ? '' : 'minmax(0,15rem)', who ? 'fit-content(12rem)' : '', 'max-content'].filter(Boolean).join(' ')
 /** the column names over a Today list */
 function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
   return (
@@ -220,8 +221,6 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       data-subrow
       className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
-      {/* a computer: the project first — where */}
-      {!inJob && <span className="min-w-0 truncate text-[0.875rem] text-ink max-md:hidden" data-row-where>{project}</span>}
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
@@ -234,6 +233,8 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
           </div>
         </div>
       </div>
+      {/* a computer: where, quiet, after what */}
+      {!inJob && <span className="min-w-0 truncate text-[0.8125rem] text-muted max-md:hidden" data-row-where>{project}</span>}
       {who && <span className="flex min-w-0 items-center gap-2 max-md:hidden">{owner && PEOPLE[owner] ? <><Avatar who={owner} size={20} /><span className={cn('truncate text-[0.8125rem]', owner === me ? 'font-medium text-ink' : 'text-ink-2')}>{ownerName}</span></> : null}</span>}
       {quiet && <span className="sr-only">{quiet}</span>}
       {/* a computer: no button — the row itself does what's next (one less thing on the screen); its day or time, and a
@@ -484,6 +485,8 @@ function CheckInSection({ items, follow = [] }: { items: PlateItem[]; follow?: T
               const titles = g.map((r) => cleanTitle(r.c.title, r.c.jobName))
               const bring = titles.every((t) => /^Bring /.test(t))
               const lateBy = Math.max(...g.map((r) => r.c.late))
+              /* reminded or checked in lately: it stays, and says so quietly */
+              const handled = g.map((r) => handledOf(s, r.c)).find(Boolean)
               return (
                 <div key={c.key} data-checkin-row={who} data-contents>
                   <TodoRow
@@ -492,8 +495,8 @@ function CheckInSection({ items, follow = [] }: { items: PlateItem[]; follow?: T
                     title={g.length === 1 ? titles[0] : bring ? `Bring ${g.length} things: ${titles.map((t) => t.replace(/^Bring /, '')).join(', ')}` : `${g.length} things late: ${titles.join(', ')}`}
                     detail={`${c.jobName} · due ${md(c.setFor)} · ${c.from}`}
                     project={c.jobName}
-                    when={`${lateBy} ${lateBy === 1 ? 'day' : 'days'} late`}
-                    whenTone="bad"
+                    when={handled || `${lateBy} ${lateBy === 1 ? 'day' : 'days'} late`}
+                    whenTone={handled ? 'quiet' : 'bad'}
                     action={<Button size="sm" className={TBTN} onClick={() => open(who)}>Check in</Button>}
                   />
                 </div>
@@ -505,6 +508,10 @@ function CheckInSection({ items, follow = [] }: { items: PlateItem[]; follow?: T
     </section>
   )
 }
+
+/** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
+const APP_DID = /^(Created|Reminded |Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following)$/
+export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** someone else's task you asked for or follow, due today or late: their name and the project, what, when */
 function FollowRow({ t }: { t: Task }) {
@@ -1004,7 +1011,6 @@ export function MyTasksPage() {
       {/* the columns spread evenly across the list, the same space between each two — What on the left, Next on the
           right, Project and When evenly between (not What taking the room and the rest pushed right) */}
       <div data-even-list style={{ '--list': todoList(whoCol, grouping === 'job' && view !== 'done') } as React.CSSProperties}>
-        {hasRows && <div className={cn(STICKY_HEAD, 'max-md:hidden')} data-subrow><TodoHead who={whoCol} inJob={grouping === 'job' && view !== 'done'} /></div>}
         {/* urgent: before anything else, in red — whichever way the list is grouped (by time it's the day's first part) */}
         {view === 'today' && grouping !== 'time' && urgentToday.length > 0 && (
           <section data-day="urgent">
@@ -1035,11 +1041,6 @@ export function MyTasksPage() {
             <Group label="No day set" count={undated.length} tone="neutral" strong />
             {undated.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
           </section>
-        )}
-        {view === 'today' && shownToday.length > 0 && shownTomorrow.length + backTomorrow.length > 0 && (
-          <button onClick={() => setView('tomorrow')} className={cn('flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted row-hover hover:text-ink', PX)}>
-            <CalendarDays className="h-4 w-4" />{shownTomorrow.length + backTomorrow.length} for tomorrow<ChevronRight className="h-4 w-4" />
-          </button>
         )}
 
         {view === 'tomorrow' && backTomorrow.length > 0 && (
@@ -1203,7 +1204,9 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const last = log[log.length - 1]
   const owner = PEOPLE[t.owner]?.short || 'They'
   const whoName = (w: string) => (w === 'system' ? 'Tile OS' : w === me ? 'You' : PEOPLE[w as PersonKey]?.short || w)
-  const addNote = () => { if (!note.trim()) return; s.noteTask(t.id, note.trim(), as || undefined); setNote('') }
+  const addNote = () => { if (!note.trim()) return; s.noteTask(t.id, note.trim()); setNote('') }
+  /* what people wrote — not what the app did */
+  const notesOnly = log.filter(isNote)
   const when =
     t.state === 'now' ? { text: b === 'overdue' ? (/late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${t.due}` : 'No date', cls: b === 'overdue' ? 'text-bad-700' : b === 'today' ? 'text-warn-700' : 'text-ink-2' }
       : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
@@ -1312,12 +1315,13 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     <>
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
       {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3')} data-task-detail>{t.detail}</p>}
-      {/* the notes, right here — newest first, no click to see them; one box to add one */}
-      {(log.length > 0 || t.state !== 'done') && (
+      {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
+          one quiet box to add one */}
+      {(notesOnly.length > 0 || t.state !== 'done') && (
         <div className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4')} data-task-notes>
-          {log.length > 0 && (
-            <ul className="scroll-soft -mx-1 max-h-[14rem] overflow-y-auto px-1" data-task-log>
-              {[...log].reverse().map((l, i) => (
+          {notesOnly.length > 0 && (
+            <ul className="scroll-soft -mx-1 mb-1 max-h-[14rem] overflow-y-auto px-1" data-task-log>
+              {[...notesOnly].reverse().map((l, i) => (
                 <li key={i} className="flex min-w-0 items-start gap-2.5 py-1.5">
                   {PEOPLE[l.who as PersonKey] ? <Avatar who={l.who as PersonKey} size={22} /> : <span className="mt-0.5 inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.625rem] font-semibold text-muted">OS</span>}
                   <span className="min-w-0 flex-1 pt-px text-[0.875rem] leading-snug text-ink-2">{l.text}</span>
@@ -1327,15 +1331,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
             </ul>
           )}
           {t.state !== 'done' && (
-            <div className="mt-2 flex items-center gap-2">
-              {s.role === 'owner' && (
-                <Menu align="start" width={260} trigger={<button aria-label="Write it as" title={as ? `Writing for ${PEOPLE[as].name}` : 'Writing as you'} className={cn('inline-flex h-10 shrink-0 items-center gap-1 rounded-lg border px-1.5', as ? 'border-warn-300 bg-warn-50' : 'border-line bg-white hover:bg-wash')}><Avatar who={as || me} size={26} /></button>}>
-                  <MenuLabel>Write it as</MenuLabel>
-                  <MenuItem icon={<Avatar who={me} size={20} />} checked={!as} onSelect={() => setAs(null)}>Me</MenuItem>
-                  {s.team.filter((m) => m.key !== me && m.status !== 'off').map((m) => <MenuItem key={m.key} icon={<Avatar who={m.key} size={20} />} checked={as === m.key} hint="marked as written by you" onSelect={() => setAs(m.key)}>{PEOPLE[m.key].name}</MenuItem>)}
-                </Menu>
-              )}
-              <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder={as ? `A note for ${PEOPLE[as].short}…` : 'Add a note…'} onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} aria-label="Add a note" data-task-note />
+            <div className="mt-1 flex items-center gap-2">
+              <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note…" onKeyDown={(e) => { if (e.key === 'Enter') addNote() }} aria-label="Add a note" data-task-note />
               {note.trim() && <Button onClick={addNote}>Add</Button>}
             </div>
           )}
@@ -1453,13 +1450,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       title="New task"
       header={<FormHead k="task" kicker={jobId && s.jobs[jobId] ? s.jobs[jobId].name : undefined} title="Task" />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={
-        <>
-          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden" data-task-says>{shared ? `On ${owners.map((p) => (p === me ? 'your' : `${PEOPLE[p]?.short || p}’s`)).join(' and ')} Today` : owner === me ? 'On your Today' : `On ${PEOPLE[owner].short}’s Today`} {repeat ? `· ${REPEAT_LABEL[repeat].toLowerCase()}` : `· ${whenLabel.toLowerCase()}`}{shared ? ' · whoever does it first' : ''}{!owners.includes(me) ? ' · you hear when it’s done' : ''}</span>
-          <div className="ml-auto" aria-hidden />
-          <Button variant="primary" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating task' : 'Add task'}</Button>
-        </>
-      }
+      footer={<Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating task' : 'Add task'}</Button>}
     >
       {msg && (
         <div className="mb-3 flex min-w-0 items-start gap-2.5 rounded-xl bg-[#f6f3ee] px-3 py-2.5 text-[0.8125rem]" data-from-msg>
@@ -1467,19 +1458,16 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
           <span className="min-w-0 leading-snug"><b className="font-semibold text-ink">{PEOPLE[msg.who]?.name || 'Someone'}</b> <span className="text-muted">· {msg.time}</span><span className="mt-0.5 block text-ink-2">{msg.text}</span></span>
         </div>
       )}
-      <FormRow label="What needs to be done?">
-        <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Type it or say it" listLabel="The usual ones — tap to pick" />
-        {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard} — from what you wrote</div>}
-      </FormRow>
       {!jobId && (
-        <FormRow label="Project" hint="Leave it empty for something for the whole company">
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1"><ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} picks={false} /></div>
-            {job && <button type="button" onClick={() => { setJob(''); setJobPicked(true); setHeard('') }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-muted hover:bg-wash hover:text-ink">Company-wide</button>}
-          </div>
+        <FormRow label="Project">
+          <ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} picks={false} />
         </FormRow>
       )}
-      <FormRow label="Who does it" hint={shared ? 'On each one’s Today — whoever does it first closes it for all.' : undefined}>
+      <FormRow label="What needs to be done?">
+        <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Type it or say it" listLabel="The usual ones — tap to pick" />
+        {heard && !jobPicked && <div className="mt-1.5 text-[0.78125rem] font-medium text-brand-700">Project: {heard}</div>}
+      </FormRow>
+      <FormRow label="Who does it">
         <span className="block" data-task-who={owners.join(',')}>
           {several
             ? <MultiSelect label="Who does it" values={owners} options={whoOptions} onChange={(ks) => setOwners((ks.length ? ks : [me]) as PersonKey[])} summary={(picked) => picked.map((o) => o.label).join(' and ')} autoOpen width={340} className="w-full" />
@@ -1487,17 +1475,14 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
         </span>
       </FormRow>
       <FormRow label="When">
-        <div className={cn('grid gap-2', repeat && 'grid-cols-[minmax(0,1fr)_8.5rem]')} data-task-when={whenValue}>
+        <div className={cn('grid gap-2', repeat ? 'grid-cols-[minmax(0,1fr)_8.5rem_auto]' : 'grid-cols-[minmax(0,1fr)_auto]')} data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={300} className="w-full" />
           {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} className="w-full" />}
+          {/* urgent: on top of their Today, in red */}
+          <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent title="On top of their Today, in red, until it’s done" className={cn('inline-flex h-10 items-center gap-1.5 rounded-[0.625rem] border px-3 text-[0.875rem] font-medium transition', urgent ? 'border-bad-200 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>
+            <Flag className="h-4 w-4" />Urgent
+          </button>
         </div>
-      </FormRow>
-      {/* urgent: one line — on top of their Today, in red */}
-      <FormRow label="Urgent">
-        <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent className="flex min-h-10 w-full items-center gap-3 text-left">
-          <span className={cn('relative h-5 w-9 shrink-0 rounded-full transition', urgent ? 'bg-bad-600' : 'bg-[#d9d3c9]')}><span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all', urgent ? 'left-[1.125rem]' : 'left-0.5')} /></span>
-          <span className={cn('min-w-0 text-[0.8125rem]', urgent ? 'font-medium text-bad-700' : 'text-muted')}>On top of {owner === me ? 'your' : `${PEOPLE[owner]?.short || 'their'}’s`} Today, in red, until it’s done</span>
-        </button>
       </FormRow>
     </Modal>
   )

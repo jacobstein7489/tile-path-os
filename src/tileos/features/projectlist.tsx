@@ -448,28 +448,29 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
       }
     >
       <NewProjectKind value="won" onChange={(v) => { if (v === 'price') s.swap({ t: 'newreq', name, address }) }} />
+      {/* the same boxes as Price it: the project, then the client */}
+      <FormRow label="Project">
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'Name — e.g. Leeds Residence'} className="h-10" />
+          <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address — street, city" className="h-10" />
+        </div>
+      </FormRow>
       <FormRow label="Client">
         <div className="flex gap-2">
           <div className="min-w-0 flex-1"><SearchSelect label="Client" value={clientId} onChange={setClientId} placeholder="Type a client" options={Object.values(CUSTOMERS).filter((c) => !isOff(s, 'client', c.id)).map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} search /></div>
           <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
         </div>
       </FormRow>
-      <FormRow label="Address">
-        <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 42 Orchard St, Brooklyn" />
-      </FormRow>
-      <FormRow label="Where it’s at" hint={AT_OPTIONS.find((x) => x.key === at)!.hint}>
+      <FormRow label="Where it’s at">
         <SearchSelect label="Where it’s at" value={at} onChange={(k) => setAt((k || 'new') as At)} search={false} options={AT_OPTIONS.map((x) => ({ key: x.key, label: x.label }))} plain />
       </FormRow>
       {!more && (
         <button onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">
-          <Plus className="h-4 w-4" />A different name, the contract, when we start
+          <Plus className="h-4 w-4" />Contract and start date
         </button>
       )}
       {more && <>
-        <FormRow label="Name" hint="It goes by the street if you leave it">
-          <TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'e.g. Green Tree'} />
-        </FormRow>
-        <FormRow label="Contract" hint="The deposit invoice is made from it">
+        <FormRow label="Contract">
           <TextInput aria-label="Contract" inputMode="decimal" value={contract} onChange={(e) => setContract(e.target.value)} placeholder="$0" />
         </FormRow>
         <FormRow label="Start and who runs it">

@@ -305,7 +305,7 @@ const STRONG: Record<string, { bg: string; fg: string; bar: string }> = {
   vio: { bg: '#f8f6fe', fg: '#5b3fc4', bar: '#a28be9' },
   neutral: { bg: '#f7f7f5', fg: '#30343c', bar: '#c4c8ce' },
 }
-export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg, boxShadow: `inset 0.1875rem 0 0 ${c.bar}` } }
+export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg } }
 /* written out whole, so the styles are there for each */
 const STRONG_FG: Record<string, string> = { bad: 'text-[#b42318]', info: 'text-[#2347bf]', warn: 'text-[#8f5207]', ok: 'text-[#1f6b45]', vio: 'text-[#5b3fc4]', neutral: 'text-[#30343c]' }
 export const bandLabel = (tone?: Tone) => cn('truncate text-[0.8125rem] font-bold uppercase tracking-[0.06em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)

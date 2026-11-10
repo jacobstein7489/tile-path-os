@@ -138,7 +138,7 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
   const cur = items.find((x) => x.job.id === at) || items[0]
   const doneN = items.filter((x) => x.v.state === 'done' || x.v.state === 'na').length
   return (
-    <Modal level={level} size="lg" onClose={s.close} title={todoOf(items[0].v)} sub={`${items.length} projects · ${doneN} done`} bodyClass="p-0">
+    <Modal level={level} size="lg" onClose={s.close} title={todoOf(items[0].v)} sub={doneN ? `${items.length} projects · ${doneN} done` : `${items.length} projects`} bodyClass="p-0">
       <div className="grid md:grid-cols-[17.5rem_minmax(0,1fr)]" data-step-batch={k}>
         {(!small || picking) && (
           <nav className="border-line py-2 md:border-r" aria-label="The projects" data-batch-list>
@@ -146,12 +146,12 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
               const on = !small && x.job.id === cur.job.id
               const w = stepWords(s, x.job, x.v, me)
               return (
-                <button key={x.job.id} type="button" onClick={() => { setAt(x.job.id); setPicking(false) }} data-batch-job={x.job.id} data-state={x.v.state} {...(on ? { 'data-on': '' } : {})} className={cn('flex min-h-12 w-full min-w-0 items-start gap-3 border-l-[0.1875rem] px-4 py-2.5 text-left transition', on ? 'border-brand-500 bg-brand-50/70' : 'border-transparent hover:bg-wash')}>
-                  <span className="mt-0.5 shrink-0"><StepIcon state={x.v.state} size={18} /></span>
+                <button key={x.job.id} type="button" onClick={() => { setAt(x.job.id); setPicking(false) }} data-batch-job={x.job.id} data-state={x.v.state} {...(on ? { 'data-on': '' } : {})} className={cn('mx-2 flex min-h-11 w-[calc(100%-1rem)] min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left transition', on ? 'bg-brand-50 text-brand-800' : 'hover:bg-[rgba(17,19,24,0.035)]')}>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.9375rem] font-semibold leading-snug text-ink">{x.job.name}</span>
-                    <span className={cn('block truncate text-[0.8125rem] leading-snug', w.tone)}>{w.text}</span>
+                    <span className={cn('block truncate text-[0.9375rem] leading-snug', on ? 'font-semibold text-brand-800' : 'font-medium text-ink')}>{x.job.name}</span>
+                    {x.v.state !== 'now' && <span className={cn('block truncate text-[0.8125rem] leading-snug', w.tone)}>{w.text}</span>}
                   </span>
+                  {(x.v.state === 'done' || x.v.state === 'na') && <Check className="h-4 w-4 shrink-0 text-[#2c8a5b]" strokeWidth={2.5} />}
                 </button>
               )
             })}
@@ -161,7 +161,7 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
           <div className="min-w-0 px-6 pb-6 pt-5 max-sm:px-4 max-sm:pt-3" data-batch-open={cur.job.id}>
             {small && <button type="button" onClick={() => setPicking(true)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-[0.875rem] font-semibold text-brand-700" data-batch-all><ChevronLeft className="h-4 w-4" />All {items.length} projects</button>}
             <h3 className="mb-3 text-[1.0625rem] font-semibold leading-snug text-ink" data-batch-name>{cur.job.name}</h3>
-            <StepInline key={cur.job.id + ':' + k} job={cur.job} v={cur.v} onClose={STAY} />
+            <StepInline key={cur.job.id + ':' + k} job={cur.job} v={cur.v} onClose={STAY} bare />
           </div>
         )}
       </div>

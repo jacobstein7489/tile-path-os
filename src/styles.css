@@ -291,6 +291,6 @@ html { font-size: 16px; }
 @keyframes line-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .line-grow { transform-origin: left center; animation: line-grow 700ms cubic-bezier(.2,.7,.2,1) both; }
 @media (prefers-reduced-motion: reduce) { .line-grow { animation: none; } }
-.row-hover { transition: box-shadow 120ms ease; }
-.row-hover:hover, .row-hover:focus-visible { box-shadow: inset 3px 0 0 var(--color-brand-500); outline: none; }
-@media (hover: none) { .row-hover:hover { box-shadow: none; } }
+.row-hover { transition: background-color 120ms ease; }
+.row-hover:hover, .row-hover:focus-visible { background-color: rgba(17, 19, 24, 0.035); outline: none; }
+@media (hover: none) { .row-hover:hover { background-color: transparent; } }

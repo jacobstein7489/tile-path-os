@@ -525,9 +525,9 @@ export const useStore = create<Store>()(
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
         const me = meOf(s.role)
-        /* the admin can write it for someone who didn't — and it says so */
-        ;(t.log ||= []).push({ date: NOW, who: as || me, text: as && as !== me ? `${text} — written by ${PEOPLE[me].short}` : text })
-      }, as && as !== meOf(get().role) ? `Note added for ${PEOPLE[as].name}` : 'Note added', { undo: false }),
+        /* a note is always yours — nobody writes one in someone else's name */
+        ;(t.log ||= []).push({ date: NOW, who: me, text, note: true })
+      }, 'Note added', { undo: false }),
     addTask: (p) => {
       const me = meOf(get().role)
       const other = !!p.owner && p.owner !== me

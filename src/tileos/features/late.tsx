@@ -71,7 +71,7 @@ export function remind(who: PersonKey, items: PlateItem[], note?: string) {
         r.checkIn = checkIn
       }
     })
-  }, `Reminder sent to ${PEOPLE[who]?.short || 'them'}`, { sub: 'It pops up on their screen with what’s late, and it’s on their Today.', undo: false })
+  }, `Reminder sent to ${PEOPLE[who]?.short || 'them'}`, { sub: 'It pops up on their screen. It stays on your Today until it’s done.', undo: false })
 }
 
 /* ---------------- by itself: every sign-in, the first look each day, whatever goes late — unless snoozed ---------------- */

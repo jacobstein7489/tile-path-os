@@ -430,11 +430,11 @@ function DoneChange({ job, v }: { job: Job; v: StepView }) {
 }
 
 /** one step, without any window around it — right on the project */
-export function StepInline({ job, v, onClose, onGo }: { job: Job; v: StepView; onClose?: () => void; onGo?: (k: string) => void }) {
+export function StepInline({ job, v, onClose, onGo, bare }: { job: Job; v: StepView; onClose?: () => void; onGo?: (k: string) => void; bare?: boolean }) {
   const host = React.useMemo(() => ({ close: () => onClose?.() }), [onClose])
   return (
     <StepHost.Provider value={host}>
-      <div className="min-w-0"><StepPanel job={job} v={v} goTo={onGo} /></div>
+      <div className="min-w-0"><StepPanel job={job} v={v} goTo={onGo} bare={bare} /></div>
     </StepHost.Provider>
   )
 }
@@ -708,7 +708,7 @@ function WaitFor({ job, k, who, label = 'Asked them — waiting' }: { job: Job; 
   const [back, setBack] = React.useState('Tomorrow')
   const [note, setNote] = React.useState('')
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />} data-wait-for>{was ? 'Followed up — still waiting' : label}</Button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button variant="ghost" icon={<Hourglass />} data-wait-for>{was ? 'Followed up — still waiting' : label}</Button>}>
       <div className="text-[0.875rem] font-semibold text-ink">Waiting on</div>
       <TextInput className="mt-2" value={on} onChange={(e) => setOn(e.target.value)} placeholder="The tile store, the GC…" />
       {was && <><div className="mt-3 text-[0.875rem] font-semibold text-ink">What they said</div><TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. it ships Wednesday" /></>}
@@ -825,7 +825,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       {v.state !== 'done' && !kept.length && (
         <Actions>
           <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store — waiting" />
-          <Button icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
+          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
         </Actions>
       )}
     </div>
@@ -852,7 +852,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block text-[0.90625rem] font-semibold text-ink">{kept.length ? 'Newer paperwork? Upload it too' : 'Upload the paperwork when it comes'}</span>
-          <span className="block text-[0.8125rem] text-muted">PDF or photos. It stays with the project — the next person enters it from here.</span>
+          <span className="block text-[0.8125rem] text-muted">PDF or photos</span>
         </span>
         <Button size="sm" variant="primary" icon={<Upload />} disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Uploading…' : 'Upload'}</Button>
         <input ref={input} type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; void up(l) }} />
@@ -860,7 +860,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       {v.state !== 'done' && (
         <Actions>
           <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store — waiting" />
-          <Button icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
+          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
         </Actions>
       )}
     </div>

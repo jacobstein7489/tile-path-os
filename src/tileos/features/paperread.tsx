@@ -105,17 +105,16 @@ export function PaperRead({ job }: { job: Job }) {
           {st.k === 'reading' ? (
             <>
               <span className="block truncate text-[0.90625rem] font-semibold text-ink">Reading {st.name}…</span>
-              <span className="block text-[0.8125rem] text-muted">Every tile, its size, grout and how much — matched to the walls and floors. Up to a minute; you can close this, it keeps going.</span>
+              <span className="block text-[0.8125rem] text-muted">Up to a minute — you can close this.</span>
             </>
           ) : unread ? (
             <>
-              <span className="block text-[0.90625rem] font-semibold text-ink">The paperwork is here — AI reads it</span>
-              <span className="block text-[0.8125rem] text-muted">It finds every tile and matches it to the walls and floors from the estimate.</span>
+              <span className="block text-[0.90625rem] font-semibold text-ink">The paperwork is here</span>
             </>
           ) : (
             <>
-              <span className="block text-[0.90625rem] font-semibold text-ink">Upload the tile paperwork — AI reads it</span>
-              <span className="block text-[0.8125rem] text-muted">PDF or photos. It finds every tile and matches it to the walls and floors from the estimate.</span>
+              <span className="block text-[0.90625rem] font-semibold text-ink">Upload the tile paperwork</span>
+              <span className="block text-[0.8125rem] text-muted">PDF or photos — it’s read by itself</span>
             </>
           )}
         </span>

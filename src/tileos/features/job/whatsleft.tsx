@@ -6,7 +6,7 @@
  *   What can't start yet, and what's done, aren't on it — just what's left.
  * Tap a line: that one thing in its own window — done there, it closes by itself; it never jumps to another step. */
 import * as React from 'react'
-import { UserRound } from 'lucide-react'
+import { ChevronRight, UserRound } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Filter } from '@/tileos/components/ui/page'
@@ -56,6 +56,10 @@ const lead = (v: StepView, all: StepView[]) => (v.into ? all.find((x) => x.key =
 const cap = (t: string) => t.replace(/^./, (c) => c.toUpperCase())
 /** a task's day ("Today", "Wed", "Nov 12", "3 days late") as a real day */
 const taskIso = (d?: string) => (d ? isoFromLabel(d) : undefined)
+/** since when it's been on them: the day the step before it was done (a task: the day it was made) */
+const sinceStep = (v: StepView, all: StepView[], job: Job) => (v.after.map((k) => all.find((x) => x.key === k)?.doneOn).map((d) => (d ? isoFromLabel(d) : undefined)).filter(Boolean).sort().pop() as string | undefined) || (v.after.length && job.stageDates?.won ? isoFromLabel(job.stageDates.won) : undefined)
+const sinceTask = (log?: { date: string }[]) => (log?.[0]?.date ? isoFromLabel(log[0].date) : undefined)
+const sinceWords = (iso?: string) => (iso && iso <= TODAY ? (iso === TODAY ? 'Since today' : `Since ${labelFromIso(iso)}`) : undefined)
 
 /** what's left on a project, one line each — for one person, or everyone */
 export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): LeftRow[] {
@@ -73,7 +77,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     if (v) used.add('s:' + v.key)
     const due = t ? taskIso(t.due) : v?.due
     const late = !!due && due < TODAY
-    rows.push({ key: p.key, what: cap(p.text), who: (t?.owner || v?.owner) as PersonKey | undefined, iso: due, when: due ? (late ? `Was due ${labelFromIso(due)}` : labelFromIso(due)) : undefined, late, tone: 'bad', open: t ? openTask(t.id) : openStep(v!.key) })
+    rows.push({ key: p.key, what: cap(p.text), who: (t?.owner || v?.owner) as PersonKey | undefined, iso: due, when: due ? (late ? `Was due ${labelFromIso(due)}` : labelFromIso(due)) : sinceWords(t ? sinceTask(t.log) : v ? sinceStep(v, steps, job) : undefined), late, tone: 'bad', open: t ? openTask(t.id) : openStep(v!.key) })
   })
   /* each part of getting ready that's going: where it is now. For one person: their step on it, if they have one */
   tracks.forEach((t) => {
@@ -86,11 +90,11 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     if (v.state === 'wait') {
       const w = leadWords(s, job, { ...t, lead: v0 })
       const what = ['delivered', 'matin', 'design', 'walk'].includes(v.key) ? (v.named ? v.label : TITLE[v.key] || todoOf(v)) : `${todoOf(v)} · ${w.top.replace(/^./, (c) => c.toLowerCase())}`
-      rows.push({ key: 's:' + v.key, what, who: v.owner, iso: v.due, when: v.due ? labelFromIso(v.due) : undefined, tone: 'wait', open: openStep(v.key) })
+      rows.push({ key: 's:' + v.key, what, who: v.owner, iso: v.due, when: v.due ? labelFromIso(v.due) : sinceWords(sinceStep(v, steps, job)), tone: 'wait', open: openStep(v.key) })
       return
     }
     const late = !!v.due && v.due < TODAY
-    rows.push({ key: 's:' + v.key, what: stepWords(s, job, v), who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : undefined, late, tone: 'now', open: openStep(v.key) })
+    rows.push({ key: 's:' + v.key, what: stepWords(s, job, v), who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : sinceWords(sinceStep(v, steps, job)), late, tone: 'now', open: openStep(v.key) })
   })
   /* the project's own tasks */
   issuesOf(s, job).forEach((t) => {
@@ -99,7 +103,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     const day = waiting ? t.followUp || t.due : t.due
     const iso = taskIso(day)
     const late = !waiting && (iso ? iso < TODAY : /late/i.test(day || ''))
-    rows.push({ key: t.id, what: t.title, who: t.owner as PersonKey, iso: iso || (late ? TODAY : undefined), when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : day || undefined, late, tone: t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now', open: openTask(t.id) })
+    rows.push({ key: t.id, what: t.title, who: t.owner as PersonKey, iso: iso || (late ? TODAY : undefined), when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : day || sinceWords(sinceTask(t.log)), late, tone: t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now', open: openTask(t.id) })
   })
   const mine = (r: LeftRow) => (who === 'all' ? true : r.who === who)
   /* a problem first; then by the day (what has none after); what waits on someone outside sorts by its day too */
@@ -107,7 +111,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
   return rows.filter(mine).sort((a, b) => order(a) - order(b) || (a.iso || '9999').localeCompare(b.iso || '9999'))
 }
 
-const ROW = 'grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 px-5 py-2 text-left transition row-hover max-sm:gap-x-3 max-sm:px-4'
+const ROW = 'grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_auto_1rem] items-center gap-x-4 border-t border-line-2 px-5 py-2 text-left transition row-hover max-sm:gap-x-3 max-sm:px-4'
 
 export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
@@ -126,8 +130,8 @@ export function WhatsLeft({ job }: { job: Job }) {
           const mine = rows.filter((r) => (r.who || '') === p)
           const person = p ? PEOPLE[p as PersonKey] : undefined
           return (
-            <div key={p || 'nobody'} className="border-t border-line-2 pb-1.5" data-left-person={p || 'nobody'}>
-              <div className="flex min-w-0 items-center gap-2 px-5 pb-0.5 pt-3 max-sm:px-4" data-left-who>
+            <div key={p || 'nobody'} className="border-t border-line" data-left-person={p || 'nobody'}>
+              <div className="flex min-w-0 items-center gap-2 bg-[#fafaf9] px-5 py-2.5 max-sm:px-4" data-left-who>
                 {person && <Avatar who={p as PersonKey} size={22} />}
                 <span className="truncate text-[0.875rem] font-semibold text-ink" data-who-name>{p === me ? 'You' : person ? person.short || firstName(p as PersonKey) : 'Nobody yet'}</span>
                 <span className="text-[0.8125rem] tnum text-faint">{mine.length}</span>
@@ -136,6 +140,7 @@ export function WhatsLeft({ job }: { job: Job }) {
                 <button key={r.key} type="button" onClick={r.open} className={ROW} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
                   <span className={cn('min-w-0 truncate text-[0.9375rem]', r.tone === 'bad' ? 'font-semibold text-bad-600' : r.tone === 'wait' ? 'text-muted' : 'text-ink')} title={r.what} data-left-what>{r.what}</span>
                   <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum', r.late ? 'font-medium text-bad-600' : 'text-muted')} data-left-when>{r.when || ''}</span>
+                  <ChevronRight className="h-4 w-4 text-faint" aria-hidden />
                 </button>
               ))}
             </div>

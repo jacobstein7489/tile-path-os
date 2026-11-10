@@ -1,7 +1,7 @@
 /* Pricing a new project: the project and its plans — it goes straight to the takeoff person's Today; every step after
  * that hands it to the next person. (The area picker below is what the estimate window uses to add rooms.) */
 import * as React from 'react'
-import { Building2, Check, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText } from 'lucide-react'
+import { Building2, Check, ChevronDown, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText, Paperclip } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Chip, Segmented } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
@@ -212,21 +212,12 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
   return (
     <Modal
       level={level}
-      size="lg"
+      size="md"
       onClose={s.close}
       title="New project"
       header={<FormHead k="newreq" />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={
-        <>
-          <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted max-sm:hidden">
-            <Avatar who={team.takeoff} size={22} plain />
-            <span className="truncate">{team.takeoff === me ? 'Lands on your Today' : `Lands on ${tk.short}’s Today`}{files.length ? ` · ${files.length} file${files.length === 1 ? '' : 's'}` : ''}</span>
-          </span>
-          <div className="ml-auto" aria-hidden />
-          <Button variant="primary" icon={<ArrowRight />} disabled={!ok} onClick={create}>{team.takeoff === me ? 'Start the takeoff' : 'Send for the takeoff'}</Button>
-        </>
-      }
+      footer={<Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!ok} onClick={create} data-create-project>Create project</Button>}
     >
       <NewProjectKind value="price" onChange={(v) => { if (v === 'won') s.swap({ t: 'newproject', name, address }) }} />
       <FormRow label="Project">
@@ -249,56 +240,37 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
           <ClientField value={client} onChange={(c) => { setClient(c); if (!c) setCq('') }} />
         </FormRow>
       )}
-      <FormRow label="The plans" hint={['Plans', 'Spec book', 'Finish schedule'].some((d) => !shownDocs.includes(d)) ? 'Whatever’s missing, the office asks the GC for — it comes back with a date.' : undefined}>
-        <input ref={input} type="file" multiple accept="application/pdf,image/*,.dwg" className="hidden" aria-label="Upload the plans" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; addFiles(l) }} />
-        <div
-          onDragOver={(e) => { e.preventDefault(); setOver(true) }}
-          onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false) }}
-          onDrop={(e) => { e.preventDefault(); setOver(false); addFiles(Array.from(e.dataTransfer.files || [])) }}
-          className={cn('flex items-center gap-3 rounded-[0.625rem] border-2 border-dashed px-3 py-2 transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
-        >
-          <Upload className="h-4 w-4 shrink-0 text-brand-600" />
-          <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink-2"><b className="font-semibold text-ink">{files.length ? `${files.length} file${files.length === 1 ? '' : 's'} ready` : 'Drop the plans here'}</b> — PDFs or pictures</span>
-          <Button size="sm" icon={<Upload />} onClick={() => input.current?.click()}>{files.length ? 'Add more' : 'Upload'}</Button>
+      {/* who measures it — on site, or the takeoff from the plans — and by when: one line */}
+      <FormRow label="Who measures it">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,15rem)] gap-2 max-sm:grid-cols-1" data-measure>
+          <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]"><Avatar who={team.takeoff} size={22} plain /><span className="min-w-0 flex-1 truncate">{team.takeoff === me ? 'Me' : tk.name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+            <MenuLabel>Who measures it</MenuLabel>
+            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={x === team.takeoff} hint={PEOPLE[x]?.roleLabel} onSelect={() => setTeam({ ...team, takeoff: x })}>{PEOPLE[x]?.name}</MenuItem>)}
+          </Menu>
+          <SearchSelect label="Bid due" value={due} onChange={setDue} search={false} width={260} options={dueOpts} plain />
         </div>
+      </FormRow>
+      {/* plans, if there are any — one small button; what's added shows under it */}
+      <input ref={input} type="file" multiple accept="application/pdf,image/*,.dwg" className="hidden" aria-label="Upload the plans" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; addFiles(l) }} />
+      <div
+        className={cn('-mx-1 rounded-[0.625rem] px-1 pt-1 transition', over && 'bg-brand-50/60')}
+        onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setOver(false) }}
+        onDrop={(e) => { e.preventDefault(); setOver(false); addFiles(Array.from(e.dataTransfer.files || [])) }}
+      >
+        <Button variant="ghost" icon={<Paperclip />} onClick={() => input.current?.click()} data-add-plans>{files.length ? 'Add more plans' : 'Add plans'}</Button>
         {files.length > 0 && (
-          <div className="mt-1.5 flex flex-col gap-1">
+          <div className="mt-1 flex flex-col gap-1">
             {files.map((f, i) => (
               <div key={i} className="flex items-center gap-2.5 rounded-lg bg-wash px-3 py-1 text-[0.8125rem]">
                 <FileText className="h-4 w-4 shrink-0 text-muted" />
                 <span className="min-w-0 flex-1 truncate font-medium text-ink">{f.name}</span>
-                <span className="shrink-0 tnum text-muted">{f.size > 1_000_000 ? `${(f.size / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(f.size / 1000))} KB`}</span>
                 <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((p) => p.filter((_, k) => k !== i))} className="inline-flex h-6 w-6 items-center justify-center rounded-md text-faint hover:bg-white hover:text-bad-600"><X className="h-3.5 w-3.5" /></button>
               </div>
             ))}
           </div>
         )}
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[0.78125rem] text-muted">What came in:</span>
-          {['Plans', 'Spec book', 'Finish schedule', 'Photos'].map((d) => (
-            <Chip key={d} on={shownDocs.includes(d)} onClick={() => { if (d === 'Plans' && files.length) return; setDocs((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d])) }} className="h-7 px-2.5 text-[0.78125rem]">{d}</Chip>
-          ))}
-        </div>
-      </FormRow>
-      <FormRow label="Anything to know">
-        <TextArea aria-label="Anything else to know" value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Which floors, upgrades, who supplies the tile, deadlines" className="min-h-[2.75rem]" rows={1} />
-      </FormRow>
-      <FormRow label="Takeoff and bid">
-        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]"><Avatar who={team.takeoff} size={22} plain /><span className="min-w-0 flex-1 truncate">{tk.name} <span className="text-muted">does the takeoff</span></span></button>}>
-            <MenuLabel>Who does the takeoff?</MenuLabel>
-            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={x === team.takeoff} hint={PEOPLE[x]?.roleLabel} onSelect={() => setTeam({ ...team, takeoff: x })}>{PEOPLE[x]?.name}</MenuItem>)}
-          </Menu>
-          <SearchSelect label="Bid due" value={due} onChange={setDue} search={false} width={260} options={dueOpts} plain />
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <button type="button" onClick={() => setWho((v) => !v)} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">{who ? 'Done' : 'Who does the rest'}</button>
-          <button type="button" onClick={() => setRooms((v) => !v)} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">{rooms ? 'Done with the rooms' : areas.length ? `Rooms · ${areas.length} — change` : 'Add rooms'}</button>
-          {!rooms && !areas.length && <span className="text-[0.78125rem] text-muted">optional — {tk.short} puts them in from the plans</span>}
-        </div>
-        {who && <div className="mt-2 rounded-[0.625rem] border border-line-2 p-3"><TeamSlots team={team} onChange={(k, p) => setTeam({ ...team, [k]: p })} /></div>}
-        {rooms && <div className="mt-2 rounded-[0.625rem] border border-line-2 p-3"><AreaBuilder areas={areas} onChange={setAreas} /></div>}
-      </FormRow>
+      </div>
     </Modal>
   )
 }

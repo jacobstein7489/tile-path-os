@@ -107,15 +107,22 @@ const memo = <T,>(f: (s: Store) => T) => {
     return v
   }
 }
-/** what the admin checks in on: late past the company's line, and not checked in on (or reminded) since — by person */
+/** what the admin checks in on: late past the company's line — by person. Checked in on or reminded, it stays (it says
+ *  so, quietly) until it's done: nothing you're keeping an eye on goes missing */
 export const checkIns = memo((s: Store): { who: PersonKey; items: CheckItem[] }[] => {
   const n = checkInDays(s)
   const me = meOf(s.role)
   return insidePeople(s)
     .filter((p) => p !== me && PEOPLE[p])
-    .map((p) => ({ who: p, items: lateNow(s, p).filter((c) => c.late >= n && !(c.checkIn && workdaysBetween(c.checkIn.day, TODAY) < n)) }))
+    .map((p) => ({ who: p, items: lateNow(s, p).filter((c) => c.late >= n) }))
     .filter((g) => g.items.length)
 })
+/** checked in on or reminded lately: "Reminded Nov 9" — said quietly instead of how late it is, for a few work days */
+export const handledOf = (s: Store, c: CheckItem): string | undefined => {
+  if (!c.checkIn || workdaysBetween(c.checkIn.day, TODAY) >= checkInDays(s)) return undefined
+  const reminded = c.x.kind === 'task' ? c.x.t?.nudge?.day === c.checkIn.day : true
+  return `${reminded ? 'Reminded' : 'Checked in'} ${c.checkIn.day === TODAY ? 'today' : md(c.checkIn.day)}`
+}
 
 /** checked in: written on each thing, and off the admin's list until it's that many more work days late */
 export function recordCheckIn(who: PersonKey, items: CheckItem[], note?: string) {
@@ -136,7 +143,7 @@ export function recordCheckIn(who: PersonKey, items: CheckItem[], note?: string)
         ;(st.hist[c.x.job.id] ||= []).unshift({ date: NOW, who: me, kind: 'field', title: `${c.x.v.short}: checked in with ${PEOPLE[who]?.short || ''}`, detail: note || `${workDays(c.late)} late` } as any)
       }
     })
-  }, `Checked in with ${PEOPLE[who]?.short || 'them'}`, { tone: 'done', sub: `Off your list — back in ${workDays(n)} if it’s still not done.`, undo: true })
+  }, `Checked in with ${PEOPLE[who]?.short || 'them'}`, { tone: 'done', sub: 'It stays on your Today until it’s done.', undo: true })
 }
 
 /* ---------------- the check-in window ---------------- */
