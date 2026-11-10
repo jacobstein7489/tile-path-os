@@ -193,9 +193,9 @@ function useDictation(onFinal: (t: string) => void) {
   const fin = React.useRef(onFinal)
   fin.current = onFinal
   React.useEffect(() => () => { want.current = false; try { rec.current?.abort?.() } catch { /* gone */ } }, [])
-  const start = () => {
+  const start = (auto?: boolean) => {
     const R = SR()
-    if (!R) { setErr('This browser can’t listen — type it instead.'); return }
+    if (!R) { if (!auto) setErr('This browser can’t listen — type it instead.'); return }
     setErr('')
     const r = new R()
     r.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en-US'
@@ -209,13 +209,13 @@ function useDictation(onFinal: (t: string) => void) {
       }
       setHearing(now.trim())
     }
-    r.onerror = (e: any) => { if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') { want.current = false; setErr('Allow the microphone for this page, then tap again.') } }
+    r.onerror = (e: any) => { if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') { want.current = false; if (!auto) setErr('Allow the microphone for this page, then tap again.') } }
     /* a phone stops listening after a pause — keep going until you tap stop */
     r.onend = () => { setHearing(''); if (want.current) { try { r.start() } catch { want.current = false; setOn(false) } } else setOn(false) }
     try { r.start(); rec.current = r; want.current = true; setOn(true) } catch { setOn(false) }
   }
   const stop = () => { want.current = false; try { rec.current?.stop?.() } catch { /* stopped */ } setOn(false); setHearing('') }
-  return { on, hearing, err, start, stop, can: !!SR() }
+  return { on, hearing, err, start: (auto?: boolean) => start(auto), stop, can: !!SR() }
 }
 
 /* ---------------- the window ---------------- */
@@ -227,9 +227,10 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
   const [phase, setPhase] = React.useState<Phase>('say')
   const [items, setItems] = React.useState<CapItem[]>([])
   const [plain, setPlain] = React.useState(false)
+  const [why, setWhy] = React.useState('')
   const abort = React.useRef<AbortController | null>(null)
   const mic = useDictation((t) => setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)))
-  React.useEffect(() => { if (listen && mic.can) mic.start() }, [])
+  React.useEffect(() => { if (listen && mic.can) mic.start(true) }, [])
   React.useEffect(() => () => abort.current?.abort(), [])
   const team = insidePeople(s)
   const make = async () => {
@@ -241,7 +242,7 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
     let list: CapItem[] | null = null
     if (REAL.ai) {
       abort.current = new AbortController()
-      try { list = parseItems(st, await REAL.ai(promptFor(st, said), [], abort.current.signal)) } catch { list = null }
+      try { list = parseItems(st, await REAL.ai(promptFor(st, said), [], abort.current.signal)) } catch (e: any) { list = null; setWhy(e?.code && e.code !== 'cancelled' && e?.message ? String(e.message) : '') }
     }
     if (abort.current?.signal.aborted) return
     if (!list || !list.length) { list = splitLocally(st, said, jobId); setPlain(true) } else setPlain(false)
@@ -264,7 +265,7 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
           <Cobble size={phase === 'check' ? 44 : 60} mood={phase === 'think' ? 'thinking' : mic.on ? 'listening' : phase === 'check' ? 'happy' : 'idle'} />
           <div className="min-w-0">
             <h2 className="font-display text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{phase === 'check' ? (items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} — check them` : 'Nothing to add') : 'What’s going on?'}</h2>
-            <div className="mt-0.5 text-[0.875rem] text-muted">{phase === 'check' ? (plain ? 'Split from your words — fix what’s off, then Add.' : 'Fix what’s off, then Add.') : phase === 'think' ? 'Sorting it out…' : 'Say it or type it — I’ll make the list.'}</div>
+            <div className="mt-0.5 text-[0.875rem] text-muted">{phase === 'check' ? (plain ? (why ? `Split from your words. ${why}` : 'Split from your words — fix what’s off, then Add.') : 'Fix what’s off, then Add.') : phase === 'think' ? 'Sorting it out…' : 'Say it or type it — I’ll make the list.'}</div>
           </div>
         </div>
       }
@@ -296,7 +297,7 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
           {/* the mic, big — while it listens, the sound moves */}
           {mic.can && (
             <div className="mt-4 flex flex-col items-center gap-2.5">
-              <button type="button" onClick={mic.on ? mic.stop : mic.start} aria-pressed={mic.on} aria-label={mic.on ? 'Stop listening' : 'Talk'} data-capture-mic
+              <button type="button" onClick={mic.on ? mic.stop : () => mic.start()} aria-pressed={mic.on} aria-label={mic.on ? 'Stop listening' : 'Talk'} data-capture-mic
                 className={cn('relative inline-flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_10px_24px_-12px_rgba(38,80,207,.8)] transition active:scale-95', mic.on ? 'bg-bad-500' : 'bg-brand-600 hover:bg-brand-700')}>
                 {mic.on && <span className="absolute inset-0 animate-ping rounded-full bg-bad-400/40" aria-hidden />}
                 {mic.on ? <Square className="relative h-5 w-5 fill-current" /> : <Mic className="h-6 w-6" />}

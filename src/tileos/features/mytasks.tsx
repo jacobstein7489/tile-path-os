@@ -822,7 +822,7 @@ export function MyTasksPage() {
   const teamRows: PlateItem[] = all || view !== 'today' ? [] : (() => {
     const base: PlateItem[] = admin
       ? collapse(teamPlateNow(s)).filter((x) => !!x.who && x.who !== me && isNow(x.b) && TEAM_KINDS.has(x.kind) && !x.t?.everyone)
-      : [...othersToday.map((t): PlateItem => ({ key: t.id, b: taskBucket(t), iso: taskIso(t), kind: 'task', t, who: t.owner })), ...waitsOnOthers(s, me)]
+      : collapse([...othersToday.map((t): PlateItem => ({ key: t.id, b: taskBucket(t), iso: taskIso(t), kind: 'task', t, who: t.owner })), ...waitsOnOthers(s, me)])
     const seen = new Set<string>()
     const jobOf = (x: PlateItem) => x.t?.jobId || x.job?.id || x.vs?.[0]?.job.id || x.ts?.[0]?.jobId
     return base.filter((x) => (job === 'all' || jobOf(x) === job) && !seen.has(x.key) && (seen.add(x.key), true))
@@ -1439,8 +1439,8 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   }
   /* who: you first, as "Me"; everyone else by their whole name (two can share a first name) */
   const whoOptions = [me, ...team.filter((p) => p !== me)].map((p) => ({ key: p as string, label: p === me ? 'Me' : PEOPLE[p]?.name || p, hint: p === me ? undefined : PEOPLE[p]?.roleLabel, lead: <Avatar who={p} size={20} /> }))
-  /* first names — the whole name when two people share one (two Yaakovs) */
-  const nameOf = (p: PersonKey) => (p === me ? 'Me' : team.some((x) => x !== p && PEOPLE[x]?.short === PEOPLE[p]?.short) ? PEOPLE[p]?.name || p : PEOPLE[p]?.short || p)
+  /* the whole name, as on the list — two people can share a first name (two Yaakovs) */
+  const nameOf = (p: PersonKey) => (p === me ? 'Me' : PEOPLE[p]?.name || p)
   const whoWord = owners.map(nameOf).join(' and ')
   /* when: a day, or every day / week / month (then the time beside it) */
   const days: [string, string][] = [...WHEN, ...(WHEN.some(([k]) => k === due) ? [] : [[due, DAY_NAME[due] || due] as [string, string]])]

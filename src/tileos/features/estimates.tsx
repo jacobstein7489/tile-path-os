@@ -25,7 +25,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { peopleOn, turnOn, namesOf, stepLabel, estSteps, stepAfter } from './estpeople'
+import { peopleOn, turnOn, namesOf, stepLabel, estSteps, stepAfter, setEstimatePeople } from './estpeople'
 import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, addCompanyArea, surfaceOf, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
 import { insidePeople } from './steps-ui'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -403,6 +403,13 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           <button onClick={() => s.open({ t: 'customer', id: j.clientId })} className="truncate text-ink-2 hover:text-brand-700">{j.client}</button>
           <span className="truncate">{j.address}</span>
           {['request', 'estimating', 'revision'].includes(st) && <span className="inline-flex items-center gap-1">Due <DueEdit id={e.id} due={e.due} /></span>}
+          {inside && turn && ['owner', 'pm', 'office'].includes(s.role) && (
+            <Menu align="start" width={280} trigger={<button type="button" className="-mx-1 inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-ink-2 transition hover:bg-wash-2" aria-label="Who's on it now — change it" data-est-who={turn}><Avatar who={turn} size={18} /><span>{stepLabel(s, b)}: {namesOf(turns, null, true)}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+              <MenuLabel>{stepLabel(s, b)} — who does it</MenuLabel>
+              {[me, ...insidePeople(s).filter((p) => p !== me)].map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={turns.includes(p)} hint={p === me ? undefined : PEOPLE[p]?.roleLabel} onSelect={() => setEstimatePeople(e.id, b, [p])} data-est-who-option={p}>{p === me ? 'Me' : PEOPLE[p]?.name}</MenuItem>)}
+              {b === 'takeoff' && <><MenuSep /><MenuItem icon={<Ruler className="h-4 w-4" />} hint="Measured already, or nothing to measure" onSelect={() => estHandOff(e.id)} data-est-skip-takeoff>No measuring — on to pricing</MenuItem></>}
+            </Menu>
+          )}
           {st === 'sent' && sent && <span>Sent {sent.sentOn}</span>}
           {st === 'approved' && e.approvedOn && <span>Approved {e.approvedOn}</span>}
           <span className="sm:hidden">{shown.lines.length ? fmtMoney(total) : ''}</span>
