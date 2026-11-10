@@ -91,6 +91,8 @@ export interface StepRec {
   lateFrom?: string
   /** the admin checked in on it when it was late past the company's line */
   checkIn?: { by: PersonKey; day: string; note?: string }
+  /** what people wrote on it — the same notes a task has */
+  notes?: { date: string; who: PersonKey; text: string }[]
 }
 /** one answer on the site check: yes, no (with what's wrong), not needed — or, for what's looked at room by room, the
  *  rooms where it's missing ("drains: 2 of 3 here"). What's wrong goes to be fixed; once it's fixed it comes back to
@@ -922,6 +924,10 @@ export function setStepOwner(jobId: string, key: string, owner: PersonKey) {
     ;((st.stepRecs[jobId] ||= {})[key] ||= {}).owner = owner
     if (t) { const x = st.tasks.find((y) => y.id === t.id); if (x) x.owner = owner }
   }, `${PEOPLE[owner].name} has it now`, { to: [{ who: owner, what: defsFor(s, jobId).find((d) => d.key === key)?.short || 'Step' }] })
+}
+/** a note on a step — always the writer's own, like a task's */
+export function noteStep(jobId: string, key: string, text: string) {
+  S().commit((st) => { (((st.stepRecs[jobId] ||= {})[key] ||= {}).notes ||= []).push({ date: NOW, who: me(), text }) }, 'Note added', { undo: false })
 }
 export function setStepDue(jobId: string, key: string, label: string) {
   const iso = isoFromLabel(label)

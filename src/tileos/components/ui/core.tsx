@@ -86,12 +86,12 @@ export function CloseButton({ onClick, className }: { onClick: () => void; class
       data-close
       className={cn(
         'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-wash-2 hover:text-ink',
-        'max-sm:h-10 max-sm:w-auto max-sm:gap-1 max-sm:rounded-full max-sm:bg-wash-2 max-sm:pl-3 max-sm:pr-3.5 max-sm:text-[0.875rem] max-sm:font-semibold max-sm:text-ink-2',
+        'max-sm:h-10 max-sm:w-10 max-sm:rounded-full max-sm:bg-wash-2 max-sm:text-ink-2',
         className,
       )}
     >
-      <X className="h-5 w-5 max-sm:h-4 max-sm:w-4" strokeWidth={1.75} />
-      <span className="hidden max-sm:inline">Close</span>
+      <X className="h-5 w-5 max-sm:h-[1.125rem] max-sm:w-[1.125rem]" strokeWidth={2} />
+      <span className="sr-only">Close</span>
     </button>
   )
 }

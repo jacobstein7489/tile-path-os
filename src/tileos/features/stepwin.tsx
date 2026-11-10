@@ -21,7 +21,7 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { mailLive, emailText } from './mailout'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, noteStep, removeJobStep, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
@@ -43,6 +43,7 @@ import { HeightsInline } from './heights'
 import { SiteChangeForm } from './field'
 import { trackOf, tracksFor, TRACKS, stepShort, softWrap } from './tracks'
 import { WinHead, type WinTone } from './winhead'
+import { Notes } from './notes'
 
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
@@ -402,7 +403,8 @@ function StepPanel({ job, v, roomy, goTo, bare }: { job: Job; v: StepView; roomy
       ) : v.state === 'bad' ? (
         <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)} data-problem-view><Body job={job} v={v} /></fieldset>
       ) : null}
-      {hist.length > 0 && (
+      {/* in its own window only what people wrote shows (the notes) — the app's own log is the project's History */}
+      {!bare && hist.length > 0 && (
         <div className={cn('border-t border-line-2 pt-3', gap)} data-step-history>
           <div className="mb-1 text-[0.75rem] font-semibold text-muted">What happened</div>
           <ul className="flex flex-col gap-1">
@@ -549,46 +551,60 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   const v = all.find((x) => x.key === k)
   const body = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => { body.current?.scrollTo?.({ top: 0 }) }, [k])
-  /* opened to do the step: once it's done — or handed on (waiting on someone, not needed) — the window closes by itself;
-     the pop-up says what happened. Opened to look at a step that was already done or waiting: it stays. It never
-     moves on to another step by itself */
-  const open = !!v && (v.state === 'now' || v.state === 'bad')
-  const opened = React.useRef<{ k: string; open: boolean } | null>(null)
-  if (v && opened.current?.k !== k) opened.current = { k, open }
+  /* once something happens to it here — done, not needed, waiting on someone, given to someone else — the window closes
+     by itself; the pop-up says what happened. Opened to look at one that was already done: it stays. It never moves on
+     to another step by itself */
+  const me0 = meOf(s.role)
+  const opened = React.useRef<{ k: string; state: string; owner?: string } | null>(null)
+  if (v && opened.current?.k !== k) opened.current = { k, state: v.state, owner: v.owner }
+  const moved = !!v && !!opened.current && opened.current.k === k && (
+    (v.state !== opened.current.state && ['done', 'na', 'wait'].includes(v.state)) ||
+    (v.owner !== opened.current.owner && v.owner !== me0))
   const top = s.modals.length - 1 === level
   /* the paperwork being read, or what it entered on screen (with Take it back): it stays until that's seen */
   const busy = useReadBusy(jobId)
   React.useEffect(() => {
-    if (!top || busy || !opened.current || opened.current.k !== k || !opened.current.open || open) return
+    if (!top || busy || !moved) return
     const t = setTimeout(() => useStore.getState().closeLevel(level), 450)
     return () => clearTimeout(t)
-  }, [open, k, top, busy])
+  }, [moved, top, busy])
   if (!job || !v) return null
   const tk = trackOf(v)
   const part = (tk && TRACKS.find((t) => t.key === tk)?.label) || PHASES.find((p) => p.key === v.phase)?.label || 'Getting ready'
-  const title = v.named ? v.label : TITLE[v.key] || v.label
+  /* the same words as the line it was opened from — on Today, the project, a check-in */
+  const title = todoOf(v)
   const { me, mine, admin } = stepRights(s, v)
   const h = stepHead(v, me, mine)
-  const theirs = !mine && v.state !== 'done' && v.state !== 'na'
+  const open = v.state !== 'done' && v.state !== 'na'
+  const theirs = !mine && open
   /* checking the fixes again is the site manager's — taking it over takes the site check */
   const take = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
+  const notes = s.stepRecs[jobId]?.[v.key]?.notes || []
+  /* your own work needs the room; anything else is the same small window as a task */
+  const work = mine && open
   return (
     <Modal
       level={level}
-      size="md"
+      size={work ? 'md' : 'sm'}
       onClose={s.close}
       title={title}
-      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem} more={admin ? <StepMore job={job} v={v} take={theirs ? () => setStepOwner(job.id, take, me) : undefined} /> : undefined} attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
-      /* one button at the bottom: someone else's — Remind them (the admin takes it over from ···); yours — the work's
-         own button does it */
+      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem}
+        more={admin ? <StepMore job={job} v={v} /> : undefined}
+        /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
+        whoPick={admin && open ? { people: insidePeople(s), me, current: v.owner, onPick: (p) => setStepOwner(job.id, take, p) } : undefined}
+        whenPick={(admin || mine) && open && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
+        attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
+      /* one button at the bottom: someone else's — Remind them; yours — the work's own button does it */
       footer={theirs && v.state !== 'later' ? (
         <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>
       ) : undefined}
       bodyClass="p-0"
     >
       <div ref={body} className="min-w-0" data-step-view={v.key}>
-        <div className="px-6 pb-6 pt-3 max-sm:px-4" data-step-open={v.key}>
+        <div className={cn('px-6 pt-3 max-sm:px-4', work ? 'pb-6' : 'pb-4')} data-step-open={v.key}>
           <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy bare goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
+          {/* what people wrote on it, and a box to add one — the same as on a task */}
+          <Notes kind="step" me={me} notes={notes} onAdd={open ? (x) => noteStep(job.id, v.key, x) : undefined} className={cn((work || v.state === 'done' || v.state === 'bad') && 'mt-5')} />
         </div>
       </div>
     </Modal>
@@ -651,28 +667,25 @@ export function Legend({ className }: { className?: string }) {
 
 /** the admin's few extra things with a step, in one small menu: not needed here, not done after all, give it to
  *  someone else on this project — and Who does what, where every step's person is set for every project */
-function StepMore({ job, v, take }: { job: Job; v: StepView; take?: () => void }) {
+function StepMore({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rec = s.stepRecs[job.id]?.[v.key]
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
-  const open = v.state !== 'done' && v.state !== 'na'
-  const items: { label: string; run: () => void }[] = v.state === 'na' ? [{ label: 'Needed after all', run: () => skipStep(job.id, v.key, false) }]
+  const items: { label: string; run: () => void; attr?: string }[] = v.state === 'na' ? [{ label: 'Needed after all', run: () => skipStep(job.id, v.key, false) }]
     : v.state === 'done' ? (reopenable && rec?.done ? [{ label: 'Not done after all', run: () => reopenStep(job.id, v.key) }] : [])
-      : [...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []), { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true) }]
+      : [
+          /* done outside the app, or just done: checked off right here */
+          { label: 'Mark it done', run: () => markStep(job.id, v.key), attr: 'data-step-mark' },
+          ...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []),
+          { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true), attr: 'data-step-skip' },
+        ]
+  /* one added just for this project can go altogether */
+  const removable = !!v.only
   return (
-    <Menu align="end" width={290} trigger={<button aria-label="More for this step" className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
-      {/* someone else's: take it over — the one thing the admin does here besides Remind */}
-      {take && <MenuItem icon={<UserRound className="h-4 w-4" />} onSelect={take} {...(v.state === 'later' ? { 'data-take-later': '' } : { 'data-take-step': '' })}>Take it over</MenuItem>}
-      {take && items.length > 0 && <MenuSep />}
-      {items.map((x) => <MenuItem key={x.label} onSelect={x.run}>{x.label}</MenuItem>)}
-      {open && (
-        <>
-          {(items.length > 0 || !!take) && <MenuSep />}
-          <MenuLabel>Give it to someone else — this project only</MenuLabel>
-          {insidePeople(s).filter((p) => p !== v.owner).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} hint={PEOPLE[p]?.roleLabel} onSelect={() => setStepOwner(job.id, v.key, p)}>{PEOPLE[p]?.name}</MenuItem>)}
-        </>
-      )}
-      <MenuSep />
+    <Menu align="end" width={260} trigger={<button aria-label="More for this step" className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+      {items.map((x) => <MenuItem key={x.label} onSelect={x.run} {...(x.attr ? { [x.attr]: '' } : {})}>{x.label}</MenuItem>)}
+      {removable && <MenuItem danger onSelect={() => { removeJobStep(job.id, v.key); s.close() }} data-step-remove>Remove it</MenuItem>}
+      {(items.length > 0 || removable) && <MenuSep />}
       <MenuItem icon={<Users className="h-4 w-4" />} hint="Who has each step, on every project" onSelect={() => { s.closeAll(); s.go({ page: 'settings', tab: 'checklist' }) }}>Who does what</MenuItem>
     </Menu>
   )

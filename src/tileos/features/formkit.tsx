@@ -160,6 +160,30 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
 
 /** a phone: the projects on the go in one small window — a list, yours first; a box on top finds one by name, address
  *  or client (it takes the keyboard only when you tap it). Tap a project: it's picked and the window closes. */
+/** a small pick, as a chip — the project, who, when on a new task: one tap opens its list */
+export const PICK_CHIP = 'inline-flex h-9 min-w-0 max-w-full items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.84375rem] font-medium text-ink-2 transition hover:border-[#cdc7bc] hover:bg-wash focus-visible:border-brand-300 focus-visible:outline-none [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-muted'
+
+/** the project as one chip: tap it, pick one — on a computer a list you can type into, on a phone its own small window
+ *  (yours first, no keyboard). "No project" is a company task */
+export function ProjectChip({ value, onChange, keep, placeholder = 'Project', warn }: { value: string; onChange: (id: string) => void; keep?: (j: Job) => boolean; placeholder?: string; /** it needs one — said in amber */ warn?: boolean }) {
+  const s = useStore()
+  const small = useSmall()
+  const [sheet, setSheet] = React.useState(false)
+  const cur = value ? s.jobs[value] : undefined
+  const me = meOf(s.role)
+  const all = projectsFor(s, keep)
+  const mine = (j: Job) => j.site === me || j.pm === me || j.crew === me || j.estimator === me
+  const list = [...all.filter(mine), ...all.filter((j) => !mine(j))]
+  if (cur && !list.includes(cur)) list.unshift(cur)
+  const chip = (onClick?: () => void) => (
+    <button type="button" onClick={onClick} aria-label="Project" className={cn(PICK_CHIP, cur && 'text-ink', !cur && warn && '!border-warn-300 !bg-warn-50 !text-warn-700')} data-project-chip={cur?.id || ''}>
+      <Building2 /><span className="min-w-0 truncate">{cur ? cur.name : placeholder}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+    </button>
+  )
+  if (small) return <>{chip(() => setSheet(true))}{sheet && <ProjectSheet list={list} value={value} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}</>
+  return <SearchSelect label="Project" value={value} onChange={onChange} options={list.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} emptyLabel="No project — for the company" search searchPlaceholder="Type a project" width={340} trigger={chip()} />
+}
+
 function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: string; onPick: (id: string) => void; onClose: () => void }) {
   const [q, setQ] = React.useState('')
   const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)

@@ -315,17 +315,8 @@ export function doneRows(s: Store, job: Job): TodoRow[] {
 export function AddToProject({ job }: { job: Job }) {
   const s = useStore()
   if (['accounting', 'client', 'crew'].includes(s.role)) return null
-  return (
-    <Menu align="end" width={300} trigger={<Button size="sm" icon={<Plus />} aria-label="Add to this project"><span className="max-sm:hidden">Add</span></Button>}>
-      <MenuLabel>Add to {job.name}</MenuLabel>
-      <MenuItem icon={<Truck className="h-4 w-4" />} onSelect={() => s.open({ t: 'need', jobId: job.id })} hint="Material or a tool, brought to the job">Need something on site</MenuItem>
-      <MenuItem icon={<TriangleAlert className="h-4 w-4" />} onSelect={() => s.open({ t: 'problem', jobId: job.id })} hint="Tile wrong, broken or short · site not ready">A problem</MenuItem>
-      <MenuItem icon={<Wrench className="h-4 w-4" />} onSelect={() => s.open({ t: 'punchnew', jobId: job.id })} hint="The whole list at once — one per line">Touch-ups</MenuItem>
-      <MenuItem icon={<StickyNote className="h-4 w-4" />} onSelect={() => s.open({ t: 'note', jobId: job.id })} hint="With photos or videos">A note</MenuItem>
-      {allowedFor(s.role, 'task') && <MenuItem icon={<ListTodo className="h-4 w-4" />} onSelect={() => s.open({ t: 'newtask', jobId: job.id })}>A task</MenuItem>}
-      {allowedFor(s.role, 'meeting') && <MenuItem icon={<CalendarDays className="h-4 w-4" />} onSelect={() => s.open({ t: 'record', jobId: job.id, type: 'meeting' })}>A meeting or walkthrough</MenuItem>}
-    </Menu>
-  )
+  /* the same window as + New, already for this project — one way to add anything, everywhere */
+  return <Button size="sm" icon={<Plus />} aria-label="Add to this project" onClick={() => s.open({ t: 'new', jobId: job.id })} className="max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:px-0 max-sm:shadow-none" data-project-add><span className="max-sm:hidden">Add</span></Button>
 }
 
 /** Latest — what happened on the job lately, newest first: deliveries, daily updates, meetings, decisions, problems.

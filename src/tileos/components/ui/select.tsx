@@ -135,7 +135,7 @@ export function SearchSelect({
 
 /* Pick several: people for a meeting, who else is coming. The chosen ones show in the field; tap to change. */
 export type MultiOption = SelectOption & { lead?: React.ReactNode }
-export function MultiSelect({ values, options, onChange, placeholder = 'Pick', className, width = 340, icon, label, summary, autoOpen }: {
+export function MultiSelect({ values, options, onChange, placeholder = 'Pick', className, width = 340, icon, label, summary, autoOpen, trigger, searchPlaceholder = 'Type a name…' }: {
   values: string[]
   options: MultiOption[]
   onChange: (keys: string[]) => void
@@ -148,6 +148,9 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   summary?: (picked: MultiOption[]) => React.ReactNode
   /** open as soon as it shows (switched to from a one-pick box) */
   autoOpen?: boolean
+  /** a button of your own instead of the field (a small chip) — the same list opens from it */
+  trigger?: React.ReactNode
+  searchPlaceholder?: string
 }) {
   const [open, setOpen] = React.useState(!!autoOpen)
   const [q, setQ] = React.useState('')
@@ -159,18 +162,18 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        {trigger || <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !picked.length && 'text-faint')}>{picked.length ? (summary ? summary(picked) : picked.map((o) => o.label).join(', ')) : placeholder}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
-        </button>
+        </button>}
       </PO.Trigger>
       <PO.Portal>
         <PO.Content {...scrollHere} align="start" sideOffset={6} collisionPadding={12} className="z-[320] overflow-hidden rounded-[0.75rem] border border-line bg-white shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }} onOpenAutoFocus={(e) => { e.preventDefault(); const el = e.currentTarget as HTMLElement; (el.querySelector('input') || el.querySelector<HTMLElement>('button'))?.focus() }}>
           {searchable && (
             <label className="flex h-11 items-center gap-2.5 border-b border-line-2 px-3">
               <Search className="h-4 w-4 shrink-0 text-faint" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a name…" className="h-full flex-1 bg-transparent text-[0.875rem] text-ink placeholder:text-faint focus:outline-none" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder} className="h-full flex-1 bg-transparent text-[0.875rem] text-ink placeholder:text-faint focus:outline-none" />
             </label>
           )}
           <div role="listbox" aria-multiselectable aria-label={label} className="scroll-soft max-h-[min(21.25rem,52vh)] overflow-y-auto overscroll-contain p-1">

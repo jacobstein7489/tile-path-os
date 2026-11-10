@@ -569,16 +569,16 @@ export function MessagesModal({ jobId, level }: { jobId: string; level: number }
   const s = useStore()
   const job = s.jobs[jobId]
   if (!job) return null
-  const c = CUSTOMERS[job.clientId]
-  const team: PersonKey[] = Array.from(new Set([job.pm || 'ys', siteOf(s, job), ...(job.crew ? [job.crew as PersonKey] : [])]))
+  const team = convoTeam(s, jobId)
+  /* the project's conversation, in its own window — on a project it opens on top of it, Back goes back to it */
   return (
-    <Modal level={level} size="lg" tall onClose={s.close} title={`Messages · ${job.name}`} sub={`Our team, the crew and ${c?.name || job.client} — photos, voice notes, questions, answers.`} bodyClass="p-0">
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-2 border-b border-line-2 px-5 py-2.5 max-sm:px-3">
-          <span className="flex -space-x-1.5">{team.map((p) => <Avatar key={p} who={p} size={26} ring />)}<Avatar who="gcpp" size={26} ring /></span>
-          <span className="truncate text-[0.78125rem] text-muted">{team.map((p) => PEOPLE[p]?.short).join(', ')} and {PEOPLE.gcpp.name}</span>
+    <Modal level={level} size="lg" tall onClose={s.close} title="Messages" sub={job.name} bodyClass="p-0">
+      <div className="flex h-full min-h-0 flex-col" data-panel="chat">
+        <div className="flex shrink-0 items-center gap-2 px-6 pb-2.5 max-sm:px-4">
+          <span className="flex -space-x-1.5">{team.map((p) => <Avatar key={p} who={p} size={24} ring />)}<Avatar who="gcpp" size={24} ring /></span>
+          <span className="truncate text-[0.8125rem] text-muted">{team.map((p) => PEOPLE[p]?.short).join(', ')} and the GC</span>
         </div>
-        <div className="min-h-0 flex-1"><Thread jobId={jobId} /></div>
+        <div className="min-h-0 flex-1 border-t border-line-2"><Thread jobId={jobId} outside={s.role === 'client'} /></div>
       </div>
     </Modal>
   )

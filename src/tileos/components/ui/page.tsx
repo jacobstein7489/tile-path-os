@@ -280,14 +280,14 @@ export const ROW_H = 'min-h-[3rem]'
 
 /** a list's column names, on top: easy to read (dark gray, semibold, near the size of the rows), pinned while the rows
  *  scroll. Its line under it is the first row's (or band's) line — every line in a list is the same one line. */
-export const HEAD_ROW = 'h-10 items-center bg-white text-[0.875rem] font-semibold text-[#363b45] shadow-[0_0.0625rem_0_var(--color-line-2)]'
+export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-medium text-muted shadow-[0_0.0625rem_0_var(--color-line-2)]'
 /** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
  *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
  *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is
  *  half bands). The same line above it as every row, so the lines never change. A quiet link on the right if any. */
 export const BAND = 'flex h-8 items-center gap-2 border-t border-line bg-[#f6f6f4]'
 /** a band's name: small capitals, bold, dark gray — the same on every list */
-export const BAND_LABEL = 'truncate text-[0.71875rem] font-bold uppercase tracking-[0.07em] text-[#4c5361]'
+export const BAND_LABEL = 'truncate text-[0.71875rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]'
 /** how many in a group, after its name */
 export function BandCount({ n }: { n: number }) {
   return <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-band-count>{n}</span>
@@ -308,7 +308,7 @@ const STRONG: Record<string, { bg: string; fg: string; bar: string }> = {
 export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg } }
 /* written out whole, so the styles are there for each */
 const STRONG_FG: Record<string, string> = { bad: 'text-[#b42318]', info: 'text-[#2347bf]', warn: 'text-[#8f5207]', ok: 'text-[#1f6b45]', vio: 'text-[#5b3fc4]', neutral: 'text-[#30343c]' }
-export const bandLabel = (tone?: Tone) => cn('truncate text-[0.8125rem] font-bold uppercase tracking-[0.06em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
+export const bandLabel = (tone?: Tone) => cn('truncate text-[0.75rem] font-semibold uppercase tracking-[0.07em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
 export function Group({ label, count, tone, open = true, onToggle, right, strong }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode; strong?: boolean }) {
   return (
     <div className={cn(strong ? BAND_STRONG : BAND, PX)} style={strong ? bandStyle(tone) : undefined} data-group-tone={tone || 'neutral'} data-band data-strong={strong || undefined}>
@@ -505,7 +505,7 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
 export type Bubble = { key: string; label: string; /** its name on a phone, where they're all on one row ("Waiting") */ short?: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 /** how many bubbles a row on a phone, so no row is left part empty when it needn't be */
 const phoneCols = (n: number, four?: boolean) => (n <= 1 ? 'max-sm:grid-cols-1' : n === 2 ? 'max-sm:grid-cols-2' : n === 4 ? (four ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-2') : four && n > 6 ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-3')
-export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row (many bubbles: two rows, not three) */ four?: boolean; /** on a phone, small: the number and a short name, no icon — all on one row (Today's five), or four a row (more) */ row?: boolean }) {
+export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row (many bubbles: two rows, not three) */ four?: boolean; /** on a phone, small: the number and a short name, no icon — all on one row (Today's five), or four a row (more) */ row?: boolean; /** the picked one calm — its own soft color, not a solid block (Projects, Estimates); Today's stands out */ soft?: boolean }) {
   return (
     /* on a phone: every one in sight at once, nothing to slide sideways, and the rows filled — two bubbles share the
        width, four go two by two, more go three a row (four, with many) */
@@ -527,20 +527,21 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
                 'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default', items.length >= 7 ? 'min-w-[6.5rem]' : 'min-w-[9.375rem]',
                 /* phone: the number big on top, the name under it, the icon small in the corner */
                 'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', row ? cn('max-sm:min-h-[3.25rem] max-sm:px-2', items.length <= 5 && 'max-sm:flex-auto max-sm:basis-auto') : four ? 'max-sm:px-2' : 'max-sm:px-2.5',
-                b.on ? 'border-transparent text-white' : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
+                b.on ? (soft ? 'text-ink' : 'border-transparent text-white') : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
-              style={b.on ? { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` } : undefined}
+              /* the picked one: on Today a solid block of its color — what to look at; on a list page its own soft color */
+              style={b.on ? (soft ? { background: c.tint, borderColor: `${c.solid}59`, boxShadow: `inset 0 0 0 1px ${c.solid}26` } : { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` }) : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && 'max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? { background: 'rgba(255,255,255,.16)', color: '#fff' } : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && items.length <= 5 && 'max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1">
-                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')}>{b.count}</span>
+                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
                 {/* on a phone a long name ("Waiting on others") goes on two lines rather than being cut */}
                 {row && b.short
-                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block truncate text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? 'text-white/90' : 'text-ink-2')}>{b.short}</span></>
-                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:leading-[0.875rem]', row ? cn('max-sm:text-[0.6875rem]', items.length > 5 && 'max-sm:whitespace-normal') : 'max-sm:whitespace-normal max-sm:break-words', four && !row && 'max-sm:text-[0.71875rem]', b.on ? 'text-white/90' : 'text-ink-2')}>{b.label}</span>}
+                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block truncate text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
+                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:leading-[0.875rem]', row ? cn('max-sm:text-[0.6875rem]', items.length > 5 && 'max-sm:whitespace-normal') : 'max-sm:whitespace-normal max-sm:break-words', four && !row && 'max-sm:text-[0.71875rem]', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}
               </span>
             </button>
           </React.Fragment>

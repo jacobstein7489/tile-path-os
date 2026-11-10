@@ -116,6 +116,7 @@ export function EstimatesPage() {
         <Bubbles
           arrows
           row
+          soft
           items={[
             { key: 'open', label: 'All open', count: list.filter((e) => OPEN_C.includes(catOf(e))).length, icon: <Layers />, color: 'indigo', on: view === 'open', onClick: () => setView('open') },
             { key: 'request', label: CAT.request.label, count: of('request').length, icon: CAT.request.icon, color: 'violet', on: view === 'request', onClick: pick('request'), gapBefore: true },
@@ -218,13 +219,13 @@ function EstRow({ e }: { e: Estimate }) {
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
       className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
-      <span className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink max-md:hidden">{j.name}</span>
+      <span className="min-w-0 truncate text-[0.90625rem] font-medium text-ink max-md:hidden">{j.name}</span>
       <span className="min-w-0 max-md:hidden">{who}</span>
       <span className={cn('truncate text-[0.8125rem] max-lg:hidden', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span>
       <span className="text-right max-md:hidden">{money}</span>
       {/* a phone: two short lines */}
       <div className="hidden min-w-0 max-md:block">
-        <div className="flex min-w-0 items-center gap-3"><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
+        <div className="flex min-w-0 items-center gap-3"><span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
         <div className="mt-1 flex min-w-0 items-center gap-2">{turn && <span className="min-w-0">{who}</span>}<span className={cn('ml-auto shrink-0 text-[0.75rem]', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span></div>
       </div>
     </div>

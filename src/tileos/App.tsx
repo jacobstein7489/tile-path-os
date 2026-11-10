@@ -8,6 +8,7 @@ import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher } from '@/tileos/features/mytasks'
+import { CaptureModal } from './features/capture'
 import { InboxPage } from '@/tileos/features/inbox'
 import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
@@ -111,6 +112,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'delete': return <DeleteModal kind={m.kind} id={m.id} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} id={m.id} level={level} />
     case 'auto': return <AutomationModal k={m.k} level={level} />
+    case 'capture': return <CaptureModal jobId={m.jobId} listen={m.listen} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} fromMsg={m.fromMsg} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
     case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />

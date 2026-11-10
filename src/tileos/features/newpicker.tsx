@@ -1,5 +1,6 @@
 /* + New (what to add, for which project — only what fits your login), and the colored option tiles other windows use */
 import * as React from 'react'
+import { SayItBar } from './capture'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
   MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus, Upload,
@@ -203,6 +204,8 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       /* the project you're on goes with it — each form asks for one otherwise */
       sub={job ? <span className="flex flex-wrap items-center gap-x-2">For {job.name}<button type="button" onClick={() => setJobId('')} className="font-semibold text-brand-700 hover:underline" data-new-unpick>Not for this project</button></span> : undefined}
     >
+      {/* the easy way: say it — it makes the right things by itself. Or pick one below */}
+      <div className="mb-5"><SayItBar jobId={jobId || undefined} /></div>
       {few ? (
         <div className="grid grid-cols-2 gap-2 max-sm:gap-2.5" data-new-group="all">{[...groups.flatMap((x) => x.list), ...starts].map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
       ) : (

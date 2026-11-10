@@ -20,6 +20,33 @@ const WIDTHS = {
 }
 /** pinned list headers inside a window sit at the top of its scrolling area */
 const INSIDE = { '--app-top': '0px', '--bar': '0px', '--head': '0px' } as React.CSSProperties
+
+/* One window at a time: a small window opened from another small one takes its place — the one under it hides until
+ * Back. A big one (a project, an estimate) stays behind, dimmed, like a page. Every open window says its level here. */
+type Win = { level: number; size: keyof typeof WIDTHS }
+const wins = new Map<string, Win>()
+const winSubs = new Set<() => void>()
+let winVer = 0
+const winsChanged = () => { winVer++; winSubs.forEach((f) => f()) }
+const smallWin = (w?: Win) => !!w && (w.size === 'sm' || w.size === 'md')
+function useWinStack(level: number, size: keyof typeof WIDTHS) {
+  const id = React.useId()
+  React.useLayoutEffect(() => {
+    wins.set(id, { level, size })
+    winsChanged()
+    return () => { wins.delete(id); winsChanged() }
+  }, [id, level, size])
+  React.useSyncExternalStore((f) => { winSubs.add(f); return () => { winSubs.delete(f) } }, () => winVer, () => winVer)
+  const all = Array.from(wins.entries()).filter(([k]) => k !== id).map(([, w]) => w)
+  const above = all.some((w) => w.level > level)
+  const below = all.filter((w) => w.level < level).sort((a, b) => b.level - a.level)[0]
+  return {
+    /* covered by another window: hidden until that one closes */
+    hidden: above && smallWin({ level, size }),
+    /* the window under this one is hidden — its shade is already there; no second, darker one */
+    noShade: !!below && smallWin(below),
+  }
+}
 export function Modal({
   level = 0, size = 'md', onClose, title, sub, header, children, footer, bodyClass, tall, className,
 }: {
@@ -38,6 +65,34 @@ export function Modal({
   const z = 60 + level * 4
   /* a window opened from another window: Back takes you to that one — never closed and opened again */
   const stacked = level > 0
+  const { hidden, noShade } = useWinStack(level, size)
+  /* a phone: pull the window down by its top to close it — like any app */
+  const sheet = React.useRef<HTMLDivElement | null>(null)
+  const drag = React.useRef<{ y0: number; dy: number } | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => {
+    const el = sheet.current
+    if (!el || !window.matchMedia('(max-width: 639.98px)').matches) return
+    const top = el.getBoundingClientRect().top
+    if (e.touches[0].clientY - top > 72) return
+    drag.current = { y0: e.touches[0].clientY, dy: 0 }
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    const d = drag.current
+    const el = sheet.current
+    if (!d || !el) return
+    d.dy = Math.max(0, e.touches[0].clientY - d.y0)
+    el.style.transition = 'none'
+    el.style.transform = d.dy ? `translateY(${d.dy}px)` : ''
+  }
+  const onTouchEnd = () => {
+    const d = drag.current
+    const el = sheet.current
+    drag.current = null
+    if (!d || !el) return
+    if (d.dy > 90) { onClose(); return }
+    el.style.transition = 'transform 180ms ease-out'
+    el.style.transform = ''
+  }
   const back = <button type="button" onClick={onClose} aria-label="Back" data-back className="-ml-1.5 inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-3 text-[0.875rem] font-semibold text-ink-2 transition hover:bg-wash-2 hover:text-ink"><ChevronLeft className="h-[1.125rem] w-[1.125rem]" />Back</button>
   /* a phone shows the window's name on its top bar only once the window's own header has scrolled away — never the
      name twice on the screen */
@@ -47,11 +102,18 @@ export function Modal({
   return (
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 animate-overlay-in backdrop-blur-[0.125rem]" style={{ zIndex: z, background: level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} />
+        <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} />
         <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
           <Dialog.Content
             aria-describedby={undefined}
             data-stacked={stacked ? '' : undefined}
+            data-covered={hidden ? '' : undefined}
+            aria-hidden={hidden || undefined}
+            ref={sheet}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchEnd}
             /* the pop-up in the middle (Done! · Undo · OK) isn't outside the window — tapping it keeps the window open */
             onPointerDownOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
@@ -65,12 +127,15 @@ export function Modal({
             }}
             className={cn(
               'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-modal outline-none animate-modal-in max-sm:max-h-[94dvh] max-sm:rounded-b-none',
+              hidden && 'invisible pointer-events-none',
               WIDTHS[size],
               'max-sm:w-full',
               tall && (size === 'full' ? 'h-[calc(100dvh-2.5rem)] max-h-[calc(100dvh-2.5rem)] max-sm:h-[100dvh] max-sm:max-h-[100dvh]' : 'h-[92vh] max-sm:h-[94dvh]'),
               className,
             )}
           >
+            {/* a phone: the handle on top says it slides down to close */}
+            <span className="pointer-events-none absolute left-1/2 top-1.5 z-30 h-1 w-9 -translate-x-1/2 rounded-full bg-[#d9d4cb] sm:hidden" aria-hidden data-grabber />
             {header ? (
               <>
                 {/* big headers scroll away with the content on phones; the way out stays put — on a computer the × in the

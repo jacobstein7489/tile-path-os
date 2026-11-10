@@ -18,7 +18,8 @@ import { Whose, stepWords } from './job/whatsleft'
 import { NewProjectKind } from './estnew'
 import { installerOf } from './upcoming'
 import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { SearchSelect } from '@/tileos/components/ui/select'
+import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
+import { TODO } from './stepwin'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
 import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
@@ -93,6 +94,7 @@ export function ProjectsPage() {
       top={
         <Bubbles
           row
+          soft
           items={[
             { key: 'active', label: 'All open', count: won.filter((j) => typeOf(j) !== 'done').length, icon: <Layers />, color: 'indigo', on: view === 'active', onClick: () => setView('active') },
             { key: 'coming', label: 'Getting ready', count: n('coming'), icon: <ClipboardList />, color: 'violet', on: view === 'coming', onClick: pick('coming'), gapBefore: true },
@@ -149,7 +151,7 @@ const COLS = 'grid items-center gap-x-6 max-md:block'
 /** the columns: the names and Now share the width (Now more — it says what's up); whose turn and the date are as wide
  *  as they need. A long one is cut short, so nothing runs into the next column. Date is a column only when a project on
  *  the list has one */
-const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,1fr) minmax(0,0.75fr)' : 'minmax(0,1fr)', 'minmax(0,1.6fr)', 'minmax(0,9rem)', when ? 'max-content' : ''].filter(Boolean).join(' ')
+const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,0.9fr) minmax(0,1fr)' : 'minmax(0,1fr)', 'minmax(0,1.5fr)', 'minmax(0,9rem)', when ? 'max-content' : ''].filter(Boolean).join(' ')
 
 function ListHead({ when }: { when: boolean }) {
   return (
@@ -241,7 +243,7 @@ export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = p
 
 function NowLine({ w, all }: { w: NowWords; /** every problem, for pointing at the line */ all: { text: string }[] }) {
   return (
-    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'font-medium text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink')}>
+    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
       {w.text}
       {!!w.more && <span className="font-normal text-muted" data-more={w.more}> · +{w.more} more</span>}
     </span>
@@ -268,7 +270,7 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
     >
       {/* a computer: one line, each thing in its column */}
       <div className="flex min-w-0 items-center gap-2 max-md:hidden">
-        <span className="truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
+        <span className="truncate text-[0.9375rem] font-medium text-ink">{j.name}</span>
         {j.kind === 'repair' && <span className="shrink-0 text-[0.8125rem] text-muted">Repair</span>}
       </div>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
@@ -278,7 +280,7 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       {/* a phone: the name and the date; what's up and whose under it */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{j.name}</span>
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
         <div className="mt-0.5 flex min-w-0 items-center gap-3">
@@ -368,20 +370,12 @@ export function NewRepairModal({ level }: { level: number }) {
 /* ================= a new project, straight away — won without an estimate here, or brought in from before ================= */
 /* a project that's already under way when it goes into Tile OS (measured and priced before, waiting for the tile):
  * pick where it's at, and everything before is checked off — "before Tile OS" — so only what's left lands on lists */
-type At = 'new' | 'tile' | 'ready'
-const AT_OPTIONS: { key: At; label: string; hint: string }[] = [
-  { key: 'new', label: 'Just won — start from the beginning', hint: 'Every step of getting ready' },
-  { key: 'tile', label: 'Measured and priced — waiting for the tile', hint: 'What’s left: the tile delivery, the installer, our materials' },
-  { key: 'ready', label: 'The tile is here — ready for the installer', hint: 'What’s left: the installer’s PO, our materials, the crew' },
-]
-/** what's still open at each point — the rest was done before Tile OS */
-const OPEN_AT: Record<Exclude<At, 'new'>, string[]> = {
-  tile: ['order', 'delivered', 'installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
-  ready: ['installer', 'walk', 'confirmed', 'materials', 'matin', 'deposit'],
-}
 export function NewProjectModal({ level, name: name0, address: address0 }: { level: number; name?: string; address?: string }) {
   const s = useStore()
-  const [at, setAt] = React.useState<At>('new')
+  /* what's done already — nothing picked: it starts from the beginning. Picked: those are checked off ("done before
+     Tile OS"); only what's left goes on people's lists */
+  const [doneKeys, setDoneKeys] = React.useState<string[]>([])
+  const steps = companySteps(s).filter((d) => !d.off)
   const [clientId, setClientId] = React.useState('')
   const [name, setName] = React.useState(name0 || '')
   const [address, setAddress] = React.useState(address0 || '')
@@ -412,22 +406,17 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
         st.money.unshift({ id: 'dep-' + id, jobId: id, kind: 'deposit', title: `Deposit ${pct}%`, amount: amt, step: 0, state: 'todo', due: 'Today', dueTone: 'warn', note: 'Created with the project.', log: [{ date: NOW, who: 'system', text: 'Deposit required — created with the project' }], action: 'Create invoice' } as any)
       }
       addHist(st, id, { who: meOf(st.role), kind: 'pricing', title: 'Project created', detail: amount ? `Contract ${fmtMoney(amount)}` : undefined })
-      /* already under way: what came before is checked off; the room sheets aren't needed (it started without them) */
-      if (at !== 'new') {
-        const open = OPEN_AT[at]
+      /* already under way: what's done is checked off, the rest is on people's lists */
+      if (doneKeys.length) {
         const recs = (st.stepRecs[id] ||= {})
-        companySteps(st).forEach((d) => {
-          if (open.includes(d.key)) return
-          recs[d.key] = d.key === 'sheets' ? { na: true } : { done: NOW, by: meOf(st.role), note: 'Done before Tile OS' }
-        })
-        st.jobs[id].headline = at === 'tile' ? 'Under way · waiting for the tile' : 'Under way · tile is here'
+        doneKeys.forEach((k) => { recs[k] = { done: NOW, by: meOf(st.role), note: 'Done before Tile OS' } })
+        st.jobs[id].headline = 'Under way'
         st.jobs[id].issues = []
-        st.jobs[id].next = at === 'tile' ? { text: 'Get the tile delivery date', owner: 'office', due: 'Today' } : { text: 'Send the installer his PO', owner: 'ys', due: 'Today' }
-        addHist(st, id, { who: meOf(st.role), kind: 'field', title: `Entered under way — ${AT_OPTIONS.find((x) => x.key === at)!.label.toLowerCase()}`, detail: 'What came before is checked off as done before Tile OS' })
+        addHist(st, id, { who: meOf(st.role), kind: 'field', title: `Entered under way — ${doneKeys.length} ${doneKeys.length === 1 ? 'step' : 'steps'} done already`, detail: doneKeys.map((k) => steps.find((d) => d.key === k)?.short || k).join(', ') })
       }
-    }, `${finalName} is set up`, at === 'new'
+    }, `${finalName} is set up`, !doneKeys.length
       ? { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] }
-      : { sub: 'What came before is checked off. Only what’s left is on people’s lists.', to: [...(at === 'tile' ? [{ who: 'office' as PersonKey, what: `Tile delivery date · ${finalName}` }] : []), { who: 'ys' as PersonKey, what: `Installer’s PO · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] })
+      : { sub: 'What’s done is checked off. Only what’s left is on people’s lists.', to: amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : undefined })
     s.close()
     setTimeout(() => s.open({ t: 'job', id }), 60)
   }
@@ -461,8 +450,13 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
           <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
         </div>
       </FormRow>
-      <FormRow label="Where it’s at">
-        <SearchSelect label="Where it’s at" value={at} onChange={(k) => setAt((k || 'new') as At)} search={false} options={AT_OPTIONS.map((x) => ({ key: x.key, label: x.label }))} plain />
+      {/* where it's at: tick what's done already — nothing ticked, it starts from the beginning */}
+      <FormRow label="What’s done already">
+        <span className="block" data-done-already={doneKeys.join(',')}>
+          <MultiSelect label="What’s done already" values={doneKeys} onChange={setDoneKeys} placeholder="Nothing yet — it starts from the beginning" searchPlaceholder="Find a step" width={360} className="w-full"
+            options={steps.map((d) => ({ key: d.key, label: (d.named ? d.label : TODO[d.key]) || d.label }))}
+            summary={(picked) => picked.length === steps.length ? 'All of getting ready' : `${picked.length} done — ${picked.slice(0, 3).map((o) => o.label.toLowerCase()).join(', ')}${picked.length > 3 ? '…' : ''}`} />
+        </span>
       </FormRow>
       {!more && (
         <button onClick={() => setMore(true)} className="mt-1 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2 hover:text-ink">

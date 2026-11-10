@@ -1,10 +1,10 @@
 /* Pricing a new project: the project and its plans — it goes straight to the takeoff person's Today; every step after
  * that hands it to the next person. (The area picker below is what the estimate window uses to add rooms.) */
 import * as React from 'react'
-import { Building2, Check, ChevronDown, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText, Paperclip } from 'lucide-react'
+import { Building2, Check, ChevronDown, Plus, UserPlus, X, Users, ArrowRight, Upload, FileText, Paperclip, Ruler } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Chip, Segmented } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -190,6 +190,8 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
   const [over, setOver] = React.useState(false)
   const [team, setTeam] = React.useState<EstTeam>(() => companyTeam(s))
   const [who, setWho] = React.useState(false)
+  /* nothing to measure — measured already, or it's simple: it goes straight to pricing */
+  const [noTakeoff, setNoTakeoff] = React.useState(false)
   /* the rooms are the takeoff person's job — but if you already know them, you can put them in */
   const [areas, setAreas] = React.useState<PickedArea[]>([])
   const [rooms, setRooms] = React.useState(false)
@@ -204,7 +206,7 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
   /* the same job twice? a project we already have with this name or street — price it there */
   const like = projectLike(s, name, address)
   const on = onJob ? s.jobs[onJob] : undefined
-  const create = () => newEstimate({ name: on ? on.name : name.trim(), address: on ? on.address : address.trim(), clientId: on ? on.clientId : client?.id || 'new', client: on ? on.client : client?.name || cq.trim(), due, scope: scope.trim() || 'Scope to confirm from the plans', docs: shownDocs, team, areas, files, onJob: on?.id })
+  const create = () => newEstimate({ name: on ? on.name : name.trim(), address: on ? on.address : address.trim(), clientId: on ? on.clientId : client?.id || 'new', client: on ? on.client : client?.name || cq.trim(), due, scope: scope.trim() || 'Scope to confirm from the plans', docs: shownDocs, team, areas, files, onJob: on?.id, noTakeoff })
   const tk = PEOPLE[team.takeoff]
   /* the bid is due today unless you say otherwise — the next two weeks of work days */
   const dueOpts = Array.from({ length: 21 }, (_, i) => addDays(TODAY, i)).filter((d, i) => i === 0 || (dow(d) !== 0 && dow(d) !== 6)).slice(0, 11).map((d) => ({ key: md(d), label: `${d === TODAY ? 'Due today · ' : 'Due '}${dayShort(d)}` }))
@@ -243,9 +245,12 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
       {/* who measures it — on site, or the takeoff from the plans — and by when: one line */}
       <FormRow label="Who measures it">
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,15rem)] gap-2 max-sm:grid-cols-1" data-measure>
-          <Menu align="start" width={260} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]"><Avatar who={team.takeoff} size={22} plain /><span className="min-w-0 flex-1 truncate">{team.takeoff === me ? 'Me' : tk.name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+          <Menu align="start" width={280} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]" data-measure-who={noTakeoff ? 'none' : team.takeoff}>{noTakeoff ? <Ruler className="h-4 w-4 shrink-0 text-faint" /> : <Avatar who={team.takeoff} size={22} plain />}<span className="min-w-0 flex-1 truncate">{noTakeoff ? 'No measuring — straight to pricing' : team.takeoff === me ? 'Me' : tk.name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
             <MenuLabel>Who measures it</MenuLabel>
-            {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={x === team.takeoff} hint={PEOPLE[x]?.roleLabel} onSelect={() => setTeam({ ...team, takeoff: x })}>{PEOPLE[x]?.name}</MenuItem>)}
+            {/* you first — then the rest */}
+            {[me, ...(people.length ? people : EST_PEOPLE).filter((x) => x !== me)].map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={!noTakeoff && x === team.takeoff} hint={x === me ? undefined : PEOPLE[x]?.roleLabel} onSelect={() => { setNoTakeoff(false); setTeam({ ...team, takeoff: x }) }}>{x === me ? 'Me' : PEOPLE[x]?.name}</MenuItem>)}
+            <MenuSep />
+            <MenuItem icon={<Ruler className="h-4 w-4" />} checked={noTakeoff} hint="Measured already, or nothing to measure" onSelect={() => setNoTakeoff(true)} data-no-takeoff>No measuring</MenuItem>
           </Menu>
           <SearchSelect label="Bid due" value={due} onChange={setDue} search={false} width={260} options={dueOpts} plain />
         </div>

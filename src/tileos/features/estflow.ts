@@ -25,7 +25,7 @@ function prevLabel(s: D, step: string) {
   return i > 0 ? list[i - 1].label : 'Office review'
 }
 /** put the estimate on a step: the right people get a task, the last step's task closes */
-export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } = {}) {
+export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number; noTakeoff?: boolean } = {}) {
   /* the real people on the step — one or more; the first leads, the rest have it on their Today too */
   const people = peopleOn(s as any, e, step)
   const who = people[0] || (teamOf(e) as unknown as Record<string, PersonKey>)[step] || meOf('owner')
@@ -38,7 +38,7 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
   const revWord = rev.n > 1 ? ` · Revision ${rev.n}` : ''
   const title =
     step === 'takeoff' ? (o.notes ? `Fix ${plural(o.notes, 'note')} on the takeoff${revWord}` : `Do the takeoff${revWord}`)
-    : step === 'review' ? `Review the takeoff${revWord}`
+    : step === 'review' ? (o.noTakeoff ? `Price it${revWord}` : `Review the takeoff${revWord}`)
     : step === 'final' ? `Final review${revWord}`
     : `${stepLabel(s as any, step)}${revWord}`
   newTask(s, {
@@ -55,7 +55,7 @@ export function giveTo(s: D, e: Estimate, step: EstStep, o: { notes?: number } =
     due: 'Today',
     dueTone: step === 'final' ? 'warn' : 'neutral',
     tone: o.notes ? 'warn' : 'info',
-    where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? `Ready from ${namesOf(peopleOn(s as any, e, 'takeoff'))}` : `${prevLabel(s, step)} done · ${fmtMoney(revTotal(rev))}`,
+    where: step === 'takeoff' ? (o.notes ? 'Sent back with notes' : 'From the plans') : step === 'review' ? (o.noTakeoff ? 'Nothing to measure' : `Ready from ${namesOf(peopleOn(s as any, e, 'takeoff'))}`) : `${prevLabel(s, step)} done · ${fmtMoney(revTotal(rev))}`,
     action: { label: step === 'takeoff' ? 'Open estimate' : 'Review', kind: 'estimate:' + e.id },
   })
   if (j) {
@@ -352,7 +352,9 @@ export function linesForArea(s: Pick<Store, 'rules' | 'items'>, area: string, ke
 
 export interface NewEstimate { name: string; address: string; clientId: string; client: string; due: string; scope: string; docs: string[]; team: EstTeam; areas: { name: string; floor?: string; surfaces: string[] }[]; files?: File[]
   /** priced on a project we already have — the same job, not a new one */
-  onJob?: string }
+  onJob?: string
+  /** nothing to measure (measured already, or it's simple): it goes straight to whoever prices it */
+  noTakeoff?: boolean }
 /** a new estimate goes straight to whoever does the takeoff — no waiting for someone to assign it */
 export function newEstimate(d: NewEstimate) {
   const s0 = S()
@@ -388,21 +390,28 @@ export function newEstimate(d: NewEstimate) {
         revs: [{ n: 1, date: NOW, status: 'draft', what: 'Original scope', lines, areas: d.areas.map((a) => ({ name: a.name, floor: a.floor })) }],
         log: [{ date: NOW, who: me(), text: `Estimate started${d.areas.length ? ` · ${plural(d.areas.length, 'area')}` : ''}${missing.length ? ` · ${missing.join(' and ')} missing` : ''}` }],
       })
-      giveTo(s, s.estimates[0], 'takeoff')
-      addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · takeoff to ${PEOPLE[t.takeoff].name}`, ref: { t: 'estimate', id: estId } })
+      if (d.noTakeoff) {
+        const next = (stepAfter(s, 'takeoff') || 'review') as EstStep
+        s.estimates[0].log.push({ date: NOW, who: me(), text: 'No takeoff — nothing to measure' })
+        giveTo(s, s.estimates[0], next, { noTakeoff: true })
+        addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · nothing to measure — to ${namesOf(peopleOn(s as any, s.estimates[0], next))}`, ref: { t: 'estimate', id: estId } })
+      } else {
+        giveTo(s, s.estimates[0], 'takeoff')
+        addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · takeoff to ${PEOPLE[t.takeoff].name}`, ref: { t: 'estimate', id: estId } })
+      }
     },
-    `${estId} is with ${PEOPLE[t.takeoff].name} for the takeoff`,
+    d.noTakeoff ? `${estId} is ready to price` : `${estId} is with ${PEOPLE[t.takeoff].name} for the takeoff`,
     {
       close: true,
-      sub: `It’s on ${PEOPLE[t.takeoff].short}’s Today${missing.length ? ` — the office asks the GC for the ${missing.join(' and ').toLowerCase()}` : ''}. Each step hands it to the next person.`,
-      flow: [{ who: me(), label: 'Started', state: 'done' }, { who: t.takeoff, label: 'Takeoff', state: 'now' }, { who: t.review, label: 'Office review', state: 'next' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }],
+      sub: d.noTakeoff ? `Nothing to measure — it’s on ${PEOPLE[t.review]?.short || 'the office'}’s Today to price.` : `It’s on ${PEOPLE[t.takeoff].short}’s Today${missing.length ? ` — the office asks the GC for the ${missing.join(' and ').toLowerCase()}` : ''}. Each step hands it to the next person.`,
+      flow: d.noTakeoff ? [{ who: me(), label: 'Started', state: 'done' }, { who: t.review, label: 'Price it', state: 'now' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }] : [{ who: me(), label: 'Started', state: 'done' }, { who: t.takeoff, label: 'Takeoff', state: 'now' }, { who: t.review, label: 'Office review', state: 'next' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }],
     },
   )
   /* the plans go onto the project, so the takeoff starts from them */
   if (d.files?.length) void keepFiles(id, d.files, 'plans', { quiet: true, doc: 'Plans' })
   S().closeAll()
   /* whoever does the takeoff lands in it; anyone else just sends it on — it's on the takeoff person's Today */
-  if (t.takeoff === me()) setTimeout(() => S().open({ t: 'estimate', id: estId }), 60)
+  if (d.noTakeoff ? t.review === me() : t.takeoff === me()) setTimeout(() => S().open({ t: 'estimate', id: estId }), 60)
   return { jobId: id, estId }
 }
 

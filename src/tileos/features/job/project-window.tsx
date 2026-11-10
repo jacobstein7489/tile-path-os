@@ -26,7 +26,7 @@ import { todoOf } from '../stepwin'
 import { nextOn, WhatsOpen, AddToProject } from './plan'
 import { ProjectBoard, RoomBody, viewFromTab, tabFromLink, trackOfStep, type BoardView, type BoardTab } from './board'
 import { type OpenTrack } from './standing'
-import { tracksFor, phaseOf, bookingOf, problemsOf, TRACKS, type TrackKey } from '../tracks'
+import { tracksFor, phaseOf, bookingOf, problemsOf, lineOf, TRACKS, type TrackKey, type LineStep } from '../tracks'
 import { pictureOf } from '../progressbill'
 import { ScopeDoc, scopeRev } from './scopedoc'
 import { md, dayShort, daysBetween, TODAY } from '@/tileos/lib/today'
@@ -145,26 +145,49 @@ function standsOf(s: Store, job: Job): { kicker: string; big: string; meta: stri
   return { kicker: 'Finished', big: pic.paidPct >= 100 ? 'Paid and closed' : pic.billedPct >= 100 ? 'Waiting to be paid' : 'Bill the rest', meta: seesMoney(s.role) ? `${pic.billedPct}% billed · ${pic.paidPct}% paid` : '' }
 }
 
-/** where it's up to, under the project's name — in words, the same on every tab: the stage, the date, the problems */
-function StandsHead({ job }: { job: Job }) {
+/** where the project is, like a parcel's tracking: Approved · Getting ready · Crew scheduled · Installing · Touch-ups ·
+ *  Closed — one thin bar each: green when it's done, blue for the one going on (as far as it's got), gray after. Under
+ *  the one going on, where it's at — its problems in red. On a phone: the bars, and the one going on in words under them */
+function StageBar({ job }: { job: Job }) {
   const s = useStore()
-  const w = standsOf(s, job)
+  const line = lineOf(s, job, tracksFor(s, job))
   const n = problemsOf(s, job).length
+  const at = line.findIndex((x) => x.state === 'now' || x.state === 'bad')
+  const cur = at >= 0 ? line[at] : undefined
+  const frac = /(\d+) of (\d+) done/.exec(line.find((x) => x.key === 'ready')?.sub || '')
+  const fill = (x: LineStep) => (x.state === 'done' ? 100 : x.state === 'later' ? 0 : x.key === 'install' ? x.link ?? 0 : x.key === 'ready' && frac && +frac[2] ? Math.round((+frac[1] / +frac[2]) * 100) : 50)
+  /* where the one going on is at — the problems counted the same as everywhere else, in red */
+  const sub = (x: LineStep) => {
+    const words = (x.sub || '').split(' · ').filter((w) => !/problem/.test(w))
+    return <>{words.join(' · ')}{n > 0 && <b className="font-medium text-bad-600" data-stands-problems={n}>{words.length ? ' · ' : ''}{n} {n === 1 ? 'problem' : 'problems'}</b>}</>
+  }
   return (
-    <div className="mt-3" data-stands-head>
-      <div className={cn('text-[0.75rem] font-bold uppercase tracking-[0.08em]', w.hold ? 'text-bad-600' : 'text-muted')} data-stage-word>{w.kicker}</div>
-      <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <span className="font-display min-w-0 text-[1.5rem] font-semibold leading-tight tracking-[-0.015em] text-ink max-sm:text-[1.25rem]" data-stands-big>{w.big}</span>
-        {(w.meta || n > 0) && (
-          <span className="text-[0.9375rem] text-muted max-sm:text-[0.875rem]" data-stands-meta>
-            {w.meta && <span className={w.late ? 'font-medium text-warn-700' : undefined}>{w.meta}</span>}
-            {w.meta && n > 0 && ' · '}
-            {n > 0 && <b className="font-semibold text-bad-600" data-stands-problems={n}>{n} {n === 1 ? 'problem' : 'problems'}</b>}
-          </span>
-        )}
-      </div>
+    <div className="mt-3.5" data-project-line>
+      <ol className="grid grid-cols-6 gap-1.5" aria-label="Where the project is">
+        {line.map((x, i) => {
+          const on = i === at
+          return (
+            <li key={x.key} data-line={x.key} data-state={x.state} aria-current={on ? 'step' : undefined} className="min-w-0">
+              <span className="block h-1.5 overflow-hidden rounded-full bg-[#ebe7e0]">
+                <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : x.state === 'bad' ? 'bg-bad-500' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
+              </span>
+              <span className={cn('mt-1.5 block truncate text-[0.8125rem] max-sm:hidden', on ? 'font-semibold text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')} data-stage-word={on ? '' : undefined}>{x.label}</span>
+              {on && <span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{sub(x)}</span>}
+            </li>
+          )
+        })}
+      </ol>
+      {cur && <div className="mt-1.5 truncate text-[0.8125rem] text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
     </div>
   )
+}
+
+/** the one date that matters, in a few words: "Starts Mon, Nov 30 · 21 days", "Ends Nov 20" */
+function keyDate(s: Store, job: Job): { text: string; late?: boolean } | null {
+  const w = standsOf(s, job)
+  if (w.hold) return null
+  if (/^(Starts|No start)/.test(w.big)) return { text: [w.big, w.meta].filter(Boolean).join(' · '), late: w.late }
+  return w.meta && !/billed|paid/.test(w.meta) ? { text: w.meta, late: w.late } : null
 }
 
 /** the header, the same as an estimate's: the name, the client and the address, the installer; on the right the
@@ -182,7 +205,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
      says where it's up to straight out: the client, where it stands, who's on it — no going through its steps */
   const setsWhere = ['owner', 'pm', 'office'].includes(role)
   const more = (canEdit || ['owner', 'pm'].includes(role)) ? (
-    <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} />}>
+    <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} className="max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:shadow-none" />}>
       {setsWhere && <MenuItem icon={<ListChecks className="h-4 w-4" />} onSelect={() => s.open({ t: 'catchup', id: job.id })}>Update where it’s up to</MenuItem>}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
@@ -193,15 +216,17 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
   const statusChip = status.onClick
     ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
     : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>
+  const date = !pricing ? keyDate(s, job) : null
+  const hold = !pricing && job.hold
   return (
-    <div className={cn('relative border-b border-line bg-white px-5 pb-3 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')}>
-      {/* the name and where it stands — on the right the contract and the two buttons */}
+    <div className={cn('relative bg-white px-5 pb-3.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')} data-stands-head>
+      {/* the name — on the right the conversation, + Add (the same window as + New) and ··· */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
         {pricing && <span className="min-w-0 shrink-0 max-sm:hidden">{statusChip}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          {!pricing && onChat && (
-            <Button size="sm" icon={<MessageCircle />} onClick={onChat} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden">
+          {!pricing && (
+            <Button size="sm" icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:px-0 max-sm:shadow-none max-sm:[&>span]:hidden" data-project-messages>
               <span>Messages</span>
               {unread > 0 && <span className="absolute -right-1.5 -top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-white">{unread}</span>}
             </Button>
@@ -210,18 +235,20 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
           {!pricing && more}
         </span>
       </div>
-      {/* who it's for, where, who installs it and when */}
+      {/* who it's for, where, who installs it, the date that matters */}
       {pricing && <div className="mt-1.5 sm:hidden">{statusChip}</div>}
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
+        {hold && <span className="font-medium text-bad-600" data-on-hold>{statusChip}</span>}
         <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
         {meta[1] && <span className="truncate">{meta[1]}</span>}
         {!pricing && (crew
           ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span></button>
           : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
         {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
+        {date && <span className={cn('inline-flex items-center gap-1', date.late ? 'font-medium text-warn-700' : 'text-ink-2')} data-key-date><CalendarDays className="h-3.5 w-3.5 text-faint" />{date.text}</span>}
       </div>
-      {/* where it's up to, in words — no circles, nothing to decode */}
-      {!pricing && onChat && <StandsHead job={job} />}
+      {/* where it is, like a parcel's tracking — six stages, clean */}
+      {!pricing && <StageBar job={job} />}
     </div>
   )
 }

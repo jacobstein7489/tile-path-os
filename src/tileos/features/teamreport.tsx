@@ -21,7 +21,7 @@ import { REAL, awayFromMe } from '@/tileos/lib/save'
 import { lateOf, remind } from './late'
 import { insidePeople } from './steps-ui'
 import { stepsFor } from './steps'
-import { openStep } from './stepwin'
+import { openStep, todoOf } from './stepwin'
 import type { PlateItem } from './mytasks'
 
 /* ---------------- days ---------------- */
@@ -80,7 +80,7 @@ function itemOf(s: Store, x: PlateItem, who: PersonKey): CheckItem {
   const setFor = (t ? t.lateFrom : r?.lateFrom) || x.iso || TODAY
   return {
     x, key: x.key, who,
-    title: x.kind === 'step' ? x.v!.short || x.v!.label : t!.title,
+    title: x.kind === 'step' ? todoOf(x.v!) : t!.title,
     jobName: (x.kind === 'step' ? x.job?.name : s.jobs[t!.jobId]?.name) || 'Company',
     setFor, late: workdaysBetween(setFor, TODAY), rolls: (t ? t.rolls : r?.rolls) || 0,
     checkIn: t ? t.checkIn : r?.checkIn,

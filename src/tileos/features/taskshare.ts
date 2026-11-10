@@ -58,3 +58,10 @@ export function setEveryone(id: string, on: boolean) {
     { undo: false, sub: on ? 'It stays at the top of every login until it’s done.' : undefined },
   )
 }
+
+/** a task someone added by hand, taken off the list altogether (Undo puts it back) */
+export function removeTask(id: string) {
+  const t = S().tasks.find((x) => x.id === id)
+  if (!t) return
+  S().commit((s) => { s.tasks = s.tasks.filter((x) => x.id !== id) }, 'Removed', { sub: t.title })
+}

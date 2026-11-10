@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
-import { Button, Pill, Avatar, Chip, Field, TextInput, Card, CardHeader, Empty, IconCircle, Segmented, Count, Stepper as NumStepper } from '@/tileos/components/ui/core'
+import { Button, Pill, Avatar, Chip, Field, TextInput, TextArea, Card, CardHeader, Empty, IconCircle, Segmented, Count, Stepper as NumStepper } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { FlowSteps } from '@/tileos/components/ui/page'
 import { Swatch, TileImg } from '@/tileos/components/ui/swatch'
@@ -252,7 +252,9 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
   const job = s.jobs[jobId]
   const rooms = s.rooms[jobId] || []
   const firstActive = rooms.find((r) => r.surfaces.some((x) => x.state === 'working'))?.name || rooms[0]?.name || ''
-  const [room, setRoom] = React.useState(startRoom || firstActive)
+  /* no rooms yet: what got done is said in words (and photos) for the whole job */
+  const noRooms = !rooms.length
+  const [room, setRoom] = React.useState(startRoom || firstActive || 'The job')
   const [targets, setTargets] = React.useState<Record<string, number>>({})
   const [media, setMedia] = React.useState<Record<string, Media[]>>({})
   const [notes, setNotes] = React.useState<Record<string, string>>({})
@@ -310,7 +312,8 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
     s.close()
     if (change) setTimeout(() => useStore.getState().open({ t: 'sitechange', jobId, room }), 80)
   }
-  const can = moved > 0 || mediaCount > 0 || !!note.trim() || blocked || shortage || change
+  /* nothing to mark is still an update — the crew was there */
+  const can = true
 
   const header = (
     <div className="border-b border-line px-7 pb-5 pt-6 pr-20 max-sm:px-4 max-sm:pr-14 max-sm:pt-4">
@@ -353,7 +356,25 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
         </>
       }
     >
-      {step === 0 && (
+      {step === 0 && noRooms && (
+        <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-3 px-7 py-6 max-sm:px-4" data-daily-norooms>
+          <div>
+            <div className="text-[1rem] font-semibold text-ink">What got done today?</div>
+            <div className="mt-0.5 text-[0.84375rem] text-muted">No rooms on this project yet — say it in a few words. Photos help.</div>
+          </div>
+          <TextArea value={notes[room] || ''} onChange={(e) => setNotes((p) => ({ ...p, [room]: e.target.value }))} placeholder="e.g. Prepped the master bath walls, set the shower pan" aria-label="What got done today" />
+          <div className="flex flex-wrap items-center gap-2">
+            <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
+            <Button size="sm" icon={<ImagePlus className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>Photos</Button>
+          </div>
+          {(media[room] || []).length > 0 && (
+            <div className="grid grid-cols-6 gap-2 max-md:grid-cols-4 max-sm:grid-cols-3">
+              {(media[room] || []).map((m) => <MediaTile key={m.id} m={m} onRemove={() => setMedia((p) => ({ ...p, [room]: (p[room] || []).filter((x) => x.id !== m.id) }))} />)}
+            </div>
+          )}
+        </div>
+      )}
+      {step === 0 && !noRooms && (
         <div className="grid h-full min-h-0 grid-cols-[16.5rem_minmax(0,1fr)] max-md:flex max-md:h-auto max-md:flex-col">
           {/* the rooms */}
           <nav aria-label="Rooms" className="scroll-soft min-h-0 overflow-y-auto border-r border-line-2 bg-wash p-3 max-md:no-scrollbar max-md:flex max-md:gap-2 max-md:overflow-x-auto max-md:border-b max-md:border-r-0">
@@ -505,7 +526,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                 </div>
               ))
             ) : (
-              <div className="border-t border-line-2 px-5 py-4 text-[0.875rem] text-muted">Nothing marked — go back to add what got done.</div>
+              <div className="border-t border-line-2 px-5 py-4 text-[0.875rem] text-muted" data-daily-nothing>{noRooms && notes[room]?.trim() ? <span className="text-ink">{notes[room].trim()}</span> : 'Nothing marked today — it goes as the crew being there.'}</div>
             )}
             {(mediaCount > 0 || blocked || shortage || change || tomorrow.length > 0) && (
               <div className="flex flex-wrap gap-2 border-t border-line-2 px-5 py-3">
