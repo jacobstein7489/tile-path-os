@@ -136,43 +136,38 @@ export function LateWatcher() {
   return null
 }
 
-/* ---------------- the window ---------------- */
+/* ---------------- the window ----------------
+ * Plain lists, the way lists look everywhere: a quiet label, then one line each — what, and the project on the right.
+ * Red only for what's late. */
+const LABEL = 'flex items-baseline gap-2 pb-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]'
+const LINE = 'flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 py-2 text-left'
+
+/** one late thing of your own: what, where, when it was due — Tomorrow moves it, tap it to open it */
 function Row({ x, me }: { x: PlateItem; me?: boolean }) {
   const s = useStore()
   const job = jobOf(s, x)
   const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : s.open({ t: 'task', id: x.t!.id }) }
   return (
-    <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0 max-sm:flex-wrap" data-late-key={x.key}>
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><AlarmClock className="h-4 w-4" /></span>
-      <button onClick={open} className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-[0.90625rem] font-semibold text-ink hover:text-brand-700">{titleOf(x)}</span>
-        <span className="block truncate text-[0.78125rem] text-muted">
-          {[job?.name || 'Company', <span key="d" className="font-semibold text-bad-600">was due {x.iso ? labelFromIso(x.iso) : 'before today'}</span>].reduce<React.ReactNode[]>((a, b, i) => (i ? [...a, ' · ', b] : [b]), [])}
-        </span>
+    <div className={cn(LINE, 'max-sm:flex-wrap')} data-late-key={x.key}>
+      <button onClick={open} className="min-w-0 flex-1 truncate text-left text-[0.9375rem] text-ink hover:text-brand-700 max-sm:basis-full">
+        {titleOf(x)}<span className="text-muted"> · {job?.name || 'Company'}</span>
       </button>
-      {me && (
-        <span className="flex shrink-0 items-center gap-1.5 max-sm:ml-11">
-          <Button size="sm" variant="ghost" icon={<CalendarClock />} onClick={() => moveToTomorrow(x)}>Tomorrow</Button>
-          <Button size="sm" onClick={open}>Open</Button>
-        </span>
-      )}
+      <span className="shrink-0 text-[0.8125rem] font-medium text-bad-600">Was due {x.iso ? labelFromIso(x.iso) : 'before today'}</span>
+      {me && <Button size="sm" variant="ghost" icon={<CalendarClock />} onClick={() => moveToTomorrow(x)}>Tomorrow</Button>}
     </div>
   )
 }
 
-/** one thing due today: what, where, when — tap it and it opens */
+/** one thing due today: what, and where (or when) — tap it and it opens */
 function TodayRow({ x }: { x: PlateItem }) {
   const s = useStore()
   const job = x.kind === 'meet' ? (x.e!.jobId ? s.jobs[x.e!.jobId] : undefined) : jobOf(s, x)
   const title = x.kind === 'meet' ? x.e!.title : titleOf(x)
   const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : x.kind === 'meet' ? s.open({ t: 'event', id: x.e!.id }) : s.open({ t: 'task', id: x.t!.id }) }
   return (
-    <button onClick={open} className="flex w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left transition first:border-t-0 row-hover">
-      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">{x.kind === 'meet' ? <CalendarDays className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}</span>
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate text-[0.875rem] font-semibold text-ink">{title}</span>
-        <span className="block truncate text-[0.75rem] text-muted">{[job?.name, x.time != null ? timeLabel(x.time) : ''].filter(Boolean).join(' · ') || 'Today'}</span>
-      </span>
+    <button onClick={open} className={cn(LINE, 'transition row-hover')} data-due-row>
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink">{title}</span>
+      <span className="max-w-[45%] shrink-0 truncate text-[0.8125rem] text-muted">{[x.time != null ? timeLabel(x.time) : '', job?.name].filter(Boolean).join(' · ') || 'Today'}</span>
     </button>
   )
 }
@@ -191,7 +186,7 @@ export function LateModal({ level }: { level: number }) {
       level={level}
       size="md"
       onClose={s.close}
-      title={<span className="inline-flex items-center gap-2.5">{(n > 0 || others > 0) && <span className="bell-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600 ring-1 ring-bad-100"><BellRing className="h-[1.125rem] w-[1.125rem]" /></span>}{title}</span>}
+      title={<span className="inline-flex items-center gap-2.5">{n > 0 && <span className="bell-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600 ring-1 ring-bad-100"><BellRing className="h-[1.125rem] w-[1.125rem]" /></span>}{title}</span>}
       sub={n ? 'Past its date — open it, or move it to tomorrow.' : today.length ? 'What’s on your plate today.' : others ? 'Remind them — it pops up on their screen.' : 'Everything on your Today is on time.'}
       footer={
         <>
@@ -207,38 +202,43 @@ export function LateModal({ level }: { level: number }) {
       }
     >
       {n > 0 && (
-        <section className="overflow-hidden rounded-xl border border-line" data-late-mine>
-          {mine.map((x) => <Row key={x.key} x={x} me />)}
+        <section data-late-mine>
+          <div className={LABEL}>Late<span className="font-medium text-faint">{n}</span></div>
+          <div className="border-b border-line-2">{mine.map((x) => <Row key={x.key} x={x} me />)}</div>
         </section>
       )}
       {today.length > 0 && (
-        <section className={cn('overflow-hidden rounded-xl border border-line', n > 0 && 'mt-4')} data-due-today>
-          <header className="flex items-center gap-2 border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">Due today<span className="font-medium text-muted">· {today.length}</span></header>
-          {today.slice(0, 5).map((x) => <TodayRow key={x.key} x={x} />)}
-          {today.length > 5 && <button onClick={goToday} className="w-full border-t border-line-2 px-4 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50/40">and {today.length - 5} more — on Today</button>}
+        <section className={cn(n > 0 && 'mt-5')} data-due-today>
+          <div className={LABEL}>Due today<span className="font-medium text-faint">{today.length}</span></div>
+          <div className="border-b border-line-2">
+            {today.slice(0, 5).map((x) => <TodayRow key={x.key} x={x} />)}
+            {today.length > 5 && <button onClick={goToday} className={cn(LINE, 'text-[0.875rem] font-medium text-brand-700 hover:text-brand-800')}>{today.length - 5} more on Today<ArrowRight className="h-3.5 w-3.5" /></button>}
+          </div>
         </section>
       )}
       {team.length > 0 && (
-        <section className={cn('overflow-hidden rounded-xl border border-line', (n > 0 || today.length > 0) && 'mt-4')} data-late-team>
-          <header className="flex items-center gap-2 border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">Check in on the team<span className="font-medium text-muted">· not done {checkInDays(s)}+ work days after its day</span></header>
-          {team.map((g) => (
-            <div key={g.who} data-person={g.who} className="border-t border-line-2 px-4 py-3 first:border-t-0">
-              <div className="flex items-center gap-2.5">
-                <Avatar who={g.who} size={30} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[g.who]?.name}</span>
-                  <span className="block truncate text-[0.75rem] text-muted">{g.items.length} late · {PEOPLE[g.who]?.roleLabel || ''}</span>
-                </span>
-                <Button size="sm" icon={<BellRing />} onClick={() => remind(g.who, g.items.map((c: CheckItem) => c.x))}>Remind</Button>
+        <section className={cn((n > 0 || today.length > 0) && 'mt-5')} data-late-team>
+          <div className={LABEL}>The team — late<span className="font-medium normal-case tracking-normal text-faint">{checkInDays(s)}+ work days</span></div>
+          <div className="border-b border-line-2">
+            {team.map((g) => (
+              <div key={g.who} data-person={g.who} className="border-t border-line-2 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <Avatar who={g.who} size={26} />
+                  <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{PEOPLE[g.who]?.name}<span className="font-medium text-bad-600"> · {g.items.length} late</span></span>
+                  <Button size="sm" icon={<BellRing />} onClick={() => remind(g.who, g.items.map((c: CheckItem) => c.x))}>Remind</Button>
+                </div>
+                <ul className="mt-1 flex flex-col pl-[2.25rem]">
+                  {g.items.slice(0, 3).map((c: CheckItem) => (
+                    <li key={c.key} className="flex min-w-0 items-baseline gap-3 py-0.5 text-[0.84375rem]">
+                      <span className="min-w-0 flex-1 truncate text-ink-2">{c.title}{c.jobName && !c.title.includes(c.jobName) ? <span className="text-muted"> · {c.jobName}</span> : null}</span>
+                      <span className="shrink-0 text-[0.78125rem] font-medium text-bad-600">{c.late} {c.late === 1 ? 'day' : 'days'} late</span>
+                    </li>
+                  ))}
+                  {g.items.length > 3 && <li className="py-0.5 text-[0.8125rem] text-muted">and {g.items.length - 3} more</li>}
+                </ul>
               </div>
-              <ul className="mt-1.5 flex flex-col gap-0.5 pl-[2.6rem]">
-                {g.items.slice(0, 4).map((c: CheckItem) => (
-                  <li key={c.key} className="truncate text-[0.8125rem] text-ink-2">{c.title}<span className="text-muted"> · {c.jobName} · </span><span className="font-semibold text-bad-600">{md(c.setFor)} · {c.late} work day{c.late === 1 ? '' : 's'} late</span></li>
-                ))}
-                {g.items.length > 4 && <li className="text-[0.8125rem] text-muted">and {g.items.length - 4} more</li>}
-              </ul>
-            </div>
-          ))}
+            ))}
+          </div>
         </section>
       )}
       {!n && !today.length && !team.length && <div className="flex items-center gap-2 rounded-xl bg-ok-50 px-4 py-3 text-[0.875rem] font-medium text-ok-700"><Check className="h-4 w-4" />All caught up.</div>}

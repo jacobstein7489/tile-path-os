@@ -280,7 +280,6 @@ export function TeamReportPage() {
   const s = useStore()
   const [days, setDays] = React.useState<'7' | '30'>(() => { try { return localStorage.getItem(DAYS_KEY) === '7' ? '7' : '30' } catch { return '30' } })
   const pick = (v: '7' | '30') => { setDays(v); try { localStorage.setItem(DAYS_KEY, v) } catch { /* private window */ } }
-  const [open, setOpen] = React.useState<string | null>(null)
   const rows = teamStats(s, Number(days))
   const goal = onTimeGoal(s)
   const ci = checkIns(s)
@@ -290,94 +289,83 @@ export function TeamReportPage() {
   const lateNowN = rows.reduce((n, r) => n + r.lateNow, 0)
   const from = addDays(TODAY, -Number(days))
   const to = addDays(TODAY, -1)
+  /* one plain list: each person, how often they get done what was set for a day, by that day — the goal and when to
+     check in are settings (Settings → Company rules). Tap a person: what was late, in its own window */
   return (
     <Page
       title="Team report"
-      sub={`How often each person gets done what was set for a day, by that day · ${md(from)} – ${md(to)}`}
-      actions={<Button variant="ghost" icon={<SlidersHorizontal />} onClick={() => s.go({ page: 'settings', tab: 'rules' })}>Goal {goal}% · check in after {workDays(checkInDays(s))}</Button>}
+      sub={`On time = done by the day it was set for · ${md(from)} – ${md(to)}`}
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
           <ViewSwitch label="How far back" value={days} onChange={pick} items={[{ key: '7', label: 'Last 7 days' }, { key: '30', label: 'Last 30 days' }]} />
           <span className="flex-1" />
-          <span className="flex items-center gap-2 text-[0.8125rem] text-muted tnum" data-report-team>
-            {teamPct != null && <ProgressRing pct={teamPct} size={28} tone={verdict(teamPct, goal).tone} label="" />}
-            Team <b className="font-semibold text-ink">{teamPct != null ? `${teamPct}%` : '—'}</b> on time · {lateNowN} late now{ci.length ? ` · ${ci.length} to check in on` : ''}
+          <span className="text-[0.84375rem] text-muted tnum" data-report-team>
+            Team <b className={cn('font-semibold', PCT_FG[verdict(teamPct, goal).tone])}>{teamPct != null ? `${teamPct}%` : '—'}</b> on time{lateNowN ? <> · <span className="font-medium text-bad-600">{lateNowN} late now</span></> : ''}{ci.length ? ` · ${ci.length} to check in on` : ''}
           </span>
         </div>
       }
     >
-      <div className={cn(HEAD_ROW, 'grid grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] gap-x-6 max-lg:hidden', EVEN, PX)} style={TEAM_WIDE}>
-        <span className="pl-[2.75rem]">Person · on time, of what was set for a day</span><span>Late by, on average</span><span>Moved after late</span><span>Late now</span><span>How it’s going</span><span />
+      <div className={cn(HEAD_ROW, 'grid gap-x-6 max-lg:hidden', REPORT_COLS, EVEN, PX)} style={TEAM_WIDE}>
+        <span>Person</span><span>On time</span><span>Late by, on average</span><span>Late now</span><span />
       </div>
       <div data-report>
-        {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} open={open === r.who} onToggle={() => setOpen(open === r.who ? null : r.who)} ci={ci.find((g) => g.who === r.who)?.items.length || 0} days={Number(days)} />)}
+        {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} days={Number(days)} />)}
       </div>
-      <p className={cn('border-t border-line-2 py-3 text-[0.78125rem] leading-relaxed text-muted', PX)}>
-        On time = done by the day it was set for (work days). Waiting on someone outside doesn’t count against anyone.
-      </p>
     </Page>
   )
 }
 
+/** the on-time share in its color: green at the goal, amber close, red below — gray when there's not enough yet */
+const PCT_FG: Record<string, string> = { ok: 'text-ok-700', warn: 'text-warn-700', bad: 'text-bad-600', neutral: 'text-muted' }
+const REPORT_COLS = 'grid-cols-[minmax(0,1fr)_9rem_9.5rem_6.5rem_1rem]'
 /** on a wide screen: each column its room, the rest shared evenly */
-const TEAM_WIDE = evenVars([16, 7.5, 6, 5.5, 7, 1], { fixedLast: true })
+const TEAM_WIDE = evenVars([16, 7.5, 7.5, 5.5, 1], { fixedLast: true })
 
-function ReportRow({ r, goal, open, onToggle, ci, days }: { r: PersonStats; goal: number; open: boolean; onToggle: () => void; ci: number; days: number }) {
+/** one person, one line: who, on time (the share, and of how many), late by on average, late now — tap it: its window */
+function ReportRow({ r, goal, days }: { r: PersonStats; goal: number; days: number }) {
   const s = useStore()
   const v = verdict(r.pct, goal)
-  const late = r.items.filter((j) => j.late > 0).sort((a, b) => Number(b.open) - Number(a.open) || b.setFor.localeCompare(a.setFor))
-  const [more, setMore] = React.useState(false)
-  const shown = more ? late : late.slice(0, 6)
   return (
-    <div className="border-t border-line-2 first:border-t-0" data-report-person={r.who} data-pct={r.pct ?? ''}>
-      <button onClick={onToggle} aria-expanded={open} style={TEAM_WIDE} className={cn('grid min-h-[3rem] w-full grid-cols-[minmax(0,1fr)_9.5rem_6.5rem_7rem_8.5rem_1rem] items-center gap-x-6 py-1.5 text-left transition row-hover max-lg:flex max-lg:gap-3', EVEN, PX)}>
-        <span className="flex min-w-0 items-center gap-3 max-lg:flex-1">
-          <ProgressRing pct={r.pct ?? 0} size={34} tone={v.tone} label={r.pct == null ? '–' : `${r.pct}%`} />
-          <span className="min-w-0">
-            <span className="flex items-baseline gap-2"><span className="truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[r.who]?.name}</span><span className="truncate text-[0.75rem] text-muted max-sm:hidden">{PEOPLE[r.who]?.roleLabel}</span></span>
-            <span className="mt-0.5 block truncate text-[0.8125rem] text-muted tnum">
-              {r.set ? <>{r.onTime} of {r.set} on time{r.late ? ` · ${r.late} late` : ''}{r.early ? ` · ${r.early} early` : ''}</> : 'Nothing set for a day in these days'}
-              <span className="lg:hidden">{r.lateNow ? <> · <span className="font-semibold text-bad-600">{r.lateNow} late now</span></> : null}</span>
-            </span>
-          </span>
-        </span>
-        <span className="text-[0.84375rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint">—</span>}</span>
-        <span className="text-[0.84375rem] text-ink-2 tnum max-lg:hidden">{r.rolls ? `${r.rolls}×` : <span className="text-faint">—</span>}</span>
-        <span className="text-[0.84375rem] tnum max-lg:hidden">{r.lateNow ? <span className="font-semibold text-bad-600">{r.lateNow} late</span> : <span className="text-faint">none</span>}</span>
-        <span className="shrink-0"><Status tone={v.tone}>{v.word}</Status></span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', open && 'rotate-180')} />
-      </button>
-      {open && (
-        <div className={cn('border-t border-line-2 bg-[#fbfaf7] pb-3 pt-2', PX)} data-report-items>
-          {ci > 0 && (
-            <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-warn-100 bg-warn-50/60 px-3 py-2 text-[0.8125rem] text-ink-2">
-              <UserRoundCheck className="h-4 w-4 text-warn-700" />{ci === 1 ? '1 thing' : `${ci} things`} to check in on
-              <Button size="sm" className="ml-auto" onClick={() => s.open({ t: 'checkin', who: r.who })}>Check in</Button>
-            </div>
-          )}
-          {!late.length ? (
-            <div className="flex items-center gap-2 py-2 text-[0.84375rem] text-ok-700"><Check className="h-4 w-4" />{r.set ? `Everything set for a day in the last ${days} days was done by its day.` : 'Nothing was set for a day in these days.'}</div>
-          ) : (
-            <>
-              <div className="py-1 text-[0.75rem] font-semibold text-muted">Late in the last {days} days</div>
-              <ul className="overflow-hidden rounded-xl border border-line bg-white">
-                {shown.map((j) => (
-                  <li key={j.key} className="border-t border-line-2 first:border-t-0">
-                    <button onClick={() => (j.go.kind === 'step' ? openStep(j.go.jobId, j.go.k) : s.open({ t: 'task', id: j.go.id }))} className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition row-hover">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[0.875rem] font-semibold text-ink">{j.title}</span>
-                        <span className="block truncate text-[0.78125rem] text-muted">{j.jobName} · set for {md(j.setFor)} · {j.open ? <b className="font-semibold text-bad-600">still not done — {workDays(j.late)} late</b> : <>done {md(j.doneOn!)} — <b className="font-semibold text-bad-600">{workDays(j.late)} late</b></>}{j.rolls ? ` · moved ${j.rolls}×` : ''}</span>
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {late.length > shown.length && <button onClick={() => setMore(true)} className="mt-1.5 text-[0.8125rem] font-semibold text-brand-700 hover:underline">Show all {late.length}</button>}
-            </>
-          )}
-        </div>
+    <button onClick={() => s.open({ t: 'report', who: r.who, days })} style={TEAM_WIDE} data-report-person={r.who} data-pct={r.pct ?? ''}
+      className={cn('grid min-h-[3rem] w-full items-center gap-x-6 border-t border-line-2 py-2 text-left transition first:border-t-0 row-hover max-lg:flex max-lg:gap-3', REPORT_COLS, EVEN, PX)}>
+      <span className="min-w-0 truncate text-[0.9375rem] text-ink max-lg:flex-1"><span className="font-medium">{PEOPLE[r.who]?.name}</span><span className="text-muted max-sm:hidden"> · {PEOPLE[r.who]?.roleLabel}</span></span>
+      <span className="truncate tnum">{r.pct == null ? <span className="text-[0.8125rem] text-faint" data-report-few>Not enough yet</span> : <><b className={cn('text-[0.9375rem] font-semibold', PCT_FG[v.tone])}>{r.pct}%</b><span className="text-[0.8125rem] text-muted"> · {r.onTime} of {r.set}</span></>}</span>
+      <span className="text-[0.875rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint">—</span>}</span>
+      <span className="text-[0.875rem] tnum max-lg:hidden">{r.lateNow ? <span className="font-medium text-bad-600">{r.lateNow} late</span> : <span className="text-faint">—</span>}</span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+    </button>
+  )
+}
+
+/** one person on the report: what was late in those days — one line each, red for how late; open it from here.
+ *  Check in on what's late now, when there is */
+export function ReportModal({ who, days, level }: { who: PersonKey; days: number; level: number }) {
+  const s = useStore()
+  const r = personStats(s, who, days)
+  const goal = onTimeGoal(s)
+  const v = verdict(r.pct, goal)
+  const ci = checkIns(s).find((g) => g.who === who)?.items.length || 0
+  const late = r.items.filter((j) => j.late > 0).sort((a, b) => Number(b.open) - Number(a.open) || b.setFor.localeCompare(a.setFor))
+  return (
+    <Modal level={level} size="md" onClose={s.close}
+      title={PEOPLE[who]?.name || 'Someone'}
+      sub={r.pct == null ? `Not enough set for a day in the last ${days} days` : <><b className={cn('font-semibold', PCT_FG[v.tone])}>{r.pct}% on time</b> · {r.onTime} of {r.set} in the last {days} days</>}
+      footer={<>{ci > 0 && <Button icon={<UserRoundCheck />} onClick={() => s.open({ t: 'checkin', who })} data-report-checkin>Check in · {ci}</Button>}<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
+      {late.length ? (
+        <section data-report-items>
+          <div className="flex items-baseline gap-2 pb-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]">Late<span className="font-medium text-faint">{late.length}</span></div>
+          <div className="border-b border-line-2">
+            {late.map((j) => (
+              <button key={j.key} onClick={() => (j.go.kind === 'step' ? openStep(j.go.jobId, j.go.k) : s.open({ t: 'task', id: j.go.id }))} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-t border-line-2 py-2 text-left transition row-hover">
+                <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink" data-report-item>{cleanTitleOf(j.title, j.jobName)}<span className="text-muted"> · {j.jobName}</span></span>
+                <span className="shrink-0 text-[0.8125rem] tnum"><span className="text-muted max-sm:hidden">{md(j.setFor)} · </span><span className="font-medium text-bad-600">{j.open ? `Not done · ${j.late} ${j.late === 1 ? 'day' : 'days'} late` : `${j.late} ${j.late === 1 ? 'day' : 'days'} late`}</span></span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="flex items-center gap-2 py-3 text-[0.9375rem] text-ok-700"><Check className="h-4 w-4" />{r.set ? `Everything set for a day was done by its day.` : 'Nothing was set for a day in these days.'}</div>
       )}
-    </div>
+    </Modal>
   )
 }

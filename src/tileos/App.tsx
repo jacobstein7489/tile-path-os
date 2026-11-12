@@ -9,6 +9,7 @@ import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge } f
 import { TipProvider } from '@/tileos/components/ui/overlay'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher } from '@/tileos/features/mytasks'
 import { CaptureModal } from './features/capture'
+import { AskButton } from '@/tileos/features/askbutton'
 import { InboxPage } from '@/tileos/features/inbox'
 import { EventModal } from '@/tileos/features/agenda'
 import { ActivityModal } from '@/tileos/features/activity'
@@ -63,7 +64,7 @@ import { ProgressModal } from '@/tileos/features/progress-page'
 import { IncomingWatcher, IncomingModal } from '@/tileos/features/incoming'
 import { WhoWhatModal } from '@/tileos/features/whowhat'
 import { LateModal, LateWatcher } from '@/tileos/features/late'
-import { CheckInModal, TeamReportPage, reportOn } from '@/tileos/features/teamreport'
+import { CheckInModal, TeamReportPage, ReportModal, reportOn } from '@/tileos/features/teamreport'
 import { EditProjectModal } from '@/tileos/features/job/plan'
 import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
@@ -214,6 +215,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'late': return <LateModal level={level} />
     case 'checkin': return <CheckInModal who={m.who} level={level} />
+    case 'report': return <ReportModal who={m.who} days={m.days || 30} level={level} />
     case 'editproject': return <EditProjectModal id={m.id} level={level} />
     case 'addperson': return <AddPersonModal level={level} />
     case 'buildrooms': return <BuildRoomsModal jobId={m.jobId} level={level} />
@@ -309,6 +311,7 @@ export default function App() {
             </main>
           </div>
           <BottomNav />
+          <AskButton />
           <IncomingWatcher />
           <AppBadge />
           <CrewWatcher />

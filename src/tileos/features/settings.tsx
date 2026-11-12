@@ -1,6 +1,7 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
+import { Percent, Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
+import { salesPeople, rateOf, pct } from './commissions'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
@@ -30,15 +31,15 @@ import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/sav
 import { QbConnectCard, EmailCard } from './qbui'
 import { TODAY } from '@/tileos/lib/today'
 
-type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover'
+type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
 /* one thing at a time: a plain list of the parts on the left (on a phone, across the top), the part you picked on the
  * right — its name, one line, and the part itself. The one-time tools are last, under Tools. */
-type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover'
-const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover' }
+type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover'
+const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', commission: 'commission', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover' }
 const SECTIONS: { group: string; items: { key: Section; label: string; about: string; icon: React.ElementType }[] }[] = [
   { group: 'People', items: [
     { key: 'team', label: 'Team', about: 'Everyone signs in with their own email and sees only their part.', icon: Users },
@@ -52,6 +53,7 @@ const SECTIONS: { group: string; items: { key: Section; label: string; about: st
   { group: 'Company', items: [
     { key: 'rules', label: 'Company rules', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
     { key: 'numbers', label: 'Material numbers', about: 'What each material covers — every material list is worked out from these.', icon: Calculator },
+    { key: 'commission', label: 'Commission', about: 'The rate and the salespeople. Only the owner sees this.', icon: Percent },
     { key: 'email', label: 'Email', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
     { key: 'connections', label: 'QuickBooks', about: 'Invoices, estimates and payments go to QuickBooks by themselves.', icon: Plug },
   ] },
@@ -107,6 +109,7 @@ export function SettingsPage() {
           {tab === 'autos' && <AutomationsTab />}
           {tab === 'rules' && <RulesTab />}
           {tab === 'numbers' && <NumbersTab />}
+          {tab === 'commission' && <CommissionTab />}
           {tab === 'connections' && <ConnectionsTab />}
           {tab === 'email' && <EmailTab />}
           {tab === 'practice' && <div className="flex flex-col gap-6">{REAL.cloud && REAL.admin && <SampleCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
@@ -115,6 +118,32 @@ export function SettingsPage() {
         </div>
       </div>
     </Page>
+  )
+}
+
+/** the commission rate and the salespeople: two lines, each opens its window */
+function CommissionTab() {
+  const s = useStore()
+  const people = salesPeople(s)
+  const row = 'flex min-h-[3.5rem] items-center gap-4 border-t border-line-2 px-5 py-3 first:border-t-0'
+  return (
+    <Card>
+      <div className={row} data-commission-rate>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-medium text-ink">Rate</div>
+          <div className="text-[0.8125rem] text-muted">Of what’s invoiced on a project — a client’s two salespeople split it.</div>
+        </div>
+        <span className="text-[1rem] font-semibold tnum text-ink">{pct(rateOf(s))}</span>
+        <Button size="sm" onClick={() => s.open({ t: 'commrate' })}>Change</Button>
+      </div>
+      <div className={row} data-commission-people>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.9375rem] font-medium text-ink">Salespeople</div>
+          <div className="truncate text-[0.8125rem] text-muted">{people.length ? people.map((p) => p.name).join(', ') : 'None yet'}</div>
+        </div>
+        <Button size="sm" onClick={() => s.open({ t: 'salespeople' })}>{people.length ? 'Open' : 'Add one'}</Button>
+      </div>
+    </Card>
   )
 }
 

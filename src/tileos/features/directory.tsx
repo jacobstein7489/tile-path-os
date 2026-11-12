@@ -65,7 +65,6 @@ export function ClientsPage() {
   const [tab, setTab] = React.useState<ClientTab>(() => linked(s.route.tab) || 'active')
   /* a link to one view (after an import: All clients) opens it even when Clients is already open */
   React.useEffect(() => { const t = linked(s.route.tab); if (t) setTab(t) }, [s.route.tab])
-  const [kind, setKind] = React.useState('all')
   const [q, setQ] = React.useState('')
   const every = Object.values(CUSTOMERS)
   const offList = every.filter((c) => isOff(s, 'client', c.id))
@@ -76,8 +75,8 @@ export function ClientsPage() {
   const owed = (id: string) => s.money.filter((m) => s.jobs[m.jobId]?.clientId === id && m.state === 'waiting').reduce((n, m) => n + (m.amount ? m.amount - (m.paid || 0) : 0), 0)
   const estOut = (id: string) => s.estimates.filter((e) => e.status === 'sent' && s.jobs[e.jobId]?.clientId === id).length
   const inTab = (id: string) => tab === 'all' || tab === 'off' || (tab === 'active' ? active(id) : tab === 'estimates' ? estOut(id) > 0 : owed(id) > 0)
-  const list = all.filter((c) => inTab(c.id) && (kind === 'all' || c.kind === kind) && (!q || `${c.name} ${c.kind} ${c.contacts.map((p) => p.name).join(' ')}`.toLowerCase().includes(q.toLowerCase())))
-  const kinds = Array.from(new Set(all.map((c) => c.kind)))
+  /* simple: the company and its main contact — no type, phone or email on the list (they're in the client's window) */
+  const list = all.filter((c) => inTab(c.id) && (!q || `${c.name} ${c.contacts.map((p) => p.name).join(' ')}`.toLowerCase().includes(q.toLowerCase())))
   const pick = (k: typeof tab) => () => setTab(tab === k ? 'all' : k)
   const live = every.filter((c) => !isOff(s, 'client', c.id))
   const owedAll = live.reduce((n, c) => n + owed(c.id), 0)
@@ -87,6 +86,7 @@ export function ClientsPage() {
       actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'importclients' })} data-import-clients data-import="client">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button></>}
       top={
         <Bubbles
+          soft
           items={[
             { key: 'all', label: 'All clients', count: live.length, icon: <Building2 />, color: 'slate', on: tab === 'all', onClick: () => setTab('all') },
             { key: 'active', label: 'With open work', count: live.filter((c) => active(c.id)).length, icon: <Hammer />, color: 'blue', on: tab === 'active', onClick: pick('active') },
@@ -99,8 +99,6 @@ export function ClientsPage() {
       toolbar={
         <>
           <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ all: 'All clients', active: 'With open work', estimates: 'Estimates with them', owe: 'Owe us money', off: 'Inactive clients' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
-          <Filter label="Type" value={kind} options={kinds.map((k) => ({ key: k, label: k }))} onChange={setKind} />
-          <ClearFilters show={kind !== 'all' || !!q} onClear={() => { setKind('all'); setQ('') }} />
           <ToolbarSearch value={q} onChange={setQ} placeholder="Search clients" />
         </>
       }
@@ -108,10 +106,9 @@ export function ClientsPage() {
       <Table minWidth={820}>
         <thead>
           <tr>
-            <Th className="xl:w-[14rem]">Client</Th>
-            <Th w="10.5rem" className="max-lg:hidden">Main contact</Th>
-            <Th w="9.5rem" className="max-md:hidden">Phone</Th>
-            <Th w="9.5rem" className="max-md:hidden">Projects</Th>
+            <Th className="xl:w-[16rem]">Client</Th>
+            <Th w="13rem" className="max-lg:hidden">Main contact</Th>
+            <Th w="11rem" className="max-md:hidden">Projects</Th>
             <Th w="8rem" right className="max-lg:hidden">Open to collect</Th>
             <Th w="3.25rem" />
           </tr>
@@ -125,18 +122,17 @@ export function ClientsPage() {
             return (
               <Tr key={c.id} onClick={() => s.open({ t: 'customer', id: c.id })}>
                 <Td>
-                  <div className="truncate text-[0.875rem] font-medium text-ink">{c.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{c.kind}<span className="md:hidden"> · {live.length} open</span></div>
+                  <div className="truncate text-[0.9375rem] font-medium text-ink">{c.name}</div>
+                  {live.length > 0 && <div className="truncate text-[0.78125rem] text-muted md:hidden">{live.length} open</div>}
                 </Td>
-                <Td className="truncate text-[0.84375rem] max-lg:hidden">{c.contacts[0]?.role || '—'}</Td>
-                <Td className="text-[0.84375rem] tnum max-md:hidden">{c.phone}</Td>
+                <Td className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint">—</span>}</Td>
                 <Td className="text-[0.84375rem] max-md:hidden">{live.length ? `${live.length - pricing} active${pricing ? ` · ${pricing} pricing` : ''}` : <span className="text-muted">None open</span>}</Td>
                 <Td right className={cn('tnum max-lg:hidden', o ? 'text-ink' : 'text-faint')}>{o ? fmtMoney(o) : '—'}</Td>
                 <Td><ActiveMenu kind="client" id={c.id} name={c.name} /></Td>
               </Tr>
             )
           })}
-          {!list.length && <EmptyRow colSpan={6} title={tab === 'off' ? 'No inactive clients' : 'No clients match'} />}
+          {!list.length && <EmptyRow colSpan={5} title={tab === 'off' ? 'No inactive clients' : 'No clients match'} />}
         </tbody>
       </Table>
     </Page>

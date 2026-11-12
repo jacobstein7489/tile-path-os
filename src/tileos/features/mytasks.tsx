@@ -378,7 +378,7 @@ function StepsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       title={vs[0] ? todoOf(vs[0].v) : ''}
       detail={vs.map((y) => y.job.name).join(' · ')}
       owner={showOwner ? x.who : undefined}
-      project={`${vs.length} projects`}
+      project={vs.map((y) => y.job.name).join(', ')}
       when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
       whenTone={x.b === 'overdue' ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
@@ -396,10 +396,10 @@ function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   return (
     <TodoRow
       onClick={open}
-      title={`Bring to the ${jobs.length > 1 ? 'jobs' : 'job'} · ${ts.length} things`}
+      title={`Bring to the ${jobs.length > 1 ? 'jobs' : 'job'}: ${ts.map((t) => t.req?.what || t.title.replace(/^Bring to [^:]+:\s*/i, '')).join(', ')}`}
       detail={ts.map((t) => t.req?.what || t.title).join(' · ')}
       owner={showOwner ? x.who : undefined}
-      project={one ? one.name : `${jobs.length} jobs`}
+      project={one ? one.name : jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(', ')}
       when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
       whenTone={x.b === 'overdue' ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={open} data-trips-open>Open</Button>}
@@ -854,9 +854,10 @@ export function MyTasksPage() {
      else what they asked for or follow, and the steps someone else does before their own */
   const admin = role === 'owner' || role === 'pm'
   const teamRows: PlateItem[] = all || view !== 'today' ? [] : (() => {
+    /* one line for each thing, with its project — not "3 projects" — and each opens the same window: a task's or a step's */
     const base: PlateItem[] = admin
-      ? collapse(teamPlateNow(s)).filter((x) => !!x.who && x.who !== me && isNow(x.b) && TEAM_KINDS.has(x.kind) && !x.t?.everyone && !(x.t && isGcWait(x.t)))
-      : collapse([...othersToday.map((t): PlateItem => ({ key: t.id, b: taskBucket(t), iso: taskIso(t), kind: 'task', t, who: t.owner })), ...waitsOnOthers(s, me)])
+      ? sortPlate(teamPlateNow(s)).filter((x) => !!x.who && x.who !== me && isNow(x.b) && TEAM_KINDS.has(x.kind) && !x.t?.everyone && !(x.t && isGcWait(x.t)))
+      : sortPlate([...othersToday.map((t): PlateItem => ({ key: t.id, b: taskBucket(t), iso: taskIso(t), kind: 'task', t, who: t.owner })), ...waitsOnOthers(s, me)])
     const seen = new Set<string>()
     const jobOf = (x: PlateItem) => x.t?.jobId || x.job?.id || x.vs?.[0]?.job.id || x.ts?.[0]?.jobId
     return base.filter((x) => (job === 'all' || jobOf(x) === job) && !seen.has(x.key) && (seen.add(x.key), true))

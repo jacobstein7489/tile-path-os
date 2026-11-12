@@ -23,7 +23,7 @@ export const rateOf = (s: Pick<Store, 'rules'>) => s.rules.commission?.rate ?? D
 export const salesPeople = (s: Pick<Store, 'rules'>): SalesPerson[] => s.rules.commission?.people || []
 const won = (s: Store) => Object.values(s.jobs).filter((j) => !PRICING.includes(j.stage))
 const r2 = (n: number) => Math.round(n * 100) / 100
-const pct = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace(/0+$/, '')}%`
+export const pct = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(2).replace(/0+$/, '')}%`
 
 /** the client's salespeople and their rates */
 export const clientShares = (s: Pick<Store, 'clients'>, clientId?: string): { who: string; rate: number }[] => (clientId && s.clients[clientId]?.sales) || []
@@ -174,13 +174,8 @@ export function CommissionsPage() {
   return (
     <Page
       title="Commissions"
-      sub={`What each salesperson earned on what’s been invoiced — ${pct(rateOf(s))} unless a project says otherwise — what they’ve been paid, and what they’re owed.`}
-      actions={
-        <>
-          <Button icon={<Percent />} onClick={() => s.open({ t: 'commrate' })} data-comm-rate>Rate {pct(rateOf(s))}</Button>
-          <Button icon={<Users />} onClick={() => s.open({ t: 'salespeople' })} data-comm-people>Salespeople{people.length ? ` · ${people.length}` : ''}</Button>
-        </>
-      }
+      sub="What each salesperson earned, what they’ve been paid, and what they’re owed."
+      /* the rate and the salespeople are settings: Settings → Commission */
       top={
         <Bubbles
           items={[

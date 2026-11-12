@@ -280,7 +280,7 @@ export const ROW_H = 'min-h-[3rem]'
 
 /** a list's column names, on top: easy to read (dark gray, semibold, near the size of the rows), pinned while the rows
  *  scroll. Its line under it is the first row's (or band's) line — every line in a list is the same one line. */
-export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-medium text-muted shadow-[0_0.0625rem_0_var(--color-line-2)]'
+export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-semibold text-[#4a4741] shadow-[0_0.0625rem_0_var(--color-line-2)]'
 /** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
  *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
  *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is

@@ -84,12 +84,14 @@ export function Helper({ size = 48, mood = 'idle', className }: { size?: number;
 }
 
 /** "Listening…" with the sound moving */
-export function Listening({ className }: { className?: string }) {
+export function Listening({ className, level }: { className?: string; /** how loud (0–1), from the mic: the bars follow the voice */ level?: number }) {
   const bars = [0.55, 0.2, 0.75, 0.35, 0.6, 0.1, 0.45]
+  const shape = [0.55, 0.85, 1, 0.7, 0.92, 0.62, 0.42]
+  const live = typeof level === 'number'
   return (
     <span className={cn('flex items-center gap-2.5 text-[0.875rem] font-semibold text-bad-600', className)} role="status" data-listening>
-      <span className="say-wave flex h-6 items-center gap-[3px]" aria-hidden>
-        {bars.map((d, i) => <span key={i} className="block h-6 w-[3px] rounded-full bg-bad-500" style={{ animationDelay: `-${d}s`, animationDuration: `${0.75 + (i % 3) * 0.18}s` }} />)}
+      <span className={cn('flex h-6 items-center gap-[3px]', !live && 'say-wave')} aria-hidden data-level={live ? Math.round(level! * 100) : undefined}>
+        {bars.map((d, i) => <span key={i} className="block h-6 w-[3px] rounded-full bg-bad-500 transition-transform duration-75" style={live ? { transform: `scaleY(${Math.max(0.14, Math.min(1, level! * 1.7 * shape[i]))})` } : { animationDelay: `-${d}s`, animationDuration: `${0.75 + (i % 3) * 0.18}s` }} />)}
       </span>
       Listening…
     </span>

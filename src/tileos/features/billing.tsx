@@ -54,11 +54,13 @@ export function BillingPage() {
   return (
     <Page
       title="Billing"
-      sub={tab === 'todo' || tab === 'waiting' ? sub[tab] : undefined}
+      /* a line for every box — the page doesn't jump when you switch */
+      sub={sub[tab]}
       actions={<Button icon={<RefreshCw />} onClick={() => setSynced('just now')}>QuickBooks synced {synced}</Button>}
       top={
         <Bubbles
           arrows
+          soft
           items={[
             { key: 'progress', label: 'Progress to bill', count: toMake.length, sub: toMake.length ? fmtMoney(toMake.reduce((n, r) => n + billTotal(r), 0)) : undefined, icon: <TrendingUp />, color: 'teal', on: tab === 'progress', onClick: () => setTab('progress') },
             { key: 'upcoming', label: 'Coming up', count: by('upcoming').length, icon: <CalendarClock />, color: 'slate', on: tab === 'upcoming', onClick: () => setTab('upcoming') },

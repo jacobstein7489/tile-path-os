@@ -18,7 +18,8 @@ import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import { putLocal, getLocal } from '@/tileos/lib/localdb'
 import { ReadError } from '@/tileos/features/reader'
-import { askCompanyAI, type Answer } from '@/lib/company-ai'
+import { askCompanyAI, hearCompanyAI, type Answer, type Heard } from '@/lib/company-ai'
+import { setHearer } from '@/tileos/components/ui/voice'
 import { inviteLink, inviteStatus, sendInvite, removeAccess } from '@/lib/invite'
 import { qbStatus, qbConnect, qbDisconnect, qbItems, qbPushInvoice, qbSendInvoice, qbPayment, qbPull, qbPushEstimate } from '@/lib/quickbooks'
 import { mailStatus, sendTileMail } from '@/lib/mail'
@@ -580,6 +581,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.testEmail = opts.admin && user.email ? async () => { const { error } = await supabase.auth.resetPasswordForEmail(user.email!, { redirectTo: appUrl() }); if (error) throw new Error(error.message); return user.email! } : undefined
   /* the company's AI reads paperwork; files go to the company's storage */
   REAL.ai = askAI
+  setHearer(hearAI)
   REAL.files = files
   /* QuickBooks: invoices and payments go there, payments made there come back. Email: POs to suppliers, invoices */
   REAL.qb = { status: () => qbStatus(), connect: () => qbConnect(), disconnect: () => qbDisconnect(), items: () => qbItems(), push: (d) => qbPushInvoice({ data: d }), send: (d) => qbSendInvoice({ data: d }), estimate: (d) => qbPushEstimate({ data: d }), pay: (d) => qbPayment({ data: d }), pull: (ids) => qbPull({ data: { ids } }) }
@@ -648,6 +650,7 @@ export function startSample(user: User, opts: { admin: boolean; name: string; ap
   REAL.mail = undefined
   stopQbSync()
   REAL.ai = askAI
+  setHearer(hearAI)
   setSaveStatus({ where: 'none', mode: 'sample', saving: false, problem: undefined })
   const member = linkMember(user, opts)
   return { ok: true, member }
@@ -662,6 +665,18 @@ const AI_WORDS: Record<string, string> = {
   error: 'Couldn’t read it just now — try again.',
 }
 const asDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
+/* a recording (16 kHz WAV, base64), written down by the company's AI — when the browser can't listen */
+async function hearAI(audio: string, hint: string, signal?: AbortSignal): Promise<string> {
+  let r: Heard
+  try { r = (await hearCompanyAI({ data: { audio, hint } })) as Heard } catch (e: any) {
+    console.warn('AI hearing failed', e)
+    throw new ReadError('error', /unauthorized/i.test(String(e?.message)) ? 'Sign in again, then try once more.' : AI_WORDS.error)
+  }
+  if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
+  if (r.ok) return r.text
+  if (r.detail) console.warn('AI hearing said no:', r.why, r.detail)
+  throw new ReadError(r.why, r.why === 'error' && r.detail ? `the AI couldn’t (${r.detail.slice(0, 140)})` : AI_WORDS[r.why] || AI_WORDS.error)
+}
 async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal): Promise<string> {
   const urls = await Promise.all(pages.slice(0, 10).map(asDataUrl))
   if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
