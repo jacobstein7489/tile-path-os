@@ -302,5 +302,9 @@ html { font-size: 16px; }
 .helper-bob { animation: helper-bob 3.2s ease-in-out infinite; }
 .helper-bob-fast { animation: helper-bob 0.9s ease-in-out infinite; }
 .helper-blink { animation: helper-blink 4.6s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes helper-hop { 0% { transform: translateY(0) } 35% { transform: translateY(-5px) } 70% { transform: translateY(0) } 85% { transform: translateY(-1.5px) } 100% { transform: translateY(0) } }
+.helper-hop { animation: helper-hop 0.7s ease-out 1, helper-bob 3.2s ease-in-out 0.7s infinite; }
+@keyframes helper-glow { 0%, 100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.3); opacity: 0.6 } }
+.helper-glow { animation: helper-glow 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .say-wave > span { animation: say-wave 0.9s ease-in-out infinite; transform-origin: center; }
-@media (prefers-reduced-motion: reduce) { .helper-bob, .helper-bob-fast, .helper-blink, .say-wave > span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .helper-bob, .helper-bob-fast, .helper-blink, .helper-hop, .helper-glow, .say-wave > span { animation: none; } }

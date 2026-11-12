@@ -19,7 +19,7 @@ import { insidePeople } from './steps-ui'
 import { siteOf } from './steps'
 import { projectIn, personIn, guessType, DAY_WORDS } from './mytasks'
 import { ProjectChip, PICK_CHIP, projectsFor } from './formkit'
-import { Ghost, Listening } from './ghost'
+import { Helper, Listening } from './helper'
 
 /* ---------------- the kinds of things ---------------- */
 export type CapKind = 'task' | 'problem' | 'question' | 'gc' | 'touchup' | 'bring' | 'change' | 'measure'
@@ -262,7 +262,7 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
       title="Say it"
       header={
         <div className="flex items-center gap-3 px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-capture-head>
-          <Ghost size={phase === 'check' ? 44 : 60} mood={phase === 'think' ? 'thinking' : mic.on ? 'listening' : phase === 'check' ? 'happy' : 'idle'} />
+          <Helper size={phase === 'check' ? 44 : 60} mood={phase === 'think' ? 'thinking' : mic.on ? 'listening' : phase === 'check' ? 'happy' : 'idle'} />
           <div className="min-w-0">
             <h2 className="font-display text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{phase === 'check' ? (items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} — check them` : 'Nothing to add') : 'What’s going on?'}</h2>
             <div className="mt-0.5 text-[0.875rem] text-muted">{phase === 'check' ? (plain ? (why ? `Split from your words. ${why}` : 'Split from your words — fix what’s off, then Add.') : 'Fix what’s off, then Add.') : phase === 'think' ? 'Sorting it out…' : 'Say it or type it — I’ll make the list.'}</div>
@@ -354,14 +354,14 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
   )
 }
 
-/** the way into Say it, on top of + New: the little ghost, the question, and the mic */
+/** the way into Say it, on top of + New: the little robot, the question, and the mic */
 export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => void }) {
   const s = useStore()
   const open = (listen?: boolean) => { onOpen?.(); s.open({ t: 'capture', jobId, listen }) }
   return (
     <div role="button" tabIndex={0} onClick={() => open()} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
       className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-3.5 py-3 transition hover:border-brand-200" data-say-it>
-      <Ghost size={40} mood="idle" />
+      <Helper size={40} mood="idle" />
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block text-[0.9375rem] font-semibold text-ink">What’s going on?</span>
         <span className="block truncate text-[0.8125rem] text-muted">Say it or type it — it makes the tasks, each the right kind</span>
