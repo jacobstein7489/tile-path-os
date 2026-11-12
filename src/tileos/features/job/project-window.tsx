@@ -146,8 +146,8 @@ function standsOf(s: Store, job: Job): { kicker: string; big: string; meta: stri
 }
 
 /** where the project is, like a parcel's tracking: Approved · Getting ready · Crew scheduled · Installing · Touch-ups ·
- *  Closed — one thin bar each: green when it's done, blue for the one going on (as far as it's got), gray after. Under
- *  the one going on, where it's at — its problems in red. On a phone: the bars, and the one going on in words under them */
+ *  Closed — one bar each: green when it's done, blue for the one going on (as far as it's got), gray after. Under
+ *  the one going on, where it's at — its problems in red words (the bar stays blue). On a phone: the bars, and the one going on in words under them */
 function StageBar({ job }: { job: Job }) {
   const s = useStore()
   const line = lineOf(s, job, tracksFor(s, job))
@@ -168,8 +168,9 @@ function StageBar({ job }: { job: Job }) {
           const on = i === at
           return (
             <li key={x.key} data-line={x.key} data-state={x.state} aria-current={on ? 'step' : undefined} className="min-w-0">
-              <span className="block h-1.5 overflow-hidden rounded-full bg-[#ebe7e0]">
-                <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : x.state === 'bad' ? 'bg-bad-500' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
+              <span className="block h-2 overflow-hidden rounded-full bg-[#ebe7e0]">
+                {/* green when it's done, blue as far as it's got — a problem is said in red under it, not by the bar */}
+                <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
               </span>
               <span className={cn('mt-1.5 block truncate text-[0.8125rem] max-sm:hidden', on ? 'font-semibold text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')} data-stage-word={on ? '' : undefined}>{x.label}</span>
               {on && <span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{sub(x)}</span>}

@@ -295,12 +295,12 @@ html { font-size: 16px; }
 .row-hover:hover, .row-hover:focus-visible { background-color: rgba(17, 19, 24, 0.035); outline: none; }
 @media (hover: none) { .row-hover:hover { background-color: transparent; } }
 
-/* Cobble, the little cobblestone who listens: it bobs and blinks while it waits; the sound moves while it listens */
-@keyframes cobble-bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-1.5px) } }
-@keyframes cobble-blink { 0%, 93%, 100% { transform: scaleY(1) } 96% { transform: scaleY(0.12) } }
+/* the little ghost who listens (Say it): it floats and blinks while it waits; the sound moves while it listens */
+@keyframes helper-bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-2px) } }
+@keyframes helper-blink { 0%, 93%, 100% { transform: scaleY(1) } 96% { transform: scaleY(0.12) } }
 @keyframes say-wave { 0%, 100% { transform: scaleY(0.28) } 50% { transform: scaleY(1) } }
-.cobble-bob { animation: cobble-bob 3.2s ease-in-out infinite; }
-.cobble-bob-fast { animation: cobble-bob 0.9s ease-in-out infinite; }
-.cobble-blink { animation: cobble-blink 4.6s infinite; transform-box: fill-box; transform-origin: center; }
+.helper-bob { animation: helper-bob 3.2s ease-in-out infinite; }
+.helper-bob-fast { animation: helper-bob 0.9s ease-in-out infinite; }
+.helper-blink { animation: helper-blink 4.6s infinite; transform-box: fill-box; transform-origin: center; }
 .say-wave > span { animation: say-wave 0.9s ease-in-out infinite; transform-origin: center; }
-@media (prefers-reduced-motion: reduce) { .cobble-bob, .cobble-bob-fast, .cobble-blink, .say-wave > span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .helper-bob, .helper-bob-fast, .helper-blink, .say-wave > span { animation: none; } }
