@@ -64,13 +64,15 @@ export function nextAsk(t: Pick<Task, 'needBy' | 'promised'>, from = TODAY): str
 /* ---------------- where it stands — the same words on Today, the project and its window ---------------- */
 export type GcState = { text: string; tone: 'bad' | 'warn' | 'quiet'; flag: boolean }
 const days = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`
+/** work days from one day to a later one */
+const workDaysTo = (a: string, b: string) => { let d = a; let k = 0; while (d < b) { d = addDays(d, 1); if (dow(d) !== 0 && dow(d) !== 6) k++ } return k }
 export function gcState(t: Task): GcState {
   const fu = isoFromLabel(t.followUp)
   const told = toldGc(t)
   const n = t.needBy ? daysBetween(TODAY, t.needBy) : undefined
   if (!told && fu && fu < TODAY) return { text: 'GC not told yet', tone: 'bad', flag: true }
   if (t.promised && t.promised < TODAY) return { text: `GC said ${md(t.promised)} — not done`, tone: 'bad', flag: true }
-  if (told && fu && fu < TODAY) return { text: `Reminder ${days(daysBetween(fu, TODAY))} late`, tone: 'bad', flag: true }
+  if (told && fu && fu < TODAY) return { text: `Reminder ${days(Math.max(1, workDaysTo(fu, TODAY)))} late`, tone: 'bad', flag: true }
   if (n !== undefined && n <= 7) return { text: n < 0 ? `Needed ${days(-n)} ago` : n === 0 ? 'Needed today' : `${days(n)} left`, tone: 'bad', flag: true }
   if (!told) return { text: 'Tell the GC today', tone: 'warn', flag: false }
   if (n !== undefined) return { text: `Needed in ${days(n)}`, tone: 'quiet', flag: false }
@@ -132,12 +134,13 @@ export function askedGc(id: string) {
   const t = s.tasks.find((x) => x.id === id)
   if (!t) return
   const first = !toldGc(t)
-  const next = nextAsk(t)
+  const next = nextAsk({ needBy: t.needBy, promised: t.promised && t.promised > TODAY ? t.promised : undefined })
   s.commit((st) => {
     const x = st.tasks.find((y) => y.id === id)
     if (!x) return
     x.asked = TODAY
     x.followUps = (x.followUps || 0) + 1
+    if (x.promised && x.promised <= TODAY) x.promised = undefined
     x.followUp = md(next)
     ;(x.log ||= []).push({ date: NOW, who: me, text: first ? 'Told the GC' : 'Reminded the GC' })
   }, first ? 'Sent to the GC' : 'Reminded the GC', { tone: 'wait', sub: `Next reminder ${labelFromIso(next) === 'Tomorrow' ? 'tomorrow' : labelFromIso(next)} — it’s off your list until then.` })

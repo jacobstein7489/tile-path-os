@@ -27,8 +27,8 @@ export type CapKind = 'task' | 'problem' | 'question' | 'gc' | 'touchup' | 'brin
 export const CAP_KINDS: { k: CapKind; label: string; hint: string; icon: LucideIcon; fg: string; bg: string }[] = [
   { k: 'task', label: 'To do', hint: 'Something one of us does', icon: ListTodo, fg: '#2650cf', bg: '#eaf0fc' },
   { k: 'problem', label: 'Problem', hint: 'Something wrong — it holds the job up', icon: TriangleAlert, fg: '#c03a2d', bg: '#fbecea' },
-  { k: 'question', label: 'Question', hint: 'To answer, or to ask the client or the designer (one for the GC is the GC’s)', icon: HelpCircle, fg: '#6b55c9', bg: '#f1eefb' },
-  { k: 'gc', label: 'The GC’s', hint: 'The contractor does it, sends it or answers it — we tell him today and remind him until it’s done', icon: HardHat, fg: '#b06a0c', bg: '#fbf2e2' },
+  { k: 'question', label: 'Question', hint: 'To answer, or to ask the client or the designer', icon: HelpCircle, fg: '#6b55c9', bg: '#f1eefb' },
+  { k: 'gc', label: 'The GC’s', hint: 'The GC does it or answers it — we remind him until it’s done', icon: HardHat, fg: '#b06a0c', bg: '#fbf2e2' },
   { k: 'touchup', label: 'Touch-up', hint: 'Fix or finish our own work', icon: Sparkles, fg: '#b83a5e', bg: '#fbecf1' },
   { k: 'bring', label: 'Bring to the job', hint: 'Material or a tool, picked up and brought', icon: Truck, fg: '#c25a1a', bg: '#fcefe6' },
   { k: 'change', label: 'Change', hint: 'The designer or the client changed it — price it, get the OK', icon: ArrowLeftRight, fg: '#4b4fc6', bg: '#eeeffc' },
@@ -126,7 +126,7 @@ export function parseItems(s: Store, raw: string): CapItem[] {
     const kind: CapKind = CAP_KINDS.some((k) => k.k === x?.kind) ? x.kind : 'task'
     const jobId = typeof x?.project === 'string' && s.jobs[x.project] ? x.project : ''
     const said = typeof x?.who === 'string' && (team.includes(x.who) || PEOPLE[x.who as PersonKey]) ? (x.who as PersonKey) : undefined
-    const forWho = typeof x?.for === 'string' && PEOPLE[x.for as PersonKey] && x.for !== (said || whoFor(s, kind, jobId)) ? (x.for as PersonKey) : undefined
+    const forWho = typeof x?.for === 'string' && PEOPLE[x.for as PersonKey] && x.for !== (said || whoFor(s, kind, jobId)) && x.for !== meOf(s.role) ? (x.for as PersonKey) : undefined
     return { id: newId(), kind, title: title.charAt(0).toUpperCase() + title.slice(1), jobId, who: said || whoFor(s, kind, jobId), when: dayOf(x?.when), urgent: !!x?.urgent, note: String(x?.note || '').trim().slice(0, 240) || undefined, forWho }
   }).filter((x): x is CapItem => !!x)
 }
@@ -140,6 +140,7 @@ function kindOf(t: string): CapKind {
   if (/\b(pick up|bring|deliver)\b/.test(w)) return 'bring'
   if (/\b(contractor|gc)\b.*\b(has to|needs to|take care|waiting)|\bwaiting (for|on)\b/.test(w)) return 'gc'
   if (/\b(contractor|gc)\b/.test(w) && /\?\s*$/.test(w)) return 'gc'
+  if (/\b(ask|tell|remind) the (gc|contractor)\b/.test(w)) return 'gc'
   if (/\bgrout\b|\btouch.?up|\bpitched\b|\bloose\b|\bcrack/.test(w)) return 'touchup'
   if (/\bnot good\b|\bbroken\b|\bwrong\b|\bmissing\b|\bleak|\bnot ready\b|\bproblem\b/.test(w)) return 'problem'
   if (/\?\s*$|\b(confirm|would .* work|question)\b/.test(w)) return 'question'
@@ -185,7 +186,7 @@ export function addCaptured(items: CapItem[]) {
       if (it.kind === 'problem') { newTask(st, { ...base, tone: 'bad' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `Problem: ${it.title}` }); return }
       /* the GC's: he hears about it today (the message is written), it's needed by the day we start, and someone waiting
          for it (an installer) gets the answer written too — features/gcwait */
-      if (it.kind === 'gc') { newTask(st, { ...base, due: undefined, state: 'waiting', waitingOn: 'GC', followUp: it.when || 'Today', needBy: needByFor(st, j), forWho: it.forWho, tone: 'warn' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `For the GC: ${it.title}` }); return }
+      if (it.kind === 'gc') { newTask(st, { ...base, due: undefined, state: 'waiting', waitingOn: 'GC', followUp: it.when || 'Today', needBy: needByFor(st, j), forWho: it.forWho || personIn(it.title, crewsOf(st)), tone: 'warn' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `For the GC: ${it.title}` }); return }
       if (it.kind === 'bring') { newTask(st, { ...base, title: j ? `Bring to ${j.name}: ${it.title.replace(/^(bring|pick up)\s+/i, '')}` : it.title, tone: 'warn', req: { what: it.title.replace(/^(bring|pick up)\s+/i, ''), trip: 'asked' } }); return }
       newTask(st, base)
     })
@@ -337,6 +338,8 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
 
 /** one thing on the list: its kind (tap to change), what, and the project, who and when as chips — × takes it off */
 function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonKey; team: PersonKey[]; onChange: (p: Partial<CapItem>) => void; onRemove: () => void }) {
+  const s = useStore()
+  const forWho = it.forWho || (it.kind === 'gc' ? personIn(it.title, crewsOf(s)) : undefined)
   const k = KIND[it.kind]
   const I = k.icon
   const missing = !it.jobId && ['problem', 'touchup', 'bring', 'gc'].includes(it.kind)
@@ -358,7 +361,7 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
           trigger={<button type="button" aria-label="Who" className={cn(PICK_CHIP, 'pl-1.5')}><Avatar who={it.who} size={22} /><span className="min-w-0 truncate">{it.who === me ? 'Me' : PEOPLE[it.who]?.short || it.who}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
         <SearchSelect label="When" value={it.when || 'Today'} options={whenOptions} onChange={(d) => onChange({ when: d })} search={false} width={220}
           trigger={<button type="button" aria-label="When" className={PICK_CHIP}><CalendarDays /><span>{it.kind === 'gc' ? `Tell the GC ${(it.when || 'Today').replace(/^(Today|Tomorrow)$/, (m) => m.toLowerCase())}` : it.when || 'Today'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
-        {it.forWho && <span className="text-[0.75rem] text-muted" data-capture-for={it.forWho}>For {PEOPLE[it.forWho]?.short || it.forWho}</span>}
+        {forWho && it.kind === 'gc' && <span className="text-[0.75rem] text-muted" data-capture-for={forWho}>For {PEOPLE[forWho]?.short || forWho}</span>}
         {it.who !== me && <span className="text-[0.75rem] text-muted">You follow it</span>}
       </div>
       {it.note && <div className="mt-1.5 pl-1 text-[0.8125rem] leading-snug text-muted">{it.note}</div>}
