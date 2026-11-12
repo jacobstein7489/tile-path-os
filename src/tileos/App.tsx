@@ -307,7 +307,7 @@ export default function App() {
             <TopBar />
             <DesktopTopBar />
             <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
-              {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[72rem] px-7 pb-20 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
+              {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[72rem] px-7 pb-28 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
             </main>
           </div>
           <BottomNav />

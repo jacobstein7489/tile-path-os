@@ -124,7 +124,7 @@ export function ItemsPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <ItemThumb item={i} size={40} />
                           <div className="min-w-0">
-                            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.name}</div>
+                            <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
                             <div className="truncate text-[0.78125rem] text-muted">{i.desc || ITEM_TYPE_LABEL[i.type]}</div>
                           </div>
                         </div>
@@ -210,7 +210,7 @@ function MatRow({ i }: { i: Item }) {
         <div className="flex min-w-0 items-center gap-3">
           <ItemThumb item={i} size={52} />
           <div className="min-w-0">
-            <div className="truncate text-[0.875rem] font-semibold text-ink">{i.name}</div>
+            <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
             <div className="truncate text-[0.78125rem] text-muted">{how}<span className="md:hidden">{i.vendor ? ` · ${i.vendor}` : ''}</span></div>
           </div>
         </div>

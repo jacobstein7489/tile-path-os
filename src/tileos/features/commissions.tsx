@@ -207,7 +207,7 @@ export function CommissionsPage() {
               const jobs = won(s).filter((j) => j.clientId === id)
               return (
                 <Tr key={id} onClick={() => s.open({ t: 'clientsales', clientId: id })}>
-                  <Td><div className="truncate text-[0.875rem] font-semibold text-ink" data-no-sales={id}>{s.clients[id]?.name}</div><div className="truncate text-[0.78125rem] text-muted">{jobs.length} {jobs.length === 1 ? 'project' : 'projects'} · {jobs.slice(0, 3).map((j) => j.name).join(', ')}</div></Td>
+                  <Td><div className="truncate text-[0.875rem] font-medium text-ink" data-no-sales={id}>{s.clients[id]?.name}</div><div className="truncate text-[0.78125rem] text-muted">{jobs.length} {jobs.length === 1 ? 'project' : 'projects'} · {jobs.slice(0, 3).map((j) => j.name).join(', ')}</div></Td>
                   <Td right className="tnum">{money(jobs.reduce((n, j) => n + pictureOf(s, j.id).billed, 0))}</Td>
                   <Td right><span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700"><Plus className="h-3.5 w-3.5" />Add a salesperson</span></Td>
                 </Tr>
@@ -238,7 +238,7 @@ export function CommissionsPage() {
                   <GroupRow label={`${name} · ${money(sum(list, 'owed'))} owed`} count={list.length} colSpan={7} />
                   {list.map((r) => (
                     <Tr key={r.job.id + r.share.who} onClick={() => s.open({ t: 'commission', jobId: r.job.id })}>
-                      <Td><div className="truncate text-[0.875rem] font-semibold text-ink" data-comm-row={r.job.id}>{r.job.name}</div><div className="truncate text-[0.78125rem] text-muted">{r.job.client}</div></Td>
+                      <Td><div className="truncate text-[0.875rem] font-medium text-ink" data-comm-row={r.job.id}>{r.job.name}</div><div className="truncate text-[0.78125rem] text-muted">{r.job.client}</div></Td>
                       <Td right className="tnum">{money(r.invoiced)}</Td>
                       <Td right className="tnum text-muted max-lg:hidden">{money(r.clientPaid)}</Td>
                       <Td right className="tnum">{pct(r.share.rate)}</Td>

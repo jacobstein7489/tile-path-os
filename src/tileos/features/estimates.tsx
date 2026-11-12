@@ -156,7 +156,7 @@ export function EstimatesPage() {
         {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
           <div key={l.name} title={l.reason} data-subrow className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
-            <div className="min-w-0 truncate text-[0.90625rem] font-semibold text-ink">{l.name}</div>
+            <div className="min-w-0 truncate text-[0.90625rem] font-medium text-ink">{l.name}</div>
             <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
             <div className="text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
             <div className="text-right text-faint max-md:hidden">—</div>

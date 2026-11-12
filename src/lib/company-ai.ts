@@ -59,7 +59,7 @@ export const askCompanyAI = createServerFn({ method: "POST" })
 type Hear = { audio: string; hint?: string };
 export type Heard = { ok: true; text: string; via: string } | { ok: false; why: "nokey" | "busy" | "credits" | "denied" | "error"; detail?: string };
 const BASE = GATEWAY.replace(/\/chat\/completions\/?$/, "");
-const HEARERS = ["openai/gpt-transcribe", "openai/gpt-4o-transcribe", "openai/gpt-4o-mini-transcribe"];
+const HEARERS = ["openai/gpt-4o-transcribe", "openai/gpt-4o-mini-transcribe", "openai/gpt-transcribe"];
 
 export const hearCompanyAI = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -81,8 +81,10 @@ export const hearCompanyAI = createServerFn({ method: "POST" })
         const fd = new FormData();
         fd.append("file", new Blob([bytes], { type: "audio/wav" }), "speech.wav");
         fd.append("model", model);
+        fd.append("language", "en");
+        fd.append("response_format", "json");
         if (data.hint) fd.append("prompt", data.hint);
-        const r = await fetch(`${BASE}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: fd });
+        const r = await fetch(`${BASE}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Lovable-API-Key": key }, body: fd });
         if (r.status === 429) return { ok: false, why: "busy" };
         if (r.status === 402) return { ok: false, why: "credits" };
         if (r.ok) {

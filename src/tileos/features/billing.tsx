@@ -111,7 +111,7 @@ export function BillingPage() {
                     )}
                   </Td>
                   <Td>
-                    <div className="truncate text-[0.875rem] font-semibold text-ink">{j?.name}</div>
+                    <div className="truncate text-[0.875rem] font-medium text-ink">{j?.name}</div>
                     <div className="truncate text-[0.78125rem] text-muted">{m.title}<span className="md:hidden"> · {m.amount ? fmtMoney(m.amount) : '—'}</span></div>
                   </Td>
                   <Td className="max-xl:hidden">

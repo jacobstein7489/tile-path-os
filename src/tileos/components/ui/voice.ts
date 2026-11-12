@@ -73,6 +73,8 @@ export type Voice = {
   hearing: string
   /** how loud, 0–1: the bars move with it */
   level: number
+  /** the level is real — the mic's meter is running (otherwise the bars move on their own) */
+  metering: boolean
   /** listening, and nothing heard for a few seconds */
   quiet: boolean
   /** the AI is writing the recording down */
@@ -93,6 +95,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
   const [quiet, setQuiet] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [err, setErr] = React.useState('')
+  const [metering, setMetering] = React.useState(false)
   const said = React.useRef(onText)
   said.current = onText
   const hintRef = React.useRef(hint)
@@ -102,6 +105,8 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
   const srDown = React.useRef(false)
   const gotWords = React.useRef(false)
   const loud = React.useRef(false)
+  /* the meter ran: then "loud" can be trusted */
+  const metered = React.useRef(false)
   const lastLoud = React.useRef(0)
   const stream = React.useRef<MediaStream | null>(null)
   const ctx = React.useRef<any>(null)
@@ -117,7 +122,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     raf.current = 0
     try { ctx.current?.close?.() } catch { /* closed */ }
     ctx.current = null
-    if (alive.current) { setLevel(0); setQuiet(false) }
+    if (alive.current) { setLevel(0); setQuiet(false); setMetering(false) }
   }
   const streamOff = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null }
   React.useEffect(() => () => {
@@ -153,6 +158,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
         if (lv > 0.08) { lastLoud.current = Date.now(); loud.current = true }
         if (t - last > 80 && alive.current) {
           last = t
+          if (ac.state === 'running' && !metered.current) { metered.current = true; setMetering(true) }
           setLevel(lv)
           setQuiet(ac.state === 'running' && Date.now() - lastLoud.current > 5000)
         }
@@ -191,7 +197,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     mr.current = null
     if (m && m.state !== 'inactive') {
       /* the recording is the words when the browser gave none (it recorded instead, or its listening failed) */
-      const need = (srDown.current || !gotWords.current) && loud.current
+      const need = (srDown.current || !gotWords.current) && (loud.current || !metered.current)
       m.onstop = () => {
         streamOff()
         const blob = new Blob(chunks.current, { type: m.mimeType || 'audio/webm' })
@@ -212,6 +218,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     gotWords.current = false
     srDown.current = false
     loud.current = false
+    metered.current = false
     chunks.current = []
     /* 1 · the microphone — asked for once; blocked or missing is said plainly */
     let s: MediaStream | null = null
@@ -270,5 +277,5 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     try { r.start(); rec.current = r } catch { srDown.current = true; if (!mr.current) { setErr('This browser won’t listen here — type it instead.'); stop() } }
   }
 
-  return { on, hearing, level, quiet, busy, err, start: () => void start(), stop, can: canListen() }
+  return { on, hearing, level, metering, quiet, busy, err, start: () => void start(), stop, can: canListen() }
 }

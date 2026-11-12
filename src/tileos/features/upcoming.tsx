@@ -288,7 +288,7 @@ function PlanRow({ r }: { r: Row }) {
         <button onClick={openIt} className="shrink-0" aria-label={`Open ${j.name}`}><StartTile r={r} /></button>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-baseline gap-2">
-            <button onClick={openIt} className="truncate text-left text-[0.9375rem] font-semibold leading-5 text-ink hover:text-brand-600">{j.name}</button>
+            <button onClick={openIt} className="truncate text-left text-[0.9375rem] font-medium leading-5 text-ink hover:text-brand-600">{j.name}</button>
             {timing && <span className="truncate text-[0.78125rem] font-medium text-muted">{timing}</span>}
           </div>
           {r.pending ? <div className="mt-1 truncate text-[0.8125rem] text-muted">{p.notes || 'Waiting for the client’s answer'}</div> : <MeetingLine m={p.meeting} onSave={(v) => set({ meeting: parseMeeting(v) })} />}

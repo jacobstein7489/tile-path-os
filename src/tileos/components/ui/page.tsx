@@ -75,7 +75,7 @@ export function Page({
     return () => ro.disconnect()
   }, [!!(tabs || toolbar)])
   return (
-    <div className={cn('min-h-full pb-10 max-lg:pb-6', className)}>
+    <div className={cn('min-h-full pb-28 max-lg:pb-24', className)}>
       {/* centered: as wide as a laptop's screen at most — a big monitor gets even margins on both sides, so nothing is
           stretched edge to edge with big gaps in the rows (the top bar lines up with it) */}
       <div className={cn('mx-auto w-full', PAGE_MAX)} style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>

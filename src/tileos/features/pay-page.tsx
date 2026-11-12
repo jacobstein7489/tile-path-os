@@ -147,7 +147,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
-          <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[r.crew].name}</span>
+          <span className="block truncate text-[0.875rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
           <span className="block truncate text-[0.78125rem] text-muted">{jobsLabel(s, r)}<span className="lg:hidden"> · {st.label}</span></span>
         </span>
       </span>
@@ -184,7 +184,7 @@ function PaidLine({ r }: { r: PaidRow }) {
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
-          <span className="block truncate text-[0.875rem] font-semibold text-ink">{PEOPLE[r.crew].name}</span>
+          <span className="block truncate text-[0.875rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
           <span className="block truncate text-[0.78125rem] text-muted lg:hidden">{r.jobs.map((j) => s.jobs[j.jobId]?.name || j.jobId).join(' · ')} · Paid {r.paidOn}</span>
         </span>
       </span>
@@ -211,7 +211,7 @@ export function PayWeekModal({ level }: { level: number }) {
             <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f3f2ef]">
               <Avatar who={r.crew} size={34} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{PEOPLE[r.crew].name}</span>
+                <span className="block truncate text-[0.90625rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
                 <span className="block truncate text-[0.78125rem] text-muted">{jobsLabel(s, r)} · {r.calc.days} days{r.bill ? ` · his bill ${fmtMoney(r.bill.amount)}` : ' · no bill yet'}</span>
               </span>
               <span className="text-[0.9375rem] font-bold tnum text-ink">{fmtMoney(r.calc.total)}</span>

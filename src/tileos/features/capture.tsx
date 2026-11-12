@@ -325,7 +325,7 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
                 {mic.on ? <Square className="relative h-5 w-5 fill-current" /> : <Mic className="h-6 w-6" />}
               </button>
               {mic.busy ? <span className="flex items-center gap-2 text-[0.875rem] font-semibold text-brand-700" role="status" data-capture-writing><span className="flex gap-1" aria-hidden>{[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: `${i * 140}ms` }} />)}</span>Writing it down…</span>
-                : mic.on ? <Listening level={mic.level} /> : <span className="text-[0.8125rem] text-muted">{text ? 'Tap to say more' : 'Tap to talk'}</span>}
+                : mic.on ? <Listening level={mic.metering ? mic.level : undefined} /> : <span className="text-[0.8125rem] text-muted">{text ? 'Tap to say more' : 'Tap to talk'}</span>}
               {mic.on && mic.quiet && <span className="text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything — is the right microphone on?</span>}
             </div>
           )}
