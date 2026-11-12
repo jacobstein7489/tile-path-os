@@ -17,7 +17,7 @@ export type WinTone = 'late' | 'warn' | 'ok' | 'quiet'
 /** who it can be given to: you first ("Me"), then the rest */
 export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void }
 /** the day it's on: tap it, pick another */
-export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[] }
+export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string }
 
 const CHIP = '-mx-1.5 inline-flex min-w-0 items-center gap-1.5 rounded-full px-1.5 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
 
@@ -74,7 +74,7 @@ export function WinHead({ place, title, who, whoText, state, tone, problem, more
         {(whoText || whoPick) && state && <span className="text-faint" aria-hidden>·</span>}
         {state && (whenPick ? (
           <Pop open={dayOpen} onOpenChange={setDayOpen} align="start" width={330} trigger={<button type="button" className={cn(CHIP, stateCls)} aria-label="When — change it" data-when-pick><span className="min-w-0 truncate" data-win-state>{state}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
-            <div className="mb-2.5 text-[0.875rem] font-semibold text-ink">Move it to</div>
+            <div className="mb-2.5 text-[0.875rem] font-semibold text-ink">{whenPick.title || 'Move it to'}</div>
             <DatePresets value={whenPick.value} presets={whenPick.presets} onPick={(d) => { setDayOpen(false); whenPick.onPick(d) }} />
           </Pop>
         ) : <span className={stateCls} data-win-state>{state}</span>)}

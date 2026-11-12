@@ -3,7 +3,7 @@
  * project · the one button. Checklist steps that are your turn show up by themselves — that's the hand-off.
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
-import { CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
+import { Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
@@ -37,6 +37,7 @@ import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formk
 import { WinHead } from './winhead'
 import { useSmall } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
+import { isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -279,7 +280,8 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const me0 = meOf(s.role)
   const sharers = [t.owner, ...(t.also || [])]
   const withWho = t.also?.length && !done ? (sharers.includes(me0) ? sharers.filter((p) => p !== me0) : t.also).map((p) => PEOPLE[p]?.short || p).join(' and ') : ''
-  const w = (t.urgent && t.state === 'now' ? { text: 'Urgent', tone: 'bad' as const } : undefined) || when || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
+  const gcw = isGcWait(t) ? gcState(t) : undefined
+  const w = (t.urgent && t.state === 'now' ? { text: 'Urgent', tone: 'bad' as const } : undefined) || when || (gcw ? (follow && gcw.tone !== 'bad' ? { text: askLabel(t), tone: 'warn' as const } : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
   return (
     <TodoRow
       leaving={leaving}
@@ -296,7 +298,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       action={
         theirs && !(done && (s.role === 'owner' || s.role === 'pm')) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
         : done ? <Button size="sm" className={TBTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
-          : follow ? <Button size="sm" className={TBTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>Follow up</Button>
+          : follow ? <Button size="sm" className={TBTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>{isGcWait(t) ? askLabel(t) : 'Follow up'}</Button>
           : stepTask ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
           : act ? <Button size="sm" className={cn(TBTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
             : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
@@ -516,6 +518,38 @@ function TeamRow({ x }: { x: PlateItem }) {
     </div>
   )
 }
+/* Waiting on the GC, on the admin's Today — every open one on every project, one line each: what (and who has it, and
+ * what the GC said last), the project, where it stands: the days left, quiet — red only when something's wrong (the GC
+ * wasn't told the same day, a reminder was skipped, the GC missed his day, a week out and not done). Tap one: its
+ * window — Remind its person from there. */
+function GcSection({ list }: { list: Task[] }) {
+  return (
+    <section data-gc-waits>
+      <Group label="Waiting on the GC" count={list.length} tone="neutral" strong />
+      {list.map((t) => <GcRow key={t.id} t={t} />)}
+    </section>
+  )
+}
+function GcRow({ t }: { t: Task }) {
+  const s = useStore()
+  const job = s.jobs[t.jobId]
+  const st = gcState(t)
+  const me = meOf(s.role)
+  const who = t.owner === me ? 'You' : PEOPLE[t.owner]?.short || 'Someone'
+  return (
+    <div data-gc-row={t.id} data-gc-flag={st.flag ? '' : undefined} data-contents>
+      <TodoRow
+        onClick={() => s.open({ t: 'task', id: t.id })}
+        title={<>{gcWords(t.title)}<span className="font-normal text-muted"> · {who}{t.said ? <> · GC: “{t.said.text}”</> : null}</span></>}
+        detail={gcSoFar(t)}
+        project={job?.name || 'Company'}
+        when={st.text}
+        whenTone={st.tone === 'bad' ? 'bad' : st.tone === 'warn' ? 'warn' : 'quiet'}
+      />
+    </div>
+  )
+}
+
 /** someone else's open steps that one of yours waits for — on the projects you're on: what's relevant to you */
 function waitsOnOthers(s: Store, me: PersonKey): PlateItem[] {
   const out: PlateItem[] = []
@@ -545,7 +579,7 @@ const teamPlateNow = (() => {
 })()
 
 /** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
-const APP_DID = /^(Created|Reminded |Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following)$/
+const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following)$/
 export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** the billing person's week: last week's progress, ready to bill (it works like installer pay) */
@@ -821,7 +855,7 @@ export function MyTasksPage() {
   const admin = role === 'owner' || role === 'pm'
   const teamRows: PlateItem[] = all || view !== 'today' ? [] : (() => {
     const base: PlateItem[] = admin
-      ? collapse(teamPlateNow(s)).filter((x) => !!x.who && x.who !== me && isNow(x.b) && TEAM_KINDS.has(x.kind) && !x.t?.everyone)
+      ? collapse(teamPlateNow(s)).filter((x) => !!x.who && x.who !== me && isNow(x.b) && TEAM_KINDS.has(x.kind) && !x.t?.everyone && !(x.t && isGcWait(x.t)))
       : collapse([...othersToday.map((t): PlateItem => ({ key: t.id, b: taskBucket(t), iso: taskIso(t), kind: 'task', t, who: t.owner })), ...waitsOnOthers(s, me)])
     const seen = new Set<string>()
     const jobOf = (x: PlateItem) => x.t?.jobId || x.job?.id || x.vs?.[0]?.job.id || x.ts?.[0]?.jobId
@@ -960,6 +994,9 @@ export function MyTasksPage() {
 
   /* the admin's check-ins are their own part of Today — under the day, not mixed into it */
   const shownToday = today.filter(pick).filter((x) => x.kind !== 'checkin')
+  /* the admin's: everything waiting on the GC, on every project — where each stands, red only when something's wrong
+     (features/gcwait). What's on his own list today isn't here again */
+  const gcRows = admin && !all && view === 'today' ? gcWaits(s).filter((t) => (job === 'all' || t.jobId === job) && !shownToday.some((x) => x.t?.id === t.id)) : []
   /* urgent first, in its own red part — the rest grouped as asked */
   const urgentToday = shownToday.filter((x) => x.t?.urgent && x.t.state === 'now')
   const restToday = shownToday.filter((x) => !urgentToday.includes(x) && x.kind !== 'crew')
@@ -987,7 +1024,7 @@ export function MyTasksPage() {
   /* whose each row is: on everyone's list — unless it's grouped by person already — and on Waiting on others */
   const whoCol = all ? !(grouping === 'person' && view !== 'done') : view === 'waiting'
   /* the column names show over a list that has rows */
-  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + teamRows.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
+  const hasRows = view === 'today' ? pinnedRows.length + shownToday.length + teamRows.length + gcRows.length + undated.length > 0 : view === 'tomorrow' ? shownTomorrow.length + backTomorrow.length > 0 : view === 'later' ? shownLater.length > 0 : view === 'waiting' ? shownWaiting.length + shownWaitSteps.length > 0 : shownDone.length > 0
 
   return (
     <Page
@@ -1059,7 +1096,8 @@ export function MyTasksPage() {
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !teamRows.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !teamRows.length && !gcRows.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && gcRows.length > 0 && <GcSection list={gcRows} />}
         {view === 'today' && teamRows.length > 0 && <TeamSection rows={teamRows} />}
         {view === 'today' && undated.length > 0 && (
           <section>
@@ -1196,7 +1234,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const t = s.tasks.find((x) => x.id === id)
   const [waitOpen, setWaitOpen] = React.useState(false)
   /* a change from ··· opens in place of the task, with Back to it */
-  const [panel, setPanel] = React.useState<null | 'follow' | 'share' | 'later' | 'wait'>(null)
+  const [panel, setPanel] = React.useState<null | 'follow' | 'share' | 'later' | 'wait' | 'answer'>(null)
   /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
      someone else — the window closes by itself (the pop-up says what happened). Taking it over keeps it open: it's
      yours to do now */
@@ -1251,30 +1289,38 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     </Menu>
   )
 
+  /* waiting on the GC: the day it's needed by, tapped to change; what's wrong in red */
+  const gcw = isGcWait(t) ? gcState(t) : undefined
+  const start = gcw ? startOf(s, job) : undefined
   const header = (
     <WinHead
       place={<>{job ? job.name : 'Company'}{t.where && t.where.trim() !== job?.name ? ` · ${t.where}` : ''}</>}
       title={cleanTitle(t.title, job)}
       who={t.owner}
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' and ')} — whoever gets to it first` : t.owner === me ? 'Yours' : `${owner} has it`}</span>}
-      state={<span data-task-when>{when.text}</span>}
-      tone={b === 'overdue' && t.state === 'now' ? 'late' : t.state === 'waiting' || (b === 'today' && t.state === 'now') ? 'warn' : t.state === 'done' ? 'ok' : undefined}
-      extra={t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
-      problem={t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
+      state={gcw ? <span data-task-when data-gc-needby={t.needBy || ''}>{t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by'}</span> : <span data-task-when>{when.text}</span>}
+      tone={gcw ? 'warn' : b === 'overdue' && t.state === 'now' ? 'late' : t.state === 'waiting' || (b === 'today' && t.state === 'now') ? 'warn' : t.state === 'done' ? 'ok' : undefined}
+      extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
+      problem={gcw?.flag ? <span data-gc-flag>{gcw.text}</span> : t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
       more={more || undefined}
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
       whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
-      whenPick={canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : undefined}
+      whenPick={gcw && (!theirs || admin) ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) } : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : undefined}
     />
   )
 
-  const footer = panel ? (
+  const footer = panel === 'answer' ? undefined : panel ? (
     <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
   ) : t.state === 'done' ? (
     (!theirs || admin) ? <Button className="ml-auto" icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)} data-reopen-task>Reopen</Button> : undefined
   ) : theirs ? (
     <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button>
+  ) : gcw ? (
+    <>
+      <Button variant="ghost" icon={<MessageSquareReply />} onClick={() => setPanel('answer')} data-gc-answered>They answered</Button>
+      <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<Send />} onClick={() => { openWhatsApp(gcMessage(s, t)); askedGc(t.id); s.close() }} data-gc-send>{askLabel(t)}</Button>
+    </>
   ) : (
     <>
       {t.state === 'waiting' ? (
@@ -1292,7 +1338,9 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     </>
   )
 
-  const body = panel === 'later' ? (
+  const body = panel === 'answer' ? (
+    <GcAnswer t={t} onDone={() => s.close()} onBack={() => setPanel(null)} />
+  ) : panel === 'later' ? (
     <div data-task-panel="later"><LaterPicker onSave={(u) => { s.laterTask(t.id, u); s.close() }} /></div>
   ) : panel === 'wait' ? (
     <div data-task-panel="wait"><WaitPicker defaultWho={t.waitingOn} onSave={(w, bk) => { s.waitTask(t.id, w, bk); s.close() }} /></div>
@@ -1316,10 +1364,12 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   ) : (
     <>
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
-      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3')} data-task-detail>{t.detail}</p>}
+      {gcw && <p className="flex items-center gap-1.5 text-[0.8125rem] text-muted" data-gc-sofar><Hourglass className="h-3.5 w-3.5 shrink-0 text-warn-600" /><span><b className="font-medium text-warn-700">Waiting on the GC</b> · {gcSoFar(t, false)}</span></p>}
+      {gcw && !theirs && <div className="mt-3"><GcMessageBox t={t} /></div>}
+      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3', gcw && 'mt-3')} data-task-detail>{t.detail}</p>}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
           one quiet box to add one. The same on a step */}
-      <Notes kind="task" me={me} notes={notesOnly} onAdd={t.state !== 'done' ? (x) => s.noteTask(t.id, x) : undefined} className={cn((t.detail || (t.state === 'done' && t.result)) && 'mt-4')} />
+      <Notes kind="task" me={me} notes={notesOnly} onAdd={t.state !== 'done' ? (x) => s.noteTask(t.id, x) : undefined} className={cn((t.detail || gcw || (t.state === 'done' && t.result)) && 'mt-4')} />
     </>
   )
 

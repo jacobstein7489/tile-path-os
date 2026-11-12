@@ -11,7 +11,8 @@ import { PEOPLE } from '@/tileos/data/model'
 import { REAL } from '@/tileos/lib/save'
 import { cn } from '@/tileos/lib/utils'
 import type { Task } from '@/tileos/data/work'
-import { TODAY, labelFromIso } from '@/tileos/lib/today'
+import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
+import { isGcWait, toldGc, askLabel } from './gcwait'
 import { timeLabel, type CalEvent } from '@/tileos/data/calendar'
 import { stepTodos, type StepView } from './steps'
 import { openStep } from './stepwin'
@@ -23,7 +24,9 @@ const write = (k: string, v: string[]) => { try { localStorage.setItem(k, JSON.s
 const tag = (t: Task, me?: string) => (me && t.owner !== me ? `${t.id}:f:${me}` : `${t.id}:${t.owner}`) + (t.nudge && t.nudge.by !== me && t.owner === me ? `:n${t.nudge.at}` : '')
 const evTag = (e: CalEvent) => `ev:${e.id}:${e.date}:${e.start}`
 /** what's on my plate right now that someone (or a hand-off) put there */
-const mineNow = (s: Store) => { const me = meOf(s.role); return s.tasks.filter((t) => (t.owner === me || t.also?.includes(me) || t.followers?.includes(me)) && t.state === 'now' && (t.log?.[0]?.who !== me || (t.owner === me && !!t.nudge && t.nudge.by !== me))) }
+/* something for the GC someone gave you — tell him today — or reminded you about, pops up too */
+const gcNow = (t: Task, me: string) => isGcWait(t) && t.owner === me && ((!toldGc(t) && (isoFromLabel(t.followUp) || '9') <= TODAY) || (!!t.nudge && t.nudge.by !== me))
+const mineNow = (s: Store) => { const me = meOf(s.role); return s.tasks.filter((t) => (t.owner === me || t.also?.includes(me) || t.followers?.includes(me)) && (t.state === 'now' || gcNow(t, me)) && (t.log?.[0]?.who !== me || (t.owner === me && !!t.nudge && t.nudge.by !== me))) }
 /** my steps someone reminded me about */
 const stepTag = (j: Job, v: StepView, at: string) => `st:${j.id}:${v.key}:${at}`
 const nudgedSteps = (s: Store) => { const me = meOf(s.role); return stepTodos(s, me).map(({ job, step }) => ({ job, step, n: s.stepRecs[job.id]?.[step.key]?.nudge })).filter((x) => x.n && x.n.by !== me) }
@@ -96,7 +99,7 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
               {from ? <Avatar who={from} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"><Inbox className="h-4 w-4" /></span>}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.90625rem] font-semibold text-ink">{t.urgent && <span className="mr-1.5 inline-flex h-[1.125rem] items-center rounded-full bg-bad-600 px-1.5 align-[0.0625rem] text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-white">Urgent</span>}{t.title}</span>
-                <span className={cn('block truncate text-[0.78125rem]', nudged ? 'font-medium text-bad-700' : 'text-muted')}>{nudged ? [`${PEOPLE[from!]?.short} reminded you — it’s late`, job?.name, t.due ? `was due ${t.due}` : ''].filter(Boolean).join(' · ') : [t.owner !== me ? `${PEOPLE[t.owner]?.short} has it — you follow it` : '', job?.name, from && t.owner === me ? `from ${PEOPLE[from]?.short}` : t.owner === me ? t.where : '', t.due ? `due ${t.due}` : ''].filter(Boolean).join(' · ')}</span>
+                <span className={cn('block truncate text-[0.78125rem]', nudged ? 'font-medium text-bad-700' : isGcWait(t) && t.owner === me ? 'font-medium text-warn-700' : 'text-muted')}>{nudged ? [`${PEOPLE[from!]?.short} reminded you${isGcWait(t) ? '' : ' — it’s late'}`, job?.name, isGcWait(t) ? askLabel(t) : t.due ? `was due ${t.due}` : ''].filter(Boolean).join(' · ') : isGcWait(t) && t.owner === me ? [`${askLabel(t)} today`, job?.name, from ? `from ${PEOPLE[from]?.short}` : ''].filter(Boolean).join(' · ') : [t.owner !== me ? `${PEOPLE[t.owner]?.short} has it — you follow it` : '', job?.name, from && t.owner === me ? `from ${PEOPLE[from]?.short}` : t.owner === me ? t.where : '', t.due ? `due ${t.due}` : ''].filter(Boolean).join(' · ')}</span>
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
             </button>

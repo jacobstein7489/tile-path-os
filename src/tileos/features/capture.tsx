@@ -11,7 +11,7 @@ import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, type Job, type PersonKey, type Role } from '@/tileos/data/model'
+import { PEOPLE, CREWS, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task, TaskType } from '@/tileos/data/work'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, addDays, dow, isoFromLabel, labelFromIso, dayLongFull } from '@/tileos/lib/today'
@@ -20,14 +20,15 @@ import { siteOf } from './steps'
 import { projectIn, personIn, guessType, DAY_WORDS } from './mytasks'
 import { ProjectChip, PICK_CHIP, projectsFor } from './formkit'
 import { Helper, Listening } from './helper'
+import { needByFor } from './gcwait'
 
 /* ---------------- the kinds of things ---------------- */
 export type CapKind = 'task' | 'problem' | 'question' | 'gc' | 'touchup' | 'bring' | 'change' | 'measure'
 export const CAP_KINDS: { k: CapKind; label: string; hint: string; icon: LucideIcon; fg: string; bg: string }[] = [
   { k: 'task', label: 'To do', hint: 'Something one of us does', icon: ListTodo, fg: '#2650cf', bg: '#eaf0fc' },
   { k: 'problem', label: 'Problem', hint: 'Something wrong — it holds the job up', icon: TriangleAlert, fg: '#c03a2d', bg: '#fbecea' },
-  { k: 'question', label: 'Question', hint: 'To answer, or to ask the GC, the client, the designer', icon: HelpCircle, fg: '#6b55c9', bg: '#f1eefb' },
-  { k: 'gc', label: 'The GC’s', hint: 'The contractor does it — we follow up', icon: HardHat, fg: '#b06a0c', bg: '#fbf2e2' },
+  { k: 'question', label: 'Question', hint: 'To answer, or to ask the client or the designer (one for the GC is the GC’s)', icon: HelpCircle, fg: '#6b55c9', bg: '#f1eefb' },
+  { k: 'gc', label: 'The GC’s', hint: 'The contractor does it, sends it or answers it — we tell him today and remind him until it’s done', icon: HardHat, fg: '#b06a0c', bg: '#fbf2e2' },
   { k: 'touchup', label: 'Touch-up', hint: 'Fix or finish our own work', icon: Sparkles, fg: '#b83a5e', bg: '#fbecf1' },
   { k: 'bring', label: 'Bring to the job', hint: 'Material or a tool, picked up and brought', icon: Truck, fg: '#c25a1a', bg: '#fcefe6' },
   { k: 'change', label: 'Change', hint: 'The designer or the client changed it — price it, get the OK', icon: ArrowLeftRight, fg: '#4b4fc6', bg: '#eeeffc' },
@@ -35,9 +36,11 @@ export const CAP_KINDS: { k: CapKind; label: string; hint: string; icon: LucideI
 ]
 const KIND = Object.fromEntries(CAP_KINDS.map((x) => [x.k, x])) as Record<CapKind, (typeof CAP_KINDS)[number]>
 
-export type CapItem = { id: string; kind: CapKind; title: string; jobId: string; who: PersonKey; when: string; urgent?: boolean; note?: string }
+export type CapItem = { id: string; kind: CapKind; title: string; jobId: string; who: PersonKey; when: string; urgent?: boolean; note?: string; /** who is waiting for it — an installer asked (the lockbox code): the answer is written for him */ forWho?: PersonKey }
 
 /* ---------------- who does what, when nobody said ---------------- */
+/** our installers — the built-in crews and any added to the team */
+const crewsOf = (s: Pick<Store, 'team'>): PersonKey[] => Array.from(new Set([...CREWS, ...s.team.filter((m) => m.role === 'crew' && m.status !== 'off').map((m) => m.key as PersonKey)])).filter((p) => !!PEOPLE[p])
 const ROLE_OF: Partial<Record<string, Role[]>> = { ys: ['owner', 'pm'], yakov: ['site'], office: ['office'], estimator: ['estimator'], takeoff: ['takeoff'], materials: ['materials'], accounting: ['accounting'] }
 const rolesOf = (s: Pick<Store, 'team'>, p: PersonKey): Role[] => { const m = s.team.find((x) => x.key === p); return m ? [m.role as Role] : ROLE_OF[p] || ['owner'] }
 /** the site manager on a project — or the company's */
@@ -59,8 +62,6 @@ function dayOf(w?: string): string {
   const iso = isoFromLabel(t) || (/^\d{4}-\d\d-\d\d$/.test(t) ? t : undefined)
   return iso ? labelFromIso(iso) : ''
 }
-/** two work days on — when to follow up with the GC if nobody said */
-const followUpDay = () => { let d = TODAY; let n = 0; while (n < 2) { d = addDays(d, 1); if (dow(d) !== 0 && dow(d) !== 6) n++ } return labelFromIso(d) }
 
 /* ---------------- the AI ---------------- */
 function promptFor(s: Store, text: string): string {
@@ -68,6 +69,7 @@ function promptFor(s: Store, text: string): string {
   const team = insidePeople(s)
   const people = team.map((p) => `- ${p}: ${PEOPLE[p]?.name || p}${PEOPLE[p]?.roleLabel ? ` — ${PEOPLE[p].roleLabel}` : ''}${p === me ? ' (the one talking)' : ''}`).join('\n')
   const jobs = projectsFor(s).map((j) => `- ${j.id}: ${j.name}${j.address ? ` — ${j.address}` : ''}${j.client ? ` — client ${j.client}` : ''}`).join('\n')
+  const crews = crewsOf(s).map((p) => `- ${p}: ${PEOPLE[p]?.name || p}`).join('\n')
   return `You help a tile installation company keep track of its work. ${PEOPLE[me]?.name || 'The boss'} talked or typed what's going on. Turn it into a list of things to do in the company's app.
 Today is ${dayLongFull(TODAY)} (${TODAY}).
 
@@ -77,11 +79,14 @@ ${people}
 The projects (key: name — address — client):
 ${jobs}
 
+Our installers (key: name) — outside crews; they never talk to the GC, we pass things on:
+${crews}
+
 The kinds of things:
 - "task": something one of us has to do (call, send, check, set up, find out, pick up paperwork)
 - "problem": something wrong on a job — not good, broken, missing, wrong, leaking, not ready — that has to be fixed
-- "question": a question to answer or to ask (the GC, the client, the designer) — say it as the question
-- "gc": something the GC (the contractor) has to do or provide — we follow up until it's done
+- "question": a question for us to answer, or to ask the client or the designer — say it as the question
+- "gc": something the GC (the contractor) has to do, provide, fix or answer — a question for the GC too ("what's the lockbox code at 114?", said as the question). We tell him today and remind him until it's done
 - "touchup": fixing or finishing our own tile work that's already in (grout, a crack, a loose or pitched tile)
 - "bring": material or a tool to pick up and bring to a job
 - "change": the designer or the client changed what we're doing — it needs a price and an OK
@@ -95,9 +100,10 @@ Rules:
 - "when": "Today", "Tomorrow", a weekday like "Wed", a date like "Nov 18" — only if a day was said, or it's clearly for today. Otherwise "".
 - "urgent": true only if they said it's urgent or for right now.
 - "note": anything else said about it that matters, short. Otherwise "".
+- "for": the key of whoever is waiting for it, when it's someone else — an installer who asked ("Walter needs the code" → walter) or one of the team. Otherwise "".
 
 Answer with JSON only — an array, nothing before or after it:
-[{"kind":"task","title":"…","project":"…","who":"…","when":"…","urgent":false,"note":"…"}]
+[{"kind":"task","title":"…","project":"…","who":"…","when":"…","urgent":false,"note":"…","for":""}]
 
 What was said:
 """
@@ -120,7 +126,8 @@ export function parseItems(s: Store, raw: string): CapItem[] {
     const kind: CapKind = CAP_KINDS.some((k) => k.k === x?.kind) ? x.kind : 'task'
     const jobId = typeof x?.project === 'string' && s.jobs[x.project] ? x.project : ''
     const said = typeof x?.who === 'string' && (team.includes(x.who) || PEOPLE[x.who as PersonKey]) ? (x.who as PersonKey) : undefined
-    return { id: newId(), kind, title: title.charAt(0).toUpperCase() + title.slice(1), jobId, who: said || whoFor(s, kind, jobId), when: dayOf(x?.when), urgent: !!x?.urgent, note: String(x?.note || '').trim().slice(0, 240) || undefined }
+    const forWho = typeof x?.for === 'string' && PEOPLE[x.for as PersonKey] && x.for !== (said || whoFor(s, kind, jobId)) ? (x.for as PersonKey) : undefined
+    return { id: newId(), kind, title: title.charAt(0).toUpperCase() + title.slice(1), jobId, who: said || whoFor(s, kind, jobId), when: dayOf(x?.when), urgent: !!x?.urgent, note: String(x?.note || '').trim().slice(0, 240) || undefined, forWho }
   }).filter((x): x is CapItem => !!x)
 }
 
@@ -132,6 +139,7 @@ function kindOf(t: string): CapKind {
   if (/\b(designer|client) (decided|wants|changed)|\bchange order\b|\binstead of\b/.test(w)) return 'change'
   if (/\b(pick up|bring|deliver)\b/.test(w)) return 'bring'
   if (/\b(contractor|gc)\b.*\b(has to|needs to|take care|waiting)|\bwaiting (for|on)\b/.test(w)) return 'gc'
+  if (/\b(contractor|gc)\b/.test(w) && /\?\s*$/.test(w)) return 'gc'
   if (/\bgrout\b|\btouch.?up|\bpitched\b|\bloose\b|\bcrack/.test(w)) return 'touchup'
   if (/\bnot good\b|\bbroken\b|\bwrong\b|\bmissing\b|\bleak|\bnot ready\b|\bproblem\b/.test(w)) return 'problem'
   if (/\?\s*$|\b(confirm|would .* work|question)\b/.test(w)) return 'question'
@@ -147,7 +155,8 @@ export function splitLocally(s: Store, text: string, jobId?: string): CapItem[] 
     const jid = j?.id || jobId || ''
     const who = personIn(t, team) || whoFor(s, kind, jid)
     const day = DAY_WORDS.find(([re]) => re.test(t.toLowerCase()))?.[1] || ''
-    return { id: newId(), kind, title: (t.charAt(0).toUpperCase() + t.slice(1)).slice(0, 120), jobId: jid, who, when: day }
+    const forWho = kind === 'gc' ? personIn(t, crewsOf(s)) : undefined
+    return { id: newId(), kind, title: (t.charAt(0).toUpperCase() + t.slice(1)).slice(0, 120), jobId: jid, who, when: day, forWho }
   })
 }
 
@@ -174,7 +183,9 @@ export function addCaptured(items: CapItem[]) {
         return
       }
       if (it.kind === 'problem') { newTask(st, { ...base, tone: 'bad' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `Problem: ${it.title}` }); return }
-      if (it.kind === 'gc') { newTask(st, { ...base, state: 'waiting', waitingOn: 'GC', followUp: it.when || followUpDay(), tone: 'warn' }); return }
+      /* the GC's: he hears about it today (the message is written), it's needed by the day we start, and someone waiting
+         for it (an installer) gets the answer written too — features/gcwait */
+      if (it.kind === 'gc') { newTask(st, { ...base, due: undefined, state: 'waiting', waitingOn: 'GC', followUp: it.when || 'Today', needBy: needByFor(st, j), forWho: it.forWho, tone: 'warn' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `For the GC: ${it.title}` }); return }
       if (it.kind === 'bring') { newTask(st, { ...base, title: j ? `Bring to ${j.name}: ${it.title.replace(/^(bring|pick up)\s+/i, '')}` : it.title, tone: 'warn', req: { what: it.title.replace(/^(bring|pick up)\s+/i, ''), trip: 'asked' } }); return }
       newTask(st, base)
     })
@@ -346,7 +357,8 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
         <SearchSelect label="Who" value={it.who} options={whoOptions} onChange={(p) => onChange({ who: p as PersonKey })} search={whoOptions.length > 8} width={300}
           trigger={<button type="button" aria-label="Who" className={cn(PICK_CHIP, 'pl-1.5')}><Avatar who={it.who} size={22} /><span className="min-w-0 truncate">{it.who === me ? 'Me' : PEOPLE[it.who]?.short || it.who}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
         <SearchSelect label="When" value={it.when || 'Today'} options={whenOptions} onChange={(d) => onChange({ when: d })} search={false} width={220}
-          trigger={<button type="button" aria-label="When" className={PICK_CHIP}><CalendarDays /><span>{it.kind === 'gc' && !it.when ? `Follow up ${followUpDay()}` : it.when || 'Today'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
+          trigger={<button type="button" aria-label="When" className={PICK_CHIP}><CalendarDays /><span>{it.kind === 'gc' ? `Tell the GC ${(it.when || 'Today').replace(/^(Today|Tomorrow)$/, (m) => m.toLowerCase())}` : it.when || 'Today'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
+        {it.forWho && <span className="text-[0.75rem] text-muted" data-capture-for={it.forWho}>For {PEOPLE[it.forWho]?.short || it.forWho}</span>}
         {it.who !== me && <span className="text-[0.75rem] text-muted">You follow it</span>}
       </div>
       {it.note && <div className="mt-1.5 pl-1 text-[0.8125rem] leading-snug text-muted">{it.note}</div>}

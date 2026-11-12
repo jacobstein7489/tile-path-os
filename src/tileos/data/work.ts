@@ -63,6 +63,17 @@ export interface Task {
   repeatAt?: string
   /** a repeating task that's turned off for now (Settings → Automations) */
   paused?: boolean
+  /* ---- waiting on the GC: what he owes us, followed until it's done (features/gcwait) ---- */
+  /** the day it has to be done by (ISO) — the day our crew starts: the reminders come closer together as it nears */
+  needBy?: string
+  /** the day the GC said it'll be done (ISO) — it's checked that day */
+  promised?: string
+  /** what the GC said last, and the day */
+  said?: { text: string; day: string }
+  /** the day the GC was last told or reminded (ISO) */
+  asked?: string
+  /** who is waiting for the answer — an installer, or one of ours: when it comes, it's written for him */
+  forWho?: PersonKey
 }
 export const REPEAT_LABEL: Record<NonNullable<Task['repeat']>, string> = { daily: 'Every day', weekdays: 'Every weekday', weekly: 'Every week', monthly: 'Every month' }
 

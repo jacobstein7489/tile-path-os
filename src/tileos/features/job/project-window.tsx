@@ -32,6 +32,7 @@ import { ScopeDoc, scopeRev } from './scopedoc'
 import { md, dayShort, daysBetween, TODAY } from '@/tileos/lib/today'
 import { typeOf, howFar, whenOf } from '../projectlist'
 import { seesMoney } from './board'
+import { GcLine } from '../gcwait'
 
 export { floorsOf }
 export type PTab = 'ready' | 'install' | 'punch' | 'money'
@@ -250,6 +251,8 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
       </div>
       {/* where it is, like a parcel's tracking — six stages, clean */}
       {!pricing && <StageBar job={job} />}
+      {/* what it waits on from the GC — always in sight, until it's done */}
+      {!pricing && <GcLine job={job} />}
     </div>
   )
 }
