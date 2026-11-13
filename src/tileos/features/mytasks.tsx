@@ -35,7 +35,7 @@ import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
 import { WinHead } from './winhead'
-import { useSmall } from '@/tileos/lib/phone'
+import { useSmall, usePhone } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
 import { isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 
@@ -178,6 +178,8 @@ const InJob = React.createContext(false)
 /** grouped by project, but a row that isn't under a project's band (For everyone, No day set, the check-ins): the
  *  same two columns as the rest of the list — its project goes quietly after its name instead of in a column */
 const Loose = React.createContext(false)
+/** on a phone, the same thing on several projects: its name once, over them — each row under it says only where */
+const UnderTask = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 /** a Today list's columns on a computer: the project first (where — not when grouped by project, its band says it),
@@ -204,12 +206,15 @@ function TodoHead({ who, inJob }: { who: boolean; inJob: boolean }) {
  *  meeting's hour, the day it was due) sits just before it */
 const NEXT_CELL = 'flex min-w-0 items-center justify-end gap-4 max-md:hidden [&_button]:h-8 [&_button]:w-[10.5rem] [&_button]:max-w-none [&_button]:justify-center [&_button]:px-3 [&_button_svg]:hidden'
 
-function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner }: {
+function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, phoneWhen = true }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
+  /** a phone shows the when too (false: only a computer — a phone's line is short) */
+  phoneWhen?: boolean
 }) {
   const who = React.useContext(WhoCol)
   const inJob = React.useContext(InJob)
   const loose = React.useContext(Loose) && inJob
+  const under = React.useContext(UnderTask)
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
   /* grouped by project, the group's name says it — it's still on the row for a screen reader. A row under no
@@ -230,16 +235,19 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
       data-subrow
-      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-2.5 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-2.5 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out', under && 'max-md:min-h-[2.625rem] max-md:border-t-0 max-md:py-1.5')}
+      data-under={under ? '' : undefined}
     >
-      <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
+      <div className={cn('flex min-w-0 items-center gap-2.5 max-md:flex-1', under && 'max-md:pl-4')}>
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-baseline gap-3">
             {/* a phone: one line — what, then where (and whose) in gray right after it; a long one wraps, never cut */}
-            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal max-md:text-[0.9375rem] max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}{wherePhone && <span className="font-normal text-muted md:hidden" data-row-where-phone> · {wherePhone}</span>}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal max-md:text-[0.9375rem] max-md:leading-[1.375rem]', under && 'max-md:font-normal', done ? 'text-muted line-through decoration-faint' : under ? 'text-ink-2' : 'text-ink')}>{under
+              ? <><span className="sr-only">{title} · </span><span data-row-where-phone>{wherePhone || title}</span></>
+              : <>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}{wherePhone && <span className="font-normal text-muted md:hidden" data-row-where-phone> · {wherePhone}</span>}</>}</span>
             {/* on a phone the time sits at the end of the task's line */}
-            {w && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
+            {w && phoneWhen && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
           </div>
         </div>
       </div>
@@ -545,6 +553,8 @@ function GcRow({ t }: { t: Task }) {
         project={job?.name || 'Company'}
         when={st.text}
         whenTone={st.tone === 'bad' ? 'bad' : st.tone === 'warn' ? 'warn' : 'quiet'}
+        /* a phone: when the next reminder goes is for a computer — there it says so only when something's wrong */
+        phoneWhen={st.tone === 'bad' || st.tone === 'warn'}
       />
     </div>
   )
@@ -794,6 +804,7 @@ const dayHead = (iso: string) => (iso === TODAY ? 'Today' : iso === TOMORROW ? '
 export function MyTasksPage() {
   const s = useStore()
   const role = s.role
+  const phone = usePhone()
   const t0 = (s.route.tab as string) || 'today'
   /* the site manager's Today is just today and tomorrow */
   const simple = role === 'site'
@@ -865,6 +876,33 @@ export function MyTasksPage() {
   const now = new Date()
   const nowMin = now.getHours() * 60 + now.getMinutes()
 
+  /* on a phone, the same thing on several projects (a daily update, a checklist step, a to-do of the same name): its
+     name once, the projects under it — one short line each, nothing said twice. On a computer the columns do that */
+  const sameName = (x: PlateItem): string => {
+    if (x.kind === 'daily' && x.d) return x.d.missed ? 'Daily update — not sent' : 'Daily update'
+    if (x.kind === 'step' && x.v && x.job) return todoOf(x.v)
+    if (x.kind === 'task' && x.t && !x.t.urgent && x.t.jobId && s.jobs[x.t.jobId]) return cleanTitle(x.t.title, s.jobs[x.t.jobId])
+    return ''
+  }
+  const sameRows = (rows: PlateItem[], row: (x: PlateItem) => React.ReactNode): React.ReactNode => {
+    if (!phone) return rows.map(row)
+    const groups: { k: string; name: string; xs: PlateItem[] }[] = []
+    rows.forEach((x) => {
+      const name = sameName(x)
+      /* a thing at a set time: the same name at the same time */
+      const k = name ? `${name.trim().toLowerCase()}${x.time != null ? `@${x.time}` : ''}` : ''
+      const g = k ? groups.find((y) => y.k === k) : undefined
+      if (g) g.xs.push(x)
+      else groups.push({ k: k || `#${x.key}`, name, xs: [x] })
+    })
+    return groups.map((g) => (g.xs.length < 2 ? row(g.xs[0]) : (
+      <div key={`same:${g.k}`} data-same-group>
+        <div className={cn('border-t border-line-2 pt-3 text-[0.9375rem] font-medium leading-[1.375rem] text-ink', PX)} data-same-name>{g.name}</div>
+        <UnderTask.Provider value>{g.xs.map(row)}</UnderTask.Provider>
+      </div>
+    )))
+  }
+
   /* one day: what's late (today only), then the day in time order — timed things first, then anytime */
   const dayBlock = (iso: string, items: PlateItem[], withLate = false, lead?: React.ReactNode) => {
     /* urgent: first of all, in red — then what's late, then the day */
@@ -886,21 +924,18 @@ export function MyTasksPage() {
         {lateRows.length > 0 && (
           <section data-day="overdue">
             <Group label="Overdue" count={lateRows.length} tone="bad" strong right={<button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button>} />
-            {lateRows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
+            {sameRows(lateRows, (x) => <PlateRow key={x.key} x={x} showOwner={all} overdue followed={followsIt(x.t)} />)}
           </section>
         )}
         {(rows.length > 0 || !lateRows.length || !!lead) && (
           <section data-day={iso}>
             <Group label={dayHead(iso)} count={rows.length + (lead ? 1 : 0)} tone="info" strong />
             {lead}
-            {timed.map((x, i) => (
-              <React.Fragment key={x.key}>
-                {i === nowAt && <NowLine min={nowMin} />}
-                <PlateRow x={x} showOwner={all} followed={followsIt(x.t)} />
-              </React.Fragment>
-            ))}
-            {iso === TODAY && timed.length > 0 && nowAt === -1 && <NowLine min={nowMin} />}
-            {any.map((x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+            {/* what's set for a time: before now, the line, after now */}
+            {sameRows(timed.slice(0, nowAt === -1 ? timed.length : nowAt), (x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+            {iso === TODAY && timed.length > 0 && <NowLine min={nowMin} />}
+            {sameRows(nowAt === -1 ? [] : timed.slice(nowAt), (x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
+            {sameRows(any, (x) => <PlateRow key={x.key} x={x} showOwner={all} followed={followsIt(x.t)} />)}
             {!rows.length && !lead && <div className={cn('border-t border-line-2 py-6 text-[0.84375rem] text-muted', PX)}>Nothing on {dayHead(iso).toLowerCase() === 'today' ? 'today' : dayHead(iso)}.</div>}
           </section>
         )}

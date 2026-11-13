@@ -106,8 +106,9 @@ export type Voice = {
   can: boolean
 }
 
-/** listen: each final piece of what's said goes to onText. hint: names and words likely to come up */
-export function useVoice(onText: (t: string) => void, hint = ''): Voice {
+/** listen: each final piece of what's said goes to onText. hint: names and words likely to come up. onDone: you
+ *  stopped talking — it stops by itself (only where the mic's meter really hears), then this */
+export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone?: () => void }): Voice {
   const [on, setOn] = React.useState(false)
   const [hearing, setHearing] = React.useState('')
   const [level, setLevel] = React.useState(0)
@@ -135,6 +136,10 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
   const cap = React.useRef<any>(null)
   const alive = React.useRef(true)
   const starting = React.useRef(false)
+  const doneRef = React.useRef(opts?.onDone)
+  doneRef.current = opts?.onDone
+  /* how long the voice has been heard, this time (ms) — talking, not a cough */
+  const voiced = React.useRef(0)
 
   const meterOff = () => {
     cancelAnimationFrame(raf.current)
@@ -156,30 +161,64 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     streamOff()
   }, [])
 
-  /* the level of the voice — from the mic itself, so it moves only when it hears something */
-  const meter = (s: MediaStream, made: any) => {
+  /* the level of the voice — from the mic itself, so it moves only when it hears something. On an iPhone the sound only
+     flows when it goes somewhere: on to the speaker, at nothing (silent). A meter that hears nothing at all — not even
+     the room — isn't hearing: once more with a new one, then the bars just move and nothing is decided by it */
+  const meter = (s: MediaStream, made: any, again = false) => {
     try {
       const ac = made || soundContext()
       if (!ac) return
       try { void ac.resume?.() } catch { /* fine */ }
       const an = ac.createAnalyser()
-      an.fftSize = 512
+      an.fftSize = 1024
       ac.createMediaStreamSource(s).connect(an)
+      try { const mute = ac.createGain(); mute.gain.value = 0; an.connect(mute); mute.connect(ac.destination) } catch { /* fine */ }
       ctx.current = ac
+      const flt: Float32Array | null = typeof an.getFloatTimeDomainData === 'function' ? new Float32Array(an.fftSize) : null
       const buf = new Uint8Array(an.fftSize)
+      const t0 = Date.now()
       let last = 0
-      lastLoud.current = Date.now()
+      let prev = t0
+      let any = false
+      lastLoud.current = t0
+      voiced.current = 0
       const tick = (t: number) => {
-        an.getByteTimeDomainData(buf)
         let sum = 0
-        for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; sum += x * x }
-        const lv = Math.min(1, Math.sqrt(sum / buf.length) * 5)
-        if (lv > 0.08) { lastLoud.current = Date.now(); loud.current = true }
+        if (flt) {
+          an.getFloatTimeDomainData(flt)
+          for (let i = 0; i < flt.length; i++) { const x = flt[i]; if (x !== 0) any = true; sum += x * x }
+          sum /= flt.length
+        } else {
+          an.getByteTimeDomainData(buf)
+          for (let i = 0; i < buf.length; i++) { if (buf[i] !== 128) any = true; const x = (buf[i] - 128) / 128; sum += x * x }
+          sum /= buf.length
+        }
+        const lv = Math.min(1, Math.sqrt(sum) * 5)
+        const now = Date.now()
+        if (lv > 0.05) { lastLoud.current = now; loud.current = true }
+        if (lv > 0.08) voiced.current += Math.min(100, now - prev)
+        prev = now
+        /* nothing at all, a second and a half in: this meter doesn't hear */
+        if (!any && now - t0 > 1500) {
+          try { ac.close?.() } catch { /* closed */ }
+          if (ctx.current === ac) ctx.current = null
+          if (!again && want.current && alive.current) { meter(s, null, true); return }
+          raf.current = 0
+          if (alive.current) { setLevel(0); setMetering(false) }
+          return
+        }
         if (t - last > 80 && alive.current) {
           last = t
-          if (ac.state === 'running' && !metered.current) { metered.current = true; setMetering(true) }
+          if (ac.state === 'running' && any && !metered.current) { metered.current = true; setMetering(true) }
           setLevel(lv)
-          setQuiet(ac.state === 'running' && Date.now() - lastLoud.current > 5000)
+          setQuiet(metered.current && now - lastLoud.current > 5000)
+        }
+        /* you stopped talking: it goes by itself */
+        if (doneRef.current && metered.current && want.current && voiced.current >= 350 && now - lastLoud.current >= 1400) {
+          const done = doneRef.current
+          stop()
+          done()
+          return
         }
         raf.current = requestAnimationFrame(tick)
       }
@@ -237,7 +276,7 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     mr.current = null
     /* the recording is the words when the browser gave none (it recorded instead, or its listening failed) — what was
        written down while talking stays on screen until the careful one comes */
-    const need = !!m && m.state !== 'inactive' && (srDown.current || !gotWords.current) && (loud.current || !metered.current)
+    const need = !!m && m.state !== 'inactive' && (srDown.current || !gotWords.current)
     if (!need) setHearing('')
     if (m && m.state !== 'inactive') {
       m.onstop = () => {

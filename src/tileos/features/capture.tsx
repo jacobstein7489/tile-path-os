@@ -322,7 +322,9 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
   const take = React.useRef(true)
   /* the names that may come up — so what's said is written down right */
   const hint = React.useMemo(() => [...insidePeople(s).map((p) => PEOPLE[p]?.name), ...crewsOf(s).map((p) => PEOPLE[p]?.name), ...projectsFor(s).slice(0, 40).map((j) => j.name)].filter(Boolean).join(', ').slice(0, 780), [])
-  const mic = useVoice((t) => { if (take.current) setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)) }, hint)
+  /* the mic: tap to talk — it goes when you stop talking (or tap again), as soon as the words are in */
+  const [sendAt, setSendAt] = React.useState(0)
+  const mic = useVoice((t) => { if (take.current) setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)) }, hint, { onDone: () => setSendAt(Date.now()) })
   const now = React.useRef({ text, hearing: mic.hearing, turns, busy })
   now.current = { text, hearing: mic.hearing, turns, busy }
   const end = React.useRef<HTMLDivElement>(null)
@@ -390,8 +392,6 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
     setTurns((ts) => ts.map((t) => (t.id === think.id ? { ...t, thinking: false, text: reply || (ask2 ? 'Here’s what I’ll do — OK?' : 'Got it.'), items, acts, plain, state: ask2 ? 'ask' : undefined } : t)))
     setBusy(false)
   }
-  /* the mic: tap to talk, tap again when you're done — it goes as soon as the words are in */
-  const [sendAt, setSendAt] = React.useState(0)
   const talk = () => {
     if (mic.on) { setSendAt(Date.now()); mic.stop(); return }
     take.current = true
@@ -427,7 +427,7 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
           <Helper size={44} mood={busy || mic.busy ? 'thinking' : mic.on ? 'listening' : 'idle'} />
           <div className="min-w-0">
             <h2 className="font-display text-[1.125rem] font-semibold leading-tight text-ink">Tile OS</h2>
-            <div className="text-[0.8125rem] text-muted">{mic.on ? 'Listening — tap the red button when you’re done' : busy || mic.busy ? 'One second…' : 'Ask me, or tell me what to do'}</div>
+            <div className="text-[0.8125rem] text-muted">{mic.on ? (mic.metering ? 'Listening — it goes when you stop talking' : 'Listening — tap the red button when you’re done') : busy || mic.busy ? 'One second…' : 'Ask me, or tell me what to do'}</div>
           </div>
         </div>
       }
