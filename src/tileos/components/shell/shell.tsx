@@ -3,10 +3,11 @@ import markUrl from '@/tileos/assets/mark.svg'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
-import { Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
+import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { robotTime } from '@/tileos/lib/robottime'
+import { updateReady, watchUpdateReady, updateNow } from '@/tileos/lib/device'
 import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -241,6 +242,21 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {REAL.cloud && lastOpened() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-opened>{lastOpened()}</div>}
       {robotTime() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-robot-time>{robotTime()}</div>}
     </>
+  )
+}
+
+/** a new version is out and the app didn't move to it on its own (you were using it): one tap moves to it — it only
+ *  shows then, under the bar on top */
+export function UpdatePill() {
+  const on = React.useSyncExternalStore(watchUpdateReady, updateReady, () => false)
+  const [going, setGoing] = React.useState(false)
+  if (!on) return null
+  return (
+    <button type="button" onClick={() => { setGoing(true); void updateNow() }} disabled={going} data-update-pill
+      className="fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] z-[45] inline-flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-brand-600 px-4 py-2.5 text-[0.9375rem] font-semibold text-white shadow-[0_0.5rem_1.5rem_-0.5rem_rgba(38,80,207,.6)] lg:top-4">
+      <RotateCw className={going ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+      {going ? 'Updating…' : 'New version — tap to update'}
+    </button>
   )
 }
 

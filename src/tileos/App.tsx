@@ -5,7 +5,7 @@ import { useStore, homeOf, meOf, type Page } from '@/tileos/store'
 import { ROLES, PEOPLE } from '@/tileos/data/model'
 import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { roleDef, seesUpcoming } from '@/tileos/data/model'
-import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge } from '@/tileos/components/shell/shell'
+import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge, UpdatePill } from '@/tileos/components/shell/shell'
 import { TipProvider } from '@/tileos/components/ui/overlay'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher } from '@/tileos/features/mytasks'
 import { CaptureModal } from './features/capture'
@@ -311,6 +311,7 @@ export default function App() {
             </main>
           </div>
           <BottomNav />
+          <UpdatePill />
           <AskButton />
           <IncomingWatcher />
           <AppBadge />

@@ -70,6 +70,22 @@ function keepNewPage(): Promise<void> {
     try { sw.postMessage({ page: true }, [ch.port2]) } catch { clearTimeout(t); done() }
   })
 }
+/* a new version is out but the app didn't move to it on its own (you were already using it): a small button says so —
+   one tap moves to it. Not shown when it already moved to that version once and it still looks newer (see MOVED) */
+let ready = false
+const readyWatch = new Set<() => void>()
+const setReady = (on: boolean) => { if (ready === on) return; ready = on; readyWatch.forEach((f) => f()) }
+/** a new version is waiting */
+export const updateReady = () => ready
+export function watchUpdateReady(f: () => void) { readyWatch.add(f); return () => { readyWatch.delete(f) } }
+/** for the test app: as if a new version were waiting */
+export const showUpdateReady = (on = true) => setReady(on)
+/** move to the new version now (the button): keep its page on the device, then open it */
+export async function updateNow(reload: () => void = () => location.reload()) {
+  try { localStorage.removeItem(MOVED) } catch { /* fine */ }
+  await keepNewPage()
+  reload()
+}
 /** look once: true when it moved (or is about to) */
 export async function checkForNewVersion(o: { idle: () => boolean; now: boolean; get?: () => Promise<string>; loaded?: Set<string>; reload?: () => void }): Promise<'same' | 'moved' | 'later' | 'error'> {
   let html = ''
@@ -79,7 +95,7 @@ export async function checkForNewVersion(o: { idle: () => boolean; now: boolean;
   let was: { sig?: string; at?: number } | null = null
   try { was = JSON.parse(localStorage.getItem(MOVED) || 'null') } catch { /* private window */ }
   if (was?.sig === sig && Date.now() - (was.at || 0) < DAY_MS) return 'later'
-  if (!o.now || !o.idle()) return 'later'
+  if (!o.now || !o.idle()) { setReady(true); return 'later' }
   try { localStorage.setItem(MOVED, JSON.stringify({ sig, at: Date.now() })) } catch { /* private window */ }
   await keepNewPage()
   ;(o.reload || (() => location.reload()))()
@@ -99,4 +115,6 @@ export function watchForNewVersion(idle: () => boolean) {
     if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return }
     if (hiddenAt && Date.now() - hiddenAt > 2 * 60 * 1000) void checkForNewVersion({ idle, now: true })
   })
+  /* kept open a long time: every few minutes — a new one shows the button */
+  setInterval(() => { if (document.visibilityState === 'visible' && !ready) void checkForNewVersion({ idle, now: false }) }, 4 * 60 * 1000)
 }
