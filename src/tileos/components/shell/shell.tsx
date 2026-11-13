@@ -281,7 +281,7 @@ export function BottomNav() {
             <React.Fragment key={k}>
               {/* + New in the very middle, where the thumb is */}
               {i === 2 && <PhonePlus />}
-              <button onClick={() => go({ page: k as Page })} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold transition-colors', on ? 'text-brand-600' : 'text-muted')}>
+              <button onClick={() => go({ page: k as Page })} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-brand-600' : 'text-muted')} data-phone-tab={k}>
                 <span className="relative">
                   <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2 : 1.7} />
                   {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}

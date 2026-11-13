@@ -102,7 +102,7 @@ export function Page({
             ) : (
               <section className="min-w-0 flex-1 overflow-clip rounded-[0.875rem] border border-line bg-white shadow-sheet" style={{ '--bar': bar + 'px' } as React.CSSProperties}>
                 {(tabs || toolbar) && (
-                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] lg:top-[calc(var(--app-top,0px)+var(--head,0px))] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2', PX, PHONE_BAR)}>
+                  <div ref={barRef} className={cn('md:sticky md:top-[var(--app-top,0px)] lg:top-[calc(var(--app-top,0px)+var(--head,0px))] md:z-[15] flex min-h-[3.25rem] flex-wrap items-center gap-2 border-b border-line bg-white py-2 max-sm:has-[[data-bar-phone-empty]]:hidden', PX, PHONE_BAR)}>
                     {tabs && <ChipTabs value={tab as string} onChange={(k) => onTab?.(k)} items={tabs} />}
                     {toolbar}
                   </div>

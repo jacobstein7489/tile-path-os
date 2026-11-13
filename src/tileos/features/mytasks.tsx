@@ -228,17 +228,17 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
       data-subrow
-      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-1.5 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-2.5 md:grid', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
           {/* a phone: the project (and whose) over the task */}
-          {(project || (who && owner)) && <div className="truncate text-[0.75rem] text-muted md:hidden">{[project, who && owner ? ownerName : ''].filter(Boolean).join(' · ')}</div>}
+          {(project || (who && owner)) && <div className="truncate text-[0.8125rem] leading-5 text-muted md:hidden">{[project, who && owner ? ownerName : ''].filter(Boolean).join(' · ')}</div>}
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal max-md:text-[0.9375rem] max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
             {/* on a phone the time sits at the end of the task's line */}
-            {w && <span className={cn('shrink-0 text-[0.75rem] tnum md:hidden', whenCls)}>{w}</span>}
+            {w && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
           </div>
         </div>
       </div>
@@ -335,12 +335,13 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
     <TodoRow
       onClick={() => s.open({ t: 'daily', jobId: d.jobId })}
       icon={<ClipboardList />}
-      title={d.missed ? `Daily update · ${md(d.missed)} — not sent` : 'Daily update'}
+      /* yesterday's not sent: its day is on the right, in red — not twice on one line */
+      title={d.missed ? 'Daily update — not sent' : 'Daily update'}
       detail={`${PEOPLE[d.crew].short}’s crew · ${job.pct ?? 0}% installed`}
       owner={showOwner ? siteOf(s, job) : undefined}
       project={job.name}
-      when={d.missed ? md(d.missed) : 'End of day'}
-      whenTone={d.missed ? 'bad' : 'strong'}
+      when={d.missed ? md(d.missed) : undefined}
+      whenTone={d.missed ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
     />
   )
@@ -360,8 +361,8 @@ function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       detail={jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(' · ')}
       owner={showOwner ? x.who : undefined}
       project={`${jobs.length} jobs`}
-      when={missed ? `${missed} late` : 'End of day'}
-      whenTone={missed ? 'bad' : 'strong'}
+      when={missed ? `${missed} late` : undefined}
+      whenTone={missed ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={open} data-dailies-open>Send updates</Button>}
     />
   )
@@ -421,8 +422,6 @@ function CrewRow() {
       icon={<HardHat />}
       title={`Send ${whose} crew list`}
       detail={`${n} ${n === 1 ? 'project' : 'projects'} — how many people on each`}
-      when={day === TODAY_ISO ? 'First thing' : 'Before you leave'}
-      whenTone="strong"
       action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send it</Button>}
     />
   )
@@ -511,7 +510,7 @@ function TeamRow({ x }: { x: PlateItem }) {
     : x.t?.urgent ? { text: 'Urgent', tone: 'bad' }
       : handled ? { text: handled, tone: 'quiet' }
         : x.b === 'overdue' ? { text: n > 0 ? `${n} ${n === 1 ? 'day' : 'days'} late` : 'Late', tone: 'bad' }
-          : { text: 'Today', tone: 'quiet' }
+          : { text: 'Anytime', tone: 'quiet' }
   return (
     <div data-checkin-row={x.who} data-contents>
       {x.kind === 'step' ? <StepRowToday job={x.job!} v={x.v!} when={when} /> : <TaskRow t={x.t!} when={when} />}
@@ -1020,7 +1019,8 @@ export function MyTasksPage() {
         />
       </>}
       toolbar={
-        <div className="flex w-full flex-wrap items-center gap-2">
+        /* a phone with nothing to pick here (the site manager's list): no empty box over the list */
+        <div className="flex w-full flex-wrap items-center gap-2" data-bar-phone-empty={!seesTeam && !all && (simple || view === 'done') ? '' : undefined}>
           {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
           {/* Everyone's is by person — pick one person to see just theirs (no switch for how it's grouped: it's by person) */}
           {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
