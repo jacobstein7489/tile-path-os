@@ -329,14 +329,14 @@ export function VerifyModal({ taskId, level }: { taskId: string; level: number }
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+      <div className="grid grid-cols-2 gap-3 max-sm:gap-2">
         {['Before', 'After'].map((l, i) => (
           <div key={l} className="overflow-hidden rounded-2xl border border-line">
-            <div className="relative h-[9.375rem]">
+            <div className="relative h-[9.375rem] max-sm:h-[6.5rem]">
               <Swatch kind="blackhex" size={300} radius={0} className="!h-full !w-full" />
               {i === 0 && <span className="absolute inset-0 bg-[radial-gradient(circle_at_40%_45%,rgba(214,200,170,.75),transparent_55%)]" />}
             </div>
-            <div className="px-3 py-2 text-[0.8125rem] font-semibold text-ink">{l} · {i ? 'Philip, today' : shiftText('Yaakov, Sep 11')}</div>
+            <div className="px-3 py-2 text-[0.8125rem] font-semibold text-ink max-sm:px-2.5 max-sm:py-1.5">{l}<span className="font-normal text-muted"> · {i ? 'Philip, today' : shiftText('Yaakov, Sep 11')}</span></div>
           </div>
         ))}
       </div>

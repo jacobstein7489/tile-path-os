@@ -169,7 +169,7 @@ export function Modal({
                 <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 pb-5 pt-4 max-sm:px-4 max-sm:pb-5 max-sm:pt-4', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
               </>
             )}
-            {footer && <div className="flex shrink-0 items-center gap-2.5 bg-white px-6 pb-5 pt-2.5 max-sm:flex-wrap max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem]">{footer}</div>}
+            {footer && <div className="flex shrink-0 items-center gap-2.5 bg-white px-6 pb-5 pt-2.5 max-sm:flex-wrap max-sm:items-stretch max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem] max-sm:[&>button]:ml-0 max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto" data-modal-footer>{footer}</div>}
           </Dialog.Content>
         </div>
       </Dialog.Portal>

@@ -1,7 +1,9 @@
 /* Yes · No · N/A — the one way every question on a project's checklist is answered, the same on the project, on the
  * site check and on Today. Tap the answer that's on to take it back. A No asks what's wrong (type it or say it). */
 import * as React from 'react'
+import { ChevronDown } from 'lucide-react'
 import { TextInput } from '@/tileos/components/ui/core'
+import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import type { Answer } from './ready'
 
@@ -78,19 +80,26 @@ export function NoNote({ value, onSave, autoFocus, placeholder = 'What’s wrong
 export type SiteVal = 'yes' | 'some' | 'no' | 'na'
 const SITE_OPTS: [SiteVal, string][] = [['yes', 'Yes'], ['some', 'Some'], ['no', 'No'], ['na', 'N/A']]
 const SITE_ON: Record<SiteVal, string> = { ...ON, some: 'bg-[#d98c0b] text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,.12)]' }
+const SITE_DOT: Record<SiteVal, string> = { yes: 'bg-[#2c8a5b]', some: 'bg-[#d98c0b]', no: 'bg-bad-500', na: 'bg-[#8b867d]' }
+/** the answer, picked from a drop-down: it shows the answer (or Pick), the choices open under it — every row the same */
 export function SitePick({ value, onPick, q, byRoom, disabled, className }: { value?: SiteVal; onPick: (a: SiteVal | null) => void; q: string; /** "Some" only where it's looked at room by room */ byRoom?: boolean; disabled?: boolean; className?: string }) {
+  const opts = SITE_OPTS.filter(([a]) => a !== 'some' || byRoom)
+  const label = value ? SITE_OPTS.find(([a]) => a === value)?.[1] : 'Pick'
+  const button = (
+    <button type="button" disabled={disabled} aria-label={`${q} ${value ? label : 'not answered'}`} data-site-pick={value || ''}
+      className={cn('inline-flex h-10 w-[7.25rem] shrink-0 items-center gap-2 rounded-[0.625rem] border bg-white px-3 text-left text-[0.9375rem] font-semibold transition disabled:opacity-60',
+        value ? 'border-line text-ink' : 'border-[#cfc9be] text-muted', 'enabled:hover:border-[#bdb6aa]', className)}>
+      {value && <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', SITE_DOT[value])} aria-hidden />}
+      <span className="min-w-0 flex-1">{label}</span>
+      <ChevronDown className="h-4 w-4 shrink-0 text-faint" aria-hidden />
+    </button>
+  )
+  if (disabled) return button
   return (
-    <span role="radiogroup" aria-label={q} className={cn('inline-flex shrink-0 items-center gap-0.5 rounded-full border border-line bg-white p-0.5', disabled && 'opacity-70', className)}>
-      {SITE_OPTS.filter(([a]) => a !== 'some' || byRoom).map(([a, label]) => {
-        const on = value === a
-        return (
-          <button key={a} type="button" role="radio" aria-checked={on} aria-label={`${label} — ${q}`} data-answer={a} disabled={disabled}
-            onClick={(e) => { e.stopPropagation(); onPick(on && a !== 'some' ? null : a) }}
-            className={cn('inline-flex h-7 min-w-[2.625rem] items-center justify-center rounded-full px-2.5 text-[0.8125rem] font-semibold transition pointer-coarse:h-9 pointer-coarse:min-w-[3rem]', on ? SITE_ON[a] : 'text-ink-2 enabled:hover:bg-wash', !on && disabled && 'text-faint', on && 'answer-on')}>
-            {label}
-          </button>
-        )
-      })}
-    </span>
+    <Menu align="end" width={180} trigger={button}>
+      {opts.map(([a, l]) => (
+        <MenuItem key={a} onSelect={() => onPick(a)} checked={value === a} data-answer={a} icon={<span className={cn('h-2.5 w-2.5 rounded-full', SITE_DOT[a])} />}>{l}</MenuItem>
+      ))}
+    </Menu>
   )
 }

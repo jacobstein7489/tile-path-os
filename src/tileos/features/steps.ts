@@ -104,6 +104,9 @@ export interface SiteAnswer { ok: boolean; note?: string; na?: boolean; by?: Per
   fixed?: string; fixedBy?: PersonKey }
 /* what the site manager looks at on the site check — each one a question: Yes, No (what's wrong), or N/A. Some are
  * looked at room by room: "Some" says which rooms miss it. */
+/** a problem with the tile itself (broken, wrong or short — said with its tag, "T-04: 6 boxes missing"): only these
+ *  hold up Receive the tile. A setting-materials problem (cement, sand) is the materials' own, not the tile's */
+export const isTileProblem = (t: { tone?: string; type?: string; state?: string; where?: string; title: string }) => t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done' && /^T-?\d+\b/i.test((t.where || t.title).trim())
 export const SITE_CHECKS: { k: string; label: string; q: string; sub: string; byRoom?: 'shower' | 'all'; no: string }[] = [
   { k: 'power', label: 'Power on site', q: 'Power on site?', sub: 'An outlet for the saw and the mixer', no: 'No power on site' },
   { k: 'water', label: 'Water on site', q: 'Water on site?', sub: 'Running water to mix and clean up', no: 'No water on site' },
@@ -455,7 +458,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     }
     case 'delivered': {
       /* tile that came broken, wrong or short (logged as a problem) — it isn't delivered until those are sorted */
-      const probs = s.tasks.filter((t) => t.jobId === j.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done')
+      const probs = s.tasks.filter((t) => t.jobId === j.id && isTileProblem(t))
       if (probs.length) return { state: 'bad', note: probs.length === 1 ? probs[0].title : `${probs.length} problems — ${probs.map((t) => t.title.replace(/^(T-\d+): \d+ boxes? (came )?/, '$1 ')).join(' · ')}`, action: { label: probs.length === 1 ? 'Open it' : 'Open the first', run: () => s.open({ t: 'task', id: probs[0].id }) } }
       const checks = s.checks.filter((c) => c.jobId === j.id)
       if (checks.length) {

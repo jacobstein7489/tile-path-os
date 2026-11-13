@@ -21,7 +21,7 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { mailLive, emailText } from './mailout'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, noteStep, removeJobStep, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, noteStep, removeJobStep, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, isTileProblem, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
@@ -709,7 +709,8 @@ function Block({ title, right, children, className }: { title: React.ReactNode; 
   )
 }
 const Quiet = ({ children }: { children: React.ReactNode }) => <div className="px-4 py-3 text-[0.84375rem] text-muted">{children}</div>
-const Actions = ({ children }: { children: React.ReactNode }) => <div className="mt-5 flex flex-wrap items-center justify-end gap-2">{children}</div>
+/* the work's buttons — on a phone the same size: two share the row, three or more one under the other */
+const Actions = ({ children }: { children: React.ReactNode }) => <div className="mt-5 flex flex-wrap items-center justify-end gap-2 max-sm:items-stretch max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto" data-step-actions>{children}</div>
 const Good = ({ children }: { children: React.ReactNode }) => <div className="mt-4 flex items-center gap-2 rounded-xl bg-ok-50 px-4 py-3 text-[0.875rem] font-medium text-ok-700"><Check className="h-4 w-4" />{children}</div>
 
 /** waiting on someone outside — who, and the day it comes back */
@@ -1599,10 +1600,10 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
           {wrong.length ? `Site check done — ${wrong.length === 1 ? 'one thing' : `${wrong.length} things`} to fix, on ${fixerName} list (Fix problems)` : 'Site check done — everything’s good on site'}
         </div>
       )}
-      <Block title="The whole site" right={`${asked} of ${qs.length} answered`}>
+      <Block title="The whole site" right={`${asked} of ${qs.length} done`}>
         {whole.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} fixer={fixerName} />)}
       </Block>
-      <Block title="Room by room" right="some rooms missing it? tap Some">
+      <Block title="Room by room">
         {byRoom.map((c) => <SiteRow key={c.k} job={job} k={c.k} can={can} fixer={fixerName} />)}
       </Block>
     </div>
@@ -1637,20 +1638,20 @@ function SiteRow({ job, k, can, fixer }: { job: Job; k: string; can: boolean; fi
   const have = rooms.length - missing.length
   const wrong = !!a && !a.ok && !a.na
   /* the drains are only asked where the scope has a shower — it says which */
-  const words = !a ? (some ? 'Which rooms don’t have it? Tap them.' : c.byRoom === 'shower' && rooms.length ? `Only where there’s a shower: ${rooms.join(', ')}` : c.sub)
-    : a.na ? 'Not needed here'
-      : a.ok ? `Yes${a.by ? ` · ${PEOPLE[a.by]?.short}${a.at ? ` ${a.at}` : ''}` : ''}`
-        : `${byRoom ? `${have} of ${rooms.length} have it — missing: ${missing.join(', ')}` : 'No'}${a.note ? ` · ${a.note}` : ''}`
+  /* only what needs saying: which rooms to tap, or what's missing — the answer itself is on the drop-down */
+  const words = !a ? (some ? 'Tap the rooms that don’t have it' : '')
+    : a.na || a.ok ? ''
+      : byRoom ? `Missing: ${missing.join(', ')}` : ''
   const showRooms = byRoom && (val === 'some' || val === 'no')
   return (
     <div className="border-t border-line-2 px-4 py-3 first:border-t-0" data-site={k} data-answer-is={val}>
-      <div className="flex items-center gap-3 max-sm:flex-wrap @max-lg:flex-wrap">
+      <div className="flex items-center gap-3">
         <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] max-sm:hidden @max-lg:hidden', wrong ? 'bg-bad-50 text-bad-600' : a?.ok && !a.na ? 'bg-ok-50 text-ok-700' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
-        <span className="min-w-0 flex-1 max-sm:basis-full @max-lg:basis-full">
-          <span className="block text-[0.875rem] font-semibold text-ink">{c.q}</span>
-          <span className={cn('block text-[0.78125rem]', wrong ? 'font-medium text-bad-600' : a?.ok && !a.na ? 'text-[#2c8a5b]' : some ? 'font-medium text-warn-700' : 'text-muted')}>{words}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.9375rem] font-medium text-ink">{c.label}</span>
+          {words && <span className={cn('block text-[0.78125rem]', wrong ? 'font-medium text-bad-600' : 'font-medium text-warn-700')}>{words}</span>}
         </span>
-        <SitePick q={c.q} byRoom={byRoom} value={val} onPick={pick} disabled={!can} className="max-sm:ml-auto @max-lg:ml-auto" />
+        <SitePick q={c.q} byRoom={byRoom} value={val} onPick={pick} disabled={!can} />
       </div>
       {showRooms && (
         <div className="mt-2.5 flex flex-wrap gap-1.5 sm:pl-12" data-site-rooms>
@@ -1666,8 +1667,8 @@ function SiteRow({ job, k, can, fixer }: { job: Job; k: string; can: boolean; fi
       )}
       {wrong && (
         <div className="mt-2 flex flex-col gap-1.5 sm:pl-12">
-          <NoNote value={a!.note} disabled={!can} autoFocus={can && !a!.note && !byRoom} placeholder="What’s wrong? (optional) — e.g. the GC says next week" onSave={(t) => setSiteAnswer(job.id, k, { ok: false, note: t, rooms: a!.rooms })} />
-          <span className="text-[0.75rem] font-medium text-bad-600" data-goes-to-fix>→ On {fixer} list to fix — it comes back here to look at again</span>
+          <NoNote value={a!.note} disabled={!can} placeholder="What’s wrong? (optional)" onSave={(t) => setSiteAnswer(job.id, k, { ok: false, note: t, rooms: a!.rooms })} />
+          <span className="text-[0.75rem] font-medium text-bad-600" data-goes-to-fix>Goes on {fixer} list to fix</span>
         </div>
       )}
     </div>
@@ -1886,12 +1887,12 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
   const host = useStepHost()
   const checks = s.checks.filter((c) => c.jobId === job.id)
   /* a tile with a problem logged against it isn't "all here", even if the count matched */
-  const badTags = new Set(s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done').map((t) => (t.where || t.title).split(/[\s:·]/)[0]))
+  const badTags = new Set(s.tasks.filter((t) => t.jobId === job.id && isTileProblem(t)).map((t) => (t.where || t.title).split(/[\s:·]/)[0]))
   if (checks.length) {
     /* one list, each tile once: how much is here, and its problem right on it (tap it to see who has it) — a problem
        on a tile that isn't on this delivery gets its own line in the same list */
     const me = meOf(s.role)
-    const probs = s.tasks.filter((t) => t.jobId === job.id && t.tone === 'bad' && t.type === 'Materials' && t.state !== 'done')
+    const probs = s.tasks.filter((t) => t.jobId === job.id && isTileProblem(t))
     const tagOf = (t: Task) => (t.where || t.title).split(/[\s:·]/)[0]
     const shortWords = (t: Task) => t.title.replace(new RegExp(`^${tagOf(t)}\\s*[:·—-]?\\s*`), '')
     const whoOf = (t: Task) => [t.owner === me ? 'You' : PEOPLE[t.owner]?.short, t.state === 'waiting' && t.waitingOn ? `waiting on ${t.waitingOn}` : ''].filter(Boolean).join(' · ')
@@ -1902,24 +1903,24 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
           {checks.map((c) => {
             const p = probs.filter((t) => tagOf(t) === c.tag)
             return (
-              <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0" data-delivery-tile={c.tag}>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.875rem] font-semibold text-ink">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span>
-                  <span className="block truncate text-[0.78125rem] text-muted">{c.received} of {c.ordered} {c.unit} here{c.eta && c.received < c.ordered ? ` · due ${c.eta}` : ''}</span>
+              <div key={c.tag} className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5 first:border-t-0 max-sm:flex-col max-sm:items-start max-sm:gap-1" data-delivery-tile={c.tag}>
+                <span className="min-w-0 flex-1 max-sm:w-full">
+                  <span className="block truncate text-[0.875rem] font-semibold text-ink max-sm:whitespace-normal">{c.tag} <span className="font-normal text-muted">· {c.where}</span></span>
+                  <span className="block truncate text-[0.78125rem] text-muted max-sm:whitespace-normal">{c.received} of {c.ordered} {c.unit} here{c.eta && c.received < c.ordered ? ` · due ${c.eta}` : ''}</span>
                 </span>
                 {p.length
-                  ? <button type="button" onClick={() => s.open({ t: 'task', id: p[0].id })} className="min-w-0 max-w-[55%] shrink text-right leading-tight" title={p.map((t) => t.title).join(' · ')}>
-                      <span className="block truncate text-[0.8125rem] font-semibold text-bad-600">{shortWords(p[0])}{p.length > 1 ? ` +${p.length - 1}` : ''}</span>
-                      <span className="block truncate text-[0.75rem] text-muted">{whoOf(p[0])}</span>
+                  ? <button type="button" onClick={() => s.open({ t: 'task', id: p[0].id })} className="min-w-0 max-w-[55%] shrink text-right leading-tight max-sm:max-w-full max-sm:text-left" title={p.map((t) => t.title).join(' · ')}>
+                      <span className="block truncate text-[0.8125rem] font-semibold text-bad-600 max-sm:whitespace-normal">{shortWords(p[0])}{p.length > 1 ? ` +${p.length - 1}` : ''}</span>
+                      <span className="block truncate text-[0.75rem] text-muted max-sm:whitespace-normal">{whoOf(p[0])}</span>
                     </button>
                   : <Status tone={c.received >= c.ordered ? 'ok' : c.received ? 'bad' : 'neutral'}>{c.received >= c.ordered ? 'All here' : c.received ? 'Part of it' : 'Not yet'}</Status>}
               </div>
             )
           })}
           {extra.map((t) => (
-            <button key={t.id} type="button" onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left row-hover" data-delivery-tile={tagOf(t)}>
-              <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-semibold text-ink">{tagOf(t)}</span><span className="block truncate text-[0.78125rem] text-muted">{whoOf(t)}</span></span>
-              <span className="min-w-0 max-w-[55%] truncate text-right text-[0.8125rem] font-semibold text-bad-600">{shortWords(t)}</span>
+            <button key={t.id} type="button" onClick={() => s.open({ t: 'task', id: t.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left row-hover max-sm:flex-col max-sm:items-start max-sm:gap-1" data-delivery-tile={tagOf(t)}>
+              <span className="min-w-0 flex-1 max-sm:w-full"><span className="block truncate text-[0.875rem] font-semibold text-ink">{tagOf(t)}</span><span className="block truncate text-[0.78125rem] text-muted max-sm:whitespace-normal">{whoOf(t)}</span></span>
+              <span className="min-w-0 max-w-[55%] truncate text-right text-[0.8125rem] font-semibold text-bad-600 max-sm:max-w-full max-sm:whitespace-normal max-sm:text-left">{shortWords(t)}</span>
             </button>
           ))}
         </Block>
