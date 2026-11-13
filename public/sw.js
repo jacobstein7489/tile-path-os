@@ -1,5 +1,7 @@
-/* Tile OS on the device — so the app opens with no signal (a basement, a new building).
- *   the page: from the network first; the last copy when there's no signal, or no answer within a few seconds
+/* Tile OS on the device — so the app opens right away, and with no signal (a basement, a new building).
+ *   the page: opened here before — the kept copy, right away (no waiting on the network); the newest is fetched at the
+ *   same time and kept for next time. The app checks whether that's a new version and moves to it by itself
+ *   (lib/device). Never opened here: from the network
  *   the app's files (scripts, styles, pictures, fonts): kept the first time they load, then served from here — their
  *   names change with every new version, so nothing goes stale
  * The company's data never goes through here: the app keeps its own copy and sends what was done once the signal is
@@ -22,7 +24,9 @@ self.addEventListener('message', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE)
     if (d.page) {
-      try { const r = await fetch('/', { credentials: 'same-origin' }); if (r.ok) await c.put(PAGE, r) } catch { /* no signal */ }
+      try { const r = await fetch('/', { credentials: 'same-origin', cache: 'no-cache' }); if (r.ok) await c.put(PAGE, r) } catch { /* no signal */ }
+      /* the page asked to know when it's kept (it's about to move to the new version) */
+      if (e.ports && e.ports[0]) e.ports[0].postMessage({ kept: true })
     }
     const urls = Array.isArray(d.keep) ? d.keep.slice(0, 400) : []
     await Promise.all(urls.map(async (u) => {
@@ -45,26 +49,22 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin && !fonts) return
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_serverFn') || url.pathname.startsWith('/_server')) return
   if (req.mode === 'navigate') {
+    /* only the app's own page ("/") comes from the kept copy — any other page (privacy, terms) is the network's */
+    if (url.pathname !== '/') return
     e.respondWith((async () => {
       const c = await caches.open(CACHE)
       const kept = await c.match(PAGE)
-      const net = fetch(req).then(async (res) => {
-        if (res.ok && url.pathname === '/') await c.put(PAGE, res.clone())
+      /* the newest page — past the browser's own cache too — kept for next time */
+      const net = fetch(url.href, { credentials: 'same-origin', cache: 'no-cache' }).then(async (res) => {
+        if (res.ok) await c.put(PAGE, res.clone())
         return res
       })
       if (!kept) {
         try { return await net } catch { return (await c.match(req)) || Response.error() }
       }
-      /* the network first — but one bar (a basement) can keep it waiting a minute: after a few seconds the kept copy
-         opens, and the network's answer still updates it for next time */
-      try {
-        const first = await Promise.race([net, new Promise((r) => setTimeout(() => r(null), 3000))])
-        if (first) return first
-        e.waitUntil(net.catch(() => null))
-        return kept
-      } catch {
-        return kept
-      }
+      /* opened here before: the kept copy right away — the newest still comes in, for the app to move to */
+      e.waitUntil(net.catch(() => null))
+      return kept
     })())
     return
   }

@@ -81,7 +81,9 @@ export function Page({
       <div className={cn('mx-auto w-full', PAGE_MAX)} style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
-        <div ref={headRef} className="bg-canvas lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
+        {/* on a phone the head lets its bubbles out (it's "contents" there), so they stay pinned under the top bar while
+            a long list scrolls — the page's own buttons above them scroll away */}
+        <div ref={headRef} className="bg-canvas max-md:contents lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
           {/* on a phone the bar on top already says which page this is — so no title here, only the line under it
               (when there is one: Today's "1 overdue" opens what's late) and the page's button */}
           <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
@@ -91,7 +93,7 @@ export function Page({
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
           </header>
-          {top && <div className={cn('pb-3.5', PAGE_PX)}>{top}</div>}
+          {top && <div className={cn('pb-3.5 max-md:sticky max-md:top-[var(--app-top,0px)] max-md:z-[16] max-md:bg-canvas max-md:pb-2.5 max-md:pt-2', PAGE_PX)} data-page-top>{top}</div>}
         </div>
         <div className={cn('flex flex-col gap-3.5', PAGE_PX)}>
           <div className={cn('flex items-start gap-4', aside && 'max-xl:flex-col max-xl:items-stretch')}>
@@ -486,8 +488,9 @@ export function EmptyState({ title, sub, action, icon }: { title: string; sub?: 
   )
 }
 
-/* ================= the colored bubbles on top of a page: each status, its count, one click to filter =================
- * Calm white tiles; the color lives in the little icon square. The one you're on fills with its color. */
+/* ================= the bubbles on top of a page: each status, its count, one tap to filter =================
+ * Calm: white tiles, every little icon the same quiet gray (red only for a problem), and the one you're on in the app's
+ * one blue. On a phone they're one white panel with thin lines between them — every one in sight, every row filled. */
 export type BubbleColor = 'blue' | 'violet' | 'green' | 'amber' | 'red' | 'rose' | 'teal' | 'slate' | 'orange' | 'cyan' | 'indigo'
 const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   blue: { tint: '#eaf0fc', solid: '#2650cf' },
@@ -502,16 +505,36 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
+/** the little icon square: quiet gray — red only when the bubble is a problem */
+const QUIET = { tint: '#f1efea', solid: '#646a74' }
 export type Bubble = { key: string; label: string; /** its name on a phone, where they're all on one row ("Waiting") */ short?: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
-/** how many bubbles a row on a phone, so no row is left part empty when it needn't be */
-const phoneCols = (n: number, four?: boolean) => (n <= 1 ? 'max-sm:grid-cols-1' : n === 2 ? 'max-sm:grid-cols-2' : n === 4 ? (four ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-2') : four && n > 6 ? 'max-sm:grid-cols-4' : 'max-sm:grid-cols-3')
-export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row (many bubbles: two rows, not three) */ four?: boolean; /** on a phone, small: the number and a short name, no icon — all on one row (Today's five), or four a row (more) */ row?: boolean; /** the picked one calm — its own soft color, not a solid block (Projects, Estimates); Today's stands out */ soft?: boolean }) {
+/** a phone's panel: up to four in a row (Today's five too); six go three by two; with five or seven the first ("All")
+ *  is twice as tall, so the rest fill two even rows — never a row left part empty */
+export function phoneGrid(n: number, row?: boolean, four?: boolean): { cols: number; tall: boolean } {
+  if (n <= 3 || (row && n <= 5)) return { cols: Math.max(1, n), tall: false }
+  if (n === 4) return { cols: four || row ? 4 : 2, tall: false }
+  if (n === 5) return { cols: 3, tall: true }
+  if (n === 6) return { cols: 3, tall: false }
+  if (n === 7) return { cols: 4, tall: true }
+  if (n === 8) return { cols: 4, tall: false }
+  return { cols: 3, tall: (n - 1) % 3 === 0 }
+}
+export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row */ four?: boolean; /** on a phone, all on one row with their short names (Today's five) */ row?: boolean; /** the picked one soft blue, not a solid block (the list pages); Today's stands out */ soft?: boolean }) {
+  const g = phoneGrid(items.length, row, four)
   return (
-    /* on a phone: every one in sight at once, nothing to slide sideways, and the rows filled — two bubbles share the
-       width, four go two by two, more go three a row (four, with many) */
-    <div className={cn(wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5', 'max-sm:mx-0 max-sm:mb-0 max-sm:gap-1.5 max-sm:overflow-visible max-sm:px-0 max-sm:pb-0', row && items.length > 2 && items.length <= 5 ? 'max-sm:flex' : cn('max-sm:grid', phoneCols(items.length, four || row)))} role="tablist" data-bubbles>
+    <div
+      className={cn(
+        wrap ? 'grid grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2 pb-1 pt-0.5' : 'no-scrollbar -mx-2 -mb-3 flex items-stretch gap-2 overflow-x-auto px-2 pb-3 pt-0.5',
+        'max-sm:m-0 max-sm:grid max-sm:auto-rows-fr max-sm:grid-cols-[repeat(var(--cols),minmax(0,1fr))] max-sm:gap-px max-sm:overflow-hidden max-sm:rounded-[0.875rem] max-sm:border max-sm:border-line max-sm:bg-line max-sm:p-0',
+      )}
+      style={{ '--cols': g.cols } as React.CSSProperties}
+      role="tablist"
+      data-bubbles
+      data-phone-cols={g.cols}
+    >
       {items.map((b, i) => {
-        const c = BC[b.color]
+        const c = b.color === 'red' ? BC.red : QUIET
+        const tall = i === 0 && g.tall
         /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
         return (
           <React.Fragment key={b.key}>
@@ -521,27 +544,30 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
               aria-selected={!!b.on}
               onClick={b.onClick}
               disabled={!b.onClick}
+              data-tall={tall || undefined}
               className={cn(
-                /* many (Projects' and Estimates' seven): they share the row — the icon small in the corner (as on a phone),
-                   so every name shows whole and each keeps its color */
+                /* a computer: a tile of its own — with many (seven), the icon small in the corner so every name shows */
                 'group relative flex h-[3.25rem] flex-1 basis-0 items-center gap-2.5 overflow-hidden rounded-[0.6875rem] border px-2.5 text-left transition-colors duration-150 disabled:cursor-default', items.length >= 7 ? 'min-w-[6.5rem]' : 'min-w-[9.375rem]',
-                /* phone: the number big on top, the name under it, the icon small in the corner */
-                'max-sm:h-auto max-sm:min-h-[3.625rem] max-sm:min-w-0 max-sm:items-start max-sm:pb-1.5 max-sm:pt-2', row ? cn('max-sm:min-h-[3.25rem] max-sm:px-2', items.length <= 5 && 'max-sm:flex-auto max-sm:basis-auto') : four ? 'max-sm:px-2' : 'max-sm:px-2.5',
-                b.on ? (soft ? 'text-ink' : 'border-transparent text-white') : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
+                /* a phone: a cell of the panel — the number, its name under it, no icon */
+                'max-sm:h-auto max-sm:min-h-[3.375rem] max-sm:min-w-0 max-sm:flex-col max-sm:items-start max-sm:justify-start max-sm:gap-0 max-sm:rounded-none max-sm:border-0 max-sm:px-2.5 max-sm:py-2',
+                tall && 'max-sm:row-span-2 max-sm:justify-center',
+                row && 'max-sm:items-center max-sm:justify-center max-sm:px-1 max-sm:text-center',
+                b.on
+                  ? soft
+                    ? 'border-[#2650cf59] bg-[#eef3fd] text-ink shadow-[inset_0_0_0_1px_#2650cf26] max-sm:shadow-[inset_0_0_0_1.5px_#2650cf99]'
+                    : 'border-transparent bg-[#2650cf] text-white shadow-[0_10px_22px_-14px_#2650cf] max-sm:shadow-none'
+                  : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
-              /* the picked one: on Today a solid block of its color — what to look at; on a list page its own soft color */
-              style={b.on ? (soft ? { background: c.tint, borderColor: `${c.solid}59`, boxShadow: `inset 0 0 0 1px ${c.solid}26` } : { background: c.solid, boxShadow: `0 10px 22px -14px ${c.solid}` }) : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:absolute max-sm:right-1.5 max-sm:top-1.5 max-sm:h-6 max-sm:w-6 max-sm:rounded-[0.375rem] max-sm:[&_svg]:h-3.5 max-sm:[&_svg]:w-3.5', row && items.length <= 5 && 'max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: '#2650cf' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* just the number and the name — nothing else crowds the top of the page */}
-              <span className="min-w-0 flex-1">
-                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', !b.on && 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
-                {/* on a phone a long name ("Waiting on others") goes on two lines rather than being cut */}
+              <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
+                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? 'text-brand-700' : 'text-white') : 'text-ink')}>{b.count}</span>
                 {row && b.short
-                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block truncate text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
-                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:leading-[0.875rem]', row ? cn('max-sm:text-[0.6875rem]', items.length > 5 && 'max-sm:whitespace-normal') : 'max-sm:whitespace-normal max-sm:break-words', four && !row && 'max-sm:text-[0.71875rem]', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}
+                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
+                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-nowrap max-sm:text-[0.6875rem] max-sm:[text-overflow:clip]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}
               </span>
             </button>
           </React.Fragment>

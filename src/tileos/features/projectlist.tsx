@@ -243,7 +243,7 @@ export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = p
 
 function NowLine({ w, all }: { w: NowWords; /** every problem, for pointing at the line */ all: { text: string }[] }) {
   return (
-    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
+    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem] max-md:whitespace-normal', w.tone === 'bad' ? 'text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
       {w.text}
       {!!w.more && <span className="font-normal text-muted" data-more={w.more}> · +{w.more} more</span>}
     </span>
@@ -280,10 +280,10 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       {/* a phone: the name and the date; what's up and whose under it */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{j.name}</span>
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink max-md:whitespace-normal">{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-3">
+        <div className="mt-0.5 flex min-w-0 items-start gap-3">
           <span className="flex min-w-0 flex-1" data-now><NowLine w={now} all={probs} /></span>
           {now.who && <Whose who={now.who} size={16} className="shrink-0 [&_[data-who-name]]:text-[0.8125rem]" />}
         </div>

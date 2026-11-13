@@ -113,7 +113,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'delete': return <DeleteModal kind={m.kind} id={m.id} level={level} />
     case 'newauto': return <NewAutomationModal who={m.who} id={m.id} level={level} />
     case 'auto': return <AutomationModal k={m.k} level={level} />
-    case 'capture': return <CaptureModal jobId={m.jobId} listen={m.listen} level={level} />
+    case 'capture': return <CaptureModal jobId={m.jobId} listen={m.listen} ask={m.ask} level={level} />
     case 'newtask': return <NewTaskModal jobId={m.jobId} fromMsg={m.fromMsg} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
     case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />

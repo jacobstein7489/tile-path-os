@@ -244,6 +244,9 @@ button:disabled { cursor: not-allowed; }
 @media (max-width: 767.98px) { input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { font-size: 16px !important; } }
 /* Page ground and type, outside the layers so they also win over the host page's own reset. */
 html { background: var(--color-canvas); }
+/* the app doesn't zoom: no pinching in or double-tapping — the screen stays put (a phone's browser ignores "no zoom" in
+   the page's settings, so it's said here too, and for the iPhone in lib/device) */
+html { touch-action: pan-x pan-y; }
 body { margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.5; }
 
 /* Everything is sized from the page's base size, so on bigger screens the whole app grows a step —

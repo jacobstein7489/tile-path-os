@@ -6,6 +6,7 @@ import { Command } from 'cmdk'
 import { Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
+import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
 import { payOpen } from '@/tileos/features/pay'
@@ -330,8 +331,9 @@ export function TopBar() {
         <Logo size={30} />
       </button>
       <span className="ml-1 min-w-0 flex-1 truncate text-[1rem] font-bold text-ink">{title}</span>
-      <button onClick={() => setPalette(true)} aria-label="Search" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-wash-2">
-        <Search className="h-[1.125rem] w-[1.125rem]" />
+      <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-wash px-3 text-[0.875rem] font-medium text-ink-2 hover:bg-wash-2">
+        <Search className="h-4 w-4" />
+        Search
       </button>
       <Menu
         align="end"
@@ -380,6 +382,9 @@ export function CommandPalette() {
     setPalette(false)
     setTimeout(fn, 10)
   }
+  const [q, setQ] = React.useState('')
+  React.useEffect(() => { if (!openP) setQ('') }, [openP])
+  const ask = q.trim()
   const item = 'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[0.90625rem] text-ink outline-none'
   return (
     <Dialog.Root open={openP} onOpenChange={setPalette}>
@@ -391,11 +396,23 @@ export function CommandPalette() {
             <Command label="Search everything" loop filter={paletteFilter}>
               <div className="flex h-16 items-center gap-3 border-b border-line-2 px-5">
                 <Search className="h-5 w-5 text-faint" />
-                <Command.Input autoFocus enterKeyHint="search" placeholder="Search projects, tasks, POs…" className="h-full flex-1 bg-transparent text-[1.03125rem] text-ink placeholder:text-faint focus:outline-none" />
+                <Command.Input value={q} onValueChange={setQ} autoFocus enterKeyHint="search" placeholder="Search, or ask a question…" className="h-full flex-1 bg-transparent text-[1.03125rem] text-ink placeholder:text-faint focus:outline-none" />
                 <Kbd>Esc</Kbd>
               </div>
               <Command.List className="scroll-soft max-h-[min(28.75rem,60vh)] overflow-y-auto p-2">
-                <Command.Empty className="px-4 py-10 text-center text-[0.90625rem] text-muted">Nothing matches that.</Command.Empty>
+                {ask.length < 3 && <Command.Empty className="px-4 py-10 text-center text-[0.90625rem] text-muted">Nothing matches that.</Command.Empty>}
+                {ask.length >= 3 && (
+                  <Command.Group heading="Ask Tile OS" forceMount>
+                    <Command.Item forceMount value={`ask ${ask}`} onSelect={() => run(() => open({ t: 'capture', ask }))} className={item} data-palette-ask>
+                      <span className="inline-flex h-[2.125rem] w-[2.125rem] items-center justify-center rounded-[0.5625rem] bg-brand-50"><Helper size={26} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">“{ask}”</span>
+                        <span className="block truncate text-[0.78125rem] text-muted">The robot answers it</span>
+                      </span>
+                      <CornerDownLeft className="h-4 w-4 text-faint" />
+                    </Command.Item>
+                  </Command.Group>
+                )}
                 <Command.Group heading="Projects">
                   {Object.values(jobs).map((j) => (
                     <Command.Item key={j.id} value={`${j.name} ${j.client} ${j.address} project job`} onSelect={() => run(() => open({ t: 'job', id: j.id, tab: role === 'accounting' ? 'money' : undefined }))} className={item}>

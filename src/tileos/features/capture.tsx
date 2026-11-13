@@ -232,10 +232,10 @@ export function addCaptured(items: CapItem[]) {
 
 /* ---------------- the window ---------------- */
 type Phase = 'say' | 'think' | 'check'
-export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: string; /** opened from the mic: listening right away */ listen?: boolean }) {
+export function CaptureModal({ level, jobId, listen, ask }: { level: number; jobId?: string; /** opened from the mic: listening right away */ listen?: boolean; /** asked from search: the question, answered right away */ ask?: string }) {
   const s = useStore()
   const me = meOf(s.role)
-  const [text, setText] = React.useState('')
+  const [text, setText] = React.useState(ask || '')
   const [phase, setPhase] = React.useState<Phase>('say')
   const [items, setItems] = React.useState<CapItem[]>([])
   const [plain, setPlain] = React.useState(false)
@@ -247,6 +247,8 @@ export function CaptureModal({ level, jobId, listen }: { level: number; jobId?: 
   const hint = React.useMemo(() => [...insidePeople(s).map((p) => PEOPLE[p]?.name), ...crewsOf(s).map((p) => PEOPLE[p]?.name), ...projectsFor(s).slice(0, 40).map((j) => j.name)].filter(Boolean).join(', ').slice(0, 780), [])
   const mic = useVoice((t) => setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)), hint)
   React.useEffect(() => { if (listen && mic.can) mic.start() }, [])
+  /* asked from search: straight to the answer */
+  React.useEffect(() => { if (ask?.trim()) void make() }, [])
   React.useEffect(() => () => abort.current?.abort(), [])
   const team = insidePeople(s)
   const make = async () => {

@@ -7,7 +7,7 @@ import App from './App'
 import { REAL, wantsSampleLook } from './lib/save'
 import { useStore } from './store'
 import { startCloud, startSample, stopCloud, hasCopy, isOffline, type CloudProblem } from './lib/cloud'
-import { keepAppOnDevice } from './lib/device'
+import { keepAppOnDevice, lockZoom, watchForNewVersion } from './lib/device'
 import { qbArrived } from './features/qbsync'
 import { SignIn, WaitingRoom, Splash, SetupNeeded, SetPassword, LinkUsed } from './features/signin'
 import { markFiles, markData } from './lib/opentime'
@@ -246,7 +246,7 @@ export default function Boot() {
   }, [signOut])
 
   /* the app itself stays on the device, so it opens with no signal */
-  React.useEffect(() => { keepAppOnDevice() }, [])
+  React.useEffect(() => { keepAppOnDevice(); lockZoom(); watchForNewVersion(() => useStore.getState().modals.length === 0) }, [])
   React.useEffect(() => {
     let live = true
     /* opened here before: if the sign-in takes long to answer (a basement with one bar), the app opens from what's on

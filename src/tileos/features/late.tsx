@@ -149,7 +149,7 @@ function Row({ x, me }: { x: PlateItem; me?: boolean }) {
   const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : s.open({ t: 'task', id: x.t!.id }) }
   return (
     <div className={cn(LINE, 'max-sm:flex-wrap')} data-late-key={x.key}>
-      <button onClick={open} className="min-w-0 flex-1 truncate text-left text-[0.9375rem] text-ink hover:text-brand-700 max-sm:basis-full">
+      <button onClick={open} className="min-w-0 flex-1 truncate text-left text-[0.9375rem] text-ink hover:text-brand-700 max-sm:basis-full max-sm:whitespace-normal">
         {titleOf(x)}<span className="text-muted"> · {job?.name || 'Company'}</span>
       </button>
       <span className="shrink-0 text-[0.8125rem] font-medium text-bad-600">Was due {x.iso ? labelFromIso(x.iso) : 'before today'}</span>
@@ -165,9 +165,9 @@ function TodayRow({ x }: { x: PlateItem }) {
   const title = x.kind === 'meet' ? x.e!.title : titleOf(x)
   const open = () => { x.kind === 'step' ? openStep(x.job!.id, x.v!.key) : x.kind === 'meet' ? s.open({ t: 'event', id: x.e!.id }) : s.open({ t: 'task', id: x.t!.id }) }
   return (
-    <button onClick={open} className={cn(LINE, 'transition row-hover')} data-due-row>
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink">{title}</span>
-      <span className="max-w-[45%] shrink-0 truncate text-[0.8125rem] text-muted">{[x.time != null ? timeLabel(x.time) : '', job?.name].filter(Boolean).join(' · ') || 'Today'}</span>
+    <button onClick={open} className={cn(LINE, 'transition row-hover max-sm:flex-col max-sm:items-start max-sm:gap-0.5')} data-due-row>
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink max-sm:w-full max-sm:whitespace-normal">{title}</span>
+      <span className="max-w-[45%] shrink-0 truncate text-[0.8125rem] text-muted max-sm:max-w-full">{[x.time != null ? timeLabel(x.time) : '', job?.name].filter(Boolean).join(' · ') || 'Today'}</span>
     </button>
   )
 }
@@ -229,8 +229,8 @@ export function LateModal({ level }: { level: number }) {
                 </div>
                 <ul className="mt-1 flex flex-col pl-[2.25rem]">
                   {g.items.slice(0, 3).map((c: CheckItem) => (
-                    <li key={c.key} className="flex min-w-0 items-baseline gap-3 py-0.5 text-[0.84375rem]">
-                      <span className="min-w-0 flex-1 truncate text-ink-2">{c.title}{c.jobName && !c.title.includes(c.jobName) ? <span className="text-muted"> · {c.jobName}</span> : null}</span>
+                    <li key={c.key} className="flex min-w-0 items-baseline gap-3 py-0.5 text-[0.84375rem] max-sm:flex-col max-sm:gap-0">
+                      <span className="min-w-0 flex-1 truncate text-ink-2 max-sm:w-full max-sm:whitespace-normal">{c.title}{c.jobName && !c.title.includes(c.jobName) ? <span className="text-muted"> · {c.jobName}</span> : null}</span>
                       <span className="shrink-0 text-[0.78125rem] font-medium text-bad-600">{c.late} {c.late === 1 ? 'day' : 'days'} late</span>
                     </li>
                   ))}

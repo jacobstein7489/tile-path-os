@@ -236,7 +236,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
           {/* a phone: the project (and whose) over the task */}
           {(project || (who && owner)) && <div className="truncate text-[0.75rem] text-muted md:hidden">{[project, who && owner ? ownerName : ''].filter(Boolean).join(' · ')}</div>}
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
             {/* on a phone the time sits at the end of the task's line */}
             {w && <span className={cn('shrink-0 text-[0.75rem] tnum md:hidden', whenCls)}>{w}</span>}
           </div>
@@ -695,40 +695,24 @@ function teamPlate(s: Store): PlateItem[] {
   s.events.filter((e) => e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
   return sortPlate(Array.from(seen.values()))
 }
-/* The same kind of thing many times is one row: the day's daily updates (one row, every job in it), what's to be
- * brought to the jobs (one row, every pickup in it), and the same step on many projects (get the tile paperwork from
- * the store — one row, every project in it) — each person's own. Tap it: the whole list, each one done right there.
- * The row stays until every one in it is done. One alone stays its own row; an urgent one, or a problem, too. */
+/* One line for each thing, with its project: tap it and that one opens — nothing to open a list first (each daily
+ * update, each Receive the tile, each Order our materials is its own line, and it's gone the moment it's done). Only
+ * what's to be brought to the jobs rides together: one trip, every pickup in it. */
 const BUCKET_ORDER: Bucket[] = ['overdue', 'today', 'tomorrow', 'week', 'later', 'aside']
 export function collapse(items: PlateItem[]): PlateItem[] {
   const out: PlateItem[] = []
-  const dailies = new Map<string, PlateItem[]>()
   const trips = new Map<string, PlateItem[]>()
-  const steps = new Map<string, PlateItem[]>()
   const add = (m: Map<string, PlateItem[]>, k: string, x: PlateItem) => m.set(k, [...(m.get(k) || []), x])
   items.forEach((x) => {
-    if (x.kind === 'daily') return add(dailies, x.who || '', x)
     /* what's to be brought — today's (and late) together; a day ahead stays with that day */
     if (x.kind === 'task' && x.t && isRequest(x.t) && x.t.state === 'now' && !x.t.urgent) return add(trips, `${x.who || x.t.owner}|${isNow(x.b) ? 'now' : x.b}`, x)
-    /* the same step on many projects — a problem stays its own row */
-    if (x.kind === 'step' && x.v && x.job && x.v.state !== 'bad') return add(steps, `${x.who || x.v.owner}|${x.v.key}|${isNow(x.b) ? 'now' : x.b}`, x)
     out.push(x)
   })
   const first = (xs: PlateItem[]) => xs.reduce((a, x) => (BUCKET_ORDER.indexOf(x.b) < BUCKET_ORDER.indexOf(a.b) || (x.b === a.b && (x.iso || '9') < (a.iso || '9')) ? x : a))
-  dailies.forEach((xs, who) => {
-    if (xs.length < 2) return out.push(...xs)
-    const f = first(xs)
-    out.push({ key: 'dailies:' + who, b: f.b, iso: f.iso, time: 17 * 60, kind: 'dailies', who: (who || undefined) as PersonKey | undefined, ds: xs.map((x) => x.d!) })
-  })
   trips.forEach((xs, k) => {
     if (xs.length < 2) return out.push(...xs)
     const f = first(xs)
     out.push({ key: 'trips:' + k, b: f.b, iso: f.iso, time: null, kind: 'trips', who: f.who, ts: xs.map((x) => x.t!) })
-  })
-  steps.forEach((xs, k) => {
-    if (xs.length < 2) return out.push(...xs)
-    const f = first(xs)
-    out.push({ key: 'steps:' + k, b: f.b, iso: f.iso, time: null, kind: 'steps', who: f.who, vs: xs.map((x) => ({ job: x.job!, v: x.v! })) })
   })
   return sortPlate(out)
 }
@@ -826,7 +810,8 @@ export function MyTasksPage() {
   const followsIt = (t?: Task) => !!t && t.owner !== me && followersOf(t).includes(me)
   /* one project at a time: everything for a job together (the site manager starts here) — remembered on this computer */
   const prefKey = `tileos-today-byjob:${role}`
-  const [byJob, setByJob] = React.useState<boolean>(() => { try { const v = localStorage.getItem(prefKey); return v ? v === '1' : role === 'site' } catch { return role === 'site' } })
+  /* the site manager: by time, always — Overdue, then Today: the address and the task on each line */
+  const [byJob, setByJob] = React.useState<boolean>(() => { if (role === 'site') return false; try { return localStorage.getItem(prefKey) === '1' } catch { return false } })
   const groupBy = (on: boolean) => { setByJob(on); try { localStorage.setItem(prefKey, on ? '1' : '0') } catch { /* private window */ } }
   /* everyone's list is each person's things together (late first) — that's what Everyone means: no other way to
      group it (the Person filter picks one person) */
@@ -926,41 +911,28 @@ export function MyTasksPage() {
   /* by project: one section per job — what to check, do, hand over or record there, whatever day it's on */
   const manyJob = (ids: string[]) => { const u = Array.from(new Set(ids)); return u.length === 1 ? u[0] : '*' }
   const jobOfItem = (x: PlateItem) => (x.ds ? manyJob(x.ds.map((d) => d.jobId)) : x.ts ? manyJob(x.ts.map((t) => t.jobId)) : x.vs ? manyJob(x.vs.map((y) => y.job.id)) : x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || '')
-  const byProject = (items: PlateItem[], tasksOnly?: Task[]) => {
-    const keyOf = (id: string) => (id === '*' ? '' : id && s.jobs[id] ? s.jobs[id].name : '\uffff')
+  const byProject = (items0: PlateItem[], tasksOnly?: Task[]) => {
+    /* a trip to more than one job: each pickup under its own project */
+    const items = items0.flatMap((x): PlateItem[] => (x.kind === 'trips' && x.ts && manyJob(x.ts.map((t) => t.jobId)) === '*' ? x.ts.map((t) => ({ key: t.id, b: x.b, iso: x.iso, time: null, kind: 'task', t, who: x.who })) : [x]))
+    const keyOf = (id: string) => (id && s.jobs[id] ? s.jobs[id].name : '\uffff')
     const ids = Array.from(new Set(tasksOnly ? tasksOnly.map((t) => t.jobId || '') : items.map(jobOfItem))).sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
-    const countOf = (id: string) => items.filter((x) => jobOfItem(x) === id).length + (tasksOnly || []).filter((t) => (t.jobId || '') === id).length
-    /* a project with just one thing: one line, its name in gray — no band of its own (a screen of bands one row each
-       is busy); the gray band is for a project with two or more */
-    const singles = ids.filter((id) => !!id && id !== '*' && countOf(id) === 1)
-    const banded = ids.filter((id) => !singles.includes(id))
-    const oneEach = singles.length > 0 && (
-      <InJob.Provider key="one-each" value><Loose.Provider value><section aria-label="One each" data-one-each>
-        <div className={cn(BAND_STRONG, PX)} style={bandStyle('neutral')} data-band><span className={bandLabel('neutral')}>{banded.length ? 'Other projects' : 'Projects'}</span><BandCount n={singles.length} /></div>
-        {singles.map((id) => {
-          const x = items.find((y) => jobOfItem(y) === id)
-          const t = (tasksOnly || []).find((y) => (y.jobId || '') === id)
-          return x ? <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} /> : t ? <TaskRow key={t.id} t={t} showOwner when={theirWhen(t)} /> : null
-        })}
-      </section></Loose.Provider></InJob.Provider>
-    )
-    return [...banded.map((id) => {
-      const j = id ? s.jobs[id] : undefined
+    return ids.map((id) => {
+      const j = id && id !== '*' ? s.jobs[id] : undefined
       const rows = items.filter((x) => jobOfItem(x) === id)
       const ts = (tasksOnly || []).filter((t) => (t.jobId || '') === id)
       return (
-        <InJob.Provider key={id || 'none'} value><Loose.Provider value={false}><section aria-label={j ? j.name : 'Not on a project'}>
+        <InJob.Provider key={id || 'none'} value><Loose.Provider value={false}><section aria-label={j ? j.name : 'Company'} data-project-band={id || 'company'}>
           <div className={cn(BAND_STRONG, PX)} style={bandStyle('neutral')} data-band>
             {j ? (
               <button onClick={() => s.open({ t: 'job', id })} className={cn(bandLabel('neutral'), 'min-w-0 text-left hover:text-brand-700')}>{j.name}</button>
-            ) : <span className={bandLabel('neutral')}>{id === '*' ? 'Across projects' : 'Not on a project'}</span>}
+            ) : <span className={bandLabel('neutral')}>Company</span>}
             <BandCount n={rows.length + ts.length} />
           </div>
           {rows.map((x) => <PlateRow key={x.key} x={x} showOwner={all} overdue={x.b === 'overdue'} followed={followsIt(x.t)} />)}
           {ts.map((t) => <TaskRow key={t.id} t={t} showOwner when={theirWhen(t)} />)}
         </section></Loose.Provider></InJob.Provider>
       )
-    }), oneEach]
+    })
   }
 
   /* by person: one section per person — what's late first, then the rest in the order it happens; tap the name for
@@ -1053,7 +1025,7 @@ export function MyTasksPage() {
           {/* Everyone's is by person — pick one person to see just theirs (no switch for how it's grouped: it's by person) */}
           {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {/* your own list: in the order it happens, or a project at a time */}
-          {!all && view !== 'done' && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
+          {!all && view !== 'done' && !simple && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
           <span className="flex-1 max-md:hidden" />
           {/* one project's things — on a computer; a phone keeps to one line (By project does it there) */}
           <span className="contents max-sm:hidden">
@@ -1097,9 +1069,9 @@ export function MyTasksPage() {
           </section>
         )}
 
-        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : !teamRows.length && !gcRows.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
+        {view === 'today' && (shownToday.length ? (grouping === 'job' ? byProject(restToday) : grouping === 'person' ? byPerson(restToday) : dayBlock(TODAY, shownToday.filter((x) => x.kind !== 'crew'), true, shownToday.some((x) => x.kind === 'crew') ? <CrewRow key="crew" /> : undefined)) : (!teamRows.length || simple) && !gcRows.length && <EmptyState icon={<Check />} title="Nothing due today" sub={tomorrow.length ? `${tomorrow.length} for tomorrow — see Tomorrow.` : 'New work lands here the moment it’s yours.'} />)}
         {view === 'today' && gcRows.length > 0 && <GcSection list={gcRows} />}
-        {view === 'today' && teamRows.length > 0 && <TeamSection rows={teamRows} />}
+        {view === 'today' && teamRows.length > 0 && !simple && <TeamSection rows={teamRows} />}
         {view === 'today' && undated.length > 0 && (
           <section>
             <Group label="No day set" count={undated.length} tone="neutral" strong />
