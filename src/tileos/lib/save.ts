@@ -56,7 +56,7 @@ export const REAL: {
   /** someone taken off the team (the real app, the admin only): their login stops working — the server takes it away */
   removeAccess?: (p: { email?: string; uid?: string }) => Promise<void>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
-  ai?: (prompt: string, pages: Blob[], signal?: AbortSignal) => Promise<string>
+  ai?: (prompt: string, pages: Blob[], signal?: AbortSignal, opts?: { /** the assistant talking: a quick answer */ fast?: boolean }) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */
   files?: { put: (jobId: string, id: string, file: Blob, name: string) => Promise<string>; url: (path: string) => Promise<string>; remove: (path: string) => Promise<void> }
   /** QuickBooks (the real app): is it connected, connect it (the admin), and every invoice and payment — the server

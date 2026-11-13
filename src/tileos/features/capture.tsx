@@ -1,23 +1,28 @@
-/* Say it — one box for everything: talk (or type) about what's going on, and Tile OS makes the list. Each thing comes
- * out as the right kind — something to do, a problem, a question, the GC's, a touch-up, something to bring to the job,
- * a change, a job to measure — on the right project, for the right person, with a day. What's someone else's, you
- * follow. Nobody picks a form or a category: you check the list, fix what's off, and tap Add.
+/* Tile OS, the assistant — talk to it like to a sharp office manager, on the go. It greets you with your day (open
+ * jobs, what's on your list, what's late); you ask it things or tell it what's going on. Tap the mic, talk, tap again:
+ * your words show as you talk and it answers right away. What you tell it to do comes back as one small box to check
+ * — new things (each the right kind, on the right project, for the right person, with a day) and changes to what's
+ * already there (done, a new day, someone else, a note) — and nothing happens until you tap the button. The project
+ * you're talking about stays for the rest of the talk. The buttons everywhere else still work the same: this is the
+ * quick way, for the field.
  * The AI is the company's own (Lovable AI, on the server). Where it isn't on, the words are split into lines by
- * themselves — the same list to check, just less clever. */
+ * themselves — the same box to check, just less clever. */
 import * as React from 'react'
-import { ArrowLeftRight, Building2, CalendarDays, Check, ChevronDown, ChevronLeft, HardHat, HelpCircle, ListTodo, Mic, Ruler, Sparkles, Square, TriangleAlert, Truck, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowUp, Building2, CalendarDays, Check, ChevronDown, HardHat, HelpCircle, ListTodo, Mic, Ruler, Sparkles, Square, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useStore, meOf, NOW, newTask, addHist, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, CREWS, STAGE_LABEL, type Job, type PersonKey, type Role } from '@/tileos/data/model'
+import { PEOPLE, CREWS, STAGE_LABEL, PRICING_STAGES, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task, TaskType } from '@/tileos/data/work'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, addDays, dow, isoFromLabel, labelFromIso, dayLongFull, md } from '@/tileos/lib/today'
 import { insidePeople } from './steps-ui'
 import { siteOf } from './steps'
-import { projectIn, personIn, guessType, DAY_WORDS } from './mytasks'
+import { projectIn, personIn, guessType, DAY_WORDS, todayCount } from './mytasks'
+import { lateOf } from './late'
+import { typeOf } from './projectlist'
 import { ProjectChip, PICK_CHIP, projectsFor } from './formkit'
 import { Helper, Listening } from './helper'
 import { useVoice } from '@/tileos/components/ui/voice'
@@ -80,18 +85,44 @@ function nowFor(s: Store): string {
     try { next = stepsFor(s, j).filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait').slice(0, 4).map((v) => `${v.short || v.label} (${who(v.owner)}${v.due ? `, due ${md(v.due)}` : ''}${v.state === 'bad' ? ', a problem' : v.state === 'wait' ? `, waiting${v.waitsFor ? ` for ${v.waitsFor}` : ''}` : ''})`) } catch { /* no steps */ }
     return `- ${j.name}${j.client ? ` (client ${j.client})` : ''} — ${STAGE_LABEL[j.stage] || j.stage}${st ? ` — our crew starts ${md(st)}` : ''}${next.length ? ` — next: ${next.join('; ')}` : ''}`
   })
-  const open = s.tasks.filter((t) => t.state !== 'done' && (admin || t.owner === me || t.followers?.includes(me) || on.has(t.jobId))).slice(0, 300)
-  const todos = open.map((t) => `- ${t.title} · ${s.jobs[t.jobId]?.name || 'the company'} · ${who(t.owner)} · ${t.state === 'waiting' ? `waiting on ${t.waitingOn || 'someone'}${t.followUp ? `, next follow-up ${t.followUp}` : ''}` : t.due ? `due ${t.due}` : 'no day set'}${t.said ? ` · the GC said “${t.said.text}” on ${md(t.said.day)}` : ''}${t.needBy ? ` · needed by ${md(t.needBy)}` : ''}${t.urgent ? ' · urgent' : ''}`)
-  return `Projects (name — client — where it is — start — next steps):\n${projects.join('\n') || '(none)'}\n\nOpen to-dos (what · project · whose · when):\n${todos.join('\n') || '(none)'}`
+  const open = s.tasks.filter((t) => t.state !== 'done' && (admin || t.owner === me || t.followers?.includes(me) || on.has(t.jobId))).slice(0, 220)
+  const todos = open.map((t) => `- [${t.id}] ${t.title} · ${s.jobs[t.jobId]?.name || 'the company'} · ${who(t.owner)} · ${t.state === 'waiting' ? `waiting on ${t.waitingOn || 'someone'}${t.followUp ? `, next follow-up ${t.followUp}` : ''}` : t.due ? `due ${t.due}` : 'no day set'}${t.said ? ` · the GC said “${t.said.text}” on ${md(t.said.day)}` : ''}${t.needBy ? ` · needed by ${md(t.needBy)}` : ''}${t.urgent ? ' · urgent' : ''}`)
+  const c = dayCounts(s)
+  return `In numbers: ${c.open} open jobs; on ${PEOPLE[me]?.name || 'their'}'s list today ${c.today}, late ${c.late}.\n\nProjects (name — client — where it is — start — next steps):\n${projects.join('\n') || '(none)'}\n\nOpen to-dos ([key] what · project · whose · when):\n${todos.join('\n') || '(none)'}`
 }
 
-function promptFor(s: Store, text: string): string {
+/** the day in numbers, for the hello and for questions: open jobs, what's on your list today, what's late */
+export function dayCounts(s: Store): { open: number; today: number; late: number } {
+  const open = projectsFor(s).filter((j) => !PRICING_STAGES.includes(j.stage) && typeOf(j) !== 'done').length
+  let today = 0
+  let late = 0
+  try { today = todayCount(s, s.role) } catch { /* fine */ }
+  try { late = lateOf(s, s.role).length } catch { /* fine */ }
+  return { open, today, late }
+}
+/** hello — with the day in numbers; opened on a project: about that one */
+export function greeting(s: Store, jobId?: string): string {
   const me = meOf(s.role)
+  const first = String(PEOPLE[me]?.short || PEOPLE[me]?.name || '').split(' ')[0]
+  const h = new Date().getHours()
+  const hi = `${h < 12 ? 'Good morning' : h < 17 ? 'Hi' : 'Good evening'}${first ? `, ${first}` : ''}.`
+  if (jobId && s.jobs[jobId]) return `${hi} What’s going on at ${s.jobs[jobId].name}?`
+  const c = dayCounts(s)
+  return `${hi} ${c.open} open ${c.open === 1 ? 'job' : 'jobs'} — ${c.today} on your list today${c.late ? `, ${c.late} late` : ''}. What’s going on?`
+}
+
+/** the conversation so far, the way the AI reads it */
+type Said = { who: 'bot' | 'me'; text: string; items?: { title: string }[]; acts?: unknown[]; state?: string; thinking?: boolean }
+function talkPrompt(s: Store, history: Said[], text: string, aboutJob: string): string {
+  const me = meOf(s.role)
+  const name = PEOPLE[me]?.name || 'The boss'
   const team = insidePeople(s)
   const people = team.map((p) => `- ${p}: ${PEOPLE[p]?.name || p}${PEOPLE[p]?.roleLabel ? ` — ${PEOPLE[p].roleLabel}` : ''}${p === me ? ' (the one talking)' : ''}`).join('\n')
   const jobs = projectsFor(s).map((j) => `- ${j.id}: ${j.name}${j.address ? ` — ${j.address}` : ''}${j.client ? ` — client ${j.client}` : ''}`).join('\n')
   const crews = crewsOf(s).map((p) => `- ${p}: ${PEOPLE[p]?.name || p}`).join('\n')
-  return `You help a tile installation company keep track of its work. ${PEOPLE[me]?.name || 'The boss'} talked or typed. They may tell you what's going on — turn it into things to do in the company's app — or ask you something about the work — answer it — or both.
+  const talk = history.filter((t) => !t.thinking && t.text).slice(-10).map((t) => `${t.who === 'me' ? name : 'You'}: ${t.text}${t.who === 'bot' && (t.items?.length || t.acts?.length) ? ` [you offered ${[...(t.items || []).map((i) => i.title), ...(t.acts?.length ? [`${t.acts.length} change(s)`] : [])].join('; ')} — ${t.state === 'done' ? 'they said yes, it’s done' : t.state === 'dropped' ? 'they said no' : 'not answered yet'}]` : ''}`).join('\n')
+  const about = aboutJob && s.jobs[aboutJob] ? `${s.jobs[aboutJob].name} (${aboutJob})` : ''
+  return `You are Tile OS, the assistant in a tile installation company's app. You're talking with ${name} — often by voice, on the go, from a job site. Be like a sharp, friendly office manager: short, plain, warm. They may ask you things, tell you what's going on, or tell you to do things.
 Today is ${dayLongFull(TODAY)} (${TODAY}).
 
 The team (key: name — job):
@@ -103,56 +134,92 @@ ${jobs}
 Our installers (key: name) — outside crews; they never talk to the GC, we pass things on:
 ${crews}
 
-The kinds of things:
+The kinds of new things:
 - "task": something one of us has to do (call, send, check, set up, find out, pick up paperwork)
 - "problem": something wrong on a job — not good, broken, missing, wrong, leaking, not ready — that has to be fixed
 - "question": a question for us to answer, or to ask the client or the designer — say it as the question
-- "gc": something the GC (the contractor) has to do, provide, fix or answer — a question for the GC too ("what's the lockbox code at 114?", said as the question). We tell him today and remind him until it's done
+- "gc": something the GC (the contractor) has to do, provide, fix or answer — a question for the GC too. We tell him today and remind him until it's done
 - "touchup": fixing or finishing our own tile work that's already in (grout, a crack, a loose or pitched tile)
 - "bring": material or a tool to pick up and bring to a job
 - "change": the designer or the client changed what we're doing — it needs a price and an OK
 - "measure": go measure a job (a new one is fine)
 
-What's going on now, in the app (use it to answer questions):
+What's going on now, in the app:
 ${nowFor(s)}
 
-Rules:
-- A question ("where does the drain at 114 stand?", "what's Yaakov late on?", "what did the GC say?", "what's next at 110?"): answer it in "answer" — short and plain, two or three sentences or a few short lines, with names and dates, only from what's above. If it isn't there, say you don't see it in the app. A question isn't a to-do: no item for it. Nothing asked: "answer" is "".
-- One item for each separate thing to do. Never add anything that wasn't said. Skip greetings, talk to other people, filler, repeats, and thinking out loud.
-- "title": short and plain, like a line on a to-do list (at most 70 characters), in their words. Keep numbers and measurements exactly as said.
-- "project": the project key it's about, or "" if you can't tell. A number said alone ("110", "114") is the project whose name or address starts with it. A place that isn't on the list (a new job): "" and put the place in the title.
-- "who": the team key of whoever does it. A name said: that person. Site work, site problems, touch-ups, measuring, bringing things and following up with the GC: the site manager. Calls, paperwork and orders: the office. Not sure: the one talking.
-- "when": "Today", "Tomorrow", a weekday like "Wed", a date like "Nov 18" — only if a day was said, or it's clearly for today. Otherwise "".
-- "urgent": true only if they said it's urgent or for right now.
-- "note": anything else said about it that matters, short. Otherwise "".
-- "for": the key of whoever is waiting for it, when it's someone else — an installer who asked ("Walter needs the code" → walter) or one of the team. Otherwise "".
-
-Answer with JSON only, nothing before or after it:
-{"answer":"","items":[{"kind":"task","title":"…","project":"…","who":"…","when":"…","urgent":false,"note":"…","for":""}]}
-
-What was said:
+The conversation so far:
+${talk || '(it just started — you said hello)'}
+${about ? `\nThe project being talked about: ${about}.\n` : ''}
+What ${name} just said:
 """
 ${text.trim()}
-"""`
+"""
+
+Answer with JSON only, nothing before or after it:
+{"reply":"","items":[{"kind":"task","title":"…","project":"…","who":"…","when":"…","urgent":false,"note":"…","for":""}],"actions":[{"do":"done","id":"…"}]}
+
+Rules:
+- "reply": what you say back — one to three short sentences, the way you'd say it out loud. Asked something: the answer, only from what's above (names, dates, numbers); if it isn't there, say you don't see it in the app. Told things to do: say plainly what you'll add or change ("I'll put the drain at 114 on Yakov's list for tomorrow — OK?"); nothing happens until they tap yes, so never say it's done. Just talking: a short friendly line, then ask what's going on. Never make anything up.
+- "items": the new things to do from what they JUST said — not from earlier in the talk (those were handled). One for each separate thing. Never add anything that wasn't said. Skip greetings, filler, repeats and thinking out loud. No items for a question.
+  - "title": short and plain, like a line on a to-do list (at most 70 characters), in their words. Keep numbers and measurements exactly as said.
+  - "project": the project key. A number said alone ("110", "114") is the project whose name or address starts with it. None named: the project being talked about, if there is one and it fits; otherwise "". A place that isn't on the list (a new job): "" and put the place in the title.
+  - "who": the team key of whoever does it. A name said: that person. Site work, site problems, touch-ups, measuring, bringing things and following up with the GC: the site manager. Calls, paperwork and orders: the office. Not sure: the one talking.
+  - "when": "Today", "Tomorrow", a weekday like "Wed", a date like "Nov 18" — only if a day was said, or it's clearly for today. Otherwise "".
+  - "urgent": true only if they said it's urgent or for right now. "note": anything else said about it that matters, short, or "". "for": the key of whoever is waiting for it when it's someone else (an installer who asked), or "".
+- "actions": changes to to-dos already in the app — only when they ask for one, using a [key] from the list above: {"do":"done","id":"…"} it's done; {"do":"move","id":"…","when":"Fri"} a new day; {"do":"assign","id":"…","who":"<team key>"} someone else does it; {"do":"note","id":"…","note":"…"} a note on it. Not sure which to-do they mean: ask in "reply" and leave "actions" empty.`
 }
+/** the old way in (one message, no conversation) — the same assistant */
+function promptFor(s: Store, text: string): string { return talkPrompt(s, [], text, '') }
 let seq = 0
 const newId = () => 'cap' + Date.now().toString(36) + (seq++)
-/** the AI's reply: its answer and the list — or just the list */
-function replyOf(raw: string): { answer: string; items: any[] } {
+/** the AI's reply: what it says, the new things and the changes — or just a list */
+function replyOf(raw: string): { answer: string; items: any[]; actions: any[] } {
   const o = raw.indexOf('{')
   const a = raw.indexOf('[')
   if (o >= 0 && (a < 0 || o < a)) {
     const obj = JSON.parse(raw.slice(o, raw.lastIndexOf('}') + 1))
-    return { answer: typeof obj?.answer === 'string' ? obj.answer.trim() : '', items: Array.isArray(obj?.items) ? obj.items : [] }
+    const said = typeof obj?.reply === 'string' && obj.reply.trim() ? obj.reply : obj?.answer
+    return { answer: typeof said === 'string' ? said.trim() : '', items: Array.isArray(obj?.items) ? obj.items : [], actions: Array.isArray(obj?.actions) ? obj.actions : [] }
   }
   const b = raw.lastIndexOf(']')
   if (a < 0 || b < a) throw new Error('no list')
   const arr = JSON.parse(raw.slice(a, b + 1))
   if (!Array.isArray(arr)) throw new Error('no list')
-  return { answer: '', items: arr }
+  return { answer: '', items: arr, actions: [] }
 }
-/** what the AI answered, if it was asked something */
+/** what the AI said back */
 export const answerIn = (raw: string) => { try { return replyOf(raw).answer } catch { return '' } }
+
+/* ---------------- changes to what's already there ---------------- */
+export type CapAction = { id: string; do: 'done' | 'move' | 'assign' | 'note'; taskId: string; when?: string; who?: PersonKey; note?: string }
+/** the changes the AI offered, each checked: a real open to-do, a real day, a real person */
+export function parseActions(s: Store, raw: string): CapAction[] {
+  let arr: any[] = []
+  try { arr = replyOf(raw).actions } catch { return [] }
+  const team = insidePeople(s)
+  const seen = new Set<string>()
+  return arr.map((x: any): CapAction | null => {
+    const t = s.tasks.find((y) => y.id === x?.id && y.state !== 'done')
+    if (!t || !['done', 'move', 'assign', 'note'].includes(x?.do)) return null
+    const k = `${x.do}:${t.id}`
+    if (seen.has(k)) return null
+    seen.add(k)
+    if (x.do === 'move') { const when = dayOf(x.when); return when ? { id: newId(), do: 'move', taskId: t.id, when } : null }
+    if (x.do === 'assign') return typeof x.who === 'string' && team.includes(x.who as PersonKey) && x.who !== t.owner ? { id: newId(), do: 'assign', taskId: t.id, who: x.who as PersonKey } : null
+    if (x.do === 'note') { const note = String(x.note || '').trim().slice(0, 400); return note ? { id: newId(), do: 'note', taskId: t.id, note } : null }
+    return { id: newId(), do: 'done', taskId: t.id }
+  }).filter((x): x is CapAction => !!x)
+}
+/** do them — only after the yes */
+export function doActions(acts: CapAction[]) {
+  const s = useStore.getState()
+  acts.forEach((a) => {
+    if (a.do === 'done') s.completeTask(a.taskId)
+    else if (a.do === 'move' && a.when) s.setTaskDue(a.taskId, a.when)
+    else if (a.do === 'assign' && a.who) s.reassignTask(a.taskId, a.who)
+    else if (a.do === 'note' && a.note) s.noteTask(a.taskId, a.note)
+  })
+}
 /** the AI's reply → the list, every field checked against the real projects and people */
 export function parseItems(s: Store, raw: string): CapItem[] {
   const arr = replyOf(raw).items
@@ -230,127 +297,237 @@ export function addCaptured(items: CapItem[]) {
   }, `${items.length === 1 ? '1 thing' : `${items.length} things`} added`, { tone: 'done', sub: items.some((x) => x.who !== me) ? 'Each is on its person’s Today — you follow what’s someone else’s.' : 'They’re on your Today.' })
 }
 
-/* ---------------- the window ---------------- */
-type Phase = 'say' | 'think' | 'check'
+/* ---------------- the conversation ---------------- */
+type Turn = { id: string; who: 'bot' | 'me'; text: string; items?: CapItem[]; acts?: CapAction[]; state?: 'ask' | 'done' | 'dropped'; thinking?: boolean; plain?: boolean }
+const NEEDS_JOB: CapKind[] = ['problem', 'touchup', 'bring', 'gc']
 export function CaptureModal({ level, jobId, listen, ask }: { level: number; jobId?: string; /** opened from the mic: listening right away */ listen?: boolean; /** asked from search: the question, answered right away */ ask?: string }) {
   const s = useStore()
   const me = meOf(s.role)
-  const [text, setText] = React.useState(ask || '')
-  const [phase, setPhase] = React.useState<Phase>('say')
-  const [items, setItems] = React.useState<CapItem[]>([])
-  const [plain, setPlain] = React.useState(false)
-  const [why, setWhy] = React.useState('')
-  /* what it answered, when it was asked something */
-  const [answer, setAnswer] = React.useState('')
-  const abort = React.useRef<AbortController | null>(null)
-  /* the names that may come up — so a recording written down spells them right */
-  const hint = React.useMemo(() => [...insidePeople(s).map((p) => PEOPLE[p]?.name), ...crewsOf(s).map((p) => PEOPLE[p]?.name), ...projectsFor(s).slice(0, 40).map((j) => j.name)].filter(Boolean).join(', ').slice(0, 780), [])
-  const mic = useVoice((t) => setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)), hint)
-  React.useEffect(() => { if (listen && mic.can) mic.start() }, [])
-  /* asked from search: straight to the answer */
-  React.useEffect(() => { if (ask?.trim()) void make() }, [])
-  React.useEffect(() => () => abort.current?.abort(), [])
   const team = insidePeople(s)
-  const make = async () => {
-    if (mic.on) mic.stop()
-    if (mic.busy) return
-    const said = `${text} ${mic.hearing}`.trim()
-    if (!said) return
-    setPhase('think')
+  const [turns, setTurns] = React.useState<Turn[]>(() => [{ id: 'hi', who: 'bot', text: greeting(useStore.getState(), jobId) }])
+  const [text, setText] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  /* the project being talked about: the one it was opened on, then the last one named */
+  const about = React.useRef(jobId || '')
+  const abort = React.useRef<AbortController | null>(null)
+  /* words from the mic go in the box — not the stragglers after it's sent */
+  const take = React.useRef(true)
+  /* the names that may come up — so what's said is written down right */
+  const hint = React.useMemo(() => [...insidePeople(s).map((p) => PEOPLE[p]?.name), ...crewsOf(s).map((p) => PEOPLE[p]?.name), ...projectsFor(s).slice(0, 40).map((j) => j.name)].filter(Boolean).join(', ').slice(0, 780), [])
+  const mic = useVoice((t) => { if (take.current) setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)) }, hint)
+  const now = React.useRef({ text, hearing: mic.hearing, turns, busy })
+  now.current = { text, hearing: mic.hearing, turns, busy }
+  const end = React.useRef<HTMLDivElement>(null)
+  const box = React.useRef<HTMLTextAreaElement>(null)
+  const last = turns[turns.length - 1]
+  React.useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [turns.length, last?.thinking, last?.state])
+  /* the box grows with what's in it */
+  const shown = mic.on || mic.busy ? `${text}${text && mic.hearing ? ' ' : ''}${mic.hearing}` : text
+  React.useLayoutEffect(() => { const el = box.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 160)}px` } }, [shown])
+  React.useEffect(() => { if (listen && mic.can) { take.current = true; mic.start() } }, [])
+  React.useEffect(() => { if (ask?.trim()) void send(ask) }, [])
+  React.useEffect(() => () => abort.current?.abort(), [])
+
+  const send = async (said0?: string) => {
+    const said = (said0 ?? `${now.current.text} ${now.current.hearing}`).trim()
+    if (!said || now.current.busy) return
+    take.current = false
+    setText('')
+    const history: Said[] = now.current.turns
+    const mine: Turn = { id: newId(), who: 'me', text: said }
+    const think: Turn = { id: newId(), who: 'bot', text: '', thinking: true }
+    setTurns((ts) => [...ts, mine, think])
+    setBusy(true)
     const st = useStore.getState()
-    let list: CapItem[] | null = null
-    let said2 = ''
+    let reply = ''
+    let items: CapItem[] = []
+    let acts: CapAction[] = []
+    let plain = false
+    let why = ''
     if (REAL.ai) {
       abort.current = new AbortController()
-      try { const raw = await REAL.ai(promptFor(st, said), [], abort.current.signal); said2 = answerIn(raw); list = parseItems(st, raw) } catch (e: any) { list = null; setWhy(e?.code && e.code !== 'cancelled' && e?.message ? String(e.message) : '') }
+      try {
+        const raw = await REAL.ai(talkPrompt(st, history, said, about.current), [], abort.current.signal, { fast: true })
+        reply = answerIn(raw)
+        items = parseItems(st, raw)
+        acts = parseActions(st, raw)
+      } catch (e: any) {
+        if (e?.code === 'cancelled') return
+        why = e?.message ? String(e.message).replace(/\.$/, '') : ''
+      }
     }
     if (abort.current?.signal.aborted) return
-    setAnswer(said2)
-    if (!said2 && (!list || !list.length)) { list = splitLocally(st, said, jobId); setPlain(true) } else setPlain(false)
-    list ||= []
-    /* opened on a project: what doesn't name another one is for this one */
-    if (jobId) list = list.map((x) => (x.jobId ? x : { ...x, jobId, who: x.who }))
-    setItems(list)
-    setPhase('check')
+    if (!reply && !items.length && !acts.length) {
+      items = splitLocally(st, said, about.current || undefined)
+      plain = true
+      reply = items.length ? `${why ? `I couldn’t reach the AI (${why}) — ` : ''}here’s what I got from your words:` : why ? `I couldn’t reach the AI — ${why}.` : 'I didn’t get that — say it another way?'
+    }
+    /* opened on a project: what doesn't name another is for this one */
+    if (jobId) items = items.map((x) => (x.jobId ? x : { ...x, jobId }))
+    const named = items.find((x) => x.jobId)?.jobId || (acts[0] && st.tasks.find((t) => t.id === acts[0].taskId)?.jobId)
+    if (named) about.current = named
+    const ask2 = items.length > 0 || acts.length > 0
+    setTurns((ts) => ts.map((t) => (t.id === think.id ? { ...t, thinking: false, text: reply || (ask2 ? 'Here’s what I’ll do — OK?' : 'Got it.'), items, acts, plain, state: ask2 ? 'ask' : undefined } : t)))
+    setBusy(false)
   }
-  const set = (id: string, p: Partial<CapItem>) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)))
-  const add = () => { addCaptured(items); s.closeAll() }
-  const needsJob = items.filter((x) => !x.jobId && ['problem', 'touchup', 'bring', 'gc'].includes(x.kind)).length
+  /* the mic: tap to talk, tap again when you're done — it goes as soon as the words are in */
+  const [sendAt, setSendAt] = React.useState(0)
+  const talk = () => {
+    if (mic.on) { setSendAt(Date.now()); mic.stop(); return }
+    take.current = true
+    mic.start()
+  }
+  React.useEffect(() => {
+    if (!sendAt || mic.on || mic.busy) return
+    /* a browser's last words come a moment after it stops */
+    const t = setTimeout(() => { setSendAt(0); void send() }, Math.max(0, 650 - (Date.now() - sendAt)))
+    return () => clearTimeout(t)
+  }, [sendAt, mic.on, mic.busy])
+
+  const setItem = (tid: string, id: string, p: Partial<CapItem>) => setTurns((ts) => ts.map((t) => (t.id === tid ? { ...t, items: t.items?.map((x) => (x.id === id ? { ...x, ...p } : x)) } : t)))
+  const dropItem = (tid: string, id: string) => setTurns((ts) => ts.map((t) => (t.id === tid ? { ...t, items: t.items?.filter((x) => x.id !== id) } : t)))
+  const dropAct = (tid: string, id: string) => setTurns((ts) => ts.map((t) => (t.id === tid ? { ...t, acts: t.acts?.filter((x) => x.id !== id) } : t)))
+  const yes = (t: Turn) => {
+    const items = t.items || []
+    const acts = t.acts || []
+    if (items.length) addCaptured(items)
+    if (acts.length) doActions(acts)
+    setTurns((ts) => [...ts.map((x) => (x.id === t.id ? { ...x, state: 'done' as const } : x)), { id: newId(), who: 'bot' as const, text: 'Done. Anything else?' }])
+  }
+  const no = (t: Turn) => setTurns((ts) => [...ts.map((x) => (x.id === t.id ? { ...x, state: 'dropped' as const } : x)), { id: newId(), who: 'bot' as const, text: 'OK, I left it. What else?' }])
+
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
-      title="Say it"
+      title="Tile OS"
       header={
-        <div className="flex items-center gap-3 px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-capture-head>
-          <Helper size={phase === 'check' ? 44 : 60} mood={phase === 'think' || mic.busy ? 'thinking' : mic.on ? 'listening' : phase === 'check' ? 'happy' : 'idle'} />
+        <div className="flex items-center gap-3 px-6 pb-2 pt-5 pr-16 max-sm:px-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-capture-head>
+          <Helper size={44} mood={busy || mic.busy ? 'thinking' : mic.on ? 'listening' : 'idle'} />
           <div className="min-w-0">
-            <h2 className="font-display text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{phase === 'check' ? (items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} — check them` : answer ? 'Here’s what I see' : 'Nothing to add') : 'What’s going on?'}</h2>
-            <div className="mt-0.5 text-[0.875rem] text-muted">{phase === 'check' ? (items.length ? (plain ? (why ? `Split from your words. ${why}` : 'Split from your words — fix what’s off, then Add.') : 'Fix what’s off, then Add.') : answer ? 'From what’s in the app right now.' : '') : phase === 'think' ? 'Sorting it out…' : 'Ask me, or tell me what’s going on — I’ll make the list.'}</div>
+            <h2 className="font-display text-[1.125rem] font-semibold leading-tight text-ink">Tile OS</h2>
+            <div className="text-[0.8125rem] text-muted">{mic.on ? 'Listening — tap the red button when you’re done' : busy || mic.busy ? 'One second…' : 'Ask me, or tell me what to do'}</div>
           </div>
         </div>
       }
-      footer={phase === 'check' ? (
-        <>
-          <Button variant="ghost" icon={<ChevronLeft />} onClick={() => { setText(''); setAnswer(''); setPhase('say') }} data-capture-back>{answer && !items.length ? 'Ask something else' : 'What I said'}</Button>
-          {answer && !items.length
-            ? <Button variant="primary" className="ml-auto max-sm:flex-1" onClick={s.close} data-capture-done>Done</Button>
-            : <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!items.length || needsJob > 0} onClick={add} data-capture-add>{needsJob ? `Pick ${needsJob === 1 ? 'the project' : `${needsJob} projects`}` : `Add ${items.length}`}</Button>}
-        </>
-      ) : phase === 'say' ? (
-        <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={mic.busy || !`${text}${mic.hearing}`.trim()} onClick={make} data-capture-make>Make the list</Button>
-      ) : undefined}
-      bodyClass="px-6 pb-5 pt-3 max-sm:px-4"
-    >
-      {phase === 'say' && (
-        <div data-capture-say>
-          <div className="relative">
-            <textarea
-              value={mic.hearing ? `${text}${text ? ' ' : ''}${mic.hearing}` : text}
-              onChange={(e) => { if (!mic.on) setText(e.target.value) }}
-              readOnly={mic.on}
-              placeholder={'“The drain in the laundry room at 110 isn’t good. Yaakov — measure 15 Basewood Drive tomorrow…”'}
-              aria-label="What’s going on"
-              data-autofocus
-              rows={6}
-              className="w-full resize-none rounded-xl border border-line bg-white px-4 py-3 text-[1rem] leading-relaxed text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
-              data-capture-text
-            />
-          </div>
-          {/* the mic, big — while it listens, the sound moves */}
-          {mic.can && (
-            <div className="mt-4 flex flex-col items-center gap-2.5">
-              <button type="button" disabled={mic.busy} onClick={mic.on ? mic.stop : () => mic.start()} aria-pressed={mic.on} aria-label={mic.on ? 'Stop listening' : 'Talk'} data-capture-mic
-                className={cn('relative inline-flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_10px_24px_-12px_rgba(38,80,207,.8)] transition active:scale-95', mic.on ? 'bg-bad-500' : 'bg-brand-600 hover:bg-brand-700')}>
-                {mic.on && <span className="absolute inset-0 animate-ping rounded-full bg-bad-400/40" aria-hidden />}
-                {mic.on ? <Square className="relative h-5 w-5 fill-current" /> : <Mic className="h-6 w-6" />}
-              </button>
-              {mic.busy ? <span className="flex items-center gap-2 text-[0.875rem] font-semibold text-brand-700" role="status" data-capture-writing><span className="flex gap-1" aria-hidden>{[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: `${i * 140}ms` }} />)}</span>Writing it down…</span>
-                : mic.on ? <Listening level={mic.metering ? mic.level : undefined} /> : <span className="text-[0.8125rem] text-muted">{text ? 'Tap to say more' : 'Tap to talk'}</span>}
-              {mic.on && mic.quiet && <span className="text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything — is the right microphone on?</span>}
+      footer={
+        <div className="w-full" data-capture-composer>
+          {(mic.on || mic.busy) && (
+            <div className="mb-2 flex items-center justify-center">
+              {mic.busy
+                ? <span className="flex items-center gap-2 text-[0.84375rem] font-semibold text-brand-700" role="status" data-capture-writing><span className="flex gap-1" aria-hidden>{[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: `${i * 140}ms` }} />)}</span>Writing it down…</span>
+                : <Listening level={mic.metering ? mic.level : undefined} />}
             </div>
           )}
-          {mic.err && <div className="mx-auto mt-3 max-w-[28rem] rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>{mic.err}</div>}
+          {mic.on && mic.quiet && <div className="mb-2 text-center text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything — is the right microphone on?</div>}
+          {mic.err && <div className="mb-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>{mic.err}</div>}
+          <div className="flex w-full items-end gap-2">
+            <textarea
+              ref={box}
+              value={shown}
+              onChange={(e) => { if (!mic.on && !mic.busy) { take.current = true; setText(e.target.value) } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
+              readOnly={mic.on || mic.busy}
+              placeholder={mic.on ? 'Listening…' : 'Type, or tap the mic'}
+              aria-label="Ask Tile OS, or tell it what to do"
+              rows={1}
+              className="min-h-11 min-w-0 flex-1 resize-none rounded-[1.375rem] border border-line bg-white px-4 py-[0.5625rem] text-[1rem] leading-6 text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
+              data-capture-text
+            />
+            {text.trim() && !mic.on && !mic.busy
+              ? <button type="button" onClick={() => void send()} disabled={busy} aria-label="Send" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50" data-capture-send data-capture-make><ArrowUp className="h-5 w-5" /></button>
+              : mic.can && (
+                <button type="button" onClick={talk} disabled={mic.busy || busy} aria-pressed={mic.on} aria-label={mic.on ? 'Done talking' : 'Talk'} data-capture-mic
+                  className={cn('relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition active:scale-95 disabled:opacity-50', mic.on ? 'bg-bad-500' : 'bg-brand-600 hover:bg-brand-700')}>
+                  {mic.on && <span className="absolute inset-0 animate-ping rounded-full bg-bad-400/40" aria-hidden />}
+                  {mic.on ? <Square className="relative h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                </button>
+              )}
+          </div>
         </div>
-      )}
-      {phase === 'think' && (
-        <div className="flex flex-col items-center gap-3 py-10" data-capture-think>
-          <div className="flex gap-1.5" aria-hidden>{[0, 1, 2].map((i) => <span key={i} className="h-2.5 w-2.5 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: `${i * 140}ms` }} />)}</div>
-          <button type="button" onClick={() => { abort.current?.abort(); setPhase('say') }} className="text-[0.8125rem] font-medium text-muted hover:text-ink">Stop</button>
-        </div>
-      )}
-      {phase === 'check' && answer && (
-        <p className={cn('whitespace-pre-line rounded-2xl rounded-tl-md bg-[#f1f4fd] px-4 py-3 text-[0.9375rem] leading-relaxed text-ink', items.length > 0 && 'mb-3')} data-capture-answer>{answer}</p>
-      )}
-      {phase === 'check' && (items.length > 0 || !answer) && (
-        <ul className="-mx-2" data-capture-list>
-          {items.map((it) => <CapRow key={it.id} it={it} me={me} team={team} onChange={(p) => set(it.id, p)} onRemove={() => setItems((xs) => xs.filter((x) => x.id !== it.id))} />)}
-          {!items.length && <li className="px-2 py-8 text-center text-[0.9375rem] text-muted">Nothing in it to add — go back and say a bit more.</li>}
-        </ul>
-      )}
+      }
+      bodyClass="px-5 pb-3 pt-1 max-sm:px-4"
+    >
+      <div className="space-y-3" data-capture-chat>
+        {turns.map((t) => t.who === 'me'
+          ? <div key={t.id} className="flex justify-end" data-capture-mine><p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-tr-md bg-brand-600 px-4 py-2.5 text-[0.9375rem] leading-relaxed text-white">{t.text}</p></div>
+          : (
+            <div key={t.id} className="space-y-2" data-capture-bot>
+              <div className="flex items-start gap-2">
+                <Helper size={28} still mood="idle" className="mt-0.5" />
+                {t.thinking
+                  ? <div className="rounded-2xl rounded-tl-md bg-[#f1f4fd] px-4 py-3.5" data-capture-thinking><span className="flex gap-1.5" aria-label="Thinking">{[0, 1, 2].map((i) => <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: `${i * 140}ms` }} />)}</span></div>
+                  : <p className="min-w-0 max-w-[88%] whitespace-pre-line rounded-2xl rounded-tl-md bg-[#f1f4fd] px-4 py-2.5 text-[0.9375rem] leading-relaxed text-ink" data-capture-answer>{t.text}</p>}
+              </div>
+              {(t.items?.length || t.acts?.length || t.state === 'ask') ? <Offer t={t} me={me} team={team} onItem={setItem} onDropItem={dropItem} onDropAct={dropAct} onYes={() => yes(t)} onNo={() => no(t)} /> : null}
+            </div>
+          ))}
+        <div ref={end} />
+      </div>
     </Modal>
   )
+}
+
+/** what it offers to do: the new things and the changes, to check — nothing happens before the yes */
+function Offer({ t, me, team, onItem, onDropItem, onDropAct, onYes, onNo }: { t: Turn; me: PersonKey; team: PersonKey[]; onItem: (tid: string, id: string, p: Partial<CapItem>) => void; onDropItem: (tid: string, id: string) => void; onDropAct: (tid: string, id: string) => void; onYes: () => void; onNo: () => void }) {
+  const s = useStore()
+  const items = t.items || []
+  const acts = t.acts || []
+  const n = items.length + acts.length
+  if (t.state !== 'ask') {
+    const what = [...items.map((x) => x.title), ...acts.map((a) => `${ACT_WORDS[a.do](a)}: ${s.tasks.find((y) => y.id === a.taskId)?.title || ''}`)]
+    return (
+      <div className={cn('ml-9 rounded-2xl border px-4 py-2.5 text-[0.84375rem]', t.state === 'done' ? 'border-[#cfe8d9] bg-[#f3faf6] text-[#1f6b43]' : 'border-line bg-[#faf9f7] text-muted')} data-capture-offer={t.state}>
+        <span className="flex items-center gap-1.5 font-semibold">{t.state === 'done' ? <><Check className="h-4 w-4" /> Done</> : 'Left out'}</span>
+        <span className="mt-0.5 block leading-snug">{what.join(' · ')}</span>
+      </div>
+    )
+  }
+  const needsJob = items.filter((x) => !x.jobId && NEEDS_JOB.includes(x.kind)).length
+  return (
+    <div className="rounded-2xl border border-line bg-white" data-capture-offer="ask">
+      <ul className="divide-y divide-line-2 px-1.5" data-capture-list>
+        {items.map((it) => <CapRow key={it.id} it={it} me={me} team={team} onChange={(p) => onItem(t.id, it.id, p)} onRemove={() => onDropItem(t.id, it.id)} />)}
+        {acts.map((a) => <ActRow key={a.id} a={a} onRemove={() => onDropAct(t.id, a.id)} />)}
+        {!n && <li className="px-2 py-4 text-center text-[0.875rem] text-muted">Nothing left to do here.</li>}
+      </ul>
+      <div className="flex gap-2 border-t border-line-2 p-3">
+        <Button variant="secondary" className="flex-1" onClick={onNo} data-capture-no>Not now</Button>
+        <Button variant="primary" className="flex-1" disabled={!n || needsJob > 0} onClick={onYes} data-capture-add>{needsJob ? `Pick ${needsJob === 1 ? 'the project' : `${needsJob} projects`}` : acts.length ? 'Yes, do it' : `Add ${items.length}`}</Button>
+      </div>
+    </div>
+  )
+}
+const ACT_WORDS: Record<CapAction['do'], (a: CapAction) => string> = {
+  done: () => 'Mark done',
+  move: (a) => `Move to ${a.when}`,
+  assign: (a) => `Give to ${PEOPLE[a.who!]?.short || a.who}`,
+  note: () => 'Add a note',
+}
+const ACT_ICON: Record<CapAction['do'], LucideIcon> = { done: Check, move: CalendarDays, assign: UserRound, note: StickyNote }
+/** one change to something already there: what, to which to-do — × leaves it out */
+function ActRow({ a, onRemove }: { a: CapAction; onRemove: () => void }) {
+  const s = useStore()
+  const t = s.tasks.find((x) => x.id === a.taskId)
+  const I = ACT_ICON[a.do]
+  return (
+    <li className="flex items-start gap-2.5 px-2 py-3" data-capture-act={a.do}>
+      <span className="mt-0.5 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-[#eef3fd] px-2.5 text-[0.78125rem] font-semibold text-brand-700"><I className="h-3.5 w-3.5" />{ACT_WORDS[a.do](a)}</span>
+      <span className="min-w-0 flex-1 text-[0.9375rem] font-medium leading-snug text-ink">
+        {t?.title || 'That to-do'}<span className="font-normal text-muted"> · {(t && s.jobs[t.jobId]?.name) || 'Company'}</span>
+        {a.note && <span className="mt-0.5 block text-[0.8125rem] font-normal text-muted">“{a.note}”</span>}
+      </span>
+      <button type="button" onClick={onRemove} aria-label="Leave this out" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-faint transition hover:bg-wash-2 hover:text-ink" data-capture-remove><X className="h-4 w-4" /></button>
+    </li>
+  )
+}
+
+/** a line you can fix that wraps instead of being cut off — as tall as what's in it */
+function Grow({ value, onChange, label, className, ...rest }: { value: string; onChange: (v: string) => void; label: string; className?: string } & Record<`data-${string}`, unknown>) {
+  const ref = React.useRef<HTMLTextAreaElement>(null)
+  React.useLayoutEffect(() => { const el = ref.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }, [value])
+  return <textarea ref={ref} rows={1} value={value} onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))} aria-label={label} className={cn('resize-none overflow-hidden', className)} {...rest} />
 }
 
 /** one thing on the list: its kind (tap to change), what, and the project, who and when as chips — × takes it off */
@@ -363,13 +540,13 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
   const whoOptions = [me, ...team.filter((p) => p !== me)].map((p) => ({ key: p as string, label: p === me ? 'Me' : PEOPLE[p]?.name || p, hint: p === me ? undefined : PEOPLE[p]?.roleLabel, lead: <Avatar who={p} size={20} /> }))
   const whenOptions = ['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', ...(it.when && !['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'].includes(it.when) ? [it.when] : [])].map((d) => ({ key: d, label: d === 'Next Mon' ? 'Next Monday' : d }))
   return (
-    <li className="rounded-xl px-2 py-3 transition hover:bg-[#faf9f7]" data-capture-item={it.kind}>
+    <li className="px-2 py-3" data-capture-item={it.kind}>
       <div className="flex min-w-0 items-start gap-2.5">
         <Menu align="start" width={300} trigger={<button type="button" aria-label={`Kind: ${k.label} — change it`} className="mt-0.5 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.78125rem] font-semibold transition hover:brightness-95" style={{ background: k.bg, color: k.fg }} data-capture-kind={it.kind}><I className="h-3.5 w-3.5" />{k.label}<ChevronDown className="h-3 w-3 opacity-70" /></button>}>
           <MenuLabel>What it is</MenuLabel>
           {CAP_KINDS.map((x) => { const XI = x.icon; return <MenuItem key={x.k} icon={<XI className="h-4 w-4" style={{ color: x.fg }} />} hint={x.hint} onSelect={() => onChange({ kind: x.k })}><span className="flex items-center gap-2">{x.label}{x.k === it.kind && <Check className="h-4 w-4 text-brand-600" strokeWidth={2.5} />}</span></MenuItem> })}
         </Menu>
-        <input value={it.title} onChange={(e) => onChange({ title: e.target.value })} aria-label="What" className="min-w-0 flex-1 rounded-md bg-transparent px-1 py-1 text-[0.9375rem] font-medium leading-snug text-ink outline-none focus:bg-white focus:ring-2 focus:ring-brand-100" data-capture-title />
+        <Grow value={it.title} onChange={(v) => onChange({ title: v })} label="What" className="min-w-0 flex-1 rounded-md bg-transparent px-1 py-1 text-[0.9375rem] font-medium leading-snug text-ink outline-none focus:bg-white focus:ring-2 focus:ring-brand-100" data-capture-title />
         <button type="button" onClick={onRemove} aria-label="Take it off the list" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-faint transition hover:bg-wash-2 hover:text-ink" data-capture-remove><X className="h-4 w-4" /></button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[0.125rem]">
@@ -386,7 +563,7 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
   )
 }
 
-/** the way into Say it, on top of + New: the little robot, the question, and the mic */
+/** the way in, on top of + New: the little robot, the question, and the mic */
 export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => void }) {
   const s = useStore()
   const open = (listen?: boolean) => { onOpen?.(); s.open({ t: 'capture', jobId, listen }) }
@@ -396,7 +573,7 @@ export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => voi
       <Helper size={40} mood="idle" />
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block text-[0.9375rem] font-semibold text-ink">What’s going on?</span>
-        <span className="block truncate text-[0.8125rem] text-muted">Say it or type it — it makes the tasks, each the right kind</span>
+        <span className="block truncate text-[0.8125rem] text-muted">Ask me, or tell me what to do</span>
       </span>
       <button type="button" onClick={(e) => { e.stopPropagation(); open(true) }} aria-label="Talk" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95" data-say-mic><Mic className="h-5 w-5" /></button>
     </div>

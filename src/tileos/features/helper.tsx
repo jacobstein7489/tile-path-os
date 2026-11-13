@@ -6,13 +6,13 @@ import { cn } from '@/tileos/lib/utils'
 
 export type HelperMood = 'idle' | 'listening' | 'thinking' | 'happy'
 
-export function Helper({ size = 48, mood = 'idle', className }: { size?: number; mood?: HelperMood; className?: string }) {
+export function Helper({ size = 48, mood = 'idle', className, still }: { size?: number; mood?: HelperMood; className?: string; /** no floating (a small one beside each answer) */ still?: boolean }) {
   const id = React.useId().replace(/:/g, '')
   const lit = '#8ff0ff'
   /* arms hang a little out; open wide when it's happy */
   const arm = mood === 'happy' ? 100 : 16
   return (
-    <span className={cn('inline-flex shrink-0', mood === 'listening' ? 'helper-bob-fast' : mood === 'happy' ? 'helper-hop' : 'helper-bob', className)} style={{ width: size, height: size }} aria-hidden data-helper={mood}>
+    <span className={cn('inline-flex shrink-0', still ? '' : mood === 'listening' ? 'helper-bob-fast' : mood === 'happy' ? 'helper-hop' : 'helper-bob', className)} style={{ width: size, height: size }} aria-hidden data-helper={mood}>
       <svg viewBox="0 0 64 64" width={size} height={size}>
         <defs>
           <linearGradient id={`${id}-head`} x1="0.2" y1="0" x2="0.8" y2="1">

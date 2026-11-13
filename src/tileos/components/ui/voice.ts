@@ -2,14 +2,15 @@
  *
  * The microphone first: it's asked for once, and when it's blocked or missing, that's said plainly with what to do.
  * Then the words, as you say them — the browser's own listening (Chrome, Edge, Safari on a computer). Where the
- * browser can't (an iPhone's home-screen app, a browser whose listening service is off or out of reach), it records
- * instead, and the company's AI writes it down when you stop. While it listens the level of your voice moves, so you
- * can see it hears you — and when it hears nothing for a few seconds, it says so. */
+ * browser can't (an iPhone's home-screen app, a browser whose listening service is off or out of reach), it records,
+ * and the company's AI writes it down — the same speech-to-text ChatGPT uses: every second and a half while you talk
+ * (the words show as you go), and once more, carefully, when you stop. While it listens the level of your voice moves,
+ * so you can see it hears you — and when it hears nothing for a few seconds, it says so. */
 import * as React from 'react'
 
-/** the company's AI writing down a recording (16 kHz WAV, base64) — set by the real app (lib/cloud); a hint is the
- *  names and words likely to come up */
-export type Hearer = (wavBase64: string, hint: string, signal?: AbortSignal) => Promise<string>
+/** the company's AI writing down a recording (base64 — a WAV unless its type is said) — set by the real app
+ *  (lib/cloud); a hint is the names and words likely to come up; live: the quick look while you talk */
+export type Hearer = (audioBase64: string, hint: string, signal?: AbortSignal, opts?: { type?: string; live?: boolean }) => Promise<string>
 let hearer: Hearer | undefined
 export const setHearer = (fn: Hearer | undefined) => { hearer = fn }
 export const canTranscribe = () => !!hearer
@@ -34,6 +35,23 @@ function micProblem(e: any): string {
   if (n === 'NotFoundError' || n === 'OverconstrainedError' || n === 'DevicesNotFoundError') return 'No microphone found — plug one in, or type it.'
   if (n === 'NotReadableError' || n === 'TrackStartError') return 'Another app is using the microphone — close it there, then tap the mic again.'
   return 'The microphone didn’t start — type it, or try again.'
+}
+
+/** a recording as it was made, in base64 */
+async function base64Of(blob: Blob): Promise<string> {
+  const url: string = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result || '')); r.onerror = () => rej(r.error); r.readAsDataURL(blob) })
+  return url.slice(url.indexOf(',') + 1)
+}
+/** a sound meter's context — made right in the tap (an iPhone only lets sound start from one) */
+function soundContext(): any {
+  try {
+    const W = window as any
+    const AC = W.AudioContext || W.webkitAudioContext
+    if (!AC) return null
+    const ac = new AC()
+    try { void ac.resume?.() } catch { /* fine */ }
+    return ac
+  } catch { return null }
 }
 
 /** the recording, as the AI takes it: 16 kHz, one channel, WAV — in base64 */
@@ -131,17 +149,17 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     try { rec.current?.abort?.() } catch { /* gone */ }
     try { if (mr.current && mr.current.state !== 'inactive') { mr.current.onstop = null; mr.current.stop() } } catch { /* gone */ }
     clearTimeout(cap.current)
+    clearInterval(liveTimer.current)
+    liveAbort.current?.abort()
     meterOff()
     streamOff()
   }, [])
 
   /* the level of the voice — from the mic itself, so it moves only when it hears something */
-  const meter = (s: MediaStream) => {
+  const meter = (s: MediaStream, made: any) => {
     try {
-      const W = window as any
-      const AC = W.AudioContext || W.webkitAudioContext
-      if (!AC) return
-      const ac = new AC()
+      const ac = made || soundContext()
+      if (!ac) return
       try { void ac.resume?.() } catch { /* fine */ }
       const an = ac.createAnalyser()
       an.fftSize = 512
@@ -168,36 +186,57 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     } catch { /* no meter: the bars just move */ }
   }
 
-  /* write the recording down: when the browser couldn't give the words */
+  /* while you talk (recording): every second and a half, what's been said so far is written down — the words show */
+  const liveTimer = React.useRef<any>(null)
+  const liveBusy = React.useRef(false)
+  const liveSent = React.useRef(0)
+  const liveAbort = React.useRef<AbortController | null>(null)
+  const liveOff = () => { clearInterval(liveTimer.current); liveTimer.current = null; liveAbort.current?.abort(); liveAbort.current = null }
+  const liveLook = async (type: string) => {
+    if (!hearer || liveBusy.current || !want.current) return
+    const n = chunks.current.length
+    if (!n || n === liveSent.current || (metered.current && !loud.current)) return
+    liveBusy.current = true
+    liveSent.current = n
+    const ac = new AbortController()
+    liveAbort.current = ac
+    try {
+      const text = (await hearer(await base64Of(new Blob(chunks.current.slice(0, n), { type })), hintRef.current, ac.signal, { type, live: true })).trim()
+      if (alive.current && want.current && !ac.signal.aborted && text) setHearing(text)
+    } catch { /* the careful one at the end still comes */ } finally { liveBusy.current = false }
+  }
+  /* write the recording down when you stop: carefully, the whole of it — as it was made, a WAV if that fails */
   const writeDown = async (blob: Blob) => {
     if (!hearer) { setErr('This browser can’t listen here — type it instead.'); return }
     setBusy(true)
     try {
-      const wav = await toWav16k(blob)
-      const text = (await hearer(wav, hintRef.current)).trim()
+      let text = ''
+      try { text = (await hearer(await base64Of(blob), hintRef.current, undefined, { type: blob.type || 'audio/webm' })).trim() } catch { text = (await hearer(await toWav16k(blob), hintRef.current)).trim() }
       if (!alive.current) return
       if (text) said.current(text)
       else setErr('I didn’t catch any words — try again, a little closer to the phone.')
     } catch (e: any) {
       if (alive.current) setErr(`Couldn’t write it down${e?.message ? ` — ${String(e.message).replace(/\.$/, '')}` : ''}. Type it instead.`)
     } finally {
-      if (alive.current) setBusy(false)
+      if (alive.current) { setBusy(false); setHearing('') }
     }
   }
 
   const stop = () => {
     want.current = false
     clearTimeout(cap.current)
+    liveOff()
     try { rec.current?.stop?.() } catch { /* stopped */ }
     rec.current = null
     setOn(false)
-    setHearing('')
     meterOff()
     const m = mr.current
     mr.current = null
+    /* the recording is the words when the browser gave none (it recorded instead, or its listening failed) — what was
+       written down while talking stays on screen until the careful one comes */
+    const need = !!m && m.state !== 'inactive' && (srDown.current || !gotWords.current) && (loud.current || !metered.current)
+    if (!need) setHearing('')
     if (m && m.state !== 'inactive') {
-      /* the recording is the words when the browser gave none (it recorded instead, or its listening failed) */
-      const need = (srDown.current || !gotWords.current) && (loud.current || !metered.current)
       m.onstop = () => {
         streamOff()
         const blob = new Blob(chunks.current, { type: m.mimeType || 'audio/webm' })
@@ -212,6 +251,8 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     if (on || busy || starting.current) return
     const R = SR()
     if (!R && !recordable()) { setErr('This browser can’t listen — type it instead.'); return }
+    /* the meter's sound, started right here in the tap — an iPhone won't start it later */
+    const made = soundContext()
     starting.current = true
     setErr('')
     setQuiet(false)
@@ -223,12 +264,14 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
     /* 1 · the microphone — asked for once; blocked or missing is said plainly */
     let s: MediaStream | null = null
     if (navigator.mediaDevices?.getUserMedia) {
-      try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }) } catch (e) { starting.current = false; if (alive.current) setErr(micProblem(e)); return }
+      try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }) } catch (e) { starting.current = false; try { made?.close?.() } catch { /* closed */ } if (alive.current) setErr(micProblem(e)); return }
     }
     starting.current = false
-    if (!alive.current) { s?.getTracks().forEach((t) => t.stop()); return }
+    if (!alive.current) { s?.getTracks().forEach((t) => t.stop()); try { made?.close?.() } catch { /* closed */ } return }
     stream.current = s
-    if (s) meter(s)
+    if (s) meter(s, made)
+    else try { made?.close?.() } catch { /* closed */ }
+    liveSent.current = 0
     /* 2 · the words as you say them, where the browser can — an iPhone records (when there's the AI to write it down) */
     const live = !!R && (!apple() || !hearer)
     /* 3 · a recording too, when the AI can write it down: the words if the browser's listening gives none */
@@ -240,9 +283,15 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
         m.ondataavailable = (e: any) => { if (e.data?.size) chunks.current.push(e.data) }
         m.start(1000)
         mr.current = m
+        /* recording is how it hears (an iPhone, or the browser's listening is off): the words show as you go */
+        liveTimer.current = setInterval(() => {
+          if (!srDown.current || !want.current || !mr.current) return
+          try { if (mr.current.state === 'recording') mr.current.requestData() } catch { /* fine */ }
+          setTimeout(() => void liveLook(m.mimeType || type || 'audio/webm'), 120)
+        }, 1500)
       } catch { mr.current = null }
     }
-    if (!live && !mr.current) { meterOff(); streamOff(); setErr('This browser can’t listen here — type it instead.'); return }
+    if (!live && !mr.current) { liveOff(); meterOff(); streamOff(); setErr('This browser can’t listen here — type it instead.'); return }
     want.current = true
     setOn(true)
     /* three minutes at a time */

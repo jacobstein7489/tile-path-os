@@ -666,9 +666,9 @@ const AI_WORDS: Record<string, string> = {
 }
 const asDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
 /* a recording (16 kHz WAV, base64), written down by the company's AI — when the browser can't listen */
-async function hearAI(audio: string, hint: string, signal?: AbortSignal): Promise<string> {
+async function hearAI(audio: string, hint: string, signal?: AbortSignal, opts?: { type?: string; live?: boolean }): Promise<string> {
   let r: Heard
-  try { r = (await hearCompanyAI({ data: { audio, hint } })) as Heard } catch (e: any) {
+  try { r = (await hearCompanyAI({ data: { audio, hint, type: opts?.type, live: opts?.live } })) as Heard } catch (e: any) {
     console.warn('AI hearing failed', e)
     throw new ReadError('error', /unauthorized/i.test(String(e?.message)) ? 'Sign in again, then try once more.' : AI_WORDS.error)
   }
@@ -677,11 +677,11 @@ async function hearAI(audio: string, hint: string, signal?: AbortSignal): Promis
   if (r.detail) console.warn('AI hearing said no:', r.why, r.detail)
   throw new ReadError(r.why, r.why === 'error' && r.detail ? `the AI couldn’t (${r.detail.slice(0, 140)})` : AI_WORDS[r.why] || AI_WORDS.error)
 }
-async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal): Promise<string> {
+async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal, opts?: { fast?: boolean }): Promise<string> {
   const urls = await Promise.all(pages.slice(0, 10).map(asDataUrl))
   if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
   let r: Answer
-  try { r = (await askCompanyAI({ data: { prompt, pages: urls } })) as Answer } catch (e: any) {
+  try { r = (await askCompanyAI({ data: { prompt, pages: urls, fast: opts?.fast } })) as Answer } catch (e: any) {
     console.warn('AI call failed', e)
     throw new ReadError('error', /unauthorized/i.test(String(e?.message)) ? 'Sign in again, then try once more.' : AI_WORDS.error)
   }
