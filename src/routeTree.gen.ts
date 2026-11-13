@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiTalkRouteImport } from './routes/api/talk'
 import { Route as ApiQuickbooksCallbackRouteImport } from './routes/api/quickbooks/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTalkRoute = ApiTalkRouteImport.update({
+  id: '/api/talk',
+  path: '/api/talk',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiQuickbooksCallbackRoute = ApiQuickbooksCallbackRouteImport.update({
@@ -25,27 +31,31 @@ const ApiQuickbooksCallbackRoute = ApiQuickbooksCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/talk': typeof ApiTalkRoute
   '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/talk': typeof ApiTalkRoute
   '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/talk': typeof ApiTalkRoute
   '/api/quickbooks/callback': typeof ApiQuickbooksCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/quickbooks/callback'
+  fullPaths: '/' | '/api/talk' | '/api/quickbooks/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/quickbooks/callback'
-  id: '__root__' | '/' | '/api/quickbooks/callback'
+  to: '/' | '/api/talk' | '/api/quickbooks/callback'
+  id: '__root__' | '/' | '/api/talk' | '/api/quickbooks/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiTalkRoute: typeof ApiTalkRoute
   ApiQuickbooksCallbackRoute: typeof ApiQuickbooksCallbackRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/talk': {
+      id: '/api/talk'
+      path: '/api/talk'
+      fullPath: '/api/talk'
+      preLoaderRoute: typeof ApiTalkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/quickbooks/callback': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiTalkRoute: ApiTalkRoute,
   ApiQuickbooksCallbackRoute: ApiQuickbooksCallbackRoute,
 }
 export const routeTree = rootRouteImport

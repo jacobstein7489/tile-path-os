@@ -20,6 +20,7 @@ import { putLocal, getLocal } from '@/tileos/lib/localdb'
 import { ReadError } from '@/tileos/features/reader'
 import { askCompanyAI, hearCompanyAI, type Answer, type Heard } from '@/lib/company-ai'
 import { setHearer } from '@/tileos/components/ui/voice'
+import { streamTalk, TalkStopped } from '@/tileos/lib/talkstream'
 import { inviteLink, inviteStatus, sendInvite, removeAccess } from '@/lib/invite'
 import { qbStatus, qbConnect, qbDisconnect, qbItems, qbPushInvoice, qbSendInvoice, qbPayment, qbPull, qbPushEstimate } from '@/lib/quickbooks'
 import { mailStatus, sendTileMail } from '@/lib/mail'
@@ -581,6 +582,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   REAL.testEmail = opts.admin && user.email ? async () => { const { error } = await supabase.auth.resetPasswordForEmail(user.email!, { redirectTo: appUrl() }); if (error) throw new Error(error.message); return user.email! } : undefined
   /* the company's AI reads paperwork; files go to the company's storage */
   REAL.ai = askAI
+  REAL.talk = talkAI
   setHearer(hearAI)
   REAL.files = files
   /* QuickBooks: invoices and payments go there, payments made there come back. Email: POs to suppliers, invoices */
@@ -650,6 +652,7 @@ export function startSample(user: User, opts: { admin: boolean; name: string; ap
   REAL.mail = undefined
   stopQbSync()
   REAL.ai = askAI
+  REAL.talk = talkAI
   setHearer(hearAI)
   setSaveStatus({ where: 'none', mode: 'sample', saving: false, problem: undefined })
   const member = linkMember(user, opts)
@@ -689,6 +692,21 @@ async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal, opts?:
   if (r.ok) return r.text
   if (r.detail) console.warn('AI said no:', r.why, r.detail)
   throw new ReadError(r.why, AI_WORDS[r.why] || AI_WORDS.error)
+}
+/* the assistant talking: its answer as it's written, so the words show while it writes (lib/talkstream) — the usual
+   way, all at once, when that doesn't work */
+async function talkAI(prompt: string, onText: (soFar: string) => void, signal?: AbortSignal): Promise<string> {
+  let token = ''
+  try { token = (await supabase.auth.getSession()).data.session?.access_token || '' } catch { /* the usual way */ }
+  if (token) {
+    try {
+      const all = await streamTalk(token, prompt, onText, signal)
+      if (all) return all
+    } catch (e) {
+      if (e instanceof TalkStopped) throw new ReadError('cancelled', 'Stopped.')
+    }
+  }
+  return askAI(prompt, [], signal, { fast: true })
 }
 const BUCKET = 'tileos-files'
 const files = {

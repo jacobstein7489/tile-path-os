@@ -219,6 +219,8 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   if (inJob && !loose) project = undefined
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
   const ownerName = owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : ''
+  /* a phone: where (and whose) after what — "Company" (no project) says nothing there */
+  const wherePhone = [project && project !== 'Company' ? project : '', who && owner ? ownerName : ''].filter(Boolean).join(' · ')
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -233,10 +235,9 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
-          {/* a phone: the project (and whose) over the task */}
-          {(project || (who && owner)) && <div className="truncate text-[0.8125rem] leading-5 text-muted md:hidden">{[project, who && owner ? ownerName : ''].filter(Boolean).join(' · ')}</div>}
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal max-md:text-[0.9375rem] max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}</span>
+            {/* a phone: one line — what, then where (and whose) in gray right after it; a long one wraps, never cut */}
+            <span className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium leading-5 md:font-normal max-md:whitespace-normal max-md:text-[0.9375rem] max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}{inline && <span className="text-[0.8125rem] font-normal text-muted max-md:hidden" data-row-project> · {inline}</span>}{wherePhone && <span className="font-normal text-muted md:hidden" data-row-where-phone> · {wherePhone}</span>}</span>
             {/* on a phone the time sits at the end of the task's line */}
             {w && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
           </div>

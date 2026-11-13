@@ -14,6 +14,18 @@ const MODEL = "google/gemini-2.5-flash";
 const FAST = { model: "google/gemini-3.5-flash", reasoning_effort: "minimal" };
 const GATEWAY = process.env["LOVABLE_AI_GATEWAY_URL"] || "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+/* only the team: someone the admin let in has a role — remembered a few minutes, so talking (a quick look every second
+   and a half while you speak) doesn't wait on the database each time */
+const TEAM = new Map<string, number>();
+async function onTeam(supabase: any, userId: string): Promise<boolean> {
+  const until = TEAM.get(userId);
+  if (until && until > Date.now()) return true;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (!roles?.length) return false;
+  TEAM.set(userId, Date.now() + 5 * 60_000);
+  return true;
+}
+
 export const askCompanyAI = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: Ask) => {
@@ -23,9 +35,7 @@ export const askCompanyAI = createServerFn({ method: "POST" })
     return { prompt: d.prompt, pages: d.pages, fast: d.fast === true };
   })
   .handler(async ({ data, context }): Promise<Answer> => {
-    /* only the team: someone the admin let in has a role */
-    const { data: roles } = await (context.supabase as any).from("user_roles").select("role").eq("user_id", context.userId);
-    if (!roles?.length) return { ok: false, why: "denied" };
+    if (!(await onTeam(context.supabase, context.userId))) return { ok: false, why: "denied" };
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, why: "nokey" };
     const messages = [{ role: "user", content: [{ type: "text", text: data.prompt }, ...data.pages.map((url) => ({ type: "image_url", image_url: { url } }))] }];
@@ -63,8 +73,7 @@ export const hearCompanyAI = createServerFn({ method: "POST" })
     return { audio: d.audio, hint: typeof d.hint === "string" ? d.hint.slice(0, 800) : "", type, live: d.live === true };
   })
   .handler(async ({ data, context }): Promise<Heard> => {
-    const { data: roles } = await (context.supabase as any).from("user_roles").select("role").eq("user_id", context.userId);
-    if (!roles?.length) return { ok: false, why: "denied" };
+    if (!(await onTeam(context.supabase, context.userId))) return { ok: false, why: "denied" };
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, why: "nokey" };
     const bin = atob(data.audio);

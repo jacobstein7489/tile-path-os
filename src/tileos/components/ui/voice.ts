@@ -7,6 +7,7 @@
  * (the words show as you go), and once more, carefully, when you stop. While it listens the level of your voice moves,
  * so you can see it hears you — and when it hears nothing for a few seconds, it says so. */
 import * as React from 'react'
+import { noteHeard } from '@/tileos/lib/robottime'
 
 /** the company's AI writing down a recording (base64 — a WAV unless its type is said) — set by the real app
  *  (lib/cloud); a hint is the names and words likely to come up; live: the quick look while you talk */
@@ -209,10 +210,12 @@ export function useVoice(onText: (t: string) => void, hint = ''): Voice {
   const writeDown = async (blob: Blob) => {
     if (!hearer) { setErr('This browser can’t listen here — type it instead.'); return }
     setBusy(true)
+    const t0 = performance.now()
     try {
       let text = ''
       try { text = (await hearer(await base64Of(blob), hintRef.current, undefined, { type: blob.type || 'audio/webm' })).trim() } catch { text = (await hearer(await toWav16k(blob), hintRef.current)).trim() }
       if (!alive.current) return
+      noteHeard(performance.now() - t0)
       if (text) said.current(text)
       else setErr('I didn’t catch any words — try again, a little closer to the phone.')
     } catch (e: any) {

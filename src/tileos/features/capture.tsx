@@ -17,6 +17,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, PRICING_STAGES, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task, TaskType } from '@/tileos/data/work'
 import { REAL } from '@/tileos/lib/save'
+import { noteAnswered } from '@/tileos/lib/robottime'
 import { TODAY, addDays, dow, isoFromLabel, labelFromIso, dayLongFull, md } from '@/tileos/lib/today'
 import { insidePeople } from './steps-ui'
 import { siteOf } from './steps'
@@ -189,6 +190,13 @@ function replyOf(raw: string): { answer: string; items: any[]; actions: any[] } 
 }
 /** what the AI said back */
 export const answerIn = (raw: string) => { try { return replyOf(raw).answer } catch { return '' } }
+/** what it's saying, while it's still being written: as much of the "reply" as has come so far */
+export function replySoFar(raw: string): string {
+  const m = /"(?:reply|answer)"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(raw)
+  if (!m) return ''
+  const s = m[1].replace(/\\(u[0-9a-fA-F]{0,3})?$/, '')
+  try { return JSON.parse(`"${s}"`) } catch { return s }
+}
 
 /* ---------------- changes to what's already there ---------------- */
 export type CapAction = { id: string; do: 'done' | 'move' | 'assign' | 'note'; taskId: string; when?: string; who?: PersonKey; note?: string }
@@ -344,10 +352,22 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
     let acts: CapAction[] = []
     let plain = false
     let why = ''
-    if (REAL.ai) {
+    if (REAL.talk || REAL.ai) {
       abort.current = new AbortController()
+      const prompt = talkPrompt(st, history, said, about.current)
+      const t0 = performance.now()
+      let first = 0
+      /* the answer shows as it's written — the first words right away */
+      const soFar = (raw: string) => {
+        const r = replySoFar(raw)
+        if (!r || abort.current?.signal.aborted) return
+        if (!first) first = performance.now() - t0
+        setTurns((ts) => ts.map((t) => (t.id === think.id ? { ...t, thinking: false, text: r } : t)))
+      }
       try {
-        const raw = await REAL.ai(talkPrompt(st, history, said, about.current), [], abort.current.signal, { fast: true })
+        const raw = REAL.talk ? await REAL.talk(prompt, soFar, abort.current.signal) : await REAL.ai!(prompt, [], abort.current.signal, { fast: true })
+        const done = performance.now() - t0
+        noteAnswered(first || done, done)
         reply = answerIn(raw)
         items = parseItems(st, raw)
         acts = parseActions(st, raw)

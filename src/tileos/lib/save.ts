@@ -57,6 +57,8 @@ export const REAL: {
   removeAccess?: (p: { email?: string; uid?: string }) => Promise<void>
   /** the company's AI on the server: read these pages (pictures) and answer the prompt */
   ai?: (prompt: string, pages: Blob[], signal?: AbortSignal, opts?: { /** the assistant talking: a quick answer */ fast?: boolean }) => Promise<string>
+  /** the assistant talking: the quick answer, sent on as it's written — onText gets all of it so far, each time more comes */
+  talk?: (prompt: string, onText: (soFar: string) => void, signal?: AbortSignal) => Promise<string>
   /** the company's file storage: keep a file with a project, and a link to open it */
   files?: { put: (jobId: string, id: string, file: Blob, name: string) => Promise<string>; url: (path: string) => Promise<string>; remove: (path: string) => Promise<void> }
   /** QuickBooks (the real app): is it connected, connect it (the admin), and every invoice and payment — the server

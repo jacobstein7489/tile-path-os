@@ -6,6 +6,7 @@ import { Command } from 'cmdk'
 import { Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
+import { robotTime } from '@/tileos/lib/robottime'
 import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -238,6 +239,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
       {REAL.cloud && lastOpened() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-opened>{lastOpened()}</div>}
+      {robotTime() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-robot-time>{robotTime()}</div>}
     </>
   )
 }
