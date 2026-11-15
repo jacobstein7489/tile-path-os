@@ -505,7 +505,8 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
-/** the little icon square: quiet gray — red only when the bubble is a problem */
+/** a little color, not a lot: each status its own soft color — its icon on a computer, a small dot on a phone, and the
+ *  picked one in its own soft shade */
 const QUIET = { tint: '#f1efea', solid: '#646a74' }
 export type Bubble = { key: string; label: string; /** its name on a phone, where they're all on one row ("Waiting") */ short?: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 /** a phone's panel: up to four in a row (Today's five too); six go three by two; with five or seven the first ("All")
@@ -533,7 +534,7 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
       data-phone-cols={g.cols}
     >
       {items.map((b, i) => {
-        const c = b.color === 'red' ? BC.red : QUIET
+        const c = BC[b.color] || QUIET
         const tall = i === 0 && g.tall
         /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
         return (
@@ -554,17 +555,21 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
                 row && 'max-sm:items-center max-sm:justify-center max-sm:px-1 max-sm:text-center',
                 b.on
                   ? soft
-                    ? 'border-[#2650cf59] bg-[#eef3fd] text-ink shadow-[inset_0_0_0_1px_#2650cf26] max-sm:shadow-[inset_0_0_0_1.5px_#2650cf99]'
+                    ? 'text-ink'
                     : 'border-transparent bg-[#2650cf] text-white shadow-[0_10px_22px_-14px_#2650cf] max-sm:shadow-none'
                   : 'border-line bg-white enabled:hover:border-[#cdc7bc]',
               )}
+              /* the picked one on a list page: its own soft color */
+              style={b.on && soft ? { background: c.tint, borderColor: `${c.solid}59`, boxShadow: `inset 0 0 0 1.5px ${c.solid}73` } : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: '#2650cf' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
+              {/* a phone: a small dot of its color in the corner — a little color, and the name keeps its whole width */}
+              {(soft || !row) && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: c.solid }} aria-hidden data-bubble-dot />}
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
-                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? 'text-brand-700' : 'text-white') : 'text-ink')}>{b.count}</span>
+                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
                 {row && b.short
                   ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
                   : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-nowrap max-sm:text-[0.6875rem] max-sm:[text-overflow:clip]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}

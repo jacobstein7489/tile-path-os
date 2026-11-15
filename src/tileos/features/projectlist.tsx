@@ -241,11 +241,11 @@ export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = p
   return { text: step, who: v.owner }
 }
 
+/** the one thing — never a list ("+3 more" was noise: the project's window has them all; pointing at it shows them) */
 function NowLine({ w, all }: { w: NowWords; /** every problem, for pointing at the line */ all: { text: string }[] }) {
   return (
-    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem] max-md:whitespace-normal', w.tone === 'bad' ? 'text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
+    <span data-now-text data-tone={w.tone || 'now'} title={all.length > 1 ? all.map((p) => p.text).join('\n') : undefined} className={cn('min-w-0 truncate text-[0.875rem]', w.tone === 'bad' ? 'text-bad-600' : w.tone === 'quiet' ? 'text-muted' : 'text-ink-2')}>
       {w.text}
-      {!!w.more && <span className="font-normal text-muted" data-more={w.more}> · +{w.more} more</span>}
     </span>
   )
 }
@@ -277,15 +277,15 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       <div className="flex min-w-0 items-center max-md:hidden" data-now><NowLine w={now} all={probs} /></div>
       <span className="min-w-0 max-md:hidden" data-turn={now.who || ''}><Whose who={now.who} /></span>
       {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when>—</span>)}
-      {/* a phone: the name and the date; what's up and whose under it */}
+      {/* a phone: like Today — every row the same two lines: the name (and its date on the right), and under it the one
+          thing now and whose it is (red when it's a problem); the same weight, nothing wrapping */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink max-md:whitespace-normal">{j.name}</span>
+          <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
-        <div className="mt-0.5 flex min-w-0 items-start gap-3">
-          <span className="flex min-w-0 flex-1" data-now><NowLine w={now} all={probs} /></span>
-          {now.who && <Whose who={now.who} size={16} className="shrink-0 [&_[data-who-name]]:text-[0.8125rem]" />}
+        <div className={cn('truncate text-[0.875rem] leading-5', now.tone === 'bad' ? 'text-bad-600' : 'text-muted')} data-now data-tone={now.tone || 'now'}>
+          {now.text}{now.who && <span className="text-muted" data-turn-phone={now.who}> · {now.who === meOf(s.role) ? 'You' : PEOPLE[now.who]?.short || now.who}</span>}
         </div>
       </div>
     </div>

@@ -102,13 +102,17 @@ export type Voice = {
   err: string
   start: () => void
   stop: () => void
+  /** stop and throw it away — nothing is written down */
+  cancel: () => void
   /** there's a way to listen here */
   can: boolean
 }
 
 /** listen: each final piece of what's said goes to onText. hint: names and words likely to come up. onDone: you
- *  stopped talking — it stops by itself (only where the mic's meter really hears), then this */
-export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone?: () => void }): Voice {
+ *  stopped talking — it stops by itself (only where the mic's meter really hears), then this. keep: the mic stays open
+ *  between one time and the next while this is on screen — an iPhone asks to use the microphone again each time it was
+ *  closed for a minute; a conversation (the robot) asks once */
+export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone?: () => void; keep?: boolean }): Voice {
   const [on, setOn] = React.useState(false)
   const [hearing, setHearing] = React.useState('')
   const [level, setLevel] = React.useState(0)
@@ -140,6 +144,8 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
   doneRef.current = opts?.onDone
   /* how long the voice has been heard, this time (ms) — talking, not a cough */
   const voiced = React.useRef(0)
+  /* this time is thrown away (✕): nothing written down */
+  const discard = React.useRef(false)
 
   const meterOff = () => {
     cancelAnimationFrame(raf.current)
@@ -149,6 +155,15 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     if (alive.current) { setLevel(0); setQuiet(false); setMetering(false) }
   }
   const streamOff = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null }
+  const keep = !!opts?.keep
+  /* done with this time: the mic closes — or stays open for the next time, while it's kept (never in the background) */
+  const release = () => { if (!keep || document.visibilityState === 'hidden') streamOff() }
+  React.useEffect(() => {
+    if (!keep) return
+    const away = () => { if (document.visibilityState === 'hidden' && !want.current) streamOff() }
+    document.addEventListener('visibilitychange', away)
+    return () => document.removeEventListener('visibilitychange', away)
+  }, [keep])
   React.useEffect(() => () => {
     alive.current = false
     want.current = false
@@ -276,17 +291,17 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     mr.current = null
     /* the recording is the words when the browser gave none (it recorded instead, or its listening failed) — what was
        written down while talking stays on screen until the careful one comes */
-    const need = !!m && m.state !== 'inactive' && (srDown.current || !gotWords.current)
+    const need = !discard.current && !!m && m.state !== 'inactive' && (srDown.current || !gotWords.current)
     if (!need) setHearing('')
     if (m && m.state !== 'inactive') {
       m.onstop = () => {
-        streamOff()
+        release()
         const blob = new Blob(chunks.current, { type: m.mimeType || 'audio/webm' })
         chunks.current = []
         if (need && blob.size > 0) void writeDown(blob)
       }
-      try { m.stop() } catch { streamOff() }
-    } else streamOff()
+      try { m.stop() } catch { release() }
+    } else release()
   }
 
   const start = async () => {
@@ -296,6 +311,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     /* the meter's sound, started right here in the tap — an iPhone won't start it later */
     const made = soundContext()
     starting.current = true
+    discard.current = false
     setErr('')
     setQuiet(false)
     gotWords.current = false
@@ -305,7 +321,10 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     chunks.current = []
     /* 1 · the microphone — asked for once; blocked or missing is said plainly */
     let s: MediaStream | null = null
-    if (navigator.mediaDevices?.getUserMedia) {
+    /* still open from last time (kept): no asking again */
+    const open = stream.current?.getAudioTracks().some((t) => t.readyState === 'live') ? stream.current : null
+    if (open) s = open
+    else if (navigator.mediaDevices?.getUserMedia) {
       try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }) } catch (e) { starting.current = false; try { made?.close?.() } catch { /* closed */ } if (alive.current) setErr(micProblem(e)); return }
     }
     starting.current = false
@@ -368,5 +387,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     try { r.start(); rec.current = r } catch { srDown.current = true; if (!mr.current) { setErr('This browser won’t listen here — type it instead.'); stop() } }
   }
 
-  return { on, hearing, level, metering, quiet, busy, err, start: () => void start(), stop, can: canListen() }
+  /* stop and leave it: nothing is written down */
+  const cancel = () => { discard.current = true; stop() }
+  return { on, hearing, level, metering, quiet, busy, err, start: () => void start(), stop, cancel, can: canListen() }
 }

@@ -299,10 +299,13 @@ export function BottomNav() {
             <React.Fragment key={k}>
               {/* + New in the very middle, where the thumb is */}
               {i === 2 && <PhonePlus />}
-              <button onClick={() => go({ page: k as Page })} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-brand-600' : 'text-muted')} data-phone-tab={k}>
-                <span className="relative">
-                  <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2 : 1.7} />
-                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
+              <button onClick={() => go({ page: k as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[0.71875rem]', on ? 'font-bold text-brand-700' : 'font-semibold text-muted')} data-phone-tab={k}>
+                {/* where you are: a soft blue pill behind its icon — clear at a glance, nothing loud */}
+                <span className={cn('inline-flex h-7 w-14 items-center justify-center rounded-full', on && 'bg-brand-50')} data-phone-tab-pill={on || undefined}>
+                  <span className="relative">
+                    <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2.2 : 1.7} />
+                    {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
+                  </span>
                 </span>
                 <span className="max-w-full truncate">{NAV[k].label}</span>
               </button>

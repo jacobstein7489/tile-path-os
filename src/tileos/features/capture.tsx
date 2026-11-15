@@ -8,7 +8,7 @@
  * The AI is the company's own (Lovable AI, on the server). Where it isn't on, the words are split into lines by
  * themselves — the same box to check, just less clever. */
 import * as React from 'react'
-import { ArrowLeftRight, ArrowUp, Building2, CalendarDays, Check, ChevronDown, HardHat, HelpCircle, ListTodo, Mic, Ruler, Sparkles, Square, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowUp, Building2, CalendarDays, Check, ChevronDown, HardHat, HelpCircle, ListTodo, Mic, Ruler, Sparkles, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useStore, meOf, NOW, newTask, addHist, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -140,7 +140,7 @@ The kinds of new things:
 - "problem": something wrong on a job — not good, broken, missing, wrong, leaking, not ready — that has to be fixed
 - "question": a question for us to answer, or to ask the client or the designer — say it as the question
 - "gc": something the GC (the contractor) has to do, provide, fix or answer — a question for the GC too. We tell him today and remind him until it's done
-- "touchup": fixing or finishing our own tile work that's already in (grout, a crack, a loose or pitched tile)
+- "touchup": fixing or finishing our own tile work that's already in (grout, a crack, a loose or pitched tile). A punch list (they list what's left to fix on a job): every line is its own "touchup", all on that project — they all go on that project's one punch list. Never a "task" called punch list
 - "bring": material or a tool to pick up and bring to a job
 - "change": the designer or the client changed what we're doing — it needs a price and an OK
 - "measure": go measure a job (a new one is fine)
@@ -283,6 +283,8 @@ export function addCaptured(items: CapItem[]) {
   const me = meOf(s.role)
   if (!items.length) return
   s.commit((st) => {
+    /* the touch-ups said together for a project: its punch list — one line in its history */
+    const punchBy: Record<string, string[]> = {}
     items.forEach((it, i) => {
       const j = it.jobId ? st.jobs[it.jobId] : undefined
       const owner = it.who
@@ -292,7 +294,7 @@ export function addCaptured(items: CapItem[]) {
       if (it.kind === 'touchup' && j) {
         const crew = (j.crew as PersonKey | undefined) || owner
         st.punch.push({ id: 'pu' + Date.now().toString(36) + i, jobId: j.id, text: it.title, where: '', owner: crew, status: 'open', note: it.note })
-        addHist(st, j.id, { who: me, kind: 'field', title: `Touch-up: ${it.title}` })
+        ;(punchBy[j.id] ||= []).push(it.title)
         return
       }
       if (it.kind === 'problem') { newTask(st, { ...base, tone: 'bad' }); if (j) addHist(st, j.id, { who: me, kind: 'field', title: `Problem: ${it.title}` }); return }
@@ -302,6 +304,7 @@ export function addCaptured(items: CapItem[]) {
       if (it.kind === 'bring') { newTask(st, { ...base, title: j ? `Bring to ${j.name}: ${it.title.replace(/^(bring|pick up)\s+/i, '')}` : it.title, tone: 'warn', req: { what: it.title.replace(/^(bring|pick up)\s+/i, ''), trip: 'asked' } }); return }
       newTask(st, base)
     })
+    Object.entries(punchBy).forEach(([jid, lines]) => addHist(st, jid, { who: me, kind: 'field', title: lines.length === 1 ? `Touch-up: ${lines[0]}` : `Punch list: ${lines.length} touch-ups — ${lines.join('; ')}`.slice(0, 220) }))
   }, `${items.length === 1 ? '1 thing' : `${items.length} things`} added`, { tone: 'done', sub: items.some((x) => x.who !== me) ? 'Each is on its person’s Today — you follow what’s someone else’s.' : 'They’re on your Today.' })
 }
 
@@ -322,9 +325,10 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
   const take = React.useRef(true)
   /* the names that may come up — so what's said is written down right */
   const hint = React.useMemo(() => [...insidePeople(s).map((p) => PEOPLE[p]?.name), ...crewsOf(s).map((p) => PEOPLE[p]?.name), ...projectsFor(s).slice(0, 40).map((j) => j.name)].filter(Boolean).join(', ').slice(0, 780), [])
-  /* the mic: tap to talk — it goes when you stop talking (or tap again), as soon as the words are in */
-  const [sendAt, setSendAt] = React.useState(0)
-  const mic = useVoice((t) => { if (take.current) setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)) }, hint, { onDone: () => setSendAt(Date.now()) })
+  /* the mic, like ChatGPT's and Claude's: tap it and talk — your words show as you go; ✓ when you're done puts them in
+     the box (fix them, or say more), and the arrow sends. ✕ throws it away. Nothing goes by itself */
+  const mic = useVoice((t) => { if (take.current) setText((x) => (x.trim() ? `${x.replace(/\s+$/, '')} ${t}` : t)) }, hint, { keep: true })
+  const before = React.useRef('')
   const now = React.useRef({ text, hearing: mic.hearing, turns, busy })
   now.current = { text, hearing: mic.hearing, turns, busy }
   const end = React.useRef<HTMLDivElement>(null)
@@ -393,16 +397,14 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
     setBusy(false)
   }
   const talk = () => {
-    if (mic.on) { setSendAt(Date.now()); mic.stop(); return }
+    before.current = text
     take.current = true
     mic.start()
   }
-  React.useEffect(() => {
-    if (!sendAt || mic.on || mic.busy) return
-    /* a browser's last words come a moment after it stops */
-    const t = setTimeout(() => { setSendAt(0); void send() }, Math.max(0, 650 - (Date.now() - sendAt)))
-    return () => clearTimeout(t)
-  }, [sendAt, mic.on, mic.busy])
+  /* ✓ — done talking: the words go in the box */
+  const doneTalking = () => { take.current = true; mic.stop() }
+  /* ✕ — never mind: the box as it was */
+  const dropTalking = () => { take.current = false; mic.cancel(); setText(before.current) }
 
   const setItem = (tid: string, id: string, p: Partial<CapItem>) => setTurns((ts) => ts.map((t) => (t.id === tid ? { ...t, items: t.items?.map((x) => (x.id === id ? { ...x, ...p } : x)) } : t)))
   const dropItem = (tid: string, id: string) => setTurns((ts) => ts.map((t) => (t.id === tid ? { ...t, items: t.items?.filter((x) => x.id !== id) } : t)))
@@ -427,7 +429,7 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
           <Helper size={44} mood={busy || mic.busy ? 'thinking' : mic.on ? 'listening' : 'idle'} />
           <div className="min-w-0">
             <h2 className="font-display text-[1.125rem] font-semibold leading-tight text-ink">Tile OS</h2>
-            <div className="text-[0.8125rem] text-muted">{mic.on ? (mic.metering ? 'Listening — it goes when you stop talking' : 'Listening — tap the red button when you’re done') : busy || mic.busy ? 'One second…' : 'Ask me, or tell me what to do'}</div>
+            <div className="text-[0.8125rem] text-muted">{mic.on ? 'Listening — tap ✓ when you’re done' : busy || mic.busy ? 'One second…' : 'Ask me, or tell me what to do'}</div>
           </div>
         </div>
       }
@@ -443,6 +445,10 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
           {mic.on && mic.quiet && <div className="mb-2 text-center text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything — is the right microphone on?</div>}
           {mic.err && <div className="mb-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>{mic.err}</div>}
           <div className="flex w-full items-end gap-2">
+            {mic.on && (
+              <button type="button" onClick={dropTalking} aria-label="Never mind" data-capture-cancel
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-2 transition hover:bg-wash active:scale-95"><X className="h-5 w-5" /></button>
+            )}
             <textarea
               ref={box}
               value={shown}
@@ -455,15 +461,20 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
               className="min-h-11 min-w-0 flex-1 resize-none rounded-[1.375rem] border border-line bg-white px-4 py-[0.5625rem] text-[1rem] leading-6 text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
               data-capture-text
             />
-            {text.trim() && !mic.on && !mic.busy
-              ? <button type="button" onClick={() => void send()} disabled={busy} aria-label="Send" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50" data-capture-send data-capture-make><ArrowUp className="h-5 w-5" /></button>
-              : mic.can && (
-                <button type="button" onClick={talk} disabled={mic.busy || busy} aria-pressed={mic.on} aria-label={mic.on ? 'Done talking' : 'Talk'} data-capture-mic
-                  className={cn('relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition active:scale-95 disabled:opacity-50', mic.on ? 'bg-bad-500' : 'bg-brand-600 hover:bg-brand-700')}>
-                  {mic.on && <span className="absolute inset-0 animate-ping rounded-full bg-bad-400/40" aria-hidden />}
-                  {mic.on ? <Square className="relative h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
-                </button>
-              )}
+            {mic.on
+              ? <button type="button" onClick={doneTalking} aria-label="Done talking" data-capture-done
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95"><Check className="h-5 w-5" strokeWidth={2.75} /></button>
+              : <>
+                  {mic.can && (
+                    <button type="button" onClick={talk} disabled={mic.busy || busy} aria-label="Talk" data-capture-mic
+                      className={cn('inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50', text.trim() ? 'border border-line bg-white text-ink-2 hover:bg-wash' : 'bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] hover:bg-brand-700')}>
+                      <Mic className="h-5 w-5" />
+                    </button>
+                  )}
+                  {text.trim() && !mic.busy && (
+                    <button type="button" onClick={() => void send()} disabled={busy} aria-label="Send" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50" data-capture-send data-capture-make><ArrowUp className="h-5 w-5" /></button>
+                  )}
+                </>}
           </div>
         </div>
       }
@@ -495,8 +506,14 @@ function Offer({ t, me, team, onItem, onDropItem, onDropAct, onYes, onNo }: { t:
   const items = t.items || []
   const acts = t.acts || []
   const n = items.length + acts.length
+  /* the touch-ups for one project, said together: its punch list — one card, every line in it */
+  const byJob = new Map<string, CapItem[]>()
+  items.forEach((x) => { if (x.kind === 'touchup' && x.jobId) byJob.set(x.jobId, [...(byJob.get(x.jobId) || []), x]) })
+  const punch = Array.from(byJob.entries()).filter(([, xs]) => xs.length >= 2)
+  const inPunch = new Set(punch.flatMap(([, xs]) => xs.map((x) => x.id)))
+  const rest = items.filter((x) => !inPunch.has(x.id))
   if (t.state !== 'ask') {
-    const what = [...items.map((x) => x.title), ...acts.map((a) => `${ACT_WORDS[a.do](a)}: ${s.tasks.find((y) => y.id === a.taskId)?.title || ''}`)]
+    const what = [...punch.map(([jid, xs]) => `Punch list for ${s.jobs[jid]?.name || 'the project'} (${xs.length})`), ...rest.map((x) => x.title), ...acts.map((a) => `${ACT_WORDS[a.do](a)}: ${s.tasks.find((y) => y.id === a.taskId)?.title || ''}`)]
     return (
       <div className={cn('ml-9 rounded-2xl border px-4 py-2.5 text-[0.84375rem]', t.state === 'done' ? 'border-[#cfe8d9] bg-[#f3faf6] text-[#1f6b43]' : 'border-line bg-[#faf9f7] text-muted')} data-capture-offer={t.state}>
         <span className="flex items-center gap-1.5 font-semibold">{t.state === 'done' ? <><Check className="h-4 w-4" /> Done</> : 'Left out'}</span>
@@ -508,15 +525,40 @@ function Offer({ t, me, team, onItem, onDropItem, onDropAct, onYes, onNo }: { t:
   return (
     <div className="rounded-2xl border border-line bg-white" data-capture-offer="ask">
       <ul className="divide-y divide-line-2 px-1.5" data-capture-list>
-        {items.map((it) => <CapRow key={it.id} it={it} me={me} team={team} onChange={(p) => onItem(t.id, it.id, p)} onRemove={() => onDropItem(t.id, it.id)} />)}
+        {punch.map(([jid, xs]) => <PunchCard key={jid} jobId={jid} items={xs} onChange={(id, p) => onItem(t.id, id, p)} onRemove={(id) => onDropItem(t.id, id)} />)}
+        {rest.map((it) => <CapRow key={it.id} it={it} me={me} team={team} onChange={(p) => onItem(t.id, it.id, p)} onRemove={() => onDropItem(t.id, it.id)} />)}
         {acts.map((a) => <ActRow key={a.id} a={a} onRemove={() => onDropAct(t.id, a.id)} />)}
         {!n && <li className="px-2 py-4 text-center text-[0.875rem] text-muted">Nothing left to do here.</li>}
       </ul>
       <div className="flex gap-2 border-t border-line-2 p-3">
         <Button variant="secondary" className="flex-1" onClick={onNo} data-capture-no>Not now</Button>
-        <Button variant="primary" className="flex-1" disabled={!n || needsJob > 0} onClick={onYes} data-capture-add>{needsJob ? `Pick ${needsJob === 1 ? 'the project' : `${needsJob} projects`}` : acts.length ? 'Yes, do it' : `Add ${items.length}`}</Button>
+        <Button variant="primary" className="flex-1" disabled={!n || needsJob > 0} onClick={onYes} data-capture-add>{needsJob ? `Pick ${needsJob === 1 ? 'the project' : `${needsJob} projects`}` : acts.length ? 'Yes, do it' : punch.length && !rest.length ? (punch.length === 1 ? 'Add the punch list' : 'Add the punch lists') : `Add ${items.length}`}</Button>
       </div>
     </div>
+  )
+}
+/** a punch list said out loud: the project once, every touch-up a line under it (fix the words, × takes one off) — all
+ *  of them go on that project's punch list */
+function PunchCard({ jobId, items, onChange, onRemove }: { jobId: string; items: CapItem[]; onChange: (id: string, p: Partial<CapItem>) => void; onRemove: (id: string) => void }) {
+  const s = useStore()
+  const k = KIND.touchup
+  const I = k.icon
+  return (
+    <li className="px-2 py-3" data-capture-punch={jobId}>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.78125rem] font-semibold" style={{ background: k.bg, color: k.fg }}><I className="h-3.5 w-3.5" />Punch list</span>
+        <span className="min-w-0 truncate text-[0.9375rem] font-medium text-ink">{s.jobs[jobId]?.name || 'The project'}</span>
+        <span className="shrink-0 text-[0.8125rem] tnum text-muted">{items.length}</span>
+      </div>
+      <ul className="mt-1.5">
+        {items.map((it) => (
+          <li key={it.id} className="flex items-start gap-2 border-t border-line-2 first:border-t-0" data-capture-punch-line>
+            <Grow value={it.title} onChange={(v) => onChange(it.id, { title: v })} label="Touch-up" className="min-w-0 flex-1 bg-transparent py-2 text-[0.9375rem] leading-snug text-ink focus:outline-none" />
+            <button type="button" onClick={() => onRemove(it.id)} aria-label="Leave this out" className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-faint transition hover:bg-wash-2 hover:text-ink" data-capture-remove><X className="h-4 w-4" /></button>
+          </li>
+        ))}
+      </ul>
+    </li>
   )
 }
 const ACT_WORDS: Record<CapAction['do'], (a: CapAction) => string> = {

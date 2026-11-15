@@ -103,7 +103,10 @@ export function Modal({
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} />
-        <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-end max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
+        {/* a phone: every window the same — from just under the top of the screen to the bottom, its content at the top.
+            The keyboard coming up, a list opening inside it, a box growing: nothing moves — the keyboard only covers the
+            bottom of the window (the buttons at its bottom ride on top of the keyboard) */}
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-start max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
           <Dialog.Content
             aria-describedby={undefined}
             data-stacked={stacked ? '' : undefined}
@@ -126,11 +129,11 @@ export function Modal({
               if (el && !(phone && /^(INPUT|TEXTAREA)$/.test(el.tagName))) el.focus()
             }}
             className={cn(
-              'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-modal outline-none animate-modal-in max-sm:max-h-[94dvh] max-sm:rounded-b-none',
+              'pointer-events-auto relative flex max-h-[92vh] flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-modal outline-none animate-modal-in max-sm:mt-[calc(env(safe-area-inset-top,0px)+0.625rem)] max-sm:h-[calc(100%-env(safe-area-inset-top,0px)-0.625rem)] max-sm:max-h-none max-sm:rounded-b-none',
               hidden && 'invisible pointer-events-none',
               WIDTHS[size],
               'max-sm:w-full',
-              tall && (size === 'full' ? 'h-[calc(100dvh-2.5rem)] max-h-[calc(100dvh-2.5rem)] max-sm:h-[100dvh] max-sm:max-h-[100dvh]' : 'h-[92vh] max-sm:h-[94dvh]'),
+              tall && (size === 'full' ? 'h-[calc(100dvh-2.5rem)] max-h-[calc(100dvh-2.5rem)] max-sm:mt-0 max-sm:h-full max-sm:rounded-none' : 'h-[92vh]'),
               className,
             )}
           >

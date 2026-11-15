@@ -184,29 +184,42 @@ export function ProjectChip({ value, onChange, keep, placeholder = 'Project', wa
   return <SearchSelect label="Project" value={value} onChange={onChange} options={list.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} emptyLabel="No project — for the company" search searchPlaceholder="Type a project" width={340} trigger={chip()} />
 }
 
+/* the projects picked lately on this phone — the short list starts with them */
+const RECENT = 'tileos-recent-projects'
+const recentIds = (): string[] => { try { const v = JSON.parse(localStorage.getItem(RECENT) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [] } catch { return [] } }
+const rememberPick = (id: string) => { try { localStorage.setItem(RECENT, JSON.stringify([id, ...recentIds().filter((x) => x !== id)].slice(0, 12))) } catch { /* fine */ } }
+/** how many a phone's list shows before you type: the ones you'll want — the rest are a few letters away */
+const SHORT = 6
+
+/** a phone: picking the project — a short list (the one picked now, the ones picked lately, yours), one line each; a box
+ *  on top finds any of them by name, address or client */
 function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: string; onPick: (id: string) => void; onClose: () => void }) {
   const [q, setQ] = React.useState('')
   const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
-  const shown = words.length ? list.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))) : list
+  const short = React.useMemo(() => {
+    if (list.length <= SHORT + 2) return list
+    const byId = new Map(list.map((j) => [j.id, j]))
+    const first = [value, ...recentIds()].map((id) => byId.get(id)).filter((j): j is Job => !!j)
+    return Array.from(new Set([...first, ...list])).slice(0, SHORT)
+  }, [list, value])
+  const shown = words.length ? list.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))).slice(0, 8) : short
+  const pick = (id: string) => { rememberPick(id); onPick(id) }
   return (
     <Modal level={9} size="sm" onClose={onClose} title="Pick the project" bodyClass="p-0">
       <div data-project-sheet>
-        {list.length > 6 && (
+        {list.length > SHORT + 2 && (
           <div className="px-4 pb-3 pt-1">
             <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-xl border border-line bg-white px-3 focus-within:border-brand-300">
               <Search className="h-4 w-4 shrink-0 text-faint" />
-              <input aria-label="Find a project" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a project" className="h-full min-w-0 flex-1 bg-transparent text-[1rem] text-ink placeholder:text-faint focus:outline-none" />
+              <input aria-label="Find a project" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Find any of the ${list.length}`} className="h-full min-w-0 flex-1 bg-transparent text-[1rem] text-ink placeholder:text-faint focus:outline-none" />
               {q && <button type="button" aria-label="Clear" onClick={() => setQ('')} className="text-faint"><X className="h-4 w-4" /></button>}
             </label>
           </div>
         )}
         {shown.map((j) => (
-          <button key={j.id} type="button" onClick={() => onPick(j.id)} aria-pressed={j.id === value} data-project-pick={j.id}
-            className="flex min-h-[3.5rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left active:bg-wash">
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[1rem] font-semibold text-ink">{j.name}</span>
-              {j.client && <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{j.client}</span>}
-            </span>
+          <button key={j.id} type="button" onClick={() => pick(j.id)} aria-pressed={j.id === value} data-project-pick={j.id}
+            className="flex min-h-[3.25rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left active:bg-wash">
+            <span className="min-w-0 flex-1 truncate text-[1rem] text-ink">{j.name}</span>
             {j.id === value && <Check className="h-5 w-5 shrink-0 text-brand-600" strokeWidth={2.5} />}
           </button>
         ))}
