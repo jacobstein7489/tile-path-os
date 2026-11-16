@@ -484,6 +484,9 @@ export interface Surface {
   pending?: { co: string; label: string; from: string; to: string }
 }
 export interface Room { name: string; pct: number; surfaces: Surface[]; floor?: string; note?: string
+  /** its detail lines on the scope of work ("Wet walls: fully tiled", "1 niche", "Saddle — white quartz") — written by
+   *  someone; until then they come from what the project knows (features/roomdetails) */
+  details?: string[]
   /** the floor's high and low point, measured on site (in inches off the datum) — the difference says if it needs prep */
   level?: { high: number; low: number; date: string } }
 /** rooms grouped by floor, in the same order as the estimate: 1st, 2nd, 3rd, attic, basement */

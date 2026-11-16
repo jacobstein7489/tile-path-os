@@ -368,11 +368,17 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
           </div>
         </Field>
         <div className="grid grid-cols-[1fr_auto_auto] items-end gap-5 max-sm:grid-cols-1 max-sm:items-start max-sm:gap-4">
-          <Field label="Start">
+          <Field label="Start" hint={start < TODAY ? 'Already going — it goes on as started that day' : undefined}>
             <div className="flex flex-wrap gap-2">
               {START_OPTS.map((o) => (
                 <Chip key={o.iso} on={start === o.iso} onClick={() => setStart(o.iso)} className="h-10 px-3 text-[0.84375rem]">{o.label}</Chip>
               ))}
+              {/* any day — one that already passed too, for a job that's already going */}
+              <label className={cn('relative inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', START_OPTS.some((o) => o.iso === start) ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700')} data-start-other>
+                <CalendarDays className="h-4 w-4" />
+                {START_OPTS.some((o) => o.iso === start) ? 'Another day' : `${start < TODAY ? 'Started ' : ''}${isoLabel(start)}`}
+                <input type="date" value={start} onChange={(e) => { if (e.target.value) setStart(e.target.value) }} aria-label="The day it starts — any day, one that passed too" data-start-date className="absolute inset-0 cursor-pointer opacity-0" />
+              </label>
             </div>
           </Field>
           <Field label="Days"><NumStepper value={days} onChange={setDays} min={1} max={40} /></Field>

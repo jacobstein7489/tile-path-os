@@ -485,6 +485,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const crew = installerOf(s, j)
       const ipo = [...s.ipos].reverse().find((p) => p.jobId === j.id)
       if (ipo?.status === 'Accepted' || ipo?.status === 'Sent') return { state: 'done', note: `${ipo.id} sent to ${PEOPLE[ipo.crew].name}` }
+      /* on the job without a PO — unless a PO with prices was drafted since */
+      if (rec.done && crew && !(ipo?.status === 'Draft' && ipo.lines.some((l) => (l.amount || 0) > 0))) return { state: 'done', note: rec.note || `${PEOPLE[crew].name} — no PO` }
       if (ipo?.status === 'Draft') return { state: 'now', note: `${ipo.id} for ${PEOPLE[ipo.crew].short} — saved, not sent yet`, action: { label: 'Send his PO', run: () => s.open({ t: 'ipo', id: ipo.id }) } }
       if (ipo?.status === 'Rejected') return { state: 'bad', note: `${PEOPLE[ipo.crew].short} turned it down — pick someone else`, action: { label: 'Pick an installer' } }
       if (!['awarded', 'setup', 'verification'].includes(j.stage) && crew) return { state: 'done', note: `${PEOPLE[crew].name} has it` }

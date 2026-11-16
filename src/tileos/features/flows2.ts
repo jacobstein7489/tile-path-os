@@ -242,9 +242,10 @@ export function draftIPOLines(s: any, jobId: string, crew?: string): IPOLine[] {
   if (!lines.length) {
     /* no square feet yet: one line per room at the estimate's share */
     const e: Estimate | undefined = s.estimates.find((x: Estimate) => x.jobId === jobId)
-    const contract = s.jobs[jobId]?.contract || revTotal(e ? curRev(e) : undefined) || 40000
+    /* never a made-up price: with no contract and no estimate, the lines wait for his prices */
+    const contract = s.jobs[jobId]?.contract || revTotal(e ? curRev(e) : undefined) || 0
     const names = rooms.length ? rooms.map((r) => r.name) : ['All areas']
-    lines = names.map((n) => ({ item: `${n} — install per plans`, qty: 'Per plans', amount: Math.round((contract * 0.32) / names.length / 10) * 10 }))
+    lines = names.map((n) => ({ item: `${n} — install per plans`, qty: 'Per plans', amount: contract ? Math.round((contract * 0.32) / names.length / 10) * 10 : 0 }))
   }
   return lines
 }
@@ -283,6 +284,26 @@ export function pencilInstaller(jobId: string, crew: PersonKey) {
     s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: crew }
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer penciled in · ${PEOPLE[crew].name}`, detail: 'His PO once the estimate is in' })
   }, `${PEOPLE[crew].short} penciled in`, { sub: 'His PO is made once the estimate is in.' })
+}
+/** the installer is on the job without a PO in the system — a job already going when it came into Tile OS, or one
+ *  done on a handshake. His PO steps are done ("no PO"); a PO can still be made any time from Billing. */
+export function putOnNoPO(jobId: string, crew: PersonKey) {
+  if (!S().jobs[jobId]) return
+  S().commit((s) => {
+    s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: crew }
+    /* a draft with nothing priced on it was only who's on the job — it goes */
+    s.ipos = s.ipos.filter((p) => !(p.jobId === jobId && (p.status === 'Rejected' || (p.status === 'Draft' && !p.lines.some((l) => (l.amount || 0) > 0) && !p.changes.length))))
+    const recs = (s.stepRecs[jobId] ||= {})
+    for (const key of ['installer', 'confirmed']) {
+      const r = (recs[key] ||= {})
+      r.done = NOW
+      r.by = me()
+      r.note = `${PEOPLE[crew].name} — no PO`
+      delete r.na
+    }
+    s.tasks.forEach((x) => { if ((x.step === `${jobId}:installer` || x.step === `${jobId}:confirmed`) && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'On the job — no PO' }) } })
+    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer on the job · ${PEOPLE[crew].name}`, detail: 'No PO in Tile OS — one can be made from Billing any time' })
+  }, `${PEOPLE[crew].short} is on the job`, { sub: 'No PO — make one from Billing any time.' })
 }
 /** book the installer: his PO (lines from the project scope) is created and sent to him in one step.
  *  It shows in Purchase orders and on the project; he accepts or turns it down. */

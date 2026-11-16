@@ -352,6 +352,8 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
   const [height, setHeight] = React.useState(x?.height || '')
   const [sf, setSf] = React.useState(x?.sf ? String(x.sf) : '')
   const [notes, setNotes] = React.useState(x?.notes || '')
+  /* where it starts (and the drawing) and what goes under it: folded away — most of the time they're not what you came for */
+  const [more, setMore] = React.useState(false)
   /* what the windows on top save (a new tile, a drawn layout) comes into this one */
   const first = React.useRef(true)
   React.useEffect(() => {
@@ -385,7 +387,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
   }
   const save = () =>
     saveSurface(jobId, room, surface, {
-      tile, grout, joint, layout: touched ? layout || undefined : x.layout, method: method || x.method || undefined, edge, height: kind === 'wall' ? height : x.height, sf: Math.round(Number(sf.replace(/[^0-9.]/g, ''))) || undefined, notes,
+      tile, grout, joint, layout: touched ? layout || undefined : x.layout, method: method || x.method || undefined, edge: kind === 'wall' ? edge : x.edge, height: kind === 'wall' ? height : x.height, sf: Math.round(Number(sf.replace(/[^0-9.]/g, ''))) || undefined, notes,
     })
   const tiles = tilesOf(jobId)
   const lock = scopeLock(s, jobId)
@@ -463,6 +465,30 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
       <Row label="Pattern">
         <PatternPick value={pattern} onChange={setPattern} drain={kind === 'shower-floor'} />
       </Row>
+      {kind === 'wall' && (
+        <Row label="How high">
+          <SearchSelect label="How high" value={height} onChange={setHeight} emptyLabel="Not set" options={opts(HEIGHTS, height)} onCreate={setHeight} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
+        </Row>
+      )}
+      {/* the edges — metal or mitered — are a wall's (a floor has none) */}
+      {kind === 'wall' && (
+        <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece — and on the room sheet' : edge ? 'On the room sheet' : undefined}>
+          <EdgePicker value={edge} onChange={setEdge} />
+        </Row>
+      )}
+      <Row label="Square feet" hint={x.measured ? `Measured on site ${x.measured.date}` : undefined}>
+        <div className="flex items-center gap-2">
+          <TextInput aria-label="Square feet" inputMode="numeric" value={sf} onChange={(e) => setSf(e.target.value)} className="h-10 w-[7.5rem] text-right tnum" placeholder="0" />
+          <span className="text-[0.84375rem] text-muted">SF</span>
+        </div>
+      </Row>
+      <Row label="Note">
+        <TextArea aria-label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the crew should know — e.g. niche centered on the wall, 12 × 24" className="min-h-[4rem]" />
+      </Row>
+      <button type="button" onClick={() => setMore(!more)} aria-expanded={more} data-surface-more className="mt-1 flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted hover:text-ink">
+        {more ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}More<span className="font-normal">— where it starts, what goes under it</span>
+      </button>
+      {more && <>
       <Row label="Where it starts" hint={x.dims ? 'Drawn to scale — the crew’s sheet shows every cut' : t ? 'Draw it to scale to see the cuts and the best place to start' : undefined}>
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -491,23 +517,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           width={380}
         />
       </Row>
-      <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece — and on the room sheet' : edge ? 'On the room sheet' : undefined}>
-        <EdgePicker value={edge} onChange={setEdge} />
-      </Row>
-      {kind === 'wall' && (
-        <Row label="How high">
-          <SearchSelect label="How high" value={height} onChange={setHeight} emptyLabel="Not set" options={opts(HEIGHTS, height)} onCreate={setHeight} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
-        </Row>
-      )}
-      <Row label="Square feet" hint={x.measured ? `Measured on site ${x.measured.date}` : undefined}>
-        <div className="flex items-center gap-2">
-          <TextInput aria-label="Square feet" inputMode="numeric" value={sf} onChange={(e) => setSf(e.target.value)} className="h-10 w-[7.5rem] text-right tnum" placeholder="0" />
-          <span className="text-[0.84375rem] text-muted">SF</span>
-        </div>
-      </Row>
-      <Row label="Note">
-        <TextArea aria-label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the crew should know — e.g. niche centered on the wall, 12 × 24" className="min-h-[4rem]" />
-      </Row>
+      </>}
       </fieldset>
     </Modal>
   )

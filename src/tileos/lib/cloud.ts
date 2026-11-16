@@ -315,9 +315,17 @@ function keepCopy(ms = 1200) {
 /** each person in one place on the team (lib/twins): two places for one person become one, and the site manager's
  *  untaken built-in place folds into the company's own site manager (`all`: on a full load — a live change only
  *  checks for two places). Whoever is signed in moves along with it. */
+/** an installer PO drafted with a made-up price — no square feet, no contract, no estimate (it used to guess $40,000 of
+ *  work): its lines wait for his prices instead */
+function noMadeUpPrices(d: Data): Data | null {
+  const made = (d.ipos || []).filter((p) => p.status === 'Draft' && p.lines.length > 0 && p.lines.every((l) => /— install per plans$/.test(l.item) && l.qty === 'Per plans') && p.lines.some((l) => (l.amount || 0) > 0) && !d.jobs[p.jobId]?.contract && !(d.estimates || []).some((e) => e.jobId === p.jobId))
+  if (!made.length) return null
+  return { ...d, ipos: d.ipos.map((p) => (made.includes(p) ? { ...p, lines: p.lines.map((l) => ({ ...l, amount: 0 })) } : p)) }
+}
 function onePlace(d: Data, all = true): Data {
   let data: Data | null = null
   let to = new Map<string, string>()
+  if (all) { const fixed = noMadeUpPrices(d); if (fixed) { data = fixed; d = fixed } }
   if (all) { const r = oneEach(d); if (r) { data = r.data; to = r.to } }
   else { const tw = twinsOf(d.team); if (tw.length) { data = mergeTwins(d, tw); tw.forEach((t) => t.drop.forEach((k) => to.set(k, t.keep))) } }
   if (!data) return d

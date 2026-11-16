@@ -450,15 +450,28 @@ export const isoLabel = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDat
 
 export function assignCrew(jobId: string, o: { crew: PersonKey; start: string; days: number; workers: number; areas: string[]; confirm: boolean }) {
   const j0 = S().jobs[jobId]
+  /* a day that already passed: the job's already going — it's on as started that day, nothing to do "before the start" */
+  const started = o.start <= TODAY && !['punch', 'closeout'].includes(j0?.stage || '')
   S().commit((s) => {
     const j = s.jobs[jobId]
     const end = addBusinessDays(o.start, o.days)
     const isReturn = ['punch', 'closeout'].includes(j.stage)
-    s.bookings.push({ id: 'bk' + Date.now(), crew: o.crew, jobId, start: o.start, end, label: isReturn ? 'Return visit' : o.areas.slice(0, 2).join(' · ') || 'Starting areas', workers: o.workers, status: o.confirm ? 'pending' : 'on' })
+    s.bookings.push({ id: 'bk' + Date.now(), crew: o.crew, jobId, start: o.start, end, label: isReturn ? 'Return visit' : o.areas.slice(0, 2).join(' · ') || 'Starting areas', workers: o.workers, status: o.confirm && !started ? 'pending' : 'on' })
     s.ready = s.ready.filter((r) => r.jobId !== jobId)
     if (!isReturn) {
-      j.stage = 'scheduled'
-      j.stageDates = { ...(j.stageDates || {}), ready: j.stageDates?.ready || NOW, scheduled: NOW }
+      j.stage = started ? 'installation' : 'scheduled'
+      j.stageDates = { ...(j.stageDates || {}), ready: j.stageDates?.ready || NOW, scheduled: NOW, ...(started ? { installation: isoLabel(o.start) } : {}) }
+    }
+    if (started) {
+      j.pct = j.pct ?? 0
+      j.crew = o.crew
+      j.workers = o.workers
+      s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: o.crew, confirmed: 'yes', targetISO: o.start, started: isoLabel(o.start), target: `Started ${isoLabel(o.start)}` }
+      j.keyDate = { label: 'Started', value: isoLabel(o.start) }
+      j.next = { text: 'Daily updates', owner: 'ys', due: 'Every day' }
+      closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.type === 'Schedule' && t.state !== 'done').map((t) => t.id), 'Started')
+      addHist(s, jobId, { who: me(), kind: 'schedule', title: `Started ${isoLabel(o.start)} · ${PEOPLE[o.crew].name}, ${o.workers} workers`, detail: 'Put in after the start — it was already going' })
+      return
     }
     j.crew = o.crew
     j.workers = o.workers
@@ -473,9 +486,9 @@ export function assignCrew(jobId: string, o: { crew: PersonKey; start: string; d
     }
     if (o.confirm) newTask(s, { jobId, title: `Waiting for ${PEOPLE[o.crew].name} to confirm ${j.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[o.crew].name, followUp: 'Tomorrow', tone: 'warn', where: 'Crew confirmation', action: { label: 'Mark confirmed', kind: 'crew-confirm' } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: `${isReturn ? 'Return booked' : 'Scheduled'} · ${PEOPLE[o.crew].name}, ${o.workers} workers, ${isoLabel(o.start)} – ${isoLabel(end)}`, detail: o.areas.length ? 'Starting with ' + o.areas.join(', ') : undefined })
-  }, `${PEOPLE[o.crew].name} is on ${j0.name} from ${isoLabel(o.start)}`, {
-    sub: o.confirm ? 'It shows dashed on the Schedule until you mark that he confirmed.' : 'It’s on the Schedule.',
-    to: ['punch', 'closeout'].includes(j0.stage) ? undefined : [
+  }, started ? `${j0.name} — started ${isoLabel(o.start)} with ${PEOPLE[o.crew].name}` : `${PEOPLE[o.crew].name} is on ${j0.name} from ${isoLabel(o.start)}`, {
+    sub: started ? 'It’s In progress, and on the Schedule from that day.' : o.confirm ? 'It shows dashed on the Schedule until you mark that he confirmed.' : 'It’s on the Schedule.',
+    to: started || ['punch', 'closeout'].includes(j0.stage) ? undefined : [
       { who: 'ys', what: 'Confirm the start with the GC' },
       { who: 'yakov', what: 'Release the starting areas' },
       { who: matBy(S()), what: 'Verify the starting materials' },

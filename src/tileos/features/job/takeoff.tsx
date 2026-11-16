@@ -25,7 +25,7 @@ import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty, Group, Word } from './kit'
 import { openTilePOs } from '../tilepo'
 import { scopeLock } from '../steps'
-import { PaperPanel, usePaperPicker } from '../paperread'
+import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
 import { useReadingOf } from '@/tileos/lib/reading'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
@@ -43,6 +43,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   const paper = !simple && scopeLock(s, job.id).canEdit
   const picker = usePaperPicker(job)
   const reading = useReadingOf('paperwork', job.id)
+  /* what the paperwork entered is being checked: the list waits under it, so there's one list at a time */
+  const checking = usePaperReview(job.id) && paper
   const rooms = s.rooms[job.id] || []
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const all = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
@@ -83,8 +85,8 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
       <div>
         {/* the paperwork being read, or what it entered to check — on top of the list */}
         {paper && <PaperPanel job={job} className="mx-5 mb-4 max-sm:mx-4" />}
-        {tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
-        {tags.map((tag) => {
+        {!checking && tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
+        {!checking && tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
           const uses = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, x })))

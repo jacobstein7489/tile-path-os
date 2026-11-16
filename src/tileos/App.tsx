@@ -57,6 +57,7 @@ import { FileModal } from '@/tileos/features/docview'
 import { HeightsModal } from '@/tileos/features/heights'
 import { UpcomingPage } from '@/tileos/features/upcoming'
 import { DrainModal, CO004Modal, ThinsetModal, QtyModal, ReceiveModal, ReceiveTileModal, VerifyModal, RolesModal } from '@/tileos/features/resolve'
+import { MyNameModal } from '@/tileos/features/myname'
 import { FlowPage } from '@/tileos/features/flow-map'
 import { SettingsPage, AddPersonModal, InviteModal } from '@/tileos/features/settings'
 import { CrewView } from '@/tileos/features/crew'
@@ -213,6 +214,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'receivetile': return <TileInModal jobId={m.jobId} tag={m.tag} level={level} />
     case 'verify': return <VerifyModal taskId={m.taskId} level={level} />
     case 'roles': return <RolesModal level={level} />
+    case 'myname': return <MyNameModal level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'late': return <LateModal level={level} />
     case 'checkin': return <CheckInModal who={m.who} level={level} />

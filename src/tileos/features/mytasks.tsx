@@ -37,6 +37,9 @@ import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formk
 import { WinHead } from './winhead'
 import { useSmall } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
+/** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
+ *  text) gives each switch its own line rather than cut a word */
+const PHONE_SHARE = 'max-sm:min-w-0 max-sm:flex-1 max-sm:[&>button]:min-w-0 max-sm:[&>button]:flex-1 max-sm:[&>button]:justify-center max-sm:[&>button]:px-1.5 [@media(max-width:22rem)]:basis-full'
 import { isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 
 const TODAY_ISO = TODAY
@@ -1024,12 +1027,13 @@ export function MyTasksPage() {
       </>}
       toolbar={
         /* a phone with nothing to pick here (the site manager's list): no empty box over the list */
-        <div className="flex w-full flex-wrap items-center gap-2" data-bar-phone-empty={!seesTeam && !all && (simple || view === 'done') ? '' : undefined}>
-          {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} />}
+        /* a phone: the switches side by side, sharing the width — one line on every phone, small or big */
+        <div className="flex w-full flex-wrap items-center gap-2 max-sm:flex-nowrap [@media(max-width:22rem)]:flex-wrap" data-bar-phone-empty={!seesTeam && !all && (simple || view === 'done') ? '' : undefined} data-today-bar>
+          {seesTeam && <ViewSwitch label="Whose list" value={scope} onChange={(k) => { setScope(k); setWho('all') }} items={[{ key: 'mine', label: 'Mine', icon: <UserRound /> }, { key: 'all', label: 'Everyone', icon: <Users /> }]} className={PHONE_SHARE} />}
           {/* Everyone's is by person — pick one person to see just theirs (no switch for how it's grouped: it's by person) */}
           {all && <Filter icon={<UserRound />} label="Person" value={who} allLabel="Everyone" options={(insidePeople(s).length ? insidePeople(s) : ASSIGNABLE).filter((p) => p !== me).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={(v) => { setWho(v as string); if (v !== 'all') setScope('all') }} />}
           {/* your own list: in the order it happens, or a project at a time */}
-          {!all && view !== 'done' && !simple && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} />}
+          {!all && view !== 'done' && !simple && <ViewSwitch label="How it's grouped" value={grouping} onChange={setGrouping} items={[{ key: 'time', label: 'By time', icon: <Clock3 /> }, { key: 'job', label: 'By project', icon: <Building2 /> }]} className={PHONE_SHARE} />}
           <span className="flex-1 max-md:hidden" />
           {/* one project's things — on a computer; a phone keeps to one line (By project does it there) */}
           <span className="contents max-sm:hidden">

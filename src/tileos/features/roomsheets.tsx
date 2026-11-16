@@ -135,6 +135,8 @@ export function RoomSheet({ job, room, last, page }: { job: Job; room: Room; las
                   {e.metals.map((f) => <FinishDot key={f} finish={f} size={13} />)}
                 </div>
               ))}
+              {/* the same tile in other rooms — so the installer knows it's one order */}
+              {(() => { const other = e.tag ? (useStore.getState().rooms[job.id] || []).filter((r) => r.name !== room.name && r.surfaces.some((x) => x.tile === e.tag || x.also?.includes(e.tag!))).map((r) => r.name) : []; return other.length ? <div className="mt-1 text-[0.71875rem] leading-snug text-[#333]" data-sheet-also><b className="font-bold text-[#222]">Also used in:</b> {other.join(', ')}</div> : null })()}
             </div>
           </div>
         ))}

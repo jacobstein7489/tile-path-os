@@ -8,7 +8,7 @@
  *   on the paperwork step (Where it stands), and on Tile & materials — the same reading, the same card */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Sparkles, Upload, FileText, Check, CircleAlert, Undo2, ChevronDown, Plus } from 'lucide-react'
+import { Sparkles, Upload, FileText, Check, CircleAlert, Undo2, ChevronDown, Plus, X } from 'lucide-react'
 import { useStore, addHist, meOf } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -17,7 +17,8 @@ import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { keepFiles, openFile, sizeLabel, fileBlob } from '@/tileos/lib/files'
 import { startReading, stepReading, endReading, failReading, useReadingOf } from '@/tileos/lib/reading'
-import { GROUTS, byTag, hasTile, type Tile } from '@/tileos/data/jobs'
+import { GROUTS, byTag, hasTile, tilesOn, floorsOf, type Tile, type Room, type Surface } from '@/tileos/data/jobs'
+import { DOC_GREEN, DOC_GRAY } from './docpaper'
 import type { Job } from '@/tileos/data/model'
 import { readTilePaperwork, ReadError, type ReadResult } from './reader'
 import { takesTile } from './steps'
@@ -176,18 +177,38 @@ export function PaperRead({ job }: { job: Job }) {
   )
 }
 
-/** what it entered from the paperwork, to check: every tile it read with where it goes (a picker to fix it — amber
- *  when it couldn't match), then our walls and floors the paperwork didn't cover, each with "Pick a tile". Every
- *  change is saved as it's made; "Take it back" undoes it all */
+/** the walls and floors by area, for a picker: each room's name once, its walls and floors under it (a room on the
+ *  scope's floor order) */
+export function areaOptions(s: { rooms: Record<string, any[]> }, jobId: string, tag?: string, trim?: boolean) {
+  const rooms = (s.rooms[jobId] || []) as Room[]
+  return floorsOf(rooms).flatMap((g) => g.rooms.flatMap((r) => r.surfaces.filter((x) => takesTile(x.name) || hasTile(x, tag)).map((x) => ({
+    key: refKey({ room: r.name, surface: x.name }),
+    label: x.name,
+    group: r.name,
+    hint: x.tile && !hasTile(x, tag) ? (trim ? `Goes with ${x.tile}` : `Has ${x.tile} now`) : x.sf ? `${x.sf} SF` : undefined,
+  }))))
+}
+const areaSummary = (p: { label: string; group?: string }[]) => (p.length > 2 ? `${p[0].group} · ${p[0].label} and ${p.length - 1} more` : p.map((o) => `${o.group} · ${o.label}`).join(', '))
+/** is what the paperwork entered on screen to check (the tile list waits under it) */
+export const usePaperReview = (jobId: string) => useReads((x) => x.by[jobId]?.k === 'entered')
+
+/** what it entered from the paperwork, to check — laid out like the scope of work: the tiles it couldn't place on top
+ *  (each with where it goes, picked by area); then floor by floor, room by room, every wall and floor with its tile —
+ *  tap the tile to change it, an amber "Pick a tile" where there's none. Every change is saved as it's made; "Take it
+ *  back" undoes it all */
 function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; res: ReadResult; file: string; problem?: string; before: Before; tags: string[]; onDone: () => void }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const flat = rooms.flatMap((r) => r.surfaces.map((x) => ({ room: r.name, x })))
   const read = Array.from(new Set(tags.filter(Boolean))).map((tag) => s.tiles[job.id]?.[tag]).filter(Boolean) as Tile[]
-  const all = Object.values(s.tiles[job.id] || {}).sort(byTag)
   const placed = flat.filter((f) => read.some((t) => hasTile(f.x, t.tag))).length
   const loose = read.filter((t) => !flat.some((f) => hasTile(f.x, t.tag)))
-  const uncovered = flat.filter((f) => takesTile(f.x.name) && !f.x.tile)
+  /* the ones it couldn't place stay on top while you check — placed by hand, each says where it went (nothing jumps) */
+  const [first] = React.useState(() => loose.map((t) => t.tag))
+  const byHand = [...first, ...loose.map((t) => t.tag).filter((tag) => !first.includes(tag))].map((tag) => s.tiles[job.id]?.[tag]).filter(Boolean) as Tile[]
+  const empty = flat.filter((f) => takesTile(f.x.name) && !tilesOn(f.x).length)
+  const groups = floorsOf(rooms)
+  const several = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
   const takeBack = () => {
     s.commit((st) => {
       st.tiles[job.id] = before.tiles
@@ -195,10 +216,6 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
       addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Took back what was read from ${file}` })
     }, 'Taken back — as it was before the paperwork', { undo: false })
     onDone()
-  }
-  const pickFor = (room: string, surface: string, tag: string) => {
-    const on = flat.filter((f) => hasTile(f.x, tag)).map((f) => ({ room: f.room, surface: f.x.name }))
-    setTileOn(job.id, tag, [...on, { room, surface }])
   }
   return (
     <section className="overflow-hidden rounded-xl border border-ok-100 bg-white" data-paper-entered>
@@ -208,27 +225,37 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
           <span className="block text-[0.90625rem] font-semibold text-ink">Read {read.length} tile{read.length === 1 ? '' : 's'} from {file}</span>
           <span className="block text-[0.8125rem] text-ink-2" data-paper-summary>
             {placed} wall{placed === 1 ? '' : 's'} and floors matched
-            {loose.length > 0 && <span className="font-semibold text-warn-800"> · {loose.length} to match by hand</span>}
-            {uncovered.length > 0 && <span className="text-muted"> · {uncovered.length} of ours not on it</span>}
+            {loose.length > 0 && <span className="font-semibold text-warn-800"> · {loose.length} to place by hand</span>}
+            {empty.length > 0 && <span className="text-muted"> · {empty.length} of ours without a tile</span>}
           </span>
         </span>
       </header>
-      {read.map((t) => <MatchRow key={t.tag} job={job} t={t} />)}
-      {uncovered.length > 0 && (
-        <div className="border-t border-line-2" data-paper-uncovered>
-          <div className="bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">Ours, not on the paperwork <span className="font-normal text-muted">— pick a tile, or leave it for newer paperwork</span></div>
-          {uncovered.map((f) => (
-            <div key={f.room + '|' + f.x.name} className="flex min-h-11 items-center gap-3 border-t border-line-2 px-4 py-1.5" data-paper-open={`${f.room} · ${f.x.name}`}>
-              <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink">{f.room} · {f.x.name}{f.x.sf ? <span className="text-muted"> · {f.x.sf} SF</span> : null}</span>
-              <Menu align="end" width={300} trigger={<Button size="sm" data-paper-pick>Pick a tile<ChevronDown className="h-3.5 w-3.5" /></Button>}>
-                <MenuLabel>{f.room} · {f.x.name}</MenuLabel>
-                {all.filter((t) => !t.trim).map((t) => <MenuItem key={t.tag} icon={<TileImg tile={t} size={20} radius={4} />} onSelect={() => pickFor(f.room, f.x.name, t.tag)}>{t.tag} {t.name}</MenuItem>)}
-                <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'tile', jobId: job.id, room: f.room, surface: f.x.name })}>A new tile…</MenuItem>
-              </Menu>
-            </div>
-          ))}
+      {byHand.length > 0 && (
+        <div data-paper-loose>
+          {loose.length > 0
+            ? <div className="border-t border-warn-100 bg-warn-50/60 px-4 py-2 text-[0.8125rem] font-semibold text-warn-800">Not placed yet <span className="font-normal">— pick where each one goes</span></div>
+            : <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">Placed by hand</div>}
+          {byHand.map((t) => <MatchRow key={t.tag} job={job} t={t} />)}
         </div>
       )}
+      <div data-paper-areas>
+        <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">By area <span className="font-normal text-muted">— tap a tile to change it</span></div>
+        {groups.map((g) => (
+          <div key={g.floor}>
+            {several && <div className="px-4 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-white" style={{ background: DOC_GREEN }}>{g.floor}</div>}
+            {g.rooms.map((r) => {
+              const lines = r.surfaces.filter((x) => takesTile(x.name) || tilesOn(x).length)
+              if (!lines.length) return null
+              return (
+                <div key={r.name} data-paper-room={r.name}>
+                  <div className="border-t border-line px-4 py-1.5 text-[0.78125rem] font-bold uppercase tracking-[0.02em] text-[#222]" style={{ background: DOC_GRAY }}>{r.name}</div>
+                  {lines.map((x) => <AreaLine key={x.name} job={job} room={r} x={x} />)}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
       {res.notes && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{res.notes}</div>}
       {problem && <div className="flex items-start gap-2 border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-warn-800"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />The file itself wasn’t kept with the project: {problem}</div>}
       <footer className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-white px-4 py-3">
@@ -240,12 +267,50 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
   )
 }
 
-/** one tile it read: its picture, name and size, its grout — and where it goes, to fix with one picker (amber when it
- *  didn't match anything) */
+/** one wall or floor, by area: its name, and its tile — tap it for the tiles (with their pictures) to change it, or
+ *  an amber "Pick a tile" when it has none */
+function AreaLine({ job, room, x }: { job: Job; room: Room; x: Surface }) {
+  const s = useStore()
+  const tags = tilesOn(x)
+  const ts = tags.map((t) => s.tiles[job.id]?.[t]).filter(Boolean) as Tile[]
+  const all = Object.values(s.tiles[job.id] || {}).sort(byTag)
+  const flat = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.map((y) => ({ room: r.name, x: y })))
+  const g = x.grout || ts[0]?.grout
+  const pick = (tag: string) => {
+    if (hasTile(x, tag)) return
+    const on = flat.filter((f) => hasTile(f.x, tag)).map((f) => ({ room: f.room, surface: f.x.name }))
+    setTileOn(job.id, tag, [...on, { room: room.name, surface: x.name }])
+  }
+  const clear = () => tags.forEach((tag) => setTileOn(job.id, tag, flat.filter((f) => hasTile(f.x, tag) && !(f.room === room.name && f.x.name === x.name)).map((f) => ({ room: f.room, surface: f.x.name }))))
+  return (
+    <div className="grid min-h-12 grid-cols-[minmax(0,0.75fr)_minmax(0,2fr)_minmax(0,0.9fr)] items-center gap-3 border-t border-line-2 px-4 py-1.5 max-sm:grid-cols-[minmax(0,0.8fr)_minmax(0,2fr)]" data-paper-line={`${room.name} · ${x.name}`} data-empty={!tags.length || undefined}>
+      <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}{x.height ? <span className="text-muted"> · {x.height.split(' — ')[0]}</span> : null}</span>
+      <Menu align="start" width={340} trigger={
+        tags.length ? (
+          <button type="button" className="flex min-w-0 items-center gap-2 rounded-lg py-1 pl-1 pr-2 text-left transition hover:bg-wash" aria-label={`${room.name} · ${x.name}: change its tile`} data-paper-change>
+            {ts.map((t) => <TileImg key={t.tag} tile={t} size={32} radius={6} />)}
+            <span className="min-w-0 truncate text-[0.875rem] text-ink-2">{ts.map((t, i) => <React.Fragment key={t.tag}>{i ? ' + ' : ''}<b className="font-semibold text-ink">{t.tag}</b> {t.name}</React.Fragment>)}{ts[0]?.size ? <span className="text-muted"> · {ts[0].size}</span> : null}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
+          </button>
+        ) : (
+          <button type="button" className="inline-flex h-9 w-fit items-center gap-1.5 rounded-lg border border-warn-300 bg-warn-50/60 px-3 text-[0.8125rem] font-semibold text-warn-800 hover:bg-warn-50" data-paper-pick>Pick a tile<ChevronDown className="h-3.5 w-3.5" /></button>
+        )
+      }>
+        <MenuLabel>{room.name} · {x.name}</MenuLabel>
+        {all.map((t) => <MenuItem key={t.tag} icon={<TileImg tile={t} size={24} radius={4} />} checked={hasTile(x, t.tag)} onSelect={() => pick(t.tag)}>{t.tag} {t.name}{t.size ? ` · ${t.size}` : ''}</MenuItem>)}
+        {tags.length > 0 && <MenuItem icon={<X className="h-4 w-4" />} onSelect={clear}>No tile here</MenuItem>}
+        <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'tile', jobId: job.id, room: room.name, surface: x.name })}>A new tile…</MenuItem>
+      </Menu>
+      <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted max-sm:hidden">{g ? <><GroutDot grout={g} size={12} /><span className="truncate">{GROUTS[g]?.name || g}</span></> : null}</span>
+    </div>
+  )
+}
+
+/** a tile it couldn't place: its picture, name and size, its grout — and where it goes, picked by area */
 function MatchRow({ job, t }: { job: Job; t: Tile }) {
   const s = useStore()
   const flat = (s.rooms[job.id] || []).flatMap((r) => r.surfaces.map((x) => ({ room: r.name, x })))
-  const opts = flat.filter((f) => takesTile(f.x.name) || hasTile(f.x, t.tag)).map((f) => ({ key: refKey({ room: f.room, surface: f.x.name }), label: `${f.room} · ${f.x.name}`, hint: f.x.tile && !hasTile(f.x, t.tag) ? (t.trim ? `Goes with ${f.x.tile}` : `Has ${f.x.tile} now`) : f.x.sf ? `${f.x.sf} SF` : undefined }))
+  const opts = areaOptions(s, job.id, t.tag, t.trim)
   const vals = flat.filter((f) => hasTile(f.x, t.tag)).map((f) => refKey({ room: f.room, surface: f.x.name }))
   const loose = !vals.length
   const g = t.grout ? GROUTS[t.grout] : undefined
@@ -254,17 +319,18 @@ function MatchRow({ job, t }: { job: Job; t: Tile }) {
       <button type="button" onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`${t.tag} ${t.name}`} className="shrink-0"><TileImg tile={t} size={40} radius={8} /></button>
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}{t.trim ? <span className="text-muted"> · trim</span> : null}</span>
-        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.78125rem] text-muted">{g ? <><GroutDot grout={t.grout} size={12} /><span className="truncate">{g.name} grout</span></> : <span className="truncate">No grout on the paperwork</span>}</span>
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.78125rem] text-muted">{g ? <><GroutDot grout={t.grout} size={12} /><span className="truncate">{g.name} grout</span></> : <span className="truncate">{t.note || 'No grout on the paperwork'}</span>}</span>
       </span>
       <MultiSelect
         values={vals}
         options={opts}
         label={`Where ${t.tag} goes`}
         placeholder={t.trim ? 'Which walls it finishes' : 'Pick where it goes'}
+        searchPlaceholder="Type a room or a wall…"
         width={380}
         className={cn('min-h-9 py-1 text-[0.8125rem] max-md:col-span-2 max-md:col-start-1', loose && 'border-warn-300 bg-warn-50/60 text-warn-800')}
         onChange={(keys) => setTileOn(job.id, t.tag, keys.map((k) => { const [room, surface] = k.split('|'); return { room, surface } }))}
-        summary={(p) => (p.length > 2 ? `${p[0].label} and ${p.length - 1} more` : p.map((o) => o.label).join(', '))}
+        summary={areaSummary}
       />
     </div>
   )

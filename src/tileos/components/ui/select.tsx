@@ -157,7 +157,7 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   const searchable = options.length > 8
   const picked = options.filter((o) => values.includes(o.key))
   const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
-  const shown = options.filter((o) => !words.length || words.every((w) => `${o.label} ${o.hint || ''}`.toLowerCase().includes(w)))
+  const shown = options.filter((o) => !words.length || words.every((w) => `${o.group || ''} ${o.label} ${o.hint || ''}`.toLowerCase().includes(w)))
   const toggle = (k: string) => onChange(values.includes(k) ? values.filter((x) => x !== k) : [...values, k])
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
@@ -177,10 +177,14 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
             </label>
           )}
           <div role="listbox" aria-multiselectable aria-label={label} className="scroll-soft max-h-[min(21.25rem,52vh)] overflow-y-auto overscroll-contain p-1">
-            {shown.map((o) => {
+            {shown.map((o, i) => {
               const on = values.includes(o.key)
+              /* a list by area: each room's name once, over its walls and floors */
+              const head = o.group && o.group !== shown[i - 1]?.group ? <div key={'g:' + o.group} className="px-2.5 pb-1 pt-2.5 text-[0.71875rem] font-bold uppercase tracking-[0.04em] text-muted first:pt-1" data-option-group>{o.group}</div> : null
               return (
-                <button key={o.key} type="button" role="option" aria-selected={on} onClick={() => toggle(o.key)} className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[0.875rem] text-ink-2 hover:bg-wash-2">
+                <React.Fragment key={o.key}>
+                {head}
+                <button type="button" role="option" aria-selected={on} onClick={() => toggle(o.key)} className={cn('flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[0.875rem] text-ink-2 hover:bg-wash-2', o.group && 'pl-4')}>
                   <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
                   {o.lead}
                   <span className="min-w-0 flex-1">
@@ -188,6 +192,7 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
                     {o.hint && <span className="block truncate text-[0.78125rem] text-muted">{o.hint}</span>}
                   </span>
                 </button>
+                </React.Fragment>
               )
             })}
           </div>

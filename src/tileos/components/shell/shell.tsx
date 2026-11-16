@@ -6,7 +6,6 @@ import { Command } from 'cmdk'
 import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
-import { robotTime } from '@/tileos/lib/robottime'
 import { updateReady, watchUpdateReady, updateNow } from '@/tileos/lib/device'
 import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
@@ -16,10 +15,9 @@ import { inboxUnread } from '@/tileos/features/inbox'
 import { billsToMake, billingOn } from '@/tileos/features/progressbill'
 import { cn } from '@/tileos/lib/utils'
 import { TOPBAR_MAX } from '@/tileos/components/ui/page'
-import { lastOpened } from '@/tileos/lib/opentime'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent } from 'lucide-react'
+import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent, UserPen } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
@@ -179,6 +177,8 @@ export function Sidebar() {
 /** desktop: search across everything, notifications and who you are, above every page */
 export function DesktopTopBar() {
   const role = useStore((s) => s.role)
+  /* a name changed (yours, from the menu) shows right away */
+  useStore((s) => s.team)
   const setPalette = useStore((s) => s.setPalette)
   const me = meOf(role)
   return (
@@ -221,6 +221,8 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   const nav = useNav()
   return (
     <>
+      {/* your own name, the way the team sees it — not while looking at someone else's login */}
+      {!away && <MenuItem icon={<UserPen className="h-4 w-4" />} onSelect={() => open({ t: 'myname' })} data-my-name>Your name</MenuItem>}
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="The team, the steps, the rules">Settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
       {REAL.cloud && REAL.admin && !away && <MenuItem icon={<FlaskConical className="h-4 w-4" />} onSelect={lookAtSample} hint="Made-up projects to test — nothing saved">Try it with sample projects</MenuItem>}
@@ -238,9 +240,8 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {role === 'owner' && !REAL.cloud && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
       {REAL.sampleView && <MenuItem icon={<Undo2 className="h-4 w-4" />} onSelect={leaveSample} hint="Leave the sample projects">Back to my projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
-      {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint">Version {BUILT}</div>}
-      {REAL.cloud && lastOpened() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-opened>{lastOpened()}</div>}
-      {robotTime() && <div className="px-2.5 pb-1 text-[0.71875rem] leading-snug text-faint" data-robot-time>{robotTime()}</div>}
+      {/* just the version — how fast it opened and the robot's times are in Settings → This device */}
+      {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint" data-version>Version {BUILT}</div>}
     </>
   )
 }
@@ -299,13 +300,11 @@ export function BottomNav() {
             <React.Fragment key={k}>
               {/* + New in the very middle, where the thumb is */}
               {i === 2 && <PhonePlus />}
-              <button onClick={() => go({ page: k as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[0.71875rem]', on ? 'font-bold text-brand-700' : 'font-semibold text-muted')} data-phone-tab={k}>
-                {/* where you are: a soft blue pill behind its icon — clear at a glance, nothing loud */}
-                <span className={cn('inline-flex h-7 w-14 items-center justify-center rounded-full', on && 'bg-brand-50')} data-phone-tab-pill={on || undefined}>
-                  <span className="relative">
-                    <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2.2 : 1.7} />
-                    {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
-                  </span>
+              <button onClick={() => go({ page: k as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-brand-600' : 'text-muted')} data-phone-tab={k}>
+                {/* where you are: its icon and its name in blue, as on the computer — nothing behind it */}
+                <span className="relative">
+                  <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2.1 : 1.7} />
+                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
                 </span>
                 <span className="max-w-full truncate">{NAV[k].label}</span>
               </button>
@@ -341,6 +340,7 @@ export function BottomNav() {
 /* Phones and tablets only: the sidebar's top row (logo, search, record, account). */
 export function TopBar() {
   const role = useStore((s) => s.role)
+  useStore((s) => s.team)
   const route = useStore((s) => s.route)
   const go = useStore((s) => s.go)
   const open = useStore((s) => s.open)

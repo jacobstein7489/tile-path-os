@@ -28,12 +28,12 @@ import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel,
 import { confirmSetting } from './setting'
 import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
-import { pickInstaller, pencilInstaller, sendDraftIPO, setSurfaceTile } from './flows2'
+import { pickInstaller, pencilInstaller, putOnNoPO, sendDraftIPO, setSurfaceTile } from './flows2'
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
 import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
 import { poRatio, type Ratio } from './poratio'
-import { PaperRead, useReadBusy } from './paperread'
+import { PaperRead, useReadBusy, usePaperReview } from './paperread'
 import { AddRoomButton } from './roomedit'
 import { ScopeStart } from './job/scope-tab'
 import { LayoutsList, fillSuggestions } from './layout'
@@ -884,6 +884,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
 /** 2 · the paperwork goes in: AI reads it, every tile matched to our walls and floors — and what isn't */
 function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
+  const checking = usePaperReview(job.id)
   const rooms = s.rooms[job.id] || []
   if (!rooms.length) return (
     <div className="flex flex-col gap-4">
@@ -900,6 +901,8 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   return (
     <div className="flex flex-col gap-4">
       {lock.canEdit ? <PaperRead job={job} /> : <div className="flex items-center gap-2.5 rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Only {PEOPLE[lock.owner]?.short} enters the paperwork and changes the scope.</div>}
+      {/* what the paperwork entered is being checked above — one list at a time */}
+      {!checking && <>
       <Block title="Tile on the paperwork" right={lock.canEdit ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
         {!tiles.length && <Quiet>{lock.canEdit ? 'None yet — upload the paperwork above, or add each tile by hand: its tag, its name, where it goes.' : `None yet — ${PEOPLE[lock.owner]?.short} enters them from the paperwork.`}</Quiet>}
         {tiles.map((t) => <TileWhere key={t.tag} job={job} t={t} loose={loose.includes(t)} locked={!lock.canEdit} />)}
@@ -924,6 +927,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
       {v.state !== 'done' && tiles.length > 0 && missing.length > 0 && (
         <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered — ${missing.length} without a tile on this paperwork`, { close: true })}>Entered — the rest isn’t on this paperwork</Button></Actions>
       )}
+      </>}
     </div>
   )
 }
@@ -1449,7 +1453,11 @@ function Installer({ job }: { job: Job }) {
     <div className="flex flex-col gap-4">
       {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
       {picker}
-      <Actions><Button variant="primary" disabled={!pick} onClick={() => pick && pickInstaller(job.id, pick)}>Make his PO</Button></Actions>
+      {/* a job already going, or done on a handshake: he's on it without a PO here */}
+      <Actions>
+        {ipo?.status !== 'Rejected' && <Button disabled={!pick} onClick={() => pick && putOnNoPO(job.id, pick)} data-installer-no-po>Put him on — no PO</Button>}
+        <Button variant="primary" disabled={!pick} onClick={() => pick && pickInstaller(job.id, pick)}>Make his PO</Button>
+      </Actions>
     </div>
   )
 }

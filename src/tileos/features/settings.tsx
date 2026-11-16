@@ -30,16 +30,19 @@ import { PracticeTab } from './practice'
 import { REAL, type WaitingPerson, appUrl, lookAtSample } from '@/tileos/lib/save'
 import { QbConnectCard, EmailCard } from './qbui'
 import { TODAY } from '@/tileos/lib/today'
+import { BUILT } from '@/tileos/lib/version'
+import { lastOpened } from '@/tileos/lib/opentime'
+import { robotTime } from '@/tileos/lib/robottime'
 
-type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover'
+type Tab = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'statuses' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'testdata' | 'startover' | 'device'
 const LOGINS = ROLES.filter((r) => r.key !== 'crew' && LOGIN_TYPES.includes(r.key))
 const INSIDE = LOGINS.filter((r) => r.key !== 'client')
 const short = (r: Role) => ROLES.find((x) => x.key === r)!.label.split(' · ')[0]
 
 /* one thing at a time: a plain list of the parts on the left (on a phone, across the top), the part you picked on the
  * right — its name, one line, and the part itself. The one-time tools are last, under Tools. */
-type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover'
-const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', commission: 'commission', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover' }
+type Section = 'team' | 'access' | 'checklist' | 'estimates' | 'autos' | 'rules' | 'numbers' | 'commission' | 'connections' | 'email' | 'bringin' | 'practice' | 'startover' | 'device'
+const SECTION_OF: Record<Tab, Section> = { team: 'team', access: 'access', checklist: 'checklist', statuses: 'checklist', estimates: 'estimates', autos: 'autos', rules: 'rules', numbers: 'numbers', commission: 'commission', connections: 'connections', email: 'email', bringin: 'bringin', practice: 'practice', testdata: 'practice', startover: 'startover', device: 'device' }
 const SECTIONS: { group: string; items: { key: Section; label: string; about: string; icon: React.ElementType }[] }[] = [
   { group: 'People', items: [
     { key: 'team', label: 'Team', about: 'Everyone signs in with their own email and sees only their part.', icon: Users },
@@ -61,6 +64,7 @@ const SECTIONS: { group: string; items: { key: Section; label: string; about: st
     { key: 'bringin', label: 'Bring in projects', about: 'The projects from before Tile OS: bring them in from their estimates, then go through them.', icon: Upload },
     { key: 'practice', label: 'Practice and samples', about: 'Try anything — nothing reaches a client or QuickBooks.', icon: RotateCcw },
     { key: 'startover', label: 'Start over', about: 'Delete every project, estimate, client and task. The team and settings stay.', icon: Trash2 },
+    { key: 'device', label: 'This device', about: 'The app’s version here, and how fast it opens and answers on this device.', icon: Smartphone },
   ] },
 ]
 
@@ -115,9 +119,31 @@ export function SettingsPage() {
           {tab === 'practice' && <div className="flex flex-col gap-6">{REAL.cloud && REAL.admin && <SampleCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
           {tab === 'bringin' && <BringInTab />}
           {tab === 'startover' && <StartOverCard />}
+          {tab === 'device' && <DeviceTab />}
         </div>
       </div>
     </Page>
+  )
+}
+
+/** this device: the version it runs, how long the app took to open here, and the robot's speed — what used to sit at the
+ *  bottom of the account menu (only the version stays there) */
+function DeviceTab() {
+  const opened = lastOpened()
+  const robot = robotTime()
+  const row = 'flex min-h-[3.25rem] items-center gap-4 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-sm:px-4'
+  const line = (label: string, v: string, key: string) => (
+    <div className={row} data-device={key}>
+      <div className="w-[8.5rem] shrink-0 text-[0.875rem] font-medium text-ink max-sm:w-[6.5rem]">{label}</div>
+      <div className="min-w-0 flex-1 text-[0.84375rem] leading-snug text-ink-2">{v}</div>
+    </div>
+  )
+  return (
+    <Card>
+      {line('Version', BUILT || 'This preview', 'version')}
+      {line('Opening the app', opened ? opened.replace(/^Opened in /, '') : 'Not timed on this device yet', 'opened')}
+      {line('The robot', robot ? robot.replace(/^Robot: /, '') : 'Not used on this device yet', 'robot')}
+    </Card>
   )
 }
 

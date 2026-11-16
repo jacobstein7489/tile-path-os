@@ -6,7 +6,9 @@ import { Card, CardHeader, Button, Pill, Avatar, IconCircle, TextInput } from '@
 import { MiniSteps, StackBar } from '@/tileos/components/ui/progress'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
-import { fmtMoney, PEOPLE, type Job } from '@/tileos/data/model'
+import { fmtMoney, PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
+import { installerOf } from '../upcoming'
+import { pickInstaller } from '../flows2'
 import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileos/data/work'
 import { pictureOf, LAST_WEEK } from '../progressbill'
 import { InstallerPOCard } from '../field'
@@ -189,7 +191,10 @@ export function MoneyTab({ job }: { job: Job }) {
 const IPO_COLS = 'grid grid-cols-[minmax(0,1.6fr)_7rem_7rem_4.5rem] items-center gap-x-6 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 function InstallerSheet({ job }: { job: Job }) {
   const s = useStore()
-  const ipo: IPO | undefined = [...s.ipos].reverse().find((p) => p.jobId === job.id && p.status !== 'Rejected')
+  const ipo0: IPO | undefined = [...s.ipos].reverse().find((p) => p.jobId === job.id && p.status !== 'Rejected')
+  /* a draft with nothing priced on it isn't a PO yet — it's who's on the job */
+  const blank = !!ipo0 && ipo0.status === 'Draft' && !ipo0.lines.some((l) => (l.amount || 0) > 0) && !ipo0.changes.length
+  const ipo = blank ? undefined : ipo0
   const head = (right?: React.ReactNode) => (
     <header className="flex min-h-12 items-center gap-x-2 gap-y-0.5 px-5 py-2 max-sm:px-4">
       <span className="flex min-w-0 flex-1 items-baseline gap-2 max-sm:flex-col max-sm:gap-0">
@@ -199,11 +204,26 @@ function InstallerSheet({ job }: { job: Job }) {
       {right && <span className="flex shrink-0 items-center gap-2">{right}</span>}
     </header>
   )
+  if (blank && ipo0) return (
+    <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet data-installer-blank>
+      {head(<Button size="sm" onClick={() => s.open({ t: 'ipo', id: ipo0.id })}>Make his PO</Button>)}
+      <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[ipo0.crew]?.name || 'The installer'} is on this job — no PO with prices yet. Make one when you’re ready; it isn’t sent until you send it.</div>
+    </section>
+  )
   if (!ipo) {
     /* before there's a PO: what his PO should stay under, from what we sell the work for */
     const r0 = poRatio(s, { jobId: job.id, lines: [], changes: [] })
     const line = r0.line
     const budget = r0.sold ? Math.floor((r0.sold * line) / 100) : 0
+    /* he's on the job without a PO (a job already going, or a handshake) — make one when you're ready */
+    const on = installerOf(s, job) as PersonKey | undefined
+    const turned = [...s.ipos].reverse().find((p) => p.jobId === job.id)?.status === 'Rejected'
+    if (on && PEOPLE[on] && !turned) return (
+      <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet data-installer-no-po>
+        {head(<Button size="sm" onClick={() => pickInstaller(job.id, on)}>Make his PO</Button>)}
+        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[on].name} is on this job — no PO.{budget ? <> At {line}% of the estimate, his PO would stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b>.</> : null}</div>
+      </section>
+    )
     return (
       <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet>
         {head(<Button size="sm" onClick={() => s.open({ t: 'installerwin', jobId: job.id })}>Pick the installer</Button>)}

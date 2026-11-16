@@ -552,7 +552,7 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
                 /* a phone: a cell of the panel — the number, its name under it, no icon */
                 'max-sm:h-auto max-sm:min-h-[3.375rem] max-sm:min-w-0 max-sm:flex-col max-sm:items-start max-sm:justify-start max-sm:gap-0 max-sm:rounded-none max-sm:border-0 max-sm:px-2.5 max-sm:py-2',
                 tall && 'max-sm:row-span-2 max-sm:justify-center',
-                row && 'max-sm:items-center max-sm:justify-center max-sm:px-1 max-sm:text-center',
+                row && 'max-sm:items-center max-sm:justify-center max-sm:px-1 max-sm:text-center [@media(max-width:22rem)]:px-0.5',
                 b.on
                   ? soft
                     ? 'text-ink'
@@ -571,8 +571,8 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
               <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
                 <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
                 {row && b.short
-                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
-                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-nowrap max-sm:text-[0.6875rem] max-sm:[text-overflow:clip]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}
+                  ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden [@media(max-width:22rem)]:text-[0.625rem]', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
+                  : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-normal max-sm:text-[0.6875rem] max-sm:leading-[0.8125rem] [@media(max-width:22rem)]:text-[0.625rem]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}
               </span>
             </button>
           </React.Fragment>

@@ -126,13 +126,14 @@ export function AddRoomButton({ jobId, label = 'Add a room', className, size = '
 }
 
 /** a room's ···: which floor it's on, the note next to it on the paper, take it off */
-export function RoomMenu({ jobId, room, onLines }: { jobId: string; room: Room; /** its walls and floors, ticked under the room (a phone has no pointing — it's here) */ onLines?: () => void }) {
+export function RoomMenu({ jobId, room, onLines, onDetail }: { jobId: string; room: Room; /** its walls and floors, ticked under the room (a phone has no pointing — it's here) */ onLines?: () => void; /** one more detail line under the room */ onDetail?: () => void }) {
   const [open, setOpen] = React.useState(false)
   const [note, setNote] = React.useState(room.note || '')
   React.useEffect(() => { if (open) setNote(room.note || '') }, [open])
   const started = roomStarted(room)
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={320} trigger={<button type="button" aria-label={`${room.name} — floor and details`} data-room-menu={room.name} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+      {onDetail && <button type="button" onClick={() => { setOpen(false); onDetail() }} data-room-detail-menu className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[0.875rem] font-semibold text-ink hover:bg-wash"><Plus className="h-4 w-4 text-muted" />A detail<span className="ml-auto text-[0.75rem] font-normal text-muted">1 niche, a saddle…</span></button>}
       {onLines && <button type="button" onClick={() => { setOpen(false); onLines() }} data-room-lines-menu className="-mx-1 mb-3 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[0.875rem] font-semibold text-ink hover:bg-wash"><Plus className="h-4 w-4 text-muted" />Walls and floors<span className="ml-auto text-[0.75rem] font-normal text-muted">{room.surfaces.length}</span></button>}
       <div className="text-[0.78125rem] font-semibold text-muted">Floor</div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">

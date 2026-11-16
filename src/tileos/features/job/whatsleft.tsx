@@ -6,7 +6,7 @@
  *   What can't start yet, and what's done, aren't on it — just what's left.
  * Tap a line: that one thing in its own window — done there, it closes by itself; it never jumps to another step. */
 import * as React from 'react'
-import { Check, ChevronRight, Plus } from 'lucide-react'
+import { Check, ChevronRight, Plus, ArrowRight } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Filter } from '@/tileos/components/ui/page'
@@ -15,7 +15,8 @@ import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
 import { stepsFor, markStep, type StepView } from '../steps'
 import { TITLE, todoOf } from '../stepwin'
-import { tracksFor, issuesOf, problemsOf, leadWords, type TrackView } from '../tracks'
+import { tracksFor, issuesOf, problemsOf, leadWords, phaseOf, bookingOf, type TrackView } from '../tracks'
+import { readyForCrew, startProject } from '../flows'
 import { firstName } from './kit'
 import { installerOf } from '../upcoming'
 
@@ -31,6 +32,27 @@ export type LeftRow = {
   open: () => void
   /** checked off right on the list — the step or the task it is */
   done: () => void
+  /** no check on it — it's done in its window (scheduling the crew, booking the return visit) */
+  noCheck?: boolean
+  /** the project's next big thing (schedule the crew, start the job…) — first on the list */
+  next?: boolean
+}
+/** the project's next big thing once getting ready is done — the first line of To do, not a box of its own:
+ *  schedule the crew, start the job (its check starts it), book the return visit, send the final invoice */
+export function nextRow(s: Store, job: Job): LeftRow | null {
+  if (['client', 'crew', 'site'].includes(s.role)) return null
+  const tracks = tracksFor(s, job)
+  const phase = phaseOf(s, job, tracks)
+  const b = bookingOf(s, job)
+  const booked = job.stage === 'scheduled' || !!b
+  const pm = 'ys' as PersonKey
+  const noop = () => {}
+  if (phase === 'crew' && !booked) return { key: 'next:crew', what: 'Schedule the crew', who: pm, when: 'Getting ready is done', tone: 'now', next: true, noCheck: true, open: () => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }, done: noop }
+  if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
+  if (phase === 'punch') return { key: 'next:return', what: 'Book the return visit', who: pm, when: 'For the touch-ups', tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: noop }
+  const fin = s.money.find((m) => m.jobId === job.id && m.kind === 'final')
+  if (job.stage === 'closeout' && fin) return { key: 'next:final', what: 'Send the final invoice', who: pm, tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'money', id: fin.id }), done: noop }
+  return null
 }
 
 /** whose it is: their little circle and their name ("You" for yours) — the same as on Estimates */
@@ -124,7 +146,9 @@ export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
   const me = meOf(s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
-  const rows = leftRows(s, job)
+  /* the next big thing first (schedule the crew, start the job…), then what's left */
+  const nx = nextRow(s, job)
+  const rows = nx ? [nx, ...leftRows(s, job)] : leftRows(s, job)
   /* checked: it slides away before the list closes up */
   const [going, setGoing] = React.useState<string[]>([])
   const check = (r: LeftRow) => { setGoing((g) => [...g, r.key]); window.setTimeout(() => { r.done(); setGoing((g) => g.filter((k) => k !== r.key)) }, 260) }
@@ -153,13 +177,13 @@ export function WhatsLeft({ job }: { job: Job }) {
                 const off = going.includes(r.key)
                 return (
                   <div key={r.key} role="button" tabIndex={0} onClick={r.open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) r.open() }} className={cn(ROW, off && 'row-out')} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
-                    {can ? (
-                      <button type="button" onClick={(e) => { e.stopPropagation(); if (!off) check(r) }} aria-label={`Done: ${r.what}`} title="Done" data-left-check
+                    {can && !r.noCheck ? (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); if (!off) check(r) }} aria-label={`Done: ${r.what}`} title={r.next ? r.what : 'Done'} data-left-check
                         className={cn('group/check inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full border-[1.5px] transition max-sm:row-span-2', off ? 'border-[#2c8a5b] bg-[#2c8a5b] text-white' : 'border-[#c9c3b8] text-transparent hover:border-[#2c8a5b] hover:text-[#2c8a5b]')}>
                         <Check className="h-3 w-3" strokeWidth={3} />
                       </button>
-                    ) : <span aria-hidden className="max-sm:row-span-2" />}
-                    <span className={cn('min-w-0 truncate text-[0.9375rem] max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-snug', off ? 'text-muted line-through decoration-faint' : r.tone === 'bad' ? 'text-bad-600' : r.tone === 'wait' ? 'text-muted' : 'text-ink')} title={r.what} data-left-what>{r.what}</span>
+                    ) : r.next ? <span aria-hidden className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full bg-brand-600 text-white max-sm:row-span-2"><ArrowRight className="h-3 w-3" strokeWidth={3} /></span> : <span aria-hidden className="max-sm:row-span-2" />}
+                    <span className={cn('min-w-0 truncate text-[0.9375rem] max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-snug', off ? 'text-muted line-through decoration-faint' : r.tone === 'bad' ? 'text-bad-600' : r.tone === 'wait' ? 'text-muted' : r.next ? 'font-semibold text-ink' : 'text-ink')} title={r.what} data-left-what {...(r.next ? { 'data-left-next': r.key } : {})}>{r.what}</span>
                     <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum max-sm:col-start-2 max-sm:row-start-2 max-sm:text-left max-sm:text-[0.8125rem]', r.late ? 'font-medium text-bad-600' : 'text-muted', !r.when && 'max-sm:hidden')} data-left-when>{r.when || ''}</span>
                     <ChevronRight className="h-4 w-4 text-faint max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1" aria-hidden />
                   </div>

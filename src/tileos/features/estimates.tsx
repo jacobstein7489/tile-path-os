@@ -140,7 +140,9 @@ export function EstimatesPage() {
         </>
       }
     >
-      <div style={{ '--n': 3, '--n-lg': 4 } as React.CSSProperties} data-even-list>
+      {/* the name and whose turn share the width; the date and the amount sit together on the right, both lined up on
+          their right edge — no wide gap between them */}
+      <div style={{ '--list': 'minmax(0,1.6fr) minmax(0,1fr) 6.5rem', '--list-lg': 'minmax(0,1.6fr) minmax(0,1fr) 8.5rem 6.5rem' } as React.CSSProperties} data-even-list>
         {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
         {view === 'open' &&
           (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
@@ -158,7 +160,7 @@ export function EstimatesPage() {
           <div key={l.name} title={l.reason} data-subrow className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
             <div className="min-w-0 truncate text-[0.90625rem] font-medium text-ink">{l.name}</div>
             <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
-            <div className="text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
+            <div className="text-right text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
             <div className="text-right text-faint max-md:hidden">—</div>
           </div>
         ))}
@@ -181,7 +183,7 @@ function EstHead() {
     <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>Estimate</span>
       <span>Whose turn</span>
-      <span className="max-lg:hidden">Date</span>
+      <span className="text-right max-lg:hidden">Date</span>
       <span className="text-right">Amount</span>
     </div>
   )
@@ -221,7 +223,7 @@ function EstRow({ e }: { e: Estimate }) {
     >
       <span className="min-w-0 truncate text-[0.90625rem] font-medium text-ink max-md:hidden">{j.name}</span>
       <span className="min-w-0 max-md:hidden">{who}</span>
-      <span className={cn('truncate text-[0.8125rem] max-lg:hidden', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span>
+      <span className={cn('truncate text-right text-[0.8125rem] max-lg:hidden', late ? 'font-medium text-warn-700' : 'text-muted')} data-est-date>{date}</span>
       <span className="text-right max-md:hidden">{money}</span>
       {/* a phone: two short lines */}
       <div className="hidden min-w-0 max-md:block">

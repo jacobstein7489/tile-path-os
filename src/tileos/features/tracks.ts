@@ -334,26 +334,28 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
         const c = s.checks.find((x) => x.jobId === job.id && x.tag === tag)
         if (c && c.received < c.ordered) {
           if (c.received > 0) add('bad', `${tag} short — ${c.received} of ${c.ordered}`)
-          else if (!inField) toCome.push(c.eta ? `tile ${c.eta.replace(/^\w+,\s*/, '')}` : 'tile')
+          else if (!inField) toCome.push(c.eta && c.eta !== 'TBD' ? `tile due ${c.eta.replace(/^\w+,\s*/, '')}` : 'tile ordered')
           else add('warn', c.eta ? `${tag} coming ${c.eta.replace(/^\w+,\s*/, '')}` : `${tag} not here yet`)
         }
         const sh = s.shortages.find((x) => x.jobId === job.id && x.tag === tag && x.step !== 'received' && x.surfaces.some((y) => y.room === r.name))
         if (sh) add(sh.stops ? 'bad' : 'warn', sh.eta ? `More ${tag} coming ${sh.eta.replace(/^\w+,\s*/, '')}` : `More ${tag} needed`)
       })
       if (!inField) {
-        if (tiled.some((x) => !x.tile)) toCome.push('tile')
-        else if (tags.length && open('delivered') && !s.checks.some((x) => x.jobId === job.id)) toCome.push('tile')
+        /* the tile in the same words as Tile & materials: not picked, not ordered yet, ordered, due on a day */
+        if (tiled.some((x) => !x.tile)) toCome.push('tile not picked')
+        else if (tags.length && open('delivered') && !tags.some((tag) => s.checks.some((x) => x.jobId === job.id && x.tag === tag))) toCome.push('tile not ordered yet')
         /* its layout: in question once the meeting's done and it still isn't set */
         const noLayout = tiled.filter((x) => x.tile && !x.layout)
-        if (noLayout.length && open('layouts')) { if (meetingDone) add('warn', 'Layout in question'); else toCome.push('layout') }
-        if (open('setup') && r.surfaces.some((x) => x.sf && methodOf(r.name, x).auto)) toCome.push('underlayment')
-        if (open('heights') && step('heights')?.state !== 'bad') toCome.push('site check')
+        if (noLayout.length && open('layouts')) { if (meetingDone) add('warn', 'Layout in question'); else toCome.push('layout to set') }
+        if (open('setup') && r.surfaces.some((x) => x.sf && methodOf(r.name, x).auto)) toCome.push('underlayment to decide')
+        if (open('heights') && step('heights')?.state !== 'bad') toCome.push('site check to do')
       }
     }
     const order: Record<ChipTone, number> = { bad: 0, warn: 1, todo: 2, ok: 3 }
     chips.sort((a, b) => order[a.tone] - order[b.tone])
-    /* nothing wrong with it, only what's still to come: one quiet line */
-    if (!chips.length && toCome.length) chips.push({ tone: 'todo', text: `To come: ${Array.from(new Set(toCome)).join(', ')}` })
+    /* nothing wrong with it, only what's still to come: one quiet line, the tile first, in plain words ("Tile not
+       ordered yet · site check to do") */
+    if (!chips.length && toCome.length) { const t = Array.from(new Set(toCome)); chips.push({ tone: 'todo', text: t.map((x, i) => (i ? x : x.replace(/^./, (c) => c.toUpperCase()))).join(' · ') }) }
     const blocked = pct < 100 && r.surfaces.some((x) => x.state === 'blocked')
     const started = inField && (pct > 0 || r.surfaces.some((x) => x.state === 'working'))
     const state: RoomState = pct >= 100 ? 'done'
@@ -371,7 +373,7 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
       const tileProblem = chips.find((c) => c.tone === 'bad' && tags.some((tag) => c.text.includes(tag)))
       checks.push({ label: 'Tile picked', state: tiled.some((x) => !x.tile) ? 'todo' : 'ok', note: tags.join(', ') || undefined })
       const tileHere = !open('delivered') || (tags.length > 0 && tags.every((tag) => { const c = s.checks.find((x) => x.jobId === job.id && x.tag === tag); return !!c && c.received >= c.ordered }))
-      checks.push({ label: 'Tile on site', state: tileProblem ? 'bad' : tileHere ? 'ok' : 'todo', note: tileProblem?.text || toCome.find((x) => /^tile /.test(x))?.replace(/^tile /, 'coming ') })
+      checks.push({ label: 'Tile on site', state: tileProblem ? 'bad' : tileHere ? 'ok' : 'todo', note: tileProblem?.text || toCome.find((x) => /^tile due /.test(x))?.replace(/^tile due /, 'due ') })
       checks.push({ label: 'Layout set', state: !open('layouts') || tiled.every((x) => !x.tile || x.layout) ? 'ok' : chips.some((c) => c.text === 'Layout in question') ? 'bad' : 'todo' })
       checks.push({ label: 'Underlayment decided', state: !open('setup') || !r.surfaces.some((x) => x.sf && methodOf(r.name, x).auto) ? 'ok' : 'todo' })
       const siteProblem = chips.find((c) => c.tone === 'bad' && SITE_CHECKS.some((d) => d.no === c.text))

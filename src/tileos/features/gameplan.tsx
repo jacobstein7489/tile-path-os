@@ -1,7 +1,8 @@
 /* Schedule — the calendar, and only the calendar (the game plan lives in Projects → Getting ready):
  *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
  *     while it waits for his OK or is only planned; gray with a pause mark when the project is on hold).
- *   Month: the work days of the month, the same bars — what's ready to book is in the list beside it, not on the days.
+ *   Month: the whole month, Monday to Sunday, the same bars — what's ready to book is in the list beside it, not on the days.
+ *   The week runs Monday to Sunday too — Saturday and Sunday a little shaded — so a Saturday night look shows the weekend.
  *   Beside it, the projects ready to book — one line each; tap one to pick the installer.
  * No legend, no counts on top, no second line on the bars. On a phone the same week (a row per crew, a column per
  * day) and the same month; what's ready to book is its own tab, so the calendar isn't followed by a long list. */
@@ -23,7 +24,9 @@ import { usePhone } from '@/tileos/lib/phone'
 type View = 'week' | '2weeks' | 'month'
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', o)
 const dow = (iso: string) => new Date(iso + 'T12:00:00').getDay()
-const isWeekday = (iso: string) => { const d = dow(iso); return d > 0 && d < 6 }
+/** Saturday or Sunday — shaded a little on the calendar */
+const isWeekend = (iso: string) => { const d = dow(iso); return d === 0 || d === 6 }
+const WEEKEND = 'bg-[#f6f5f1]'
 
 /* ---------------- what's on the calendar ---------------- */
 export type Kind = 'booked' | 'pending' | 'planned' | 'tobook'
@@ -115,7 +118,7 @@ export function GamePlanPage() {
   const toBook = readyRows(s).length
   const fill = useFill<HTMLDivElement>()
   const clashes = CREWS.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY)).length > 1)
-  const days = view === 'month' ? [] : Array.from({ length: 5 }, (_, i) => addDays(mondayOf(anchor), i))
+  const days = view === 'month' ? [] : Array.from({ length: 7 }, (_, i) => addDays(mondayOf(anchor), i))
   const range = view === 'month' ? fmt(anchor.slice(0, 7) + '-01', { month: 'long', year: 'numeric' }) : `${fmt(days[0], { month: 'short', day: 'numeric' })} – ${fmt(days[days.length - 1], { month: days[0].slice(5, 7) === days[days.length - 1].slice(5, 7) ? undefined : 'short', day: 'numeric' })}`
   return (
     <Page
@@ -204,7 +207,7 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
       <div className="grid border-b border-line-2" style={{ gridTemplateColumns: `var(--crew) repeat(${cols}, minmax(0,1fr))` }}>
         <div />
         {days.map((d) => (
-          <div key={d} className="min-w-0 py-2.5 text-center max-md:py-2">
+          <div key={d} className={cn('min-w-0 py-2.5 text-center max-md:py-2', isWeekend(d) && WEEKEND)} data-day={d} data-weekend={isWeekend(d) || undefined}>
             <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.8125rem] tnum max-md:flex-col max-md:gap-0 max-md:rounded-[0.5rem] max-md:px-1.5 max-md:py-0.5 max-md:text-[0.6875rem] max-md:leading-tight', d === TODAY ? 'bg-brand-600 font-semibold text-white' : 'text-muted')}><span>{fmt(d, { weekday: 'short' })}</span> <span className="max-md:text-[0.8125rem] max-md:font-semibold">{Number(d.slice(8))}</span></span>
           </div>
         ))}
@@ -227,7 +230,7 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
             <div className="relative min-w-0" style={{ gridColumn: `2 / span ${cols}` }}>
               <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
                 {days.map((d) => (
-                  <div key={d} className={cn('group relative', d === TODAY && 'bg-brand-50/40')}>
+                  <div key={d} className={cn('group relative', d === TODAY ? 'bg-brand-50/40' : isWeekend(d) && WEEKEND)}>
                     {!busy.has(d) && d >= TODAY && (
                       <button aria-label={`Book ${PEOPLE[crew].name} from ${d}`} onClick={() => s.open({ t: 'assign', crew, start: d })} className="absolute inset-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-transparent text-[0.75rem] font-semibold text-faint opacity-0 transition group-hover:border-[#CDD4DE] group-hover:opacity-100 hover:bg-wash hover:text-brand-600">
                         <Plus className="h-3.5 w-3.5" /><span className="max-md:hidden">Book</span>
@@ -267,7 +270,7 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
   )
 }
 
-/* ================= month: the work days, Monday to Friday ================= */
+/* ================= month: the whole month, Monday to Sunday ================= */
 /* The same bars as the week: each installer in his own color (dashed while it waits for his OK or is only planned),
  * gray on hold, a key on top — and a job that runs on into next week keeps going there. Ready-to-book projects aren't on
  * the days — they're in the list beside it, with their dates. */
@@ -276,24 +279,24 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
   const m = anchor.slice(0, 7)
   const first = m + '-01'
   const last = addDays(addDays(m + '-28', 4).slice(0, 7) + '-01', -1)
-  /* the weeks that touch the month, each Monday to Friday */
+  /* the weeks that touch the month, each Monday to Sunday */
   const weeks: string[][] = []
   for (let mon = mondayOf(first); mon <= last; mon = addDays(mon, 7)) {
-    const wk = Array.from({ length: 5 }, (_, i) => addDays(mon, i))
+    const wk = Array.from({ length: 7 }, (_, i) => addDays(mon, i))
     if (wk.some((d) => d.slice(0, 7) === m)) weeks.push(wk)
   }
   const onDays = items.filter((it) => it.kind !== 'tobook')
   const MAX = 5
-  const inView = Array.from(new Set(onDays.filter((it) => !it.hold && it.crew && it.end >= weeks[0]?.[0] && it.start <= (weeks[weeks.length - 1]?.[4] || '')).map((it) => it.crew!)))
+  const inView = Array.from(new Set(onDays.filter((it) => !it.hold && it.crew && it.end >= weeks[0]?.[0] && it.start <= (weeks[weeks.length - 1]?.[6] || '')).map((it) => it.crew!)))
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-month>
       <CrewKey crews={inView} />
-      <div className="grid grid-cols-5 border-b border-line-2">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2')}>{d}</div>)}
+      <div className="grid grid-cols-7 border-b border-line-2">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2', i > 4 && WEEKEND)} data-month-dow={d}>{d}</div>)}
       </div>
       {weeks.map((wk) => {
         const a = wk[0]
-        const z = wk[4]
+        const z = wk[6]
         const segs = onDays.filter((it) => it.end >= a && it.start <= z).map((it) => ({ it, start: it.start < a ? a : it.start, end: it.end > z ? z : it.end })).filter((x) => x.start <= x.end && wk.includes(x.start) && wk.includes(x.end))
         const lanes = lanesOf(segs)
         const shownLanes = lanes.slice(0, MAX)
@@ -301,12 +304,12 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
         const laneH = 26
         return (
           <div key={a} className="relative flex-1 border-b border-line-2 last:border-0" style={{ minHeight: 34 + Math.max(2, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 22 : 10) }}>
-            <div className="absolute inset-0 grid grid-cols-5">
+            <div className="absolute inset-0 grid grid-cols-7">
               {wk.map((d, i) => {
                 const out = d.slice(0, 7) !== m
                 const more = hidden.filter((h) => h.start <= d && h.end >= d)
                 return (
-                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out && 'bg-[#fafaf8]')}>
+                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out ? 'bg-[#fafaf8]' : i > 4 && WEEKEND)} data-month-day={d}>
                     <div className="flex items-center justify-between px-2 pt-1.5">
                       <span className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[0.78125rem] font-semibold tnum', d === TODAY ? 'bg-brand-600 text-white' : out ? 'text-faint' : 'text-ink-2')}>{Number(d.slice(8)) === 1 ? <><span className="max-sm:hidden">{fmt(d, { month: 'short' })}&nbsp;</span>1</> : Number(d.slice(8))}</span>
                       {d >= TODAY && (
@@ -339,7 +342,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                     onClick={() => openItem(s, x.it)}
                     data-month-bar={x.it.jobId}
                     className={cn('absolute flex min-w-0 items-center gap-1 overflow-hidden px-2 text-left text-[0.75rem] font-semibold leading-none transition hover:brightness-[.97] max-sm:px-1 max-sm:text-[0.65625rem]', contL ? 'rounded-l-none' : 'rounded-l-md', contR ? 'rounded-r-none' : 'rounded-r-md', lk.className)}
-                    style={{ ...lk.style, left: `calc(${(si / 5) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 5) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 32 + li * laneH, height: laneH - 4 }}
+                    style={{ ...lk.style, left: `calc(${(si / 7) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 7) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 32 + li * laneH, height: laneH - 4 }}
                   >
                     {x.it.hold && <PauseCircle className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{job?.name}</span>

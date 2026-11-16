@@ -48,7 +48,9 @@ export function Stands({ job, open, setOpen, onStep, setView }: {
   const booked = job.stage === 'scheduled' || !!bookingOf(s, job)
   return (
     <div data-phase={phase} className="flex min-w-0 flex-col gap-4">
-      {(phase !== 'ready' || booked) && <NextUp job={job} onStep={pick} />}
+      {/* the next big thing (schedule the crew, start the job…) is the first line of To do — a box of its own only to say
+          the project is closed */}
+      {job.stage === 'complete' && <NextUp job={job} onStep={pick} />}
       <WhatsLeft job={job} />
       {phase !== 'ready' && <Stage job={job} phase={phase} setView={setView} />}
     </div>
@@ -98,7 +100,7 @@ function CrewCard({ job }: { job: Job }) {
           {crew ? <Avatar who={crew} size={32} /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><HardHat className="h-4 w-4" /></span>}
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate font-semibold text-ink">{crew ? PEOPLE[crew]?.name : 'No installer yet'}</span>
-            <span className="block truncate text-[0.78125rem] text-muted">{ipo ? `${ipo.id} · ${ipo.status === 'Accepted' ? `accepted${ipo.date ? ` ${ipo.date}` : ''}` : ipo.status.toLowerCase()}` : 'No PO yet'}</span>
+            <span className="block truncate text-[0.78125rem] text-muted">{ipo && !(ipo.status === 'Draft' && !ipo.lines.some((l) => (l.amount || 0) > 0) && !ipo.changes.length) ? `${ipo.id} · ${ipo.status === 'Accepted' ? `accepted${ipo.date ? ` ${ipo.date}` : ''}` : ipo.status === 'Draft' ? 'draft, not sent' : ipo.status.toLowerCase()}` : 'No PO yet'}</span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
         </button>
