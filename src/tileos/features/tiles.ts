@@ -206,6 +206,10 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
       picks.forEach((p, i) => { if (p.trim) enter(p, i) })
       /* what it says about a room as a whole — "9 ft ceiling; wet walls full, other walls to 4 ft" */
       ;(o.rooms || []).forEach((r) => { const room = s.rooms[jobId]?.find((y) => y.name === r.room); if (room && !room.note) room.note = r.note })
+      /* the paperwork names one store for all of it: that's where this job's tile comes from */
+      const stores = Array.from(new Set(picks.map((p) => (p.supplier || '').trim()).filter(Boolean)))
+      const jj = s.jobs[jobId]
+      if (jj && !jj.tileStore && stores.length === 1) jj.tileStore = stores[0]
       addHist(s, jobId, { who: me(), kind: 'setup', title: `Read from the tile paperwork${o.file ? ` · ${o.file}` : ''}`, detail: `${picks.length} tile${picks.length === 1 ? '' : 's'} (${added} new) · ${placed} wall${placed === 1 ? '' : 's'} and floors matched` })
     },
     `Read from the paperwork — ${picks.length} tile${picks.length === 1 ? '' : 's'}`,

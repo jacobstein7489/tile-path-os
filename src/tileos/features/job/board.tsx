@@ -178,7 +178,8 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         size="lg"
         className="shrink-0 bg-white px-5 max-sm:px-3.5"
         items={[
-          { key: 'stands', label: 'Where it stands', short: 'Status' },
+          /* what's left on the project — the stage is the bar on top, the rooms are in the scope of work */
+          { key: 'stands', label: 'To do', short: 'To do' },
           { key: 'scope', label: 'Scope of work', short: 'Scope' },
           /* a computer: its own tab. A phone: a button in the scope of work (the tabs fit across, nothing slides) */
           { key: 'layouts', label: 'Layouts', wide: true },

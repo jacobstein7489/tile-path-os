@@ -1,8 +1,8 @@
 /* Schedule — the calendar, and only the calendar (the game plan lives in Projects → Getting ready):
  *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
  *     while it waits for his OK or is only planned; gray with a pause mark when the project is on hold).
- *   Month: the whole month, Monday to Sunday, the same bars — what's ready to book is in the list beside it, not on the days.
- *   The week runs Monday to Sunday too — Saturday and Sunday a little shaded — so a Saturday night look shows the weekend.
+ *   Month: the whole month, Sunday to Saturday (like Google Calendar), the same bars — what's ready to book is in the list
+ *   beside it, not on the days. The week runs Sunday to Saturday too, the weekend a little shaded.
  *   Beside it, the projects ready to book — one line each; tap one to pick the installer.
  * No legend, no counts on top, no second line on the bars. On a phone the same week (a row per crew, a column per
  * day) and the same month; what's ready to book is its own tab, so the calendar isn't followed by a long list. */
@@ -16,7 +16,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, CREW_BLOCK, type PersonKey, type Job } from '@/tileos/data/model'
 import { addBusinessDays } from './flows'
 import { rowsOf, installerOf } from './upcoming'
-import { mondayOf, addDays } from './schedule'
+import { addDays } from './schedule'
 import { TODAY, MONDAY, addDays as addDaysT } from '@/tileos/lib/today'
 import { isOff } from './active'
 import { usePhone } from '@/tileos/lib/phone'
@@ -26,6 +26,8 @@ const fmt = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + 'T12:
 const dow = (iso: string) => new Date(iso + 'T12:00:00').getDay()
 /** Saturday or Sunday — shaded a little on the calendar */
 const isWeekend = (iso: string) => { const d = dow(iso); return d === 0 || d === 6 }
+/** the Sunday a week starts on — like Google Calendar, Sunday to Saturday */
+const sundayOf = (iso: string) => addDays(iso, -dow(iso))
 const WEEKEND = 'bg-[#f6f5f1]'
 
 /* ---------------- what's on the calendar ---------------- */
@@ -112,13 +114,13 @@ export function GamePlanPage() {
   const view = viewRaw
   const shift = (n: number) => {
     if (view === 'month') { const d = new Date(anchor.slice(0, 7) + '-15T12:00:00'); d.setMonth(d.getMonth() + n); setAnchor(d.toISOString().slice(0, 10)) }
-    else setAnchor(addDays(mondayOf(anchor), n * 7))
+    else setAnchor(addDays(sundayOf(anchor), n * 7))
   }
   const items = itemsOf(s)
   const toBook = readyRows(s).length
   const fill = useFill<HTMLDivElement>()
   const clashes = CREWS.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY)).length > 1)
-  const days = view === 'month' ? [] : Array.from({ length: 7 }, (_, i) => addDays(mondayOf(anchor), i))
+  const days = view === 'month' ? [] : Array.from({ length: 7 }, (_, i) => addDays(sundayOf(anchor), i))
   const range = view === 'month' ? fmt(anchor.slice(0, 7) + '-01', { month: 'long', year: 'numeric' }) : `${fmt(days[0], { month: 'short', day: 'numeric' })} – ${fmt(days[days.length - 1], { month: days[0].slice(5, 7) === days[days.length - 1].slice(5, 7) ? undefined : 'short', day: 'numeric' })}`
   return (
     <Page
@@ -270,7 +272,7 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
   )
 }
 
-/* ================= month: the whole month, Monday to Sunday ================= */
+/* ================= month: the whole month, Sunday to Saturday ================= */
 /* The same bars as the week: each installer in his own color (dashed while it waits for his OK or is only planned),
  * gray on hold, a key on top — and a job that runs on into next week keeps going there. Ready-to-book projects aren't on
  * the days — they're in the list beside it, with their dates. */
@@ -279,10 +281,10 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
   const m = anchor.slice(0, 7)
   const first = m + '-01'
   const last = addDays(addDays(m + '-28', 4).slice(0, 7) + '-01', -1)
-  /* the weeks that touch the month, each Monday to Sunday */
+  /* the weeks that touch the month, each Sunday to Saturday — like Google Calendar */
   const weeks: string[][] = []
-  for (let mon = mondayOf(first); mon <= last; mon = addDays(mon, 7)) {
-    const wk = Array.from({ length: 7 }, (_, i) => addDays(mon, i))
+  for (let sun = sundayOf(first); sun <= last; sun = addDays(sun, 7)) {
+    const wk = Array.from({ length: 7 }, (_, i) => addDays(sun, i))
     if (wk.some((d) => d.slice(0, 7) === m)) weeks.push(wk)
   }
   const onDays = items.filter((it) => it.kind !== 'tobook')
@@ -292,7 +294,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
     <div className="flex min-h-0 flex-1 flex-col" data-month>
       <CrewKey crews={inView} />
       <div className="grid grid-cols-7 border-b border-line-2">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2', i > 4 && WEEKEND)} data-month-dow={d}>{d}</div>)}
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2', (i === 0 || i === 6) && WEEKEND)} data-month-dow={d}>{d}</div>)}
       </div>
       {weeks.map((wk) => {
         const a = wk[0]
@@ -309,7 +311,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                 const out = d.slice(0, 7) !== m
                 const more = hidden.filter((h) => h.start <= d && h.end >= d)
                 return (
-                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out ? 'bg-[#fafaf8]' : i > 4 && WEEKEND)} data-month-day={d}>
+                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out ? 'bg-[#fafaf8]' : (i === 0 || i === 6) && WEEKEND)} data-month-day={d}>
                     <div className="flex items-center justify-between px-2 pt-1.5">
                       <span className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[0.78125rem] font-semibold tnum', d === TODAY ? 'bg-brand-600 text-white' : out ? 'text-faint' : 'text-ink-2')}>{Number(d.slice(8)) === 1 ? <><span className="max-sm:hidden">{fmt(d, { month: 'short' })}&nbsp;</span>1</> : Number(d.slice(8))}</span>
                       {d >= TODAY && (
@@ -346,7 +348,8 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                   >
                     {x.it.hold && <PauseCircle className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{job?.name}</span>
-                    {x.it.crew && <span className="shrink-0 font-medium opacity-70 max-md:hidden">· {PEOPLE[x.it.crew].short}</span>}
+                    {/* a short piece (a day or two): just the job's name, whole — whose it is is its color */}
+                    {x.it.crew && ei - si >= 2 && <span className="shrink-0 font-medium opacity-70 max-md:hidden">· {PEOPLE[x.it.crew].short}</span>}
                     {/* it runs on into next week — it keeps going there */}
                     {contR && <ChevronRight className="ml-auto h-3 w-3 shrink-0 opacity-60" />}
                   </button>

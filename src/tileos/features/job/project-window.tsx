@@ -3,7 +3,7 @@
  * project's parts one tab at a time (job/board): Where it stands · Scope of work · Layouts · Materials · Billing ·
  * People · Documents. The window is the same size on every tab — nothing grows or shrinks as you go. */
 import * as React from 'react'
-import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks } from 'lucide-react'
+import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks, Copy } from 'lucide-react'
 import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep, Pop } from '@/tileos/components/ui/overlay'
@@ -174,7 +174,9 @@ function StageBar({ job }: { job: Job }) {
                 <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
               </span>
               <span className={cn('mt-1.5 block truncate text-[0.8125rem] max-sm:hidden', on ? 'font-semibold text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')} data-stage-word={on ? '' : undefined}>{x.label}</span>
-              {on && <span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{sub(x)}</span>}
+              {/* the day it got there, under its name — and, for the one going on, how far it's got */}
+              {on ? <span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
+                : x.date ? <span className="block truncate text-[0.75rem] tnum text-muted max-sm:hidden" data-stage-date>{x.date}</span> : null}
             </li>
           )
         })}
@@ -210,6 +212,8 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
     <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} className="max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:shadow-none" />}>
       {setsWhere && <MenuItem icon={<ListChecks className="h-4 w-4" />} onSelect={() => s.open({ t: 'catchup', id: job.id })}>Update where it’s up to</MenuItem>}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
+      {/* the same project twice (an estimate brought in, and the project): one of them, joined into the other */}
+      {['owner', 'pm'].includes(role) && <MenuItem icon={<Copy className="h-4 w-4" />} onSelect={() => s.open({ t: 'join', jobId: job.id })} hint="A double — join them" data-join-open>The same project as…</MenuItem>}
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
   ) : null
@@ -242,6 +246,8 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
         {hold && <span className="font-medium text-bad-600" data-on-hold>{statusChip}</span>}
         <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
+        {/* this job's own person to call (the homeowner on a "Private customer" job) — a tap calls them on a phone */}
+        {job.contacts?.[0] && <span className="inline-flex min-w-0 items-center gap-1 truncate" data-job-contact><span className="truncate font-medium text-ink-2">{job.contacts[0].name}</span>{job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}</span>}
         {meta[1] && <span className="truncate">{meta[1]}</span>}
         {!pricing && (crew
           ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span></button>

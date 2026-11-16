@@ -12,7 +12,9 @@ import { TileImg } from '@/tileos/components/ui/swatch'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney } from '@/tileos/data/model'
-import { tilesOf, tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, hasTile, sfFor, tilesOn, floorsOf, type Room } from '@/tileos/data/jobs'
+import { takesTile } from './steps'
+import { whereIn } from './roomdetails'
 import type { PO } from '@/tileos/data/work'
 import { createTilePO, receivePOPart } from './flows'
 import { paperQty } from './steps'
@@ -26,6 +28,22 @@ export const openTilePOs = (s: Pick<Store, 'pos'>, jobId: string, tag?: string):
 
 const UNITS = ['SF', 'boxes', 'pallets', 'pieces']
 type Draft = { tag: string; name: string; on: boolean; n: number; unit: string; price: number }
+
+/** the job's tile by area, the way the scope of work has it: each floor, each room, the tiles on its walls and floors
+ *  (and where in the room) — a tile on two rooms is under both; tile on no wall or floor yet comes last */
+export function tileAreas(rooms: Room[], tags: string[]) {
+  const seen = new Set<string>()
+  const groups = floorsOf(rooms).map((g) => ({
+    floor: g.floor,
+    rooms: g.rooms.map((r) => {
+      const on = Array.from(new Set(r.surfaces.filter((x) => takesTile(x.name) || tilesOn(x).length).flatMap((x) => tilesOn(x)))).filter((tag) => tags.includes(tag))
+      on.forEach((tag) => seen.add(tag))
+      return { room: r.name, tiles: on.map((tag) => ({ tag, where: whereIn(r, tag) })) }
+    }).filter((r) => r.tiles.length),
+  })).filter((g) => g.rooms.length)
+  return { groups, loose: tags.filter((tag) => !seen.has(tag)) }
+}
+const areaKey = (room: string, tag: string) => `${room}|${tag}`
 
 /** how much of a tile is still to come to the site: what's ordered and not here, else what the walls and floors need */
 function toCome(s: Store, jobId: string, tag: string): { n: number; unit: string } {
@@ -70,14 +88,36 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       return { tag, name, on: on && left.n > 0, n: left.n, unit: left.unit, price: 0 }
     })
   const [lines, setLines] = React.useState<Draft[]>(draft)
-  React.useEffect(() => { setLines(draft()) }, [job])
+  /* by area, the way the scope of work has it: each floor, each room, the tiles in it */
+  const areas = tileAreas(s.rooms[job] || [], all)
+  /* more tile: how much for each room (a tile in two rooms has a line in each) — what's known to be short is filled in
+     where it was found */
+  const perInit = (L: Draft[] = draft()): Record<string, number> => {
+    const out: Record<string, number> = {}
+    if (!more) return out
+    L.forEach((l) => {
+      if (!l.on || !l.n) return
+      const found = s.shortages.find((x) => x.jobId === job && x.tag === l.tag && x.step === 'short')?.surfaces?.[0]?.room
+      const rooms = areas.groups.flatMap((g) => g.rooms).filter((r) => r.tiles.some((x) => x.tag === l.tag)).map((r) => r.room)
+      const room = found && rooms.includes(found) ? found : rooms[0] || ''
+      out[areaKey(room, l.tag)] = l.n
+    })
+    return out
+  }
+  const [per, setPer] = React.useState<Record<string, number>>(() => perInit(lines))
+  React.useEffect(() => { const L = draft(); setLines(L); setPer(perInit(L)) }, [job])
+  const perTag = (tag: string) => Object.entries(per).reduce((n, [k, v]) => (k.endsWith(`|${tag}`) ? n + (v || 0) : n), 0)
+  const order = [...areas.groups.flatMap((g) => g.rooms.flatMap((r) => r.tiles.map((x) => x.tag))), ...areas.loose].filter((tag, i, a) => a.indexOf(tag) === i)
+  /* the rooms each one is for, on its line on the PO ("— Master bath floor") */
+  const forRooms = (tag: string) => areas.groups.flatMap((g) => g.rooms).filter((r) => (per[areaKey(r.room, tag)] || 0) > 0).map((r) => { const w = r.tiles.find((x) => x.tag === tag)?.where; return `${r.room}${w ? ` ${w.toLowerCase()}` : ''}` })
   /* who pays the store: the client's tile is only delivered on our PO */
   const [pays, setPays] = React.useState<'client' | 'us'>(first?.suppliedBy === 'Us' ? 'us' : 'client')
   /* the store each tile comes from — what its paperwork says (or the PO it was on before). Tile is ordered from the
      store it comes from, never another one: one store → that's it, locked; two → one of those two; none set yet → a
      tile store from Suppliers, and it's kept with the tiles from then on */
-  const storeOf = (tag: string) => tileOf(job, tag)?.supplier || s.checks.find((c) => c.jobId === job && c.tag === tag)?.supplier || ''
-  const jobStores = Array.from(new Set(all.map(storeOf).filter(Boolean)))
+  const storeOf = (tag: string) => tileOf(job, tag)?.supplier || s.checks.find((c) => c.jobId === job && c.tag === tag)?.supplier || j?.tileStore || ''
+  /* the job's tile store (set once — the first tile PO, the paperwork, or on Tile & materials) is where it all goes */
+  const jobStores = Array.from(new Set([...(j?.tileStore ? [j.tileStore] : []), ...all.map(storeOf)].filter(Boolean)))
   const tileStores = s.suppliers.filter((x) => sellsTile(x) && !s.inactive.includes('supplier:' + x.name)).map((x) => x.name)
   const pickStore = () => (tags?.length ? storeOf(tags[0]) : '') || jobStores[0] || tileStores[0] || ''
   const [store, setStore] = React.useState(pickStore)
@@ -90,7 +130,10 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
      number is made by itself */
   const [needed, setNeeded] = React.useState(more ? 'Today' : 'Mon')
   const [memo, setMemo] = React.useState('')
-  const picked = lines.filter((l) => l.on && l.n > 0 && fromHere(l.tag))
+  const byArea = !!more && order.length > 0
+  const picked = byArea
+    ? order.map((tag) => lines.find((l) => l.tag === tag)).filter((l): l is Draft => !!l && perTag(l.tag) > 0 && fromHere(l.tag)).map((l) => { const rooms = forRooms(l.tag); return { ...l, n: perTag(l.tag), name: rooms.length ? `${l.name} — ${rooms.join(', ')}` : l.name } })
+    : order.map((tag) => lines.find((l) => l.tag === tag)).filter((l): l is Draft => !!l && l.on && l.n > 0 && fromHere(l.tag))
   /* prices on the window: a tile we buy, on a tile PO — more tile keeps it to what and how much */
   const priced = pays === 'us' && !more
   const total = pays === 'us' && !more ? picked.reduce((n, l) => n + l.n * l.price, 0) : 0
@@ -98,6 +141,31 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
   const days = DAY_OPTIONS()
   if (!days.some((d) => d.key === needed)) days.unshift({ key: needed, label: needed })
   const set = (i: number, p: Partial<Draft>) => setLines((L) => L.map((x, k) => (k === i ? { ...x, ...p } : x)))
+  /* more tile, one room's line: the tile (and where in the room), how much more for there */
+  const areaLine = (room: string, tag: string, where?: string) => {
+    const i = lines.findIndex((x) => x.tag === tag)
+    const l = lines[i]
+    if (!l || !fromHere(tag)) return null
+    const k = areaKey(room, tag)
+    const n = per[k] || 0
+    const setN = (v: number) => setPer((P) => ({ ...P, [k]: v }))
+    return (
+      <label key={k} data-tile-line={tag} data-tile-area={room} className={cn('grid grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem] items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_5rem]', !n && 'opacity-70')}>
+        <input type="checkbox" checked={n > 0} onChange={(e) => setN(e.target.checked ? n || 1 : 0)} aria-label={`More ${tag}${room ? ` for ${room}` : ''}`} className="h-4 w-4 accent-[#2650cf]" />
+        <span className="flex min-w-0 items-center gap-2.5">
+          <TileImg tile={tileOf(job, tag)} size={30} radius={6} />
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold">{tag}</b> {l.name}</span>
+            {(where || each) && <span className="block truncate text-[0.75rem] text-muted" data-tile-where>{[where, each ? storeOf(tag) : ''].filter(Boolean).join(' · ')}</span>}
+          </span>
+        </span>
+        <input inputMode="decimal" aria-label={`How much more ${tag}${room ? ` for ${room}` : ''}`} value={n || ''} onChange={(e) => setN(Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0))} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" />
+        <select aria-label={`Unit for ${tag}`} value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} className="h-8 rounded-md border border-line bg-white px-1.5 text-[0.8125rem] text-ink max-sm:hidden">
+          {Array.from(new Set([l.unit, ...UNITS])).map((u) => <option key={u}>{u}</option>)}
+        </select>
+      </label>
+    )
+  }
   const send = () => {
     if (!job || !picked.length) return
     const paidBy = pays === 'us' ? 'us' : first?.suppliedBy === 'Owner' ? 'Owner' : 'GC'
@@ -154,26 +222,54 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
             <TextInput value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. #BT-22817" aria-label="The store’s order number" className="max-w-[16rem]" data-store-ref />
           </FormRow>
         )}
-        <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : more ? 'Only the extra — on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in.'}>
+        <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : more ? 'By area, like the scope of work — how much more for each room, on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in — under each tile, where it goes.'}>
           {lines.length > 0 && (
             <div className={cn('grid items-center gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]')}>
               <span /><span>Tile</span><span className="text-right">Qty</span><span>Unit</span>{priced && <span className="text-right">Price / unit</span>}
             </div>
           )}
-          {lines.map((l, i) => !fromHere(l.tag) ? null : (
-            <label key={l.tag} data-tile-line={l.tag} className={cn('grid items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_5rem]', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]', !l.on && 'opacity-60')}>
-              <input type="checkbox" checked={l.on} onChange={(e) => set(i, { on: e.target.checked })} aria-label={`Put ${l.tag} on the PO`} className="h-4 w-4 accent-[#2650cf]" />
-              <span className="flex min-w-0 items-center gap-2.5">
-                <TileImg tile={tileOf(job, l.tag)} size={30} radius={6} />
-                <span className="min-w-0 truncate text-[0.875rem] text-ink"><b className="font-semibold">{l.tag}</b> {l.name}{each && storeOf(l.tag) ? <span className="block truncate text-[0.75rem] text-muted">{storeOf(l.tag)}</span> : null}</span>
-              </span>
-              <input inputMode="decimal" aria-label={`How much ${l.tag}`} value={l.n || ''} onChange={(e) => set(i, { n: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0), on: true })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" />
-              <select aria-label={`Unit for ${l.tag}`} value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} className="h-8 rounded-md border border-line bg-white px-1.5 text-[0.8125rem] text-ink max-sm:hidden">
-                {Array.from(new Set([l.unit, ...UNITS])).map((u) => <option key={u}>{u}</option>)}
-              </select>
-              {priced && <input inputMode="decimal" aria-label={`Price for ${l.tag}`} value={l.price || ''} placeholder="$" onChange={(e) => set(i, { price: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0) })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none max-sm:hidden" />}
-            </label>
+          {/* more tile: by area — each floor, each room, its tiles; how much for that room */}
+          {byArea && areas.groups.map((g) => (
+            <div key={g.floor} data-tile-floor={g.floor}>
+              {(areas.groups.length > 1 || g.floor !== 'Rooms') && <div className="mt-2 px-1 pb-1 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-[#2c4a3e]">{g.floor}</div>}
+              {g.rooms.map((r) => (
+                <div key={r.room} data-tile-room={r.room}>
+                  <div className="rounded-md bg-[#f2f1ee] px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">{r.room}</div>
+                  {r.tiles.map(({ tag, where }) => areaLine(r.room, tag, where))}
+                </div>
+              ))}
+            </div>
           ))}
+          {byArea && areas.loose.length > 0 && (
+            <div data-tile-room="">
+              <div className="mt-2 rounded-md bg-[#f2f1ee] px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">Not on a wall or floor yet</div>
+              {areas.loose.map((tag) => areaLine('', tag))}
+            </div>
+          )}
+          {!byArea && order.map((tag) => {
+            const i = lines.findIndex((x) => x.tag === tag)
+            const l = lines[i]
+            if (!l || !fromHere(l.tag)) return null
+            /* where it goes — so you see what's what */
+            const where = areas.groups.flatMap((g) => g.rooms).filter((r) => r.tiles.some((x) => x.tag === tag)).map((r) => r.room)
+            return (
+              <label key={l.tag} data-tile-line={l.tag} className={cn('grid items-center gap-2 border-b border-line-2 py-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)_5rem]', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]', !l.on && 'opacity-60')}>
+                <input type="checkbox" checked={l.on} onChange={(e) => set(i, { on: e.target.checked })} aria-label={`Put ${l.tag} on the PO`} className="h-4 w-4 accent-[#2650cf]" />
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <TileImg tile={tileOf(job, l.tag)} size={30} radius={6} />
+                  <span className="min-w-0 leading-tight">
+                    <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold">{l.tag}</b> {l.name}</span>
+                    <span className="block truncate text-[0.75rem] text-muted" data-tile-where>{[each ? storeOf(l.tag) : '', where.length ? where.join(', ') : 'Not on a wall or floor yet'].filter(Boolean).join(' · ')}</span>
+                  </span>
+                </span>
+                <input inputMode="decimal" aria-label={`How much ${l.tag}`} value={l.n || ''} onChange={(e) => set(i, { n: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0), on: true })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" />
+                <select aria-label={`Unit for ${l.tag}`} value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} className="h-8 rounded-md border border-line bg-white px-1.5 text-[0.8125rem] text-ink max-sm:hidden">
+                  {Array.from(new Set([l.unit, ...UNITS])).map((u) => <option key={u}>{u}</option>)}
+                </select>
+                {priced && <input inputMode="decimal" aria-label={`Price for ${l.tag}`} value={l.price || ''} placeholder="$" onChange={(e) => set(i, { price: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0) })} className="h-8 w-full rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none max-sm:hidden" />}
+              </label>
+            )
+          })}
         </FormRow>
         {!more && (
           <FormRow label="A line for the store" hint="On the PO and in its email — a gate code, call before, which door.">

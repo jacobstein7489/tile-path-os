@@ -31,6 +31,8 @@ import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
 import { ScopeDoc } from './scopedoc'
 import { RoomScope } from './roomscope'
+import { useOpenAreas, OpenAllLink } from './areas'
+import { firstName } from './kit'
 import { printNode } from '@/tileos/lib/print'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
@@ -142,6 +144,10 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
   const [lines, setLines] = React.useState<string | null>(null)
   /* the room a detail is being added to */
   const [adding, setAdding] = React.useState<string | null>(null)
+  /* the areas: closed at first — just the floors and the areas; tap one to open its details and walls and floors */
+  const areas = useOpenAreas()
+  const isOpen = (name: string) => ws.length > 0 || areas.isOpen(name) || lines === name || adding === name
+  const last = (s.diary[job.id] || [])[0]
   /* folded floors — remembered on this device, per project */
   const [folded, setFolded] = React.useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(`tileos-scope-folded:${job.id}`) || '[]') } catch { return [] } })
   const fold = (f: string) => setFolded((x) => { const n = x.includes(f) ? x.filter((y) => y !== f) : [...x, f]; try { localStorage.setItem(`tileos-scope-folded:${job.id}`, JSON.stringify(n)) } catch { /* this device only */ } return n })
@@ -151,6 +157,7 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
         <h3 className="text-[1rem] font-semibold text-ink">Scope of work</h3>
         {rooms.length > 0 && <span className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'}{sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}</span>}
         {rooms.length > 0 && confirmed && <span data-scope-locked title="Set — a change goes through a change order" className="inline-flex items-center gap-1 text-[0.8125rem] text-muted"><Lock className="h-3.5 w-3.5 text-faint" />Set</span>}
+        {rooms.length > 0 && !ws.length && <OpenAllLink any={areas.any} onOpen={() => areas.setAll(rooms.map((r) => r.room.name))} onClose={() => { areas.setAll([]); setLines(null); setAdding(null) }} />}
         {rooms.length > 0 && (
           <label className="relative block w-[16rem] max-sm:order-last max-sm:w-full">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
@@ -165,6 +172,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
           {rooms.length > 0 && canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
         </span>
       </header>
+      {/* installing: how far each area is shows on its line — and when the last daily update came */}
+      {inField && rooms.length > 0 && <div className="-mt-1 mb-3 text-[0.8125rem] text-muted" data-scope-last-update>{last ? <>Last daily update <b className="font-semibold text-ink-2">{last.date}</b> · {last.who === meOf(s.role) ? 'you' : firstName(last.who)}</> : 'No daily update yet — it’s on the site manager’s Today every day'}</div>}
       {/* building it by hand: the first room goes on, and it's built on from here */}
       {/* a room added by hand opens with its walls and floors to tick */}
       {!rooms.length && <ScopeStart job={job} onAdded={(room) => setLines(room)} />}
@@ -172,9 +181,10 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
       {rooms.length > 0 && groups.length > 0 && (
         <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">
           {/* the column names, then each room as a band with its walls and floors under it — every line the same */}
-          <div className={cn(HEAD_ROW, cols, 'sticky top-0 z-[3] px-5 max-lg:hidden')} data-scope-head>
+          {/* the column names once an area is open — just the areas till then */}
+          {(areas.any || ws.length > 0 || !!lines || !!adding) && <div className={cn(HEAD_ROW, cols, 'sticky top-0 z-[3] px-5 max-lg:hidden')} data-scope-head>
             <span>Wall or floor</span><span>Tile</span><span>Size</span><span>Grout</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
-          </div>
+          </div>}
           {groups.map((g) => {
             /* a floor folds away with a tap on its band (searching shows everything) */
             const isFolded = floors && !ws.length && folded.includes(g.floor)
@@ -197,13 +207,15 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                 const r = viewOf(room.name)
                 const w = roomWord(r)
                 const openRoom = () => s.open({ t: 'room', jobId: job.id, room: room.name })
+                const on = isOpen(room.name)
                 return (
-                  <div key={room.name} data-room={room.name} data-room-state={r.state} className="group/room">
+                  <div key={room.name} data-room={room.name} data-room-state={r.state} data-room-open={on || undefined} className="group/room">
                     {/* each room in a light gray band: its name in capitals and its short note — then, when you point at it,
                         its buttons (a detail, its walls and floors) — then where it stands in its own spot on the right, the
                         same words as Tile & materials, and its square feet. Tap it for the room's window. */}
                     <div className="flex min-h-9 w-full min-w-0 items-center gap-1 border-t border-line pr-3 max-sm:pr-1.5" style={{ background: DOC_GRAY }}>
-                      <button type="button" onClick={openRoom} data-room-head className="group flex min-h-9 min-w-0 flex-1 items-center gap-3 py-1.5 pl-5 pr-2 text-left max-sm:pl-3">
+                      <button type="button" onClick={() => { if (on && (lines === room.name || adding === room.name)) { setLines(null); setAdding(null) } areas.toggle(room.name) }} aria-expanded={on} data-room-head className="group flex min-h-10 min-w-0 flex-1 items-center gap-2.5 py-1.5 pl-5 pr-2 text-left max-sm:pl-3">
+                        {on ? <ChevronDown className="h-4 w-4 shrink-0 text-[#6b6f78]" /> : <ChevronRight className="h-4 w-4 shrink-0 text-[#6b6f78]" />}
                         <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222]"><b className="font-bold uppercase tracking-[0.02em] group-hover:text-brand-700">{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
                       </button>
                       {/* its details and its walls and floors: the buttons show when you point at the room — nothing moves
@@ -218,16 +230,17 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                           )}
                         </span>
                       )}
-                      <button type="button" onClick={openRoom} tabIndex={-1} aria-hidden className="flex min-h-9 shrink-0 items-center gap-3 pl-2 text-right">
-                        <span data-room-why className={cn('w-[17rem] truncate text-[0.8125rem] max-lg:w-auto max-lg:max-w-[10rem] max-sm:max-w-[6.5rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}</span>
+                      <button type="button" onClick={() => areas.toggle(room.name)} tabIndex={-1} aria-hidden className="flex min-h-10 shrink-0 items-center gap-3 pl-2 text-right">
+                        {/* installing: how far it is, a small bar — else where it stands in a few words */}
+                        {inField && <span className="h-1.5 w-16 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', r.state === 'stopped' ? 'bg-bad-500' : r.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${r.pct}%` }} /></span>}
+                        <span data-room-why className={cn('w-[17rem] truncate text-[0.8125rem] max-lg:w-auto max-lg:max-w-[10rem] max-sm:max-w-[6.5rem]', inField && 'w-[7rem]', w.cls)} title={r.chips.map((c) => c.text).join(' · ')}>{w.text}</span>
                         <span className="w-[4.25rem] shrink-0 text-[0.8125rem] tnum text-[#555] max-sm:hidden">{r.sf > 0 ? `${r.sf.toLocaleString('en-US')} SF` : ''}</span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                       </button>
                       {canEdit && !ws.length && <RoomMenu jobId={job.id} room={room} onLines={() => setLines(room.name)} onDetail={() => setAdding(room.name)} />}
                     </div>
                     {/* its details — how it's tiled, the layout, the extras: tap one to change it */}
-                    <RoomDetails job={job} room={room} canEdit={canEdit && !ws.length} adding={adding === room.name} onAdding={(o) => setAdding(o ? room.name : null)} />
-                    {shown(room).map((x) => {
+                    {on && <RoomDetails job={job} room={room} canEdit={canEdit && !ws.length} adding={adding === room.name} onAdding={(o) => setAdding(o ? room.name : null)} />}
+                    {on && shown(room).map((x) => {
                       const t = tilesOf(job.id).find((y) => y.tag === x.tile)
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
@@ -261,7 +274,12 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                     })}
                     {/* whoever builds the scope: the walls and floors this room has, ticked right here — open from the room's
                         line (or its ···); a room with none yet says so, with its button */}
-                    {canEdit && !ws.length && (lines === room.name || !room.surfaces.length) && (
+                    {on && inField && (
+                      <button type="button" onClick={openRoom} className="flex w-full items-center gap-1.5 border-t border-line-2 px-5 py-2 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-wash/60 max-sm:px-3" data-room-window>
+                        Its daily updates and photos<ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {on && canEdit && !ws.length && (lines === room.name || !room.surfaces.length) && (
                       <div className="flex flex-wrap items-center gap-1.5 border-t border-line-2 px-5 py-1.5 max-sm:px-3" data-add-row>
                         {!room.surfaces.length && <span className="mr-1 text-[0.8125rem] text-muted">No walls or floors yet</span>}
                         <RoomLines jobId={job.id} room={room} bare={room.surfaces.length > 0} open={lines === room.name} onOpenChange={(o) => setLines(o ? room.name : null)} />
@@ -393,6 +411,8 @@ function InstallerPO({ job }: { job: Job }) {
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const money = !['site', 'crew', 'client'].includes(s.role)
   const b = s.bookings.find((x) => x.jobId === job.id && x.label !== 'Return visit')
+  /* on the job without a PO (his PO steps marked "no PO") — said plainly */
+  if (!ipo && s.stepRecs[job.id]?.installer?.done) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left text-muted hover:text-brand-700">No PO</button>
   if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left font-medium text-warn-700 hover:underline">No PO yet — send it</button>
   const r = poRatio(s, ipo)
   const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'not sent'
@@ -424,6 +444,8 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
   const memberOf = (p: PersonKey) => s.team.find((m) => m.key === p)
   const crewReach = crew ? { phone: crewInfo[crew]?.phone || memberOf(crew)?.phone, email: crewInfo[crew]?.email || memberOf(crew)?.email, more: crewInfo[crew]?.more || memberOf(crew)?.more } : {}
   const chat = () => open({ t: 'chat' })
+  /* whoever isn't the client or the crew can add who to call on this job */
+  const canContacts = !['client', 'crew'].includes(s.role)
   return (
     <section data-detail="people" className="px-5 pb-8 pt-4 max-sm:px-3">
       <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
@@ -434,6 +456,15 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
       <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white [&>[data-person]:first-child]:border-t-0" data-contacts>
         <Contact initials={initialsOf(job.client)} tone="bg-[#e3ece6] text-[#2c4a3e]" name={job.client} role="Client" r={{ phone: client?.phone, email: client?.email, more: client?.more }} onName={() => s.open({ t: 'customer', id: job.clientId })} />
         {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
+        {/* this job's own people — the homeowner, the designer, the super (a client like NJ Private Customer is many
+            homeowners) — tap a name to change it */}
+        {(job.contacts || []).map((c, i) => <Contact key={'jc' + i} initials={initialsOf(c.name)} tone="bg-[#e6eef8] text-[#1f4f8f]" name={c.name} role={c.role || 'On this job'} r={{ phone: c.phone, email: c.email }} onName={canContacts ? () => s.open({ t: 'jobcontact', jobId: job.id, index: i }) : undefined} />)}
+        {canContacts && (
+          <button type="button" onClick={() => s.open({ t: 'jobcontact', jobId: job.id })} className="flex min-h-11 w-full items-center gap-3 border-t border-line-2 px-5 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-wash/60 max-sm:px-3" data-person="add" data-add-job-contact>
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[#c9c2b6] text-[1rem] font-normal">+</span>
+            Someone to call on this job<span className="font-normal text-muted">— the homeowner, the designer, the super</span>
+          </button>
+        )}
         {designer && <Contact initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? designer.contact : undefined} onName={() => s.open({ t: 'designer', id: designer.id })} />}
         {crew
           ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<InstallerPO job={job} />} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />

@@ -156,7 +156,7 @@ export function leadWords(s: Store, job: Job, t: TrackView): { who?: PersonKey; 
 /* ================= the line ================= */
 export type LineKey = 'approved' | 'ready' | 'crew' | 'install' | 'punch' | 'closed'
 export type LineState = 'done' | 'now' | 'later' | 'bad'
-export interface LineStep { key: LineKey; label: string; state: LineState; sub?: string; lock?: boolean; /** while it's the stage going on: how far it's got (0–100) — the line after it fills that far */ link?: number }
+export interface LineStep { key: LineKey; label: string; state: LineState; sub?: string; lock?: boolean; /** while it's the stage going on: how far it's got (0–100) — the line after it fills that far */ link?: number; /** the day it got there ("Nov 3") — under its name on the bar */ date?: string }
 /** the part of the project the left side shows: getting ready, the crew, the installing, touch-ups, closing */
 export type Phase = 'ready' | 'crew' | 'install' | 'punch' | 'closed'
 
@@ -188,7 +188,18 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
   const openP = punch.filter((p) => p.status !== 'verified')
   const pct = st === 'installation' ? job.pct ?? 0 : 0
   const n = tracks.length
-  return [
+  /* the day each step was reached — "Mon, Nov 9" said short: "Nov 9" */
+  const day = (d?: string) => (d ? d.replace(/^[A-Z][a-z]{2},\s*/, '') : undefined)
+  const sd = job.stageDates || {}
+  const dates: Partial<Record<LineKey, string>> = {
+    approved: day(won),
+    ready: day(sd.ready || (inField || booked ? sd.scheduled : undefined)),
+    crew: day(sd.scheduled),
+    install: day(sd.installation || (inField ? job.dates?.start : undefined)),
+    punch: day(sd.punch),
+    closed: day(sd.closeout || sd.complete),
+  }
+  return withDates([
     { key: 'approved', label: 'Approved', state: 'done', sub: [won, est?.id].filter(Boolean).join(' · ') || 'Won' },
     inField || open
       ? { key: 'ready', label: 'Getting ready', state: 'done', sub: inField ? 'Done' : `All ${n} done` }
@@ -213,7 +224,11 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
       : st === 'complete'
         ? { key: 'closed', label: 'Closed', state: 'done', sub: 'Paid and closed' }
         : { key: 'closed', label: 'Closed', state: 'later' },
-  ]
+  ], dates)
+}
+/** each step that's reached gets its day */
+function withDates(line: LineStep[], dates: Partial<Record<LineKey, string>>): LineStep[] {
+  return line.map((x) => (x.state !== 'later' && dates[x.key] ? { ...x, date: dates[x.key] } : x))
 }
 
 /** the money, alongside the line — billed and paid of the contract, and the deposit */

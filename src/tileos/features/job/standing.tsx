@@ -7,7 +7,7 @@
  * Where it's up to in a word — the stage, the one date that matters — is on top of the project, on every tab. */
 import * as React from 'react'
 import { ChevronRight, Plus, HardHat, CalendarDays, Receipt } from 'lucide-react'
-import { useStore, meOf } from '@/tileos/store'
+import { useStore } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
@@ -16,8 +16,7 @@ import { StepModal } from '../stepwin'
 import { NextUp } from './next'
 import { installerOf } from '../upcoming'
 import { TouchupsList } from '../touchups'
-import { firstName } from './kit'
-import { tracksFor, phaseOf, moneyLine, bookingOf, roomsOf, type TrackKey, type Phase } from '../tracks'
+import { tracksFor, phaseOf, moneyLine, bookingOf, type TrackKey, type Phase } from '../tracks'
 import { WhatsLeft } from './whatsleft'
 import type { BoardView } from './board'
 
@@ -74,7 +73,7 @@ function Stage({ job, phase, setView }: { job: Job; phase: Phase; setView: (v: B
   return (
     <>
       {phase === 'crew' && <CrewCard job={job} />}
-      {phase === 'install' && <Installing job={job} setView={setView} />}
+      {/* installing: how far each room is, on its line in the scope of work — nothing more to scroll through here */}
       {(phase === 'punch' || punch) && <TouchupsCard job={job} />}
     </>
   )
@@ -100,7 +99,7 @@ function CrewCard({ job }: { job: Job }) {
           {crew ? <Avatar who={crew} size={32} /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash-2 text-faint"><HardHat className="h-4 w-4" /></span>}
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate font-semibold text-ink">{crew ? PEOPLE[crew]?.name : 'No installer yet'}</span>
-            <span className="block truncate text-[0.78125rem] text-muted">{ipo && !(ipo.status === 'Draft' && !ipo.lines.some((l) => (l.amount || 0) > 0) && !ipo.changes.length) ? `${ipo.id} · ${ipo.status === 'Accepted' ? `accepted${ipo.date ? ` ${ipo.date}` : ''}` : ipo.status === 'Draft' ? 'draft, not sent' : ipo.status.toLowerCase()}` : 'No PO yet'}</span>
+            <span className="block truncate text-[0.78125rem] text-muted">{ipo && !(ipo.status === 'Draft' && !ipo.lines.some((l) => (l.amount || 0) > 0) && !ipo.changes.length) ? `${ipo.id} · ${ipo.status === 'Accepted' ? `accepted${ipo.date ? ` ${ipo.date}` : ''}` : ipo.status === 'Draft' ? 'draft, not sent' : ipo.status.toLowerCase()}` : s.stepRecs[job.id]?.installer?.done ? 'No PO' : 'No PO yet'}</span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
         </button>
@@ -115,39 +114,6 @@ function CrewCard({ job }: { job: Job }) {
           </div>
         )}
       </div>
-    </section>
-  )
-}
-
-/* ---------------- installing: how far, who, the days — and each room ---------------- */
-function Installing({ job }: { job: Job; setView?: (v: BoardView) => void }) {
-  const s = useStore()
-  const rooms = roomsOf(s, job)
-  const crew = (installerOf(s, job) || job.crew) as PersonKey | undefined
-  const b = bookingOf(s, job)
-  const dates = job.dates?.start ? `${job.dates.start} – ${job.dates.finish || '…'}` : b ? `${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''
-  const last = (s.diary[job.id] || [])[0]
-  const stopped = rooms.filter((r) => r.state === 'stopped').length
-  return (
-    <section data-installing className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
-      <header className="flex min-h-[3.25rem] min-w-0 items-center gap-3 px-5 py-2 max-sm:px-4">
-        <h3 className="text-[1.0625rem] font-semibold text-ink">Rooms</h3>
-        <span className="text-[0.9375rem] font-medium tnum text-faint">{rooms.length}</span>
-        {stopped > 0 && <span className="text-[0.875rem] font-semibold text-bad-600">{stopped} stopped</span>}
-        <span className="ml-auto min-w-0 truncate text-[0.875rem] text-muted">{[crew ? PEOPLE[crew]?.name : 'No installer', dates].filter(Boolean).join(' · ')}</span>
-      </header>
-      {rooms.map((r) => (
-        /* a room opens in its own window — its walls and floors, the daily log, photos — on top; close it, you're here */
-        <button key={r.room.name} type="button" data-install-room={r.room.name} onClick={() => s.open({ t: 'room', jobId: job.id, room: r.room.name })} className="grid min-h-[2.75rem] w-full min-w-0 grid-cols-[minmax(0,1fr)_8rem_4rem] items-center gap-4 border-t border-line-2 px-5 py-1.5 text-left transition row-hover max-sm:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem] max-sm:gap-3 max-sm:px-4">
-          <span className="min-w-0 truncate text-[0.9375rem] font-medium text-ink">{r.room.name}</span>
-          <span className="h-1.5 overflow-hidden rounded-full bg-[#ece8e1]" aria-hidden><span className={cn('block h-full rounded-full', r.state === 'stopped' ? 'bg-bad-500' : r.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${r.pct}%` }} /></span>
-          <span className={cn('text-right text-[0.875rem] tnum', r.state === 'stopped' ? 'font-semibold text-bad-600' : r.state === 'done' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}>{r.state === 'done' ? 'Done' : r.state === 'stopped' ? 'Stopped' : `${r.pct}%`}</span>
-        </button>
-      ))}
-      {!rooms.length && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted">No rooms on this project.</div>}
-      <footer className="border-t border-line-2 px-5 py-2.5 text-[0.84375rem] text-muted max-sm:px-4">
-        {last ? <>Last daily update <b className="font-semibold text-ink-2">{last.date}</b> · {last.who === meOf(s.role) ? 'you' : firstName(last.who)}</> : 'No daily update yet — it’s on the site manager’s Today every day'}
-      </footer>
     </section>
   )
 }

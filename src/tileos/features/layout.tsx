@@ -12,7 +12,8 @@ import { useStore, addHist, newTask, meOf, NOW } from '@/tileos/store'
 import { Button, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
-import { GROUTS, type Surface, type Tile, tileOf } from '@/tileos/data/jobs'
+import { GROUTS, type Surface, type Tile, tileOf, floorsOf } from '@/tileos/data/jobs'
+import { useOpenAreas, OpenAllLink, FloorBand, AreaBand } from './job/areas'
 import { kindOf } from './takeoff'
 import { takesTile } from './steps'
 import { TileImg } from '@/tileos/components/ui/swatch'
@@ -328,8 +329,12 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
 const LAY_COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.6fr)_6rem_1rem] md:items-center md:gap-x-6'
 export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (the project's Layouts tab) */ title?: boolean }) {
   const s = useStore()
-  const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
+  const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, floor: r.floor, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
   const all = rooms.flatMap((r) => r.rows)
+  /* by area, like the scope of work: the floors and the areas, closed — tap one to open its walls and floors */
+  const open = useOpenAreas()
+  const groups = floorsOf((s.rooms[job.id] || []).filter((r) => rooms.some((x) => x.name === r.name))).map((g) => ({ floor: g.floor, rooms: g.rooms.map((x) => rooms.find((r) => r.name === x.name)!) }))
+  const several = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
   const set = all.filter((x) => x.layout).length
   const missing = all.length - set
   /* filling in the suggestions is for the office — the site sees them */
@@ -338,6 +343,7 @@ export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (th
     <header className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
       {title && <h3 className="text-[1rem] font-semibold text-ink">Layouts</h3>}
       {all.length > 0 && <span className="text-[0.875rem] tnum text-muted" data-layouts-count><b className="font-semibold text-ink-2">{set} of {all.length}</b> set{missing ? ` · ${missing} suggested` : ''}</span>}
+      {all.length > 0 && <OpenAllLink any={open.any} onOpen={() => open.setAll(rooms.map((r) => r.name))} onClose={() => open.setAll([])} />}
       {missing > 0 && canFill && <span className="ml-auto"><Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(job.id)} data-fill-layouts>Use the suggestions ({missing})</Button></span>}
     </header>
   )
@@ -346,15 +352,21 @@ export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (th
     <div className="flex flex-col gap-3" data-layouts-board>
       {head}
       <div className="overflow-clip rounded-[0.875rem] border border-line bg-white">
-        <div className={cn(HEAD_ROW, LAY_COLS, 'px-5 max-md:hidden')}><span>Wall or floor</span><span>Tile</span><span>How it’s laid</span><span>Layout</span><span /></div>
-        {rooms.map((r) => (
-          <section key={r.name} data-layouts-room={r.name}>
-            <div className="flex min-h-9 items-center gap-3 border-t border-line px-5 py-1.5 max-sm:px-3" style={{ background: '#f0f1ef' }}>
-              <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-bold uppercase tracking-[0.02em] text-[#222]">{r.name}</span>
-              <span className="shrink-0 text-[0.8125rem] text-[#555]">{r.rows.length} {r.rows.length === 1 ? 'wall or floor' : 'walls and floors'}</span>
-            </div>
-            {r.rows.map((x) => <LayoutLine key={x.name} job={job} room={r.name} x={x} />)}
-          </section>
+        {/* the columns' names only once an area is open — closed, it's just the floors and the areas */}
+        {open.any && <div className={cn(HEAD_ROW, LAY_COLS, 'px-5 max-md:hidden')} data-layouts-head><span>Wall or floor</span><span>Tile</span><span>How it’s laid</span><span>Layout</span><span /></div>}
+        {groups.map((g) => (
+          <React.Fragment key={g.floor}>
+            {several && <FloorBand floor={g.floor} count={g.rooms.length} />}
+            {g.rooms.map((r) => {
+              const set = r.rows.filter((x) => x.layout).length
+              return (
+                <section key={r.name} data-layouts-room={r.name}>
+                  <AreaBand name={r.name} open={open.isOpen(r.name)} onToggle={() => open.toggle(r.name)} right={<><span className="tnum">{r.rows.length} {r.rows.length === 1 ? 'wall or floor' : 'walls and floors'}</span><span className={set === r.rows.length ? 'font-medium text-[#2c8a5b]' : 'text-ink-2'}>· {set === r.rows.length ? 'all set' : `${set} set`}</span></>} />
+                  {open.isOpen(r.name) && r.rows.map((x) => <LayoutLine key={x.name} job={job} room={r.name} x={x} />)}
+                </section>
+              )
+            })}
+          </React.Fragment>
         ))}
       </div>
     </div>

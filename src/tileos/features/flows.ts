@@ -1194,6 +1194,9 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
       lines: o.lines.map((l) => ({ item: `${l.tag} ${l.name}`.trim(), qty: `${l.n.toLocaleString('en-US')} ${l.unit}`, n: l.n, unit: l.unit, tag: l.tag, got: 0, ...(us && l.price != null ? { price: l.price } : {}) })),
       log: [L(me(), `Sent to ${o.supplier}${o.more ? ' · more tile — the project came up short' : ''}${ref ? ` · their order ${ref}` : ''}${us ? '' : ' · the client’s tile — our call for the delivery'}`)],
     })
+    /* the job's tile store, set by its first tile PO — every tile PO and "Order more tile" after goes there */
+    const jj = s.jobs[jobId]
+    if (jj && !jj.tileStore) jj.tileStore = o.supplier
     /* each tile on the project knows it's on this PO: how much, from which store, when — and a tile with no store yet
        keeps this one, so the next order goes there too */
     o.lines.forEach((l) => {

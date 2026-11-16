@@ -254,6 +254,12 @@ export interface Job {
   contract?: number
   /** the client's PO / subcontract number, once it's in */
   clientPO?: string
+  /** this job's own people — the homeowner, the designer, the super — with their phone: a client like "NJ Private
+   *  Customer" is many homeowners, so each job keeps who to call */
+  contacts?: JobContact[]
+  /** the store this job's tile comes from — set once (the first tile PO, the paperwork, or by hand) and every tile PO
+   *  and "Order more tile" goes there */
+  tileStore?: string
   lostReason?: string
   /** install work, or a repair job */
   kind?: 'install' | 'repair'
@@ -275,6 +281,8 @@ export interface Job {
    *  client's salespeople the first time one of them is paid on it (until then the project goes by the client's) */
   sales?: SaleShare[]
 }
+/** someone to call about one job: the homeowner, the designer, the super */
+export interface JobContact { name: string; role?: string; phone?: string; email?: string }
 /** a salesperson's part of a project: their rate on what's invoiced, and the payments to them */
 export interface SaleShare { who: string; rate: number; paid?: { amount: number; date: string; iso?: string; note?: string; by?: PersonKey }[] }
 /** someone who sells for the company (they may or may not sign in) */

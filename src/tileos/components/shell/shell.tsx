@@ -21,7 +21,7 @@ import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/
 import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent, UserPen } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { Swatch } from '@/tileos/components/ui/swatch'
-import { roleDef, PEOPLE, STAGE_LABEL } from '@/tileos/data/model'
+import { roleDef, PEOPLE, STAGE_LABEL, PRICING_STAGES } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 
 /* Plain word matching (every word you type must appear) — no fuzzy letter-skipping, so results never look random. */
@@ -436,8 +436,10 @@ export function CommandPalette() {
                     </Command.Item>
                   </Command.Group>
                 )}
+                {/* the projects, then the estimates still being priced — each under its own heading, so an estimate is
+                    never mistaken for a second copy of a project */}
                 <Command.Group heading="Projects">
-                  {Object.values(jobs).map((j) => (
+                  {Object.values(jobs).filter((j) => !PRICING_STAGES.includes(j.stage)).map((j) => (
                     <Command.Item key={j.id} value={`${j.name} ${j.client} ${j.address} project job`} onSelect={() => run(() => open({ t: 'job', id: j.id, tab: role === 'accounting' ? 'money' : undefined }))} className={item}>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{j.name}</span>
@@ -447,6 +449,19 @@ export function CommandPalette() {
                     </Command.Item>
                   ))}
                 </Command.Group>
+                {role !== 'accounting' && (
+                  <Command.Group heading="Estimates">
+                    {Object.values(jobs).filter((j) => PRICING_STAGES.includes(j.stage)).map((j) => (
+                      <Command.Item key={j.id} value={`${j.name} ${j.client} ${j.address} estimate`} onSelect={() => run(() => open({ t: 'job', id: j.id }))} className={item} data-palette-estimate={j.id}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">{j.name}</span>
+                          <span className="block truncate text-[0.78125rem] text-muted">{j.client} · {j.address}</span>
+                        </span>
+                        <span className="text-[0.78125rem] font-semibold text-muted">{STAGE_LABEL[j.stage]}</span>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )}
                 {role !== 'accounting' && (
                   <Command.Group heading="Clients">
                     {Object.values(CUSTOMERS).map((c) => (
