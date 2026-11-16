@@ -18,6 +18,7 @@ import { isOff } from './active'
 import { CUSTOMERS, type Room } from '@/tileos/data/jobs'
 import { keepFiles } from '@/tileos/lib/files'
 import { pagesOf, askAI, jsonIn, ReadError } from './reader'
+import { startReading, stepReading, endReading, failReading, type ReadStep } from '@/tileos/lib/reading'
 import { companySteps } from './steps'
 import { readPaperworkFor } from './paperread'
 import { jobsFromCsv, bringList, sameJob, PLACES, type ListJob, type Place } from './asanalist'
@@ -95,11 +96,12 @@ export function mergeEstimates(parts: EstRead[]): EstRead {
   }
 }
 /** read one estimate: its pages as pictures, 8 at a time, put together */
-export async function readEstimate(files: File[], signal?: AbortSignal): Promise<EstRead> {
-  const pages = await pagesOf(files, 16)
+export async function readEstimate(files: File[], signal?: AbortSignal, onStep?: (s: ReadStep) => void): Promise<EstRead> {
+  const pages = await pagesOf(files, 16, onStep)
   if (!pages.length) throw new ReadError('nopages', 'That isn’t a PDF or a picture we can read.')
   const parts: EstRead[] = []
   for (let i = 0; i < pages.length; i += 8) {
+    onStep?.({ phase: 'reading', done: i / 8, total: Math.ceil(pages.length / 8), pages: pages.length, per: 8 })
     const chunk = pages.slice(i, i + 8)
     const which = pages.length > 8 ? `\n\nThese are pages ${i + 1}–${i + chunk.length} of ${pages.length}.` : ''
     const text = await askAI(ESTIMATE_PROMPT + which, chunk, signal)
@@ -165,8 +167,24 @@ const existingFor = (r: EstRead) => Object.values(useStore.getState().jobs).find
 
 /** read one project's estimate and put it into that project: its rooms, walls, floors and square feet (when it has no
  *  rooms yet), its total (when it has none) — and the estimate kept with it. The pop-up says what went in. */
+/* an estimate being read into a project: how far it is (lib/reading — the bar on top, and the scope's card, wherever
+   you go), and its Stop */
+const estCtl: Record<string, AbortController> = {}
+export function stopEstimate(jobId: string) { estCtl[jobId]?.abort(); endReading('estimate', jobId) }
 export async function estimateInto(jobId: string, file: File): Promise<void> {
-  const r = await readEstimate([file])
+  estCtl[jobId]?.abort()
+  const c = (estCtl[jobId] = new AbortController())
+  startReading('estimate', jobId, file.name)
+  let r: EstRead
+  try {
+    r = await readEstimate([file], c.signal, (st) => { if (!c.signal.aborted) stepReading('estimate', jobId, st) })
+  } catch (e: any) {
+    if (estCtl[jobId] === c) { delete estCtl[jobId]; c.signal.aborted ? endReading('estimate', jobId) : failReading('estimate', jobId, e instanceof ReadError ? e.message : 'Couldn’t read the estimate just now — try again.') }
+    throw e
+  }
+  if (estCtl[jobId] === c) delete estCtl[jobId]
+  endReading('estimate', jobId)
+  if (c.signal.aborted) return
   const st0 = useStore.getState()
   const me = meOf(st0.role)
   const rooms = roomsFrom(r)

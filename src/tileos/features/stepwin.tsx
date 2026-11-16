@@ -16,7 +16,7 @@ import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
-import { GROUTS, JOINTS, byTag, tilesOf, type Tile, type Surface } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, byTag, tilesOf, hasTile, sfFor, type Tile, type Surface } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
@@ -807,9 +807,9 @@ const wasteOf = (s: Store, x: Surface) => (isWall(x.name) ? s.rules.waste?.walls
 export type QtyRow = { t: Tile; on: Flat[]; sf: number; unit: 'SF' | 'boxes'; need?: number; have?: number; short: number }
 /** one tile: how much the paperwork has against what its walls and floors need (with the extra for cuts) */
 export function qtyRow(s: Store, jobId: string, t: Tile): QtyRow {
-  const on = flatOf(s, jobId).filter((f) => f.x.tile === t.tag)
-  const sf = on.reduce((n, f) => n + (f.x.sf || 0), 0)
-  const needSF = Math.ceil(on.reduce((n, f) => n + (f.x.sf || 0) * (1 + wasteOf(s, f.x) / 100), 0))
+  const on = flatOf(s, jobId).filter((f) => hasTile(f.x, t.tag))
+  const sf = Math.round(on.reduce((n, f) => n + sfFor(jobId, f.x, t.tag), 0))
+  const needSF = Math.ceil(on.reduce((n, f) => n + sfFor(jobId, f.x, t.tag) * (1 + wasteOf(s, f.x) / 100), 0))
   const unit = t.paper?.unit || 'SF'
   const need = !on.length || !sf ? undefined : unit === 'boxes' ? (t.boxSF ? Math.ceil(needSF / t.boxSF) : undefined) : needSF
   const have = t.paper?.qty
@@ -895,7 +895,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const tiled = flat.filter((f) => takesTile(f.x.name))
   const missing = tiled.filter((f) => !f.x.tile)
   const lock = scopeLock(s, job.id)
-  const loose = tiles.filter((t) => !flat.some((f) => f.x.tile === t.tag))
+  const loose = tiles.filter((t) => !flat.some((f) => hasTile(f.x, t.tag)))
   const totalSF = rooms.reduce((n, r) => n + r.surfaces.reduce((m, x) => m + (x.sf || 0), 0), 0)
   return (
     <div className="flex flex-col gap-4">
@@ -932,8 +932,8 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
 function TileWhere({ job, t, loose, locked }: { job: Job; t: Tile; loose?: boolean; locked?: boolean }) {
   const s = useStore()
   const flat = flatOf(s, job.id)
-  const opts = flat.filter((f) => takesTile(f.x.name) || f.x.tile === t.tag).map((f) => ({ key: refKey({ room: f.room, surface: f.x.name }), label: `${f.room} · ${f.x.name}`, hint: f.x.tile && f.x.tile !== t.tag ? `Has ${f.x.tile} now` : f.x.sf ? `${f.x.sf} SF` : undefined }))
-  const vals = flat.filter((f) => f.x.tile === t.tag).map((f) => refKey({ room: f.room, surface: f.x.name }))
+  const opts = flat.filter((f) => takesTile(f.x.name) || hasTile(f.x, t.tag)).map((f) => ({ key: refKey({ room: f.room, surface: f.x.name }), label: `${f.room} · ${f.x.name}`, hint: f.x.tile && !hasTile(f.x, t.tag) ? `Has ${f.x.tile} now` : f.x.sf ? `${f.x.sf} SF` : undefined }))
+  const vals = flat.filter((f) => hasTile(f.x, t.tag)).map((f) => refKey({ room: f.room, surface: f.x.name }))
   const ref = React.useRef<HTMLInputElement>(null)
   const [busy, setBusy] = React.useState(false)
   const pick = async (f?: File) => {
@@ -1108,7 +1108,7 @@ function Selections({ job }: { job: Job }) {
     <div className="flex flex-col gap-4">
       <Block title="Each tile" right={tiles.length ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
         {!tiles.length && <div className="flex flex-wrap items-center gap-3 px-4 py-3"><span className="min-w-0 flex-1 text-[0.84375rem] text-muted">No tiles yet — they come in when the tile paperwork is entered.</span><Button size="sm" onClick={() => s.swap({ t: 'step', jobId: job.id, k: 'rooms' })}>Enter the paperwork</Button></div>}
-        {tiles.map((t) => <TilePick key={t.tag} job={job} t={t} n={flat.filter((f) => f.x.tile === t.tag).length} />)}
+        {tiles.map((t) => <TilePick key={t.tag} job={job} t={t} n={flat.filter((f) => hasTile(f.x, t.tag)).length} />)}
       </Block>
       {tiles.length > 0 && tiles.every((t) => t.grout && (t.photo || t.swatch)) && <Good>Every tile has its grout and a picture.</Good>}
     </div>

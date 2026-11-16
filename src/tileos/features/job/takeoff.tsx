@@ -5,7 +5,7 @@
  *   Our materials: what we buy for the job — thinset, grout, boards, membranes, metal edges — worked out from the square
  *     feet and what each wall and floor is set on. Tap one to see how it was worked out. */
 import * as React from 'react'
-import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search, Truck } from 'lucide-react'
+import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search, Truck, Upload } from 'lucide-react'
 import { logTileOrder } from '../flows2'
 import { useStore } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -17,13 +17,16 @@ import { Status, HEAD_ROW } from '@/tileos/components/ui/page'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { needWithWaste } from '@/tileos/data/work'
-import { tilesOf, tileOf, GROUTS } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, hasTile, sfFor, GROUTS } from '@/tileos/data/jobs'
 import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
 import { Section, Empty, Group, Word } from './kit'
 import { openTilePOs } from '../tilepo'
+import { scopeLock } from '../steps'
+import { PaperPanel, usePaperPicker } from '../paperread'
+import { useReadingOf } from '@/tileos/lib/reading'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
 const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
@@ -35,11 +38,16 @@ const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 /* ---------------- tile ---------------- */
 export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
   const s = useStore()
+  /* the tile paperwork comes in here too: whoever enters it (and the admin) uploads it — it's read and matched to the
+     scope of work, and what it entered shows on top to check */
+  const paper = !simple && scopeLock(s, job.id).canEdit
+  const picker = usePaperPicker(job)
+  const reading = useReadingOf('paperwork', job.id)
   const rooms = s.rooms[job.id] || []
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const all = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
   const [q, setQ] = React.useState('')
-  const whereOf = (tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === tag).map((x) => `${r.name} ${x.name.toLowerCase()}`))
+  const whereOf = (tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => `${r.name} ${x.name.toLowerCase()}`))
   const ws = q.toLowerCase().split(/\s+/).filter(Boolean)
   const tags = ws.length ? all.filter((tag) => { const t = tileOf(job.id, tag); const hay = [tag, t?.name, t?.size, t?.supplier, t?.grout && GROUTS[t.grout]?.name, ...whereOf(tag)].filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => hay.includes(w)) }) : all
   return (
@@ -60,18 +68,27 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
           {all.length > 0 && <Button size="sm" variant={simple ? 'primary' : undefined} icon={<Truck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })} data-tile-in>Tile came in</Button>}
           {!simple && all.length > 0 && <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more tile</Button>}
           {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })} data-tile-po-new>Tile PO</Button>}
-          {/* a tile by hand — no paperwork needed: its name, size, store; then it can be ordered like any other */}
-          {!simple && all.length > 0 && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add>Add a tile</Button>}
+          {/* more tiles: the paperwork (read and matched by itself) or one by hand — no paperwork needed: its name, size,
+              store; then it can be ordered like any other */}
+          {!simple && all.length > 0 && (paper ? (
+            <Menu align="end" width={260} trigger={<Button size="sm" icon={<Plus />} data-tile-add>Add tiles<ChevronDown className="-mr-1 h-3.5 w-3.5 text-faint" /></Button>}>
+              <MenuItem icon={<Upload className="h-4 w-4" />} onSelect={picker.pick} hint="Read and matched to the scope">Upload the tile paperwork</MenuItem>
+              <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'tile', jobId: job.id })}>A tile by hand</MenuItem>
+            </Menu>
+          ) : <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add>Add a tile</Button>)}
+          {paper && picker.input}
         </span>
       ) : undefined}
     >
       <div>
+        {/* the paperwork being read, or what it entered to check — on top of the list */}
+        {paper && <PaperPanel job={job} className="mx-5 mb-4 max-sm:mx-4" />}
         {tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
         {tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
-          const uses = rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === tag).map((x) => ({ room: r.name, x })))
-          const sf = uses.reduce((n, u) => n + (u.x.sf || 0), 0)
+          const uses = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, x })))
+          const sf = Math.round(uses.reduce((n, u) => n + sfFor(job.id, u.x, tag), 0))
           const need = c ? needWithWaste(c) : Math.ceil(sf * 1.1)
           const unit = c?.unit || 'SF'
           const st = tileStatus(s, job.id, tag)
@@ -86,14 +103,15 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
               : c.received < c.ordered ? { label: 'It came in', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) } : null
           return (
             <div key={tag} data-tile={tag} className={cn(QGRID, ROWPAD, 'max-sm:grid-cols-1 max-sm:gap-y-1.5')} title={c ? `${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}${c ? ` · ordered ${num(c.ordered)}, here ${num(c.received)}` : ''}` : `${who === 'We' ? 'We order it' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}`}>
-              <span className={QFIRST}>
-                <TileImg tile={t} size={28} radius={6} />
+              {/* the tile: its picture, name and size — tap it for everything about it (where it goes, its grout) */}
+              <button type="button" disabled={simple || !t} onClick={() => s.open({ t: 'tile', jobId: job.id, tag })} className={cn(QFIRST, 'text-left enabled:hover:[&_b]:text-brand-700')} data-tile-open={tag}>
+                <TileImg tile={t} size={32} radius={6} />
                 <span className="min-w-0 leading-tight">
-                  <span className="block truncate text-[0.875rem] text-ink"><span className="font-semibold tnum">{tag}</span> {t?.name || 'Tile'}{t?.size ? <span className="text-muted"> · {t.size}</span> : null}</span>
+                  <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size ? <span className="text-muted"> · {t.size}</span> : null}{t?.trim ? <span className="text-muted"> · trim</span> : null}</span>
                   {/* on a phone: how much, under the name */}
                   <span className="hidden truncate text-[0.75rem] text-muted max-lg:block">{need ? `${need.toLocaleString('en-US')} ${unit}` : ''}<span className="max-sm:hidden">{need && uses.length ? ' · ' : ''}{Array.from(new Set(uses.map((u) => u.room))).join(', ')}</span></span>
                 </span>
-              </span>
+              </button>
               <span className={cn('min-w-0 truncate text-[0.8125rem] max-lg:hidden', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
               <span className="text-right text-[0.8125rem] tnum text-ink-2 max-lg:hidden" title={boxes > 0 ? `${boxes} boxes · with the extra for cuts` : 'With the extra for cuts'}>{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
               <span className="flex min-w-0 items-center justify-end gap-2.5 max-sm:justify-start max-sm:pl-10">
@@ -106,11 +124,12 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             </div>
           )
         })}
-        {!all.length && (
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
-            <span className="min-w-0 flex-1">No tiles yet — they come in when the tile paperwork is entered, or add one by hand.</span>
-            {!simple && <Button size="sm" variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add-empty>Add a tile</Button>}
-            <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
+        {!all.length && !reading && (
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4" data-tiles-empty>
+            <span className="min-w-0 flex-1">{paper ? 'No tiles yet — upload the tile paperwork: every tile, with its picture, size and grout, goes on its walls and floors by itself.' : 'No tiles yet — they come in when the tile paperwork is entered, or add one by hand.'}</span>
+            {paper && <Button size="sm" variant="primary" icon={<Upload />} onClick={picker.pick} data-paper-upload>Upload the tile paperwork</Button>}
+            {!simple && <Button size="sm" variant={paper ? undefined : 'primary'} icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })} data-tile-add-empty>Add a tile</Button>}
+            {!paper && <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>}
           </div>
         )}
         {all.length > 0 && !tags.length && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No tile matches “{q}”.</div>}

@@ -12,7 +12,7 @@ import { TileImg } from '@/tileos/components/ui/swatch'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney } from '@/tileos/data/model'
-import { tilesOf, tileOf } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
 import type { PO } from '@/tileos/data/work'
 import { createTilePO, receivePOPart } from './flows'
 import { paperQty } from './steps'
@@ -31,7 +31,7 @@ type Draft = { tag: string; name: string; on: boolean; n: number; unit: string; 
 function toCome(s: Store, jobId: string, tag: string): { n: number; unit: string } {
   const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
   if (c) return { n: Math.max(0, c.ordered - c.received), unit: c.unit }
-  const sf = (s.rooms[jobId] || []).reduce((n, r) => n + r.surfaces.filter((x) => x.tile === tag).reduce((m, x) => m + (x.sf || 0), 0), 0)
+  const sf = (s.rooms[jobId] || []).reduce((n, r) => n + r.surfaces.filter((x) => hasTile(x, tag)).reduce((m, x) => m + sfFor(jobId, x, tag), 0), 0)
   const t = tileOf(jobId, tag)
   if (t?.paper?.qty) return { n: t.paper.qty, unit: t.paper.unit }
   return { n: Math.ceil(sf * 1.1), unit: 'SF' }

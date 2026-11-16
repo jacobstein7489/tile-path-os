@@ -57,9 +57,11 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
 
 /** pick surfaces for an area — tick as many as you need; it stays open until Done. Without onRemove the ones
  *  already there stay ticked (the estimate window adds lines; removing is done on the line itself). */
-export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, title = 'Tick every surface it has', nameOf }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string; /** just some of the company's surfaces (the scope: only the walls and floors) */ only?: (d: SurfaceDef) => boolean; title?: string; /** what each is called there (the scope: Floor, Walls, Niche) */ nameOf?: (key: string, label: string) => string }) {
+export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, title = 'Tick every surface it has', nameOf, open: openIn, onOpenChange, bare }: { have: string[]; onAdd: (key: string) => void; onRemove?: (key: string) => void; label?: string; /** just some of the company's surfaces (the scope: only the walls and floors) */ only?: (d: SurfaceDef) => boolean; title?: string; /** what each is called there (the scope: Floor, Walls, Niche) */ nameOf?: (key: string, label: string) => string; /** opened from somewhere else (the room's line on the scope) */ open?: boolean; onOpenChange?: (open: boolean) => void; /** just the checklist — its button is somewhere else */ bare?: boolean }) {
   const s = useStore()
-  const [open, setOpen] = React.useState(false)
+  const [open0, setOpen0] = React.useState(false)
+  const open = openIn ?? open0
+  const setOpen = (o: boolean) => { setOpen0(o); onOpenChange?.(o) }
   const [t, setT] = React.useState('')
   const all = companySurfaces(s).filter((d) => !only || only(d))
   const own = have.filter((k) => !all.some((x) => x.key === k))
@@ -67,7 +69,7 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, ti
   /* the checklist opens right under the room — one scroll for the whole window, nothing floating on top */
   return (
     <>
-      <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} data-surface-add onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c6bfb4] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>
+      {!bare && <button type="button" aria-label={label === 'Surfaces' ? 'Pick surfaces' : label} aria-expanded={open} data-surface-add onClick={() => setOpen(!open)} className={cn('inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-2.5 text-[0.78125rem] font-semibold transition', open ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-[#c6bfb4] text-muted hover:border-brand-300 hover:text-brand-700')}><Plus className="h-3.5 w-3.5" />{label}</button>}
       {open && (
         <div className="order-last mt-1 basis-full rounded-xl border border-brand-100 bg-white p-3 shadow-xs">
           <div className="flex items-baseline justify-between gap-2">

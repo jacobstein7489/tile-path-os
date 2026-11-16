@@ -391,6 +391,9 @@ export interface Tile {
   note?: string
   /** how much the tile paperwork (the client's or the store's) has of it — checked against what we need */
   paper?: { qty: number; unit: 'SF' | 'boxes' }
+  /** a trim piece — a wall cap, a jolly, a pencil liner, a bullnose: it goes on with the walls' own tile, counted by the
+   *  piece, never by the square foot */
+  trim?: boolean
 }
 /** a file kept with a project — the tile paperwork, plans, a photo. In the real app it's in the company's storage
  *  (`path`); the preview keeps it only while the page is open. */
@@ -414,6 +417,16 @@ export const byTag = (a: Tile, b: Tile) => a.tag.localeCompare(b.tag, undefined,
 export const tilesOf = (jobId?: string): Tile[] => Object.values((jobId && JOB_TILES[jobId]) || {}).sort(byTag)
 /** a short line for a tile: "T-03 Toscana Ivory · 24 × 48" */
 export const tileLine = (t?: Tile) => (t ? `${t.tag} ${t.name}${t.size ? ` · ${t.size}` : ''}` : '')
+/** every tile on a wall or floor: its tile, then any more on it (a checkerboard's second color, a wall cap) */
+export const tilesOn = (x: Pick<Surface, 'tile' | 'also'>): string[] => [x.tile, ...(x.also || [])].filter((t, i, all) => !!t && all.indexOf(t) === i)
+/** is this tile on that wall or floor — as its tile, or one more on it */
+export const hasTile = (x: Pick<Surface, 'tile' | 'also'>, tag?: string) => !!tag && (x.tile === tag || !!x.also?.includes(tag))
+/** a tile's share of a wall or floor's square feet: two tiles in a checkerboard take half each; a trim piece takes none */
+export function sfFor(jobId: string, x: Pick<Surface, 'tile' | 'also' | 'sf'>, tag: string): number {
+  if (!hasTile(x, tag) || tileOf(jobId, tag)?.trim) return 0
+  const field = tilesOn(x).filter((t) => !tileOf(jobId, t)?.trim)
+  return (x.sf || 0) / Math.max(1, field.length)
+}
 
 /* grout colors — the common ones; a project can add its own (Settings keeps them) */
 export type Grout = { name: string; color: string; product?: string }
@@ -439,6 +452,9 @@ export type SurfState = 'done' | 'working' | 'ready' | 'blocked' | 'waitmat' | '
 export interface Surface {
   name: string
   tile: string
+  /** more tiles on the same wall or floor — a checkerboard's second color, a mix, a trim piece (a wall cap). `tile` is
+   *  the first one; the square feet are shared by the tiles that aren't trim */
+  also?: string[]
   /** the estimate item it was sold as — what the installer's PO pays for it */
   itemId?: string
   state: SurfState

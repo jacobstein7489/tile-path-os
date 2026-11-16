@@ -13,7 +13,7 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, Stepper } from '@/tileos/components/ui/core'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { tilesOf, tileOf, type Tile } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, hasTile, sfFor, type Tile } from '@/tileos/data/jobs'
 import { receiveBoxes, needOf } from './flows'
 import { FormHead, FormRow, ProjectField } from './formkit'
 import { useSmall } from '@/tileos/lib/phone'
@@ -65,7 +65,7 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
     const now = inBoxes ? r.boxes : per ? r.boxes * per : 0
     const unit = inBoxes ? 'boxes' : 'SF'
     const have = (c?.received || 0) + now
-    const need = c ? needOf(s, jobId, c) : (() => { const on = (s.rooms[jobId] || []).flatMap((rm) => rm.surfaces).filter((x) => x.tile === g && (x.sf || 0) > 0); const sf = on.reduce((n, x) => n + (x.sf || 0), 0); return sf ? Math.ceil(sf * 1.1) : undefined })()
+    const need = c ? needOf(s, jobId, c) : (() => { const on = (s.rooms[jobId] || []).flatMap((rm) => rm.surfaces).filter((x) => hasTile(x, g) && sfFor(jobId, x, g) > 0); const sf = Math.round(on.reduce((n, x) => n + sfFor(jobId, x, g), 0)); return sf ? Math.ceil(sf * 1.1) : undefined })()
     const missingBox = r.boxes > 0 && !inBoxes && !per
     return { g, t, c, r, per, now, unit, have, need, missingBox }
   })

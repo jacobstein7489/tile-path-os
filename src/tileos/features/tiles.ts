@@ -3,8 +3,8 @@
  *   a wall or floor: which tile, grout and joint, the layout, what goes under it, the edge or metal, the height, square feet
  * Every change is saved to the project's history; the materials and the scope of work follow by themselves. */
 import { useStore, addHist, meOf } from '@/tileos/store'
-import { GROUTS, JOINTS, type Tile, type Surface, type Grout } from '@/tileos/data/jobs'
-import type { ReadTile, ReadRoom } from './reader'
+import { GROUTS, JOINTS, hasTile, type Tile, type Surface, type Grout } from '@/tileos/data/jobs'
+import { sameName, type ReadTile, type ReadRoom } from './reader'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import type { Item } from '@/tileos/data/items'
 import { parseMetal, metalItem, metalText } from '@/tileos/data/catalog'
@@ -36,30 +36,13 @@ export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: Surface
       if (was && was !== t.tag) {
         /* the tag changed — move it, and point every wall, order and estimate line on this project at the new tag */
         delete s.tiles[jobId][was]
-        ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === was) x.tile = t.tag }))
+        ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === was) x.tile = t.tag; if (x.also?.includes(was)) x.also = x.also.map((a) => (a === was ? t.tag : a)) }))
         s.checks.forEach((c) => { if (c.jobId === jobId && c.tag === was) c.tag = t.tag })
         s.shortages.forEach((c) => { if (c.jobId === jobId && c.tag === was) c.tag = t.tag })
         s.estimates.filter((e) => e.jobId === jobId).forEach((e) => e.revs.forEach((r) => r.lines.forEach((l) => { if (l.tile === was) l.tile = t.tag })))
       }
       s.tiles[jobId][t.tag] = t
-      if (o.on) {
-        const want = new Set(o.on.map(refKey))
-        ;(s.rooms[jobId] || []).forEach((r) =>
-          r.surfaces.forEach((x) => {
-            const k = refKey({ room: r.name, surface: x.name })
-            if (want.has(k)) {
-              if (x.tile !== t.tag) {
-                x.tile = t.tag
-                if (t.grout) x.grout = t.grout
-                if (t.joint) x.joint = t.joint
-              }
-              if (!x.grout && t.grout) x.grout = t.grout
-              if (!x.joint && t.joint) x.joint = t.joint
-              if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
-            } else if (x.tile === t.tag) x.tile = ''
-          }),
-        )
-      }
+      if (o.on) placeOn(s, jobId, t, o.on)
       const where = o.on?.length ? ` · ${o.on.length} wall${o.on.length === 1 ? '' : 's'} and floors` : ''
       addHist(s, jobId, { who: me(), kind: 'setup', title: fresh ? `Tile added · ${t.tag} ${t.name}${where}` : `Tile changed · ${t.tag} ${t.name}${where}`, detail: [t.size, t.finish, t.maker, t.grout ? `${GROUTS[t.grout]?.name} grout` : ''].filter(Boolean).join(' · ') })
     },
@@ -80,19 +63,44 @@ export function patchTile(jobId: string, tag: string, p: Partial<Tile>, msg?: st
     if (p.joint) (s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === tag && !x.joint) x.joint = p.joint }))
   }, msg)
 }
-/** where a tile goes: these walls and floors get it, any other that had it goes back to "no tile" */
+/** a tile comes off a wall or floor: if it was its tile, the next one on it (a checkerboard's other color) takes its
+ *  place */
+function takeOff(s: { tiles: Record<string, Record<string, Tile>> }, jobId: string, x: Surface, tag: string) {
+  if (x.also?.includes(tag)) x.also = x.also.filter((a) => a !== tag)
+  if (x.tile !== tag) return
+  const next = (x.also || []).find((a) => !s.tiles[jobId]?.[a]?.trim)
+  x.tile = next || ''
+  if (next) x.also = x.also!.filter((a) => a !== next)
+  if (x.also && !x.also.length) delete x.also
+}
+/** a tile on exactly these walls and floors: each gets it (a trim piece goes on with the wall's own tile), and any
+ *  other that had it lets it go */
+function placeOn(s: { tiles: Record<string, Record<string, Tile>>; rooms: Record<string, { name: string; surfaces: Surface[] }[]> }, jobId: string, t: Tile, on: SurfaceRef[]) {
+  const want = new Set(on.map(refKey))
+  ;(s.rooms[jobId] || []).forEach((r) =>
+    r.surfaces.forEach((x) => {
+      if (!want.has(refKey({ room: r.name, surface: x.name }))) { takeOff(s, jobId, x, t.tag); return }
+      if (!hasTile(x, t.tag)) {
+        if (t.trim && x.tile) x.also = [...(x.also || []), t.tag]
+        else {
+          x.tile = t.tag
+          if (t.grout) x.grout = t.grout
+          if (t.joint) x.joint = t.joint
+        }
+      }
+      if (x.tile === t.tag) {
+        if (!x.grout && t.grout) x.grout = t.grout
+        if (!x.joint && t.joint) x.joint = t.joint
+      }
+      if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
+    }),
+  )
+}
+/** where a tile goes: these walls and floors get it, any other that had it lets it go */
 export function setTileOn(jobId: string, tag: string, on: SurfaceRef[]) {
   S().commit((s) => {
-    const want = new Set(on.map(refKey))
     const t = s.tiles[jobId]?.[tag]
-    ;(s.rooms[jobId] || []).forEach((r) =>
-      r.surfaces.forEach((x) => {
-        if (want.has(refKey({ room: r.name, surface: x.name }))) {
-          if (x.tile !== tag) { x.tile = tag; if (t?.grout) x.grout = t.grout; if (t?.joint) x.joint = t.joint }
-          if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
-        } else if (x.tile === tag) x.tile = ''
-      }),
-    )
+    if (t) placeOn(s, jobId, t, on)
   })
 }
 
@@ -127,9 +135,14 @@ function readHeight(h: string) {
   if (/full|ceiling/i.test(h)) return 'Fully tiled — to the ceiling'
   return h
 }
-export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; rooms?: ReadRoom[] } = {}) {
+export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; rooms?: ReadRoom[] } = {}): string[] {
   let added = 0
   let placed = 0
+  /* how many of our walls and floors it matched — counted first, for the pop-up (it's written before it's entered) */
+  const known = new Set((S().rooms[jobId] || []).flatMap((r) => r.surfaces.map((x) => `${r.name} · ${x.name}`)))
+  const matched = new Set(picks.flatMap((p) => p.goesOn.filter((l) => known.has(l)))).size
+  /* the tag each tile from the paperwork got, in the paperwork's order */
+  const tags: string[] = []
   S().commit(
     (s) => {
       const mine = (s.tiles[jobId] ||= {})
@@ -140,10 +153,14 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
         while (taken.has(`${lead}${n}`)) n++
         return `${lead}${n}`
       }
-      for (const p of picks) {
-        const same = (p.tag && mine[p.tag]) || Object.values(mine).find((t) => t.name.toLowerCase() === p.name.toLowerCase())
+      /* the walls and floors this paperwork has given a tile already — a second tile on one of them (a checkerboard's
+         other color) goes on with the first, not in its place */
+      const got = new Set<string>()
+      const enter = (p: ReadTile, i: number) => {
+        const same = (p.tag && mine[p.tag]) || Object.values(mine).find((t) => sameName(t.name, p.name))
         const tag = same ? same.tag : p.tag && !taken.has(p.tag) ? p.tag : next()
         taken.add(tag)
+        tags[i] = tag
         const base: Tile = same ? { ...same } : { tag, name: p.name, size: '', finish: '', maker: '', supplier: '', suppliedBy: 'GC', sku: '' }
         const t: Tile = {
           ...base,
@@ -151,16 +168,30 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
           ...(p.size ? { size: p.size } : {}), ...(p.finish ? { finish: p.finish } : {}), ...(p.maker ? { maker: p.maker } : {}), ...(p.supplier ? { supplier: p.supplier } : {}),
           ...(p.grout ? { grout: groutKeyFor(s, p.grout) } : {}), ...(p.joint ? { joint: jointOf(p.joint) } : {}), ...(p.boxSF ? { boxSF: p.boxSF } : {}),
           ...(p.qty ? { paper: { qty: p.qty, unit: p.unit || 'SF' } } : {}), ...(p.note && !base.note ? { note: p.note } : {}),
+          ...(p.trim ? { trim: true } : {}),
           /* its picture from the paperwork — unless someone put one on it already */
           ...(p.pic && !base.photo ? { photo: p.pic, color: p.picColor } : {}),
         }
         mine[tag] = t
         if (!same) added++
         p.goesOn.forEach((label) => {
-          const [room, surface] = label.split(' · ')
+          /* "Room · Wall" — a room's own name can have a " · " in it ("Bathroom · 2nd floor"): the wall is after the last one */
+          const cut = label.lastIndexOf(' · ')
+          const room = label.slice(0, cut), surface = label.slice(cut + 3)
           const x = s.rooms[jobId]?.find((r) => r.name === room)?.surfaces.find((y) => y.name === surface)
           if (!x) return
+          const k = `${room}|${surface}`
+          placed++
+          /* a trim piece (a wall cap), or a second tile on a floor this paperwork already gave one: it goes on with it */
+          if (t.trim || (got.has(k) && x.tile && x.tile !== tag)) {
+            if (!hasTile(x, tag)) x.also = [...(x.also || []), tag]
+            if (p.layout && !t.trim && !x.layout) x.layout = p.layout
+            return
+          }
+          /* the paperwork's tile for it — whatever older paperwork put there goes */
+          got.add(k)
           x.tile = tag
+          delete x.also
           if (t.grout) x.grout = t.grout
           if (t.joint) x.joint = t.joint
           /* how it's laid, the edges (mitered or which metal), how high — when the paperwork says */
@@ -168,16 +199,19 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
           if (p.edge) { x.edge = readEdge(p.edge); keepMetal(s, x.edge) }
           if (p.height && WALLISH.test(x.name)) x.height = readHeight(p.height)
           if (x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined }
-          placed++
         })
       }
+      /* the field tiles first, then the trim that goes on with them */
+      picks.forEach((p, i) => { if (!p.trim) enter(p, i) })
+      picks.forEach((p, i) => { if (p.trim) enter(p, i) })
       /* what it says about a room as a whole — "9 ft ceiling; wet walls full, other walls to 4 ft" */
       ;(o.rooms || []).forEach((r) => { const room = s.rooms[jobId]?.find((y) => y.name === r.room); if (room && !room.note) room.note = r.note })
       addHist(s, jobId, { who: me(), kind: 'setup', title: `Read from the tile paperwork${o.file ? ` · ${o.file}` : ''}`, detail: `${picks.length} tile${picks.length === 1 ? '' : 's'} (${added} new) · ${placed} wall${placed === 1 ? '' : 's'} and floors matched` })
     },
     `Read from the paperwork — ${picks.length} tile${picks.length === 1 ? '' : 's'}`,
-    { sub: `${placed} wall${placed === 1 ? '' : 's'} and floors matched. Check the quantities below.` },
+    { sub: `${matched} wall${matched === 1 ? '' : 's'} and floors matched — check where each one goes.` },
   )
+  return tags
 }
 
 /** take a tile off a project — the walls and floors that had it go back to "no tile" */
@@ -185,8 +219,8 @@ export function removeTile(jobId: string, tag: string) {
   const name = S().tiles[jobId]?.[tag]?.name || ''
   S().commit(
     (s) => {
+      ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => takeOff(s, jobId, x, tag)))
       if (s.tiles[jobId]) delete s.tiles[jobId][tag]
-      ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { if (x.tile === tag) x.tile = '' }))
       addHist(s, jobId, { who: me(), kind: 'setup', title: `Tile removed · ${tag} ${name}` })
     },
     `${tag} removed`,

@@ -11,7 +11,7 @@
 import { useStore, meOf, newTask, NOW, type Store } from '@/tileos/store'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import { needWithWaste, type Task } from '@/tileos/data/work'
-import type { Room } from '@/tileos/data/jobs'
+import { hasTile, sfFor, type Room } from '@/tileos/data/jobs'
 import { teamOf, EST_TEAM0 } from '@/tileos/data/estimates'
 import { TODAY, addDays, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { settingStatus } from './setting'
@@ -304,11 +304,11 @@ export function taskForStep(s: Pick<Store, 'tasks'>, jobId: string, key: string)
 
 /** one tile: how much the paperwork has against what its walls and floors need, with the extra for cuts */
 export function paperQty(s: Store, jobId: string, t: { tag: string; paper?: { qty: number; unit: 'SF' | 'boxes' }; boxSF?: number }) {
-  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === t.tag)
+  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, t.tag))
   const isWallName = (n: string) => !/floor|hearth|step|landing|threshold|saddle/i.test(n)
-  const needSF = Math.ceil(on.reduce((n, x) => n + (x.sf || 0) * (1 + ((isWallName(x.name) ? s.rules.waste?.walls : s.rules.waste?.floors) ?? 10) / 100), 0))
+  const needSF = Math.ceil(on.reduce((n, x) => n + sfFor(jobId, x, t.tag) * (1 + ((isWallName(x.name) ? s.rules.waste?.walls : s.rules.waste?.floors) ?? 10) / 100), 0))
   const unit = t.paper?.unit || 'SF'
-  const sf = on.reduce((n, x) => n + (x.sf || 0), 0)
+  const sf = Math.round(on.reduce((n, x) => n + sfFor(jobId, x, t.tag), 0))
   const need = !on.length || !sf ? undefined : unit === 'boxes' ? (t.boxSF ? Math.ceil(needSF / t.boxSF) : undefined) : needSF
   const have = t.paper?.qty
   return { tag: t.tag, on: on.length, need, have, unit, short: have != null && need != null ? Math.max(0, need - have) : 0 }
@@ -365,7 +365,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       return { state: 'done', note: 'Enough of every tile, with the extra for cuts' }
     }
     case 'tile': {
-      const tiles = Object.values(s.tiles[j.id] || {}).filter((t) => flat.some((x) => x.tile === t.tag))
+      const tiles = Object.values(s.tiles[j.id] || {}).filter((t) => flat.some((x) => hasTile(x, t.tag)))
       if (!tiles.length) return { state: 'now', note: 'After the paperwork is entered' }
       if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'Entered before this list' }
       const noGrout = tiles.filter((t) => !t.grout).length

@@ -12,7 +12,7 @@ import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { Modal, DatePresets } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
-import { tileOf } from '@/tileos/data/jobs'
+import { tileOf, hasTile } from '@/tileos/data/jobs'
 import type { LogLine } from '@/tileos/data/work'
 import type { Shortage } from '@/tileos/data/shortages'
 export type { Shortage }
@@ -235,7 +235,7 @@ export function ReportShortModal({ jobId, room, surface, level }: { jobId: strin
   const [unit, setUnit] = React.useState(s.checks.find((c) => c.jobId === jobId && c.tag === first)?.unit || 'SF')
   const [how, setHow] = React.useState('Ran out on site')
   const [stops, setStops] = React.useState<boolean | null>(null)
-  const surf = rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === tag && x.state !== 'done').map((x) => ({ room: r.name, surface: x.name })))
+  const surf = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag) && x.state !== 'done').map((x) => ({ room: r.name, surface: x.name })))
   const [pick, setPick] = React.useState<string[]>(room && surface ? [`${room}|${surface}`] : [])
   if (!job) return null
   const chosen = surf.filter((f) => pick.includes(`${f.room}|${f.surface}`))

@@ -126,13 +126,14 @@ export function AddRoomButton({ jobId, label = 'Add a room', className, size = '
 }
 
 /** a room's ···: which floor it's on, the note next to it on the paper, take it off */
-export function RoomMenu({ jobId, room }: { jobId: string; room: Room }) {
+export function RoomMenu({ jobId, room, onLines }: { jobId: string; room: Room; /** its walls and floors, ticked under the room (a phone has no pointing — it's here) */ onLines?: () => void }) {
   const [open, setOpen] = React.useState(false)
   const [note, setNote] = React.useState(room.note || '')
   React.useEffect(() => { if (open) setNote(room.note || '') }, [open])
   const started = roomStarted(room)
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={320} trigger={<button type="button" aria-label={`${room.name} — floor and details`} data-room-menu={room.name} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+      {onLines && <button type="button" onClick={() => { setOpen(false); onLines() }} data-room-lines-menu className="-mx-1 mb-3 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[0.875rem] font-semibold text-ink hover:bg-wash"><Plus className="h-4 w-4 text-muted" />Walls and floors<span className="ml-auto text-[0.75rem] font-normal text-muted">{room.surfaces.length}</span></button>}
       <div className="text-[0.78125rem] font-semibold text-muted">Floor</div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {['', ...FLOORS].map((f) => <button key={f || 'none'} type="button" onClick={() => setRoom(jobId, room.name, { floor: f || null })} data-floor-pick={f || 'none'} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold', (room.floor || '') === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c6bfb4]')}>{f || 'No floor'}</button>)}
@@ -150,11 +151,14 @@ export function RoomMenu({ jobId, room }: { jobId: string; room: Room }) {
 }
 
 /** under a room: tick every wall and floor it has — the company's list, the same as on an estimate */
-export function RoomLines({ jobId, room }: { jobId: string; room: Room }) {
+export function RoomLines({ jobId, room, open, onOpenChange, bare }: { jobId: string; room: Room; /** opened from the room's line (pointing at it) or its ··· */ open?: boolean; onOpenChange?: (open: boolean) => void; /** just the checklist — its button is on the room's line */ bare?: boolean }) {
   const s = useStore()
   const have = room.surfaces.map((x) => keyOfLine(s, x.name) || x.name)
   return (
     <SurfaceAdd
+      open={open}
+      onOpenChange={onOpenChange}
+      bare={bare}
       label="Walls and floors"
       title="Tick every wall and floor it has"
       only={isWallOrFloor}

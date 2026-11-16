@@ -57,14 +57,16 @@ export function coverageOf(room: Room): string[] {
 /** one tile on a room sheet: the walls and floors it goes on, and what the installer needs to know about it */
 export type SheetEntry = { key: string; label: string; tile?: Tile; tag?: string; grout?: string; joint?: string; lines: { k: string; v: string }[]; xs: Surface[]; /** the metal finishes on its edges — a sample of each color */ metals: string[] }
 export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
-  const groups = new Map<string, Surface[]>()
+  const groups = new Map<string, { tag: string; also?: boolean; xs: Surface[] }>()
+  const put = (k: string, tag: string, x: Surface, also?: boolean) => { const g = groups.get(k); if (g) g.xs.push(x); else groups.set(k, { tag, also, xs: [x] }) }
   room.surfaces.filter((x) => takesTile(x.name)).forEach((x) => {
-    const k = x.tile ? `${x.tile}|${x.grout || tileOf(jobId, x.tile)?.grout || ''}` : `none|${x.name}`
-    groups.set(k, [...(groups.get(k) || []), x])
+    put(x.tile ? `${x.tile}|${x.grout || tileOf(jobId, x.tile)?.grout || ''}` : `none|${x.name}`, x.tile, x)
   })
-  return [...groups.entries()].map(([key, xs]) => {
-    const t = tileOf(jobId, xs[0].tile)
-    const gk = xs[0].grout || t?.grout
+  /* more tiles on a wall or floor — a checkerboard's other color, a wall cap: each its own entry, after the rest */
+  room.surfaces.filter((x) => takesTile(x.name)).forEach((x) => (x.also || []).forEach((a) => put(`${a}|also`, a, x, true)))
+  return [...groups.entries()].map(([key, { tag, also, xs }]) => {
+    const t = tileOf(jobId, tag)
+    const gk = also ? t?.grout : xs[0].grout || t?.grout
     /* the same for all of them: said once · different: each one by name */
     const per = (f: (x: Surface) => string | undefined) => {
       const vals = xs.map((x) => ({ n: x.name, v: (f(x) || '').trim() })).filter((y) => y.v)
@@ -80,7 +82,7 @@ export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
       { k: 'Note', v: per((x) => x.notes) },
     ].filter((l) => l.v)
     const metals = Array.from(new Set(xs.map((x) => parseMetal(x.edge)?.finish).filter(Boolean) as string[]))
-    return { key, label: xs.map((x) => x.name).join(' + '), tile: t, tag: xs[0].tile || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: xs[0].joint || t?.joint, lines, xs, metals }
+    return { key, label: `${xs.map((x) => x.name).join(' + ')}${also && t?.trim ? ' — trim' : ''}`, tile: t, tag: tag || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: (also ? undefined : xs[0].joint) || t?.joint, lines: also ? lines.filter((l) => l.k === 'Note' || l.k === 'Layout') : lines, xs, metals: also ? [] : metals }
   })
 }
 /** the tile's shape from its size — "24 × 48" lies long, "32 × 32" is square */

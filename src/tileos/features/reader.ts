@@ -4,6 +4,7 @@
  *   the real app: the company's AI, on the server
  *   the preview on claude.ai: Claude, through the page (the viewer allows it once) */
 import { REAL } from '@/tileos/lib/save'
+import type { ReadStep } from '@/tileos/lib/reading'
 import type { Job } from '@/tileos/data/model'
 import type { Room, Tile } from '@/tileos/data/jobs'
 
@@ -15,6 +16,8 @@ export type ReadTile = {
   /** how it's laid, how its edges are finished (mitered, or which metal), how high it goes on the walls — when the
    *  paperwork says */
   layout?: string; edge?: string; height?: string
+  /** a trim piece (a wall cap, a jolly, a pencil liner, a bullnose) — it goes on with the walls' tile, by the piece */
+  trim?: boolean
   note?: string
   /** where the tile's own picture is on the pages (the page, from 0, and the box) — and the picture cut out of it */
   photo?: { page: number; box: [number, number, number, number] }
@@ -49,7 +52,7 @@ async function imagePage(f: Blob): Promise<Blob> {
     return await toJpeg(c)
   } finally { URL.revokeObjectURL(url) }
 }
-async function pdfPages(f: File, max: number): Promise<Blob[]> {
+async function pdfPages(f: File, max: number, onPage?: (done: number, total: number) => void): Promise<Blob[]> {
   /* PDFs are read in the browser only — this keeps the PDF reader out of the server's bundle */
   if (import.meta.env.SSR) throw new ReadError('server', 'PDFs are read in the browser')
   const pdfjs: any = await import('pdfjs-dist')
@@ -59,7 +62,9 @@ async function pdfPages(f: File, max: number): Promise<Blob[]> {
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false }).promise
   const out: Blob[] = []
   try {
-    for (let i = 1; i <= Math.min(pdf.numPages, max); i++) {
+    const n = Math.min(pdf.numPages, max)
+    for (let i = 1; i <= n; i++) {
+      onPage?.(i - 1, n)
       const page = await pdf.getPage(i)
       const v1 = page.getViewport({ scale: 1 })
       const vp = page.getViewport({ scale: Math.min(3, SIDE / Math.max(v1.width, v1.height)) })
@@ -76,13 +81,15 @@ async function pdfPages(f: File, max: number): Promise<Blob[]> {
   } finally { await pdf.destroy() }
   return out
 }
-/** every page of every file as a picture, up to `max` */
-export async function pagesOf(files: File[], max = MAX_PAGES): Promise<Blob[]> {
+/** every page of every file as a picture, up to `max` — saying how far it got (each page opened, of how many) */
+export async function pagesOf(files: File[], max = MAX_PAGES, onStep?: (s: ReadStep) => void): Promise<Blob[]> {
   const out: Blob[] = []
-  for (const f of files) {
+  for (let k = 0; k < files.length; k++) {
+    const f = files[k]
     if (out.length >= max) break
-    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) out.push(...(await pdfPages(f, max - out.length)))
-    else if (/^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name)) out.push(await imagePage(f))
+    const later = files.length - k - 1
+    if (/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name)) out.push(...(await pdfPages(f, max - out.length, (d, n) => onStep?.({ phase: 'pages', done: out.length + d, total: out.length + n + later }))))
+    else if (/^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic)$/i.test(f.name)) { onStep?.({ phase: 'pages', done: out.length, total: out.length + 1 + later }); out.push(await imagePage(f)) }
   }
   return out
 }
@@ -129,30 +136,35 @@ export function paperworkPrompt(job: Job, rooms: Room[], tiles: Tile[]): string 
   const surfaces = rooms.flatMap((r) => r.surfaces.map((x) => `- ${labelOf(r.name, x.name)}${x.sf ? ` · ${x.sf} SF` : ''}${x.tile ? ` · has ${x.tile} now` : ''}`))
   const have = tiles.map((t) => `- ${t.tag} ${t.name}${t.size ? ` (${t.size})` : ''}`)
   return [
-    'You are reading tile paperwork for Cobblestone, a tile installation company. The pictures are the pages of a finish schedule, a tile selection sheet, a showroom quote or a tile order. Read every tile on them.',
+    'You are reading tile paperwork for Cobblestone, a tile installation company. The pictures are the pages of a finish schedule, room sheets (a page for each room), a tile selection sheet, a showroom quote or a tile order. Read every tile on them.',
     '',
     `The project is "${job.name}"${job.address ? ` at ${job.address}` : ''}. These are the walls and floors we are tiling, from our estimate (room · surface · square feet):`,
     ...(surfaces.length ? surfaces : ['- (none entered yet)']),
     ...(have.length ? ['', 'Tiles we already have on the project (keep the same tag when it is the same tile):', ...have] : []),
     '',
+    'Our room names and the paperwork’s often differ — match them by what the room is, not the exact words: "Foyer" on the paperwork is our room with Foyer in its name (like "Foyer / Hallway / Closet"), "Powder Room 1" is our "Powder Room #1", "Main Floor Guest Bathroom" is our "Guest Bath · 1st floor". When a paperwork room clearly isn’t one of ours, leave goesOn empty and name the room in note.',
+    '',
+    'Room sheets: each page is one room, its name big on top. Each tile on it has a small label above its name saying where it goes in that room — FLOOR, WALLS, WALLS TO 4 FT, FLOOR + WALLS TO 3 FT, FLOOR + FIRST 24 INCHES OF WALLS, ACCENT WALL, SHOWER FLOOR, SHOWER WALLS, TOP 4 FT OF SHOWER WALLS, REMAINING WALLS, BACKSPLASH, WALL CAP, CHECKERBOARD… Go by that label: FLOOR is that room’s floor; WALLS (to any height) its walls — or its wainscot, if that’s what we have; FLOOR + WALLS both; SHOWER FLOOR its shower floor; ACCENT WALL its accent wall if we list one, else its walls; CHECKERBOARD its floor. Two tiles can share one wall or floor (a checkerboard, a mix of two colors): give each of them that wall or floor. "Also used in" only says the same tile is on another room’s sheet too — where it goes there is on that room’s own sheet. The same tile on several sheets is ONE tile: give it once, with every wall and floor it goes on.',
+    '',
     'For each different tile on the paperwork give:',
     '- tag: the tag or code the paperwork uses (T-1, FT-2, WT-3…), or "" if it has none',
     '- name: the tile’s name or color, e.g. "Calacatta Gold"',
-    '- maker, size (like "24 x 48"), finish (Matte, Polished, Honed, Gloss…)',
-    '- grout: the grout color if the paperwork says it; joint: the grout joint if given (like 1/16")',
+    '- maker, size as bought (like "24 x 48"), finish (Matte, Polished, Honed, Gloss…)',
+    '- grout: the grout color if the paperwork says it ("Not specified" means it doesn’t — leave it ""); joint: the grout joint if given (like 1/16")',
     '- qty and unit: how much the paperwork has of it, unit "SF" or "boxes" (cartons count as boxes); boxSF: square feet in a box, if shown',
     '- supplier: the store or showroom, if shown',
-    '- goesOn: which of OUR walls and floors listed above it goes on — copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, floor, shower walls, backsplash…). If it doesn’t say, leave it empty — don’t guess.',
-    '- layout: the pattern if the paperwork gives it — Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave…',
+    '- goesOn: which of OUR walls and floors listed above it goes on — copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, the label over the tile, floor, shower walls, backsplash…). If it doesn’t say, leave it empty — don’t guess.',
+    '- layout: the pattern if the paperwork gives it — Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave, Checkerboard… — and if the tile is cut down on the job ("Cut to 12 × 12"), add that, like "Checkerboard · cut to 12 x 12"',
     '- edge: how its open edges and outside corners are finished, if the paperwork says — "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',
-    '- height: on walls, how high it goes if the paperwork says — "Fully tiled — to the ceiling", "Half tiled — to 4 ft", "Wet walls only — to the ceiling", or a height like 84″',
-    '- note: where the paperwork puts it in its own words (like "Vanity / toilet accent wall"), and anything unclear about this tile, in a few words',
-    '- photo: if the pages show a picture of this tile (a sample photo or swatch), where it is: {"page": the picture number (1 for the first picture you were sent), "box": [ymin, xmin, ymax, xmax]} — each from 0 to 1000 across that picture, top-left is 0,0. Box just the tile’s picture, not text and not the whole page. Leave photo out if there is no picture of it.',
+    '- height: on walls, how high it goes if the paperwork says and it’s the same everywhere the tile goes — "Fully tiled — to the ceiling", "Half tiled — to 4 ft", "Wet walls only — to the ceiling", or a height like 84″. When it differs by room, say it for each room in "rooms" instead.',
+    '- trim: true when it’s a trim piece, not a field tile — a wall cap, a jolly, a pencil liner, a bullnose, a chair rail, a base. Give it goesOn like any tile (the walls it finishes): it goes on them together with their tile. A metal edge (Schluter and the like) isn’t a tile — say it in edge on the tiles it finishes instead.',
+    '- note: where the paperwork puts it in its own words (like "Accent wall" or "Top 4 ft of shower walls"), and anything unclear about this tile, in a few words',
+    '- photo: if the pages show a picture of this tile (a sample photo or swatch), where it is: {"page": the picture number (1 for the first picture you were sent), "box": [ymin, xmin, ymax, xmax]} — each from 0 to 1000 across that picture, top-left is 0,0. Box just the tile’s picture, not text and not the whole page (two small pictures side by side for one tile: box both). Leave photo out if there is no picture of it.',
     '',
-    'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms" — for example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"}. Use our room names exactly as written above.',
+    'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms" — for example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"} or {"room":"Powder Room #1","note":"Walls to 4 ft"}. Use our room names exactly as written above.',
     '',
     'Answer with JSON only, no other text, in exactly this shape:',
-    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","note":"","photo":{"page":1,"box":[0,0,0,0]}}],"rooms":[{"room":"","note":""}],"notes":""}',
+    '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","trim":false,"note":"","photo":{"page":1,"box":[0,0,0,0]}}],"rooms":[{"room":"","note":""}],"notes":""}',
     'In "notes" put anything on the paperwork that matters for the job but isn’t a tile — a revision date, a missing page, a question. Leave a field "" (or 0) when the paperwork doesn’t give it.',
   ].join('\n')
 }
@@ -183,21 +195,26 @@ export function cleanRead(raw: any, rooms: Room[]): Omit<ReadResult, 'pages'> {
       finish: str(t?.finish) || undefined, grout: str(t?.grout) || undefined, joint: str(t?.joint) || undefined,
       qty: num(t?.qty), unit, boxSF: num(t?.boxSF), supplier: str(t?.supplier) || undefined, goesOn, note: str(t?.note) || undefined,
       layout: str(t?.layout) || undefined, edge: str(t?.edge) || undefined, height: str(t?.height) || undefined,
+      ...(t?.trim === true || /^true$/i.test(str(t?.trim)) ? { trim: true } : {}),
       photo: photoOf(t?.photo),
     }
   }).filter((t: ReadTile) => t.name || t.tag)
+    /* "Not specified" is no grout */
+    .map((t: ReadTile) => (t.grout && /^(not specified|none|n\/?a|tbd|—|-)$/i.test(t.grout) ? { ...t, grout: undefined } : t))
   const names = new Map(rooms.map((r) => [norm(r.name), r.name]))
   const roomNotes: ReadRoom[] = (Array.isArray(raw?.rooms) ? raw.rooms : []).map((r: any) => ({ room: names.get(norm(str(r?.room))) || '', note: str(r?.note) })).filter((r: ReadRoom) => r.room && r.note)
   return { tiles, rooms: roomNotes.length ? roomNotes : undefined, notes: str(raw?.notes) || undefined }
 }
 /** what several reads found, as one: the same tile (by its tag, or its name) once, with everything each page said */
+/** a tile's name as words only — "Uptown Morning Side" and "Uptown Morningside" are the same tile */
+export const sameName = (a: string, b: string) => { const n = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ''); return !!n(a) && n(a) === n(b) }
 export function mergeReads(parts: Omit<ReadResult, 'pages'>[]): Omit<ReadResult, 'pages'> {
   const tiles: ReadTile[] = []
-  const keyOf = (t: ReadTile) => (t.tag || t.name).toLowerCase()
   for (const part of parts) for (const t of part.tiles) {
-    const had = tiles.find((x) => keyOf(x) === keyOf(t) || (!!t.tag && x.tag === t.tag) || x.name.toLowerCase() === t.name.toLowerCase())
+    /* the same tag, or (no tags to go by) the same name — the same tile on two room sheets is one tile */
+    const had = tiles.find((x) => (!!t.tag && !!x.tag ? x.tag === t.tag : false) || ((!t.tag || !x.tag || x.tag === t.tag) && sameName(x.name, t.name)))
     if (!had) { tiles.push({ ...t, goesOn: [...t.goesOn] }); continue }
-    for (const k of ['tag', 'maker', 'size', 'finish', 'grout', 'joint', 'boxSF', 'supplier', 'layout', 'edge', 'height', 'photo'] as const) if (!had[k] && t[k]) (had as any)[k] = t[k]
+    for (const k of ['tag', 'maker', 'size', 'finish', 'grout', 'joint', 'boxSF', 'supplier', 'layout', 'edge', 'height', 'photo', 'trim'] as const) if (!had[k] && t[k]) (had as any)[k] = t[k]
     if ((t.qty || 0) > (had.qty || 0)) { had.qty = t.qty; had.unit = t.unit }
     had.goesOn = Array.from(new Set([...had.goesOn, ...t.goesOn]))
     if (t.note && !(had.note || '').includes(t.note)) had.note = [had.note, t.note].filter(Boolean).join(' · ')
@@ -208,13 +225,15 @@ export function mergeReads(parts: Omit<ReadResult, 'pages'>[]): Omit<ReadResult,
 }
 
 /** read the paperwork: the pages, the question, the answer checked */
-export async function readTilePaperwork(job: Job, rooms: Room[], tiles: Tile[], files: File[], signal?: AbortSignal): Promise<ReadResult> {
-  const pages = await pagesOf(files)
+export async function readTilePaperwork(job: Job, rooms: Room[], tiles: Tile[], files: File[], signal?: AbortSignal, onStep?: (s: ReadStep) => void): Promise<ReadResult> {
+  const pages = await pagesOf(files, MAX_PAGES, onStep)
   if (!pages.length) throw new ReadError('nopages', 'Those files aren’t pictures or PDFs we can read.')
   if (signal?.aborted) throw new ReadError('cancelled', 'Stopped.')
   /* 8 pages at a time — then it's put together as one */
   const parts: Omit<ReadResult, 'pages'>[] = []
+  const asks = Math.ceil(pages.length / PER_ASK)
   for (let i = 0; i < pages.length; i += PER_ASK) {
+    onStep?.({ phase: 'reading', done: i / PER_ASK, total: asks, pages: pages.length, per: PER_ASK })
     const chunk = pages.slice(i, i + PER_ASK)
     const which = pages.length > PER_ASK ? `\n\nThese are pages ${i + 1}–${i + chunk.length} of ${pages.length}.` : ''
     const text = await askAI(paperworkPrompt(job, rooms, tiles) + which, chunk, signal)
@@ -226,6 +245,7 @@ export async function readTilePaperwork(job: Job, rooms: Room[], tiles: Tile[], 
   }
   const out = mergeReads(parts)
   /* each tile's picture, cut out of its page — it goes on the tile, and so on the room sheets */
+  onStep?.({ phase: 'pictures', done: 0, total: 1 })
   for (const t of out.tiles) {
     if (!t.photo || !pages[t.photo.page]) continue
     const c = await cutOut(pages[t.photo.page], t.photo.box).catch(() => undefined)

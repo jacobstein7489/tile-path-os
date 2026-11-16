@@ -16,7 +16,7 @@ import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { PEOPLE, type Job, type Tone } from '@/tileos/data/model'
-import { GROUTS, JOINTS, SURF_TONE, surfacePct, roomPct, tilesOf, tileOf, floorsOf, type Room, type Surface, type Tile } from '@/tileos/data/jobs'
+import { GROUTS, JOINTS, SURF_TONE, surfacePct, roomPct, tilesOf, tileOf, floorsOf, hasTile, sfFor, type Room, type Surface, type Tile } from '@/tileos/data/jobs'
 import { needWithWaste } from '@/tileos/data/work'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { methodOf, suggestMethod, methodsFor, kindOf } from '../takeoff'
@@ -25,7 +25,9 @@ import { scopeLock, takesTile } from '../steps'
 import { surfaceFix } from './overview'
 import { Section, Empty, Group, Strip, GREEN, SHEET } from './kit'
 import { ScopeAreaAdder, AreaPicker, RoomMenu, RoomLines } from '../roomedit'
-import { estimateInto } from '../bringin'
+import { estimateInto, stopEstimate } from '../bringin'
+import { ReadingCard } from '../readcard'
+import { useReadingOf } from '@/tileos/lib/reading'
 import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
@@ -42,8 +44,9 @@ export function tileStatus(s: Pick<Store, 'checks' | 'shortages' | 'rooms'>, job
   const sh = s.shortages.find((x) => x.jobId === jobId && x.tag === tag && x.step !== 'received')
   if (sh) return { tone: 'bad', label: sh.step === 'short' ? `${sh.qty} ${sh.unit} short` : `Reordered · ${sh.eta || 'coming'}` }
   const c = s.checks.find((y) => y.jobId === jobId && y.tag === tag)
-  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === tag)
-  const sf = on.reduce((n, x) => n + (x.sf || 0), 0)
+  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, tag))
+  const sf = on.reduce((n, x) => n + sfFor(jobId, x, tag), 0)
+  if (tileOf(jobId, tag)?.trim && on.length && !s.checks.some((y) => y.jobId === jobId && y.tag === tag)) return { tone: 'neutral', label: 'Trim — by the piece' }
   if (!c) return sf ? { tone: 'warn', label: 'Not ordered yet' } : on.length ? { tone: 'neutral', label: 'No square feet yet' } : { tone: 'neutral', label: 'Not on a wall or floor yet' }
   const need = needWithWaste(c)
   if (c.ordered < need) return { tone: 'bad', label: `Order is ${need - c.ordered} ${c.unit} short` }
@@ -51,7 +54,7 @@ export function tileStatus(s: Pick<Store, 'checks' | 'shortages' | 'rooms'>, job
   if (c.received > 0) return { tone: 'warn', label: `${c.received} of ${c.ordered} ${c.unit} here` }
   return { tone: 'info', label: c.eta && c.eta !== 'TBD' ? `Ordered · due ${c.eta}` : 'Ordered' }
 }
-const usesOf = (rooms: Room[], tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === tag).map((x) => ({ room: r, x })))
+const usesOf = (rooms: Room[], tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r, x })))
 
 /* ---------------- the search on top: every word has to be somewhere on the line ---------------- */
 const wordsOf = (q: string) => q.toLowerCase().split(/\s+/).filter(Boolean)
@@ -80,43 +83,48 @@ type Hits = ReturnType<typeof scopeMatches>
 const IN_FIELD_ = ['installation', 'punch', 'closeout', 'complete']
 /** no rooms yet (a project made here, not from an approved estimate): set the scope up right here — its estimate (the
  *  rooms, walls and floors read from it by themselves), or a room at a time by hand */
-export function ScopeStart({ job, bare, onAdded }: { job: Job; /** just the buttons — where what it's for is said already (the estimate step) */ bare?: boolean; /** a room was added by hand — the scope opens to go on with it */ onAdded?: () => void }) {
+export function ScopeStart({ job, bare, onAdded }: { job: Job; /** just the buttons — where what it's for is said already (the estimate step) */ bare?: boolean; /** a room was added by hand — the scope opens to go on with it */ onAdded?: (room: string) => void }) {
   const s = useStore()
   const can = scopeLock(s, job.id).canEdit
   const file = React.useRef<HTMLInputElement>(null)
-  const [now, setNow] = React.useState<'' | 'reading' | 'bad'>('')
-  const read = (f?: File) => {
+  /* the reading lives outside this window (lib/reading): leave and come back, it's still going — with how far it got */
+  const reading = useReadingOf('estimate', job.id)
+  const last = React.useRef<File | null>(null)
+  const read = (f?: File | null) => {
     if (!f) return
-    setNow('reading')
-    void estimateInto(job.id, f).then(() => setNow(''), () => setNow('bad'))
+    last.current = f
+    void estimateInto(job.id, f).catch(() => undefined)
   }
+  const card = reading ? <ReadingCard r={reading} onStop={() => stopEstimate(job.id)} onRetry={last.current ? () => read(last.current) : undefined} className="mb-3" /> : null
+  const going = !!reading && !reading.failed
   if (bare) return (
     <div data-scope-start data-bare>
+      {card}
       {can ? (
-        <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
+        !going && <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_button]:w-full">
           <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
-          <Button variant="primary" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Upload the estimate'}</Button>
+          <Button variant="primary" icon={<Upload />} onClick={() => file.current?.click()} data-scope-estimate-btn>Upload the estimate</Button>
           {/* the whole scope is built in one place: this window gives way to the scope of work */}
           <Button icon={<Layers3 />} onClick={() => s.swap({ t: 'scopewin', jobId: job.id })} data-scope-by-hand>Build it by hand</Button>
         </div>
       ) : <div className="text-[0.84375rem] text-muted">{PEOPLE[scopeLock(s, job.id).owner]?.short || 'The office'} adds it.</div>}
-      {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
     </div>
   )
+  if (going) return <div data-scope-start>{card}</div>
   return (
     <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-5 py-4 max-sm:px-4" data-scope-start>
+      {card}
       <div className="text-[0.9375rem] font-semibold text-ink">No rooms yet</div>
       <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Upload its estimate — the rooms, walls and floors fill in by themselves. Or build it here, floor by floor.' : 'They come from its estimate — the office adds it.'}</div>
       {can && (
         <>
           <div className="mt-3">
             <input ref={file} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-scope-estimate onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; read(f) }} />
-            <Button variant="primary" size="sm" icon={now === 'reading' ? <FileText /> : <Upload />} disabled={now === 'reading'} onClick={() => file.current?.click()} data-scope-estimate-btn>{now === 'reading' ? 'Reading the estimate…' : 'Upload the estimate'}</Button>
+            <Button variant="primary" size="sm" icon={<Upload />} onClick={() => file.current?.click()} data-scope-estimate-btn>Upload the estimate</Button>
           </div>
-          {now === 'bad' && <div className="mt-2 text-[0.8125rem] text-bad-700" data-scope-estimate-bad>Couldn’t read the estimate just now — try again.</div>}
           <div className="mt-4 border-t border-line-2 pt-3.5" data-scope-build>
             <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers3 className="h-4 w-4 text-muted" />Or build it here<span className="font-normal text-muted">— pick the floor, then each room; it comes with its usual walls and floors</span></div>
-            <AreaPicker jobId={job.id} onAdded={() => onAdded?.()} />
+            <AreaPicker jobId={job.id} onAdded={(room) => onAdded?.(room)} />
           </div>
         </>
       )}
@@ -206,7 +214,7 @@ export function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
       <div className={BAND} style={{ background: GREEN }}><span>Tile schedule</span><span>Square feet</span></div>
       {tiles.map((t) => {
         const uses = usesOf(rooms, t.tag)
-        const sf = uses.reduce((n, u) => n + (u.x.sf || 0), 0)
+        const sf = Math.round(uses.reduce((n, u) => n + sfFor(job.id, u.x, t.tag), 0))
         const st = tileStatus(s, job.id, t.tag)
         const grout = t.grout || uses.find((u) => u.x.grout)?.x.grout
         return (
@@ -512,7 +520,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
   const cur = tag ? s.tiles[jobId]?.[tag] : undefined
   const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: '', suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
   const flat = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.map((x) => ({ room: r.name, surface: x.name, x })))
-  const [on, setOn] = React.useState<string[]>(() => (cur ? flat.filter((f) => f.x.tile === cur.tag).map(refKey) : room && surface ? [refKey({ room, surface })] : []))
+  const [on, setOn] = React.useState<string[]>(() => (cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map(refKey) : room && surface ? [refKey({ room, surface })] : []))
   const [busy, setBusy] = React.useState(false)
   const [confirmDel, setConfirmDel] = React.useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)

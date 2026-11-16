@@ -9,7 +9,7 @@ import { siteSpotHolder } from '@/tileos/lib/twins'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
 import type { Task, MoneyItem, PO, TileCheck } from '@/tileos/data/work'
 import { needWithWaste } from '@/tileos/data/work'
-import { surfacePct, tileOf } from '@/tileos/data/jobs'
+import { surfacePct, tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
 import { approveEstimateInAward } from './flows2'
@@ -640,9 +640,9 @@ export function receiveMat(matId: string, qty: number, condition: string) {
 /** what the rooms need of a tile, in the unit it's counted in (SF, boxes…) — the walls and floors it goes on, with
  *  the extra for cuts. Unknown (no rooms with square feet on it): what was measured for it, with its own extra. */
 export function needOf(s: Pick<Store, 'rooms' | 'rules'>, jobId: string, c: TileCheck): number | undefined {
-  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile === c.tag && (x.sf || 0) > 0)
+  const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, c.tag) && sfFor(jobId, x, c.tag) > 0)
   const wallish = (n: string) => !/floor|hearth|step|landing|threshold|saddle/i.test(n)
-  const needSF = Math.ceil(on.reduce((n, x) => n + (x.sf || 0) * (1 + ((wallish(x.name) ? s.rules.waste?.walls : s.rules.waste?.floors) ?? 10) / 100), 0))
+  const needSF = Math.ceil(on.reduce((n, x) => n + sfFor(jobId, x, c.tag) * (1 + ((wallish(x.name) ? s.rules.waste?.walls : s.rules.waste?.floors) ?? 10) / 100), 0))
   if (on.length && needSF) {
     if (/^sf$/i.test(c.unit)) return needSF
     const t = tileOf(jobId, c.tag)
@@ -723,7 +723,7 @@ export function receiveBoxes(jobId: string, rows: { tag: string; boxes: number; 
       let c = s.checks.find((x) => x.jobId === jobId && x.tag === r.tag)
       if (!c) {
         /* nothing ordered through Tile OS (the GC bought it): it's here now — that's what's counted */
-        const on = (s.rooms[jobId] || []).flatMap((rm) => rm.surfaces.filter((x) => x.tile === r.tag).map((x) => `${rm.name} ${x.name.toLowerCase()}`))
+        const on = (s.rooms[jobId] || []).flatMap((rm) => rm.surfaces.filter((x) => hasTile(x, r.tag)).map((x) => `${rm.name} ${x.name.toLowerCase()}`))
         s.checks.push({ jobId, tag: r.tag, where: on.join(' · '), unit: per ? 'SF' : 'boxes', measured: 0, wastePct: 0, ordered: 0, received: 0, supplier: t?.supplier || '', suppliedBy: t?.suppliedBy || 'GC' })
         c = s.checks[s.checks.length - 1]
       }
@@ -1195,7 +1195,7 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
         c.eta = o.neededBy
         c.note = id
       } else {
-        const where = rooms.flatMap((r) => r.surfaces.filter((x) => x.tile === l.tag).map((x) => `${r.name} ${x.name.toLowerCase()}`)).join(' · ')
+        const where = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, l.tag)).map((x) => `${r.name} ${x.name.toLowerCase()}`)).join(' · ')
         s.checks.push({ jobId, tag: l.tag, where, unit: l.unit, measured: l.n, wastePct: 0, ordered: l.n, received: 0, supplier: o.supplier, suppliedBy: us ? 'Us' : o.paidBy, eta: o.neededBy, note: id })
       }
     })
@@ -1632,7 +1632,7 @@ export function sendIPO(jobId: string) {
   if (!j0 || !crew) return
   S().commit((s) => {
     const rooms = s.rooms[jobId] || []
-    const isFloor = (tag: string) => rooms.some((r) => r.surfaces.some((x) => x.tile === tag && /floor|base|hearth/i.test(x.name))) && !rooms.some((r) => r.surfaces.some((x) => x.tile === tag && /wall|splash|shower w|tub/i.test(x.name)))
+    const isFloor = (tag: string) => rooms.some((r) => r.surfaces.some((x) => hasTile(x, tag) && /floor|base|hearth/i.test(x.name))) && !rooms.some((r) => r.surfaces.some((x) => hasTile(x, tag) && /wall|splash|shower w|tub/i.test(x.name)))
     const lines = s.checks
       .filter((c) => c.jobId === jobId && c.unit === 'SF')
       .map((c) => {
