@@ -6,7 +6,8 @@ import { Command } from 'cmdk'
 import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
-import { updateReady, watchUpdateReady, updateNow } from '@/tileos/lib/device'
+import { updateReady, watchUpdateReady, updateNow, checkNow } from '@/tileos/lib/device'
+import { toast } from '@/tileos/lib/pop'
 import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -240,8 +241,9 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {role === 'owner' && !REAL.cloud && !REAL.sampleView && <MenuItem icon={<Eraser className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'testdata' } as any)} hint="Start fresh, or bring the sample back">Test data</MenuItem>}
       {REAL.sampleView && <MenuItem icon={<Undo2 className="h-4 w-4" />} onSelect={leaveSample} hint="Leave the sample projects">Back to my projects</MenuItem>}
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
-      {/* just the version — how fast it opened and the robot's times are in Settings → This device */}
-      {BUILT && <div className="px-2.5 pb-1 pt-2 text-[0.71875rem] text-faint" data-version>Version {BUILT}</div>}
+      {/* just the version — tap it to check for a newer one (how fast it opened and the robot's times are in Settings →
+          This device) */}
+      {BUILT && <MenuItem icon={<RotateCw className="h-4 w-4" />} onSelect={() => { void checkNow().then((r) => { if (r === 'same') toast(`This is the newest — Version ${BUILT}`); else if (r === 'error') toast('Couldn’t check — no signal?') }) }} hint="Tap to check for a newer one" data-version>Version {BUILT}</MenuItem>}
     </>
   )
 }

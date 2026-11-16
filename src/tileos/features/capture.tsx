@@ -101,15 +101,14 @@ export function dayCounts(s: Store): { open: number; today: number; late: number
   try { late = lateOf(s, s.role).length } catch { /* fine */ }
   return { open, today, late }
 }
-/** hello — with the day in numbers; opened on a project: about that one */
+/** hello, like a person — no numbers nobody asked for; opened on a project: about that one */
 export function greeting(s: Store, jobId?: string): string {
   const me = meOf(s.role)
   const first = String(PEOPLE[me]?.short || PEOPLE[me]?.name || '').split(' ')[0]
   const h = new Date().getHours()
-  const hi = `${h < 12 ? 'Good morning' : h < 17 ? 'Hi' : 'Good evening'}${first ? `, ${first}` : ''}.`
-  if (jobId && s.jobs[jobId]) return `${hi} What’s going on at ${s.jobs[jobId].name}?`
-  const c = dayCounts(s)
-  return `${hi} ${c.open} open ${c.open === 1 ? 'job' : 'jobs'} — ${c.today} on your list today${c.late ? `, ${c.late} late` : ''}. What’s going on?`
+  const hi = `${h < 12 ? 'Good morning' : h < 17 ? 'Hi' : 'Good evening'}${first ? `, ${first}` : ''}`
+  if (jobId && s.jobs[jobId]) return `${hi} — what’s going on at ${s.jobs[jobId].name}?`
+  return `${hi} — what’s up?`
 }
 
 /** the conversation so far, the way the AI reads it */
@@ -337,7 +336,15 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
   React.useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [turns.length, last?.thinking, last?.state])
   /* the box grows with what's in it */
   const shown = mic.on || mic.busy ? `${text}${text && mic.hearing ? ' ' : ''}${mic.hearing}` : text
-  React.useLayoutEffect(() => { const el = box.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 160)}px` } }, [shown])
+  React.useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    el.style.height = 'auto'
+    const most = Math.max(160, Math.round(window.innerHeight * 0.42))
+    el.style.height = `${Math.min(el.scrollHeight, most)}px`
+    /* talking (or a long one): the newest words stay in view — never hidden under the bottom of the box */
+    if (el.scrollHeight > most && (mic.on || mic.busy || document.activeElement !== el || el.selectionStart === el.value.length)) el.scrollTop = el.scrollHeight
+  }, [shown])
   React.useEffect(() => { if (listen && mic.can) { take.current = true; mic.start() } }, [])
   React.useEffect(() => { if (ask?.trim()) void send(ask) }, [])
   React.useEffect(() => () => abort.current?.abort(), [])
@@ -444,11 +451,10 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
           )}
           {mic.on && mic.quiet && <div className="mb-2 text-center text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything — is the right microphone on?</div>}
           {mic.err && <div className="mb-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>{mic.err}</div>}
-          <div className="flex w-full items-end gap-2">
-            {mic.on && (
-              <button type="button" onClick={dropTalking} aria-label="Never mind" data-capture-cancel
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink-2 transition hover:bg-wash active:scale-95"><X className="h-5 w-5" /></button>
-            )}
+          {/* the box, like ChatGPT's: what you write or say on top, the whole width (it grows with it — the newest words
+              always in view), the buttons under it: ✕ on the left (clear it, or never mind while talking), the mic and
+              send on the right (✓ while talking) */}
+          <div className={cn('flex w-full flex-col rounded-[1.375rem] border bg-white transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50', mic.on ? 'border-brand-300' : 'border-line')} data-capture-box>
             <textarea
               ref={box}
               value={shown}
@@ -458,31 +464,39 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
               placeholder={mic.on ? 'Listening…' : 'Type, or tap the mic'}
               aria-label="Ask Tile OS, or tell it what to do"
               rows={1}
-              className="min-h-11 min-w-0 flex-1 resize-none rounded-[1.375rem] border border-line bg-white px-4 py-[0.5625rem] text-[1rem] leading-6 text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
+              className="min-h-11 w-full resize-none rounded-t-[1.375rem] bg-transparent px-4 pb-0.5 pt-[0.625rem] text-[1rem] leading-6 text-ink placeholder:text-faint focus:outline-none"
               data-capture-text
             />
-            {mic.on
-              ? <button type="button" onClick={doneTalking} aria-label="Done talking" data-capture-done
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95"><Check className="h-5 w-5" strokeWidth={2.75} /></button>
-              : <>
-                  {mic.can && (
-                    <button type="button" onClick={talk} disabled={mic.busy || busy} aria-label="Talk" data-capture-mic
-                      className={cn('inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50', text.trim() ? 'border border-line bg-white text-ink-2 hover:bg-wash' : 'bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] hover:bg-brand-700')}>
-                      <Mic className="h-5 w-5" />
-                    </button>
-                  )}
-                  {text.trim() && !mic.busy && (
-                    <button type="button" onClick={() => void send()} disabled={busy} aria-label="Send" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50" data-capture-send data-capture-make><ArrowUp className="h-5 w-5" /></button>
-                  )}
-                </>}
+            <div className="flex items-center gap-2 px-1.5 pb-1.5">
+              {mic.on
+                ? <button type="button" onClick={dropTalking} aria-label="Never mind" data-capture-cancel className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-wash active:scale-95"><X className="h-5 w-5" /></button>
+                : text.trim() && !mic.busy
+                  ? <button type="button" onClick={() => { setText(''); before.current = ''; box.current?.focus() }} aria-label="Clear it" data-capture-clear className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-wash active:scale-95"><X className="h-5 w-5" /></button>
+                  : null}
+              <span className="flex-1" />
+              {mic.on
+                ? <button type="button" onClick={doneTalking} aria-label="Done talking" data-capture-done
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95"><Check className="h-5 w-5" strokeWidth={2.75} /></button>
+                : <>
+                    {mic.can && (
+                      <button type="button" onClick={talk} disabled={mic.busy || busy} aria-label="Talk" data-capture-mic
+                        className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50', text.trim() ? 'text-ink-2 hover:bg-wash' : 'bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] hover:bg-brand-700')}>
+                        <Mic className="h-5 w-5" />
+                      </button>
+                    )}
+                    {text.trim() && !mic.busy && (
+                      <button type="button" onClick={() => void send()} disabled={busy} aria-label="Send" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50" data-capture-send data-capture-make><ArrowUp className="h-5 w-5" /></button>
+                    )}
+                  </>}
+            </div>
           </div>
         </div>
       }
       bodyClass="px-5 pb-3 pt-1 max-sm:px-4"
     >
-      <div className="space-y-3" data-capture-chat>
+      <div className="space-y-3 [&>div]:[contain:layout_paint]" data-capture-chat>
         {turns.map((t) => t.who === 'me'
-          ? <div key={t.id} className="flex justify-end" data-capture-mine><p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-tr-md bg-brand-600 px-4 py-2.5 text-[0.9375rem] leading-relaxed text-white">{t.text}</p></div>
+          ? <Mine key={t.id} text={t.text} />
           : (
             <div key={t.id} className="space-y-2" data-capture-bot>
               <div className="flex items-start gap-2">
@@ -501,6 +515,11 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
 }
 
 /** what it offers to do: the new things and the changes, to check — nothing happens before the yes */
+/** what you said, on the right — drawn once (a long talk scrolls lighter) */
+const Mine = React.memo(function Mine({ text }: { text: string }) {
+  return <div className="flex justify-end" data-capture-mine><p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-tr-md bg-brand-600 px-4 py-2.5 text-[0.9375rem] leading-relaxed text-white">{text}</p></div>
+})
+
 function Offer({ t, me, team, onItem, onDropItem, onDropAct, onYes, onNo }: { t: Turn; me: PersonKey; team: PersonKey[]; onItem: (tid: string, id: string, p: Partial<CapItem>) => void; onDropItem: (tid: string, id: string) => void; onDropAct: (tid: string, id: string) => void; onYes: () => void; onNo: () => void }) {
   const s = useStore()
   const items = t.items || []

@@ -55,8 +55,8 @@ function loadedFiles(): Set<string> {
   try { assetsIn(document.documentElement.outerHTML).forEach((x) => out.add(x)) } catch { /* fine */ }
   return out
 }
-/* moved for a version once: never again for the same one for a day — if it still looks newer after moving, it's this
-   check that's wrong, and the app must not go round opening twice */
+/* moved for a version once: never again by itself for the same one for a day (it must not go round opening twice) —
+   if it still looks newer after moving, the button shows instead: one tap clears the copy kept on the device */
 const MOVED = 'tileos-moved-to'
 const DAY_MS = 24 * 60 * 60 * 1000
 /** keep the new page on the device, and say when it's kept (or give up after a few seconds) */
@@ -80,11 +80,21 @@ export const updateReady = () => ready
 export function watchUpdateReady(f: () => void) { readyWatch.add(f); return () => { readyWatch.delete(f) } }
 /** for the test app: as if a new version were waiting */
 export const showUpdateReady = (on = true) => setReady(on)
-/** move to the new version now (the button): keep its page on the device, then open it */
+/** move to the new version now (the button, or Version in the account menu): the copy kept on the device goes — the
+ *  service worker and its files, never the company's data — and the newest opens from the server */
 export async function updateNow(reload: () => void = () => location.reload()) {
   try { localStorage.removeItem(MOVED) } catch { /* fine */ }
-  await keepNewPage()
+  try { const regs = (await navigator.serviceWorker?.getRegistrations?.()) || []; await Promise.all(regs.map((r) => r.unregister())) } catch { /* fine */ }
+  try { const keys = await caches.keys(); await Promise.all(keys.filter((k) => k.startsWith('tileos-app-')).map((k) => caches.delete(k))) } catch { /* fine */ }
   reload()
+}
+/** "is there a newer one?" — asked from the account menu: a newer one opens right away */
+export async function checkNow(o: { get?: () => Promise<string>; loaded?: Set<string>; reload?: () => void } = {}): Promise<'same' | 'updating' | 'error'> {
+  let html = ''
+  try { html = o.get ? await o.get() : await (await fetch('/', { cache: 'no-store', credentials: 'same-origin' })).text() } catch { return 'error' }
+  if (!isNewer(html, o.loaded || loadedFiles())) return 'same'
+  await updateNow(o.reload)
+  return 'updating'
 }
 /** look once: true when it moved (or is about to) */
 export async function checkForNewVersion(o: { idle: () => boolean; now: boolean; get?: () => Promise<string>; loaded?: Set<string>; reload?: () => void }): Promise<'same' | 'moved' | 'later' | 'error'> {
@@ -94,7 +104,7 @@ export async function checkForNewVersion(o: { idle: () => boolean; now: boolean;
   const sig = Array.from(assetsIn(html)).sort().join(',')
   let was: { sig?: string; at?: number } | null = null
   try { was = JSON.parse(localStorage.getItem(MOVED) || 'null') } catch { /* private window */ }
-  if (was?.sig === sig && Date.now() - (was.at || 0) < DAY_MS) return 'later'
+  if (was?.sig === sig && Date.now() - (was.at || 0) < DAY_MS) { setReady(true); return 'later' }
   if (!o.now || !o.idle()) { setReady(true); return 'later' }
   try { localStorage.setItem(MOVED, JSON.stringify({ sig, at: Date.now() })) } catch { /* private window */ }
   await keepNewPage()

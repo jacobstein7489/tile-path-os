@@ -66,7 +66,8 @@ export function Helper({ size = 48, mood = 'idle', className, still }: { size?: 
             <rect x="37.4" y="23.4" width="4.6" height="5.6" rx="2.3" fill={lit} />
           </g>
         ) : (
-          <g className="helper-blink">
+          /* the small ones in a talk sit still (no blinking) — a long talk scrolls lighter */
+          <g className={still ? undefined : 'helper-blink'}>
             <rect x="24" y="24.4" width="4.6" height="7.6" rx="2.3" fill={lit} />
             <rect x="35.4" y="24.4" width="4.6" height="7.6" rx="2.3" fill={lit} />
           </g>

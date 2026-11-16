@@ -14,7 +14,8 @@ export function AskButton() {
   return (
     <button
       type="button"
-      onClick={() => open({ t: 'capture', listen: true })}
+      /* it opens — you tap the mic when you're ready (it never starts listening by itself) */
+      onClick={() => open({ t: 'capture' })}
       aria-label="Talk to Tile OS — ask, or say what’s going on"
       title="Ask me, or tell me what’s going on"
       data-ask-button

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Updating Tile OS</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f4f1eb; color: #1c1a16; font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  p { margin: 0; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<p>Getting the newest Tile OS…</p>
+<script>
+/* A phone stuck on an old version: the copy the app keeps on the device is cleared (never the company's data — that
+   lives in the database and the app's own store), then the newest app opens from the server. */
+(async () => {
+  try { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map((r) => r.unregister())) } catch (e) { /* fine */ }
+  try { const keys = await caches.keys(); await Promise.all(keys.filter((k) => k.indexOf('tileos-app-') === 0).map((k) => caches.delete(k))) } catch (e) { /* fine */ }
+  try { localStorage.removeItem('tileos-moved-to') } catch (e) { /* fine */ }
+  location.replace('/?fresh=' + Date.now())
+})()
+</script>
+</body>
+</html>
