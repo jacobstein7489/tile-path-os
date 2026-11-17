@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
 import { DOC_GREEN, DOC_GRAY } from '../docpaper'
-import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -142,6 +142,8 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
         <h3 className="text-[1rem] font-semibold text-ink">Scope of work</h3>
         {rooms.length > 0 && (
           <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>*]:w-full max-sm:[&>*:nth-child(3):last-child]:col-span-2" data-scope-buttons>
+            {/* the quick way to change it: say what changed — it shows the changes to OK first */}
+            {canEdit && <Button size="sm" variant="primary" icon={<Mic />} onClick={() => s.open({ t: 'scopetalk', jobId: job.id })} data-scope-talk>Change by talking</Button>}
             {canEdit && <Button size="sm" icon={<Upload />} onClick={picker.pick} data-scope-paper>Tile paperwork</Button>}
             <PrintMenu job={job} />
             {canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}

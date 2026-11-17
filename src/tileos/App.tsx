@@ -73,6 +73,7 @@ import { StepModal } from '@/tileos/features/stepwin'
 import { BilledBeforeModal } from '@/tileos/features/job/money-tab'
 import { GamePlanPage, ReadyToBookModal } from '@/tileos/features/gameplan'
 import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
+import { ScopeTalkModal } from '@/tileos/features/scopetalk'
 import { BringInModal } from '@/tileos/features/bringin'
 import { CatchUpModal } from '@/tileos/features/catchup'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
@@ -190,6 +191,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'pay': return <PayModal crew={m.crew} week={m.week} level={level} />
     case 'layout': return <LayoutModal jobId={m.jobId} room={m.room} surface={m.surface} tile={m.tile} level={level} />
     case 'layouts': return <LayoutsModal jobId={m.jobId} level={level} />
+    case 'scopetalk': return <ScopeTalkModal jobId={m.jobId} room={m.room} level={level} />
     case 'surface': return <SurfaceModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
     case 'tile': return <TileModal jobId={m.jobId} tag={m.tag} room={m.room} surface={m.surface} level={level} />
     case 'daily': return <DailyModal jobId={m.jobId} room={m.room} level={level} />
