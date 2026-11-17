@@ -296,7 +296,7 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
       </div>
       {rooms.map((r) => (
         <section key={r.name}>
-          <h4 className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">{r.name}</h4>
+          <h4 className="mb-1.5 text-[0.8125rem] font-bold uppercase tracking-[0.04em] text-ink" data-layouts-list-room>{r.name}</h4>
           <div className="overflow-hidden rounded-[0.75rem] border border-line bg-white">
             {r.rows.map((x) => {
               const tile = tileOf(job.id, x.tile)
@@ -304,7 +304,8 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
               const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
               return (
                 <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout — ${r.name} ${x.name}`}>
-                  {tile ? <TileImg tile={tile} size={30} /> : <span className="h-[30px] w-[30px] shrink-0 rounded-md bg-wash-2" />}
+                  {/* a small drawing of it — the pattern, at its size */}
+                  <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>
                     {x.layout

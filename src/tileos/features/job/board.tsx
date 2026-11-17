@@ -1,16 +1,17 @@
 /* The project — one window that fills the screen, the same shape as the estimate:
  *   on top (in the header) the line, like the estimate's path — Approved · Getting ready · Crew scheduled · Installing ·
  *     Touch-ups · Closed;
- *   under it the project's parts, one tab at a time: Where it stands (getting ready, part by part) · Scope of work (like
- *     the estimate's paper, with its change orders) · Materials (the tile, our materials and metal edges, what's ordered
- *     and here) · Billing · People (the installer and his PO too) · Documents.
+ *   under it the project's parts, one tab at a time: To do (getting ready, part by part) · Scope of work (room by room:
+ *     its details, its tiles with their pictures, every layout a tap away — with its change orders) · Tile & materials
+ *     (each tile once, our materials and metal edges — what's ordered and here) · Billing · People (the installer and
+ *     his PO too) · Documents.
  * A room, the conversation, a file open in the same window, with Back on top. On a phone, one side at a time. */
 import * as React from 'react'
 import { PrintSheetsButton } from '../roomsheets'
 import { ChevronRight } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
 import { Segmented, UnderlineTabs } from '@/tileos/components/ui/core'
-import { TileImg } from '@/tileos/components/ui/swatch'
+import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { type Job } from '@/tileos/data/model'
 import { tilesOf, GROUTS, roomPct } from '@/tileos/data/jobs'
@@ -54,7 +55,7 @@ export function RoomBody({ job, name, tab: tab0, surface }: { job: Job; name: st
   return (
     <div data-panel="room" data-room-open={r.name} className="min-h-[22rem]">
       <div className="px-5 pt-4 max-sm:px-3">
-        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:flex-1" items={[
+        <Segmented value={tab} onChange={setTab} className="w-full [&>button]:flex-1 [&>button]:whitespace-nowrap [&>button:first-child]:flex-[1.4]" items={[
           { key: 'surfaces', label: 'Walls and floors' },
           { key: 'log', label: <>Daily log<span className="ml-1 font-medium text-muted">{entries.length || ''}</span></> },
           { key: 'photos', label: <>Photos<span className="ml-1 font-medium text-muted">{media.length || ''}</span></> },
@@ -71,8 +72,9 @@ export function RoomBody({ job, name, tab: tab0, surface }: { job: Job; name: st
                 <button key={x.name} type="button" data-surface={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: r.name, surface: x.name })} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 row-hover', surface === x.name && 'bg-[#f6f3ee]')}>
                   <TileImg tile={tile} size={34} radius={8} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.90625rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {tile ? `${x.tile} ${tile.name}` : x.tile || 'no tile yet'}{g ? ` · ${GROUTS[g]?.name || g} grout` : ''}</span></span>
-                    <span className={cn('block truncate text-[0.8125rem]', waiting ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-brand-700' : x.state === 'done' ? 'text-[#2c8a5b]' : 'text-muted')}>{x.state === 'working' ? `In progress · ${surfacePct(x)}%` : SURF_LABEL[x.state]}{x.reason ? ` — ${x.reason}` : ''}{x.sf ? ` · ${x.sf} SF` : ''}</span>
+                    {/* its name and its tile; under it where it is, its square feet and its grout */}
+                    <span className="block truncate text-[0.90625rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {tile ? `${x.tile} ${tile.name}` : x.tile || 'no tile yet'}</span></span>
+                    <span className="block truncate text-[0.8125rem] text-muted"><span className={cn(waiting ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-brand-700' : x.state === 'done' ? 'text-[#2c8a5b]' : '')}>{x.state === 'working' ? `In progress · ${surfacePct(x)}%` : SURF_LABEL[x.state]}{x.reason ? ` — ${x.reason}` : ''}</span>{x.sf ? ` · ${x.sf} SF` : ''}{g ? <> · <GroutDot grout={g} size={10} className="mr-1 align-[-0.0625rem]" />{GROUTS[g]?.name || g}</> : ''}</span>
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                 </button>
@@ -136,7 +138,7 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
  *  issues) · Scope of work · Tiles · People · Documents. It opens on Where it stands. */
 export type BoardTab = 'stands' | 'materials' | 'billing' | 'layouts' | JobTab
 const LINK_TAB: Record<string, BoardTab> = {
-  scope: 'scope', rooms: 'scope', walls: 'scope', layouts: 'layouts', tiles: 'materials', materials: 'materials', orders: 'materials', pos: 'materials', deliveries: 'materials',
+  scope: 'scope', rooms: 'scope', walls: 'scope', layouts: 'scope', tiles: 'materials', materials: 'materials', orders: 'materials', pos: 'materials', deliveries: 'materials',
   money: 'billing', billing: 'billing', estimate: 'billing', people: 'people', files: 'files', docs: 'files', documents: 'files',
 }
 /** who sees the money — billing is its own tab, never on top of the work */
@@ -166,7 +168,8 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
     return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
   }
   const money = seesMoney(s.role)
-  const at: BoardTab = tab === 'billing' && !money ? 'stands' : tab
+  /* the layouts are on the scope of work now (its Layouts button) */
+  const at: BoardTab = tab === 'billing' && !money ? 'stands' : tab === 'layouts' ? 'scope' : tab
   const pick = (t: BoardTab) => { setTab(t); if (t !== 'stands') setOpen(null) }
   const sheet = (body: React.ReactNode) => <div data-side="job" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3">{body}</div>
   return (
@@ -180,9 +183,9 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         items={[
           /* what's left on the project — the stage is the bar on top, the rooms are in the scope of work */
           { key: 'stands', label: 'To do', short: 'To do' },
+          /* the scope, its tiles and its layouts — one page, room by room, like Cobblestone's own scope of work */
           { key: 'scope', label: 'Scope of work', short: 'Scope' },
-          /* a computer: its own tab. A phone: a button in the scope of work (the tabs fit across, nothing slides) */
-          { key: 'layouts', label: 'Layouts', wide: true },
+          /* what has to come to the job: each tile once, and our materials — ordered, here */
           { key: 'materials', label: 'Tile & materials', short: 'Materials' },
           ...(money ? [{ key: 'billing' as BoardTab, label: 'Billing' }] : []),
           { key: 'people', label: 'People' },
@@ -194,7 +197,6 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         {at === 'stands'
           ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3"><Stands job={job} open={open} setOpen={setOpen} onStep={onStep || (() => {})} setView={setView} /></div>
           : at === 'materials' ? sheet(<MaterialsTab job={job} onScope={() => setTab('scope')} />)
-            : at === 'layouts' ? sheet(<LayoutsBoard job={job} title />)
             : at === 'billing' ? sheet(<MoneyTab job={job} />)
               : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={at} open={setView} onStep={onStep} /></div>}
       </div>

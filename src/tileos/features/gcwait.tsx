@@ -277,12 +277,14 @@ export function GcLine({ job }: { job: Job }) {
   if (!list.length) return null
   const first = gcState(list[0])
   return (
-    /* a phone: what it waits on goes on its own line under it — never cut down to a stray letter */
+    /* a phone: "Waiting on the GC" on one line, what it waits on and the next reminder on the line under it — in that
+       order, never cut down to a stray letter */
     <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8125rem] sm:flex-nowrap" data-gc-line={list.length}>
       <Hourglass className="h-3.5 w-3.5 shrink-0 text-warn-600" />
       <span className="shrink-0 font-medium text-warn-700">Waiting on the GC</span>
       <span className="shrink-0 text-faint max-sm:hidden" aria-hidden>·</span>
-      <span className="min-w-0 truncate max-sm:order-last max-sm:basis-full max-sm:pl-5" data-gc-line-what>
+      <span className="basis-full sm:hidden" aria-hidden />
+      <span className="min-w-0 truncate max-sm:pl-5" data-gc-line-what>
         {list.slice(0, 3).map((t, i) => (
           <React.Fragment key={t.id}>
             {i > 0 && <span className="text-muted">, </span>}

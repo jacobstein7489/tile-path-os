@@ -285,7 +285,8 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
     >
       {/* a computer: one line, each thing in its column */}
       <div className="flex min-w-0 items-center gap-2 max-md:hidden">
-        <span className="truncate text-[0.9375rem] font-medium text-ink">{j.name}</span>
+        {/* the same weight as Today and the phone — darker than the client, not bolder */}
+        <span className="truncate text-[0.9375rem] text-ink" data-project-name>{j.name}</span>
         {j.kind === 'repair' && <span className="shrink-0 text-[0.8125rem] text-muted">Repair</span>}
       </div>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>

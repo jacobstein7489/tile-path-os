@@ -16,7 +16,7 @@ import { takesTile } from '../steps'
 import { installerOf } from '../upcoming'
 
 /** what a room says when nothing's written for it yet: each wall and floor, and how high the walls go */
-function plainLines(room: Room): string[] {
+export function plainLines(room: Room): string[] {
   return room.surfaces.filter((x) => takesTile(x.name) || x.tile).map((x) => `${x.name}${x.height && isWall(x.name) ? ` — ${x.height.replace(/\s+—\s+/g, ', ').toLowerCase()}` : ''}`)
 }
 

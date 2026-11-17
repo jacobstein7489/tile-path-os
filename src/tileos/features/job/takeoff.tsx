@@ -13,14 +13,12 @@ import { Menu, MenuItem, Pop } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { ItemThumb } from '../items'
 import { addMat, setMatQty, removeMat, restoreMat } from '../matedit'
-import { Status, HEAD_ROW, ViewSwitch } from '@/tileos/components/ui/page'
+import { Status, HEAD_ROW } from '@/tileos/components/ui/page'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { needWithWaste } from '@/tileos/data/work'
 import { tilesOf, tileOf, hasTile, sfFor, GROUTS } from '@/tileos/data/jobs'
 import { sellsTile } from '@/tileos/data/directory'
-import { tileAreas } from '../tilepo'
-import { useOpenAreas, OpenAllLink, FloorBand, AreaBand } from './areas'
 import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
@@ -52,13 +50,6 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   const checks = s.checks.filter((c) => c.jobId === job.id)
   const all = Array.from(new Set([...tilesOf(job.id).map((t) => t.tag), ...checks.map((c) => c.tag)]))
   const [q, setQ] = React.useState('')
-  /* by area or by tile — remembered on this device */
-  const [view, setView0] = React.useState<'area' | 'tile'>(() => { try { return localStorage.getItem('tileos-tile-view') === 'tile' ? 'tile' : 'area' } catch { return 'area' } })
-  const setView = (v: 'area' | 'tile') => { setView0(v); try { localStorage.setItem('tileos-tile-view', v) } catch { /* this device only */ } }
-  /* by area: which areas are open (none at first) */
-  const open = useOpenAreas()
-  const byArea0 = tileAreas(rooms, all)
-  const areaNames = [...byArea0.groups.flatMap((g) => g.rooms.map((r) => r.room)), ...(byArea0.loose.length ? [''] : [])]
   const whereOf = (tag: string) => rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => `${r.name} ${x.name.toLowerCase()}`))
   const ws = q.toLowerCase().split(/\s+/).filter(Boolean)
   const tags = ws.length ? all.filter((tag) => { const t = tileOf(job.id, tag); const hay = [tag, t?.name, t?.size, t?.supplier, t?.grout && GROUTS[t.grout]?.name, ...whereOf(tag)].filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => hay.includes(w)) }) : all
@@ -95,19 +86,15 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
       <div>
         {/* the paperwork being read, or what it entered to check — on top of the list */}
         {paper && <PaperPanel job={job} className="mx-5 mb-4 max-sm:mx-4" />}
-        {/* by area (floor, room, its tiles — like the scope of work) or by tile (each one once, with what to do) — and where
-            the job's tile comes from */}
+        {/* each tile once — the rooms it goes in are on the scope of work, with its picture — and where the job's tile
+            comes from */}
         {!checking && all.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-3 max-sm:px-4" data-tile-view-bar>
-            <ViewSwitch label="How the tile is listed" value={view} onChange={setView} items={[{ key: 'area', label: 'By area' }, { key: 'tile', label: 'By tile' }]} />
-            {view === 'area' && <OpenAllLink any={open.any} onOpen={() => open.setAll(areaNames)} onClose={() => open.setAll([])} />}
-            <span className="flex-1" />
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 px-5 pb-3 empty:hidden max-sm:justify-start max-sm:px-4" data-tile-view-bar>
             <TileStoreLine job={job} canEdit={!simple} />
           </div>
         )}
-        {!checking && view === 'area' && tags.length > 0 && <TileByArea job={job} tags={tags} open={open} />}
-        {!checking && view === 'tile' && tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
-        {!checking && view === 'tile' && tags.map((tag) => {
+        {!checking && tags.length > 0 && <div className={cn(HEAD_ROW, QGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
+        {!checking && tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
           const uses = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, x })))
@@ -128,16 +115,16 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
             <div key={tag} data-tile={tag} className={cn(QGRID, ROWPAD, 'max-sm:grid-cols-1 max-sm:gap-y-1.5')} title={c ? `${c.supplier} · ordered by the ${c.suppliedBy === 'Owner' ? 'owner' : c.suppliedBy === 'Us' ? 'us' : 'GC'}${c ? ` · ordered ${num(c.ordered)}, here ${num(c.received)}` : ''}` : `${who === 'We' ? 'We order it' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'} orders it`}${t?.supplier ? ` from ${t.supplier}` : ''}`}>
               {/* the tile: its picture, name and size — tap it for everything about it (where it goes, its grout) */}
               <button type="button" disabled={simple || !t} onClick={() => s.open({ t: 'tile', jobId: job.id, tag })} className={cn(QFIRST, 'text-left enabled:hover:[&_b]:text-brand-700')} data-tile-open={tag}>
-                <TileImg tile={t} size={32} radius={6} />
-                <span className="min-w-0 leading-tight">
-                  <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size ? <span className="text-muted"> · {t.size}</span> : null}{t?.trim ? <span className="text-muted"> · trim</span> : null}</span>
-                  {/* on a phone: how much, under the name */}
-                  <span className="hidden truncate text-[0.75rem] text-muted max-lg:block">{need ? `${need.toLocaleString('en-US')} ${unit}` : ''}<span className="max-sm:hidden">{need && uses.length ? ' · ' : ''}{Array.from(new Set(uses.map((u) => u.room))).join(', ')}</span></span>
+                {/* its picture big enough to see — its name, and its size under it (a phone: how much too) */}
+                <TileImg tile={t} size={44} radius={6} />
+                <span className="min-w-0 leading-snug">
+                  <span className="block truncate text-[0.9375rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}</span>
+                  <span className="block truncate text-[0.8125rem] text-muted">{[t?.size, t?.trim ? 'trim' : ''].filter(Boolean).join(' · ') || 'No size yet'}<span className="lg:hidden">{need ? ` · ${need.toLocaleString('en-US')} ${unit}` : ''}</span></span>
                 </span>
               </button>
               <span className={cn('min-w-0 truncate text-[0.8125rem] max-lg:hidden', uses.length ? 'text-muted' : 'text-warn-700')}>{uses.length ? Array.from(new Set(uses.map((u) => u.room))).join(', ') : 'Not on a wall or floor yet'}</span>
               <span className="text-right text-[0.8125rem] tnum text-ink-2 max-lg:hidden" title={boxes > 0 ? `${boxes} boxes · with the extra for cuts` : 'With the extra for cuts'}>{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
-              <span className="flex min-w-0 items-center justify-end gap-2.5 max-sm:justify-start max-sm:pl-10">
+              <span className="flex min-w-0 items-center justify-end gap-2.5 max-sm:justify-start max-sm:pl-14">
                 {/* on a tile PO that's still open: its number, one tap to it */}
                 {(() => { const po = openTilePOs(s, job.id, tag)[0]; return po ? <button type="button" onClick={() => s.open({ t: 'po', id: po.id })} className="shrink-0 text-[0.8125rem] font-semibold tnum text-brand-700 hover:underline" data-tile-po={po.id}>{po.id}</button> : null })()}
                 <Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word>
@@ -193,68 +180,6 @@ function TileStoreLine({ job, canEdit }: { job: Job; canEdit: boolean }) {
   )
 }
 
-/** the tile by area, like the scope of work: each floor (green), each area (gray) — closed, with its tiles' pictures
- *  and where they're at in a word; tap an area to open its tiles: where in the room, how much there, where it's at.
- *  Tap a tile for all of it. */
-function TileByArea({ job, tags, open }: { job: Job; tags: string[]; open: ReturnType<typeof useOpenAreas> }) {
-  const s = useStore()
-  const rooms = s.rooms[job.id] || []
-  const areas = tileAreas(rooms, tags)
-  const several = areas.groups.length > 1 || (areas.groups[0] && areas.groups[0].floor !== 'Rooms')
-  /* an area in a word: its tiles' pictures, how many, and the one that's furthest behind */
-  const summary = (list: string[]) => {
-    const sts = list.map((tag) => tileStatus(s, job.id, tag))
-    const worst = sts.find((x) => x.tone === 'bad') || sts.find((x) => x.tone !== 'ok')
-    return (
-      <>
-        <span className="flex -space-x-1.5 max-sm:hidden">{list.slice(0, 4).map((tag) => <span key={tag} className="rounded-[5px] ring-2 ring-[#f0f1ef]"><TileImg tile={tileOf(job.id, tag)} size={20} radius={4} /></span>)}</span>
-        <span className="tnum">{list.length} {list.length === 1 ? 'tile' : 'tiles'}</span>
-        <span className={cn('max-w-[11rem] truncate max-sm:max-w-[7rem]', worst?.tone === 'bad' ? 'font-medium text-bad-600' : worst ? 'text-ink-2' : 'font-medium text-[#2c8a5b]')}>· {worst ? worst.label : 'All here'}</span>
-      </>
-    )
-  }
-  const line = (room: string, tag: string, where?: string) => {
-    const t = tileOf(job.id, tag)
-    const r = rooms.find((x) => x.name === room)
-    const sf = r ? Math.round(r.surfaces.filter((x) => hasTile(x, tag)).reduce((n, x) => n + sfFor(job.id, x, tag), 0)) : 0
-    const st = tileStatus(s, job.id, tag)
-    return (
-      <button key={room + '|' + tag} type="button" onClick={() => t && s.open({ t: 'tile', jobId: job.id, tag })} className="grid w-full grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_5.5rem_minmax(0,1fr)] items-center gap-x-6 border-t border-line-2 px-5 py-2 pl-11 text-left transition row-hover max-md:grid-cols-[minmax(0,1fr)_auto] max-sm:px-3 max-sm:pl-9" data-area-tile={tag} data-area-room={room}>
-        <span className="flex min-w-0 items-center gap-3">
-          <TileImg tile={t} size={32} radius={6} />
-          <span className="min-w-0 leading-tight">
-            <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size ? <span className="text-muted"> · {t.size}</span> : null}{t?.trim ? <span className="text-muted"> · trim</span> : null}</span>
-            <span className="hidden truncate text-[0.75rem] text-muted max-md:block">{[where, sf ? `${sf.toLocaleString('en-US')} SF` : ''].filter(Boolean).join(' · ')}</span>
-          </span>
-        </span>
-        <span className="min-w-0 truncate text-[0.8125rem] text-muted max-md:hidden">{where || '—'}</span>
-        <span className="text-right text-[0.8125rem] tnum text-ink-2 max-md:hidden">{sf ? `${sf.toLocaleString('en-US')} SF` : '—'}</span>
-        <span className="flex min-w-0 justify-end"><Word tone={st.tone === 'bad' ? 'bad' : st.tone === 'ok' ? 'ok' : undefined} className="truncate">{st.label}</Word></span>
-      </button>
-    )
-  }
-  return (
-    <div data-tile-by-area>
-      {areas.groups.map((g) => (
-        <section key={g.floor} data-area-floor={g.floor}>
-          {several && <FloorBand floor={g.floor} count={g.rooms.length} />}
-          {g.rooms.map((r) => (
-            <div key={r.room} data-area-room-block={r.room}>
-              <AreaBand name={r.room} open={open.isOpen(r.room)} onToggle={() => open.toggle(r.room)} right={summary(r.tiles.map((x) => x.tag))} />
-              {open.isOpen(r.room) && r.tiles.map((x) => line(r.room, x.tag, x.where))}
-            </div>
-          ))}
-        </section>
-      ))}
-      {areas.loose.length > 0 && (
-        <div data-area-room-block="">
-          <AreaBand name="Not on a wall or floor yet" open={open.isOpen('')} onToggle={() => open.toggle('')} right={summary(areas.loose)} className="[&_b]:text-warn-800" />
-          {open.isOpen('') && areas.loose.map((tag) => line('', tag))}
-        </div>
-      )}
-    </div>
-  )
-}
 /* ---------------- our materials ---------------- */
 export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode; /** the Materials tab: "Order what's missing" is on the line on top */ orderOnTop?: boolean }) {
   const s = useStore()
