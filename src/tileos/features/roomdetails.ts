@@ -23,8 +23,9 @@ export function edgeShort(edge?: string): string {
 /** "Half tiled — to 4 ft" → "half tiled, to 4 ft" */
 const heightWords = (h: string) => low(h.replace(/\s+—\s+/g, ', '))
 
-/** what the project knows about a room, as its detail lines */
-export function autoDetails(s: Pick<Store, 'estimates' | 'items'>, jobId: string, room: Room): string[] {
+/** what each wall and floor says by itself — how high, the layout, the edges, its note: the part of a room's details
+ *  its walls and floors already show (the scope of work shows them on their own lines) */
+export function surfaceDetailLines(room: Room): string[] {
   const out: string[] = []
   const add = (t: string) => { const v = t.trim(); if (v && !out.some((x) => x.toLowerCase() === v.toLowerCase())) out.push(cap(v)) }
   const tiled = room.surfaces.filter((x) => takesTile(x.name) || x.tile)
@@ -40,7 +41,12 @@ export function autoDetails(s: Pick<Store, 'estimates' | 'items'>, jobId: string
   edges.forEach((e) => add(e === 'Mitered' ? 'Mitered edges' : `Metals: ${e}`))
   /* what's written on a wall or floor */
   room.surfaces.forEach((x) => { if (x.notes) add(`${x.name}: ${low(x.notes)}`) })
-  /* the estimate's other lines in this room — a niche, a saddle, a window wrap */
+  return out
+}
+/** the estimate's other lines in this room — a niche, a saddle, a window wrap */
+export function estimateExtras(s: Pick<Store, 'estimates' | 'items'>, jobId: string, room: Room): string[] {
+  const out: string[] = []
+  const add = (t: string) => { const v = t.trim(); if (v && !out.some((x) => x.toLowerCase() === v.toLowerCase())) out.push(cap(v)) }
   const e = s.estimates.find((x) => x.jobId === jobId)
   const rev = e && (e.revs.find((r) => r.status === 'approved') || [...e.revs].reverse().find((r) => r.status !== 'superseded') || e.revs[e.revs.length - 1])
   ;(rev?.lines || []).filter((l: EstLine) => l.area === room.name && !l.surface && !s.items.find((i) => i.id === l.itemId)?.surface).forEach((l: EstLine) => {
@@ -51,6 +57,12 @@ export function autoDetails(s: Pick<Store, 'estimates' | 'items'>, jobId: string
     const each = !it?.unit || /^(ea|ls)$/i.test(it.unit)
     add(each && l.qty && l.qty >= 1 && Number.isInteger(l.qty) ? `${l.qty} ${low(what)}` : what)
   })
+  return out
+}
+/** what the project knows about a room, as its detail lines */
+export function autoDetails(s: Pick<Store, 'estimates' | 'items'>, jobId: string, room: Room): string[] {
+  const out: string[] = []
+  ;[...surfaceDetailLines(room), ...estimateExtras(s, jobId, room)].forEach((v) => { if (!out.some((x) => x.toLowerCase() === v.toLowerCase())) out.push(v) })
   return out
 }
 /** the room's detail lines: its own, or what the project knows */

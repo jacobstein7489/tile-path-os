@@ -32,6 +32,7 @@ import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
   TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, HEIGHTS, WHICH_WALLS,
+  tileStoreOf,
 } from '../tiles'
 import { EdgePicker } from '../metalpick'
 import { PatternPic, PatternPick } from '../patternpic'
@@ -538,8 +539,9 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
   const s = useStore()
   const job = s.jobs[jobId]
   const cur = tag ? s.tiles[jobId]?.[tag] : undefined
-  /* the store: the job's own (its first tile PO) when the tile doesn't say */
-  const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur, supplier: cur.supplier || job?.tileStore || '' } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: job?.tileStore || '', suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
+  /* the store: the job's own (set once, or the one its paperwork says) when the tile doesn't say */
+  const store0 = tileStoreOf(s, jobId)
+  const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur, supplier: cur.supplier || store0 } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: store0, suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
   const rooms = s.rooms[jobId] || []
   const flat = rooms.flatMap((r) => r.surfaces.map((x) => ({ room: r.name, surface: x.name, x })))
   /* where it is — and, a new tile added from a wall or floor, that one */
@@ -565,7 +567,10 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
     on: on.map((k) => { const [r, sfc] = k.split('|'); return { room: r, surface: sfc } }),
   })
   /* the tile stores (Suppliers that sell tile) first, then any store a tile came from before */
-  const suppliers = Array.from(new Set([...(job.tileStore ? [job.tileStore] : []), ...s.suppliers.filter((x) => sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
+  /* this job's store first, then the tile stores, then every other supplier (Infinity sells our setting materials and
+     tile too) and any store a tile came from before */
+  const active = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name))
+  const suppliers = Array.from(new Set([...(store0 ? [store0] : []), ...active.filter((x) => sellsTile(x)).map((x) => x.name), ...active.filter((x) => !sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
   const moreN = [t.finish && t.finish !== 'Matte' ? 1 : 0, t.maker ? 1 : 0, t.sku ? 1 : 0, t.boxSF ? 1 : 0].reduce((a, b) => a + b, 0)
   return (
     <Modal
@@ -625,7 +630,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
             <Field2 label="Who orders it">
               <Segmented value={t.suppliedBy || 'GC'} onChange={(v) => set({ suppliedBy: v })} items={WHO_ORDERS} className="h-10 w-full [&>button]:flex-1 [&>button]:justify-center" />
             </Field2>
-            <Field2 label="From which store" hint={job.tileStore && t.supplier === job.tileStore ? `This job’s tile store` : undefined}><SearchSelect label="Store" value={t.supplier} onChange={(v) => set({ supplier: v })} options={suppliers.map((x) => ({ key: x, label: x }))} placeholder="Pick or type" onCreate={(v) => set({ supplier: v })} createLabel={(q) => `Add “${q}”`} search width={280} /></Field2>
+            <Field2 label="From which store" hint={store0 && t.supplier === store0 ? `This job’s tile store` : undefined}><SearchSelect label="Store" value={t.supplier} onChange={(v) => set({ supplier: v })} options={suppliers.map((x) => ({ key: x, label: x }))} placeholder="Pick or type" onCreate={(v) => set({ supplier: v })} createLabel={(q) => `Add “${q}”`} search width={280} /></Field2>
           </div>
           {/* the rest of what's on the finish schedule — when it's needed */}
           <button type="button" onClick={() => setMore(!more)} aria-expanded={more} className="mt-3 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-tile-more>
@@ -639,7 +644,8 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
               <Field2 label="SF in a box"><TextInput aria-label="Square feet in a box" inputMode="decimal" value={t.boxSF ? String(t.boxSF) : ''} onChange={(e) => set({ boxSF: Number(e.target.value.replace(/[^0-9.]/g, '')) || undefined })} placeholder="—" className="h-10 tnum" /></Field2>
             </div>
           )}
-          {/* where it goes: shown — each wall or floor picks its own tile; tap one to change it */}
+          {/* where it goes: said, not tapped — each wall or floor picks its own tile, on the scope of work (no window
+              opening another window) */}
           <div className="mt-4 border-t border-line-2 pt-4" data-where-goes>
             <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Where it goes</div>
             {on.length ? (
@@ -650,10 +656,10 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
                   const how = [x?.walls ? x.walls.replace(/^The /, '').toLowerCase() : '', x?.height ? x.height.replace(/\s+—\s+/g, ', ').toLowerCase() : ''].filter(Boolean).join(' · ')
                   const fresh = !cur
                   return (
-                    <button key={k} type="button" disabled={fresh} onClick={() => s.open({ t: 'surface', jobId, room: rn, surface: sn })} className="flex min-h-11 w-full min-w-0 items-center gap-3 border-t border-line-2 px-3.5 py-2 text-left first:border-t-0 enabled:row-hover" data-where-place={k}>
-                      <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink"><b className="font-semibold">{rn}</b> · {sn}{how && <span className="text-muted"> — {how}</span>}</span>
-                      {fresh ? <span className="shrink-0 text-[0.78125rem] text-muted">goes here when you save</span> : <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
-                    </button>
+                    <div key={k} className="flex min-h-10 w-full min-w-0 items-center gap-3 border-t border-line-2 px-3.5 py-2 first:border-t-0" data-where-place={k}>
+                      <span className="min-w-0 flex-1 text-[0.875rem] text-ink">{rn} · {sn}{how && <span className="text-muted"> — {how}</span>}</span>
+                      {fresh && <span className="shrink-0 text-[0.78125rem] text-muted">goes here when you save</span>}
+                    </div>
                   )
                 })}
               </div>

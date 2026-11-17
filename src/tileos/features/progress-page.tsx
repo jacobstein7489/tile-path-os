@@ -121,14 +121,14 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
   return (
     <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3rem] cursor-pointer border-t border-line-2 bg-white py-1.5 transition-colors first:border-t-0 row-hover', PX)}>
       <span className="min-w-0">
-        <span className="block truncate text-[0.875rem] font-medium text-ink">{job.name}</span>
-        <span className="block truncate text-[0.78125rem] text-muted">
+        <span className="block truncate text-[0.9375rem] text-ink">{job.name}</span>
+        <span className="block truncate text-[0.8125rem] text-muted">
           {job.client}
           {r.days ? ` · ${r.days} ${r.days === 1 ? 'day' : 'days'} · ${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : ' · nothing moved'}
           <span className="lg:hidden"> · {st.label}</span>
         </span>
       </span>
-      <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{r.weekAmount ? fmtMoney(r.weekAmount) : '—'}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.weekAmount ? fmtMoney(r.weekAmount) : '—'}</span>
       <span className="min-w-0 max-lg:hidden">
         <span className="flex h-1.5 overflow-hidden rounded-full bg-wash-2">
           <span className="h-full bg-brand-500" style={{ width: `${billedPct}%` }} />
@@ -257,7 +257,7 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
                   {g.room}
                   <ChevronRight className="ml-0.5 inline h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" />
                 </span>
-                <span className="w-[5.5rem] shrink-0 text-right text-[0.84375rem] font-semibold tnum text-ink">{fmtMoney(g.amount)}</span>
+                <span className="w-[5.5rem] shrink-0 text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(g.amount)}</span>
               </button>
               {g.lines.map((x) => (
                 <div key={x.surface} className="grid grid-cols-[minmax(0,1fr)_repeat(6,3.25rem)_5.5rem_5.5rem] items-center px-4 py-1 text-[0.84375rem] max-md:grid-cols-[minmax(0,1fr)_5.5rem]">

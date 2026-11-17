@@ -152,7 +152,7 @@ export function paperworkPrompt(job: Job, rooms: Room[], tiles: Tile[]): string 
     '- maker, size as bought (like "24 x 48"), finish (Matte, Polished, Honed, Gloss…)',
     '- grout: the grout color if the paperwork says it ("Not specified" means it doesn’t — leave it ""); joint: the grout joint if given (like 1/16")',
     '- qty and unit: how much the paperwork has of it, unit "SF" or "boxes" (cartons count as boxes); boxSF: square feet in a box, if shown',
-    '- supplier: the store or showroom, if shown',
+    '- supplier: the store or showroom the tile comes from — the company whose name or logo is on the paperwork (its header, footer, quote or order — for example "Infinity Tile"). When the paperwork is one store’s, every tile on it gets that store',
     '- goesOn: which of OUR walls and floors listed above it goes on — copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, the label over the tile, floor, shower walls, backsplash…). If it doesn’t say, leave it empty — don’t guess.',
     '- layout: the pattern if the paperwork gives it — Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave, Checkerboard… — and if the tile is cut down on the job ("Cut to 12 × 12"), add that, like "Checkerboard · cut to 12 x 12"',
     '- edge: how its open edges and outside corners are finished, if the paperwork says — "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',

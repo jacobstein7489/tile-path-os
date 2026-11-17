@@ -82,7 +82,7 @@ export function ReadingBar() {
       {onPage && (
         <button
           type="button"
-          onClick={() => s.open({ t: 'job', id: r.jobId, tab: r.kind === 'estimate' ? 'scope' : 'tiles' })}
+          onClick={() => s.open({ t: 'job', id: r.jobId, tab: 'scope' })}
           data-reading-pill
           className={cn('fixed left-1/2 z-[45] inline-flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-brand-100 bg-white py-2 pl-3 pr-4 text-[0.875rem] font-semibold text-ink shadow-[0_0.5rem_1.5rem_-0.5rem_rgba(17,19,24,.35)]', update ? 'top-[calc(env(safe-area-inset-top,0px)+7.5rem)] lg:top-[4.25rem]' : 'top-[calc(env(safe-area-inset-top,0px)+4.25rem)] lg:top-4')}
         >

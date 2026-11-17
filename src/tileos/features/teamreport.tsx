@@ -188,7 +188,7 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
           {items.map((c) => (
             <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-2 text-left transition row-hover" data-from={c.from || undefined}>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] font-medium text-ink">{cleanTitleOf(c.title, c.jobName)}</span>
+                <span className="block truncate text-[0.9375rem] text-ink">{cleanTitleOf(c.title, c.jobName)}</span>
                 <span className="block truncate text-[0.8125rem] text-muted">{c.jobName}</span>
               </span>
               <span className="shrink-0 text-[0.8125rem] font-medium tnum text-bad-600">{workDays(c.late)} late</span>
@@ -335,7 +335,7 @@ function ReportRow({ r, goal, days, today }: { r: PersonStats; goal: number; day
   return (
     <button onClick={() => s.open({ t: 'report', who: r.who, days })} style={TEAM_WIDE} data-report-person={r.who} data-pct={r.pct ?? ''}
       className={cn('grid min-h-[3rem] w-full items-center gap-x-6 border-t border-line-2 py-2 text-left transition first:border-t-0 row-hover max-lg:flex max-lg:gap-3', REPORT_COLS, EVEN, PX)}>
-      <span className="min-w-0 truncate text-[0.9375rem] text-ink max-lg:flex-1"><span className="font-medium">{PEOPLE[r.who]?.name}</span><span className="text-muted max-sm:hidden"> · {PEOPLE[r.who]?.roleLabel}</span></span>
+      <span className="min-w-0 truncate text-[0.9375rem] text-ink max-lg:flex-1"><span>{PEOPLE[r.who]?.name}</span><span className="text-muted max-sm:hidden"> · {PEOPLE[r.who]?.roleLabel}</span></span>
       <span className="shrink-0 text-[0.875rem] tnum" data-report-today={today ?? ''}>{today != null ? <><b className="font-semibold text-ink">{today}</b><span className="text-muted lg:hidden"> today</span></> : null}</span>
       <span className="truncate tnum max-lg:shrink-0">{r.pct == null ? <span className="text-[0.8125rem] text-faint" data-report-few>Not enough yet</span> : <><b className={cn('text-[0.9375rem] font-semibold', PCT_FG[v.tone])}>{r.pct}%</b><span className="text-[0.8125rem] text-muted"> · {r.onTime} of {r.set}</span></>}</span>
       <span className="text-[0.875rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint">—</span>}</span>

@@ -122,11 +122,11 @@ export function ClientsPage() {
             return (
               <Tr key={c.id} onClick={() => s.open({ t: 'customer', id: c.id })}>
                 <Td>
-                  <div className="truncate text-[0.9375rem] font-medium text-ink">{c.name}</div>
-                  {live.length > 0 && <div className="truncate text-[0.78125rem] text-muted md:hidden">{live.length} open</div>}
+                  <div className="truncate text-[0.9375rem] text-ink">{c.name}</div>
+                  {live.length > 0 && <div className="truncate text-[0.8125rem] text-muted md:hidden">{live.length} open</div>}
                 </Td>
                 <Td className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint">—</span>}</Td>
-                <Td className="text-[0.84375rem] max-md:hidden">{live.length ? `${live.length - pricing} active${pricing ? ` · ${pricing} pricing` : ''}` : <span className="text-muted">None open</span>}</Td>
+                <Td className="text-[0.875rem] max-md:hidden">{live.length ? `${live.length - pricing} active${pricing ? ` · ${pricing} pricing` : ''}` : <span className="text-muted">None open</span>}</Td>
                 <Td right className={cn('tnum max-lg:hidden', o ? 'text-ink' : 'text-faint')}>{o ? fmtMoney(o) : '—'}</Td>
                 <Td><ActiveMenu kind="client" id={c.id} name={c.name} /></Td>
               </Tr>
@@ -186,12 +186,12 @@ export function DesignersPage() {
             return (
               <Tr key={d.id} onClick={() => s.open({ t: 'designer', id: d.id })}>
                 <Td>
-                  <div className="truncate text-[0.875rem] font-medium text-ink">{d.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{d.contact} · {d.email}</div>
+                  <div className="truncate text-[0.9375rem] text-ink">{d.name}</div>
+                  <div className="truncate text-[0.8125rem] text-muted">{d.contact} · {d.email}</div>
                 </Td>
-                <Td className="text-[0.84375rem] tnum max-md:hidden">{d.phone}</Td>
-                <Td className="truncate text-[0.84375rem] max-lg:hidden">{d.clients.map((c) => CUSTOMERS[c]?.name).join(', ')}</Td>
-                <Td className="max-md:hidden">{waits ? <Status tone="warn">{waits} open item{waits > 1 ? 's' : ''}</Status> : <span className="text-[0.84375rem] text-faint">Nothing</span>}</Td>
+                <Td className="text-[0.875rem] tnum max-md:hidden">{d.phone}</Td>
+                <Td className="truncate text-[0.875rem] max-lg:hidden">{d.clients.map((c) => CUSTOMERS[c]?.name).join(', ')}</Td>
+                <Td className="max-md:hidden">{waits ? <Status tone="warn">{waits} open item{waits > 1 ? 's' : ''}</Status> : <span className="text-[0.875rem] text-faint">Nothing</span>}</Td>
                 <Td><ActiveMenu kind="designer" id={d.id} name={d.name} /></Td>
               </Tr>
             )
@@ -263,15 +263,15 @@ export function SubsPage() {
                   <div className="flex items-center gap-3">
                     <Avatar who={crew} size={28} />
                     <div className="min-w-0">
-                      <div className="truncate text-[0.875rem] font-medium text-ink">{PEOPLE[crew].name}</div>
-                      <div className="truncate text-[0.78125rem] text-muted">{x.trade}{x.region ? ` · ${x.region}` : ''}</div>
+                      <div className="truncate text-[0.9375rem] text-ink">{PEOPLE[crew].name}</div>
+                      <div className="truncate text-[0.8125rem] text-muted">{x.trade}{x.region ? ` · ${x.region}` : ''}</div>
                     </div>
                   </div>
                 </Td>
-                <Td className="max-md:hidden">{now ? <span className="text-[0.84375rem] text-ink-2">{s.jobs[now.jobId]?.name} <span className="text-muted">· {now.workers || 2} people</span></span> : <Status tone="ok">Free</Status>}</Td>
-                <Td className="text-[0.84375rem] max-lg:hidden">{f.iso === TODAY ? 'Now' : new Date(f.iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Td>
-                <Td className="text-[0.84375rem] max-md:hidden">{ipos.length ? `${ipos.length} PO${ipos.length > 1 ? 's' : ''}${open ? ` · ${open} open` : ''}` : <span className="text-faint">None</span>}</Td>
-                <Td className="max-xl:hidden">{(() => { const r = payRow(s, crew, PAY_WEEKS[0]); return r ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><span className="font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span><Status tone={PAY_STATE[r.state].tone}>{r.state === 'check' ? 'Check bill' : r.state === 'ready' ? 'To approve' : PAY_STATE[r.state].label}</Status></span> : <span className="text-[0.84375rem] text-faint">—</span> })()}</Td>
+                <Td className="max-md:hidden">{now ? <span className="text-[0.875rem] text-ink-2">{s.jobs[now.jobId]?.name} <span className="text-muted">· {now.workers || 2} people</span></span> : <Status tone="ok">Free</Status>}</Td>
+                <Td className="text-[0.875rem] max-lg:hidden">{f.iso === TODAY ? 'Now' : new Date(f.iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Td>
+                <Td className="text-[0.875rem] max-md:hidden">{ipos.length ? `${ipos.length} PO${ipos.length > 1 ? 's' : ''}${open ? ` · ${open} open` : ''}` : <span className="text-faint">None</span>}</Td>
+                <Td className="max-xl:hidden">{(() => { const r = payRow(s, crew, PAY_WEEKS[0]); return r ? <span className="inline-flex items-center gap-2 text-[0.875rem]"><span className="font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span><Status tone={PAY_STATE[r.state].tone}>{r.state === 'check' ? 'Check bill' : r.state === 'ready' ? 'To approve' : PAY_STATE[r.state].label}</Status></span> : <span className="text-[0.875rem] text-faint">—</span> })()}</Td>
                 <Td><ActiveMenu kind="crew" id={crew} name={PEOPLE[crew].name} /></Td>
               </Tr>
             )
@@ -333,19 +333,19 @@ export function SuppliersPage() {
             return (
               <Tr key={x.name} onClick={() => s.open({ t: 'supplier', id: x.name })}>
                 <Td>
-                  <div className="truncate text-[0.875rem] font-medium text-ink">{x.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{kindsOf(x).length ? kindsText(kindsOf(x)) : x.supplies}</div>
+                  <div className="truncate text-[0.9375rem] text-ink">{x.name}</div>
+                  <div className="truncate text-[0.8125rem] text-muted">{kindsOf(x).length ? kindsText(kindsOf(x)) : x.supplies}</div>
                 </Td>
                 <Td className="max-lg:hidden">
                   {x.contact || x.phone ? (
                     <>
-                      <div className="truncate text-[0.84375rem] font-medium text-ink-2">{x.contact || 'Office'}</div>
-                      <div className="truncate text-[0.78125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || '—'}</div>
+                      <div className="truncate text-[0.875rem] font-medium text-ink-2">{x.contact || 'Office'}</div>
+                      <div className="truncate text-[0.8125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || '—'}</div>
                     </>
                   ) : <button onClick={(e) => { e.stopPropagation(); s.open({ t: 'supplierform', name: x.name }) }} className="text-[0.8125rem] font-semibold text-brand-600 hover:underline">Add a contact</button>}
                 </Td>
-                <Td className="text-[0.84375rem] max-md:hidden">{pos.length ? open : tile ? `${tile} tile orders` : '—'}</Td>
-                <Td className="max-md:hidden">{late ? <Status tone="bad">{late} late</Status> : <span className="text-[0.84375rem] text-faint">None</span>}</Td>
+                <Td className="text-[0.875rem] max-md:hidden">{pos.length ? open : tile ? `${tile} tile orders` : '—'}</Td>
+                <Td className="max-md:hidden">{late ? <Status tone="bad">{late} late</Status> : <span className="text-[0.875rem] text-faint">None</span>}</Td>
                 <Td right className="tnum max-lg:hidden">{pos.length ? fmtMoney(pos.reduce((n, p) => n + p.amount, 0)) : '—'}</Td>
                 <Td><ActiveMenu kind="supplier" id={x.name} name={x.name} /></Td>
               </Tr>
@@ -408,14 +408,14 @@ export function ItemsPage() {
             return (
               <Tr key={i.id} onClick={() => s.open({ t: 'item', id: i.id })}>
                 <Td>
-                  <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
+                  <div className="truncate text-[0.9375rem] text-ink">{i.name}</div>
+                  <div className="truncate text-[0.8125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
                 </Td>
-                <Td className="text-[0.84375rem] text-muted max-md:hidden">{i.unit}</Td>
+                <Td className="text-[0.875rem] text-muted max-md:hidden">{i.unit}</Td>
                 <Td right className="tnum text-ink max-md:hidden">{fmtMoney(i.price, { cents: i.price % 1 !== 0 })}</Td>
                 <Td right className="tnum max-md:hidden">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : '—'}</Td>
                 <Td right className="tnum text-muted max-lg:hidden">{i.cost ? `${margin}%` : '—'}</Td>
-                <Td className="truncate text-[0.84375rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || '—'}</Td>
+                <Td className="truncate text-[0.875rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || '—'}</Td>
               </Tr>
             )
           })}
@@ -456,7 +456,7 @@ function SectionTitle({ children, className }: { children: React.ReactNode; clas
   return <div className={cn('mb-1.5 text-[0.8125rem] font-medium text-muted', className)}>{children}</div>
 }
 function Muted({ children }: { children: React.ReactNode }) {
-  return <div className="py-2 text-[0.84375rem] text-muted">{children}</div>
+  return <div className="py-2 text-[0.875rem] text-muted">{children}</div>
 }
 function RowBtn({ title, sub, right, onClick }: { title: string; sub?: string; right?: string; onClick: () => void }) {
   return (
@@ -465,7 +465,7 @@ function RowBtn({ title, sub, right, onClick }: { title: string; sub?: string; r
         <span className="block truncate text-[0.875rem] text-ink">{title}</span>
         {sub && <span className="block truncate text-[0.78125rem] text-muted">{sub}</span>}
       </span>
-      {right && <span className="shrink-0 text-[0.84375rem] tnum text-ink-2">{right}</span>}
+      {right && <span className="shrink-0 text-[0.875rem] tnum text-ink-2">{right}</span>}
     </button>
   )
 }

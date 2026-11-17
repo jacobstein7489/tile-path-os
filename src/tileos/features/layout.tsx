@@ -196,6 +196,8 @@ export function layoutOf(jobId: string, x: Surface) {
 }
 /** the drawing, small — for the room sheet that hangs in the room */
 export function LayoutThumb({ jobId, x, max = 190, maxH }: { jobId: string; x: Surface; max?: number; /** the tallest it may be (a card) — otherwise about ¾ of max */ maxH?: number }) {
+  /* only a wall or floor whose real size is in — a drawing from a guessed size would be made up */
+  if (!x.dims) return null
   const L = layoutOf(jobId, x)
   const k = Math.min(max / L.W, (maxH ?? max * 0.78) / L.H)
   const color = L.tile?.color || TILE_COLOR[L.tile?.swatch || ''] || '#efece6'
@@ -260,7 +262,8 @@ export function suggestLayout(jobId: string, x: Surface): { pattern: Pattern; te
   const label = PATTERNS.find((p) => p.key === pattern)!.label
   /* a shower floor slopes to the drain — that's its layout whatever the tile */
   const drain = /shower floor|shower pan/i.test(x.name) ? ' · pitched to the drain' : ''
-  const text = td.mosaic ? `${label} · sheets${drain}` : `${label} · best start${left && right ? ` · ${ftIn(left)} cuts both sides` : ''}${drain}`
+  /* the cuts only once the wall's real size is in — worked out from square feet they'd be made up */
+  const text = td.mosaic ? `${label} · sheets${drain}` : x.dims ? `${label} · best start${left && right ? ` · ${ftIn(left)} cuts both sides` : ''}${drain}` : `${label}${drain}`
   return { pattern, text, why, smallest: r.smallest, slivers: r.slivers }
 }
 /** fill in the suggestion on every wall and floor that has a tile and no layout yet */
@@ -304,15 +307,15 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
               const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
               return (
                 <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout — ${r.name} ${x.name}`}>
-                  {/* a small drawing of it — the pattern, at its size */}
-                  <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span>
+                  {/* measured: a small drawing of it, at its size — else just its tile */}
+                  {x.dims ? <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span> : <span className="flex h-10 w-12 shrink-0 items-center justify-center" data-layout-tile>{tile ? <TileImg tile={tile} size={40} radius={6} /> : <span className="h-10 w-10 rounded-md bg-wash-2" />}</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>
                     {x.layout
                       ? <span className="block text-[0.78125rem] text-ink-2 max-sm:line-clamp-2 sm:truncate">{x.layout}</span>
-                      : <span className="block text-[0.78125rem] text-muted max-sm:line-clamp-2 sm:truncate"><Sparkles className="mr-1 inline h-3 w-3 -translate-y-px text-vio-600" />Suggested: {sg!.text}</span>}
+                      : <span className="block text-[0.78125rem] text-muted max-sm:line-clamp-2 sm:truncate">Not set yet — {sg!.text.toLowerCase()} would suit this tile</span>}
                   </span>
-                  <span className={cn('shrink-0 text-[0.78125rem] font-semibold', x.layout ? 'text-[#2c4a3e]' : 'text-muted')}>{drawn ? 'Drawn' : x.layout ? 'Set' : 'To set'}</span>
+                  <span className={cn('shrink-0 text-[0.78125rem] font-semibold', x.layout ? 'text-[#2c4a3e]' : 'text-muted')}>{drawn ? 'Drawn to scale' : x.layout ? 'Set' : 'To set'}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                 </button>
               )
@@ -402,10 +405,9 @@ export function LayoutsModal({ jobId, level }: { jobId: string; level: number })
   const s = useStore()
   const job = s.jobs[jobId]
   if (!job) return null
-  const missing = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name) && !x.layout).length
   return (
-    <Modal level={level} size="lg" tall onClose={s.close} title="Layouts" sub={`${job.name} · the pattern, where to start, the cuts`}>
-      <LayoutsList job={job} action={missing > 0 ? <Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(jobId)}>Use the suggestions ({missing})</Button> : undefined} />
+    <Modal level={level} size="lg" tall onClose={s.close} title="Layouts" sub={`${job.name} · how each wall and floor is laid`}>
+      <LayoutsList job={job} />
     </Modal>
   )
 }
@@ -414,9 +416,11 @@ export function LayoutsModal({ jobId, level }: { jobId: string; level: number })
 export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jobId: string; room: string; surface: string; tile?: string; level: number }) {
   const s = useStore()
   const x = s.rooms[jobId]?.find((r) => r.name === room)?.surfaces.find((y) => y.name === surface)
-  const d0 = x ? surfaceDims(x) : { w: 60, h: 96 }
-  const [W, setW] = React.useState(d0.w)
-  const [H, setH] = React.useState(d0.h)
+  /* its real size — measured on site or off the plans. Not in yet: nothing is drawn (a size worked out from the square
+     feet would be made up) */
+  const [W, setW] = React.useState(x?.dims?.w || 0)
+  const [H, setH] = React.useState(x?.dims?.h || 0)
+  const sized = W > 0 && H > 0
   /* the surface window can pass the tile just picked there, before it's saved */
   const tile = x ? tileOf(jobId, tileTag || x.tile) : undefined
   const nominal = tileDims(tile?.size || '12 × 24')
@@ -443,25 +447,27 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
   const tw = pattern === 'vertical' ? short : long
   const th = pattern === 'vertical' ? long : short
   /* what's on the wall, kept inside it */
-  const inside = holes.map((h) => ({ ...h, w: Math.min(h.w, W), h: Math.min(h.h, H), x: Math.max(0, Math.min(h.x, W - Math.min(h.w, W))), y: Math.max(0, Math.min(h.y, H - Math.min(h.h, H))) }))
+  /* until the size is in, the math runs on a stand-in that's never shown */
+  const Wd = sized ? W : 60, Hd = sized ? H : 96
+  const inside = holes.map((h) => ({ ...h, w: Math.min(h.w, Wd), h: Math.min(h.h, Hd), x: Math.max(0, Math.min(h.x, Wd - Math.min(h.w, Wd))), y: Math.max(0, Math.min(h.y, Hd - Math.min(h.h, Hd))) }))
   const useStart: Start = start.startsWith('on:') && !inside.some((h) => `on:${h.id}` === start) ? 'best' : start
-  const origin = originOf(useStart, W, H, tw, th, j, pattern, inside)
-  const r = lay(W, H, tw, th, j, pattern, origin.ox, origin.oy, inside)
+  const origin = originOf(useStart, Wd, Hd, tw, th, j, pattern, inside)
+  const r = lay(Wd, Hd, tw, th, j, pattern, origin.ox, origin.oy, inside)
   const isWall = kindOf(x) === 'wall'
   const centerable = inside.filter((h) => h.kind === 'niche' || h.kind === 'window' || h.kind === 'tub' || h.kind === 'vanity')
   const startKeys: Start[] = ['best', 'center', 'edge', ...centerable.map((h) => `on:${h.id}` as Start)]
   const startLabel = (k: Start) => (k === 'best' ? 'Best start — fewest slivers' : k === 'center' ? 'Centered on the wall' : k === 'edge' ? (isWall ? 'Full tile at the floor' : 'Full tile at the door') : `Centered on the ${CUT_LABEL[inside.find((h) => `on:${h.id}` === k)?.kind || 'other'].toLowerCase()}`)
-  const options = startKeys.map((key) => { const o = originOf(key, W, H, tw, th, j, pattern, inside); return { k: key, r: lay(W, H, tw, th, j, pattern, o.ox, o.oy, inside) } })
+  const options = startKeys.map((key) => { const o = originOf(key, Wd, Hd, tw, th, j, pattern, inside); return { k: key, r: lay(Wd, Hd, tw, th, j, pattern, o.ox, o.oy, inside) } })
   const firstCut = r.pieces.filter((p) => p.y === 0 && !p.around).sort((a, b) => a.x - b.x)
   const leftCut = firstCut[0]?.cutW ? firstCut[0].w : null
   const rightCut = firstCut[firstCut.length - 1]?.cutW ? firstCut[firstCut.length - 1].w : null
-  const text = `${PATTERNS.find((p) => p.key === pattern)!.label} · ${useStart === 'best' ? 'best start' : startLabel(useStart).toLowerCase()}${leftCut && rightCut ? ` · ${ftIn(leftCut)} cuts both sides` : ''}${inside.length ? ` · around the ${Array.from(new Set(inside.map((h) => CUT_LABEL[h.kind].toLowerCase()))).join(', ')}` : ''}`
+  const text = sized ? `${PATTERNS.find((p) => p.key === pattern)!.label} · ${useStart === 'best' ? 'best start' : startLabel(useStart).toLowerCase()}${leftCut && rightCut ? ` · ${ftIn(leftCut)} cuts both sides` : ''}${inside.length ? ` · around the ${Array.from(new Set(inside.map((h) => CUT_LABEL[h.kind].toLowerCase()))).join(', ')}` : ''}` : `${isWall ? 'The wall' : 'The floor'}’s size isn’t in yet`
   const color = tile?.color || TILE_COLOR[tile?.swatch || ''] || '#efece6'
   const g = GROUTS[grout]?.color || '#b8b0a3'
   /* draw: fit the surface in the canvas, floor at the bottom */
   const box = { w: 780, h: 520 }
-  const k = Math.min(box.w / W, box.h / H)
-  const pw = W * k, ph = H * k
+  const k = Math.min(box.w / Wd, box.h / Hd)
+  const pw = Wd * k, ph = Hd * k
   const pieces = r.pieces.length
   const buy = Math.ceil(pieces * 1.1)
   /* the tile's real size: saved with the project's tile when both numbers are in */
@@ -475,8 +481,8 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
   }
   const add = (kind: CutoutKind) => {
     const d = CUT_SIZE[kind]
-    const w = Math.min(d.w, W), h = Math.min(d.h, H)
-    setHoles((hs) => [...hs, { id: 'c' + Date.now().toString(36), kind, w, h, x: Math.round((W - w) / 2), y: isWall ? Math.min(d.y, Math.max(0, H - h)) : 0 }])
+    const w = Math.min(d.w, Wd), h = Math.min(d.h, Hd)
+    setHoles((hs) => [...hs, { id: 'c' + Date.now().toString(36), kind, w, h, x: Math.round((Wd - w) / 2), y: isWall ? Math.min(d.y, Math.max(0, Hd - h)) : 0 }])
   }
   const setHole = (id: string, patch: Partial<Cutout>) => setHoles((hs) => hs.map((h) => (h.id === id ? { ...h, ...patch } : h)))
   return (
@@ -486,13 +492,13 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
       tall
       onClose={s.close}
       title={`${room} · ${surface}`}
-      sub={`${job?.name} · ${tile ? `${tile.tag} ${tile.name} ${tile.size}${rA && rB && !nominal.mosaic ? ` (really ${inches(rA).replace(/″$/, '')} × ${inches(rB)})` : ''}` : 'No tile picked'} · joint ${x.joint || '1/16″'} · drawn to scale`}
+      sub={`${job?.name} · ${tile ? `${tile.tag} ${tile.name} ${tile.size}${rA && rB && !nominal.mosaic ? ` (really ${inches(rA).replace(/″$/, '')} × ${inches(rB)})` : ''}` : 'No tile picked'} · joint ${x.joint || '1/16″'}${sized ? ' · drawn to scale' : ''}`}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{text}</span>
-          <Button className="ml-auto" icon={<Printer />} onClick={() => printNode(drawRef.current)}>Print</Button>
-          <Button icon={<Send />} onClick={() => sendLayout(jobId, room, surface, text)}>Send to the designer</Button>
-          <Button variant="primary" icon={<Check />} onClick={() => saveLayout(jobId, room, surface, { text, dims: { w: W, h: H }, grout, cutouts: inside })}>Use this layout</Button>
+          <Button className="ml-auto" icon={<Printer />} disabled={!sized} onClick={() => printNode(drawRef.current)}>Print</Button>
+          <Button icon={<Send />} disabled={!sized} onClick={() => sendLayout(jobId, room, surface, text)}>Send to the designer</Button>
+          <Button variant="primary" icon={<Check />} disabled={!sized} onClick={() => saveLayout(jobId, room, surface, { text, dims: { w: W, h: H }, grout, cutouts: inside })} data-layout-use>Use this layout</Button>
         </>
       }
       bodyClass="p-0"
@@ -500,6 +506,14 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
       {/* a computer: the drawing stays put while the settings beside it scroll */}
       <div className="grid min-h-full grid-cols-[minmax(0,1fr)_21rem] max-lg:grid-cols-1 lg:h-full">
         <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f4f1eb] px-6 py-6 lg:min-h-0 lg:overflow-hidden">
+          {!sized && (
+            <div className="max-w-[26rem] py-10 text-center" data-layout-need-size>
+              <Ruler className="mx-auto h-7 w-7 text-faint" />
+              <div className="mt-3 text-[1rem] font-semibold text-ink">How big is {isWall ? 'the wall' : 'the floor'}?</div>
+              <div className="mt-1.5 text-[0.875rem] leading-relaxed text-muted">Type its width and {isWall ? 'height' : 'length'} on the right — measured on site, or off the plans. Then it’s drawn to scale with the tile’s real size: every cut, and the best place to start.</div>
+            </div>
+          )}
+          {sized && <>
           <div className="flex max-w-full items-end gap-3">
             {/* height label */}
             <div className="flex flex-col items-center justify-center text-[0.75rem] font-semibold tnum text-muted max-sm:hidden" style={{ height: ph }}>
@@ -556,17 +570,19 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
             <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-bad-600 bg-[#fdd8d4]" />Sliver — too thin</span>
             <span>{isWall ? 'Floor at the bottom' : 'Door at the bottom'}</span>
           </div>
+          </>}
         </div>
 
         <aside className="scroll-soft flex flex-col gap-4 border-l border-line px-5 py-4 max-lg:border-l-0 max-lg:border-t lg:min-h-0 lg:overflow-y-auto">
           <div>
             <div className="mb-2 text-[0.8125rem] font-semibold text-ink">{isWall ? 'The wall' : 'The floor'}</div>
             <div className="grid grid-cols-2 gap-2">
-              <Inch label="Width" value={W} onChange={setW} />
-              <Inch label={isWall ? 'Height' : 'Length'} value={H} onChange={setH} />
+              <Inch label="Width" value={W} onChange={setW} placeholder="e.g. 60" />
+              <Inch label={isWall ? 'Height' : 'Length'} value={H} onChange={setH} placeholder={isWall ? 'e.g. 96' : 'e.g. 84'} />
             </div>
-            <div className={cn('mt-1 text-[0.75rem]', x.dims ? 'text-muted' : 'font-medium text-warn-700')} data-size-source>{x.dims ? 'Measured' : `Not measured yet — worked out from the takeoff (${x.sf} SF). Type in what you measure on site or off the plans.`}</div>
+            <div className={cn('mt-1 text-[0.75rem]', sized ? 'text-muted' : 'font-medium text-warn-700')} data-size-source>{x.dims ? 'Measured' : sized ? 'Saved with the layout' : 'Measured on site or off the plans — in inches (5′ is 60)'}</div>
           </div>
+          {sized && <>
           {tile && !nominal.mosaic && (
             <div data-real-size>
               <div className="mb-2 flex items-baseline justify-between gap-2"><span className="text-[0.8125rem] font-semibold text-ink">The tile’s real size</span><span className="text-[0.75rem] text-muted">box says {tile.size}</span></div>
@@ -642,6 +658,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-bad-600" /><span><b className="font-semibold text-bad-700">Slivers on this start.</b> The best start avoids them — tap to use it.</span>
             </button>
           )}
+          </>}
         </aside>
       </div>
     </Modal>
@@ -660,9 +677,10 @@ function InchText({ label, value, placeholder, onChange, onDone }: { label: stri
     </label>
   )
 }
-function Inch({ label, value, onChange, min = 6 }: { label: string; value: number; onChange: (n: number) => void; min?: number }) {
-  const [v, setV] = React.useState(inchText(value))
-  React.useEffect(() => setV(inchText(value)), [value])
+function Inch({ label, value, onChange, min = 6, placeholder }: { label: string; value: number; onChange: (n: number) => void; min?: number; placeholder?: string }) {
+  const show = (n: number) => (n ? inchText(n) : '')
+  const [v, setV] = React.useState(show(value))
+  React.useEffect(() => setV(show(value)), [value])
   return (
     <label className="block">
       <span className="text-[0.75rem] font-medium text-muted">{label}</span>
@@ -671,9 +689,10 @@ function Inch({ label, value, onChange, min = 6 }: { label: string; value: numbe
           inputMode="decimal"
           value={v}
           onChange={(e) => setV(e.target.value)}
-          onBlur={() => { const n = parseInch(v); if (n != null && n >= min && n <= 1200) onChange(Math.round(n * 8) / 8); else setV(inchText(value)) }}
+          placeholder={placeholder}
+          onBlur={() => { const n = parseInch(v); if (n != null && n >= min && n <= 1200) onChange(Math.round(n * 8) / 8); else setV(show(value)) }}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-          className="h-9 w-full rounded-lg border border-line bg-white pl-2.5 pr-14 text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
+          className="h-9 w-full rounded-lg border border-line bg-white pl-2.5 pr-14 text-[0.875rem] tnum text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50"
         />
         <span className="pointer-events-none absolute right-2.5 text-[0.75rem] text-muted">in{value >= 12 ? ` · ${ftIn(value)}` : ''}</span>
       </span>

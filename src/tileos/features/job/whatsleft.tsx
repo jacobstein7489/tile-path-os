@@ -140,8 +140,8 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
 const ROW = 'grid min-h-[3rem] w-full cursor-pointer grid-cols-[1.375rem_minmax(0,1fr)_auto_1rem] items-center gap-x-3.5 border-t border-line-2 py-2 pl-4 pr-5 text-left transition row-hover focus-visible:outline-none max-sm:grid-cols-[1.375rem_minmax(0,1fr)_1rem] max-sm:gap-x-3 max-sm:gap-y-0.5 max-sm:py-2.5 max-sm:pl-3.5 max-sm:pr-4'
 
 /* Where it stands' To do: by person (you first), one line each. The round check on the left checks it off right there
- * (yours — or anything, for the admin); tap the line for its window. + Add a step at the bottom puts one more on the
- * project — the same New task window, already for this project. To take one off: its window, ··· */
+ * (yours — or anything, for the admin); tap the line for its window. + Add at the bottom puts one more on the project —
+ * the same choices as + New (a to do, a meeting, a problem, something for the GC…), already for this project. To take one off: its window, ··· */
 export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -194,8 +194,8 @@ export function WhatsLeft({ job }: { job: Job }) {
         })}
         {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
         {canAdd && (
-          <button type="button" onClick={() => s.open({ t: 'newtask', jobId: job.id })} className="flex min-h-[3rem] w-full items-center gap-3.5 border-t border-line px-4 text-left text-[0.9375rem] font-medium text-brand-700 transition hover:bg-brand-50/50 max-sm:px-3.5" data-left-add>
-            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span>Add a step
+          <button type="button" onClick={() => s.open({ t: 'new', jobId: job.id })} className="flex min-h-[3rem] w-full items-center gap-3.5 border-t border-line px-4 text-left text-[0.9375rem] font-medium text-brand-700 transition hover:bg-brand-50/50 max-sm:px-3.5" data-left-add>
+            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> — a to do, a meeting, a problem, something for the GC</span></span>
           </button>
         )}
       </div>

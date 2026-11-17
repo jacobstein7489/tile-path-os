@@ -26,6 +26,15 @@ export function nextTag(jobId: string): string {
 }
 
 /** add a tile to a project or change one; `on` = the walls and floors it goes on (others that had it are cleared) */
+/** where a job's tile comes from: the store set on the job, else the one store its tiles say (the paperwork, read) —
+ *  set once, every tile and tile order on the job uses it */
+export function tileStoreOf(s: { jobs: Record<string, { tileStore?: string } | undefined>; tiles: Record<string, Record<string, Tile>> }, jobId: string): string {
+  const set = s.jobs[jobId]?.tileStore
+  if (set) return set
+  const from = Array.from(new Set(Object.values(s.tiles[jobId] || {}).map((t) => (t.supplier || '').trim()).filter(Boolean)))
+  return from.length === 1 ? from[0] : ''
+}
+
 export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: SurfaceRef[] } = {}) {
   const st = S()
   const was = o.was
@@ -42,6 +51,9 @@ export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: Surface
         s.estimates.filter((e) => e.jobId === jobId).forEach((e) => e.revs.forEach((r) => r.lines.forEach((l) => { if (l.tile === was) l.tile = t.tag })))
       }
       s.tiles[jobId][t.tag] = t
+      /* the job's tile store, the first time a tile says where it's from — the next tiles start from it */
+      const j = s.jobs[jobId]
+      if (j && !j.tileStore && t.supplier?.trim()) j.tileStore = t.supplier.trim()
       if (o.on) placeOn(s, jobId, t, o.on)
       const where = o.on?.length ? ` · ${o.on.length} wall${o.on.length === 1 ? '' : 's'} and floors` : ''
       addHist(s, jobId, { who: me(), kind: 'setup', title: fresh ? `Tile added · ${t.tag} ${t.name}${where}` : `Tile changed · ${t.tag} ${t.name}${where}`, detail: [t.size, t.finish, t.maker, t.grout ? `${GROUTS[t.grout]?.name} grout` : ''].filter(Boolean).join(' · ') })

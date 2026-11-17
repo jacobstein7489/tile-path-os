@@ -852,7 +852,8 @@ export function teamToday(s: Store): { who: PersonKey; today: number; done: numb
 /* Your Today — the same for everyone, the admin and the site manager: three lists on top (Today, Coming up, Waiting),
  * yours only. What's late, then today hour by hour, then any time; each thing with its job right under it.
  * One job: "All jobs" on top — your jobs first, then any other (search) — just that job's things, and the way into the
- * project for everything else on it. Someone else's list: Team report → their name. */
+ * project for everything else on it. Someone else's list (the admin): "Mine" next to it → their name — the same list
+ * they have on their own phone. */
 /** someone else's waiting thing: its day — red once it's late */
 const theirWhen = (t: Task, me: PersonKey): { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } | undefined => {
   if (t.owner === me || t.state !== 'now') return undefined
@@ -954,21 +955,54 @@ export function NobodyModal({ level }: { level: number }) {
   )
 }
 
+/* ---------------- whose list ---------------- */
+/** the admin looking at someone's Today (null: his own) — kept while the app is open */
+export const useTodayWho = create<{ who: PersonKey | null; set: (p: PersonKey | null) => void }>((set) => ({ who: null, set: (who) => set({ who }) }))
+/** whose list Today shows: yours — or, for the admin, the person picked (their role, as on their own phone) */
+function listOf(s: Store, who: PersonKey | null): { role: Role; person: PersonKey | null } {
+  const me = meOf(s.role)
+  return who && who !== me && reportOn(s) ? { role: roleOfPerson(s, who), person: who } : { role: s.role, person: null }
+}
+/** the admin: Mine, or anyone's — the same list they have on their own phone */
+function WhoPick() {
+  const s = useStore()
+  const who = useTodayWho((x) => x.who)
+  const set = useTodayWho((x) => x.set)
+  const me = meOf(s.role)
+  const cur = who && who !== me ? who : null
+  const others = insidePeople(s).filter((p) => p !== me)
+  const lost = countOf(everyoneOf(s, 'today', 'all').nobody)
+  return (
+    <Menu align="start" width={280} trigger={
+      <button type="button" aria-label={cur ? `${PEOPLE[cur]?.short}’s list — pick someone else` : 'Whose list'} className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', cur ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-who-pick>
+        {cur ? <Avatar who={cur} size={20} /> : <UserRound className="shrink-0 text-faint" />}
+        <span className="min-w-0 truncate" data-who-picked={cur || 'me'}>{cur ? `${PEOPLE[cur]?.short}’s` : 'Mine'}</span>
+        <ChevronDown className="shrink-0 opacity-50" />
+      </button>
+    }>
+      <MenuLabel>Whose Today</MenuLabel>
+      <MenuItem icon={<Avatar who={me} size={20} />} checked={!cur} hint={`${todayCount(s, s.role)} today`} onSelect={() => set(null)}>Mine</MenuItem>
+      {others.map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={cur === p} hint={`${theirToday(s, p)} today`} onSelect={() => set(p)}>{PEOPLE[p]?.name || p}</MenuItem>)}
+      {lost > 0 && <><MenuSep /><MenuItem icon={<UserRound className="h-4 w-4 text-warn-600" />} hint={`${lost}`} onSelect={() => s.open({ t: 'nobodylist' })}>On nobody’s list</MenuItem></>}
+    </Menu>
+  )
+}
+
 /* ---------------- one job ---------------- */
 /** the job picked on Today — kept while the app is open: you're at that job */
 export const useTodayJob = create<{ job: string; set: (j: string) => void }>((set) => ({ job: 'all', set: (job) => set({ job }) }))
 /** the jobs on your lists (Today, Coming up, Waiting), and how many things of yours on each */
-function yourJobs(s: Store, role: Role): Map<string, number> {
+function yourJobs(s: Store, role: Role, person: PersonKey | null = null): Map<string, number> {
   const ids = new Set<string>()
   const add = (id?: string) => { if (id && s.jobs[id]) ids.add(id) }
-  ;(['today', 'coming', 'waiting'] as View[]).forEach((v) => partsOf(s, role, null, v, 'all').forEach((p) => p.lines.forEach((l) => {
+  ;(['today', 'coming', 'waiting'] as View[]).forEach((v) => partsOf(s, role, person, v, 'all').forEach((p) => p.lines.forEach((l) => {
     if (l.k === 'task' || l.k === 'gc') return add(l.t.jobId)
     if (l.k === 'wait') return add(l.job.id)
     const x = l.x
     add(jobOfItem(x)); x.ds?.forEach((d) => add(d.jobId)); x.vs?.forEach((v) => add(v.job.id)); x.ts?.forEach((t) => add(t.jobId))
   })))
   const out = new Map<string, number>()
-  ids.forEach((id) => { const n = (['today', 'coming', 'waiting'] as View[]).reduce((k, v) => k + countOf(partsOf(s, role, null, v, id)), 0); if (n) out.set(id, n) })
+  ids.forEach((id) => { const n = (['today', 'coming', 'waiting'] as View[]).reduce((k, v) => k + countOf(partsOf(s, role, person, v, id)), 0); if (n) out.set(id, n) })
   return out
 }
 const byJobName = (a: Job, b: Job) => a.name.localeCompare(b.name, undefined, { numeric: true })
@@ -979,7 +1013,8 @@ export function JobPickModal({ level }: { level: number }) {
   const set = useTodayJob((x) => x.set)
   const [q, setQ] = React.useState('')
   const small = useSmall()
-  const mine = yourJobs(s, s.role)
+  const L = listOf(s, useTodayWho((x) => x.who))
+  const mine = yourJobs(s, L.role, L.person)
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const hit = (j: Job) => { const k = `${j.name} ${j.client} ${j.address}`.toLowerCase(); return words.every((w) => k.includes(w)) }
   const yours = Object.values(s.jobs).filter((j) => mine.has(j.id) && hit(j)).sort(byJobName)
@@ -1021,7 +1056,7 @@ export function JobPickModal({ level }: { level: number }) {
 function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
   const s = useStore()
   return (
-    <div className="flex w-full min-w-0 items-center gap-2" data-today-bar>
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2" data-today-bar>
       <button type="button" onClick={() => s.open({ t: 'jobpick' })} aria-label={picked ? `Job: ${picked.name} — pick another` : 'Pick a job'}
         className={cn('inline-flex h-9 min-w-0 max-w-[22rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', picked ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-job-pick>
         <Building2 className={cn('shrink-0', picked ? 'text-brand-600' : 'text-faint')} />
@@ -1029,6 +1064,8 @@ function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
       {picked && <button type="button" onClick={onClear} aria-label="All jobs" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] text-muted hover:bg-wash hover:text-ink" data-job-clear><X className="h-4 w-4" /></button>}
+      {/* the admin: whose list — his own, or anyone's */}
+      {reportOn(s) && <WhoPick />}
       <span className="flex-1" />
       {picked && <button type="button" onClick={() => s.open({ t: 'job', id: picked.id })} className="inline-flex shrink-0 items-center text-[0.875rem] font-semibold text-brand-700 hover:underline" data-job-open>Open the project<ChevronRight className="ml-0.5 h-4 w-4" /></button>}
     </div>
@@ -1044,10 +1081,12 @@ export function MyTasksPage() {
   const setJob = useTodayJob((x) => x.set)
   const picked = job0 !== 'all' ? s.jobs[job0] : undefined
   const job = picked ? picked.id : 'all'
-  const me = meOf(role)
+  /* whose list: yours — or, for the admin, the person picked (their list, as on their own phone) */
+  const L = listOf(s, useTodayWho((x) => x.who))
+  const me = L.person || meOf(role)
   /* each number is what its list shows — with a job picked, its */
-  const n = (v: View) => countOf(partsOf(s, role, null, v, job))
-  const parts = partsOf(s, role, null, view, job)
+  const n = (v: View) => countOf(partsOf(s, L.role, L.person, v, job))
+  const parts = partsOf(s, L.role, L.person, view, job)
   const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
     today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up — see Coming up.` : 'New work lands here the moment it’s yours.' },
     coming: { title: 'Nothing coming up', sub: 'Tomorrow’s things, and anything with a day after it, show here.' },
@@ -1056,7 +1095,7 @@ export function MyTasksPage() {
 
   return (
     <Page
-      title={`${greeting()}, ${PEOPLE[me].short}`}
+      title={L.person ? `${PEOPLE[L.person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[me].short}`}
       phoneTitle
       sub={TODAY_LABEL}
       top={

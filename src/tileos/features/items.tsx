@@ -124,12 +124,12 @@ export function ItemsPage() {
                         <div className="flex min-w-0 items-center gap-3">
                           <ItemThumb item={i} size={40} />
                           <div className="min-w-0">
-                            <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
-                            <div className="truncate text-[0.78125rem] text-muted">{i.desc || ITEM_TYPE_LABEL[i.type]}</div>
+                            <div className="truncate text-[0.9375rem] text-ink">{i.name}</div>
+                            <div className="truncate text-[0.8125rem] text-muted">{i.desc || ITEM_TYPE_LABEL[i.type]}</div>
                           </div>
                         </div>
                       </Td>
-                      <Td className="text-[0.84375rem] text-ink-2">{i.unit}</Td>
+                      <Td className="text-[0.875rem] text-ink-2">{i.unit}</Td>
                       <Td right className={cn('tnum', i.price ? 'text-ink' : 'text-warn-700')}>{i.price ? price(i.price) : 'Priced per job'}</Td>
                       <Td right className={cn('tnum max-md:hidden', i.cost ? 'text-ink-2' : 'text-faint')}>{i.cost ? price(i.cost) : i.type === 'labor' ? 'Not set' : '—'}</Td>
                       <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : '—'}</Td>
@@ -182,10 +182,10 @@ export function ItemsPage() {
             {shownLabor.map((i) => (
               <Tr key={i.id} onClick={() => s.open({ t: 'item', id: i.id })}>
                 <Td>
-                  <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
-                  <div className="truncate text-[0.78125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
+                  <div className="truncate text-[0.9375rem] text-ink">{i.name}</div>
+                  <div className="truncate text-[0.8125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
                 </Td>
-                <Td className="text-[0.84375rem] text-muted max-md:hidden">{i.unit}</Td>
+                <Td className="text-[0.875rem] text-muted max-md:hidden">{i.unit}</Td>
                 <Td right className="tnum text-ink">{price(i.price)}</Td>
                 <Td right className="tnum max-md:hidden">{i.cost ? price(i.cost) : '—'}</Td>
                 <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : '—'}</Td>
@@ -210,8 +210,8 @@ function MatRow({ i }: { i: Item }) {
         <div className="flex min-w-0 items-center gap-3">
           <ItemThumb item={i} size={52} />
           <div className="min-w-0">
-            <div className="truncate text-[0.875rem] font-medium text-ink">{i.name}</div>
-            <div className="truncate text-[0.78125rem] text-muted">{how}<span className="md:hidden">{i.vendor ? ` · ${i.vendor}` : ''}</span></div>
+            <div className="truncate text-[0.9375rem] text-ink">{i.name}</div>
+            <div className="truncate text-[0.8125rem] text-muted">{how}<span className="md:hidden">{i.vendor ? ` · ${i.vendor}` : ''}</span></div>
           </div>
         </div>
       </Td>
@@ -236,7 +236,7 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
   const footer = can && i.type === 'material' ? (
     sure ? (
       <>
-        <span className="text-[0.84375rem] font-medium text-bad-700">Delete {i.name}? It comes off the catalog — POs already sent keep it.</span>
+        <span className="text-[0.875rem] font-medium text-bad-700">Delete {i.name}? It comes off the catalog — POs already sent keep it.</span>
         <Button className="ml-auto" variant="ghost" onClick={() => setSure(false)}>Keep it</Button>
         <Button variant="danger" onClick={() => { s.commit((st) => { st.items = st.items.filter((x) => x.id !== i.id) }, `${i.name} deleted`); s.close() }}>Yes, delete it</Button>
       </>
@@ -290,12 +290,12 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
       <div className="mb-1.5 mt-6 text-[0.8125rem] font-medium text-muted">{i.type === 'labor' ? 'On installer POs' : 'What we paid, PO by PO'}</div>
       {paid.map(({ po, l }, k) => <Line key={k} onClick={() => s.open({ t: 'po', id: po.id })} title={`${po.id} · ${po.supplier}`} sub={`${s.jobs[po.jobId]?.name} · ${l.qty} · ${po.date || ''}`} right={`${price(l.price!)} / ${i.unit}`} />)}
       {inst.map(({ po, l }, k) => <Line key={'i' + k} onClick={() => s.open({ t: 'ipo', id: po.id })} title={`${po.id} · ${PEOPLE[po.crew].name}`} sub={`${s.jobs[po.jobId]?.name} · ${l.qty}`} right={`${price(l.rate!)} / ${i.unit}`} />)}
-      {!paid.length && !inst.length && <div className="py-2 text-[0.84375rem] text-muted">Not on any PO yet.</div>}
+      {!paid.length && !inst.length && <div className="py-2 text-[0.875rem] text-muted">Not on any PO yet.</div>}
       {!mat && (
         <>
           <div className="mb-1.5 mt-7 text-[0.8125rem] font-medium text-muted">On estimates</div>
           {onEst.map((e) => <Line key={e.id} onClick={() => s.open({ t: 'estimate', id: e.id })} title={`${e.id} · ${s.jobs[e.jobId]?.name}`} sub={e.status === 'approved' ? 'Approved' : 'Open'} right="" />)}
-          {!onEst.length && <div className="py-2 text-[0.84375rem] text-muted">Not on any estimate yet.</div>}
+          {!onEst.length && <div className="py-2 text-[0.875rem] text-muted">Not on any estimate yet.</div>}
         </>
       )}
     </Modal>
@@ -446,7 +446,7 @@ function Line({ title, sub, right, onClick }: { title: string; sub?: string; rig
         <span className="block truncate text-[0.875rem] text-ink">{title}</span>
         {sub && <span className="block truncate text-[0.78125rem] text-muted">{sub}</span>}
       </span>
-      {right && <span className="shrink-0 text-[0.84375rem] tnum text-ink-2">{right}</span>}
+      {right && <span className="shrink-0 text-[0.875rem] tnum text-ink-2">{right}</span>}
     </button>
   )
 }
@@ -510,13 +510,13 @@ export function ImportItemsModal({ level }: { level: number }) {
       sub={from === 'qb' ? 'Your Products and Services list, exported from QuickBooks as a CSV file.' : 'Your QuickBooks items, or a supplier’s price list.'}
       footer={from === 'list' ? (
         <>
-          <span className="text-[0.84375rem] text-muted">{pick.filter((k) => rows.some((r) => r.sku === k)).length} of {rows.length} picked</span>
+          <span className="text-[0.875rem] text-muted">{pick.filter((k) => rows.some((r) => r.sku === k)).length} of {rows.length} picked</span>
           <Button className="ml-auto" variant="ghost" onClick={() => setFrom(null)}>Back</Button>
           <Button variant="primary" icon={<Check />} disabled={!rows.some((r) => pick.includes(r.sku))} onClick={add}>Add to the catalog</Button>
         </>
       ) : from === 'qb' && read && !read.problem ? (
         <>
-          <span className="text-[0.84375rem] text-muted">{take.length} of {changes.length} picked</span>
+          <span className="text-[0.875rem] text-muted">{take.length} of {changes.length} picked</span>
           <Button className="ml-auto" variant="ghost" onClick={() => setRead(null)}>Another file</Button>
           <Button variant="primary" icon={<Check />} disabled={!take.length} onClick={doImport}>Update {take.length} {take.length === 1 ? 'item' : 'items'}</Button>
         </>
@@ -532,7 +532,7 @@ export function ImportItemsModal({ level }: { level: number }) {
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#d0d5dc] bg-wash px-6 py-12 text-center transition hover:border-brand-300 hover:bg-brand-50/40">
           <Upload className="h-6 w-6 text-brand-600" />
           <span className="text-[0.9375rem] font-semibold text-ink">Pick the CSV file from QuickBooks</span>
-          <span className="max-w-md text-[0.84375rem] text-muted">Export Products and Services from QuickBooks — it saves a .csv file. Payments, deposits, fees and test items are left out by themselves.</span>
+          <span className="max-w-md text-[0.875rem] text-muted">Export Products and Services from QuickBooks — it saves a .csv file. Payments, deposits, fees and test items are left out by themselves.</span>
           <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f) }} />
         </label>
       )}
@@ -541,7 +541,7 @@ export function ImportItemsModal({ level }: { level: number }) {
       )}
       {from === 'qb' && read && !read.problem && (
         <div>
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-wash px-4 py-3 text-[0.84375rem]">
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-wash px-4 py-3 text-[0.875rem]">
             <span className="inline-flex items-center gap-2 font-semibold text-ink"><FileSpreadsheet className="h-4 w-4 text-ok-600" />{read.file}</span>
             <span className="text-ink-2"><b className="font-semibold">{read.rows.filter((r) => r.status === 'new').length}</b> new</span>
             <span className="text-ink-2"><b className="font-semibold">{read.rows.filter((r) => r.status === 'changed').length}</b> changed</span>
@@ -559,7 +559,7 @@ export function ImportItemsModal({ level }: { level: number }) {
                       <span className="block truncate text-[0.875rem] font-semibold text-ink">{r.item.name}</span>
                       <span className="block truncate text-[0.78125rem] text-muted">{r.status === 'new' ? `New · ${r.item.group} · per ${r.item.unit}` : `Was ${r.was?.price ? price(r.was.price) : 'no price'}`}{r.item.desc ? ` · ${r.item.desc}` : ''}</span>
                     </span>
-                    <span className="shrink-0 text-[0.84375rem] font-semibold tnum text-ink">{r.item.price ? price(r.item.price) : 'No price'}</span>
+                    <span className="shrink-0 text-[0.875rem] font-semibold tnum text-ink">{r.item.price ? price(r.item.price) : 'No price'}</span>
                   </button>
                 )
               })}
@@ -571,7 +571,7 @@ export function ImportItemsModal({ level }: { level: number }) {
         <div>
           <div className="mb-3 flex items-center gap-3 rounded-xl border border-dashed border-[#d0d5dc] bg-wash px-4 py-3">
             <FileSpreadsheet className="h-5 w-5 text-ok-600" />
-            <span className="min-w-0 flex-1 text-[0.84375rem]"><b className="font-semibold text-ink">Infinity price list — October.xlsx</b> <span className="text-muted">· sample file · {PRICE_LIST.length} products, {rows.length} new</span></span>
+            <span className="min-w-0 flex-1 text-[0.875rem]"><b className="font-semibold text-ink">Infinity price list — October.xlsx</b> <span className="text-muted">· sample file · {PRICE_LIST.length} products, {rows.length} new</span></span>
           </div>
           {rows.length ? (
             <div className="overflow-hidden rounded-xl border border-line">
@@ -585,7 +585,7 @@ export function ImportItemsModal({ level }: { level: number }) {
                       <span className="block truncate text-[0.875rem] font-semibold text-ink">{p.brand} {p.product}</span>
                       <span className="block truncate text-[0.78125rem] text-muted">{p.name} · {p.sku}</span>
                     </span>
-                    <span className="shrink-0 text-[0.84375rem] font-semibold tnum text-ink">{price(p.cost)} <span className="font-normal text-muted">/ {p.unit}</span></span>
+                    <span className="shrink-0 text-[0.875rem] font-semibold tnum text-ink">{price(p.cost)} <span className="font-normal text-muted">/ {p.unit}</span></span>
                   </button>
                 )
               })}

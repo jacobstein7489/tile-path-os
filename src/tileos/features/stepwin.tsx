@@ -1987,13 +1987,13 @@ function Sheets({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
-/* ================= the layouts: every wall and floor, with what the system suggests ================= */
+/* ================= the layouts: every wall and floor — how it's laid, set by someone (nothing filled in by guessing) ================= */
 function Layouts({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const missing = (s.rooms[job.id] || []).flatMap((r) => r.surfaces).filter((x) => x.tile && takesTile(x.name) && !x.layout).length
   return (
     <div>
-      <LayoutsList job={job} action={missing > 0 ? <Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(job.id)}>Use the suggestions ({missing})</Button> : undefined} />
+      <LayoutsList job={job} />
       {v.state !== 'done' && missing === 0 && (
         <Actions>
           <Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, 'layouts', undefined, { close: true })}>Layouts are set</Button>

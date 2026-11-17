@@ -147,18 +147,18 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
-          <span className="block truncate text-[0.875rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
+          <span className="block truncate text-[0.9375rem] text-ink">{PEOPLE[r.crew].name}</span>
           <span className="block truncate text-[0.78125rem] text-muted">{jobsLabel(s, r)}<span className="lg:hidden"> · {st.label}</span></span>
         </span>
       </span>
-      <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{r.calc.days} {r.calc.days === 1 ? 'day' : 'days'}</span>
-      <span className="text-right text-[0.84375rem] tnum text-ink-2 max-lg:hidden">{r.calc.sf ? `${r.calc.sf} SF` : '—'}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.calc.days} {r.calc.days === 1 ? 'day' : 'days'}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.calc.sf ? `${r.calc.sf} SF` : '—'}</span>
       <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span>
       <span className="text-right max-lg:hidden">
         {/* his bill, and in a word whether it matches — no separate status column */}
         {r.bill ? (
           <span className="block leading-tight">
-            <span className={cn('block text-[0.84375rem] font-semibold tnum', r.state === 'check' || r.state === 'asked' ? 'text-bad-600' : 'text-ink')}>{fmtMoney(r.bill.amount)}</span>
+            <span className={cn('block text-[0.875rem] font-semibold tnum', r.state === 'check' || r.state === 'asked' ? 'text-bad-600' : 'text-ink')}>{fmtMoney(r.bill.amount)}</span>
             {Math.abs(r.diff) > 25
               ? <span className="block text-[0.75rem] font-medium text-bad-600">{`${r.diff > 0 ? '+' : '−'}${fmtMoney(Math.abs(r.diff))}`}{r.state === 'asked' ? ' · asked him' : ''}</span>
               : <span className="block text-[0.75rem] text-ok-700">Matches</span>}
@@ -184,11 +184,11 @@ function PaidLine({ r }: { r: PaidRow }) {
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
-          <span className="block truncate text-[0.875rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
+          <span className="block truncate text-[0.9375rem] text-ink">{PEOPLE[r.crew].name}</span>
           <span className="block truncate text-[0.78125rem] text-muted lg:hidden">{r.jobs.map((j) => s.jobs[j.jobId]?.name || j.jobId).join(' · ')} · Paid {r.paidOn}</span>
         </span>
       </span>
-      <span className="truncate text-[0.84375rem] text-ink-2 max-lg:hidden">{r.jobs.map((j) => s.jobs[j.jobId]?.name || j.jobId).join(' · ')}<span className="ml-2 text-[0.78125rem] text-faint">{r.jobs.map((j) => j.ipo).join(' · ')}</span></span>
+      <span className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{r.jobs.map((j) => s.jobs[j.jobId]?.name || j.jobId).join(' · ')}<span className="ml-2 text-[0.78125rem] text-faint">{r.jobs.map((j) => j.ipo).join(' · ')}</span></span>
       <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(r.total)}</span>
       <span className="max-lg:hidden"><Status tone="ok">Paid {r.paidOn}</Status></span>
       <span className="flex justify-end max-lg:hidden" onClick={(e) => e.stopPropagation()}><Button size="sm" variant="ghost" icon={<FileText />} onClick={open}>His PO</Button></span>
@@ -310,7 +310,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
                   <ChevronRight className="ml-0.5 inline h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" />
                 </span>
                 {g.bill != null && Math.abs(g.bill - g.amount) > 5 && <span className="shrink-0 rounded-full bg-bad-50 px-2 py-0.5 text-[0.75rem] font-semibold text-bad-700">He billed {fmtMoney(g.bill)}</span>}
-                <span className="w-[5.25rem] shrink-0 text-right text-[0.84375rem] font-semibold tnum text-ink">{fmtMoney(g.amount)}</span>
+                <span className="w-[5.25rem] shrink-0 text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(g.amount)}</span>
               </button>
               {g.surfaces.map((x) => (
                 <div key={x.surface} className="grid grid-cols-[minmax(0,1fr)_repeat(6,3.25rem)_4.375rem_5.25rem] items-center px-4 py-1 text-[0.84375rem] max-md:grid-cols-[minmax(0,1fr)_5.25rem]">

@@ -150,20 +150,20 @@ export function POsPage() {
                 <Td>
                   <div className="flex min-w-0 items-baseline gap-2">
                     <span className="shrink-0 text-[0.8125rem] tnum text-muted">{r.po.id}</span>
-                    <span className="truncate text-[0.875rem] font-medium text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
+                    <span className="truncate text-[0.9375rem] text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
                   </div>
                   <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `${r.po.more ? 'More tile' : 'Tile'}${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
                 </Td>
                 <Td className="max-md:hidden">
                   {r.kind === 'installer' ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><Avatar who={r.po.crew} size={20} />{PEOPLE[r.po.crew].name}</span> : <span className="text-[0.84375rem]">{r.po.supplier}</span>}
                 </Td>
-                <Td className="truncate text-[0.84375rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
+                <Td className="truncate text-[0.875rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
                 <Td right className="tnum text-ink max-md:hidden">
                   {r.kind === 'material' && !billsUs(r.po) ? <span className="text-muted">No prices</span> : fmtMoney(amount)}
                   {r.kind === 'installer' && (() => { const ra = poRatio(s, r.po); return ra.sold && ra.total ? <div className={cn('text-[0.75rem] font-semibold', ra.over ? 'text-bad-600' : 'text-muted')}>{ra.pct}% of estimate</div> : null })()}
                 </Td>
                 <Td className="max-md:hidden"><Status tone={x.tone}>{x.label}</Status></Td>
-                <Td className="text-[0.84375rem] text-muted max-xl:hidden">{r.kind === 'material' ? r.po.date || r.po.log[0]?.date : r.po.date}</Td>
+                <Td className="text-[0.875rem] text-muted max-xl:hidden">{r.kind === 'material' ? r.po.date || r.po.log[0]?.date : r.po.date}</Td>
               </Tr>
             )
           })}
@@ -581,8 +581,8 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
     })
     onChange(next)
   }
-  const share = (pct?: number, extra?: string) => <span className={cn('block text-right text-[0.84375rem] tnum', pct == null ? 'text-faint' : pct > ratio.line ? 'font-semibold text-bad-600' : 'text-ink-2', extra)}>{pct != null ? `${pct}%` : '—'}</span>
-  const money = (n?: number | null, cls = 'text-ink-2', extra?: string) => <span className={cn('block text-right text-[0.84375rem] tnum', n ? cls : 'text-faint', extra)}>{n ? fmtMoney(n) : '—'}</span>
+  const share = (pct?: number, extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', pct == null ? 'text-faint' : pct > ratio.line ? 'font-semibold text-bad-600' : 'text-ink-2', extra)}>{pct != null ? `${pct}%` : '—'}</span>
+  const money = (n?: number | null, cls = 'text-ink-2', extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', n ? cls : 'text-faint', extra)}>{n ? fmtMoney(n) : '—'}</span>
   const lineSold = ratio.lines.reduce((n, l) => n + (l.sold || 0), 0)
   const rest = ratio.estimate ? Math.max(0, ratio.estimate - lineSold) : 0
   const cos = p.changes.map((c) => {
@@ -627,8 +627,8 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
               </>
             ) : (
               <>
-                <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:row-start-2 max-sm:text-left">{l.qty}</span>
-                <span className={cn('text-right text-[0.84375rem] tnum max-sm:row-start-2', l.rate ? 'text-ink-2' : 'text-faint')}>{l.rate ? fmtMoney(l.rate, { cents: l.rate % 1 !== 0 }) : '—'}</span>
+                <span className="text-right text-[0.875rem] tnum text-ink-2 max-sm:row-start-2 max-sm:text-left">{l.qty}</span>
+                <span className={cn('text-right text-[0.875rem] tnum max-sm:row-start-2', l.rate ? 'text-ink-2' : 'text-faint')}>{l.rate ? fmtMoney(l.rate, { cents: l.rate % 1 !== 0 }) : '—'}</span>
                 <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:row-start-2">{fmtMoney(l.amount)}</span>
               </>
             )}
@@ -645,7 +645,7 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
       {cos.map(({ c, sold, pct }) => (
         <div key={c.co} className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2 max-sm:gap-y-1')} data-ipo-co={c.co}>
           <span className="min-w-0 max-sm:col-span-4"><span className="block truncate text-[0.875rem] text-ink">{c.co} · {c.text}</span>{c.status === 'pending' && <span className="block text-[0.75rem] text-muted">Waiting for the client’s yes — not counted yet</span>}</span>
-          <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:text-left">{c.qty}</span>
+          <span className="text-right text-[0.875rem] tnum text-ink-2 max-sm:text-left">{c.qty}</span>
           <span />
           <span className={cn('text-right text-[0.875rem] tnum', c.status === 'pending' ? 'text-muted' : 'font-semibold text-ink')}>{fmtMoney(c.amount)}</span>
           {money(sold, 'text-ink-2', 'max-sm:hidden')}
