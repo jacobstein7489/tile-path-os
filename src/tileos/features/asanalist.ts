@@ -103,6 +103,15 @@ export function addrKey(t: string): string {
   const w = n.split(' ')
   return /^\d/.test(w[0] || '') ? w.slice(0, 2).join(' ') : n
 }
+/** the number and street anywhere in a name or an address — "Upgrades - Gordon 110 Park Place" and "110 Park PL" are
+ *  both "110 park pl" (the street's kind when it has one, so 110 Park Ave isn't 110 Park Place) */
+export function streetOf(t?: string): string {
+  if (!t) return ''
+  let n = norm(t).replace(/\bcircle\b/g, 'cir')
+  SUFFIX.forEach(([re, w]) => { n = n.replace(re, w) })
+  const m = n.match(/(?:^|\s)(\d+[a-z]?)\s+([a-z]+)(?:\s+(rd|st|ave|dr|ct|pl|ln|blvd|ter|pkwy|hwy|way|cir|circle|sq|plz))?\b/)
+  return m ? [m[1], m[2], m[3]].filter(Boolean).join(' ') : ''
+}
 /** the same job: the same name, or the same number and street */
 export const sameJob = (a: string, b: string) => !!a && !!b && (norm(a) === norm(b) || (/^\d/.test(norm(a)) && addrKey(a) === addrKey(b)))
 /** "Schedule 489-497 Teaneck Rd." → "489-497 Teaneck Rd." — the scheduling task is the job */
@@ -163,6 +172,18 @@ export function jobsFromCsv(text: string, o: { finished?: boolean; have?: Job[] 
     if (same) { if (RANK[j.place] > RANK[same.place]) Object.assign(same, { ...j, key: same.key }); return }
     out.push(j)
   })
+  /* the job's estimate (still being priced) and the job itself (won) — two tasks on the board, one job: at the same
+     street, the won one keeps them both (two won jobs at one address — a separate scope — stay two) */
+  const wonRows = out.filter((x) => RANK[x.place] >= RANK.won && x.place !== 'done' && x.place !== 'lost')
+  for (const e of out.filter((x) => RANK[x.place] >= 0 && RANK[x.place] < RANK.won)) {
+    const st = streetOf(e.address) || streetOf(e.name)
+    const m = st ? wonRows.filter((w) => (streetOf(w.address) || streetOf(w.name)) === st) : []
+    if (m.length !== 1) continue
+    const w = m[0]
+    w.total ||= e.total; w.estimator ||= e.estimator; w.sales ||= e.sales; w.client ||= e.client; w.address ||= e.address
+    if (e.notes && !w.notes?.includes(e.notes)) w.notes = [w.notes, e.notes].filter(Boolean).join('\n')
+    out.splice(out.indexOf(e), 1)
+  }
   const have = o.have || []
   out.forEach((j) => { j.dup = have.find((h) => sameJob(h.name, j.name) || (!!j.address && sameJob(h.address, j.address)))?.id })
   return { jobs: out, board, finished, columns: C.name >= 0 }

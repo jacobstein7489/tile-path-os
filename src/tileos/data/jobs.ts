@@ -469,6 +469,8 @@ export interface Surface {
   joint?: string
   edge?: string
   height?: string
+  /** which walls it goes on — "Back", "Left", "Right", "Front"; none: all of them */
+  walls?: string[]
   /** the height measured on site at the site check, in inches — and what the estimate had */
   measured?: { inches: number; date: string; was?: number }
   prep?: string

@@ -276,7 +276,12 @@ export const verdict = (pct: number | null, goal: number): { tone: Tone; word: s
 const one = (n: number) => (Math.round(n * 10) / 10).toString()
 
 const DAYS_KEY = 'tileos-report-days'
-export function TeamReportPage() {
+export function TeamReportPage({ todayOf, after }: {
+  /** how many on someone's Today — the number on their own phone */
+  todayOf?: (s: Store, p: PersonKey) => number
+  /** under the people: what's on nobody's list */
+  after?: React.ReactNode
+} = {}) {
   const s = useStore()
   const [days, setDays] = React.useState<'7' | '30'>(() => { try { return localStorage.getItem(DAYS_KEY) === '7' ? '7' : '30' } catch { return '30' } })
   const pick = (v: '7' | '30') => { setDays(v); try { localStorage.setItem(DAYS_KEY, v) } catch { /* private window */ } }
@@ -306,10 +311,11 @@ export function TeamReportPage() {
       }
     >
       <div className={cn(HEAD_ROW, 'grid gap-x-6 max-lg:hidden', REPORT_COLS, EVEN, PX)} style={TEAM_WIDE}>
-        <span>Person</span><span>On time</span><span>Late by, on average</span><span>Late now</span><span />
+        <span>Person</span><span>Today</span><span>On time</span><span>Late by, on average</span><span>Late now</span><span />
       </div>
       <div data-report>
-        {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} days={Number(days)} />)}
+        {rows.map((r) => <ReportRow key={r.who} r={r} goal={goal} days={Number(days)} today={todayOf ? todayOf(s, r.who) : undefined} />)}
+        {after}
       </div>
     </Page>
   )
@@ -317,19 +323,21 @@ export function TeamReportPage() {
 
 /** the on-time share in its color: green at the goal, amber close, red below — gray when there's not enough yet */
 const PCT_FG: Record<string, string> = { ok: 'text-ok-700', warn: 'text-warn-700', bad: 'text-bad-600', neutral: 'text-muted' }
-const REPORT_COLS = 'grid-cols-[minmax(0,1fr)_9rem_9.5rem_6.5rem_1rem]'
+const REPORT_COLS = 'grid-cols-[minmax(0,1fr)_5.5rem_9rem_9.5rem_6.5rem_1rem]'
 /** on a wide screen: each column its room, the rest shared evenly */
-const TEAM_WIDE = evenVars([16, 7.5, 7.5, 5.5, 1], { fixedLast: true })
+const TEAM_WIDE = evenVars([16, 4.5, 7.5, 7.5, 5.5, 1], { fixedLast: true })
 
-/** one person, one line: who, on time (the share, and of how many), late by on average, late now — tap it: its window */
-function ReportRow({ r, goal, days }: { r: PersonStats; goal: number; days: number }) {
+/** one person, one line: who, what's on their Today, on time (the share, and of how many), late by on average, late
+ *  now — tap it: their list and what was late, in its own window */
+function ReportRow({ r, goal, days, today }: { r: PersonStats; goal: number; days: number; today?: number }) {
   const s = useStore()
   const v = verdict(r.pct, goal)
   return (
     <button onClick={() => s.open({ t: 'report', who: r.who, days })} style={TEAM_WIDE} data-report-person={r.who} data-pct={r.pct ?? ''}
       className={cn('grid min-h-[3rem] w-full items-center gap-x-6 border-t border-line-2 py-2 text-left transition first:border-t-0 row-hover max-lg:flex max-lg:gap-3', REPORT_COLS, EVEN, PX)}>
       <span className="min-w-0 truncate text-[0.9375rem] text-ink max-lg:flex-1"><span className="font-medium">{PEOPLE[r.who]?.name}</span><span className="text-muted max-sm:hidden"> · {PEOPLE[r.who]?.roleLabel}</span></span>
-      <span className="truncate tnum">{r.pct == null ? <span className="text-[0.8125rem] text-faint" data-report-few>Not enough yet</span> : <><b className={cn('text-[0.9375rem] font-semibold', PCT_FG[v.tone])}>{r.pct}%</b><span className="text-[0.8125rem] text-muted"> · {r.onTime} of {r.set}</span></>}</span>
+      <span className="shrink-0 text-[0.875rem] tnum" data-report-today={today ?? ''}>{today != null ? <><b className="font-semibold text-ink">{today}</b><span className="text-muted lg:hidden"> today</span></> : null}</span>
+      <span className="truncate tnum max-lg:shrink-0">{r.pct == null ? <span className="text-[0.8125rem] text-faint" data-report-few>Not enough yet</span> : <><b className={cn('text-[0.9375rem] font-semibold', PCT_FG[v.tone])}>{r.pct}%</b><span className="text-[0.8125rem] text-muted"> · {r.onTime} of {r.set}</span></>}</span>
       <span className="text-[0.875rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint">—</span>}</span>
       <span className="text-[0.875rem] tnum max-lg:hidden">{r.lateNow ? <span className="font-medium text-bad-600">{r.lateNow} late</span> : <span className="text-faint">—</span>}</span>
       <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
@@ -339,7 +347,7 @@ function ReportRow({ r, goal, days }: { r: PersonStats; goal: number; days: numb
 
 /** one person on the report: what was late in those days — one line each, red for how late; open it from here.
  *  Check in on what's late now, when there is */
-export function ReportModal({ who, days, level }: { who: PersonKey; days: number; level: number }) {
+export function ReportModal({ who, days, level, list }: { who: PersonKey; days: number; level: number; /** their Today, as on their own phone */ list?: React.ReactNode }) {
   const s = useStore()
   const r = personStats(s, who, days)
   const goal = onTimeGoal(s)
@@ -351,6 +359,7 @@ export function ReportModal({ who, days, level }: { who: PersonKey; days: number
       title={PEOPLE[who]?.name || 'Someone'}
       sub={r.pct == null ? `Not enough set for a day in the last ${days} days` : <><b className={cn('font-semibold', PCT_FG[v.tone])}>{r.pct}% on time</b> · {r.onTime} of {r.set} in the last {days} days</>}
       footer={<>{ci > 0 && <Button icon={<UserRoundCheck />} onClick={() => s.open({ t: 'checkin', who })} data-report-checkin>Check in · {ci}</Button>}<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
+      {list}
       {late.length ? (
         <section data-report-items>
           <div className="flex items-baseline gap-2 pb-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]">Late<span className="font-medium text-faint">{late.length}</span></div>

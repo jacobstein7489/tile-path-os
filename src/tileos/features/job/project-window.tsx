@@ -3,7 +3,7 @@
  * project's parts one tab at a time (job/board): Where it stands · Scope of work · Layouts · Materials · Billing ·
  * People · Documents. The window is the same size on every tab — nothing grows or shrinks as you go. */
 import * as React from 'react'
-import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks, Copy } from 'lucide-react'
+import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks } from 'lucide-react'
 import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep, Pop } from '@/tileos/components/ui/overlay'
@@ -213,7 +213,6 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
       {setsWhere && <MenuItem icon={<ListChecks className="h-4 w-4" />} onSelect={() => s.open({ t: 'catchup', id: job.id })}>Update where it’s up to</MenuItem>}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {/* the same project twice (an estimate brought in, and the project): one of them, joined into the other */}
-      {['owner', 'pm'].includes(role) && <MenuItem icon={<Copy className="h-4 w-4" />} onSelect={() => s.open({ t: 'join', jobId: job.id })} hint="A double — join them" data-join-open>The same project as…</MenuItem>}
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
   ) : null

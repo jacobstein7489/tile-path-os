@@ -245,7 +245,8 @@ function ScopePart({ job, open }: { job: Job; open: (v: BoardView) => void }) {
                       const pct = surfacePct(x)
                       const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
                       const g = x.grout || t?.grout
-                      const h = heightShort(x.height)
+                      /* how high, and on which walls when it isn't all of them ("back, left · Half tiled") */
+                      const h = [x.walls?.length ? x.walls.join(', ').toLowerCase() : '', heightShort(x.height)].filter(Boolean).join(' · ')
                       /* more tiles on it: a checkerboard's other color, a wall cap */
                       const more = (x.also || []).map((a) => tileOf(job.id, a)).filter(Boolean) as Tile[]
                       /* what's special about it, right on its line: the layout (basketweave, a checkerboard cut to 12 × 12),

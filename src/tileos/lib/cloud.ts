@@ -13,6 +13,7 @@ import type { RealtimeChannel, User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore, DATA_KEYS, freshData, initialData, ensureTiles, ID, signInAs, ME_OF, type Data } from '@/tileos/store'
 import { oneEach, twinsOf, mergeTwins } from '@/tileos/lib/twins'
+import { oneJobEach } from '@/tileos/features/joinjobs'
 import { REAL, redate, seedCounters, setSaveStatus, appUrl, OFFLINE_WORDS } from '@/tileos/lib/save'
 import { TODAY } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
@@ -326,6 +327,8 @@ function onePlace(d: Data, all = true): Data {
   let data: Data | null = null
   let to = new Map<string, string>()
   if (all) { const fixed = noMadeUpPrices(d); if (fixed) { data = fixed; d = fixed } }
+  /* the same job twice from Asana (its estimate and the job): one project */
+  if (all) { try { const one = oneJobEach(d, (REAL.me as any) || 'ys'); if (one) { data = one; d = one } } catch { /* never in the way of the data coming in */ } }
   if (all) { const r = oneEach(d); if (r) { data = r.data; to = r.to } }
   else { const tw = twinsOf(d.team); if (tw.length) { data = mergeTwins(d, tw); tw.forEach((t) => t.drop.forEach((k) => to.set(k, t.keep))) } }
   if (!data) return d

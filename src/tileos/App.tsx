@@ -8,7 +8,7 @@ import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge, UpdatePill } from '@/tileos/components/shell/shell'
 import { ReadingBar } from '@/tileos/features/readcard'
 import { TipProvider } from '@/tileos/components/ui/overlay'
-import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher } from '@/tileos/features/mytasks'
+import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher, JobPickModal, NobodyModal, TheirList, NobodyLine, theirToday } from '@/tileos/features/mytasks'
 import { CaptureModal } from './features/capture'
 import { AskButton } from '@/tileos/features/askbutton'
 import { InboxPage } from '@/tileos/features/inbox'
@@ -59,7 +59,6 @@ import { UpcomingPage } from '@/tileos/features/upcoming'
 import { DrainModal, CO004Modal, ThinsetModal, QtyModal, ReceiveModal, ReceiveTileModal, VerifyModal, RolesModal } from '@/tileos/features/resolve'
 import { MyNameModal } from '@/tileos/features/myname'
 import { JobContactModal } from '@/tileos/features/jobcontacts'
-import { JoinModal } from '@/tileos/features/joinjobs'
 import { FlowPage } from '@/tileos/features/flow-map'
 import { SettingsPage, AddPersonModal, InviteModal } from '@/tileos/features/settings'
 import { CrewView } from '@/tileos/features/crew'
@@ -218,11 +217,12 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'roles': return <RolesModal level={level} />
     case 'myname': return <MyNameModal level={level} />
     case 'jobcontact': return <JobContactModal jobId={m.jobId} index={m.index} level={level} />
-    case 'join': return <JoinModal jobId={m.jobId} level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'late': return <LateModal level={level} />
     case 'checkin': return <CheckInModal who={m.who} level={level} />
-    case 'report': return <ReportModal who={m.who} days={m.days || 30} level={level} />
+    case 'report': return <ReportModal who={m.who} days={m.days || 30} level={level} list={<TheirList who={m.who} />} />
+    case 'jobpick': return <JobPickModal level={level} />
+    case 'nobodylist': return <NobodyModal level={level} />
     case 'editproject': return <EditProjectModal id={m.id} level={level} />
     case 'addperson': return <AddPersonModal level={level} />
     case 'buildrooms': return <BuildRoomsModal jobId={m.jobId} level={level} />
@@ -295,7 +295,7 @@ export default function App() {
     case 'flow': body = <FlowPage />; break
     case 'settings': body = <SettingsPage />; break
     case 'job': body = <JobPage />; break
-    case 'team': body = <TeamReportPage />; break
+    case 'team': body = <TeamReportPage todayOf={theirToday} after={<NobodyLine />} />; break
   }
 
   return (

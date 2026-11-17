@@ -6,7 +6,7 @@
  * (one window of dropdowns); tap a tile to change the tile. */
 import * as React from 'react'
 import { sellsTile } from '@/tileos/data/directory'
-import { Upload, Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown } from 'lucide-react'
+import { Upload, Plus, FileText, Ruler, Sparkles, Camera, Trash2, ChevronRight, Layers3, Building2, ImagePlus, AlertTriangle, PauseCircle, Clock3, Ban, ArrowLeftRight, Lock, Unlock, LayoutGrid, ChevronDown, Check } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Segmented, TextInput, TextArea, SearchField } from '@/tileos/components/ui/core'
 import { Modal, Pop, Tip } from '@/tileos/components/ui/overlay'
@@ -524,13 +524,39 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
 }
 
 /* ================= one tile: picture, what it is, the grout, where it goes ================= */
+/* Few fields: the tag and its name, the size, the grout, who orders it and from which store (the job's own store —
+ * its first tile PO — until it's another). The finish, the maker, the color and the box under "More about it".
+ * Where it goes: room by room, its walls and floors as buttons — tap the ones this tile goes on; the usual ones a room
+ * doesn't have yet (a niche, a backsplash) are there to add. A wall it's on: how high and which walls. A wall or floor
+ * with another tile on it says so — it's changed from there, never swapped by accident here. */
+const BASICS = ['Floor', 'Walls', 'Shower floor', 'Shower walls', 'Niche', 'Backsplash']
+/** a wall that can stop part way up, on some of the walls */
+const wallish = (n: string) => /wall|wainscot/i.test(n) && !/niche/i.test(n)
+const HIGH: { label: string; v: string }[] = [
+  { label: 'To the ceiling', v: 'Fully tiled — to the ceiling' },
+  { label: '4 ft', v: 'Half tiled — to 4 ft' },
+  { label: '8 ft', v: '96″' },
+]
+const WALLS = ['Back', 'Left', 'Right', 'Front']
+const PICK = 'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[0.5rem] border px-2.5 text-[0.84375rem] font-medium transition max-md:h-10 max-md:px-3'
+const pickCls = (on: boolean) => cn(PICK, on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:bg-wash')
+
 export function TileModal({ jobId, tag, room, surface, level }: { jobId: string; tag?: string; room?: string; surface?: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
   const cur = tag ? s.tiles[jobId]?.[tag] : undefined
-  const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: '', suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
-  const flat = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.map((x) => ({ room: r.name, surface: x.name, x })))
+  /* the store: the job's own (its first tile PO) when the tile doesn't say */
+  const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur, supplier: cur.supplier || job?.tileStore || '' } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: job?.tileStore || '', suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
+  const rooms = s.rooms[jobId] || []
+  const flat = rooms.flatMap((r) => r.surfaces.map((x) => ({ room: r.name, surface: x.name, x })))
   const [on, setOn] = React.useState<string[]>(() => (cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map(refKey) : room && surface ? [refKey({ room, surface })] : []))
+  /* walls and floors to make (a niche the room didn't have), heights and walls changed here */
+  const [adds, setAdds] = React.useState<{ room: string; surface: string }[]>([])
+  const [heights, setHeights] = React.useState<Record<string, string>>({})
+  const [walls, setWalls] = React.useState<Record<string, string[]>>({})
+  /* the rooms shown: where it is now, and the room it was opened from */
+  const [shown, setShown] = React.useState<string[]>(() => Array.from(new Set([...(cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map((f) => f.room) : []), ...(room ? [room] : [])])))
+  const [more, setMore] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [confirmDel, setConfirmDel] = React.useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)
@@ -546,16 +572,25 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
     try { set(await readPhoto(f)) } catch (e: any) { toast(e?.message || 'Couldn’t read that picture') }
     setBusy(false)
   }
-  const save = () => saveTile(jobId, { ...t, tag: tagT, name: t.name.trim(), maker: t.maker.trim(), sku: t.sku.trim(), supplier: t.supplier.trim() }, { was: tag, on: on.map((k) => { const [r, sfc] = k.split('|'); return { room: r, surface: sfc } }) })
+  const save = () => saveTile(jobId, { ...t, tag: tagT, name: t.name.trim(), maker: t.maker.trim(), sku: t.sku.trim(), supplier: t.supplier.trim() }, {
+    was: tag,
+    on: on.map((k) => { const [r, sfc] = k.split('|'); return { room: r, surface: sfc } }),
+    adds: adds.filter((a) => on.includes(refKey(a))),
+    heights, walls,
+  })
   /* the tile stores (Suppliers that sell tile) first, then any store a tile came from before */
-  const suppliers = Array.from(new Set([...s.suppliers.filter((x) => sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
+  const suppliers = Array.from(new Set([...(job.tileStore ? [job.tileStore] : []), ...s.suppliers.filter((x) => sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
+  const toggle = (k: string) => setOn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]))
+  const heightOf = (k: string, x?: Surface) => (k in heights ? heights[k] : x?.height || '')
+  const wallsOf = (k: string, x?: Surface) => (k in walls ? walls[k] : x?.walls || [])
+  const moreN = [t.finish && t.finish !== 'Matte' ? 1 : 0, t.maker ? 1 : 0, t.sku ? 1 : 0, t.boxSF ? 1 : 0].reduce((a, b) => a + b, 0)
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
       title={cur ? `${cur.tag} · ${cur.name}` : 'Add a tile'}
-      sub={`${job.name} · from the finish schedule — one tag everywhere: the scope, the orders, the crew’s sheet`}
+      sub={job.name}
       footer={
         <>
           {cur && (
@@ -572,14 +607,13 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
         </>
       }
     >
-      <div className="grid grid-cols-[10.5rem_minmax(0,1fr)] gap-6 max-sm:grid-cols-1">
+      <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-6 max-sm:grid-cols-1">
         <div className="flex flex-col items-center gap-2">
           <button onClick={() => fileRef.current?.click()} aria-label="Add a photo" className="group relative overflow-hidden rounded-[1rem]">
-            {t.photo || t.swatch ? <TileImg tile={t} size={168} radius={16} /> : (
-              <span className="flex h-[10.5rem] w-[10.5rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-dashed border-[#d1cbc0] bg-wash text-center transition group-hover:border-brand-300 group-hover:bg-brand-50/40">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-600 shadow-card"><ImagePlus className="h-5 w-5" /></span>
+            {t.photo || t.swatch ? <TileImg tile={t} size={136} radius={16} /> : (
+              <span className="flex h-[8.5rem] w-[8.5rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-dashed border-[#d1cbc0] bg-wash text-center transition group-hover:border-brand-300 group-hover:bg-brand-50/40">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-600 shadow-card"><ImagePlus className="h-5 w-5" /></span>
                 <span className="text-[0.84375rem] font-semibold text-ink">{busy ? 'Reading…' : 'Add a photo'}</span>
-                <span className="px-3 text-[0.75rem] leading-snug text-muted">The sample, the box or the store’s picture</span>
               </span>
             )}
             {(t.photo || t.swatch) && <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-black/45 py-1.5 text-[0.75rem] font-semibold text-white opacity-0 transition group-hover:opacity-100"><Camera className="h-3.5 w-3.5" />Change the photo</span>}
@@ -601,35 +635,96 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
           {clash && <div className="mt-1.5 text-[0.78125rem] font-medium text-bad-600">{tagT} is already on this project — use the next tag.</div>}
           <div className="mt-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
             <Field2 label="Size"><SearchSelect label="Size" value={t.size} onChange={(v) => set({ size: v })} options={opts(TILE_SIZES, t.size)} placeholder="Pick or type" onCreate={(v) => set({ size: v })} createLabel={(q) => `Use “${q}”`} search searchPlaceholder="e.g. 12 × 24" width={260} /></Field2>
-            <Field2 label="Finish"><SearchSelect label="Finish" value={t.finish} onChange={(v) => set({ finish: v })} options={opts(FINISHES, t.finish)} search={false} width={220} /></Field2>
-            <Field2 label="Maker"><TextInput aria-label="Maker" value={t.maker} onChange={(e) => set({ maker: e.target.value })} placeholder="e.g. Marca Corona" className="h-10" /></Field2>
-            <Field2 label="Color or SKU"><TextInput aria-label="Color or SKU" value={t.sku} onChange={(e) => set({ sku: e.target.value })} placeholder="As on the finish schedule" className="h-10" /></Field2>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line-2 pt-4 max-sm:grid-cols-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
+              <Field2 label="Grout"><SearchSelect label="Grout" value={t.grout || ''} onChange={(v) => set({ grout: v })} emptyLabel="Not picked yet" options={Object.entries(GROUTS).map(([k, g]) => ({ key: k, label: g.name, hint: g.product, lead: <GroutDot grout={k} size={16} /> }))} onCreate={(name) => set({ grout: addGrout(name) })} createLabel={(q) => `Add “${q}” as a grout color`} search searchPlaceholder="Type a color…" width={300} /></Field2>
+              <Field2 label="Joint"><SearchSelect label="Joint" value={t.joint || ''} onChange={(v) => set({ joint: v })} options={JOINTS.map((j) => ({ key: j, label: j }))} placeholder="Joint" search={false} width={160} /></Field2>
+            </div>
             <Field2 label="Who orders it">
               <Segmented value={t.suppliedBy || 'GC'} onChange={(v) => set({ suppliedBy: v })} items={WHO_ORDERS} className="h-10 w-full [&>button]:flex-1 [&>button]:justify-center" />
             </Field2>
-            <Field2 label="From which store"><SearchSelect label="Store" value={t.supplier} onChange={(v) => set({ supplier: v })} options={suppliers.map((x) => ({ key: x, label: x }))} placeholder="Pick or type" onCreate={(v) => set({ supplier: v })} createLabel={(q) => `Add “${q}”`} search width={280} /></Field2>
-            <Field2 label="Grout it goes with">
-              <SearchSelect label="Grout" value={t.grout || ''} onChange={(v) => set({ grout: v })} emptyLabel="Not picked yet" options={Object.entries(GROUTS).map(([k, g]) => ({ key: k, label: g.name, hint: g.product, lead: <GroutDot grout={k} size={16} /> }))} onCreate={(name) => set({ grout: addGrout(name) })} createLabel={(q) => `Add “${q}” as a grout color`} search searchPlaceholder="Type a color…" width={300} />
-            </Field2>
-            <div className="grid grid-cols-2 gap-3">
-              <Field2 label="Joint"><SearchSelect label="Joint" value={t.joint || ''} onChange={(v) => set({ joint: v })} options={JOINTS.map((j) => ({ key: j, label: j }))} placeholder="Joint" search={false} width={160} /></Field2>
+            <Field2 label="From which store" hint={job.tileStore && t.supplier === job.tileStore ? `This job’s tile store` : undefined}><SearchSelect label="Store" value={t.supplier} onChange={(v) => set({ supplier: v })} options={suppliers.map((x) => ({ key: x, label: x }))} placeholder="Pick or type" onCreate={(v) => set({ supplier: v })} createLabel={(q) => `Add “${q}”`} search width={280} /></Field2>
+          </div>
+          {/* the rest of what's on the finish schedule — when it's needed */}
+          <button type="button" onClick={() => setMore(!more)} aria-expanded={more} className="mt-3 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-tile-more>
+            {more ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}More about it{!more && moreN ? <span className="font-normal text-muted"> · {[t.finish !== 'Matte' ? t.finish : '', t.maker, t.sku, t.boxSF ? `${t.boxSF} SF a box` : ''].filter(Boolean).join(' · ')}</span> : !more ? <span className="font-normal text-muted"> · finish, maker, color, box</span> : null}
+          </button>
+          {more && (
+            <div className="mt-2 grid grid-cols-2 gap-3 max-sm:grid-cols-1" data-tile-more-fields>
+              <Field2 label="Finish"><SearchSelect label="Finish" value={t.finish} onChange={(v) => set({ finish: v })} options={opts(FINISHES, t.finish)} search={false} width={220} /></Field2>
+              <Field2 label="Maker"><TextInput aria-label="Maker" value={t.maker} onChange={(e) => set({ maker: e.target.value })} placeholder="e.g. Marca Corona" className="h-10" /></Field2>
+              <Field2 label="Color or SKU"><TextInput aria-label="Color or SKU" value={t.sku} onChange={(e) => set({ sku: e.target.value })} placeholder="As on the finish schedule" className="h-10" /></Field2>
               <Field2 label="SF in a box"><TextInput aria-label="Square feet in a box" inputMode="decimal" value={t.boxSF ? String(t.boxSF) : ''} onChange={(e) => set({ boxSF: Number(e.target.value.replace(/[^0-9.]/g, '')) || undefined })} placeholder="—" className="h-10 tnum" /></Field2>
             </div>
-          </div>
-          <div className="mt-4 border-t border-line-2 pt-4">
-            <Field2 label="Where it goes" hint={on.length ? `${on.length} wall${on.length === 1 ? '' : 's'} and floors — they take this tile${t.grout ? ' and its grout' : ''}` : 'Pick the walls and floors now, or later from each one'}>
-              <MultiSelect
-                label="Where it goes"
-                values={on}
-                onChange={setOn}
-                placeholder="Pick walls and floors"
-                options={flat.map((f) => ({ key: refKey(f), label: `${f.room} · ${f.surface}`, hint: f.x.tile && f.x.tile !== tag ? `Now ${f.x.tile} ${tileOf(jobId, f.x.tile)?.name || ''}` : f.x.sf ? `${f.x.sf} SF` : undefined }))}
-                summary={(p) => (p.length <= 2 ? p.map((o) => o.label).join(', ') : `${p.length} walls and floors`)}
-                width={420}
+          )}
+          {/* where it goes: room by room, the walls and floors to tap */}
+          <div className="mt-4 border-t border-line-2 pt-4" data-where-goes>
+            <div className="mb-2 flex items-baseline gap-2">
+              <span className="text-[0.8125rem] font-medium text-ink-2">Where it goes</span>
+              <span className="text-[0.78125rem] text-muted">{on.length ? `${on.length} ${on.length === 1 ? 'place' : 'places'}${t.grout ? ' — they take this tile and its grout' : ''}` : 'Tap the walls and floors it goes on'}</span>
+            </div>
+            {!rooms.length && <div className="rounded-xl border border-dashed border-line px-3 py-3 text-[0.8125rem] text-muted">No rooms on the scope of work yet — add them there, then pick where it goes.</div>}
+            {shown.map((rn) => {
+              const r = rooms.find((x) => x.name === rn)
+              if (!r) return null
+              const have = r.surfaces.filter((x) => takesTile(x.name) || x.tile)
+              const added = adds.filter((a) => a.room === rn && !have.some((x) => x.name === a.surface)).map((a) => a.surface)
+              const names = [...have.map((x) => x.name), ...added]
+              const basics = BASICS.filter((b) => !names.some((n) => n.toLowerCase() === b.toLowerCase()))
+              const key = (n: string) => refKey({ room: rn, surface: n })
+              const wallsOn = names.filter((n) => wallish(n) && on.includes(key(n)))
+              return (
+                <div key={rn} className="mb-2.5 rounded-xl border border-line-2 p-3" data-where-room={rn}>
+                  <div className="mb-2 flex items-baseline gap-2"><span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{rn}</span>{r.floor && <span className="shrink-0 text-[0.78125rem] text-muted">{r.floor}</span>}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {have.map((x) => {
+                      const k = key(x.name)
+                      const isOn = on.includes(k)
+                      const other = x.tile && x.tile !== tag && !isOn ? x.tile : ''
+                      return other ? (
+                        <span key={x.name} title={`${x.name} has ${other} — change it from that wall or floor`} className={cn(PICK, 'cursor-default border-dashed border-line bg-wash/60 text-muted')} data-where-taken={x.name}>{x.name}<span className="text-[0.75rem] font-semibold text-faint">{other}</span></span>
+                      ) : (
+                        <button key={x.name} type="button" aria-pressed={isOn} onClick={() => toggle(k)} className={pickCls(isOn)} data-where-chip={x.name}>{isOn && <Check className="h-3.5 w-3.5" />}{x.name}</button>
+                      )
+                    })}
+                    {added.map((n) => <button key={n} type="button" aria-pressed={on.includes(key(n))} onClick={() => toggle(key(n))} className={pickCls(on.includes(key(n)))} data-where-chip={n}>{on.includes(key(n)) && <Check className="h-3.5 w-3.5" />}{n}</button>)}
+                    {basics.map((b) => <button key={b} type="button" onClick={() => { setAdds((a) => [...a, { room: rn, surface: b }]); setOn((o) => [...o, key(b)]) }} className={cn(PICK, 'border-dashed border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700')} data-where-add={b}><Plus className="h-3.5 w-3.5" />{b}</button>)}
+                  </div>
+                  {/* a wall it's on: how high, which walls */}
+                  {wallsOn.map((n) => {
+                    const k = key(n)
+                    const x = have.find((y) => y.name === n)
+                    const h = heightOf(k, x)
+                    const custom = !!h && !HIGH.some((o) => o.v === h)
+                    const ws = wallsOf(k, x)
+                    return (
+                      <div key={n} className="mt-2.5 flex flex-col gap-2 rounded-lg bg-wash/60 p-2.5" data-wall-how={n}>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="w-[6.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">{n} · how high</span>
+                          {HIGH.map((o) => <button key={o.v} type="button" aria-pressed={h === o.v} onClick={() => setHeights((m) => ({ ...m, [k]: h === o.v ? '' : o.v }))} className={pickCls(h === o.v)} data-wall-high={o.label}>{o.label}</button>)}
+                          <input aria-label={`${n} — how high, in your words`} value={custom ? h : ''} onChange={(e) => setHeights((m) => ({ ...m, [k]: e.target.value }))} placeholder="Other — 5 ft" className={cn('h-8 w-[7.5rem] rounded-[0.5rem] border bg-white px-2.5 text-[0.84375rem] text-ink outline-none focus:border-brand-300 max-md:h-10', custom ? 'border-brand-500' : 'border-line')} data-wall-high-other />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="w-[6.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">Which walls</span>
+                          <button type="button" aria-pressed={!ws.length} onClick={() => setWalls((m) => ({ ...m, [k]: [] }))} className={pickCls(!ws.length)} data-wall-which="All">All</button>
+                          {WALLS.map((w) => { const isOn = ws.includes(w); return <button key={w} type="button" aria-pressed={isOn} onClick={() => setWalls((m) => ({ ...m, [k]: isOn ? ws.filter((y) => y !== w) : [...ws, w] }))} className={pickCls(isOn)} data-wall-which={w}>{w}</button> })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+            {rooms.length > shown.length && (
+              <SearchSelect
+                label="Another room"
+                value=""
+                onChange={(v) => v && setShown((x) => (x.includes(v) ? x : [...x, v]))}
+                placeholder="+ Another room"
+                options={rooms.filter((r) => !shown.includes(r.name)).map((r) => ({ key: r.name, label: r.name, hint: r.floor || undefined }))}
+                search={rooms.length > 8}
+                width={320}
               />
-            </Field2>
+            )}
           </div>
         </div>
       </div>
