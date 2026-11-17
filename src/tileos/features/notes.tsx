@@ -22,6 +22,8 @@ export function Notes({ notes, onAdd, me, kind, className }: {
   if (!notes.length && !onAdd) return null
   return (
     <div className={className} {...{ [`data-${kind}-notes`]: '' }}>
+      {/* its name, like the lines on top — so the box reads as the notes, not as the one thing to do */}
+      <div className="mb-1.5 text-[0.875rem] text-muted" data-notes-head>Notes</div>
       {notes.length > 0 && (
         <ul className="scroll-soft -mx-1 mb-1 max-h-[14rem] overflow-y-auto px-1" {...{ [`data-${kind}-log`]: '' }}>
           {[...notes].reverse().map((l, i) => (

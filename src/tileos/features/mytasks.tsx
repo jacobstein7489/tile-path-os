@@ -8,7 +8,7 @@ import { Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clo
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
-import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, ROW_H } from '@/tileos/components/ui/page'
+import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -178,6 +178,31 @@ export const cleanTitle = (title: string, jobName?: string | Job) => {
 const WhoCol = React.createContext(false)
 /** grouped by project: the project is the group's name — the rows don't say it again */
 const InJob = React.createContext(false)
+/** whose list is on the page — yours, or the person the admin picked: what's theirs needs no circle */
+const Viewer = React.createContext<PersonKey | null>(null)
+/** several people's lists at once: every row has its person's circle */
+const Multi = React.createContext(false)
+/** several people's lists at once: whose list this line is on (for a row that doesn't say whose it is itself) */
+const LineOn = React.createContext<PersonKey[] | null>(null)
+/** who does it and who's watching, as their circles — never their names in words: who does it plain; who's watching
+ *  after a small eye */
+function PeopleDots({ doers, watchers }: { doers: PersonKey[]; watchers: PersonKey[] }) {
+  if (!doers.length && !watchers.length) return null
+  const names = (ps: PersonKey[]) => ps.map((p) => PEOPLE[p]?.name || p).join(doers.length > 1 ? ' or ' : ', ')
+  /* side by side, a hair apart — never one over the other: two letters each, both read */
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2" data-row-people>
+      {doers.length > 0 && <span className="flex gap-0.5" title={doers.length > 1 ? `${names(doers)} — whoever gets to it first` : `${names(doers)} does it`} data-row-doer={doers.join(',')}>{doers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>}
+      {watchers.length > 0 && (
+        <span className="inline-flex items-center gap-1" title={`Watching: ${names(watchers)}`} data-row-watch={watchers.join(',')}>
+          <Eye className="h-3.5 w-3.5 text-faint" />
+          <span className="flex gap-0.5">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span>
+          {watchers.length > 3 && <span className="text-[0.75rem] font-medium tnum text-muted">+{watchers.length - 3}</span>}
+        </span>
+      )}
+    </span>
+  )
+}
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 /** a Today list's columns on a computer: the project first (where — not when grouped by project, its band says it),
@@ -195,10 +220,14 @@ export const lateBy = (iso?: string) => { if (!iso) return 'Late'; const d = Mat
  *  meeting's hour, the day it was due) sits just before it */
 const NEXT_CELL = 'flex min-w-0 items-center justify-end gap-4 max-md:hidden [&_button]:h-8 [&_button]:w-[10.5rem] [&_button]:max-w-none [&_button]:justify-center [&_button]:px-3 [&_button_svg]:hidden'
 
-function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, flag, phoneWhen = true }: {
+function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, also, watch, flag, phoneWhen = true }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
+  /** shared — whoever gets to it first: the others who can do it */
+  also?: PersonKey[]
   /** a word in red before the job — "Problem" */
   flag?: string
+  /** who's watching it — their circles, after a small eye */
+  watch?: PersonKey[]
   /** a phone shows the when too (false: only a computer — a phone's line is short) */
   phoneWhen?: boolean
 }) {
@@ -210,9 +239,19 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const quiet = inJob ? project : undefined
   if (inJob) project = undefined
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
-  const ownerName = owner ? (owner === me ? 'You' : PEOPLE[owner]?.short) : ''
-  /* under what to do: the job (and whose, on Waiting) — "Company" (no project) says nothing there */
-  const wherePhone = [project && project !== 'Company' ? project : '', who && owner ? ownerName : ''].filter(Boolean).join(' · ')
+  /* whose it is and who's watching — their circles, not their names. Who does it: on Waiting and on several people's
+     lists every row (yours too — your circle, not "You"); on one person's list only what isn't theirs alone (for
+     everyone, shared with someone). Who's watching: on any row someone watches */
+  const viewer = React.useContext(Viewer) || me
+  const multi = React.useContext(Multi)
+  const onLists = React.useContext(LineOn)
+  /* a row that doesn't say whose it is (a meeting, the crew list, installer pay): on several lists, whose list it's on */
+  const sharers = owner ? [owner, ...(also || []).filter((p) => p !== owner)] : multi && onLists ? onLists : []
+  const doers = sharers.length && (multi || who || sharers.some((p) => p !== viewer)) ? sharers : []
+  const watchers = (watch || []).filter((p) => p !== viewer && !sharers.includes(p))
+  const dots = doers.length || watchers.length ? <PeopleDots doers={doers} watchers={watchers} /> : null
+  /* under what to do: the job — "Company" (no project) says nothing there */
+  const wherePhone = project && project !== 'Company' ? project : ''
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -222,25 +261,34 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
       data-subrow
-      className={cn('group/row relative items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-2.5 md:grid md:min-h-[3.5rem]', ROW_H, PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out', 'max-md:min-h-[calc(3.875rem+1px)]')}
+      /* every row the same height, a computer and a phone alike: two lines (what to do, the job under it) — a row with
+         one line sits in the middle of the same height */
+      className={cn('group/row relative min-h-[calc(4rem+1px)] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 md:grid', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-3">
+          <div className="flex h-[1.375rem] min-w-0 items-baseline gap-3">
             {/* a phone: every row the same — what to do on one line, the job under it in gray; the same weight, nothing
                 wrapping (a very long one ends in "…" — its window has all of it) */}
             <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] max-md:font-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
             {/* on a phone the time sits at the end of the task's line */}
             {w && phoneWhen && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
           </div>
-          {(flag || wherePhone) && <div className="truncate text-[0.8125rem] leading-5 text-muted max-md:text-[0.875rem]" data-row-where-phone data-row-where>{flag && <span className="font-medium text-bad-600" data-row-flag>{flag}{wherePhone ? ' · ' : ''}</span>}{wherePhone}</div>}
+          {/* the job under it, a little apart so the two lines read apart — a phone: the circles at its end */}
+          {(flag || wherePhone || dots) && (
+            <div className="mt-1 flex h-[1.375rem] min-w-0 items-center gap-3">
+              <div className="min-w-0 flex-1 truncate text-[0.8125rem] leading-5 text-muted max-md:text-[0.875rem]" data-row-where-phone data-row-where>{flag && <span className="font-medium text-bad-600" data-row-flag>{flag}{wherePhone ? ' · ' : ''}</span>}{wherePhone}</div>
+              {dots && <span className="md:hidden">{dots}</span>}
+            </div>
+          )}
         </div>
       </div>
       {quiet && <span className="sr-only">{quiet}</span>}
       {/* a computer: no button — the row itself does what's next (one less thing on the screen); its day or time, and a
           quiet arrow. A row that doesn't open anything keeps its button */}
       <div className={NEXT_CELL} onClick={onClick ? undefined : (e) => e.stopPropagation()} data-todo-next>
+        {dots}
         {w && <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span>}
         {onClick ? <ChevronRight className="h-4 w-4 shrink-0 text-faint" aria-hidden data-todo-go /> : action}
       </div>
@@ -268,10 +316,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const last = log[log.length - 1]
   const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
-  /* shared — two can do it, whoever gets to it first: the row says who else has it */
-  const me0 = meOf(s.role)
-  const sharers = [t.owner, ...(t.also || [])]
-  const withWho = t.also?.length && !done ? (sharers.includes(me0) ? sharers.filter((p) => p !== me0) : t.also).map((p) => PEOPLE[p]?.short || p).join(' and ') : ''
+  /* shared — two can do it, whoever gets to it first: the row has both their circles (no names in words) */
   const gcw = isGcWait(t) ? gcState(t) : undefined
   const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? { text: askLabel(t), tone: 'warn' as const } : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
   return (
@@ -281,9 +326,11 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* the line does what its button does — the one thing that happens next, wherever you tap */
       onClick={() => (act ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
-      title={withWho ? <>{cleanTitle(t.title, job)}<span className="font-normal text-muted" data-row-shared> · with {withWho}</span></> : cleanTitle(t.title, job)}
+      title={cleanTitle(t.title, job)}
       detail={detail}
-      owner={showOwner ? t.owner : undefined}
+      owner={t.owner}
+      also={done ? undefined : t.also}
+      watch={followersOf(t)}
       project={job ? (PRICING_STAGES.includes(job.stage) ? `${job.name} · estimate` : job.name) : 'Company'}
       when={w.text}
       whenTone={w.tone}
@@ -486,13 +533,14 @@ function GcRow({ t }: { t: Task }) {
   const s = useStore()
   const job = s.jobs[t.jobId]
   const st = gcState(t)
-  const me = meOf(s.role)
-  const who = t.owner === me ? 'You' : PEOPLE[t.owner]?.short || 'Someone'
   return (
     <div data-gc-row={t.id} data-gc-flag={st.flag ? '' : undefined} data-contents>
       <TodoRow
         onClick={() => s.open({ t: 'task', id: t.id })}
-        title={<>{gcWords(t.title)}<span className="font-normal text-muted"> · {who}{t.said ? <> · GC: “{t.said.text}”</> : null}</span></>}
+        /* whose it is: their circle at the end (yours too) — not "· You" in words */
+        title={<>{gcWords(t.title)}{t.said ? <span className="font-normal text-muted"> · GC: “{t.said.text}”</span> : null}</>}
+        owner={t.owner}
+        watch={followersOf(t)}
         detail={gcSoFar(t)}
         project={job?.name || 'Company'}
         when={st.text}
@@ -533,7 +581,7 @@ const teamPlateNow = (() => {
 })()
 
 /** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
-const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following)$/
+const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following|is watching it( now)?|stopped watching)$/
 export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** the billing person's week: last week's progress, ready to bill (it works like installer pay) */
@@ -702,7 +750,7 @@ export type Line =
   | { k: 'gc'; key: string; t: Task }
   | { k: 'wait'; key: string; job: Job; v: StepView }
 /** a part of a list, with its name — Overdue, Today, For everyone… (a day's part has its day: the now line goes in it) */
-export type Part = { key: string; label: string; tone: Tone; lines: Line[]; day?: string; lateLink?: boolean }
+export type Part = { key: string; label: string; tone: Tone; lines: Line[]; day?: string; lateLink?: boolean; /** several people's lists as one: whose list(s) each line is on, by its key */ on?: Record<string, PersonKey[]> }
 export const countOf = (parts: Part[]) => parts.reduce((n, p) => n + p.lines.length, 0)
 const jobOfItem = (x: PlateItem) => x.t?.jobId || x.d?.jobId || x.job?.id || x.e?.jobId || x.ds?.[0]?.jobId || x.vs?.[0]?.job.id || x.ts?.[0]?.jobId
 const asLine = (x: PlateItem): Line => ({ k: 'plate', key: x.key, x })
@@ -878,7 +926,7 @@ function LineRow({ l, me, showOwner }: { l: Line; me: PersonKey; showOwner?: boo
 }
 const timedLine = (l: Line): l is Extract<Line, { k: 'plate' }> => l.k === 'plate' && l.x.kind !== 'crew' && l.x.time != null
 /** a list's lines — today's with the line for now between what's before it and what's after */
-function Lines({ lines, me, day, showOwner }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean }) {
+function Lines({ lines, me, day, showOwner, on }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]> }) {
   const d = new Date()
   const nowMin = d.getHours() * 60 + d.getMinutes()
   let at = -1
@@ -888,7 +936,7 @@ function Lines({ lines, me, day, showOwner }: { lines: Line[]; me: PersonKey; da
   }
   return (
     <>
-      {lines.map((l, i) => <React.Fragment key={l.key}>{i === at && <NowLine min={nowMin} />}<LineRow l={l} me={me} showOwner={showOwner} /></React.Fragment>)}
+      {lines.map((l, i) => <React.Fragment key={l.key}>{i === at && <NowLine min={nowMin} />}<LineOn.Provider value={on?.[l.key] || null}><LineRow l={l} me={me} showOwner={showOwner} /></LineOn.Provider></React.Fragment>)}
       {at === lines.length && <NowLine min={nowMin} />}
     </>
   )
@@ -899,7 +947,7 @@ function PartBlock({ p, me, showOwner, lateLink = true }: { p: Part; me: PersonK
   return (
     <section data-day={p.day || p.key} data-part={p.key}>
       {p.label && <Group label={p.label} count={p.lines.length} tone={p.tone} strong right={p.lateLink && lateLink ? <button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button> : undefined} />}
-      <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} />
+      <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} />
     </section>
   )
 }
@@ -956,35 +1004,87 @@ export function NobodyModal({ level }: { level: number }) {
 }
 
 /* ---------------- whose list ---------------- */
-/** the admin looking at someone's Today (null: his own) — kept while the app is open */
-export const useTodayWho = create<{ who: PersonKey | null; set: (p: PersonKey | null) => void }>((set) => ({ who: null, set: (who) => set({ who }) }))
-/** whose list Today shows: yours — or, for the admin, the person picked (their role, as on their own phone) */
-function listOf(s: Store, who: PersonKey | null): { role: Role; person: PersonKey | null } {
+/** the admin's ticks on Today: whose lists (none: his own) — kept while the app is open */
+export const useTodayWho = create<{ who: PersonKey[]; set: (p: PersonKey[]) => void }>((set) => ({ who: [], set: (who) => set({ who }) }))
+type ListOf = { role: Role; person: PersonKey | null; key: PersonKey }
+/** whose lists Today shows: yours — or, for the admin, the people ticked (each one's, as on their own phone) */
+function listsOf(s: Store, who: PersonKey[]): ListOf[] {
   const me = meOf(s.role)
-  return who && who !== me && reportOn(s) ? { role: roleOfPerson(s, who), person: who } : { role: s.role, person: null }
+  const ticked = reportOn(s) ? who.filter((p) => p === me || !!PEOPLE[p]) : []
+  if (!ticked.length) return [{ role: s.role, person: null, key: me }]
+  return ticked.map((p) => (p === me ? { role: s.role, person: null, key: me } : { role: roleOfPerson(s, p), person: p, key: p }))
 }
-/** the admin: Mine, or anyone's — the same list they have on their own phone */
+/** the order a list's parts go in, whatever list they came from */
+const partRank = (lists: Part[][], key: string) => Math.min(...lists.map((ps) => { const i = ps.findIndex((x) => x.key === key); return i < 0 ? 99 : i }))
+/** a line's hour on today's list (the rest after, in the order they came) */
+const lineHour = (l: Line) => (l.k === 'plate' && l.x.kind !== 'crew' && l.x.time != null ? l.x.time : 1e6)
+/** several people's lists as one: each part once, a thing on two lists once, today's by the hour — and whose list each
+ *  thing is on (its circle, when the thing itself doesn't say whose it is: a meeting, the crew list, installer pay) */
+function mergeParts(lists: Part[][], keys: PersonKey[] = []): Part[] {
+  if (lists.length === 1) return lists[0]
+  const out: Part[] = []
+  lists.forEach((parts, li) => parts.forEach((p) => {
+    let m = out.find((x) => x.key === p.key)
+    if (!m) { m = { ...p, lines: [], on: {} }; out.push(m) }
+    const into = m
+    const on = into.on!
+    p.lines.forEach((l) => {
+      if (!into.lines.some((y) => y.key === l.key)) into.lines.push(l)
+      if (keys[li] && !(on[l.key] ||= []).includes(keys[li])) on[l.key].push(keys[li])
+    })
+  }))
+  out.forEach((p) => { p.lines = p.lines.map((l, i) => ({ l, i })).sort((a, b) => lineHour(a.l) - lineHour(b.l) || a.i - b.i).map((x) => x.l) })
+  return out.sort((a, b) => partRank(lists, a.key) - partRank(lists, b.key))
+}
+/** the parts of the lists ticked — one list, or several as one */
+const partsFor = (s: Store, lists: ListOf[], view: View, job: string) => mergeParts(lists.map((l) => partsOf(s, l.role, l.person, view, job)), lists.map((l) => l.key))
+/** the ticks in a few words: Mine, Yakov's, Mine + Yakov, Everyone, 3 people */
+function whoWords(s: Store, lists: ListOf[]): string {
+  const me = meOf(s.role)
+  const all = insidePeople(s)
+  if (lists.length === 1) return lists[0].key === me ? 'Mine' : `${PEOPLE[lists[0].key]?.short || 'Their'}’s`
+  if (all.length > 2 && all.every((p) => lists.some((l) => l.key === p))) return 'Everyone'
+  const names = lists.map((l) => (l.key === me ? 'Mine' : PEOPLE[l.key]?.short || l.key))
+  return names.length === 2 ? names.join(' + ') : `${names.length} people`
+}
+/** the admin: whose lists — tick yourself, anyone, or Everyone; several show as one list, each thing with its person's
+ *  circle */
 function WhoPick() {
   const s = useStore()
   const who = useTodayWho((x) => x.who)
   const set = useTodayWho((x) => x.set)
   const me = meOf(s.role)
-  const cur = who && who !== me ? who : null
-  const others = insidePeople(s).filter((p) => p !== me)
+  const all = insidePeople(s).length ? [me, ...insidePeople(s).filter((p) => p !== me)] : [me]
+  const lists = listsOf(s, who)
+  const on = (p: PersonKey) => lists.some((l) => l.key === p)
+  const everyone = all.every(on)
+  const toggle = (p: PersonKey) => { const cur = lists.map((l) => l.key); const next = cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]; set(next.length ? next : [me]) }
   const lost = countOf(everyoneOf(s, 'today', 'all').nobody)
+  const [open, setOpen] = React.useState(false)
+  const words = whoWords(s, lists)
+  const single = lists.length === 1 && lists[0].key !== me ? lists[0].key : null
+  const box = (checked: boolean) => <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', checked ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{checked && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
+  const row = 'flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-[0.9375rem] text-ink transition hover:bg-wash'
   return (
-    <Menu align="start" width={280} trigger={
-      <button type="button" aria-label={cur ? `${PEOPLE[cur]?.short}’s list — pick someone else` : 'Whose list'} className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', cur ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
-        {cur ? <Avatar who={cur} size={20} /> : <UserRound className="shrink-0 text-faint" />}
-        <span className="min-w-0 truncate" data-today-who-picked={cur || 'me'}>{cur ? `${PEOPLE[cur]?.short}’s` : 'Mine'}</span>
+    <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={
+      <button type="button" aria-label="Whose lists — tick people" className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', words !== 'Mine' ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
+        {single ? <Avatar who={single} size={20} /> : lists.length > 1 ? <span className="flex gap-0.5">{lists.slice(0, 3).map((l) => <Avatar key={l.key} who={l.key} size={20} />)}</span> : <UserRound className="shrink-0 text-faint" />}
+        <span className="min-w-0 truncate" data-today-who-picked={lists.map((l) => (l.key === me ? 'me' : l.key)).join(',')}>{words}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
     }>
-      <MenuLabel>Whose Today</MenuLabel>
-      <MenuItem icon={<Avatar who={me} size={20} />} checked={!cur} hint={`${todayCount(s, s.role)} today`} onSelect={() => set(null)}>Mine</MenuItem>
-      {others.map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={cur === p} hint={`${theirToday(s, p)} today`} onSelect={() => set(p)}>{PEOPLE[p]?.name || p}</MenuItem>)}
-      {lost > 0 && <><MenuSep /><MenuItem icon={<UserRound className="h-4 w-4 text-warn-600" />} hint={`${lost}`} onSelect={() => s.open({ t: 'nobodylist' })}>On nobody’s list</MenuItem></>}
-    </Menu>
+      <div className="-m-1" data-who-list>
+        <div className="px-2.5 pb-1.5 pt-1 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted">Whose lists</div>
+        <button type="button" onClick={() => set(everyone ? [me] : all)} className={row} role="checkbox" aria-checked={everyone} data-who-all>{box(everyone)}<span className="min-w-0 flex-1 font-semibold">Everyone</span></button>
+        {all.map((p) => (
+          <button key={p} type="button" onClick={() => toggle(p)} className={row} role="checkbox" aria-checked={on(p)} data-who-person={p}>
+            {box(on(p))}<Avatar who={p} size={22} /><span className="min-w-0 flex-1 truncate">{p === me ? 'Mine' : PEOPLE[p]?.name || p}</span>
+            <span className="shrink-0 text-[0.8125rem] tnum text-muted">{p === me ? todayCount(s, s.role) : theirToday(s, p)}</span>
+          </button>
+        ))}
+        {lost > 0 && <button type="button" onClick={() => { setOpen(false); s.open({ t: 'nobodylist' }) }} className={cn(row, 'mt-1 border-t border-line-2 pt-1 text-warn-800')}><UserRound className="h-4 w-4 text-warn-600" /><span className="min-w-0 flex-1">On nobody’s list</span><span className="text-[0.8125rem] tnum">{lost}</span></button>}
+      </div>
+    </Pop>
   )
 }
 
@@ -1013,8 +1113,9 @@ export function JobPickModal({ level }: { level: number }) {
   const set = useTodayJob((x) => x.set)
   const [q, setQ] = React.useState('')
   const small = useSmall()
-  const L = listOf(s, useTodayWho((x) => x.who))
-  const mine = yourJobs(s, L.role, L.person)
+  /* the jobs on the lists ticked — each one's, counted together */
+  const mine = new Map<string, number>()
+  listsOf(s, useTodayWho((x) => x.who)).forEach((l) => yourJobs(s, l.role, l.person).forEach((n, id) => mine.set(id, (mine.get(id) || 0) + n)))
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const hit = (j: Job) => { const k = `${j.name} ${j.client} ${j.address}`.toLowerCase(); return words.every((w) => k.includes(w)) }
   const yours = Object.values(s.jobs).filter((j) => mine.has(j.id) && hit(j)).sort(byJobName)
@@ -1081,12 +1182,13 @@ export function MyTasksPage() {
   const setJob = useTodayJob((x) => x.set)
   const picked = job0 !== 'all' ? s.jobs[job0] : undefined
   const job = picked ? picked.id : 'all'
-  /* whose list: yours — or, for the admin, the person picked (their list, as on their own phone) */
-  const L = listOf(s, useTodayWho((x) => x.who))
-  const me = L.person || meOf(role)
+  /* whose lists: yours — or, for the admin, the people ticked (each one's list, as on their own phone; several as one) */
+  const lists = listsOf(s, useTodayWho((x) => x.who))
+  const multi = lists.length > 1
+  const me = lists[0].person || meOf(role)
   /* each number is what its list shows — with a job picked, its */
-  const n = (v: View) => countOf(partsOf(s, L.role, L.person, v, job))
-  const parts = partsOf(s, L.role, L.person, view, job)
+  const n = (v: View) => countOf(partsFor(s, lists, v, job))
+  const parts = partsFor(s, lists, view, job)
   const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
     today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up — see Coming up.` : 'New work lands here the moment it’s yours.' },
     coming: { title: 'Nothing coming up', sub: 'Tomorrow’s things, and anything with a day after it, show here.' },
@@ -1095,7 +1197,7 @@ export function MyTasksPage() {
 
   return (
     <Page
-      title={L.person ? `${PEOPLE[L.person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[me].short}`}
+      title={multi ? `${whoWords(s, lists)} — Today` : lists[0].person ? `${PEOPLE[lists[0].person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[meOf(role)].short}`}
       phoneTitle
       sub={TODAY_LABEL}
       top={
@@ -1104,18 +1206,23 @@ export function MyTasksPage() {
           items={[
             { key: 'today', label: 'Today', count: n('today'), icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'coming', label: 'Coming up', count: n('coming'), icon: <CalendarDays />, color: 'violet', on: view === 'coming', onClick: () => setView('coming') },
-            { key: 'waiting', label: 'Waiting', count: n('waiting'), icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting') },
+            /* what someone else is doing that you're waiting for — you asked them, you're watching it, it's with the GC */
+            { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting') },
           ]}
         />
       }
       toolbar={<JobBar picked={picked} onClear={() => setJob('all')} />}
     >
-      <WhoCol.Provider value={view === 'waiting'}>
+      <WhoCol.Provider value={view === 'waiting' || multi}>
       <InJob.Provider value={!!picked}>
+      <Viewer.Provider value={multi ? null : me}>
+      <Multi.Provider value={multi}>
       <div data-even-list data-list-scope="mine" style={{ '--list': todoList() } as React.CSSProperties}>
-        {parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
+        {parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting' || multi} />)}
         {n(view) === 0 && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
       </div>
+      </Multi.Provider>
+      </Viewer.Provider>
       </InJob.Provider>
       </WhoCol.Provider>
     </Page>
@@ -1199,7 +1306,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const t = s.tasks.find((x) => x.id === id)
   const [waitOpen, setWaitOpen] = React.useState(false)
   /* a change from ··· opens in place of the task, with Back to it */
-  const [panel, setPanel] = React.useState<null | 'follow' | 'share' | 'later' | 'wait' | 'answer'>(null)
+  const [panel, setPanel] = React.useState<null | 'share' | 'later' | 'wait' | 'answer'>(null)
   /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
      someone else — the window closes by itself (the pop-up says what happened). Taking it over keeps it open: it's
      yours to do now */
@@ -1234,12 +1341,10 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
           : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
   /* one button at the bottom — whose it is and its day are tapped right on top; the rest is here */
-  const following = followersOf(t).includes(me)
   const items: React.ReactNode[] = [
     !theirs && t.state === 'now' && <MenuItem key="later" icon={<MoonStar className="h-4 w-4" />} onSelect={() => setPanel('later')} data-task-later>Not today</MenuItem>,
     !theirs && t.state === 'now' && <MenuItem key="wait" icon={<Clock3 className="h-4 w-4" />} onSelect={() => setPanel('wait')} data-task-wait>Waiting on someone</MenuItem>,
-    t.owner !== me && t.state !== 'done' && <MenuItem key="me" icon={<Eye className="h-4 w-4" />} checked={following} onSelect={() => toggleFollow(t.id, me)} data-follow-task>Follow it</MenuItem>,
-    admin && <MenuItem key="follow" icon={<Eye className="h-4 w-4" />} onSelect={() => setPanel('follow')}>Who follows it</MenuItem>,
+    /* who's watching it is its own line on top — no menu for it */
     /* two can have it — whoever gets to it first */
     (admin || t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it — whoever gets to it first</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
@@ -1262,7 +1367,11 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       place={<>{job ? job.name : 'Company'}{t.where && t.where.trim() !== job?.name ? ` · ${t.where}` : ''}</>}
       title={cleanTitle(t.title, job)}
       who={t.owner}
-      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' and ')} — whoever gets to it first` : t.owner === me ? 'Yours' : `${owner} has it`}</span>}
+      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')} — whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
+      whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
+      stateLabel={t.state === 'now' && !gcw ? 'When' : gcw ? 'Needed by' : 'Where it is'}
+      /* who's watching: anyone can watch it; who does it (and the admin) adds others */
+      watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin } : undefined}
       state={gcw ? <span data-task-when data-gc-needby={t.needBy || ''}>{t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by'}</span> : <span data-task-when>{when.text}</span>}
       tone={gcw ? 'warn' : b === 'overdue' && t.state === 'now' ? 'late' : t.state === 'waiting' || (b === 'today' && t.state === 'now') ? 'warn' : t.state === 'done' ? 'ok' : undefined}
       extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
@@ -1315,15 +1424,6 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">It’s on their Today too — whoever does it first closes it for both.</div>
       <div className="flex flex-wrap gap-1.5">
         {people.filter((p) => p !== t.owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={(t.also || []).includes(p)} onClick={() => toggleAlso(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
-      </div>
-    </div>
-  ) : panel === 'follow' ? (
-    <div data-task-panel="follow">
-      <div className="text-[0.9375rem] font-semibold text-ink">Who follows it</div>
-      <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">They see it and hear when it moves — {t.owner === me ? 'you' : owner} still {t.owner === me ? 'do' : 'does'} it.</div>
-      <div className="flex flex-wrap gap-1.5">
-        {/* you first, as "Me" — two people can share a first name */}
-        {people.filter((p) => p !== t.owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={followersOf(t).includes(p)} onClick={() => toggleFollow(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
       </div>
     </div>
   ) : (
@@ -1413,6 +1513,8 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const owner = owners[0] || me
   const shared = owners.length > 1
   const [due, setDue] = React.useState('Today')
+  /* who's watching — they see it and hear when it moves; given to someone else, you watch it too */
+  const [watchers, setWatchers] = React.useState<PersonKey[]>([])
   const [urgent, setUrgent] = React.useState(false)
   const [picked, setPicked] = React.useState(false)
   const [repeat, setRepeat] = React.useState<'' | NonNullable<Task['repeat']>>('')
@@ -1448,7 +1550,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
     /* every login it's on — each person's own */
     const fors = Array.from(new Set(owners.flatMap((p) => { const r = s.team.find((m) => m.key === p)?.role; return r ? [r] : ROLE_OF[p] || ['owner'] }))) as Role[]
     /* given to someone else: you follow it — you hear when it's done */
-    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, also: shared ? owners.slice(1) : undefined, due: repeat ? 'Today' : due, for: fors, state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: !owners.includes(me) ? [me] : undefined })
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, also: shared ? owners.slice(1) : undefined, due: repeat ? 'Today' : due, for: fors, state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: (() => { const f = Array.from(new Set([...(!owners.includes(me) ? [me] : []), ...watchers])).filter((p) => !owners.includes(p)); return f.length ? f : undefined })() })
     if (msg && jobId) markMessageTask(jobId, msg.id)
     s.close()
   }
@@ -1465,7 +1567,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const pickWhen = (k: string) => { if (k.startsWith('r:')) setRepeat(k.slice(2) as NonNullable<Task['repeat']>); else { setRepeat(''); setDue(k); setPicked(true) } }
   const whoChip = (
     <button type="button" aria-label="Who does it" className={cn(PICK_CHIP, 'pl-1.5', owner !== me && 'text-ink')}>
-      <span className="flex -space-x-1.5">{owners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} ring />)}</span>
+      <span className="flex gap-0.5">{owners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>
       <span className="min-w-0 truncate">{whoWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
     </button>
   )
@@ -1504,6 +1606,16 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
         <span className="contents" data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
           {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} trigger={<button type="button" aria-label="At" className={PICK_CHIP}><Clock3 /><span>at {at}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
+        </span>
+        {/* who's watching — they don't do it, they see it and hear when it moves (the same order as in a task: who
+            does it, when, who's watching) */}
+        <span className="contents" data-task-watch={watchers.join(',')}>
+          <MultiSelect label="Who’s watching" values={watchers} options={whoOptions.filter((o) => !owners.includes(o.key as PersonKey))} onChange={(ks) => setWatchers(ks as PersonKey[])} width={340} trigger={
+            <button type="button" aria-label="Who’s watching" className={cn(PICK_CHIP, 'pl-1.5', watchers.length && 'text-ink')}>
+              {watchers.length ? <span className="flex gap-0.5">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span> : <Eye />}
+              <span className="min-w-0 truncate">{watchers.length ? `Watching: ${watchers.map((p) => (p === me ? 'Me' : PEOPLE[p]?.short || p)).join(', ')}` : 'Who’s watching'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+            </button>
+          } />
         </span>
       </div>
     </Modal>

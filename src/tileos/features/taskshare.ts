@@ -12,19 +12,21 @@ const S = () => useStore.getState()
 const ROLE_PERSON: Partial<Record<Role, PersonKey>> = { owner: 'ys', pm: 'ys', site: 'yakov', office: 'office', estimator: 'estimator', takeoff: 'takeoff', materials: 'materials', accounting: 'accounting' }
 export const followersOf = (t: Task): PersonKey[] => Array.from(new Set(t.followers || [])).filter((p) => p !== t.owner)
 
-export function toggleFollow(id: string, who: PersonKey) {
+export function toggleFollow(id: string, who: PersonKey, quiet = false) {
   const t0 = S().tasks.find((x) => x.id === id)
   if (!t0) return
   const on = !followersOf(t0).includes(who)
+  const you = who === meOf(S().role)
   S().commit(
     (s) => {
       const t = s.tasks.find((x) => x.id === id)!
       const cur = followersOf(t)
       t.followers = on ? [...cur, who] : cur.filter((p) => p !== who)
-      t.log.push({ date: NOW, who: meOf(s.role), text: on ? `${PEOPLE[who].name} follows it` : `${PEOPLE[who].name} stopped following` })
+      t.log.push({ date: NOW, who: meOf(s.role), text: on ? `${PEOPLE[who].name} is watching it` : `${PEOPLE[who].name} stopped watching` })
     },
-    who === meOf(S().role) ? (on ? 'You follow it' : 'You stopped following it') : on ? `${PEOPLE[who].short} follows it now` : `${PEOPLE[who].short} stopped following`,
-    { undo: false, sub: on ? (who === meOf(S().role) ? 'It waits under Waiting on others until it’s done.' : 'They hear when it moves.') : undefined },
+    /* quiet: ticked in the Watching list — the line says it right away, no pop-up for each tick */
+    quiet ? undefined : you ? (on ? 'You’re watching it' : 'You stopped watching it') : on ? `${PEOPLE[who].short} is watching it now` : `${PEOPLE[who].short} stopped watching`,
+    { undo: false, sub: on ? (you ? 'It waits under Waiting on others until it’s done.' : 'They hear when it moves.') : undefined },
   )
 }
 /** someone else can do it too: it's on their Today as well, and whoever does it first closes it for both */

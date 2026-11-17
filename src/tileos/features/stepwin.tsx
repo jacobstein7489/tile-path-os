@@ -589,6 +589,7 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
       onClose={s.close}
       title={title}
       header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem}
+        whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'} stateLabel={v.state === 'now' || v.state === 'bad' ? 'When' : 'Where it is'}
         more={admin ? <StepMore job={job} v={v} /> : undefined}
         /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
         whoPick={admin && open ? { people: insidePeople(s), me, current: v.owner, onPick: (p) => setStepOwner(job.id, take, p) } : undefined}
@@ -613,7 +614,7 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
 
 /** where a step stands, for the top of its window: whose it is, when — or waiting, done, not yet — and a problem */
 function stepHead(v: StepView, me: PersonKey, mine: boolean): { who?: PersonKey; whoText?: string; state?: string; tone?: WinTone; problem?: string } {
-  const whose = mine ? 'Yours' : `${PEOPLE[v.owner]?.short || 'Someone'} has it`
+  const whose = mine ? 'You' : PEOPLE[v.owner]?.short || 'Someone'
   const due = dueWords(v)
   const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
   if (v.state === 'done') return { who: v.doneBy, whoText: v.doneBy ? (v.doneBy === me ? 'You' : PEOPLE[v.doneBy]?.short) : undefined, state: v.note === BEFORE_TILE_OS ? BEFORE_TILE_OS : `Done${v.doneOn ? ` ${v.doneOn}` : ''}`, tone: 'ok' }
