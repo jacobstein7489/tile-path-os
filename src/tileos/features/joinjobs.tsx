@@ -84,7 +84,7 @@ export function JoinModal({ jobId, level }: { jobId: string; level: number }) {
       size="md"
       onClose={s.close}
       title="The same project as…"
-      sub={`${job.name} is a double — pick the other one, and they become one.`}
+      sub={`Pick the one that’s the same as ${job.name} — they become one.`}
       footer={
         <>
           {plan && <span className="min-w-0 text-[0.8125rem] text-muted" data-join-plan><b className="font-semibold text-ink-2">{plan.drop.name}</b> goes into <b className="font-semibold text-ink-2">{plan.keep.name}</b></span>}
