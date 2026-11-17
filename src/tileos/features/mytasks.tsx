@@ -974,9 +974,9 @@ function WhoPick() {
   const lost = countOf(everyoneOf(s, 'today', 'all').nobody)
   return (
     <Menu align="start" width={280} trigger={
-      <button type="button" aria-label={cur ? `${PEOPLE[cur]?.short}’s list — pick someone else` : 'Whose list'} className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', cur ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-who-pick>
+      <button type="button" aria-label={cur ? `${PEOPLE[cur]?.short}’s list — pick someone else` : 'Whose list'} className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', cur ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
         {cur ? <Avatar who={cur} size={20} /> : <UserRound className="shrink-0 text-faint" />}
-        <span className="min-w-0 truncate" data-who-picked={cur || 'me'}>{cur ? `${PEOPLE[cur]?.short}’s` : 'Mine'}</span>
+        <span className="min-w-0 truncate" data-today-who-picked={cur || 'me'}>{cur ? `${PEOPLE[cur]?.short}’s` : 'Mine'}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
     }>
