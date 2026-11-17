@@ -699,12 +699,12 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
                     return (
                       <div key={n} className="mt-2.5 flex flex-col gap-2 rounded-lg bg-wash/60 p-2.5" data-wall-how={n}>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="w-[6.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">{n} · how high</span>
+                          <span className="w-[8.5rem] shrink-0 truncate text-[0.8125rem] text-muted max-sm:w-full">{n} · how high</span>
                           {HIGH.map((o) => <button key={o.v} type="button" aria-pressed={h === o.v} onClick={() => setHeights((m) => ({ ...m, [k]: h === o.v ? '' : o.v }))} className={pickCls(h === o.v)} data-wall-high={o.label}>{o.label}</button>)}
                           <input aria-label={`${n} — how high, in your words`} value={custom ? h : ''} onChange={(e) => setHeights((m) => ({ ...m, [k]: e.target.value }))} placeholder="Other — 5 ft" className={cn('h-8 w-[7.5rem] rounded-[0.5rem] border bg-white px-2.5 text-[0.84375rem] text-ink outline-none focus:border-brand-300 max-md:h-10', custom ? 'border-brand-500' : 'border-line')} data-wall-high-other />
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="w-[6.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">Which walls</span>
+                          <span className="w-[8.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">Which walls</span>
                           <button type="button" aria-pressed={!ws.length} onClick={() => setWalls((m) => ({ ...m, [k]: [] }))} className={pickCls(!ws.length)} data-wall-which="All">All</button>
                           {WALLS.map((w) => { const isOn = ws.includes(w); return <button key={w} type="button" aria-pressed={isOn} onClick={() => setWalls((m) => ({ ...m, [k]: isOn ? ws.filter((y) => y !== w) : [...ws, w] }))} className={pickCls(isOn)} data-wall-which={w}>{w}</button> })}
                         </div>
