@@ -310,7 +310,8 @@ const STRONG: Record<string, { bg: string; fg: string; bar: string }> = {
 export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg } }
 /* written out whole, so the styles are there for each */
 const STRONG_FG: Record<string, string> = { bad: 'text-[#b42318]', info: 'text-[#2347bf]', warn: 'text-[#8f5207]', ok: 'text-[#1f6b45]', vio: 'text-[#5b3fc4]', neutral: 'text-[#30343c]' }
-export const bandLabel = (tone?: Tone) => cn('truncate text-[0.75rem] font-semibold uppercase tracking-[0.07em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
+/* the name big and bold — a heading you see from arm's length (Today, Overdue…), not one more line */
+export const bandLabel = (tone?: Tone) => cn('truncate text-[0.875rem] font-bold uppercase tracking-[0.06em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
 export function Group({ label, count, tone, open = true, onToggle, right, strong }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode; strong?: boolean }) {
   return (
     <div className={cn(strong ? BAND_STRONG : BAND, PX)} style={strong ? bandStyle(tone) : undefined} data-group-tone={tone || 'neutral'} data-band data-strong={strong || undefined}>

@@ -131,7 +131,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'moneywin': return <MoneyWinModal jobId={m.jobId} level={level} />
     case 'crewreport': return <CrewReportModal taskId={m.taskId} day={m.day} level={level} />
     case 'rounds': return <RoundsModal level={level} />
-    case 'dailies': return <DailiesModal who={m.who} level={level} />
+    case 'dailies': return <DailiesModal who={m.who} jobs={m.jobs} level={level} />
     case 'trips': return <TripsModal who={m.who} day={m.day} level={level} />
     case 'stepbatch': return <StepBatchModal k={m.k} jobs={m.jobs || []} level={level} />
     case 'part': return <PartModal jobId={m.jobId} track={m.track} step={m.step} level={level} />

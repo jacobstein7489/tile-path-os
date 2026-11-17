@@ -22,17 +22,18 @@ import { useSmall } from '@/tileos/lib/phone'
 import { TripButtons } from './requests'
 
 
-export function DailiesModal({ who, level }: { who?: PersonKey; level: number }) {
+export function DailiesModal({ who, jobs: only, level }: { who?: PersonKey; /** the jobs on the line that opened it — the same number */ jobs?: string[]; level: number }) {
   const s = useStore()
   const me = meOf(s.role)
   const person = (who || me) as PersonKey
   const due = () => {
     const st = useStore.getState()
-    return dailyDue(st, 'site').filter((d) => !who || siteOf(st, st.jobs[d.jobId]) === who)
+    const all = dailyDue(st, 'site')
+    return only?.length ? all.filter((d) => only.includes(d.jobId)) : all.filter((d) => !who || siteOf(st, st.jobs[d.jobId]) === who)
   }
   /* one line a job (yesterday's not sent says so on it) — the list as it was when it opened: sending one doesn't move
      the rest, it says Sent */
-  const [list] = React.useState(() => { const all = due(); return Array.from(new Set(all.map((d) => d.jobId))).map((jobId) => ({ jobId, crew: all.find((d) => d.jobId === jobId)?.crew, missed: all.find((d) => d.jobId === jobId && d.missed)?.missed })) })
+  const [list] = React.useState(() => { const all = due(); const ids = only?.length ? only : Array.from(new Set(all.map((d) => d.jobId))); return ids.map((jobId) => ({ jobId, crew: all.find((d) => d.jobId === jobId)?.crew, missed: all.find((d) => d.jobId === jobId && d.missed)?.missed })) })
   const left = due()
   const sent = (d: { jobId: string }) => !left.some((x) => x.jobId === d.jobId)
   const sentN = list.filter(sent).length

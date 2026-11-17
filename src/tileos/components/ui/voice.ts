@@ -1,8 +1,9 @@
 /* Talking to Tile OS — one way to listen, everywhere there's a mic.
  *
  * The microphone first: it's asked for once, and when it's blocked or missing, that's said plainly with what to do.
- * Then the words, as you say them — the browser's own listening (Chrome, Edge, Safari on a computer). Where the
- * browser can't (an iPhone's home-screen app, a browser whose listening service is off or out of reach), it records,
+ * Then the words, as you say them — the browser's own listening (Chrome, Edge on a computer). Where the browser can't
+ * (an iPhone, Safari on a Mac — its listening goes through Siri and is often off or silent — or a browser whose listening
+ * service is off or out of reach), it records,
  * and the company's AI writes it down — the same speech-to-text ChatGPT uses: every second and a half while you talk
  * (the words show as you go), and once more, carefully, when you stop. While it listens the level of your voice moves,
  * so you can see it hears you — and when it hears nothing for a few seconds, it says so. */
@@ -20,6 +21,9 @@ const SR = (): any => (typeof window !== 'undefined' ? (window as any).SpeechRec
 const recordable = () => typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof (window as any).MediaRecorder !== 'undefined'
 /** an iPhone or iPad — its browser's listening is unreliable (and off in a home-screen app): record there instead */
 const apple = () => typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1))
+/** Safari on a Mac — its own listening goes through Siri's dictation: often off, or on and silent. It records instead,
+ *  like an iPhone */
+const macSafari = () => typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent) && /Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|CriOS|FxiOS|Edg\//.test(navigator.userAgent)
 /** there's a way to listen at all */
 export const canListen = () => { try { return !!SR() || recordable() } catch { return false } }
 
@@ -146,6 +150,8 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
   const voiced = React.useRef(0)
   /* this time is thrown away (✕): nothing written down */
   const discard = React.useRef(false)
+  /* the browser's listening, watched: no word while you talk — the recording takes over */
+  const watch = React.useRef<any>(null)
 
   const meterOff = () => {
     cancelAnimationFrame(raf.current)
@@ -171,6 +177,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     try { if (mr.current && mr.current.state !== 'inactive') { mr.current.onstop = null; mr.current.stop() } } catch { /* gone */ }
     clearTimeout(cap.current)
     clearInterval(liveTimer.current)
+    clearInterval(watch.current)
     liveAbort.current?.abort()
     meterOff()
     streamOff()
@@ -282,6 +289,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
   const stop = () => {
     want.current = false
     clearTimeout(cap.current)
+    clearInterval(watch.current)
     liveOff()
     try { rec.current?.stop?.() } catch { /* stopped */ }
     rec.current = null
@@ -333,8 +341,9 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     if (s) meter(s, made)
     else try { made?.close?.() } catch { /* closed */ }
     liveSent.current = 0
-    /* 2 · the words as you say them, where the browser can — an iPhone records (when there's the AI to write it down) */
-    const live = !!R && (!apple() || !hearer)
+    /* 2 · the words as you say them, where the browser can — an iPhone and Safari on a Mac record (when there's the AI
+       to write it down) */
+    const live = !!R && (!(apple() || macSafari()) || !hearer)
     /* 3 · a recording too, when the AI can write it down: the words if the browser's listening gives none */
     if (s && recordable() && hearer) {
       try {
@@ -385,6 +394,22 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
       if (want.current && !srDown.current) { try { r.start() } catch { srDown.current = true } }
     }
     try { r.start(); rec.current = r } catch { srDown.current = true; if (!mr.current) { setErr('This browser won’t listen here — type it instead.'); stop() } }
+    /* a computer's own listening can go quiet without a word of why (its speech service off, or out of reach): you've
+       been talking a few seconds and nothing came — the recording takes over, and the AI writes it as you go */
+    clearInterval(watch.current)
+    const t1 = Date.now()
+    watch.current = setInterval(() => {
+      if (!want.current || gotWords.current || srDown.current) { clearInterval(watch.current); return }
+      if (!mr.current || Date.now() - t1 < 2500) return
+      /* a second of voice heard — or, where the meter can't tell, a few seconds; seven seconds with no word, whatever */
+      const talked = (metered.current ? voiced.current >= 800 : Date.now() - t1 > 4500) || Date.now() - t1 > 7000
+      if (!talked) return
+      clearInterval(watch.current)
+      srDown.current = true
+      const r0 = rec.current
+      rec.current = null
+      try { r0?.abort?.() } catch { /* gone */ }
+    }, 500)
   }
 
   /* stop and leave it: nothing is written down */
