@@ -31,7 +31,7 @@ import { useReadingOf } from '@/tileos/lib/reading'
 import { LayoutArt } from './rooms'
 import {
   saveTile, removeTile, saveSurface, addGrout, readPhoto, nextTag, refKey, splitLayout, joinLayout, isMetal,
-  TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, HEIGHTS,
+  TILE_SIZES, FINISHES, WHO_ORDERS, PATTERNS, STARTS, HEIGHTS, WHICH_WALLS,
 } from '../tiles'
 import { EdgePicker } from '../metalpick'
 import { PatternPic, PatternPick } from '../patternpic'
@@ -350,6 +350,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
   const [method, setMethod] = React.useState(x?.method || '')
   const [edge, setEdge] = React.useState(x?.edge || '')
   const [height, setHeight] = React.useState(x?.height || '')
+  const [walls, setWalls] = React.useState(x?.walls || '')
   const [sf, setSf] = React.useState(x?.sf ? String(x.sf) : '')
   const [notes, setNotes] = React.useState(x?.notes || '')
   /* where it starts (and the drawing) and what goes under it: folded away — most of the time they're not what you came for */
@@ -387,7 +388,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
   }
   const save = () =>
     saveSurface(jobId, room, surface, {
-      tile, grout, joint, layout: touched ? layout || undefined : x.layout, method: method || x.method || undefined, edge: kind === 'wall' ? edge : x.edge, height: kind === 'wall' ? height : x.height, sf: Math.round(Number(sf.replace(/[^0-9.]/g, ''))) || undefined, notes,
+      tile, grout, joint, layout: touched ? layout || undefined : x.layout, method: method || x.method || undefined, edge: kind === 'wall' ? edge : x.edge, height: kind === 'wall' ? height : x.height, walls: kind === 'wall' ? walls : x.walls, sf: Math.round(Number(sf.replace(/[^0-9.]/g, ''))) || undefined, notes,
     })
   const tiles = tilesOf(jobId)
   const lock = scopeLock(s, jobId)
@@ -470,6 +471,11 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           <SearchSelect label="How high" value={height} onChange={setHeight} emptyLabel="Not set" options={opts(HEIGHTS, height)} onCreate={setHeight} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
         </Row>
       )}
+      {kind === 'wall' && (
+        <Row label="Which walls">
+          <SearchSelect label="Which walls" value={walls} onChange={setWalls} emptyLabel="All the walls" options={opts(WHICH_WALLS, walls).filter((o) => o.key !== 'All the walls')} onCreate={setWalls} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
+        </Row>
+      )}
       {/* the edges — metal or mitered — are a wall's (a floor has none) */}
       {kind === 'wall' && (
         <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece — and on the room sheet' : edge ? 'On the room sheet' : undefined}>
@@ -526,21 +532,8 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
 /* ================= one tile: picture, what it is, the grout, where it goes ================= */
 /* Few fields: the tag and its name, the size, the grout, who orders it and from which store (the job's own store —
  * its first tile PO — until it's another). The finish, the maker, the color and the box under "More about it".
- * Where it goes: room by room, its walls and floors as buttons — tap the ones this tile goes on; the usual ones a room
- * doesn't have yet (a niche, a backsplash) are there to add. A wall it's on: how high and which walls. A wall or floor
- * with another tile on it says so — it's changed from there, never swapped by accident here. */
-const BASICS = ['Floor', 'Walls', 'Shower floor', 'Shower walls', 'Niche', 'Backsplash']
-/** a wall that can stop part way up, on some of the walls */
-const wallish = (n: string) => /wall|wainscot/i.test(n) && !/niche/i.test(n)
-const HIGH: { label: string; v: string }[] = [
-  { label: 'To the ceiling', v: 'Fully tiled — to the ceiling' },
-  { label: '4 ft', v: 'Half tiled — to 4 ft' },
-  { label: '8 ft', v: '96″' },
-]
-const WALLS = ['Back', 'Left', 'Right', 'Front']
-const PICK = 'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[0.5rem] border px-2.5 text-[0.84375rem] font-medium transition max-md:h-10 max-md:px-3'
-const pickCls = (on: boolean) => cn(PICK, on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:bg-wash')
-
+ * Where it goes is shown, not picked here: each wall or floor picks its own tile (the scope of work — tap the wall, one
+ * list), with how high and which walls. A line here opens that wall or floor. */
 export function TileModal({ jobId, tag, room, surface, level }: { jobId: string; tag?: string; room?: string; surface?: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
@@ -549,13 +542,8 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
   const [t, setT] = React.useState<Tile>(() => (cur ? { ...cur, supplier: cur.supplier || job?.tileStore || '' } : { tag: nextTag(jobId), name: '', size: '', finish: 'Matte', maker: '', supplier: job?.tileStore || '', suppliedBy: 'GC', sku: '', grout: '', joint: '1/16″' }))
   const rooms = s.rooms[jobId] || []
   const flat = rooms.flatMap((r) => r.surfaces.map((x) => ({ room: r.name, surface: x.name, x })))
-  const [on, setOn] = React.useState<string[]>(() => (cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map(refKey) : room && surface ? [refKey({ room, surface })] : []))
-  /* walls and floors to make (a niche the room didn't have), heights and walls changed here */
-  const [adds, setAdds] = React.useState<{ room: string; surface: string }[]>([])
-  const [heights, setHeights] = React.useState<Record<string, string>>({})
-  const [walls, setWalls] = React.useState<Record<string, string[]>>({})
-  /* the rooms shown: where it is now, and the room it was opened from */
-  const [shown, setShown] = React.useState<string[]>(() => Array.from(new Set([...(cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map((f) => f.room) : []), ...(room ? [room] : [])])))
+  /* where it is — and, a new tile added from a wall or floor, that one */
+  const on = cur ? flat.filter((f) => hasTile(f.x, cur.tag)).map(refKey) : room && surface ? [refKey({ room, surface })] : []
   const [more, setMore] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [confirmDel, setConfirmDel] = React.useState(false)
@@ -575,14 +563,9 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
   const save = () => saveTile(jobId, { ...t, tag: tagT, name: t.name.trim(), maker: t.maker.trim(), sku: t.sku.trim(), supplier: t.supplier.trim() }, {
     was: tag,
     on: on.map((k) => { const [r, sfc] = k.split('|'); return { room: r, surface: sfc } }),
-    adds: adds.filter((a) => on.includes(refKey(a))),
-    heights, walls,
   })
   /* the tile stores (Suppliers that sell tile) first, then any store a tile came from before */
   const suppliers = Array.from(new Set([...(job.tileStore ? [job.tileStore] : []), ...s.suppliers.filter((x) => sellsTile(x)).map((x) => x.name), ...Object.values(s.tiles).flatMap((m) => Object.values(m).map((x) => x.supplier)).filter(Boolean)]))
-  const toggle = (k: string) => setOn((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]))
-  const heightOf = (k: string, x?: Surface) => (k in heights ? heights[k] : x?.height || '')
-  const wallsOf = (k: string, x?: Surface) => (k in walls ? walls[k] : x?.walls || [])
   const moreN = [t.finish && t.finish !== 'Matte' ? 1 : 0, t.maker ? 1 : 0, t.sku ? 1 : 0, t.boxSF ? 1 : 0].reduce((a, b) => a + b, 0)
   return (
     <Modal
@@ -656,74 +639,26 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
               <Field2 label="SF in a box"><TextInput aria-label="Square feet in a box" inputMode="decimal" value={t.boxSF ? String(t.boxSF) : ''} onChange={(e) => set({ boxSF: Number(e.target.value.replace(/[^0-9.]/g, '')) || undefined })} placeholder="—" className="h-10 tnum" /></Field2>
             </div>
           )}
-          {/* where it goes: room by room, the walls and floors to tap */}
+          {/* where it goes: shown — each wall or floor picks its own tile; tap one to change it */}
           <div className="mt-4 border-t border-line-2 pt-4" data-where-goes>
-            <div className="mb-2 flex items-baseline gap-2">
-              <span className="text-[0.8125rem] font-medium text-ink-2">Where it goes</span>
-              <span className="text-[0.78125rem] text-muted">{on.length ? `${on.length} ${on.length === 1 ? 'place' : 'places'}${t.grout ? ' — they take this tile and its grout' : ''}` : 'Tap the walls and floors it goes on'}</span>
-            </div>
-            {!rooms.length && <div className="rounded-xl border border-dashed border-line px-3 py-3 text-[0.8125rem] text-muted">No rooms on the scope of work yet — add them there, then pick where it goes.</div>}
-            {shown.map((rn) => {
-              const r = rooms.find((x) => x.name === rn)
-              if (!r) return null
-              const have = r.surfaces.filter((x) => takesTile(x.name) || x.tile)
-              const added = adds.filter((a) => a.room === rn && !have.some((x) => x.name === a.surface)).map((a) => a.surface)
-              const names = [...have.map((x) => x.name), ...added]
-              const basics = BASICS.filter((b) => !names.some((n) => n.toLowerCase() === b.toLowerCase()))
-              const key = (n: string) => refKey({ room: rn, surface: n })
-              const wallsOn = names.filter((n) => wallish(n) && on.includes(key(n)))
-              return (
-                <div key={rn} className="mb-2.5 rounded-xl border border-line-2 p-3" data-where-room={rn}>
-                  <div className="mb-2 flex items-baseline gap-2"><span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{rn}</span>{r.floor && <span className="shrink-0 text-[0.78125rem] text-muted">{r.floor}</span>}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {have.map((x) => {
-                      const k = key(x.name)
-                      const isOn = on.includes(k)
-                      const other = x.tile && x.tile !== tag && !isOn ? x.tile : ''
-                      return other ? (
-                        <span key={x.name} title={`${x.name} has ${other} — change it from that wall or floor`} className={cn(PICK, 'cursor-default border-dashed border-line bg-wash/60 text-muted')} data-where-taken={x.name}>{x.name}<span className="text-[0.75rem] font-semibold text-faint">{other}</span></span>
-                      ) : (
-                        <button key={x.name} type="button" aria-pressed={isOn} onClick={() => toggle(k)} className={pickCls(isOn)} data-where-chip={x.name}>{isOn && <Check className="h-3.5 w-3.5" />}{x.name}</button>
-                      )
-                    })}
-                    {added.map((n) => <button key={n} type="button" aria-pressed={on.includes(key(n))} onClick={() => toggle(key(n))} className={pickCls(on.includes(key(n)))} data-where-chip={n}>{on.includes(key(n)) && <Check className="h-3.5 w-3.5" />}{n}</button>)}
-                    {basics.map((b) => <button key={b} type="button" onClick={() => { setAdds((a) => [...a, { room: rn, surface: b }]); setOn((o) => [...o, key(b)]) }} className={cn(PICK, 'border-dashed border-line bg-white text-muted hover:border-brand-300 hover:text-brand-700')} data-where-add={b}><Plus className="h-3.5 w-3.5" />{b}</button>)}
-                  </div>
-                  {/* a wall it's on: how high, which walls */}
-                  {wallsOn.map((n) => {
-                    const k = key(n)
-                    const x = have.find((y) => y.name === n)
-                    const h = heightOf(k, x)
-                    const custom = !!h && !HIGH.some((o) => o.v === h)
-                    const ws = wallsOf(k, x)
-                    return (
-                      <div key={n} className="mt-2.5 flex flex-col gap-2 rounded-lg bg-wash/60 p-2.5" data-wall-how={n}>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="w-[8.5rem] shrink-0 truncate text-[0.8125rem] text-muted max-sm:w-full">{n} · how high</span>
-                          {HIGH.map((o) => <button key={o.v} type="button" aria-pressed={h === o.v} onClick={() => setHeights((m) => ({ ...m, [k]: h === o.v ? '' : o.v }))} className={pickCls(h === o.v)} data-wall-high={o.label}>{o.label}</button>)}
-                          <input aria-label={`${n} — how high, in your words`} value={custom ? h : ''} onChange={(e) => setHeights((m) => ({ ...m, [k]: e.target.value }))} placeholder="Other — 5 ft" className={cn('h-8 w-[7.5rem] rounded-[0.5rem] border bg-white px-2.5 text-[0.84375rem] text-ink outline-none focus:border-brand-300 max-md:h-10', custom ? 'border-brand-500' : 'border-line')} data-wall-high-other />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="w-[8.5rem] shrink-0 text-[0.8125rem] text-muted max-sm:w-full">Which walls</span>
-                          <button type="button" aria-pressed={!ws.length} onClick={() => setWalls((m) => ({ ...m, [k]: [] }))} className={pickCls(!ws.length)} data-wall-which="All">All</button>
-                          {WALLS.map((w) => { const isOn = ws.includes(w); return <button key={w} type="button" aria-pressed={isOn} onClick={() => setWalls((m) => ({ ...m, [k]: isOn ? ws.filter((y) => y !== w) : [...ws, w] }))} className={pickCls(isOn)} data-wall-which={w}>{w}</button> })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-            {rooms.length > shown.length && (
-              <SearchSelect
-                label="Another room"
-                value=""
-                onChange={(v) => v && setShown((x) => (x.includes(v) ? x : [...x, v]))}
-                placeholder="+ Another room"
-                options={rooms.filter((r) => !shown.includes(r.name)).map((r) => ({ key: r.name, label: r.name, hint: r.floor || undefined }))}
-                search={rooms.length > 8}
-                width={320}
-              />
+            <div className="mb-1.5 text-[0.8125rem] font-medium text-ink-2">Where it goes</div>
+            {on.length ? (
+              <div className="overflow-hidden rounded-xl border border-line-2">
+                {on.map((k) => {
+                  const [rn, sn] = k.split('|')
+                  const x = flat.find((f) => refKey(f) === k)?.x
+                  const how = [x?.walls ? x.walls.replace(/^The /, '').toLowerCase() : '', x?.height ? x.height.replace(/\s+—\s+/g, ', ').toLowerCase() : ''].filter(Boolean).join(' · ')
+                  const fresh = !cur
+                  return (
+                    <button key={k} type="button" disabled={fresh} onClick={() => s.open({ t: 'surface', jobId, room: rn, surface: sn })} className="flex min-h-11 w-full min-w-0 items-center gap-3 border-t border-line-2 px-3.5 py-2 text-left first:border-t-0 enabled:row-hover" data-where-place={k}>
+                      <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink"><b className="font-semibold">{rn}</b> · {sn}{how && <span className="text-muted"> — {how}</span>}</span>
+                      {fresh ? <span className="shrink-0 text-[0.78125rem] text-muted">goes here when you save</span> : <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-line px-3.5 py-3 text-[0.8125rem] text-muted" data-where-none>Not on a wall or floor yet — on the Scope of work, tap a wall or floor and pick {tagT || 'this tile'}.</div>
             )}
           </div>
         </div>

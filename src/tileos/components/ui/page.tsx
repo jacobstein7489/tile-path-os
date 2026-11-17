@@ -570,7 +570,13 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
               {(soft || !row) && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: c.solid }} aria-hidden data-bubble-dot />}
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
-                <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
+                {/* a phone (Today's row): the same little color as on a computer — its icon, small, before the number */}
+                {row ? (
+                  <span className="flex items-center max-sm:justify-center max-sm:gap-1">
+                    <span className="inline-flex shrink-0 sm:hidden [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: b.on && !soft ? '#fff' : c.solid }} aria-hidden data-bubble-icon>{b.icon}</span>
+                    <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
+                  </span>
+                ) : <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>}
                 {row && b.short
                   ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden [@media(max-width:22rem)]:text-[0.625rem]', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
                   : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-normal max-sm:text-[0.6875rem] max-sm:leading-[0.8125rem] [@media(max-width:22rem)]:text-[0.625rem]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}

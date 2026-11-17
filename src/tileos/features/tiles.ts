@@ -26,13 +26,7 @@ export function nextTag(jobId: string): string {
 }
 
 /** add a tile to a project or change one; `on` = the walls and floors it goes on (others that had it are cleared) */
-export function saveTile(jobId: string, t: Tile, o: {
-  was?: string; on?: SurfaceRef[]
-  /** walls and floors the room didn't have yet (a niche, a backsplash) — made, then they take the tile */
-  adds?: SurfaceRef[]
-  /** a wall's height ("Half tiled — to 4 ft") and which walls, by "room|surface" */
-  heights?: Record<string, string>; walls?: Record<string, string[]>
-} = {}) {
+export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: SurfaceRef[] } = {}) {
   const st = S()
   const was = o.was
   const fresh = !was
@@ -48,13 +42,7 @@ export function saveTile(jobId: string, t: Tile, o: {
         s.estimates.filter((e) => e.jobId === jobId).forEach((e) => e.revs.forEach((r) => r.lines.forEach((l) => { if (l.tile === was) l.tile = t.tag })))
       }
       s.tiles[jobId][t.tag] = t
-      ;(o.adds || []).forEach((a) => { const r = (s.rooms[jobId] || []).find((x) => x.name === a.room); if (r && !r.surfaces.some((x) => x.name === a.surface)) r.surfaces.push({ name: a.surface, tile: '', state: 'notstarted' }) })
       if (o.on) placeOn(s, jobId, t, o.on)
-      ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => {
-        const k = refKey({ room: r.name, surface: x.name })
-        if (o.heights && k in o.heights) x.height = o.heights[k] || undefined
-        if (o.walls && k in o.walls) x.walls = o.walls[k]?.length ? o.walls[k] : undefined
-      }))
       const where = o.on?.length ? ` · ${o.on.length} wall${o.on.length === 1 ? '' : 's'} and floors` : ''
       addHist(s, jobId, { who: me(), kind: 'setup', title: fresh ? `Tile added · ${t.tag} ${t.name}${where}` : `Tile changed · ${t.tag} ${t.name}${where}`, detail: [t.size, t.finish, t.maker, t.grout ? `${GROUTS[t.grout]?.name} grout` : ''].filter(Boolean).join(' · ') })
     },
@@ -244,8 +232,8 @@ export function removeTile(jobId: string, tag: string) {
   )
 }
 
-export type SurfaceEdit = Partial<Pick<Surface, 'tile' | 'grout' | 'joint' | 'layout' | 'method' | 'edge' | 'height' | 'sf' | 'notes'>>
-const LABEL: Record<keyof SurfaceEdit, string> = { tile: 'Tile', grout: 'Grout', joint: 'Joint', layout: 'Layout', method: 'Under it', edge: 'Edge', height: 'Height', sf: 'SF', notes: 'Note' }
+export type SurfaceEdit = Partial<Pick<Surface, 'tile' | 'grout' | 'joint' | 'layout' | 'method' | 'edge' | 'height' | 'walls' | 'sf' | 'notes'>>
+const LABEL: Record<keyof SurfaceEdit, string> = { tile: 'Tile', grout: 'Grout', joint: 'Joint', layout: 'Layout', method: 'Under it', edge: 'Edge', height: 'Height', walls: 'Which walls', sf: 'SF', notes: 'Note' }
 const shown = (k: keyof SurfaceEdit, v: any) => (v === undefined || v === '' || v === null ? '—' : k === 'grout' ? GROUTS[v]?.name || v : k === 'method' ? METHODS[v as MethodKey]?.short || v : k === 'sf' ? `${v} SF` : String(v))
 
 /** save what changed on one wall or floor, in one go */
@@ -362,6 +350,8 @@ export function patternOf(first: string): string {
 export const STARTS = ['Best start — no slivers', 'Centered', 'Full tile at the door', 'Full tile at the doorway', 'Full tile at the floor', 'From the top', 'Centered on the niche', 'Centered on the tub', 'Centered on the window', 'Long side to the door']
 export const EDGES = ['Schluter JOLLY · satin brass · 10 mm', 'Schluter JOLLY · brushed nickel · 10 mm', 'Schluter JOLLY · matte black · 10 mm', 'Schluter JOLLY · aluminum · 10 mm', 'Schluter RONDEC · brushed stainless', 'Mitered', 'Bullnose tile', 'Pencil liner', 'Marble saddle at the door', 'Flush to the wood floor', 'Metal transition strip']
 /** how high a wall is tiled — fully, half, wet walls only, or a height */
+/** which walls a wall's tile goes on — said plainly; anything else typed in */
+export const WHICH_WALLS = ['All the walls', 'The wet walls', 'The back wall', 'The back and side walls', 'One wall — an accent']
 export const HEIGHTS = ['Fully tiled — to the ceiling', 'Half tiled — to 4 ft', 'Wet walls only — to the ceiling', '96″', '84″', '84″ · metal edge on top', '72″', '60″', '48″ wainscot', '42″ wainscot', '36″', '18″ backsplash', '4″ base']
 
 /** a layout reads "Vertical stack · full tile at the doorway" — split it into the pattern and where it starts */
