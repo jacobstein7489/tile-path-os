@@ -185,7 +185,7 @@ export function missingOf(s: Store, j: Job): string[] {
 }
 
 /** one project (id) — from its ··· menu; every open project (all) — from Settings → Bring in projects; or else the brought-in ones */
-export function CatchUpModal({ level, id: one, all }: { level: number; id?: string; all?: boolean }) {
+export function CatchUpModal({ level, id: one, all, papers }: { level: number; id?: string; all?: boolean; /** one project, from Set up projects: its papers too */ papers?: boolean }) {
   const s = useStore()
   /* the list as it was when it opened — saving one doesn't shuffle the rest */
   const [ids] = React.useState(() => (one ? [one] : (all ? allOpenList : broughtOpenList)(useStore.getState()).map((j) => j.id)))
@@ -208,7 +208,8 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
         footer={<><div className="ml-auto" aria-hidden /><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved', { close: true })} data-catchup-save>Save</Button></>}
         bodyClass="px-6 py-5 max-sm:px-4"
       >
-        <CatchUpForm job={job} d={d} set={set} />
+        {/* from Set up projects: its papers too — the estimate and the tile paperwork, if they're handy */}
+        <CatchUpForm job={job} d={d} set={set} papers={papers} />
       </Modal>
     )
   }

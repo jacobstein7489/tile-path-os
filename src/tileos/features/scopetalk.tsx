@@ -5,12 +5,14 @@
  * button. What it couldn't place is said, not guessed. What the crew already started stays (taking it off is refused,
  * the same as by hand). Tapping a line to change it by hand still works — this is the quick way. */
 import * as React from 'react'
-import { Check, Loader2, Mic, TriangleAlert } from 'lucide-react'
+import { Check, Loader2, Mic, Square, TriangleAlert } from 'lucide-react'
 import { useStore, addHist, meOf, type Store } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, TextArea } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
 import { REAL } from '@/tileos/lib/save'
+import { useVoice } from '@/tileos/components/ui/voice'
+import { addSaid } from '@/tileos/components/ui/mic'
 import { GROUTS, type Room, type Surface } from '@/tileos/data/jobs'
 import { FLOORS } from '@/tileos/data/areas'
 import { HEIGHTS, WHICH_WALLS } from './tiles'
@@ -172,17 +174,39 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
   const [off, setOff] = React.useState<number[]>([])
   const abort = React.useRef<AbortController | null>(null)
   React.useEffect(() => () => abort.current?.abort(), [])
+  /* the mic: what's said goes into the box; when you stop, it's read right away. On a computer it starts listening as the
+     window opens (you tapped Change by talking); a phone listens from the tap on the big mic */
+  const said = React.useRef(words)
+  said.current = words
+  const hint = [...(s.rooms[jobId] || []).map((r) => r.name), ...Object.keys(s.tiles[jobId] || {})].join(', ')
+  const v = useVoice((t) => setWords((w) => addSaid(w, t.charAt(0).toUpperCase() + t.slice(1))), hint)
+  const startMic = () => v.start()
+  React.useEffect(() => {
+    const phone = typeof navigator !== 'undefined' && /iPad|iPhone|iPod|Android/.test(navigator.userAgent)
+    if (!phone && v.can && !room) startMic()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  /* it was listening, and it's done (written down): read what was said */
+  const wasOn = React.useRef(false)
+  React.useEffect(() => {
+    if (v.on || v.busy) { if (v.on) wasOn.current = true; return }
+    if (!wasOn.current) return
+    wasOn.current = false
+    if (said.current.trim() && step.k === 'say') void look(said.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.on, v.busy])
   if (!job) return null
-  const look = async () => {
-    if (!words.trim()) return
+  const look = async (text = words) => {
+    if (v.on) { v.stop(); return }
+    if (!text.trim()) return
     if (!REAL.ai) { setStep({ k: 'fail', msg: 'The AI isn’t on in this copy — tap a line on the scope to change it.' }); return }
     setStep({ k: 'busy' })
     const ac = (abort.current = new AbortController())
     try {
       const st = useStore.getState()
-      const text = await REAL.ai(scopePrompt(st, jobId, words), [], ac.signal)
+      const text2 = await REAL.ai(scopePrompt(st, jobId, text), [], ac.signal)
       if (ac.signal.aborted) return
-      const { changes, unclear } = readChanges(text)
+      const { changes, unclear } = readChanges(text2)
       setOff([])
       setStep({ k: 'check', list: checkChanges(useStore.getState(), jobId, changes), unclear })
     } catch (e: any) {
@@ -205,13 +229,26 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
           <Button className="ml-auto" variant="primary" icon={<Check />} disabled={!picked.length} onClick={() => applyChanges(jobId, picked)} data-talk-apply>{picked.length ? `Make ${picked.length === 1 ? 'this change' : `these ${picked.length} changes`}` : 'Nothing to change'}</Button>
         </>
       ) : (
-        <Button className="ml-auto" variant="primary" disabled={!words.trim() || step.k === 'busy'} onClick={look} data-talk-look>{step.k === 'busy' ? 'Reading it…' : 'Look at it'}</Button>
+        <Button className="ml-auto" variant="primary" disabled={!words.trim() || step.k === 'busy' || v.busy} onClick={() => void look()} data-talk-look>{step.k === 'busy' ? 'Reading it…' : 'Look at it'}</Button>
       )}
     >
       {step.k !== 'check' && (
         <div data-talk-say>
-          <div className="mb-2 flex items-center gap-2 text-[0.875rem] text-muted"><Mic className="h-4 w-4 text-brand-600" />Tap the mic and talk — or type it.</div>
-          <TextArea autoFocus value={words} onChange={(e) => setWords(e.target.value)} placeholder="e.g. The master bath floor is herringbone now. Take out the niche. The shower walls go to the ceiling." className="min-h-[8rem] text-[0.9375rem]" data-talk-words />
+          {/* the big mic: tap and talk, tap when you're done — what you said is written in the box and read right away */}
+          {v.can && (
+            <div className="mb-4 flex flex-col items-center gap-2 pt-1 text-center" data-talk-mic-box>
+              <button type="button" onClick={v.on ? v.stop : startMic} disabled={v.busy || step.k === 'busy'} aria-label={v.on ? 'Stop — I’m done' : 'Tap and talk'} aria-pressed={v.on}
+                className={cn('inline-flex h-16 w-16 items-center justify-center rounded-full text-white shadow-sm transition disabled:opacity-60', v.on ? 'bg-bad-500' : v.busy ? 'animate-pulse bg-brand-500' : 'bg-brand-600 hover:bg-brand-700')}
+                style={v.on ? { boxShadow: `0 0 0 ${Math.round(4 + v.level * 12)}px rgba(239, 68, 68, ${0.14 + v.level * 0.26})` } : undefined}
+                data-talk-mic={v.on ? 'on' : v.busy ? 'busy' : 'off'}>
+                {v.on ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-7 w-7" />}
+              </button>
+              <div className="text-[0.9375rem] font-medium text-ink" data-talk-mic-say>{v.busy ? 'Writing it down…' : v.on ? (v.quiet ? 'I don’t hear anything — is the mic on?' : 'Listening… tap when you’re done') : 'Tap and say what changed'}</div>
+              {v.on && v.hearing && <div className="max-w-full text-[0.875rem] text-muted">{v.hearing}</div>}
+              {v.err && <div className="max-w-full text-[0.8125rem] text-bad-700" data-talk-mic-err>{v.err}</div>}
+            </div>
+          )}
+          <TextArea mic={false} autoFocus={!v.can} value={words} onChange={(e) => setWords(e.target.value)} placeholder={v.can ? 'Or type it — e.g. The master bath floor is herringbone now. Take out the niche.' : 'e.g. The master bath floor is herringbone now. Take out the niche. The shower walls go to the ceiling.'} className="min-h-[7rem] text-[0.9375rem]" data-talk-words />
           {step.k === 'busy' && <div className="mt-3 flex items-center gap-2 text-[0.875rem] text-muted" data-talk-busy><Loader2 className="h-4 w-4 animate-spin text-brand-600" />Reading what you said against the scope…</div>}
           {step.k === 'fail' && <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn-50 px-3 py-2.5 text-[0.875rem] text-warn-800" data-talk-fail><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />{step.msg}</div>}
         </div>

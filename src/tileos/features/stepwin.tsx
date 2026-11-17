@@ -4,8 +4,9 @@
  * you picked with only what it needs — what it is, whose turn, when, the one or two things that finish it. Today, a
  * task or a link opens it; tap another circle and that step shows instead. */
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import type { Task } from '@/tileos/data/work'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2, BellRing, UserRound } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2, BellRing, UserRound, ListChecks } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -21,7 +22,7 @@ import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { timeLabel } from '@/tileos/data/calendar'
 import { TODAY, labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { mailLive, emailText } from './mailout'
-import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, noteStep, removeJobStep, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, isTileProblem, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
+import { stepsFor, stepCounts, markStep, reopenStep, skipStep, setStepOwner, setStepDue, noteStep, removeJobStep, toggleStepFollow, markTileOrdered, checkInTile, sendRevisedQty, setSiteAnswer, siteFixed, siteRecheck, siteRooms, siteQuestions, siteProblem, waitOnStep, stopWaiting, tileNotYet, materialsCame, materialsLate, estimatorFor, takesTile, scopeLock, SITE_CHECKS, PHASES, BEFORE_TILE_OS, isTileProblem, type StepView, setFloorLevel, fracIn, floorRooms, isFloor, sendFloorProblems, setLaser, LASER_AT, LEVEL_OK, LEVEL_PREP } from './steps'
 import { insidePeople, StepIcon } from './steps-ui'
 import { patchTile, setTileOn, readPhoto, refKey } from './tiles'
 import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel, GROUPS, type Group } from './takeoff'
@@ -579,33 +580,48 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   const theirs = !mine && open
   /* checking the fixes again is the site manager's — taking it over takes the site check */
   const take = v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key
-  const notes = s.stepRecs[jobId]?.[v.key]?.notes || []
+  const rec = s.stepRecs[jobId]?.[v.key]
+  const notes = rec?.notes || []
   /* your own work needs the room; anything else is the same small window as a task */
   const work = mine && open
+  /* the same lines as every window: When — its day; Status — where it stands (waiting, not yet, done) */
+  const isWhen = v.state === 'now' || v.state === 'bad'
+  const dueWord = v.due ? (labelFromIso(v.due) === 'Tomorrow' ? 'tomorrow' : labelFromIso(v.due) === 'Today' ? 'today' : labelFromIso(v.due)) : ''
+  const whenWords = isWhen ? h.state : v.state === 'wait' && v.due ? `${['delivered', 'matin'].includes(v.key) ? 'Coming' : ['design', 'walk'].includes(v.key) ? 'Set for' : 'Follow up'} ${dueWord}` : undefined
+  const status = isWhen ? undefined : h.state
+  /* the window's bottom bar: the step's buttons go there — the same place as every window's */
+  const [slot, setSlot] = React.useState<HTMLElement | null>(null)
   return (
     <Modal
       level={level}
       size={work ? 'md' : 'sm'}
       onClose={s.close}
       title={title}
-      header={<WinHead place={`${job.name} · ${part}`} title={title} who={h.who} whoText={h.whoText} state={h.state} tone={h.tone} problem={h.problem}
-        whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'} stateLabel={v.state === 'now' || v.state === 'bad' ? 'When' : 'Where it is'}
+      header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}
+        state={whenWords} tone={isWhen ? h.tone : undefined} status={status} statusTone={h.tone} problem={h.problem}
+        whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'}
         more={admin ? <StepMore job={job} v={v} /> : undefined}
         /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
         whoPick={admin && open ? { people: insidePeople(s), me, current: v.owner, onPick: (p) => setStepOwner(job.id, take, p) } : undefined}
-        whenPick={(admin || mine) && open && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
+        whenPick={(admin || mine) && open && isWhen && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
+        /* who's watching — the same as on a task */
+        watch={open ? { people: insidePeople(s), me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: mine || admin } : undefined}
         attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}
-      /* one button at the bottom: someone else's — Remind them; yours — the work's own button does it */
-      footer={theirs && v.state !== 'later' ? (
-        <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>
-      ) : undefined}
+      /* the buttons at the bottom: someone else's — Remind them; yours — the work's own buttons */
+      footer={<>
+        {theirs && v.state !== 'later' && <Button variant="primary" className="ml-auto max-sm:flex-1" icon={<BellRing />} onClick={() => remindStep(job, v)} data-remind-step>Remind {PEOPLE[v.owner]?.short || 'them'}</Button>}
+        <div ref={setSlot} className="contents" data-step-foot />
+      </>}
+      footerClass="[&:not(:has(button))]:hidden"
       bodyClass="p-0"
     >
       <div ref={body} className="min-w-0" data-step-view={v.key}>
-        <div className={cn('px-6 pt-3 max-sm:px-4', work ? 'pb-6' : 'pb-4')} data-step-open={v.key}>
-          <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy bare goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
+        <div className="px-6 pb-4 pt-3 max-sm:px-4" data-step-open={v.key}>
+          <FootSlot.Provider value={theirs ? null : slot}>
+            <StepHost.Provider value={{ close: s.close }}><StepPanel job={job} v={v} roomy bare goTo={(key) => s.swap({ t: 'step', jobId, k: key })} /></StepHost.Provider>
+          </FootSlot.Provider>
           {/* what people wrote on it, and a box to add one — the same as on a task */}
-          <Notes kind="step" me={me} notes={notes} onAdd={open ? (x) => noteStep(job.id, v.key, x) : undefined} className={cn((work || v.state === 'done' || v.state === 'bad') && 'mt-5')} />
+          <Notes kind="step" me={me} notes={notes} onAdd={open ? (x) => noteStep(job.id, v.key, x) : undefined} className="mt-5" />
         </div>
       </div>
     </Modal>
@@ -710,8 +726,16 @@ function Block({ title, right, children, className }: { title: React.ReactNode; 
   )
 }
 const Quiet = ({ children }: { children: React.ReactNode }) => <div className="px-4 py-3 text-[0.84375rem] text-muted">{children}</div>
-/* the work's buttons — on a phone the same size: two share the row, three or more one under the other */
-const Actions = ({ children }: { children: React.ReactNode }) => <div className="mt-5 flex flex-wrap items-center justify-end gap-2 max-sm:items-stretch max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto" data-step-actions>{children}</div>
+/* the work's buttons — on a phone the same size: two share the row, three or more one under the other. In a step's own
+   window they sit in its bottom bar, the same place as every window's buttons */
+const ACTS = 'flex flex-wrap items-center justify-end gap-2 max-sm:items-stretch max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto'
+/** the window's bottom bar, when the step is in its own window */
+const FootSlot = React.createContext<HTMLElement | null>(null)
+const Actions = ({ children }: { children: React.ReactNode }) => {
+  const slot = React.useContext(FootSlot)
+  if (slot) return createPortal(<div className={cn(ACTS, 'ml-auto max-sm:w-full')} data-step-actions>{children}</div>, slot)
+  return <div className={cn(ACTS, 'mt-5')} data-step-actions>{children}</div>
+}
 const Good = ({ children }: { children: React.ReactNode }) => <div className="mt-4 flex items-center gap-2 rounded-xl bg-ok-50 px-4 py-3 text-[0.875rem] font-medium text-ok-700"><Check className="h-4 w-4" />{children}</div>
 
 /** waiting on someone outside — who, and the day it comes back */

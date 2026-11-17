@@ -76,6 +76,7 @@ import { LayoutModal, LayoutsModal } from '@/tileos/features/layout'
 import { ScopeTalkModal } from '@/tileos/features/scopetalk'
 import { BringInModal } from '@/tileos/features/bringin'
 import { CatchUpModal } from '@/tileos/features/catchup'
+import { SetupPage } from '@/tileos/features/setup'
 import { ClientProfile, DesignerProfile, InstallerProfile, SupplierProfile } from '@/tileos/features/profiles'
 import { markScreen } from './lib/opentime'
 import { watchKeyboard } from '@/tileos/lib/viewport'
@@ -155,7 +156,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} name={m.name} address={m.address} />
     case 'bringin': return <BringInModal level={level} />
-    case 'catchup': return <CatchUpModal level={level} id={m.id} all={m.all} />
+    case 'catchup': return <CatchUpModal level={level} id={m.id} all={m.all} papers={m.papers} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />
     case 'designer': return <DesignerProfile id={m.id} level={level} />
     case 'sub': return <InstallerProfile id={m.id} level={level} />
@@ -272,7 +273,7 @@ export default function App() {
   const report = useStore((s) => reportOn(s))
   const navList = roleDef(role).nav
   /* Commissions come with Billing — whoever sees the invoices sees what they earn the salespeople */
-  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, ...(navList.includes('money') ? ['commissions'] : []), 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : []), ...(navList.includes('upcoming') ? ['schedule'] : [])]
+  const allowed: string[] = role === 'crew' ? ['crew'] : [...navList, ...(navList.includes('money') ? ['commissions'] : []), 'tasks', 'inbox', 'flow', 'job', ...(role === 'owner' ? ['settings'] : []), ...(report ? ['team'] : []), ...(role === 'owner' || role === 'pm' ? ['setup'] : []), ...(['clients', 'designers', 'subs', 'suppliers'].some((k) => navList.includes(k)) ? ['directory'] : []), ...(navList.includes('upcoming') ? ['schedule'] : [])]
   const page: Page = allowed.includes(route.page) ? route.page : homeOf(role).page
 
   let body: React.ReactNode = null
@@ -282,6 +283,7 @@ export default function App() {
     case 'inbox': body = <InboxPage />; break
     case 'upcoming': body = <GamePlanPage />; break
     case 'estimates': body = <EstimatesPage />; break
+    case 'setup': body = <SetupPage />; break
     case 'pos': body = <POsPage />; break
     case 'pay': body = <PayPage />; break
     case 'commissions': body = <CommissionsPage />; break

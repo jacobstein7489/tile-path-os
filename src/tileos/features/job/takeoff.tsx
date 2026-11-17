@@ -34,7 +34,8 @@ import { useReadingOf } from '@/tileos/lib/reading'
 const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 const QFIRST = 'flex min-w-0 items-center gap-3'
 /** the tile: what · how much we need · where it's at (and its button) */
-const TGRID = 'grid grid-cols-[minmax(0,1fr)_7rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
+/** Tile · Where it goes · We need · Where it's at (a smaller screen: where it goes under the tile's name) */
+const TGRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_17rem_1rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_1rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 const ROWPAD = 'min-h-12 border-t border-line-2 px-5 py-2 max-sm:px-4'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
@@ -71,18 +72,19 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
       ) : undefined}
     >
       <div>
-        {/* where the job's tile comes from — set once */}
-        {all.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-3 empty:hidden max-sm:px-4" data-tile-view-bar>
-            <TileStoreLine job={job} canEdit={!simple} />
-          </div>
-        )}
+        {/* where the job's tile comes from — set once, always here on top (before any tile is in, too) */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-3 empty:hidden max-sm:px-4" data-tile-view-bar>
+          <TileStoreLine job={job} canEdit={!simple} />
+        </div>
         {/* each tile once: how much we need, and where it's at — the rooms it goes in are on the scope of work */}
-        {tags.length > 0 && <div className={cn(HEAD_ROW, TGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
+        {tags.length > 0 && <div className={cn(HEAD_ROW, TGRID, 'px-5 max-lg:hidden')}><span>Tile</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>}
         {tags.map((tag) => {
           const t = tileOf(job.id, tag)
           const c = checks.find((y) => y.tag === tag)
           const uses = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, x })))
+          /* where it goes: the rooms (each wall and floor when you point at it) */
+          const goes = Array.from(new Set(uses.map((u) => u.room)))
+          const goesAll = uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ')
           const sf = Math.round(uses.reduce((n, u) => n + sfFor(job.id, u.x, tag), 0))
           const need = c ? needWithWaste(c) : Math.ceil(sf * 1.1)
           const unit = c?.unit || 'SF'
@@ -105,8 +107,11 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
                 <span className="min-w-0 leading-snug">
                   <span className="block truncate text-[0.9375rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}</span>
                   <span className={cn('block truncate text-[0.8125rem]', uses.length ? 'text-muted' : 'text-warn-700')}>{[t?.size, t?.trim ? 'trim' : '', uses.length ? '' : 'not on a wall or floor yet'].filter(Boolean).join(' · ') || 'No size yet'}<span className="text-muted lg:hidden">{need ? ` · ${need.toLocaleString('en-US')} ${unit}` : ''}</span></span>
+                  {/* a smaller screen: where it goes, under it */}
+                  {goes.length > 0 && <span className="block truncate text-[0.8125rem] text-ink-2 lg:hidden" title={goesAll} data-tile-goes-small>{goes.join(' · ')}</span>}
                 </span>
               </button>
+              <span className="min-w-0 truncate text-[0.875rem] text-ink-2 max-lg:hidden" title={goesAll} data-tile-goes={goes.join('|')}>{goes.length ? goes.join(' · ') : <span className="text-faint">—</span>}</span>
               <span className="text-right text-[0.8125rem] tnum text-ink-2 max-lg:hidden" title={boxes > 0 ? `${boxes} boxes · with the extra for cuts` : 'With the extra for cuts'}>{need ? `${need.toLocaleString('en-US')} ${unit}` : '—'}</span>
               <span className="flex min-w-0 items-center justify-end gap-2.5 max-sm:justify-start max-sm:pl-14">
                 {/* on a tile PO that's still open: its number, one tap to it */}
@@ -146,15 +151,15 @@ function TileStoreLine({ job, canEdit }: { job: Job; canEdit: boolean }) {
     setEditing(false)
   }
   if (store && !editing) return (
-    <span className="inline-flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted" data-tile-store={store}>
-      <Truck className="h-3.5 w-3.5 shrink-0 text-faint" />Tile from <b className="truncate font-semibold text-ink">{store}</b>
-      {canEdit && s.role === 'owner' && <button type="button" onClick={() => setEditing(true)} className="ml-1 font-semibold text-brand-700 hover:underline" data-tile-store-change>Change</button>}
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-[0.875rem] text-muted" data-tile-store={store}>
+      <Truck className="h-4 w-4 shrink-0 text-faint" />Tile store: <b className="truncate font-semibold text-ink">{store}</b>
+      {canEdit && ['owner', 'pm', 'office', 'materials', 'estimator'].includes(s.role) && <button type="button" onClick={() => setEditing(true)} className="ml-1 font-semibold text-brand-700 hover:underline" data-tile-store-change>Change</button>}
     </span>
   )
   if (!canEdit) return null
   return (
     <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted" data-tile-store-pick>
-      <Truck className="h-3.5 w-3.5 shrink-0 text-faint" />{editing ? 'Tile from' : 'Where’s the tile from?'}
+      <Truck className="h-4 w-4 shrink-0 text-faint" />{editing ? 'Tile store:' : 'Tile store — which store is the tile from?'}
       <SearchSelect label="The tile store" value={store} onChange={set} search width={300} options={stores.map((v) => ({ key: v, label: v }))} placeholder="Pick or type the store" searchPlaceholder="Type a store — e.g. Infinity Tile" onCreate={set} createLabel={(q) => `Use “${q}”`} />
       {editing && <button type="button" onClick={() => setEditing(false)} className="font-semibold text-muted hover:text-ink">Cancel</button>}
     </span>

@@ -3,7 +3,7 @@ import markUrl from '@/tileos/assets/mark.svg'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
-import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut } from 'lucide-react'
+import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut, ListChecks } from 'lucide-react'
 import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { updateReady, watchUpdateReady, updateNow, checkNow } from '@/tileos/lib/device'
@@ -20,6 +20,7 @@ import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
 import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent, UserPen } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
+import { setupOn, setupLeft } from '@/tileos/features/setup'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { roleDef, PEOPLE, STAGE_LABEL, PRICING_STAGES } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -46,6 +47,7 @@ export function NewMenu({ trigger }: { trigger: React.ReactElement; align?: 'sta
 
 export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   today: { label: 'Today', icon: CalendarCheck },
+  setup: { label: 'Set up projects', icon: ListChecks },
   tasks: { label: 'Today', icon: CalendarCheck },
   inbox: { label: 'Messages', icon: MessageCircle },
   projects: { label: 'Projects', icon: Building2 },
@@ -72,7 +74,7 @@ export function navKeys(nav: string[]) {
 }
 const GROUPS: { label: string; keys: string[] }[] = [
   { label: '', keys: ['today', 'inbox'] },
-  { label: 'Work', keys: ['estimates', 'projects', 'upcoming'] },
+  { label: 'Work', keys: ['setup', 'estimates', 'projects', 'upcoming'] },
   { label: 'Money', keys: ['pos', 'pay', 'money', 'commissions', 'items'] },
   { label: 'People', keys: ['team', 'clients', 'designers', 'subs', 'suppliers'] },
 ]
@@ -80,7 +82,10 @@ const GROUPS: { label: string; keys: string[] }[] = [
 function useNav(): string[] {
   const role = useStore((s) => s.role)
   const report = useStore((s) => reportOn(s))
-  const nav = roleDef(role).nav
+  /* for now: Set up projects, for the admin, while any open project isn't set up */
+  const setup = useStore((s) => setupOn(s))
+  const nav0 = roleDef(role).nav
+  const nav = setup ? ['setup', ...nav0] : nav0
   return report ? [...nav, 'team'] : nav
 }
 export const activeNav = (page: string) => (page === 'job' ? 'projects' : page === 'tasks' ? 'today' : page === 'directory' ? 'clients' : page === 'schedule' ? 'upcoming' : page)
@@ -93,7 +98,8 @@ function useBadges() {
   const moneyTodo = s.money.filter((m) => m.state === 'todo').length + (role === 'accounting' && billingOn(s) ? billsToMake(s).length : 0)
   const payOpenN = ['owner', 'accounting'].includes(role) ? payOpen(s).length : 0
   const inboxN = inboxUnread(s)
-  return (k: string) => (k === 'today' ? todayN : k === 'inbox' ? inboxN : k === 'money' && role === 'accounting' ? moneyTodo : k === 'pay' ? payOpenN : 0)
+  const setupN = role === 'owner' || role === 'pm' ? setupLeft(s) : 0
+  return (k: string) => (k === 'today' ? todayN : k === 'inbox' ? inboxN : k === 'money' && role === 'accounting' ? moneyTodo : k === 'pay' ? payOpenN : k === 'setup' ? setupN : 0)
 }
 
 /** the number on the app's icon (an installed app on a phone or a desktop): what's new in the inbox plus what's due today */

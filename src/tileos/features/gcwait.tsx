@@ -76,7 +76,7 @@ export function gcState(t: Task): GcState {
   if (n !== undefined && n <= 7) return { text: n < 0 ? `Needed ${days(-n)} ago` : n === 0 ? 'Needed today' : `${days(n)} left`, tone: 'bad', flag: true }
   if (!told) return { text: 'Tell the GC today', tone: 'warn', flag: false }
   if (n !== undefined) return { text: `Needed in ${days(n)}`, tone: 'quiet', flag: false }
-  return { text: fu === TODAY ? 'Remind today' : fu ? `Next reminder ${labelFromIso(fu)}` : 'Waiting', tone: 'quiet', flag: false }
+  return { text: fu === TODAY ? 'Remind today' : fu ? `Remind ${labelFromIso(fu) === 'Tomorrow' ? 'tomorrow' : labelFromIso(fu)}` : 'Waiting', tone: 'quiet', flag: false }
 }
 /** every open one, the ones with something wrong first, then the soonest needed */
 export function gcWaits(s: Pick<Store, 'tasks'>, jobId?: string): Task[] {

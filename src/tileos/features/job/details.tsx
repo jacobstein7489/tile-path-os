@@ -83,7 +83,8 @@ function roomWord(r: RoomView): { text: string; cls: string } {
   if (r.state === 'installing') return { text: `${r.pct}% in`, cls: 'text-ink-2' }
   if (r.state === 'ready') return { text: 'Ready', cls: 'font-medium text-[#2c8a5b]' }
   const c = r.chips[0]
-  if (!c) return { text: r.state === 'notstarted' ? 'Not started' : '', cls: 'text-muted' }
+  /* not started: nothing said — a quiet list, words only where something's going on */
+  if (!c) return { text: '', cls: 'text-muted' }
   return { text: c.text, cls: c.tone === 'bad' ? 'font-medium text-bad-600' : c.tone === 'warn' ? 'text-warn-700' : 'text-muted' }
 }
 /** "Fully tiled", "48″ wainscot" — how high a wall goes, short */
@@ -203,10 +204,14 @@ function wordsOf(jobId: string, x: Surface): { where: string; under: string; til
   const where = wall ? [x.walls ? x.walls.replace(/^The /, '').toLowerCase() : '', x.height ? lowFirst(x.height.replace(/\s+—\s+/g, ', ')) : ''].filter(Boolean).join(' · ') : ''
   /* one size for all its tiles (a checkerboard) — said once */
   const sizes = Array.from(new Set(tiles.map((t) => t.size).filter(Boolean)))
-  const tileWords = tiles.length ? (sizes.length <= 1 ? `${tiles.map((t) => t.name).join(' + ')}${sizes[0] ? ` ${sizes[0]}` : ''}` : tiles.map((t) => `${t.name}${t.size ? ` ${t.size}` : ''}`).join(' + ')) : x.tile || ''
+  /* the tile by its name — its size is on the tile (Tile & materials, its picture); two sizes on one wall: each said */
+  const tileWords = tiles.length ? (sizes.length <= 1 ? tiles.map((t) => t.name).join(' + ') : tiles.map((t) => `${t.name}${t.size ? ` ${t.size}` : ''}`).join(' + ')) : x.tile || ''
   const g = x.grout || tiles[0]?.grout
   const edge = wall ? edgeShort(x.edge) : ''
-  const under = [tileWords, x.layout ? lowFirst(x.layout) : '', g ? `${GROUTS[g]?.name || g} grout` : '', edge ? (edge === 'Mitered' ? 'mitered edges' : `${edge.replace(' · ', ' ')} edge`) : '', x.notes || ''].filter(Boolean).join(' · ')
+  const lay = x.layout ? lowFirst(x.layout) : ''
+  const edgeWords = edge ? (edge === 'Mitered' ? 'mitered edges' : `${edge.replace(' · ', ' ')} edge`) : ''
+  /* each thing once — an edge the layout already says ("field tile · mitered edges") isn't said again */
+  const under = [tileWords, lay, g ? `${GROUTS[g]?.name || g} grout` : '', edgeWords && !lay.toLowerCase().includes(edgeWords.toLowerCase()) ? edgeWords : '', x.notes || ''].filter(Boolean).join(' · ')
   return { where, under, tile: tiles[0] }
 }
 
@@ -228,7 +233,7 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
           {/* a phone: the name and its note wrap rather than end in "…" */}
           <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222] max-sm:whitespace-normal max-sm:leading-snug"><b className="font-bold uppercase tracking-[0.02em] group-hover:text-brand-700">{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
-          {inField && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
+          {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
           {w.text && <span data-room-why className={cn('min-w-0 max-w-[45%] truncate text-right text-[0.8125rem] max-sm:max-w-[40%] max-sm:whitespace-normal max-sm:leading-snug', w.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{w.text}</span>}
           <span className="w-[4.25rem] shrink-0 text-right text-[0.8125rem] tnum text-[#555] max-sm:hidden">{view.sf > 0 ? `${view.sf.toLocaleString('en-US')} SF` : ''}</span>
           <ChevronRight className="h-4 w-4 shrink-0 text-[#8a8f98] group-hover:text-brand-700" />
@@ -243,7 +248,7 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
           const takes = takesTile(x.name)
           const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
           const right = inField && takes
-            ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : 'Not yet', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted' }
+            ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted' }
             : { text: x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '', cls: 'text-muted' }
           return (
             <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className="flex min-h-[3.5rem] w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3">

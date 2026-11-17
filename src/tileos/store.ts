@@ -25,7 +25,7 @@ import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
 import type { AreaPreset, SurfaceDef } from '@/tileos/data/areas'
 
-export type Page = 'today' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay' | 'team' | 'commissions'
+export type Page = 'today' | 'setup' | 'inbox' | 'upcoming' | 'tasks' | 'projects' | 'clients' | 'schedule' | 'money' | 'flow' | 'settings' | 'job' | 'crew' | 'estimates' | 'pos' | 'items' | 'designers' | 'subs' | 'suppliers' | 'directory' | 'pay' | 'team' | 'commissions'
 export interface Route { page: Page; id?: string; tab?: string; q?: Record<string, string> }
 export type Modal = { t: string; [k: string]: any }
 

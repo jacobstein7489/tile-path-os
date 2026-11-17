@@ -35,7 +35,8 @@ import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead } from './winhead'
+import { WinHead, type WinKind } from './winhead'
+import { namesOf } from './estpeople'
 import { useSmall } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
 /** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
@@ -47,6 +48,20 @@ const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 
 const ASSIGNABLE: PersonKey[] = ['ys', 'yakov', 'office', 'estimator', 'takeoff', 'materials', 'accounting']
 const ROLE_OF: Partial<Record<PersonKey, Role[]>> = { ys: ['owner', 'pm'], yakov: ['site'], office: ['office'], estimator: ['estimator'], takeoff: ['takeoff'], materials: ['materials'], accounting: ['accounting'] }
 const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setup: ClipboardList, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt }
+/** what kind of thing a task is, in its window's top line — so you know what you opened */
+const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'On site', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
+export function taskKind(t: Task): WinKind {
+  if (isGcWait(t)) return { icon: <Hourglass />, label: 'Waiting on the GC' }
+  if (isRequest(t)) return { icon: <Truck />, label: 'Bring to the job' }
+  if (t.everyone) return { icon: <Megaphone />, label: 'For everyone' }
+  const Ic = t.type === 'Setup' || !TYPE_ICON[t.type] ? ListTodo : TYPE_ICON[t.type]
+  return { icon: <Ic />, label: TYPE_KIND[t.type] || 'Task' }
+}
+/** waiting on someone: the day to follow up, moved */
+function setFollowUp(id: string, label: string) {
+  const iso = isoFromLabel(label) || TOMORROW
+  useStore.getState().commit((st) => { const x = st.tasks.find((y) => y.id === id); if (x) x.followUp = md(iso) }, `Follow up ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : md(iso)}`, { tone: 'wait' })
+}
 
 /** a daily update that's due today: one per project a crew is working on (the site manager sends them) — every work
  *  day, no skipping: the one for the last work day that wasn't sent is still there the next morning, late */
@@ -184,74 +199,124 @@ const Viewer = React.createContext<PersonKey | null>(null)
 const Multi = React.createContext(false)
 /** several people's lists at once: whose list this line is on (for a row that doesn't say whose it is itself) */
 const LineOn = React.createContext<PersonKey[] | null>(null)
-/** who does it and who's watching, as their circles — never their names in words: who does it plain; who's watching
- *  after a small eye */
-function PeopleDots({ doers, watchers }: { doers: PersonKey[]; watchers: PersonKey[] }) {
-  if (!doers.length && !watchers.length) return null
-  const names = (ps: PersonKey[]) => ps.map((p) => PEOPLE[p]?.name || p).join(doers.length > 1 ? ' or ' : ', ')
-  /* side by side, a hair apart — never one over the other: two letters each, both read */
+/** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
+const TBTN = ROW_BTN
+/** Today's columns on a computer — the same kind of list as Estimates and Projects: one line a thing, straight columns,
+ *  a name on top of each: To do · Project · Whose turn (on Waiting: Waiting on) · Watching · When. What to do and the
+ *  project share the width; whose turn, watching and when each as wide as they need. A smaller computer: no Watching
+ *  column — the circles sit at the end of whose turn. */
+export const todoList = (_who?: boolean, _inJob?: boolean) => 'minmax(0,1.5fr) minmax(0,0.9fr) 12rem 7rem'
+export const TODO_LG = 'minmax(0,1.6fr) minmax(0,1fr) 10rem 4.75rem 8rem'
+export const todoCols = { '--list': todoList(), '--list-lg': TODO_LG } as React.CSSProperties
+/** how late something is — "1 day late", "4 days late" (no date to work out) */
+export const lateBy = (iso?: string) => { if (!iso) return 'Late'; const d = Math.max(1, daysBetween(iso, TODAY)); return `${d} ${d === 1 ? 'day' : 'days'} late` }
+
+/** whose turn it is: people inside — their circles and first names — or someone outside (Alex, the GC, the store), by
+ *  name: a plain circle with their initials */
+export type Turn = { keys?: PersonKey[]; name?: string }
+/** someone outside, by name — their initials in a plain circle ("The GC" → GC, "Alex" → A) */
+export function NameDot({ name, size = 20 }: { name: string; size?: number }) {
+  const w = name.replace(/^the\s+/i, '').split(/\s+/).filter(Boolean)
+  const ini = /^gc$/i.test(w[0] || '') ? 'GC' : (w.length > 1 && /^[A-Z]/.test(w[1]) ? w[0][0] + w[1][0] : (w[0] || '?')[0]).toUpperCase()
+  return <span title={name} className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#ece8e1] font-semibold leading-none text-[#4a5361]" style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * (ini.length > 1 ? 0.36 : 0.42))) }}>{ini}</span>
+}
+/** a name someone typed ("Alex", "Yakov") that is one of the people in the app — their circle, not a plain one */
+export function keyNamed(name?: string): PersonKey | undefined {
+  const n = (name || '').trim().toLowerCase()
+  if (!n) return undefined
+  return (Object.keys(PEOPLE) as PersonKey[]).find((k) => k !== 'system' && (PEOPLE[k]?.short?.toLowerCase() === n || PEOPLE[k]?.name?.toLowerCase() === n))
+}
+/** someone outside — or one of ours, by name */
+export const turnNamed = (name?: string): Turn => { const k = keyNamed(name); return k ? { keys: [k] } : { name: name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Someone' } }
+/** the GC, by name when the project has one */
+export const gcNameOf = (job?: Job) => job?.contacts?.find((c) => /\bgc\b|general contractor|contractor/i.test(c.role || ''))?.name || 'The GC'
+/** who a step waits on: what was said when it was set to wait — or read from where it stands ("waiting for Alex to say
+ *  yes", "Waiting on the store") */
+export function stepWaitOn(on?: string, note?: string): string {
+  if (on && on.trim()) return on.trim()
+  const n = note || ''
+  /* "waiting for Alex to say yes", "Waiting on Infinity" — or the store a delivery comes from ("PO-1041 from Metal Works
+     Inc. · coming Tomorrow", "Delivery Nov 24 · Best Tile") */
+  const m = n.match(/waiting (?:for|on) (the [a-z]+|[A-Z][a-zA-Z]+)/i) || n.match(/\bfrom ([A-Z][\w&'.-]*(?: [A-Z][\w&'.-]*)*)/) || n.match(/· ([A-Z][\w&'.-]*(?: [A-Z][\w&'.-]*)*)$/)
+  return m ? m[1].replace(/\.$/, '') : 'Someone'
+}
+/** whose turn, in its column: the circle(s) and the name — "You" when it's yours (like Estimates' Whose turn) */
+function TurnCell({ turn, viewer, children }: { turn: Turn; viewer: PersonKey; children?: React.ReactNode }) {
+  const ks = (turn.keys || []).filter(Boolean)
   return (
-    <span className="inline-flex shrink-0 items-center gap-2" data-row-people>
-      {doers.length > 0 && <span className="flex gap-0.5" title={doers.length > 1 ? `${names(doers)} — whoever gets to it first` : `${names(doers)} does it`} data-row-doer={doers.join(',')}>{doers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>}
-      {watchers.length > 0 && (
-        <span className="inline-flex items-center gap-1" title={`Watching: ${names(watchers)}`} data-row-watch={watchers.join(',')}>
-          <Eye className="h-3.5 w-3.5 text-faint" />
-          <span className="flex gap-0.5">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span>
-          {watchers.length > 3 && <span className="text-[0.75rem] font-medium tnum text-muted">+{watchers.length - 3}</span>}
-        </span>
-      )}
+    <span className="flex min-w-0 items-center gap-2" {...(ks.length ? { 'data-row-doer': ks.join(',') } : { 'data-row-turn-name': turn.name || '' })} data-row-turn>
+      {ks.length ? <span className="flex shrink-0 gap-0.5">{ks.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : turn.name ? <NameDot name={turn.name} /> : null}
+      <span className={cn('min-w-0 truncate text-[0.8125rem]', ks.includes(viewer) ? 'font-medium text-ink' : 'text-ink-2')}>{ks.length ? namesOf(ks, viewer) : turn.name}</span>
+      {children}
     </span>
   )
 }
-/** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
-const TBTN = ROW_BTN
-/** a Today list's columns on a computer: the project first (where — not when grouped by project, its band says it),
- *  what to do, whose (on everyone's list), and the row's button on the right with its time or date beside it. The
- *  project is as wide as the longest project name (up to a point — a longer one is cut short), so what to do starts
- *  right after it — no gap; whose as wide as its names; what to do takes the rest; the button column as wide as its
- *  button. */
-/* what to do, with the job right under it (and whose, on Waiting) — the same on a computer as on a phone, so nothing
-   sits far off across the screen; on the right its time, or how late it is */
-export const todoList = (_who?: boolean, _inJob?: boolean) => 'minmax(0,1fr) max-content'
-/** how late something is — "1 day late", "4 days late" (no date to work out) */
-export const lateBy = (iso?: string) => { if (!iso) return 'Late'; const d = Math.max(1, daysBetween(iso, TODAY)); return `${d} ${d === 1 ? 'day' : 'days'} late` }
-/** the row's one button, in its own column on a computer — what happens next, always in sight. Every row's is the same
- *  button, the same size (a long label is cut short), no icons — one even column down the list; its time or date (a
- *  meeting's hour, the day it was due) sits just before it */
-const NEXT_CELL = 'flex min-w-0 items-center justify-end gap-4 max-md:hidden [&_button]:h-8 [&_button]:w-[10.5rem] [&_button]:max-w-none [&_button]:justify-center [&_button]:px-3 [&_button_svg]:hidden'
+/** who's watching: their circles, side by side (more than three: +N) */
+function WatchDots({ who, eye }: { who: PersonKey[]; eye?: boolean }) {
+  if (!who.length) return null
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1" title={`Watching: ${who.map((p) => PEOPLE[p]?.name || p).join(', ')}`} data-row-watch={who.join(',')}>
+      {eye && <Eye className="h-3.5 w-3.5 text-faint" />}
+      <span className="flex gap-0.5">{who.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span>
+      {who.length > 3 && <span className="text-[0.75rem] font-medium tnum text-muted">+{who.length - 3}</span>}
+    </span>
+  )
+}
+/** the names on top of Today's columns — the same as Estimates' and Projects' */
+export function TodayHead({ waiting }: { waiting?: boolean }) {
+  return (
+    <div className={cn(HEAD_ROW, 'px-5 md:grid md:gap-x-6', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
+      <span>To do</span>
+      <span>Project</span>
+      {/* waiting: whose turn it is — the one you're waiting on */}
+      <span data-head-turn>{waiting ? 'Waiting on' : 'Whose turn'}</span>
+      <span className="max-lg:hidden">Watching</span>
+      <span className="text-right">When</span>
+    </div>
+  )
+}
 
-function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, also, watch, flag, phoneWhen = true }: {
+function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
   /** shared — whoever gets to it first: the others who can do it */
   also?: PersonKey[]
   /** a word in red before the job — "Problem" */
   flag?: string
-  /** who's watching it — their circles, after a small eye */
+  /** who's watching it — their circles */
   watch?: PersonKey[]
+  /** whose turn it is, when it isn't whoever does it — waiting: the one it waits on (Alex, the GC) */
+  turn?: Turn
   /** a phone shows the when too (false: only a computer — a phone's line is short) */
   phoneWhen?: boolean
 }) {
   const who = React.useContext(WhoCol)
-  const inJob = React.useContext(InJob)
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
-  /* one job picked: the line on top says it — the rows don't again (a screen reader still hears it) */
-  const quiet = inJob ? project : undefined
-  if (inJob) project = undefined
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
-  /* whose it is and who's watching — their circles, not their names. Who does it: on Waiting and on several people's
-     lists every row (yours too — your circle, not "You"); on one person's list only what isn't theirs alone (for
-     everyone, shared with someone). Who's watching: on any row someone watches */
+  /* whose turn: whoever does it (a row that doesn't say — a meeting, the crew list — is the list's own person's; on
+     several lists, whose list it's on), or, waiting, the one it waits on. Who's watching: everyone watching it (you too —
+     that's why it's on your Waiting) */
   const viewer = React.useContext(Viewer) || me
   const multi = React.useContext(Multi)
   const onLists = React.useContext(LineOn)
-  /* a row that doesn't say whose it is (a meeting, the crew list, installer pay): on several lists, whose list it's on */
   const sharers = owner ? [owner, ...(also || []).filter((p) => p !== owner)] : multi && onLists ? onLists : []
-  const doers = sharers.length && (multi || who || sharers.some((p) => p !== viewer)) ? sharers : []
-  const watchers = (watch || []).filter((p) => p !== viewer && !sharers.includes(p))
-  const dots = doers.length || watchers.length ? <PeopleDots doers={doers} watchers={watchers} /> : null
-  /* under what to do: the job — "Company" (no project) says nothing there */
-  const wherePhone = project && project !== 'Company' ? project : ''
+  const t0: Turn = turn || { keys: sharers.length ? sharers : [viewer] }
+  const turnKeys = t0.keys || []
+  const watchers = (watch || []).filter((p) => !sharers.includes(p) && !turnKeys.includes(p))
+  /* a phone: whose turn as a circle only when it says something — it isn't just the list's own person's */
+  const phoneTurn = !!t0.name || multi || who || turnKeys.some((p) => p !== viewer)
+  const dots = phoneTurn || watchers.length ? (
+    <span className="inline-flex shrink-0 items-center gap-2" data-row-people>
+      {phoneTurn && (turnKeys.length ? <span className="flex gap-0.5" data-row-doer={turnKeys.join(',')}>{turnKeys.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null)}
+      <WatchDots who={watchers} eye />
+    </span>
+  ) : null
+  /* the job — "Company" (no project) says nothing; a phone with one job picked doesn't say it again under each row (the
+     bar on top says it) */
+  const where = project && project !== 'Company' ? project : ''
+  const inJob = React.useContext(InJob)
+  const wherePhone = inJob ? '' : where
+  const flagged = flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}{where ? ' · ' : ''}</span> : null
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -261,36 +326,34 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
       data-subrow
-      /* every row the same height, a computer and a phone alike: two lines (what to do, the job under it) — a row with
-         one line sits in the middle of the same height */
-      className={cn('group/row relative min-h-[calc(4rem+1px)] items-center gap-x-6 border-t border-line-2 py-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 md:grid', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      /* a computer: one line, the list's straight columns. A phone: two lines — what to do, the job under it — every row
+         the same height */
+      className={cn('group/row relative items-center border-t border-line-2 transition-colors focus-visible:outline-none max-md:flex max-md:min-h-[calc(4rem+1px)] max-md:gap-3 max-md:py-2 md:grid md:min-h-[3rem] md:gap-x-6 md:py-1.5', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
     >
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
           <div className="flex h-[1.375rem] min-w-0 items-baseline gap-3">
-            {/* a phone: every row the same — what to do on one line, the job under it in gray; the same weight, nothing
-                wrapping (a very long one ends in "…" — its window has all of it) */}
-            <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] max-md:font-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{title}</span>
-            {/* on a phone the time sits at the end of the task's line */}
+            {/* what to do: one line, never wrapping (a very long one ends in "…" — its window has all of it) */}
+            <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>{title}</span>
+            {/* a phone: the time at the end of the task's line */}
             {w && phoneWhen && <span className={cn('shrink-0 text-[0.8125rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
           </div>
-          {/* the job under it, a little apart so the two lines read apart — a phone: the circles at its end */}
+          {/* a phone: the job under it, a little apart — the circles at its end */}
           {(flag || wherePhone || dots) && (
-            <div className="mt-1 flex h-[1.375rem] min-w-0 items-center gap-3">
-              <div className="min-w-0 flex-1 truncate text-[0.8125rem] leading-5 text-muted max-md:text-[0.875rem]" data-row-where-phone data-row-where>{flag && <span className="font-medium text-bad-600" data-row-flag>{flag}{wherePhone ? ' · ' : ''}</span>}{wherePhone}</div>
-              {dots && <span className="md:hidden">{dots}</span>}
+            <div className="mt-1 flex h-[1.375rem] min-w-0 items-center gap-3 md:hidden">
+              <div className="min-w-0 flex-1 truncate text-[0.875rem] leading-5 text-muted" data-row-where-phone>{flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}{wherePhone ? ' · ' : ''}</span> : null}{wherePhone}</div>
+              {dots}
             </div>
           )}
         </div>
       </div>
-      {quiet && <span className="sr-only">{quiet}</span>}
-      {/* a computer: no button — the row itself does what's next (one less thing on the screen); its day or time, and a
-          quiet arrow. A row that doesn't open anything keeps its button */}
-      <div className={NEXT_CELL} onClick={onClick ? undefined : (e) => e.stopPropagation()} data-todo-next>
-        {dots}
-        {w && <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span>}
-        {onClick ? <ChevronRight className="h-4 w-4 shrink-0 text-faint" aria-hidden data-todo-go /> : action}
+      {/* a computer: the project, whose turn, who's watching, when — each in its column */}
+      <div className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-row-where>{flagged}{where || (project === 'Company' ? <span className="text-faint">—</span> : null)}</div>
+      <div className="min-w-0 max-md:hidden"><TurnCell turn={t0} viewer={viewer}>{watchers.length > 0 && <span className="ml-auto lg:hidden"><WatchDots who={watchers} eye /></span>}</TurnCell></div>
+      <div className="min-w-0 max-lg:hidden">{watchers.length > 0 && <WatchDots who={watchers} />}</div>
+      <div className="flex min-w-0 items-center justify-end max-md:hidden" onClick={onClick ? undefined : (e) => e.stopPropagation()} data-todo-next>
+        {onClick ? (w ? <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : null) : action}
       </div>
     </div>
   )
@@ -323,15 +386,17 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
     <TodoRow
       leaving={leaving}
       done={done || leaving}
-      /* the line does what its button does — the one thing that happens next, wherever you tap */
-      onClick={() => (act ? runTaskAction(t) : s.open({ t: 'task', id: t.id }))}
+      /* every row opens its window — the same window every time; what happens next is its button at the bottom */
+      onClick={() => s.open({ t: 'task', id: t.id })}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
       title={cleanTitle(t.title, job)}
       detail={detail}
       owner={t.owner}
       also={done ? undefined : t.also}
       watch={followersOf(t)}
-      project={job ? (PRICING_STAGES.includes(job.stage) ? `${job.name} · estimate` : job.name) : 'Company'}
+      /* waiting on someone: it's their turn — Alex, the plumber, the client */
+      turn={t.state === 'waiting' ? turnNamed(t.waitingOn) : undefined}
+      project={job ? job.name : 'Company'}
       when={w.text}
       whenTone={w.tone}
       action={
@@ -349,16 +414,20 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   )
 }
 
-function StepRowToday({ job, v, showOwner, when, flag }: { job: Job; v: StepView; showOwner?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' }; flag?: string }) {
+function StepRowToday({ job, v, when, flag }: { job: Job; v: StepView; showOwner?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' }; flag?: string }) {
   const s = useStore()
   const start = s.prep[job.id]?.targetISO
+  const rec = s.stepRecs[job.id]?.[v.key]
   return (
     <TodoRow
       onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}
       icon={<ListChecks />}
       title={todoOf(v)}
       detail={[v.state === 'bad' ? 'Problem' : '', v.note, start ? `Checklist step · starts ${md(start)}` : 'Checklist step'].filter(Boolean).join(' · ')}
-      owner={showOwner ? v.owner : undefined}
+      owner={v.owner}
+      watch={rec?.followers || []}
+      /* waiting on someone outside (the store, the installer): it's their turn */
+      turn={v.state === 'wait' ? turnNamed(stepWaitOn(rec?.wait?.on, v.note)) : undefined}
       project={job.name}
       flag={flag}
       when={when?.text ?? 'Anytime'}
@@ -537,10 +606,11 @@ function GcRow({ t }: { t: Task }) {
     <div data-gc-row={t.id} data-gc-flag={st.flag ? '' : undefined} data-contents>
       <TodoRow
         onClick={() => s.open({ t: 'task', id: t.id })}
-        /* whose it is: their circle at the end (yours too) — not "· You" in words */
         title={<>{gcWords(t.title)}{t.said ? <span className="font-normal text-muted"> · GC: “{t.said.text}”</span> : null}</>}
         owner={t.owner}
         watch={followersOf(t)}
+        /* it's the GC's turn — by name when the project has one */
+        turn={{ name: gcNameOf(job) }}
         detail={gcSoFar(t)}
         project={job?.name || 'Company'}
         when={st.text}
@@ -831,7 +901,11 @@ export const partsOf = perData((s: Store, role: Role, person: PersonKey | null, 
     const gc = role === 'owner' || role === 'pm' ? gcWaits(s).filter((t) => inJob(t.jobId)) : waiting.filter(isGcWait)
     const steps = Object.values(s.jobs).filter((j) => isGettingReady(j) && inJob(j.id)).flatMap((j) => stepsFor(s, j).filter((v) => v.state === 'wait' && v.owner === me).map((v): Line => ({ k: 'wait', key: `w:${j.id}:${v.key}`, job: j, v })))
     const ahead = waitsOnOthers(s, me).filter((x) => inJob(x.job?.id)).map((x): Line => ({ k: 'plate', key: 'a:' + x.key, x }))
-    const rest: Line[] = [...waiting.filter((t) => !gc.includes(t)).map((t): Line => ({ k: 'task', key: t.id, t, as: 'waiting' })), ...steps, ...ahead]
+    /* someone else's step you're watching — the same as a task you watch */
+    const watched = Object.values(s.jobs).filter((j) => isGettingReady(j) && inJob(j.id)).flatMap((j) => stepsFor(s, j)
+      .filter((v) => v.owner !== me && v.state !== 'done' && v.state !== 'na' && !!s.stepRecs[j.id]?.[v.key]?.followers?.includes(me) && !ahead.some((a) => a.k === 'plate' && a.x.job?.id === j.id && a.x.v?.key === v.key))
+      .map((v): Line => ({ k: 'wait', key: `f:${j.id}:${v.key}`, job: j, v })))
+    const rest: Line[] = [...waiting.filter((t) => !gc.includes(t)).map((t): Line => ({ k: 'task', key: t.id, t, as: 'waiting' })), ...steps, ...watched, ...ahead]
     const out: Part[] = []
     if (gc.length) out.push({ key: 'gc', label: 'Waiting on the GC', tone: 'neutral', lines: gc.map((t): Line => ({ k: 'gc', key: 'g:' + t.id, t })) })
     if (rest.length) out.push({ key: 'others', label: 'Waiting on others', tone: 'neutral', lines: rest })
@@ -914,7 +988,7 @@ const waitWhen = (v: StepView) => ({ text: v.due ? `${['delivered', 'matin'].inc
 /** one line of a list, whatever it is */
 function LineRow({ l, me, showOwner }: { l: Line; me: PersonKey; showOwner?: boolean }) {
   if (l.k === 'gc') return <GcRow t={l.t} />
-  if (l.k === 'wait') return <StepRowToday job={l.job} v={l.v} showOwner when={waitWhen(l.v)} />
+  if (l.k === 'wait') return <StepRowToday job={l.job} v={l.v} showOwner when={l.v.state === 'wait' ? waitWhen(l.v) : l.v.due ? { text: l.v.due < TODAY ? lateBy(l.v.due) : md(l.v.due), tone: l.v.due < TODAY ? 'bad' : 'strong' } : undefined} />
   if (l.k === 'task') {
     if (l.as === 'pinned') return <TaskRow t={l.t} showOwner={showOwner} when={{ text: 'Anytime', tone: 'quiet' }} />
     if (l.as === 'back') return <TaskRow t={l.t} when={{ text: 'Reminded', tone: 'quiet' }} />
@@ -946,7 +1020,7 @@ function PartBlock({ p, me, showOwner, lateLink = true }: { p: Part; me: PersonK
   const s = useStore()
   return (
     <section data-day={p.day || p.key} data-part={p.key}>
-      {p.label && <Group label={p.label} count={p.lines.length} tone={p.tone} strong right={p.lateLink && lateLink ? <button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button> : undefined} />}
+      {p.label && <Group label={p.label} count={p.lines.length} tone={p.tone} strong={p.tone === 'bad'} right={p.lateLink && lateLink ? <button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button> : undefined} />}
       <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} />
     </section>
   )
@@ -970,7 +1044,8 @@ export function TheirList({ who }: { who: PersonKey }) {
         <span className="min-w-0 truncate text-[0.8125rem] text-muted">· the same list as on {you ? 'your' : 'their'} phone</span>
       </div>
       {n ? (
-        <div data-even-list style={{ '--list': todoList() } as React.CSSProperties}>
+        <div data-even-list style={todoCols}>
+          <TodayHead />
           {parts.map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} />)}
         </div>
       ) : <div className="px-6 pb-4 text-[0.875rem] text-muted max-sm:px-4">Nothing on it today.</div>}
@@ -995,7 +1070,8 @@ export function NobodyModal({ level }: { level: number }) {
   const parts = everyoneOf(s, 'today', 'all').nobody
   return (
     <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet — give each one to someone, or give the login to someone on Team.">
-      <div className="-mx-6 max-sm:-mx-4" data-even-list style={{ '--list': todoList() } as React.CSSProperties}>
+      <div className="-mx-6 max-sm:-mx-4" data-even-list style={todoCols}>
+        {countOf(parts) > 0 && <TodayHead />}
         {parts.map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} />)}
         {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing — everything is on someone’s list.</div>}
       </div>
@@ -1217,7 +1293,8 @@ export function MyTasksPage() {
       <InJob.Provider value={!!picked}>
       <Viewer.Provider value={multi ? null : me}>
       <Multi.Provider value={multi}>
-      <div data-even-list data-list-scope="mine" style={{ '--list': todoList() } as React.CSSProperties}>
+      <div data-even-list data-list-scope="mine" style={todoCols}>
+        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} />}
         {parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting' || multi} />)}
         {n(view) === 0 && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
       </div>
@@ -1362,25 +1439,38 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   /* waiting on the GC: the day it's needed by, tapped to change; what's wrong in red */
   const gcw = isGcWait(t) ? gcState(t) : undefined
   const start = gcw ? startOf(s, job) : undefined
+  /* the same lines as every window: When (its day), Status (where it stands — waiting, set aside, done) */
+  const followDay = t.state === 'waiting' ? (followDue(t) ? 'Follow up today' : `Follow up ${/^tomorrow$/i.test(t.followUp || '') ? 'tomorrow' : t.followUp || ''}`) : ''
+  const whenWords = gcw ? (t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by') : t.state === 'now' ? when.text : t.state === 'waiting' ? followDay : t.state === 'later' ? `Back ${t.laterUntil}` : ''
+  const status = gcw ? <span data-gc-sofar><b className="font-medium">Waiting on the GC</b> · {gcSoFar(t, false)}</span>
+    : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? 'Set aside' : t.state === 'done' ? when.text : undefined
+  const canMove = !theirs || admin
   const header = (
     <WinHead
-      place={<>{job ? job.name : 'Company'}{t.where && t.where.trim() !== job?.name ? ` · ${t.where}` : ''}</>}
+      kind={taskKind(t)}
+      place={job ? job.name : 'Company'}
+      onPlace={job ? () => s.open({ t: 'job', id: job.id }) : undefined}
+      where={t.where && t.where.trim() !== job?.name ? t.where : undefined}
       title={cleanTitle(t.title, job)}
       who={t.owner}
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')} — whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
-      stateLabel={t.state === 'now' && !gcw ? 'When' : gcw ? 'Needed by' : 'Where it is'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin } : undefined}
-      state={gcw ? <span data-task-when data-gc-needby={t.needBy || ''}>{t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by'}</span> : <span data-task-when>{when.text}</span>}
-      tone={gcw ? 'warn' : b === 'overdue' && t.state === 'now' ? 'late' : t.state === 'waiting' || (b === 'today' && t.state === 'now') ? 'warn' : t.state === 'done' ? 'ok' : undefined}
+      state={whenWords ? <span data-task-when {...(gcw ? { 'data-gc-needby': t.needBy || '' } : {})}>{whenWords}</span> : undefined}
+      tone={gcw ? 'warn' : t.state === 'now' ? (b === 'overdue' ? 'late' : b === 'today' ? 'warn' : undefined) : t.state === 'waiting' && followDue(t) ? 'warn' : undefined}
+      status={status}
+      statusTone={gcw || t.state === 'waiting' ? 'warn' : t.state === 'done' ? 'ok' : 'quiet'}
       extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
       problem={gcw?.flag ? <span data-gc-flag>{gcw.text}</span> : t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
       more={more || undefined}
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
       whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
-      whenPick={gcw && (!theirs || admin) ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) } : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : undefined}
+      whenPick={gcw && canMove ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) }
+        : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) }
+          : t.state === 'waiting' && canMove ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) }
+            : t.state === 'later' && canMove ? { title: 'Back on', value: t.laterUntil, onPick: (d) => s.laterTask(t.id, d) } : undefined}
     />
   )
 
@@ -1429,9 +1519,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   ) : (
     <>
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
-      {gcw && <p className="flex items-center gap-1.5 text-[0.8125rem] text-muted" data-gc-sofar><Hourglass className="h-3.5 w-3.5 shrink-0 text-warn-600" /><span><b className="font-medium text-warn-700">Waiting on the GC</b> · {gcSoFar(t, false)}</span></p>}
-      {gcw && !theirs && <div className="mt-3"><GcMessageBox t={t} /></div>}
-      {t.detail && <p className={cn('text-[0.875rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3', gcw && 'mt-3')} data-task-detail>{t.detail}</p>}
+      {gcw && !theirs && <GcMessageBox t={t} />}
+      {t.detail && <p className={cn('text-[0.9375rem] leading-relaxed text-ink-2', t.state === 'done' && t.result && 'mt-3', gcw && !theirs && 'mt-4')} data-task-detail>{t.detail}</p>}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
           one quiet box to add one. The same on a step */}
       <Notes kind="task" me={me} notes={notesOnly} onAdd={t.state !== 'done' ? (x) => s.noteTask(t.id, x) : undefined} className={cn((t.detail || gcw || (t.state === 'done' && t.result)) && 'mt-4')} />

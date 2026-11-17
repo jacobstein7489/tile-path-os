@@ -93,6 +93,8 @@ export interface StepRec {
   checkIn?: { by: PersonKey; day: string; note?: string }
   /** what people wrote on it — the same notes a task has */
   notes?: { date: string; who: PersonKey; text: string }[]
+  /** who's watching it — they see it and hear when it moves; it waits under their Waiting on others until it's done */
+  followers?: PersonKey[]
 }
 /** one answer on the site check: yes, no (with what's wrong), not needed — or, for what's looked at room by room, the
  *  rooms where it's missing ("drains: 2 of 3 here"). What's wrong goes to be fixed; once it's fixed it comes back to
@@ -933,6 +935,14 @@ export function setStepOwner(jobId: string, key: string, owner: PersonKey) {
 /** a note on a step — always the writer's own, like a task's */
 export function noteStep(jobId: string, key: string, text: string) {
   S().commit((st) => { (((st.stepRecs[jobId] ||= {})[key] ||= {}).notes ||= []).push({ date: NOW, who: me(), text }) }, 'Note added', { undo: false })
+}
+/** who's watching a step — the same as on a task: ticked in its window's Watching line (the line says it — no pop-up) */
+export function toggleStepFollow(jobId: string, key: string, who: PersonKey) {
+  S().commit((st) => {
+    const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
+    const cur = r.followers || []
+    r.followers = cur.includes(who) ? cur.filter((p) => p !== who) : [...cur, who]
+  }, undefined, { undo: false })
 }
 export function setStepDue(jobId: string, key: string, label: string) {
   const iso = isoFromLabel(label)
