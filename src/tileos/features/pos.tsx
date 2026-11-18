@@ -23,6 +23,7 @@ import { crewFree } from './upcoming'
 import { ActivityRow } from './activity'
 import { ItemPicker } from './estimates'
 import { allowedFor } from './newpicker'
+import { WinHead, WinLine, toneCls } from './winhead'
 import { ItemThumb } from './items'
 import { FormHead, FormRow, ProjectField, DAY_OPTIONS, byDay } from './formkit'
 import { CalcHow } from './calc'
@@ -219,25 +220,29 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
     const at = p.step - 1
     return { key: label, label, state: (cancelled ? 'future' : i < at ? 'done' : i === at ? (p.late && i === 1 ? 'blocked' : 'current') : 'future') as any, sub: i === 1 && p.step <= 2 ? p.eta : i === 2 && part ? 'Part came' : undefined }
   })
+  /* the same top as every window: what it is and its project, the PO and who it's to, and one box of short lines */
+  const ms = matStatus(p)
   const header = (
-    <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:px-4">
-      <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-2">
-        <div className="min-w-0">
-          <div className="text-[0.8125rem] text-muted">Purchase order · {tile ? (p.more ? (bills ? 'more tile — we buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile — delivery') : 'materials'}</div>
-          <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id} · {p.supplier}</h2>
-          <div className="mt-1 text-[0.875rem] text-muted">
-            <button onClick={() => s.open({ t: 'job', id: p.jobId, tab: 'materials' })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {p.what}{p.storeRef ? <> · their order <b className="font-semibold text-ink-2">{p.storeRef}</b></> : null}
-          </div>
-        </div>
-        <div className="shrink-0 text-right max-md:text-left">
-          {bills ? <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(p.amount)}</div> : <div className="text-[1rem] font-semibold text-ink-2">No prices</div>}
-          <div className={cn('text-[0.8125rem]', p.late ? 'font-medium text-bad-700' : 'text-muted')}>{p.eta}</div>
-          {p.step >= 1 && !mailLive() && <button onClick={() => s.open({ t: 'email', what: { kind: 'po', poId: p.id } })} className="mt-1 inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Mail className="h-3.5 w-3.5" />The email {p.supplier} got</button>}
-          {p.step >= 1 && !cancelled && mailLive() && <MailedLine mailed={p.mailed} who={p.supplier} onSend={() => emailPO(p.id)} />}
-        </div>
-      </div>
-      {cancelled ? <div className="mt-4 rounded-lg bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">{p.note}</div> : <Path className="mt-4" steps={steps} />}
-    </div>
+    <WinHead
+      kind={{ icon: <Package />, label: tile ? 'Tile PO' : 'Materials PO' }}
+      place={job?.name || 'Company'}
+      onPlace={job ? () => s.open({ t: 'job', id: p.jobId, tab: 'materials' }) : undefined}
+      title={`${p.id} · ${p.supplier}`}
+      sub={tile ? `${p.what} · ${p.more ? (bills ? 'more tile — we buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile — delivery'}` : p.what}
+      attrs={{ 'data-po-win': p.id }}
+      lines={<>
+        <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem] leading-snug', toneCls(ms.tone === 'bad' ? 'late' : ms.tone === 'warn' ? 'warn' : ms.tone === 'ok' ? 'ok' : undefined))} data-po-status>{ms.label}</span></WinLine>
+        {p.eta && !cancelled && p.step < 3 && <WinLine k="when" label="Coming"><span className={cn('text-[0.9375rem]', p.late ? 'font-medium text-bad-600' : 'text-ink')}>{p.eta}</span></WinLine>}
+        <WinLine k="money" label="Total">{bills ? <b className="text-[0.9375rem] font-semibold tnum text-ink" data-po-total>{fmtMoney(p.amount)}</b> : <span className="text-[0.9375rem] text-muted">No prices — the client’s tile</span>}</WinLine>
+        {p.storeRef && <WinLine k="ref" label="Their order"><span className="text-[0.9375rem] font-medium text-ink">{p.storeRef}</span></WinLine>}
+        {p.step >= 1 && !cancelled && (
+          <WinLine k="mail" label="Email">
+            {mailLive() ? <MailedLine mailed={p.mailed} who={p.supplier} onSend={() => emailPO(p.id)} />
+              : <button onClick={() => s.open({ t: 'email', what: { kind: 'po', poId: p.id } })} className="inline-flex items-center gap-1 text-left text-[0.9375rem] font-medium text-brand-700 hover:underline">The email {p.supplier} got</button>}
+          </WinLine>
+        )}
+      </>}
+    />
   )
   const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Replaced — kept for the record.</span> : edit ? (
     <>
@@ -276,7 +281,9 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
     </>
   )
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
+    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
+      {/* where it is: sent → confirmed → delivered (→ bill in → paid) */}
+      {cancelled ? <div className="mb-5 rounded-lg bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">{p.note}</div> : <Path className="mb-6" steps={steps} />}
       {edit ? <POLinesEdit lines={edit} onChange={setEdit} /> : <POLines lines={p.lines} total={p.amount} priced={bills} />}
       <div className="mt-3 flex items-center gap-2 text-[0.84375rem] text-muted"><Truck className="h-4 w-4" />Deliver to {job?.address}</div>
       {p.memo && <div className="mt-2 rounded-lg bg-wash px-3 py-2 text-[0.84375rem] text-ink-2">{p.memo}</div>}
@@ -488,22 +495,22 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
     { key: 'sent', label: `Sent to ${PEOPLE[p.crew].short}`, state: (at > 1 ? 'done' : at === 1 ? 'current' : 'future') as any, sub: at >= 1 ? p.log.find((l) => /sent/i.test(l.text))?.date : undefined },
     { key: 'answer', label: p.status === 'Rejected' ? 'Turned down' : 'Accepted', state: (p.status === 'Rejected' ? 'blocked' : p.status === 'Accepted' ? 'current' : 'future') as any, sub: at === 2 ? p.date : undefined },
   ]
+  /* the same top as every window: the installer, where it stands, what we pay him */
   const header = (
-    <div className="border-b border-line px-6 pb-5 pt-5 pr-16 max-sm:px-4">
-      <div className="flex items-start justify-between gap-6 max-md:flex-col max-md:gap-2">
-        <div className="min-w-0">
-          <div className="text-[0.8125rem] text-muted">Installer PO · in Purchase orders</div>
-          <h2 className="h-display mt-0.5 text-[1.5rem] font-semibold leading-tight text-ink">{p.id}{p.rev ? ` · rev ${p.rev}` : ''} · {name}</h2>
-          <div className="mt-1 text-[0.875rem] text-muted"><button onClick={() => s.open({ t: 'job', id: p.jobId })} className="text-ink-2 hover:text-brand-700">{job?.name}</button> · {job?.address}</div>
-        </div>
-        <div className="shrink-0 text-right max-md:text-left">
-          <div className="text-[1.5rem] font-semibold tnum text-ink">{fmtMoney(total)}</div>
-          <div className="text-[0.75rem] text-faint">What we pay {PEOPLE[p.crew].short}{smp(' · sample amounts')}</div>
-          {p.status !== 'Draft' && mailLive() && <MailedLine mailed={p.mailed} who={PEOPLE[p.crew].short} onSend={() => emailIPO(p.id)} />}
-        </div>
-      </div>
-      <Path className="mt-4" steps={steps} />
-    </div>
+    <WinHead
+      kind={{ icon: <HardHat />, label: 'Installer PO' }}
+      place={job?.name || 'Company'}
+      onPlace={job ? () => s.open({ t: 'job', id: p.jobId }) : undefined}
+      title={`${p.id}${p.rev ? ` · rev ${p.rev}` : ''} · ${name}`}
+      sub={job?.address && job.address !== job.name ? job.address : undefined}
+      attrs={{ 'data-ipo-win': p.id }}
+      lines={<>
+        <WinLine k="crew" label="Installer"><span className="inline-flex min-w-0 items-center gap-2 text-[0.9375rem] font-medium text-ink"><Avatar who={p.crew} size={24} />{name}</span></WinLine>
+        <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem]', toneCls(p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'late' : p.status === 'Sent' ? 'warn' : 'quiet'))} data-ipo-status>{p.status === 'Accepted' ? `Accepted ${p.date || ''}`.trim() : p.status === 'Sent' ? `Sent — waiting for ${PEOPLE[p.crew].short}’s yes` : p.status === 'Rejected' ? `Turned down${p.reason ? ` — ${p.reason.toLowerCase()}` : ''}` : 'Draft — not sent yet'}</span></WinLine>
+        <WinLine k="money" label="What we pay"><span className="text-[0.9375rem]"><b className="font-semibold tnum text-ink" data-ipo-total>{fmtMoney(total)}</b>{smp(' · sample amounts') ? <span className="text-muted">{smp(' · sample amounts')}</span> : null}</span></WinLine>
+        {p.status !== 'Draft' && mailLive() && <WinLine k="mail" label="Email"><MailedLine mailed={p.mailed} who={PEOPLE[p.crew].short} onSend={() => emailIPO(p.id)} /></WinLine>}
+      </>}
+    />
   )
   const footer = (
     <>
@@ -551,7 +558,8 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
     </>
   )
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 py-5 max-sm:px-4">
+    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
+      <Path className="mb-6" steps={steps} />
       <IPOSheet p={p} lines={lines} editing={editing} ratio={ratio} onChange={setLines} />
       <IPOPay p={p} total={total} />
       <div className="mt-6 text-[0.8125rem] font-medium text-muted">Activity</div>
@@ -900,7 +908,7 @@ function MailedLine({ mailed, who, onSend }: { mailed?: { at: string; to: string
   const [busy, setBusy] = React.useState(false)
   const when = mailed ? new Date(mailed.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
   return (
-    <div className="mt-1 flex flex-wrap items-center justify-end gap-x-2 text-[0.8125rem] max-md:justify-start" data-mailed={mailed ? 'yes' : 'no'}>
+    <div className="flex flex-wrap items-center gap-x-2 text-[0.875rem]" data-mailed={mailed ? 'yes' : 'no'}>
       <span className="text-muted">{mailed ? `Emailed ${when} to ${mailed.to}` : `Not emailed to ${who} yet`}</span>
       <button disabled={busy} onClick={async () => { setBusy(true); try { await onSend() } finally { setBusy(false) } }} className="inline-flex items-center gap-1 font-semibold text-brand-600 hover:underline disabled:text-faint"><Mail className="h-3.5 w-3.5" />{busy ? 'Sending…' : mailed ? 'Email it again' : 'Email it'}</button>
     </div>

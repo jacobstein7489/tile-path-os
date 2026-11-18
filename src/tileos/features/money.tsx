@@ -14,6 +14,7 @@ import { createInvoice, recordPayment, sendReminder, addToBill, requestRetainage
 import { REAL } from '@/tileos/lib/save'
 import { QbBillRow, QbHeaderStatus } from './qbui'
 import { qbLive } from './qbsync'
+import { WinHead, WinLine, toneCls } from './winhead'
 
 type MTab = 'todo' | 'waiting' | 'upcoming' | 'purchases' | 'paid' | 'jobs'
 
@@ -187,40 +188,29 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
   const jm = job ? jobMoney(job) : undefined
   const est = s.estimates.find((e) => e.jobId === m.jobId && e.status === 'approved')
 
+  /* the same top as every window: what it is and its project, its name, one box of short lines */
+  const where = m.state === 'paid' ? `Paid${m.date ? ` ${m.date}` : ''}` : m.step < 0 ? (m.due || 'Not yet') : steps[Math.max(0, Math.min(at, steps.length - 1))]
   const header = (
-    <div className="border-b border-line-2 px-7 pb-5 pt-6 pr-20 max-sm:px-4 max-sm:pb-4 max-sm:pr-14 max-sm:pt-4">
-      <div className="flex items-start gap-4 max-sm:flex-wrap max-sm:gap-2">
-        <div className="min-w-0 flex-1 max-sm:basis-full">
-          <div className="flex flex-wrap items-center gap-2 text-[0.84375rem] text-muted">
-            <button onClick={() => s.open({ t: 'job', id: m.jobId, tab: 'money' })} className="font-semibold text-ink-2 hover:text-brand-700">{job?.name}</button>
-            <span>·</span>
-            <Pill tone={m.kind === 'change' ? 'vio' : m.kind === 'progress' ? 'info' : 'warn'} size="sm">{MONEY_KIND_LABEL[m.kind]}</Pill>
-            <span className={cn('font-semibold', m.ref ? 'text-ink' : 'text-faint')}>{m.ref ? `Invoice ${m.ref}` : 'Not invoiced yet'}</span>
-          </div>
-          <h2 className="h-tight mt-1 text-[1.4375rem] font-bold text-ink max-sm:text-[1.1875rem]">{m.title}</h2>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] text-muted">
-            {est && <button onClick={() => s.open({ t: 'estimate', id: est.id })} className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline"><FileText className="h-3.5 w-3.5" />From estimate {est.id}</button>}
-            <span className="inline-flex items-center gap-1.5"><Receipt className="h-3.5 w-3.5" />{job?.clientPO ? <>Client PO <b className="font-semibold text-ink-2">{job.clientPO}</b></> : 'No client PO yet'}</span>
-            {job && <span>{job.client}</span>}
-          </div>
-        </div>
-        <div className="text-right max-sm:flex max-sm:items-baseline max-sm:gap-2 max-sm:text-left">
-          <div className="text-[1.75rem] font-bold tnum h-tight text-ink max-sm:text-[1.375rem]">{m.amount ? fmtMoney(m.amount) : '—'}</div>
-          {m.paid ? <div className="text-[0.8125rem] font-semibold text-ok-600">{fmtMoney(m.paid)} paid</div> : <div className="text-[0.78125rem] text-muted">{smp('Sample amount') || 'Not paid yet'}</div>}
-        </div>
-      </div>
-      <div className="mt-5">
-        {m.step >= 0 || m.state === 'paid' ? (
-          <MiniSteps steps={steps} at={at} tone={m.state === 'paid' ? 'ok' : 'info'} />
-        ) : (
-          <div className="flex items-center gap-2.5 rounded-xl bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">
-            <Ban className="h-4 w-4 text-muted" /> {m.due} — {m.kind === 'change' ? 'billing opens the moment the approval is recorded.' : 'it opens by itself when the project gets there.'}
-          </div>
-        )}
-      </div>
-    </div>
+    <WinHead
+      kind={{ icon: <Receipt />, label: MONEY_KIND_LABEL[m.kind] }}
+      place={job?.name || 'Company'}
+      onPlace={job ? () => s.open({ t: 'job', id: m.jobId, tab: 'money' }) : undefined}
+      title={m.title}
+      attrs={{ 'data-bill-win': m.id }}
+      lines={<>
+        <WinLine k="money" label="Amount"><span className="text-[0.9375rem]"><b className="font-semibold tnum text-ink" data-bill-amount>{m.amount ? fmtMoney(m.amount) : '—'}</b>{m.paid ? <span className="font-medium text-[#2c8a5b]"> · {fmtMoney(m.paid)} paid</span> : <span className="text-muted"> · {smp('sample amount') || 'not paid yet'}</span>}</span></WinLine>
+        <WinLine k="status" label="Status"><span className={cn('text-[0.9375rem]', toneCls(m.state === 'paid' ? 'ok' : m.step < 0 ? 'quiet' : undefined))} data-bill-where>{where}</span></WinLine>
+        <WinLine k="ref" label="Invoice"><span className={cn('text-[0.9375rem]', m.ref ? 'font-medium text-ink' : 'text-muted')}>{m.ref ? `Invoice ${m.ref}` : 'Not invoiced yet'}</span></WinLine>
+        <WinLine k="client" label="Client">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.9375rem]">
+            <span className="text-ink">{job?.client || '—'}</span>
+            <span className="text-muted">{job?.clientPO ? <>Client PO <b className="font-semibold text-ink-2">{job.clientPO}</b></> : 'No client PO yet'}</span>
+            {est && <button onClick={() => s.open({ t: 'estimate', id: est.id })} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline"><FileText className="h-3.5 w-3.5" />Estimate {est.id}</button>}
+          </span>
+        </WinLine>
+      </>}
+    />
   )
-
   let actions: React.ReactNode = null
   if (m.state === 'paid') actions = <div className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ok-600"><CheckCircle2 className="h-5 w-5" />Paid {m.date}</div>
   else if ((m.kind === 'deposit' || m.kind === 'final') && m.step === 0)
@@ -263,7 +253,17 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
     )
 
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} title={m.title}>
+    <Modal level={level} size="lg" onClose={s.close} header={header} title={m.title} bodyClass="px-6 pb-6 pt-4 max-sm:px-4">
+      {/* where it is, step by step */}
+      <div className="mb-6">
+        {m.step >= 0 || m.state === 'paid' ? (
+          <MiniSteps steps={steps} at={at} tone={m.state === 'paid' ? 'ok' : 'info'} />
+        ) : (
+          <div className="flex items-center gap-2.5 rounded-xl bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">
+            <Ban className="h-4 w-4 text-muted" /> {m.due} — {m.kind === 'change' ? 'billing opens the moment the approval is recorded.' : 'it opens by itself when the project gets there.'}
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-[1fr_18.75rem] gap-8 max-md:grid-cols-1 max-md:gap-6">
         <div className="min-w-0">
           {jm && jm.contract > 0 && (

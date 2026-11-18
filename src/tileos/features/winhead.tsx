@@ -12,7 +12,7 @@
  * when moves it; watching adds or takes off people. The buttons are at the bottom of the window — on every window. */
 import * as React from 'react'
 import { WinStar, type StarPick } from './star'
-import { CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, Eye, MapPin, Plus, Trash2, UserRound, Users } from 'lucide-react'
+import { Building2, CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, Eye, HardHat, Hash, Mail, MapPin, Plus, Receipt, Trash2, UserRound, Users } from 'lucide-react'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
@@ -30,10 +30,10 @@ export type WatchPick = { people: PersonKey[]; me: PersonKey; current: PersonKey
 export type WinKind = { icon?: React.ReactNode; label: string }
 
 export const CHIP = '-mx-2 inline-flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
-const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
+export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
 
 /** each line's small mark — the same on every window */
-const LINE_ICON: Record<string, React.ReactNode> = { who: <UserRound />, people: <Users />, when: <CalendarDays />, status: <CircleDot />, where: <MapPin />, watch: <Eye /> }
+const LINE_ICON: Record<string, React.ReactNode> = { who: <UserRound />, people: <Users />, crew: <HardHat />, when: <CalendarDays />, status: <CircleDot />, where: <MapPin />, watch: <Eye />, money: <Receipt />, ref: <Hash />, mail: <Mail />, client: <Building2 /> }
 /** one line of the box: its mark and name on the left, what it says on the right */
 export function WinLine({ k, label, top, children }: { k: string; label: string; top?: boolean; children: React.ReactNode }) {
   return (

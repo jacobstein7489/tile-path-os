@@ -4,7 +4,7 @@
 import * as React from 'react'
 import {
   ArrowLeftRight, MessageCircleQuestion, Truck, PackageX, Gavel, Phone, ClipboardList, Wallet, ArrowLeft, Camera, Check, ChevronRight, Search,
-  Building2, FileText, Package, CircleDollarSign, CalendarPlus, AlertTriangle, CalendarDays, Clock3, HardHat, Plus,
+  Building2, FileText, Package, CircleDollarSign, CalendarPlus, AlertTriangle, CalendarDays, Clock3, HardHat, Plus, Palette,
 } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { keepFiles } from '@/tileos/lib/files'
@@ -93,6 +93,8 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const [people, setPeople] = React.useState<PersonKey[]>([me])
   const [others, setOthers] = React.useState<string[]>([])
   const [installer, setInstaller] = React.useState<PersonKey | ''>('')
+  /* which designer: the project's own first, then everyone on Designers */
+  const [designer, setDesigner] = React.useState('')
   const late = new Date().getHours() >= 17
   const [date, setDate] = React.useState(late ? workDays(2)[1] : workDays(1)[0])
   const [start, setStart] = React.useState<number>(late ? 9 * 60 : nextHour())
@@ -137,7 +139,16 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     if (photos.length && jobId) void keepFiles(jobId, photos, 'photo', { quiet: true })
     recordEvent({ jobId, type, label: tpl!.label, kind, where: type === 'delivery' ? dl?.title : where, from, to, waitingOn: needWait ? waitOn : '', back, note: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || undefined })
   }
-  const withText = [...others.filter((o) => o !== 'Installer'), others.includes('Installer') ? (installer ? `${PEOPLE[installer].name} (installer)` : 'the installer') : ''].filter(Boolean).join(', ')
+  const withText = others.map((o) => (o === 'Installer' ? (installer ? `${PEOPLE[installer].name} (installer)` : 'the installer') : o === 'Designer' ? (designer ? `${designer} (designer)` : 'the designer') : o)).join(', ')
+  /* the designers to pick from — this project's own on top, then the Designers list (the person, and their studio) */
+  const designerOpts = (() => {
+    const out: { key: string; label: string; hint?: string }[] = []
+    const add = (key: string, hint?: string) => { if (key && !out.some((x) => x.key.toLowerCase() === key.toLowerCase())) out.push({ key, label: key, hint }) }
+    ;(job?.contacts || []).filter((c) => /design/i.test(c.role || '')).forEach((c) => add(c.name, 'On this project'))
+    /* the person when we have her name; the studio when all we have is a title ("Lead designer") */
+    s.designers.forEach((d) => { const person = d.contact && !/design|manager|owner|principal|office|team/i.test(d.contact) ? d.contact.trim() : ''; add(person || d.name, person && person !== d.name ? d.name : undefined) })
+    return out
+  })()
   const kindLabel = meetKind === 'walkthrough' ? 'Walkthrough' : 'Meeting'
   const autoTitle = withText ? `${kindLabel} with ${withText}` : job ? `${kindLabel} · ${job.name}` : kindLabel
   const clash = date ? clashesWith(s, { date, start, dur }, people) : []
@@ -254,7 +265,12 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
               </div>
               {others.includes('Installer') && (
                 <div className="mt-2">
-                  <SearchSelect label="Which installer" value={installer} onChange={(k) => setInstaller(k as PersonKey)} options={CREWS.filter((c) => !(s.inactive || []).includes('crew:' + c)).map((c) => ({ key: c, label: PEOPLE[c].name }))} placeholder="Which installer?" width={280} search={false} icon={<HardHat />} />
+                  <SearchSelect label="Which installer" value={installer} onChange={(k) => setInstaller(k as PersonKey)} options={CREWS.filter((c) => !(s.inactive || []).includes('crew:' + c)).map((c) => ({ key: c, label: PEOPLE[c].name, lead: <Avatar who={c} size={22} /> }))} placeholder="Which installer?" width={280} search={false} icon={installer ? undefined : <HardHat />} />
+                </div>
+              )}
+              {others.includes('Designer') && designerOpts.length > 0 && (
+                <div className="mt-2" data-meet-designer>
+                  <SearchSelect label="Which designer" value={designer} onChange={setDesigner} options={designerOpts} placeholder="Which designer?" width={320} search={designerOpts.length > 8} searchPlaceholder="Her name or the studio…" icon={<Palette />} />
                 </div>
               )}
             </FormRow>
