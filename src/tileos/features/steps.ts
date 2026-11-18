@@ -95,6 +95,8 @@ export interface StepRec {
   notes?: { date: string; who: PersonKey; text: string }[]
   /** who's watching it — they see it and hear when it moves; it waits under their Waiting on others until it's done */
   followers?: PersonKey[]
+  /** who starred it — on top of their own list, in Starred */
+  stars?: PersonKey[]
 }
 /** one answer on the site check: yes, no (with what's wrong), not needed — or, for what's looked at room by room, the
  *  rooms where it's missing ("drains: 2 of 3 here"). What's wrong goes to be fixed; once it's fixed it comes back to

@@ -275,8 +275,6 @@ export interface Job {
   /** brought in (from Asana, or from its estimate) and gone through since — where it stands, the installer, the site
    *  manager, how far, the dates: the day it was brought up to date */
   caughtUp?: string
-  /** who starred it — it's on top of their lists (each person their own stars) */
-  stars?: PersonKey[]
   /** billed and paid before Tile OS (from QuickBooks) — the progress bills pick up from there */
   before?: { billed: number; paid: number; retainage?: number; changes?: number }
   /** who sold it, for this project: each salesperson, their rate (%) and what they've been paid — set from the

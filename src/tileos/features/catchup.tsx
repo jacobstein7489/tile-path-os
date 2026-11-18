@@ -1,15 +1,16 @@
 /* Bring projects up to date. The ones brought in (from Asana, or from their estimates) come in with only what Asana
  * knew — not who the site manager is, how far the crew got, which parts of getting ready are done. One project at a
  * time, a few taps each — just the basics: the client, where it stands, what's done already, the installer, the site
- * manager, how far, the start and the finish. Its papers (the estimate, the tile paperwork) aren't asked for here: they go
- * on the project itself, later, for the projects picked for it.
+ * manager, how far, the start and the finish. Its papers can be attached if they're handy — they're kept on the project
+ * (Documents); nothing is read or filled in from them here (the rooms, the tiles, the layouts come later, on the projects
+ * picked for it).
  * It opens on the list: every one of them, what's set up (✓) and what isn't yet — and what's still missing on it (the
  * client, the installer, the site manager, the start). Tap any one; Save & close saves it and goes back to the list,
  * where it's ticked — you pick the next one yourself. Nothing's laid out as a wall of choices: each answer is one box you tap (the installer is typed to
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, HardHat, UserRound } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, Paperclip, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
@@ -22,6 +23,7 @@ import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { companySteps, FOLLOW_UPS, BEFORE_TILE_OS } from './steps'
 import { tracksFor, TRACKS, type TrackKey } from './tracks'
 import { isOff } from './active'
+import { keepFiles } from '@/tileos/lib/files'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 const BEFORE_START: Stage[] = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
@@ -396,6 +398,40 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
           </div>
         </Line>
       )}
+      {/* its papers, if they're handy — kept on the project; nothing is read from them here */}
+      <Line label="Papers" hint="If they’re handy">
+        <AttachPapers job={job} />
+      </Line>
+    </div>
+  )
+}
+/** attach its papers — the estimate, the POs, the tile paperwork, the plans: kept on the project (Documents), each by its
+ *  name. Nothing is read or filled in from them here */
+function AttachPapers({ job }: { job: Job }) {
+  const s = useStore()
+  const ref = React.useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = React.useState(false)
+  const files = s.files.filter((f) => f.jobId === job.id && f.kind !== 'photo')
+  const add = async (list: File[]) => {
+    if (!list.length) return
+    setBusy(true)
+    const plans = list.filter((f) => /plan|drawing|arch/i.test(f.name))
+    const rest = list.filter((f) => !plans.includes(f))
+    try {
+      if (plans.length) await keepFiles(job.id, plans, 'plans')
+      if (rest.length) await keepFiles(job.id, rest, 'other')
+    } finally { setBusy(false) }
+  }
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2" data-catchup-attach={files.length}>
+      <input ref={ref} type="file" multiple accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.csv" className="hidden" aria-label="Attach papers" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; void add(l) }} data-catchup-attach-input />
+      {files.slice(-4).map((f) => (
+        <span key={f.id} className="inline-flex h-9 min-w-0 max-w-[15rem] items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.8125rem] text-ink-2" title={f.name} data-catchup-file>
+          <FileText className="h-3.5 w-3.5 shrink-0 text-muted" /><span className="min-w-0 truncate">{f.name}</span>
+        </span>
+      ))}
+      {files.length > 4 && <span className="text-[0.8125rem] text-muted">+{files.length - 4} more</span>}
+      <Button size="sm" icon={<Paperclip />} disabled={busy} onClick={() => ref.current?.click()} data-catchup-attach-btn>{busy ? 'Attaching…' : files.length ? 'Attach more' : 'Attach'}</Button>
     </div>
   )
 }

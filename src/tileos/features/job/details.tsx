@@ -204,23 +204,22 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
 }
 
 /* A computer: the scope is a table — one column for each thing, its name on top (staying there as you scroll):
-   Area · Tile · Layout · Grout · Height · edge · Notes · SF (and, once the crew is on it, how far). A phone: each wall and
-   floor on two short lines. */
-const SCOPE_GRID = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,0.85fr)_minmax(0,0.95fr)_minmax(0,1fr)_3.5rem] lg:items-center lg:gap-x-4'
-const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,0.85fr)_minmax(0,0.95fr)_minmax(0,1fr)_3.5rem_4.5rem] lg:items-center lg:gap-x-4'
+   Area · Tile · Grout · Height · edge · Notes · SF (and, once the crew is on it, how far). A phone: each wall and floor
+   on two short lines. How each is laid isn't said in words here — the layouts come as pictures, from the plans. */
+const SCOPE_GRID = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)_3.5rem] lg:items-center lg:gap-x-4'
+const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)_3.5rem_4.5rem] lg:items-center lg:gap-x-4'
 function ScopeHead({ inField }: { inField: boolean }) {
   return (
     <div className={cn(HEAD_ROW, 'sticky top-0 z-[6] hidden px-5', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)} data-scope-cols>
-      <span>Area</span><span>Tile</span><span>Layout</span><span>Grout</span><span>Height · edge</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
+      <span>Area</span><span>Tile</span><span>Grout</span><span>Height · edge</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
     </div>
   )
 }
 const dash = <span className="text-faint">—</span>
-const capFirst = (t?: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
 
 const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCase())
 /** a wall or floor in words, the way the paper says it: on its line where it goes (which walls, how high); under it its
- *  tile and size, how it's laid, the grout, a wall's edge and its note */
+ *  tile and size, the grout, a wall's edge and its note (how it's laid comes as a picture, not words) */
 function wordsOf(jobId: string, x: Surface): { where: string; under: string; tile?: Tile } {
   const tiles = tilesOn(x).map((t) => tileOf(jobId, t)).filter(Boolean) as Tile[]
   const wall = isWall(x.name)
@@ -231,15 +230,13 @@ function wordsOf(jobId: string, x: Surface): { where: string; under: string; til
   const tileWords = tiles.length ? (sizes.length <= 1 ? tiles.map((t) => t.name).join(' + ') : tiles.map((t) => `${t.name}${t.size ? ` ${t.size}` : ''}`).join(' + ')) : x.tile || ''
   const g = x.grout || tiles[0]?.grout
   const edge = wall ? edgeShort(x.edge) : ''
-  const lay = x.layout ? lowFirst(x.layout) : ''
   const edgeWords = edge ? (edge === 'Mitered' ? 'mitered edges' : `${edge.replace(' · ', ' ')} edge`) : ''
-  /* each thing once — an edge the layout already says ("field tile · mitered edges") isn't said again */
-  const under = [tileWords, lay, g ? `${GROUTS[g]?.name || g} grout` : '', edgeWords && !lay.toLowerCase().includes(edgeWords.toLowerCase()) ? edgeWords : '', x.notes || ''].filter(Boolean).join(' · ')
+  const under = [tileWords, g ? `${GROUTS[g]?.name || g} grout` : '', edgeWords, x.notes || ''].filter(Boolean).join(' · ')
   return { where, under, tile: tiles[0] }
 }
 
-/** a wall or floor's cells in the scope's table: what it is (which walls), its tile, how it's laid, the grout, how high
- *  and its edge (a wall), its note, its square feet — and, once the crew is on it, how far */
+/** a wall or floor's cells in the scope's table: what it is (which walls), its tile, the grout, how high and its edge (a
+ *  wall), its note, its square feet — and, once the crew is on it, how far */
 function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: Surface; inField: boolean; canEdit: boolean; right: { text: string; cls: string } }) {
   const tiles = tilesOn(x).map((t) => tileOf(jobId, t)).filter(Boolean) as Tile[]
   const wall = isWall(x.name)
@@ -259,7 +256,6 @@ function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: S
             : x.tile ? x.tile : takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>}
         </span>
       </span>
-      <span className={cn(cell, 'text-ink-2')} data-cell="layout">{x.layout ? capFirst(x.layout) : dash}</span>
       <span className="flex min-w-0 items-center gap-1.5 text-[0.875rem] text-ink-2 max-lg:hidden" data-cell="grout">{g ? <><GroutDot grout={g} /><span className="min-w-0 line-clamp-2 leading-snug">{GROUTS[g]?.name || g}</span></> : dash}</span>
       <span className={cn(cell, 'text-ink-2')} data-cell="height">{he || dash}</span>
       <span className={cn(cell, 'text-ink-2')} title={x.notes || undefined} data-cell="notes">{x.notes || dash}</span>
@@ -294,8 +290,8 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
         </button>
         {canEdit && <RoomMenu jobId={job.id} room={room} onLines={() => onTicking(true)} onDetail={() => onAdding(true)} />}
       </div>
-      {/* each wall and floor: its tile's picture, what it is (which walls, how high), and under it the tile, the layout,
-          the grout — tap it to change it */}
+      {/* each wall and floor: its tile's picture, what it is (which walls, how high), and under it the tile, the grout —
+          tap it to change it */}
       <div data-room-body>
         {room.surfaces.map((x) => {
           const { where, under, tile } = wordsOf(job.id, x)

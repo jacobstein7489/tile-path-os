@@ -11,6 +11,7 @@
  * Each line is what you tap to change it (where you may): who does it gives it to someone else (you, to take it over);
  * when moves it; watching adds or takes off people. The buttons are at the bottom of the window — on every window. */
 import * as React from 'react'
+import { WinStar, type StarPick } from './star'
 import { Check, ChevronDown, ChevronRight, CircleAlert, Plus } from 'lucide-react'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel, Pop, DatePresets } from '@/tileos/components/ui/overlay'
@@ -87,7 +88,7 @@ export function WatchPop({ pick, trigger, align = 'start' }: { pick: WatchPick; 
   )
 }
 
-export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone, status, statusTone, where, problem, more, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch }: {
+export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone, status, statusTone, where, problem, more, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch, star }: {
   /** what it is: Task, Change order, Waiting on the GC, Getting ready · Installer */
   kind?: WinKind
   /** its project */
@@ -125,6 +126,8 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
   stateLabel?: string
   /** who's watching */
   watch?: WatchPick
+  /** its star — on top of your list */
+  star?: StarPick
 }) {
   const whoBody = (
     <>
@@ -144,7 +147,12 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
             <button type="button" onClick={onPlace} className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-0.5 text-left text-[0.875rem] font-medium text-muted transition hover:text-brand-700" data-win-place aria-label="Open the project"><span className="min-w-0">{place}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" /></button>
           ) : <span className="inline-flex min-h-7 min-w-0 items-center text-[0.875rem] font-medium text-muted" data-win-place>{place}</span>}
         </div>
-        {more && <span className="-my-0.5 shrink-0 pl-1">{more}</span>}
+        {(star || more) && (
+          <span className="-my-0.5 flex shrink-0 items-center gap-0.5 pl-1">
+            {star && <WinStar star={star} />}
+            {more}
+          </span>
+        )}
       </div>
       <h2 className="font-display mt-2.5 text-[1.375rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.25rem]" data-win-title>{title}</h2>
       {/* one box of short lines, each with its name on the left */}

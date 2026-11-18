@@ -567,7 +567,8 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
                 {b.icon}
               </span>
               {/* a phone: a small dot of its color in the corner — a little color, and the name keeps its whole width */}
-              {(soft || !row) && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: c.solid }} aria-hidden data-bubble-dot />}
+              {/* (Today's row has its icon before the number instead — one color mark, not two) */}
+              {!row && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: c.solid }} aria-hidden data-bubble-dot />}
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
                 {/* a phone (Today's row): the same little color as on a computer — its icon, small, before the number */}

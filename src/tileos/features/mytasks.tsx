@@ -6,6 +6,7 @@ import * as React from 'react'
 import { create } from 'zustand'
 import { Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
+import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
 import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
@@ -247,7 +248,8 @@ function TurnCell({ turn, viewer, children }: { turn: Turn; viewer: PersonKey; c
   return (
     <span className="flex min-w-0 items-center gap-2" {...(ks.length ? { 'data-row-doer': ks.join(',') } : { 'data-row-turn-name': turn.name || '' })} data-row-turn>
       {ks.length ? <span className="flex shrink-0 gap-0.5">{ks.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : turn.name ? <NameDot name={turn.name} /> : null}
-      <span className={cn('min-w-0 truncate text-[0.8125rem]', ks.includes(viewer) ? 'font-medium text-ink' : 'text-ink-2')}>{ks.length ? namesOf(ks, viewer) : turn.name}</span>
+      {/* on Today almost every line is yours — "You" stays quiet; someone else's name stands out */}
+      <span className={cn('min-w-0 truncate text-[0.8125rem]', ks.length === 1 && ks[0] === viewer ? 'text-muted' : 'font-medium text-ink')}>{ks.length ? namesOf(ks, viewer) : turn.name}</span>
       {children}
     </span>
   )
@@ -280,7 +282,7 @@ export function TodayHead({ waiting, who }: { waiting?: boolean; /** several peo
 /** a cell's own button on a computer: tap it to change it right there — the row itself still opens the thing */
 const CELL_BTN = '-mx-2 inline-flex max-w-[calc(100%+1rem)] min-w-0 items-center gap-1.5 rounded-md px-2 py-1 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
 const stop = (e: React.SyntheticEvent) => e.stopPropagation()
-function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick }: {
+function TodoRow({ when, whenTone, title, detail, project, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
   /** shared — whoever gets to it first: the others who can do it */
   also?: PersonKey[]
@@ -296,6 +298,8 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   whoPick?: WhoPick
   /** a phone shows the when too (false: only a computer — a phone's line is short) */
   phoneWhen?: boolean
+  /** its star — the ones that matter to you go on top of your list (only on your own list) */
+  star?: StarPick
 }) {
   const who = React.useContext(WhoCol)
   const me = meOf(useStore((x) => x.role))
@@ -312,7 +316,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const turnKeys = t0.keys || []
   const watchers = (watch || []).filter((p) => !sharers.includes(p) && !turnKeys.includes(p))
   /* a phone: whose turn as a circle only when it says something — it isn't just the list's own person's */
-  const phoneTurn = !!t0.name || multi || who || turnKeys.some((p) => p !== viewer)
+  const phoneTurn = !!t0.name || multi || turnKeys.some((p) => p !== viewer)
   const dots = phoneTurn || watchers.length ? (
     <span className="inline-flex shrink-0 items-center gap-2" data-row-people>
       {phoneTurn && (turnKeys.length ? <span className="flex gap-0.5" data-row-doer={turnKeys.join(',')}>{turnKeys.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null)}
@@ -325,6 +329,8 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const inJob = React.useContext(InJob)
   const wherePhone = inJob ? '' : where
   const flagged = flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}{where ? ' · ' : ''}</span> : null
+  /* the star is yours: on your own list only — not on someone else's you're looking at */
+  const ownList = viewer === me && !multi
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -337,7 +343,10 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       /* a computer: one line, the list's straight columns. A phone: two lines — what to do, the job under it — every row
          the same height */
       className={cn('group/row relative items-center border-t border-line-2 transition-colors focus-visible:outline-none max-md:flex max-md:min-h-[calc(4rem+1px)] max-md:gap-3 max-md:py-2 md:grid md:min-h-[3rem] md:gap-x-6 md:py-1.5', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      data-starred={star?.on && ownList ? '' : undefined}
     >
+      {/* its star, in the margin at the left — nothing on the line moves */}
+      {star && ownList && !done && <RowStar star={star} />}
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
@@ -428,6 +437,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       turn={t.state === 'waiting' ? turnNamed(t.waitingOn) : undefined}
       /* a computer: who's watching, its day and (the admin) who does it — tapped right on the row */
       watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin } : undefined}
+      star={!done ? taskStarPick(s, t, me0) : undefined}
       whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
       whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
       project={job ? job.name : 'Company'}
@@ -467,6 +477,7 @@ function StepRowToday({ job, v, when, flag }: { job: Job; v: StepView; showOwner
       /* waiting on someone outside (the store, the installer): it's their turn */
       turn={v.state === 'wait' ? turnNamed(stepWaitOn(rec?.wait?.on, v.note)) : undefined}
       watchPick={open ? { people: team, me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: v.owner === me || admin } : undefined}
+      star={open ? { on: starredBy(rec?.stars, me), toggle: () => toggleStepStar(job.id, v.key) } : undefined}
       whenPick={(v.owner === me || admin) && (v.state === 'now' || v.state === 'bad') && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
       whoPick={admin && open ? { people: team, me, current: v.owner, onPick: (p) => setStepOwner(job.id, v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key, p) } : undefined}
       project={job.name}
@@ -652,6 +663,7 @@ function GcRow({ t }: { t: Task }) {
         watch={followersOf(t)}
         /* it's the GC's turn — by name when the project has one */
         turn={{ name: gcNameOf(job) }}
+        star={taskStarPick(s, t, meOf(s.role))}
         detail={gcSoFar(t)}
         project={job?.name || 'Company'}
         when={st.text}
@@ -746,7 +758,7 @@ export function staleFollowUp(s: Pick<Store, 'estimates'>, t: Task) {
 const followDue = (t: Task) => t.state === 'waiting' && (isoFromLabel(t.followUp) || '9') <= TODAY
 
 /* ================= what's on someone's plate: one list, used for the page and the sidebar count ================= */
-export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin' | 'dailies' | 'trips' | 'steps'; t?: Task; d?: DailyItem; /** one row for many: the day's daily updates */ ds?: DailyItem[]; /** one row for many: what to bring to the jobs */ ts?: Task[]; /** one row for many: the same step on many projects */ vs?: { job: Job; v: StepView }[]; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] } }
+export type PlateItem = { key: string; b: Bucket; iso?: string; time?: number | null; kind: 'task' | 'daily' | 'crew' | 'rounds' | 'pay' | 'bill' | 'meet' | 'step' | 'checkin' | 'dailies' | 'trips' | 'steps'; t?: Task; d?: DailyItem; /** one row for many: the day's daily updates */ ds?: DailyItem[]; /** one row for many: what to bring to the jobs */ ts?: Task[]; /** one row for many: the same step on many projects */ vs?: { job: Job; v: StepView }[]; e?: CalEvent; job?: Job; v?: StepView; who?: PersonKey; ci?: { who: PersonKey; items: CheckItem[] }; /** its person starred it — on top, its own line (never folded in with others) */ starred?: boolean }
 const AHEAD = 21
 /** everything that's mine: tasks, the daily updates I send, the pay week, my meetings, checklist steps that are my turn */
 export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateItem[] {
@@ -781,22 +793,22 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
     const b0 = taskBucket(t)
     const b = t.action?.kind?.startsWith('estimate:') && (b0 === 'tomorrow' || b0 === 'week' || b0 === 'later') ? 'today' : b0
     /* a login spot nobody took ("Estimator") is never shown as a person — it's whoever has that login */
-    out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: realOwner(s, t.owner) })
+    out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) })
   })
-  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner) }))
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) }))
   /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t)).forEach((t) => {
     const iso = isoFromLabel(t.followUp)
     if (!iso || iso > TODAY) return
     /* the same: an untaken login spot is whoever has that job — never a second "Yakov" */
-    out.push({ key: t.id, b: bucketOfIso(iso), iso, kind: 'task', t, who: realOwner(s, t.owner) })
+    out.push({ key: t.id, b: bucketOfIso(iso), iso, kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) })
   })
   stepTodos(s, me || 'all').forEach(({ job, step: v }) => {
     /* a step with no date of its own is due a week before the start (everything left has to be done by then) — no start yet, it's due now */
     const start = s.prep[job.id]?.targetISO
     const lead = start ? (addDays(start, -7) < TODAY ? TODAY : addDays(start, -7)) : undefined
     const iso = v.due || lead || TODAY
-    out.push({ key: `s:${job.id}:${v.key}`, b: v.state === 'bad' && (!iso || iso > TODAY) ? 'today' : bucketOfIso(iso), iso, kind: 'step', job, v, who: v.owner })
+    out.push({ key: `s:${job.id}:${v.key}`, b: v.state === 'bad' && (!iso || iso > TODAY) ? 'today' : bucketOfIso(iso), iso, kind: 'step', job, v, who: v.owner, starred: starredBy(s.stepRecs[job.id]?.[v.key]?.stars, me) })
   })
   return sortPlate(out)
 }
@@ -821,6 +833,8 @@ export function collapse(items: PlateItem[]): PlateItem[] {
   const steps = new Map<string, PlateItem[]>()
   const add = (m: Map<string, PlateItem[]>, k: string, x: PlateItem) => m.set(k, [...(m.get(k) || []), x])
   items.forEach((x) => {
+    /* starred: its own line — it goes on top */
+    if (x.starred) return out.push(x)
     /* every daily update on this list together — yesterday's not sent too */
     if (x.kind === 'daily') return add(dailies, '', x)
     /* what's to be brought — today's (and late) together; a day ahead stays with that day */
@@ -917,12 +931,52 @@ function perData<A extends unknown[], T>(f: (s: Store, ...a: A) => T): (s: Store
 }
 const plateNow = perData((s: Store, role: Role, person: PersonKey | null) => plateOf(s, role, person ?? undefined))
 
-/** someone's list as they see it on their own Today — person left out: whoever is signed in; job: one project's */
+/** a getting-ready step's task is the step: its star is the step's (its window is the step's window) */
+const stepOfTask = (s: Store, t: Task): { jobId: string; key: string } | null => {
+  if (!t.step || t.step.startsWith('*:')) return null
+  const [jobId, key] = t.step.split(':')
+  return s.jobs[jobId] && key ? { jobId, key } : null
+}
+export const taskStarred = (s: Store, t: Task, me: PersonKey | null | undefined) => {
+  const st = stepOfTask(s, t)
+  return st ? starredBy(s.stepRecs[st.jobId]?.[st.key]?.stars, me) : starredBy(t.stars, me)
+}
+export const taskStarPick = (s: Store, t: Task, me: PersonKey): StarPick => {
+  const st = stepOfTask(s, t)
+  return { on: taskStarred(s, t, me), toggle: () => (st ? toggleStepStar(st.jobId, st.key) : toggleTaskStar(t.id)) }
+}
+
+/** what someone starred on a list: out of its part, on top, in Starred — everything else where it was. Their own stars:
+ *  someone's list on the admin's Everyone has theirs on top, as on their own phone */
+const lineStarred = (s: Store, l: Line, me: PersonKey) =>
+  l.k === 'task' || l.k === 'gc' ? taskStarred(s, l.t, me)
+    : l.k === 'wait' ? starredBy(s.stepRecs[l.job.id]?.[l.v.key]?.stars, me)
+      : l.x.kind === 'task' ? !!l.x.t && taskStarred(s, l.x.t, me)
+        : l.x.kind === 'step' && !!l.x.job && !!l.x.v && starredBy(s.stepRecs[l.x.job.id]?.[l.x.v.key]?.stars, me)
+function starredOnTop(s: Store, parts: Part[], me: PersonKey): Part[] {
+  const top: Line[] = []
+  const rest = parts.map((p) => {
+    const keep = p.lines.filter((l) => {
+      if (!lineStarred(s, l, me)) return true
+      if (!top.some((x) => x.key === l.key)) top.push(l)
+      return false
+    })
+    return keep.length === p.lines.length ? p : { ...p, lines: keep }
+  }).filter((p) => p.lines.length)
+  return top.length ? [{ key: 'starred', label: 'Starred', tone: 'neutral', lines: top }, ...rest] : parts
+}
+
+/** someone's list as they see it on their own Today — person left out: whoever is signed in; job: one project's. What
+ *  they starred goes on top, in Starred */
 export const partsOf = perData((s: Store, role: Role, person: PersonKey | null, view: View, job: string): Part[] => {
+  const parts = partsRaw(s, role, person, view, job)
+  return view === 'today' || view === 'coming' || view === 'waiting' ? starredOnTop(s, parts, person ?? meOf(role)) : parts
+})
+const partsRaw = perData((s: Store, role: Role, person: PersonKey | null, view: View, job: string): Part[] => {
   const me = person ?? meOf(role)
   const inJob = (id?: string) => job === 'all' || id === job
   /* coming up: tomorrow, then day by day after it */
-  if (view === 'coming') return [...partsOf(s, role, person, 'tomorrow', job), ...partsOf(s, role, person, 'later', job)]
+  if (view === 'coming') return [...partsRaw(s, role, person, 'tomorrow', job), ...partsRaw(s, role, person, 'later', job)]
   if (view === 'today' || view === 'tomorrow' || view === 'later') {
     const plate = collapse(plateNow(s, role, person).filter((x) => inJob(jobOfItem(x))))
     const now = view === 'today' ? plate.filter((x) => isNow(x.b)) : []
@@ -1320,6 +1374,7 @@ export function MyTasksPage() {
       top={
         <Bubbles
           row
+          soft
           items={[
             { key: 'today', label: 'Today', count: n('today'), icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
             { key: 'coming', label: 'Coming up', count: n('coming'), icon: <CalendarDays />, color: 'violet', on: view === 'coming', onClick: () => setView('coming') },
@@ -1330,12 +1385,13 @@ export function MyTasksPage() {
       }
       toolbar={<JobBar picked={picked} onClear={() => setJob('all')} />}
     >
-      <WhoCol.Provider value={view === 'waiting' || multi}>
+      {/* Who is a column on every list — tap it to give it to someone (the admin); waiting: who it's with */}
+      <WhoCol.Provider value={true}>
       <InJob.Provider value={!!picked}>
       <Viewer.Provider value={multi ? null : me}>
       <Multi.Provider value={multi}>
-      <div data-even-list data-list-scope="mine" style={todoColsOf(view === 'waiting' || multi)}>
-        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who={multi} />}
+      <div data-even-list data-list-scope="mine" style={todoColsOf(true)}>
+        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who />}
         {parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting' || multi} />)}
         {n(view) === 0 && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
       </div>
@@ -1505,6 +1561,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
       problem={gcw?.flag ? <span data-gc-flag>{gcw.text}</span> : t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
       more={more || undefined}
+      /* its star — on top of your list */
+      star={t.state !== 'done' ? taskStarPick(s, t, me) : undefined}
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
       whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}

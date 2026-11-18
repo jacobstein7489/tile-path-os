@@ -56,6 +56,8 @@ export interface Task {
   quiet?: Partial<Record<PersonKey, string>>
   /** urgent: on top of its person's Today, in red, until it's done */
   urgent?: boolean
+  /** who starred it — on top of their own list, in Starred (each person their own) */
+  stars?: PersonKey[]
   /** the checklist step this task is ("jobId:step"), or "*:step" for one task that covers that step everywhere */
   step?: string
   /** a task that comes back on a schedule */
