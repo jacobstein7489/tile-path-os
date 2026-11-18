@@ -1673,7 +1673,8 @@ export function acceptIPO(ipoId: string, taskId?: string) {
     ipo.status = 'Accepted'
     ipo.date = NOW
     ipo.log.push(L(ipo.crew, 'Accepted'))
-    closeTasks(s, taskId ? [taskId] : s.tasks.filter((t) => t.action?.kind === 'ipoaccept:' + ipoId).map((t) => t.id), 'Accepted')
+    /* every to-do waiting on his yes is done — "Alex to accept PO-1047" too */
+    closeTasks(s, [...(taskId ? [taskId] : []), ...s.tasks.filter((t) => t.state !== 'done' && (t.action?.kind === 'ipoaccept:' + ipoId || t.action?.kind === 'ipo:' + ipoId)).map((t) => t.id)], 'Accepted')
     addHist(s, ipo.jobId, { who: ipo.crew, kind: 'schedule', title: `${PEOPLE[ipo.crew].name} accepted installer PO ${ipoId}` })
   }, `${PEOPLE[ipo0.crew].name} accepted the installer PO`)
   S().close()

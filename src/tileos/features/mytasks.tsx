@@ -200,6 +200,8 @@ const Viewer = React.createContext<PersonKey | null>(null)
 const Multi = React.createContext(false)
 /** several people's lists at once: whose list this line is on (for a row that doesn't say whose it is itself) */
 const LineOn = React.createContext<PersonKey[] | null>(null)
+/** the Waiting on others list: its third column is who it's with (Alex, the GC) — on every other list it's who does it */
+const WaitView = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 /** Today's columns on a computer — the same kind of list as Estimates and Projects: one line a thing, straight columns,
@@ -312,7 +314,10 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const multi = React.useContext(Multi)
   const onLists = React.useContext(LineOn)
   const sharers = owner ? [owner, ...(also || []).filter((p) => p !== owner)] : multi && onLists ? onLists : []
-  const t0: Turn = turn || { keys: sharers.length ? sharers : [viewer] }
+  /* Who is who does it — the same as its window says. Only on Waiting on others is it who it's with (Alex, the GC) */
+  const waitView = React.useContext(WaitView)
+  const waitTurn = waitView ? turn : undefined
+  const t0: Turn = waitTurn || { keys: sharers.length ? sharers : [viewer] }
   const turnKeys = t0.keys || []
   const watchers = (watch || []).filter((p) => !sharers.includes(p) && !turnKeys.includes(p))
   /* a phone: whose turn as a circle only when it says something — it isn't just the list's own person's */
@@ -335,7 +340,9 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
     <div
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
+      /* a click in a cell's little list (Who, Watching, When — it opens over the page) isn't a click on the line: only
+         a click on the line itself opens it */
+      onClick={onClick ? (e) => { if ((e.currentTarget as HTMLElement).contains(e.target as Node)) onClick() } : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
       title={typeof detail === 'string' && detail ? detail : undefined}
       data-todo
@@ -370,7 +377,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       <div className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-row-where>{flagged}{where || (project === 'Company' ? <span className="text-faint">—</span> : null)}</div>
       {who && (
         <div className="min-w-0 max-md:hidden">
-          {whoPick && !turn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={CELL_BTN} aria-label="Who does it — change it" data-row-who-pick><TurnCell turn={t0} viewer={viewer} /></button>} /> : <TurnCell turn={t0} viewer={viewer} />}
+          {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={CELL_BTN} aria-label="Who does it — change it" data-row-who-pick><TurnCell turn={t0} viewer={viewer} /></button>} /> : <TurnCell turn={t0} viewer={viewer} />}
         </div>
       )}
       <div className="min-w-0 max-md:hidden">
@@ -654,6 +661,9 @@ function GcRow({ t }: { t: Task }) {
   const s = useStore()
   const job = s.jobs[t.jobId]
   const st = gcState(t)
+  const me = meOf(s.role)
+  const admin = s.role === 'owner' || s.role === 'pm'
+  const team = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
   return (
     <div data-gc-row={t.id} data-gc-flag={st.flag ? '' : undefined} data-contents>
       <TodoRow
@@ -663,7 +673,9 @@ function GcRow({ t }: { t: Task }) {
         watch={followersOf(t)}
         /* it's the GC's turn — by name when the project has one */
         turn={{ name: gcNameOf(job) }}
-        star={taskStarPick(s, t, meOf(s.role))}
+        star={taskStarPick(s, t, me)}
+        watchPick={{ people: team, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: true }}
+        whoPick={admin ? { people: team, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
         detail={gcSoFar(t)}
         project={job?.name || 'Company'}
         when={st.text}
@@ -797,7 +809,7 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   })
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) }))
   /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */
-  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t)).forEach((t) => {
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t) && !dupOfStep(s, t)).forEach((t) => {
     const iso = isoFromLabel(t.followUp)
     if (!iso || iso > TODAY) return
     /* the same: an untaken login spot is whoever has that job — never a second "Yakov" */
@@ -931,6 +943,15 @@ function perData<A extends unknown[], T>(f: (s: Store, ...a: A) => T): (s: Store
 }
 const plateNow = perData((s: Store, role: Role, person: PersonKey | null) => plateOf(s, role, person ?? undefined))
 
+/** "Alex to accept PO-1047" is the same thing as the project's own step "Did the installer say yes?" — while that step
+ *  is open, the step is the one line (its window has his PO, "Called him — waiting" and "He said yes") */
+export const dupOfStep = (s: Store, t: Task): boolean => {
+  if (!(t.action?.kind || '').startsWith('ipo:') || t.state === 'done') return false
+  const j = s.jobs[t.jobId]
+  if (!j || !isGettingReady(j)) return false
+  const v = stepsFor(s, j).find((x) => x.key === 'confirmed')
+  return !!v && v.state !== 'done' && v.state !== 'na'
+}
 /** a getting-ready step's task is the step: its star is the step's (its window is the step's window) */
 const stepOfTask = (s: Store, t: Task): { jobId: string; key: string } | null => {
   if (!t.step || t.step.startsWith('*:')) return null
@@ -990,7 +1011,7 @@ const partsRaw = perData((s: Store, role: Role, person: PersonKey | null, view: 
     /* what's out with the GC or a supplier, what you asked someone for or handed over, what you follow — and the steps
        waiting on someone outside, or on someone else's step first. Each with whose it is and its day */
     const follows = (t: Task) => t.owner !== me && t.state !== 'done' && (t.by === me || followersOf(t).includes(me))
-    const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && inJob(t.jobId) && ((t.state === 'waiting' && isMine(t, role, me)) || follows(t)))
+    const waiting = s.tasks.filter((t) => !staleFollowUp(s, t) && !dupOfStep(s, t) && inJob(t.jobId) && ((t.state === 'waiting' && isMine(t, role, me)) || follows(t)))
       .sort((a, b) => (taskIso(a) || '9999').localeCompare(taskIso(b) || '9999'))
     /* the GC's on their own: the admin sees every one, on every project; anyone else their own */
     const gc = role === 'owner' || role === 'pm' ? gcWaits(s).filter((t) => inJob(t.jobId)) : waiting.filter(isGcWait)
@@ -1390,11 +1411,13 @@ export function MyTasksPage() {
       <InJob.Provider value={!!picked}>
       <Viewer.Provider value={multi ? null : me}>
       <Multi.Provider value={multi}>
+      <WaitView.Provider value={view === 'waiting'}>
       <div data-even-list data-list-scope="mine" style={todoColsOf(true)}>
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who />}
         {parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting' || multi} />)}
         {n(view) === 0 && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
       </div>
+      </WaitView.Provider>
       </Multi.Provider>
       </Viewer.Provider>
       </InJob.Provider>

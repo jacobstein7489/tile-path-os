@@ -5,7 +5,7 @@
  *   Our materials: what we buy for the job — thinset, grout, boards, membranes, metal edges — worked out from the square
  *     feet and what each wall and floor is set on. Tap one to see how it was worked out. */
 import * as React from 'react'
-import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search, Truck, Upload } from 'lucide-react'
+import { ChevronDown, ShoppingCart, SlidersHorizontal, Calculator, Ruler, Plus, MoreHorizontal, Pencil, Trash2, RotateCcw, Search, Truck, Upload, PackagePlus } from 'lucide-react'
 import { logTileOrder } from '../flows2'
 import { useStore, addHist, meOf } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
@@ -29,6 +29,7 @@ import { tileStoreOf } from '../tiles'
 import { scopeLock } from '../steps'
 import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
 import { useReadingOf } from '@/tileos/lib/reading'
+import { DOC_GRAY } from '../docpaper'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
 const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
@@ -43,8 +44,9 @@ const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 /* ---------------- tile ---------------- */
 /* The tile, room by room — the same rooms, in the same order, as the scope of work: each room's band, then each tile in
  * it: its picture and name, where in the room (the floor, the shower walls), how many square feet there, and where it's
- * at (here, coming, not ordered — tap it for what to do). A tile on no wall or floor yet is said at the end. On top,
- * staying there as you scroll: the tile store (every tile PO goes there), and Tile came in. */
+ * at (here, coming, not ordered — tap it for what to do), and the other rooms it's used in (as the paperwork says it). A
+ * tile on no wall or floor yet is said at the end. The rooms' bands the same as the scope's: the name in bold capitals.
+ * On top, staying there as you scroll: the tile store (every tile PO goes there), Order more tile, and Tile came in. */
 const TROW = 'grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_6rem_15rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-x-3'
 export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
   const s = useStore()
@@ -74,7 +76,9 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
             </label>
           )}
-          {/* one button: the tile came — count the boxes */}
+          {/* more tile from the store — a tile PO for the extra, with a number to follow */}
+          {all.length > 0 && <Button icon={<PackagePlus />} onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more tile</Button>}
+          {/* the tile came — count the boxes */}
           {all.length > 0 && <Button variant="primary" icon={<Truck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })} data-tile-in>Tile came in</Button>}
         </span>
       ) : undefined}
@@ -83,16 +87,17 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
         {tags.length > 0 && <div className={cn(HEAD_ROW, TROW, 'sticky top-[7.75rem] z-[5] px-5 max-lg:hidden')} data-tile-cols><span>Tile</span><span>Where in the room</span><span className="text-right">SF</span><span className="text-right">Where it’s at</span></div>}
         {byRoom.map((g) => (
           <section key={g.room.name} data-tile-room-group={g.room.name}>
-            <div className="flex h-9 items-center gap-2 border-t border-line bg-[#f6f6f4] px-5 lg:sticky lg:top-[10.25rem] lg:z-[4] max-sm:px-4" data-band>
-              <span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]">{g.room.name}</span>
-              <span className="text-[0.75rem] font-semibold text-faint tnum">{g.uses.length}</span>
+            {/* the room's band — the same as on the scope of work: its name in bold capitals */}
+            <div className="flex min-h-10 items-center gap-2.5 border-t border-line px-5 py-1.5 lg:sticky lg:top-[10.25rem] lg:z-[4] max-sm:px-4" style={{ background: DOC_GRAY }} data-band data-tile-room-band>
+              <b className="min-w-0 truncate text-[0.8125rem] font-bold uppercase tracking-[0.02em] text-[#222]">{g.room.name}</b>
+              <span className="text-[0.8125rem] text-[#555] tnum">{g.uses.length}</span>
             </div>
-            {g.uses.map((u) => <TileLine key={u.tag} job={job} tag={u.tag} xs={u.xs} simple={simple} />)}
+            {g.uses.map((u) => <TileLine key={u.tag} job={job} tag={u.tag} xs={u.xs} room={g.room.name} simple={simple} />)}
           </section>
         ))}
         {unused.length > 0 && (
           <section data-tile-room-group="">
-            <div className="flex h-9 items-center gap-2 border-t border-line bg-[#f6f6f4] px-5 max-sm:px-4" data-band><span className="truncate text-[0.75rem] font-semibold uppercase tracking-[0.07em] text-warn-700">Not on a wall or floor yet</span><span className="text-[0.75rem] font-semibold text-faint tnum">{unused.length}</span></div>
+            <div className="flex min-h-10 items-center gap-2.5 border-t border-line px-5 py-1.5 max-sm:px-4" style={{ background: DOC_GRAY }} data-band data-tile-room-band><b className="min-w-0 truncate text-[0.8125rem] font-bold uppercase tracking-[0.02em] text-warn-700">Not on a wall or floor yet</b><span className="text-[0.8125rem] text-[#555] tnum">{unused.length}</span></div>
             {unused.map((tag) => <TileLine key={tag} job={job} tag={tag} xs={[]} simple={simple} />)}
           </section>
         )}
@@ -108,9 +113,11 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   )
 }
 
-/** one tile in a room: its picture and name, where in the room, its square feet there — and where it's at (tap it for
- *  what to do: it came in, it was ordered, settle the count) */
-function TileLine({ job, tag, xs, simple }: { job: Job; tag: string; xs: import('@/tileos/data/jobs').Surface[]; simple?: boolean }) {
+/** a room's name the way it reads in a sentence — "POWDER ROOM #1" → "Powder Room #1" (a name already in mixed case stays) */
+const roomWords = (n: string) => (/[a-z]/.test(n) ? n : n.toLowerCase().replace(/(^|[\s/(-])([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase()))
+/** one tile in a room: its picture and name, where in the room, its square feet there, the other rooms it's used in —
+ *  and where it's at (tap it for what to do: it came in, it was ordered, settle the count, order more of it) */
+function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: import('@/tileos/data/jobs').Surface[]; room?: string; simple?: boolean }) {
   const s = useStore()
   const rooms = s.rooms[job.id] || []
   const t = tileOf(job.id, tag)
@@ -123,12 +130,16 @@ function TileLine({ job, tag, xs, simple }: { job: Job; tag: string; xs: import(
   const short = c ? Math.max(0, need - c.ordered) : 0
   const who = t?.suppliedBy === 'Us' ? 'We' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'}`
   const po = openTilePOs(s, job.id, tag)[0]
+  /* the other rooms it's used in — as the paperwork says it ("Also used in") */
+  const others = room ? Array.from(new Set(uses.filter((u) => u.room !== room).map((u) => roomWords(u.room)))) : []
+  const also = others.length ? `also used in ${others.join(', ')}` : ''
   /* what can be done with it — the office orders and settles; the site manager checks deliveries in */
   const acts: { label: string; run: () => void }[] = []
   if (!c && sfAll > 0 && !simple) acts.push({ label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf: sfAll, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) })
   if ((c && c.received < c.ordered) || (!c && simple)) acts.push({ label: 'It came in — count the boxes', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) })
   if (c && short && !simple) acts.push({ label: 'Settle the count', run: () => s.open({ t: 'qty', jobId: job.id, tag }) })
   if (po) acts.push({ label: `Open ${po.id}`, run: () => s.open({ t: 'po', id: po.id }) })
+  if (t) acts.push({ label: 'Order more of this tile', run: () => s.open({ t: 'moretile', jobId: job.id, tags: [tag] }) })
   const tone = st.tone === 'bad' ? 'text-bad-600 font-medium' : st.tone === 'ok' ? 'text-[#2c8a5b] font-medium' : 'text-ink-2'
   return (
     <div data-tile={tag} className={cn(TROW, 'min-h-[3.25rem] border-t border-line-2 px-5 py-1.5 max-sm:px-4')}>
@@ -138,10 +149,10 @@ function TileLine({ job, tag, xs, simple }: { job: Job; tag: string; xs: import(
         <span className="min-w-0 leading-snug">
           <span className="block truncate text-[0.9375rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size && <span className="text-muted"> · {t.size}</span>}</span>
           {/* a smaller screen: where in the room and its square feet, under it */}
-          <span className="block truncate text-[0.8125rem] text-muted lg:hidden">{[xs.map((x) => x.name).join(' · '), sfHere ? `${sfHere.toLocaleString('en-US')} SF` : ''].filter(Boolean).join(' · ') || (xs.length ? '' : 'Not on a wall or floor yet')}</span>
+          <span className="block truncate text-[0.8125rem] text-muted lg:hidden">{[xs.map((x) => x.name).join(' · '), sfHere ? `${sfHere.toLocaleString('en-US')} SF` : '', also].filter(Boolean).join(' · ') || (xs.length ? '' : 'Not on a wall or floor yet')}</span>
         </span>
       </button>
-      <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink-2 max-lg:hidden" data-tile-where>{xs.length ? xs.map((x) => x.name).join(' · ') : <span className="text-faint">—</span>}</span>
+      <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink-2 max-lg:hidden" data-tile-where>{xs.length ? xs.map((x) => x.name).join(' · ') : <span className="text-faint">—</span>}{also && <span className="text-muted" data-tile-also> · {also}</span>}</span>
       <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden" data-tile-sf>{sfHere ? `${sfHere.toLocaleString('en-US')} SF` : <span className="text-faint">—</span>}</span>
       {/* where it's at — tap it for what to do. On a tile PO that's still open: its number, one tap to it */}
       <span className="flex min-w-0 items-center justify-end gap-2">
