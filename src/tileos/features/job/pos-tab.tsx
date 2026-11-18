@@ -55,7 +55,10 @@ export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }
   const pos = s.pos.filter((p) => p.jobId === job.id)
   return (
     <div className="flex flex-col gap-4" data-materials data-mat-part={part}>
-      <MatTabs job={job} part={part} setPart={setPart} />
+      {/* the switch stays on top as you scroll — and the list's header under it */}
+      <div className="sticky top-0 z-[7] -mx-5 -mt-4 bg-[#f7f5f1] px-5 pb-3 pt-4 max-sm:-mx-3 max-sm:px-3" data-mat-sticky>
+        <MatTabs job={job} part={part} setPart={setPart} />
+      </div>
       {part === 'tile' ? <TileOrders job={job} onScope={onScope} /> : <MaterialsNeed job={job} onScope={onScope} orders={
         pos.length ? pos.map((p) => (
           <PORow
@@ -144,7 +147,9 @@ function DeliveriesTab({ job, onScope, part, setPart }: { job: Job; onScope: () 
         ))}
         {!coming.length && <Empty>Nothing on the way to this project.</Empty>}
       </Section>
-      <MatTabs job={job} part={part} setPart={setPart} />
+      <div className="sticky top-0 z-[7] -mx-5 -mt-4 bg-[#f7f5f1] px-5 pb-3 pt-4 max-sm:-mx-3 max-sm:px-3" data-mat-sticky>
+        <MatTabs job={job} part={part} setPart={setPart} />
+      </div>
       {part === 'tile' ? <TileOrders job={job} onScope={onScope} simple /> : <MaterialsNeed job={job} onScope={onScope} simple />}
     </div>
   )

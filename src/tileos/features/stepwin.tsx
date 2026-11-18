@@ -594,7 +594,8 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   return (
     <Modal
       level={level}
-      size={work ? 'md' : 'sm'}
+      /* the same size as every window that opens from a list — a task, a step, waiting on the GC */
+      size="md"
       onClose={s.close}
       title={title}
       header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}

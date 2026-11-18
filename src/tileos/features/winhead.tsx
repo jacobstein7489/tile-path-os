@@ -41,6 +41,52 @@ function Line({ k, label, top, children }: { k: string; label: string; top?: boo
   )
 }
 
+/** who does it: you first ("Me"), then the rest — the same in a window and on a list */
+export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.ReactElement }) {
+  return (
+    <Menu align="start" width={260} trigger={trigger}>
+      <MenuLabel>Who does it</MenuLabel>
+      {[pick.me, ...pick.people.filter((p) => p !== pick.me)].map((p) => (
+        <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} hint={p === pick.me ? undefined : PEOPLE[p]?.roleLabel} onSelect={() => { if (p !== pick.current) pick.onPick(p) }} data-who-option={p}>
+          <span className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate">{p === pick.me ? 'Me' : PEOPLE[p]?.name || p}</span>{p === pick.current && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}</span>
+        </MenuItem>
+      ))}
+    </Menu>
+  )
+}
+/** its day: tap, pick another — the same in a window and on a list */
+export function WhenPop({ pick, trigger }: { pick: WhenPick; trigger: React.ReactElement }) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <Pop open={open} onOpenChange={setOpen} align="start" width={330} trigger={trigger}>
+      <div className="mb-2.5 text-[0.875rem] font-semibold text-ink">{pick.title || 'Move it to'}</div>
+      <DatePresets value={pick.value} presets={pick.presets} onPick={(d) => { setOpen(false); pick.onPick(d) }} />
+    </Pop>
+  )
+}
+/** who's watching: tick people on or off (you only yourself, unless it's yours to say) — the same in a window and on a
+ *  list */
+export function WatchPop({ pick, trigger, align = 'start' }: { pick: WatchPick; trigger: React.ReactElement; align?: 'start' | 'end' | 'center' }) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <Pop open={open} onOpenChange={setOpen} align={align} width={300} trigger={trigger}>
+      <div className="text-[0.875rem] font-semibold text-ink">Who’s watching</div>
+      <div className="mb-2 mt-0.5 text-[0.8125rem] text-muted">They see it and hear when it moves — they don’t do it.</div>
+      <div className="-mx-1 flex flex-col" data-watch-list>
+        {[pick.me, ...pick.people.filter((p) => p !== pick.me)].filter((p) => pick.anyone || p === pick.me).map((p) => {
+          const on = pick.current.includes(p)
+          return (
+            <button key={p} type="button" role="checkbox" aria-checked={on} onClick={() => pick.onToggle(p)} className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash" data-watch-person={p}>
+              <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
+              <Avatar who={p} size={22} /><span className="min-w-0 flex-1 truncate">{p === pick.me ? 'Me' : PEOPLE[p]?.name || p}</span>
+            </button>
+          )
+        })}
+      </div>
+    </Pop>
+  )
+}
+
 export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone, status, statusTone, where, problem, more, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch }: {
   /** what it is: Task, Change order, Waiting on the GC, Getting ready · Installer */
   kind?: WinKind
@@ -80,8 +126,6 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
   /** who's watching */
   watch?: WatchPick
 }) {
-  const [dayOpen, setDayOpen] = React.useState(false)
-  const [watchOpen, setWatchOpen] = React.useState(false)
   const whoBody = (
     <>
       {who && <Avatar who={who} size={24} />}
@@ -108,14 +152,7 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
         {(whoText || whoPick) && (
           <Line k="who" label={whoLabel}>
             {whoPick ? (
-              <Menu align="start" width={260} trigger={<button type="button" className={CHIP} aria-label="Who does it — change it" data-who-pick>{whoBody}<ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-                <MenuLabel>Who does it</MenuLabel>
-                {[whoPick.me, ...whoPick.people.filter((p) => p !== whoPick.me)].map((p) => (
-                  <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} hint={p === whoPick.me ? undefined : PEOPLE[p]?.roleLabel} onSelect={() => { if (p !== whoPick.current) whoPick.onPick(p) }} data-who-option={p}>
-                    <span className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate">{p === whoPick.me ? 'Me' : PEOPLE[p]?.name || p}</span>{p === whoPick.current && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}</span>
-                  </MenuItem>
-                ))}
-              </Menu>
+              <WhoMenu pick={whoPick} trigger={<button type="button" className={CHIP} aria-label="Who does it — change it" data-who-pick>{whoBody}<ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
             ) : <span className="inline-flex min-w-0 items-center gap-2">{whoBody}</span>}
           </Line>
         )}
@@ -123,10 +160,7 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
           <Line k="when" label="When">
             <span className="flex min-w-0 flex-wrap items-center gap-x-2">
               {whenPick ? (
-                <Pop open={dayOpen} onOpenChange={setDayOpen} align="start" width={330} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When — change it" data-when-pick><span className="min-w-0" data-win-state>{state}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-                  <div className="mb-2.5 text-[0.875rem] font-semibold text-ink">{whenPick.title || 'Move it to'}</div>
-                  <DatePresets value={whenPick.value} presets={whenPick.presets} onPick={(d) => { setDayOpen(false); whenPick.onPick(d) }} />
-                </Pop>
+                <WhenPop pick={whenPick} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When — change it" data-when-pick><span className="min-w-0" data-win-state>{state}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
               ) : <span className={cn('text-[0.9375rem]', stateCls)} data-win-state>{state}</span>}
               {extra && <span className="text-[0.875rem] text-muted">· {extra}</span>}
             </span>
@@ -139,28 +173,14 @@ export function WinHead({ kind, place, onPlace, title, who, whoText, state, tone
             {/* tap what it says to change it — each one their circle and name; more than fit go on to the next line
                 (nothing cut off); nobody yet: Add someone */}
             <span className="flex min-w-0 items-center" data-win-watch={watch.current.join(',')}>
-              <Pop open={watchOpen} onOpenChange={setWatchOpen} align="start" width={300} trigger={
+              <WatchPop pick={watch} trigger={
                 <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s watching — add or take off" data-watch-add>
                   {watch.current.length > 0
                     ? watch.current.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={24} />{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span>)
                     : <span className="inline-flex items-center gap-1.5 text-[0.9375rem] font-medium text-brand-700"><Plus className="h-4 w-4" />Add someone</span>}
                   {watch.current.length > 0 && <ChevronDown className="h-4 w-4 shrink-0 text-faint" />}
                 </button>
-              }>
-                <div className="text-[0.875rem] font-semibold text-ink">Who’s watching</div>
-                <div className="mb-2 mt-0.5 text-[0.8125rem] text-muted">They see it and hear when it moves — they don’t do it.</div>
-                <div className="-mx-1 flex flex-col" data-watch-list>
-                  {[watch.me, ...watch.people.filter((p) => p !== watch.me)].filter((p) => watch.anyone || p === watch.me).map((p) => {
-                    const on = watch.current.includes(p)
-                    return (
-                      <button key={p} type="button" role="checkbox" aria-checked={on} onClick={() => watch.onToggle(p)} className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash" data-watch-person={p}>
-                        <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
-                        <Avatar who={p} size={22} /><span className="min-w-0 flex-1 truncate">{p === watch.me ? 'Me' : PEOPLE[p]?.name || p}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </Pop>
+              } />
             </span>
           </Line>
         )}

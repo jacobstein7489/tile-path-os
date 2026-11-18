@@ -19,12 +19,12 @@ export const SHEET = 'overflow-hidden rounded-[0.875rem] border border-line bg-w
 /** a person's first name — "Mordcha", not "Mordcha Shapiro" */
 export const firstName = (p?: PersonKey) => (p ? PEOPLE[p]?.short || PEOPLE[p]?.name || '' : '')
 
-export function Section({ title, count, sub, right, action, children, className, id }: { title?: React.ReactNode; count?: number; sub?: React.ReactNode; right?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
+export function Section({ title, count, sub, right, action, children, className, id, sticky }: { title?: React.ReactNode; count?: number; sub?: React.ReactNode; right?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string; /** its header stays on top as you scroll (under the switch on top of the tab) */ sticky?: boolean }) {
   return (
-    <section id={id} className={cn(SHEET, className)}>
+    <section id={id} className={cn(SHEET, sticky && 'overflow-visible', className)}>
       {title && (
         <>
-          <header className="flex min-h-[3.25rem] flex-wrap items-center gap-2 px-5 py-2 max-sm:px-4">
+          <header className={cn('flex min-h-[3.25rem] flex-wrap items-center gap-2 px-5 py-2 max-sm:px-4', sticky && 'sticky top-[4.5rem] z-[6] rounded-t-[0.875rem] border-b border-line-2 bg-white max-sm:top-[5.25rem]')} data-section-head>
             <h3 className="min-w-0 shrink-0 text-[0.9375rem] font-semibold text-ink">{title}</h3>
             {count != null && <span className="shrink-0 text-[0.8125rem] font-medium tnum text-faint">{count}</span>}
             <span className="flex-1" />
