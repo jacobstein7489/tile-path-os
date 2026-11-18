@@ -1,7 +1,7 @@
 /* The agenda — meetings, walkthroughs, deliveries and what comes back, with their times.
  * For me, for anyone in the company, or for everyone at once. One click adds a meeting; clashes are caught there. */
 import * as React from 'react'
-import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, Trash2, Building2, Clock3, Users, MapPin } from 'lucide-react'
+import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, ChevronDown, Trash2, Building2, Clock3, Users, MapPin, History } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented, Button, IconButton } from '@/tileos/components/ui/core'
 import { Modal, Tip, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
@@ -9,7 +9,8 @@ import { Card, AvatarStack } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLabel, workDays } from '@/tileos/data/calendar'
-import { busyFor, removeEvent, moveEvent } from './calendar'
+import { busyFor, removeEvent, moveEvent, setEventPeople, renameEvent, noteEvent } from './calendar'
+import { WinHead, WinLine, WatchPop, WhenPop, CHIP } from './winhead'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { realOwner } from './steps'
@@ -129,93 +130,73 @@ export function Agenda({ who }: { who: 'me' | 'all' | PersonKey }) {
   )
 }
 
-/* ================= one meeting or walkthrough: move it, cancel it, who's in it ================= */
+/* ================= one meeting or walkthrough: the same window as every to-do =================
+ * On top: Meeting (or Walkthrough) and its project, its name (tap to change it) and what it's about. One box: who's in it
+ * (tap: tick people on or off), when (tap the day, tap the time), where. The bin cancels it — after a "sure?" at the
+ * bottom. Nothing else to go into: everything is changed right where it's shown. */
 const EV_TIMES = Array.from({ length: 25 }, (_, i) => 7 * 60 + i * 30)
 export function EventModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const e = s.events.find((x) => x.id === id)
-  const [moving, setMoving] = React.useState(false)
   const [canceling, setCanceling] = React.useState(false)
-  const [day, setDay] = React.useState(e ? labelFromIso(e.date) : 'Tomorrow')
-  const [time, setTime] = React.useState(e?.start ?? 10 * 60)
-  const [who, setWho] = React.useState<PersonKey[]>(e?.people || [])
   if (!e) return null
   const job = e.jobId ? s.jobs[e.jobId] : undefined
   const ours = insidePeople(s)
-  const what = e.kind === 'walkthrough' ? 'walkthrough' : 'meeting'
+  const what = e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'
   const me = meOf(s.role)
   /* who's in it, by their whole name — the site manager's untaken place is the company's own site manager */
   const people = Array.from(new Set(e.people.map((p) => realOwner(s, p))))
-  /* moved: that's what it was opened for — the window closes, the pop-up says where it went */
-  const save = () => { moveEvent(e.id, { date: isoFromLabel(day) || e.date, start: time, people: who }); setMoving(false); s.close() }
+  const where = e.where || job?.address
+  const toggle = (p: PersonKey) => setEventPeople(e.id, e.people.includes(p) ? e.people.filter((x) => x !== p) : [...e.people, p])
+  const lines = (
+    <>
+      <WinLine k="people" label="Who’s in it" top={people.length > 1}>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2" data-event-people={e.people.join(',')}>
+          <WatchPop title="Who’s in it" sub="From us — it’s on each one’s Today and calendar." pick={{ people: ours, me, current: e.people, onToggle: toggle, anyone: true }} trigger={
+            <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s in it — add or take off" data-event-who>
+              {people.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink"><Avatar who={p} size={24} />{p === me ? 'You' : PEOPLE[p]?.short || p}</span>)}
+              <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
+            </button>
+          } />
+          {e.with && <span className="text-[0.9375rem] text-muted" data-event-with>with {e.with}</span>}
+        </span>
+      </WinLine>
+      <WinLine k="when" label="When">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1">
+          <WhenPop pick={{ title: 'Move it to', value: labelFromIso(e.date), presets: ['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => moveEvent(e.id, { date: isoFromLabel(d) || e.date, start: e.start }) }} trigger={
+            <button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The day — move it" data-event-day><span>{dayLabel(e.date)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>
+          } />
+          <span className="text-faint" aria-hidden>·</span>
+          <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The time — change it" data-event-time><span className="tnum">{rangeLabel(e.start, e.dur)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+            {EV_TIMES.map((m) => <MenuItem key={m} checked={m === e.start} onSelect={() => moveEvent(e.id, { date: e.date, start: m })}>{timeLabel(m)}</MenuItem>)}
+          </Menu>
+        </span>
+      </WinLine>
+      {where && <WinLine k="where" label="Where"><span className="min-w-0 text-[0.9375rem] leading-snug text-ink">{where}</span></WinLine>}
+    </>
+  )
   return (
     <Modal
       level={level}
-      size="sm"
+      /* the same size as every window that opens from a list */
+      size="md"
       onClose={s.close}
       title={e.title}
-      sub={`${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${dayLong(e.date)}${job ? ` · ${job.name}` : ''}`}
-      footer={
-        canceling ? (
-          <>
-            <span className="text-[0.84375rem] font-medium text-bad-700">Cancel it? It comes off everyone’s calendar.</span>
-            <Button className="ml-auto" variant="ghost" onClick={() => setCanceling(false)}>Keep it</Button>
-            <Button variant="danger" onClick={() => { removeEvent(e.id); s.close() }}>Yes, cancel it</Button>
-          </>
-        ) : moving ? (
-          <>
-            <Button variant="ghost" onClick={() => setMoving(false)}>Cancel</Button>
-            <Button className="ml-auto" variant="primary" disabled={!who.length} onClick={save}>Save</Button>
-          </>
-        ) : (
-          <>
-            <Button variant="ghost" icon={<Trash2 />} onClick={() => setCanceling(true)}>Cancel the {what}</Button>
-            <Button className="ml-auto" onClick={() => setMoving(true)}>Move it</Button>
-          </>
-        )
-      }
+      header={<WinHead kind={{ icon: <CalendarDays />, label: what }} place={job ? job.name : 'Company'} onPlace={job ? () => s.swap({ t: 'job', id: job.id }) : undefined} title={e.title}
+        edit={{ title: e.title, sub: e.note, onTitle: (v) => renameEvent(e.id, v), onSub: (v) => noteEvent(e.id, v) }}
+        remove={() => setCanceling(true)} lines={lines} attrs={{ 'data-event-win': e.id }} />}
+      footer={canceling ? (
+        <>
+          <span className="text-[0.875rem] font-medium text-bad-700">Cancel it? It comes off everyone’s calendar.</span>
+          <div className="ml-auto" aria-hidden />
+          <Button onClick={() => setCanceling(false)}>Keep it</Button>
+          <Button variant="danger" icon={<Trash2 />} onClick={() => { removeEvent(e.id); s.close() }} data-event-cancel>Yes, cancel it</Button>
+        </>
+      ) : undefined}
+      bodyClass="px-6 pb-5 pt-1 max-sm:px-4"
     >
-      {moving ? (
-        <div className="flex flex-col gap-4">
-          <div>
-            <div className="mb-2 text-[0.8125rem] font-semibold text-ink-2">What day</div>
-            <DatePresets value={day} onPick={setDay} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} />
-          </div>
-          <div>
-            <div className="mb-2 text-[0.8125rem] font-semibold text-ink-2">What time</div>
-            <Menu align="start" width={180} trigger={<button className="inline-flex h-10 w-[11rem] items-center justify-between gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] font-medium text-ink hover:border-[#cdc7bc]"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4 text-faint" />{timeLabel(time)}</span></button>}>
-              {EV_TIMES.map((m) => <MenuItem key={m} checked={m === time} onSelect={() => setTime(m)}>{timeLabel(m)}</MenuItem>)}
-            </Menu>
-          </div>
-          <div>
-            <div className="mb-2 text-[0.8125rem] font-semibold text-ink-2">Who from us — they’re told</div>
-            <div className="flex flex-wrap gap-1.5">
-              {ours.map((p) => {
-                const on = who.includes(p)
-                return <button key={p} type="button" aria-pressed={on} onClick={() => setWho(on ? who.filter((x) => x !== p) : [...who, p])} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border pl-1 pr-3 text-[0.8125rem] font-medium transition', on ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><Avatar who={p} size={26} />{PEOPLE[p]?.short}</button>
-              })}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-        <dl className="flex flex-col gap-4 text-[0.875rem]">
-          <Row icon={<Clock3 />} label="When">{dayLabel(e.date)} · {rangeLabel(e.start, e.dur)}</Row>
-          {job && <Row icon={<Building2 />} label="Project">{job.name}{job.address && job.address.trim().toLowerCase() !== job.name.trim().toLowerCase() ? <span className="text-muted"> · {job.address}</span> : null}</Row>}
-          {e.where && e.where !== job?.address && <Row icon={<MapPin />} label="Where">{e.where}</Row>}
-          <Row icon={<Users />} label="Who">
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {people.map((p) => <span key={p} className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{p === me ? 'You' : PEOPLE[p]?.name}</span>)}
-              {e.with && <span className="text-muted">with {e.with}</span>}
-            </span>
-          </Row>
-          {e.by && <Row icon={<CalendarDays />} label="Set by">{PEOPLE[e.by]?.name || 'Someone'}</Row>}
-          {e.note && <Row icon={<Flag />} label="About">{e.note}</Row>}
-        </dl>
-        {/* the meeting, and nothing else — not the project's whole getting ready, nor a step of it */}
-        {job && <button onClick={() => s.swap({ t: 'job', id: job.id })} className="self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-open-project>See all of {job.name}</button>}
-        </div>
-      )}
+      {/* who set it, and when it was set — one quiet line, like every to-do's */}
+      {e.by && <div className="flex items-center gap-1.5 text-[0.8125rem] text-faint" data-event-by><History className="h-3.5 w-3.5" />Set by {e.by === me ? 'you' : PEOPLE[e.by]?.short || 'someone'}</div>}
     </Modal>
   )
 }

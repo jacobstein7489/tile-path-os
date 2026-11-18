@@ -67,3 +67,18 @@ export function removeTask(id: string) {
   if (!t) return
   S().commit((s) => { s.tasks = s.tasks.filter((x) => x.id !== id) }, 'Removed', { sub: t.title })
 }
+
+/** its words changed right in its window — what to do, and what it's about (empty: nothing under it) */
+export function editTask(id: string, patch: { title?: string; detail?: string }) {
+  S().commit((s) => {
+    const t = s.tasks.find((x) => x.id === id)
+    if (!t) return
+    if (patch.title != null && patch.title.trim()) t.title = patch.title.trim()
+    if (patch.detail != null) { const d = patch.detail.trim(); if (d) t.detail = d; else delete t.detail }
+  }, undefined, { undo: false })
+}
+/** who may take it off altogether: a task someone added by hand, or asked for (the app's own come and go by
+ *  themselves) — the admin, or whoever added it */
+export const canRemoveTask = (t: Task, me: PersonKey, admin: boolean) => !t.step && !t.action && (admin || t.by === me || (t.log || [])[0]?.who === me)
+/** who may change its words: the same — not something to bring (that's what was asked for, in their words) */
+export const canEditTask = (t: Task, me: PersonKey, admin: boolean) => canRemoveTask(t, me, admin) && !t.req && t.state !== 'done'

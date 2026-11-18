@@ -108,7 +108,9 @@ export function gcMessage(s: Pick<Store, 'jobs'>, t: Task): string {
   const ask = q && !again ? '' : n !== undefined && n <= 2 ? 'We need it now — please let us know today.' : n !== undefined && n <= 7 ? 'We need it before then. When will it be done?' : q ? 'Can you let us know?' : 'When will it be done?'
   const head = `Hi, it’s Cobblestone${again ? ' again' : ''}${j ? `, about ${j.name}` : ''}.`
   const end = /[.!?]$/.test(what) ? '' : '.'
-  const line = again ? `Still open: ${what.charAt(0).toLowerCase()}${what.slice(1)}${end}` : `${what}${end}`
+  /* lower-case only a word, never a name or a number: "the drain" — but "CO-004", "PO-2386" stay as they are */
+  const low = /^[A-Z][a-z]/.test(what) && !/^[A-Z][a-z]+\s+[A-Z]/.test(what) ? what.charAt(0).toLowerCase() + what.slice(1) : what
+  const line = again ? `Still open: ${low}${end}` : `${what}${end}`
   return [head, line, [when, ask].filter(Boolean).join(' ')].filter(Boolean).join('\n')
 }
 /** the answer, written for whoever was waiting for it */
@@ -199,11 +201,12 @@ export function GcMessageBox({ t }: { t: Task }) {
   const text = gcMessage(s, t)
   return (
     <div data-gc-message>
-      <div className="flex items-center gap-2">
-        <span className="text-[0.8125rem] font-medium text-muted">{toldGc(t) ? 'The reminder' : 'What goes to the GC'}</span>
-        <button type="button" onClick={() => void copyText(text)} className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] font-medium text-brand-700 hover:underline" data-gc-copy><Copy className="h-3.5 w-3.5" />Copy</button>
+      {/* its name like every part of a window (Notes) — and Copy on the right */}
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <span className="text-[0.9375rem] font-semibold text-ink">{toldGc(t) ? 'The reminder' : 'What goes to the GC'}</span>
+        <button type="button" onClick={() => void copyText(text)} className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-gc-copy><Copy className="h-3.5 w-3.5" />Copy</button>
       </div>
-      <p className="mt-1.5 whitespace-pre-line rounded-xl rounded-tl-sm bg-[#e8f7e4] px-3.5 py-2.5 text-[0.875rem] leading-relaxed text-ink" data-gc-text>{text}</p>
+      <p className="whitespace-pre-line rounded-xl rounded-tl-sm bg-[#e8f7e4] px-4 py-3 text-[0.9375rem] leading-relaxed text-ink" data-gc-text>{text}</p>
     </div>
   )
 }

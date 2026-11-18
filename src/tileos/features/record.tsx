@@ -10,7 +10,7 @@ import { toast } from '@/tileos/lib/pop'
 import { keepFiles } from '@/tileos/lib/files'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Modal, WAIT_WHO } from '@/tileos/components/ui/overlay'
-import { Button, TextArea, SearchField, TextInput, Avatar, Segmented } from '@/tileos/components/ui/core'
+import { Button, Chip, TextArea, SearchField, TextInput, Avatar, Segmented } from '@/tileos/components/ui/core'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { TODAY, addDays, dow, dayShort } from '@/tileos/lib/today'
 import { AvatarStack } from '@/tileos/components/ui/page'
@@ -230,22 +230,28 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                 </div>
               )}
             </FormRow>
+            {/* who from us — it's on each one's Today, and on the calendar */}
             <FormRow label="Who’s in it">
               <MultiSelect
                 label="Who’s in it"
-                values={[...people, ...others.map((o) => 'x:' + o)]}
-                onChange={(v) => { setPeople(v.filter((k) => !k.startsWith('x:')) as PersonKey[]); setOthers(v.filter((k) => k.startsWith('x:')).map((k) => k.slice(2))) }}
-                options={[
-                  ...insidePeople(s).filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> })),
-                  ...OTHERS.map((o) => ({ key: 'x:' + o, label: o, hint: 'Not from Cobblestone' })),
-                ]}
+                values={people}
+                onChange={(v) => setPeople(v as PersonKey[])}
+                options={insidePeople(s).filter((p) => PEOPLE[p]).map((p) => ({ key: p, label: p === me ? `${PEOPLE[p].name} (me)` : PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={24} /> }))}
                 placeholder="Who’s in it"
                 summary={(xs) => {
-                  const ours = xs.filter((x) => !x.key.startsWith('x:')).map((x) => x.key as PersonKey)
-                  const outside = xs.filter((x) => x.key.startsWith('x:')).map((x) => x.key.slice(2))
-                  return <span className="flex min-w-0 items-center gap-2">{ours.length > 0 && <AvatarStack who={ours} size={22} max={4} />}<span className="truncate">{[...ours.map((k) => (k === me ? 'You' : PEOPLE[k].short)), ...outside].join(', ')}</span></span>
+                  const ours = xs.map((x) => x.key as PersonKey)
+                  return <span className="flex min-w-0 items-center gap-2">{ours.length > 0 && <AvatarStack who={ours} size={22} max={4} />}<span className="truncate">{ours.map((k) => (k === me ? 'You' : PEOPLE[k].short)).join(', ')}</span></span>
                 }}
               />
+            </FormRow>
+            {/* who from outside — right there to tap, never hidden at the bottom of a list */}
+            <FormRow label="With" hint="From outside — if anyone">
+              <div className="flex flex-wrap gap-1.5" data-meet-with>
+                {OTHERS.map((o) => {
+                  const on = others.includes(o)
+                  return <Chip key={o} on={on} onClick={() => setOthers(on ? others.filter((x) => x !== o) : [...others, o])} className="h-9 px-3">{o}</Chip>
+                })}
+              </div>
               {others.includes('Installer') && (
                 <div className="mt-2">
                   <SearchSelect label="Which installer" value={installer} onChange={(k) => setInstaller(k as PersonKey)} options={CREWS.filter((c) => !(s.inactive || []).includes('crew:' + c)).map((c) => ({ key: c, label: PEOPLE[c].name }))} placeholder="Which installer?" width={280} search={false} icon={<HardHat />} />

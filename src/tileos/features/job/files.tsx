@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { refFor, refLabel } from '../activity'
-import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, Video, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Loader2, MoreHorizontal, ExternalLink, Trash2 } from 'lucide-react'
+import { FileText, Map, BookOpen, Palette, ScrollText, FileSignature, Package2, Upload, CheckCircle2, Camera, Video, HardHat, ArrowLeftRight, HelpCircle, Package, Wallet, CalendarDays, Gavel, LayoutGrid, Sparkles, Loader2, MoreHorizontal, ExternalLink, Trash2, PencilLine } from 'lucide-react'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, historyOf } from '@/tileos/store'
 import { Card, CardHeader, Button, Pill, Avatar, Chip, Empty } from '@/tileos/components/ui/core'
@@ -110,10 +110,12 @@ export function FilesTab({ job }: { job: Job }) {
 }
 
 function DocRow({ f }: { f: FileRec }) {
+  const s = useStore()
   const Ic = KIND_ICON[f.kind] || FileText
   return (
-    <div className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-wash">
-      <button onClick={() => openFile(f)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+    <div className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-wash" data-doc-row={f.id}>
+      {/* it opens right here, page by page — never a tab the preview or a phone may block */}
+      <button onClick={() => s.open({ t: 'file', id: f.id, back: 'Back to the files' })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Ic className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[0.90625rem] font-semibold text-ink">{f.name}</span>
@@ -127,7 +129,8 @@ function DocRow({ f }: { f: FileRec }) {
 function FileMenu({ f }: { f: FileRec }) {
   return (
     <Menu align="end" width={200} trigger={<button aria-label={`More · ${f.name}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
-      <MenuItem icon={<ExternalLink className="h-4 w-4" />} onSelect={() => openFile(f)}>Open</MenuItem>
+      <MenuItem icon={<ExternalLink className="h-4 w-4" />} onSelect={() => openFile(f)}>Open in its own tab</MenuItem>
+      <MenuItem icon={<PencilLine className="h-4 w-4" />} onSelect={() => useStore.getState().open({ t: 'file', id: f.id, back: 'Back to the files', rename: true })} data-file-rename-menu>Rename</MenuItem>
       <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeFile(f)}>Remove</MenuItem>
     </Menu>
   )

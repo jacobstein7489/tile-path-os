@@ -122,6 +122,8 @@ export function Modal({
             /* the pop-up in the middle (Done! · Undo · OK) isn't outside the window — tapping it keeps the window open */
             onPointerDownOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
             onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.('[data-center-pop]')) e.preventDefault() }}
+            /* Esc while changing words in place puts the words back — it doesn't close the window */
+            onEscapeKeyDown={(e) => { if ((document.activeElement as Element | null)?.closest?.('[data-editing]')) e.preventDefault() }}
             onOpenAutoFocus={(e) => {
               e.preventDefault()
               const el = (e.currentTarget as HTMLElement)?.querySelector?.('[data-autofocus]') as HTMLElement | null
@@ -174,7 +176,9 @@ export function Modal({
                 <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto', bodyClass ?? 'px-6 pb-5 pt-4 max-sm:px-4 max-sm:pb-5 max-sm:pt-4', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')} style={INSIDE}>{children}</div>
               </>
             )}
-            {footer && <div className={cn("flex shrink-0 items-center gap-2.5 bg-white px-6 pb-5 pt-2.5 max-sm:flex-wrap max-sm:items-stretch max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem] max-sm:[&>button]:ml-0 max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto", footerClass)} data-modal-footer>{footer}</div>}
+            {/* the bottom bar — the same on every window: a hairline over it, and every button a real button (the main
+                one blue, the others white with a thin edge — never gray words) */}
+            {footer && <div className={cn("flex shrink-0 items-center gap-2.5 border-t border-line-2 bg-white px-6 py-4 max-sm:flex-wrap [&_button[data-variant=ghost]]:border [&_button[data-variant=ghost]]:border-[#d9d3c9] [&_button[data-variant=ghost]]:bg-white [&_button[data-variant=ghost]]:shadow-xs [&_button[data-variant=ghost]:hover]:border-[#c9c2b7] [&_button[data-variant=ghost]:hover]:bg-wash max-sm:items-stretch max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem] max-sm:[&>button]:ml-0 max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:min-w-fit max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto", footerClass)} data-modal-footer>{footer}</div>}
           </Dialog.Content>
         </div>
       </Dialog.Portal>

@@ -139,3 +139,14 @@ export const isImage = (f: { name: string; type?: string }) => /^image\//i.test(
 
 export const sizeLabel = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 export const KIND_LABEL: Record<FileRec['kind'], string> = { paperwork: 'Tile paperwork', plans: 'Plans and specs', photo: 'Photos', other: 'Other files' }
+
+/** a kept file's name, changed — its kind of file stays (a PDF stays a PDF: the ".pdf" is kept if it's left off) */
+export function renameFile(id: string, name: string) {
+  const f0 = useStore.getState().files.find((x) => x.id === id)
+  let n = name.trim()
+  if (!f0 || !n || n === f0.name) return
+  const ext = (f0.name.match(/\.[a-z0-9]{2,5}$/i) || [''])[0]
+  if (ext && !/\.[a-z0-9]{2,5}$/i.test(n)) n += ext
+  /* its new name shows right there — no pop-up for it */
+  useStore.getState().commit((s) => { const f = s.files.find((x) => x.id === id); if (f) f.name = n }, undefined, { undo: false })
+}

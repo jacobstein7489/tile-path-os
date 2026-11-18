@@ -211,7 +211,7 @@ const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_mi
 function ScopeHead({ inField }: { inField: boolean }) {
   return (
     <div className={cn(HEAD_ROW, 'sticky top-0 z-[6] hidden px-5', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)} data-scope-cols>
-      <span>Area</span><span>Tile</span><span>Grout</span><span>Height · edge</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
+      <span>Area</span><span>Tile</span><span>Grout</span><span title="How high the tile goes · the metal trim at its edge">Height · trim</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
     </div>
   )
 }
@@ -250,7 +250,7 @@ function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: S
     <>
       <span className={cn(cell, 'text-[0.9375rem] text-ink')} data-cell="area">{x.name}{walls && <span className="text-muted"> · {walls}</span>}</span>
       <span className="flex min-w-0 items-center gap-2.5 max-lg:hidden" data-cell="tile">
-        {tiles.length ? <TileImg tile={tiles[0]} size={30} radius={5} /> : takes ? <span className="h-[1.875rem] w-[1.875rem] shrink-0 rounded-[5px] border border-dashed border-[#cfc8bc] bg-[#faf9f6]" /> : null}
+        {tiles.length ? <TileImg tile={tiles[0]} size={22} radius={4} /> : takes ? <span className="h-[1.375rem] w-[1.375rem] shrink-0 rounded-[4px] border border-dashed border-[#cfc8bc] bg-[#faf9f6]" /> : null}
         <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink">
           {tiles.length ? tiles.map((t, i) => <React.Fragment key={t.tag}>{i > 0 && ' + '}<b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="whitespace-nowrap text-muted"> {t.size}</span> : null}</React.Fragment>)
             : x.tile ? x.tile : takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>}
@@ -278,8 +278,8 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
   return (
     <div data-room={room.name} data-room-state={view.state} className={cn(!first && 'border-t border-line')}>
       {/* the band: its name in capitals and its short note — then where it stands and its square feet. Tap it for the room */}
-      <div className="sticky top-0 z-[5] flex min-h-10 min-w-0 items-center pr-2 max-sm:pr-1 lg:top-10" style={{ background: DOC_GRAY }} data-room-band>
-        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className="group flex min-h-10 min-w-0 flex-1 items-center gap-3 py-1.5 pl-5 pr-2 text-left max-sm:gap-2 max-sm:pl-3">
+      <div className="sticky top-0 z-[5] flex min-h-9 min-w-0 items-center pr-2 max-sm:pr-1 lg:top-10" style={{ background: DOC_GRAY }} data-room-band>
+        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className="group flex min-h-9 min-w-0 flex-1 items-center gap-3 py-1 pl-5 pr-2 text-left max-sm:gap-2 max-sm:pl-3">
           {/* a phone: the name and its note wrap rather than end in "…" */}
           <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222] max-sm:whitespace-normal max-sm:leading-snug"><b className="font-bold uppercase tracking-[0.02em] group-hover:text-brand-700">{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
@@ -301,7 +301,7 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
             ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted' }
             : { text: x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '', cls: 'text-muted' }
           return (
-            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className={cn('flex min-h-[3.5rem] w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3 lg:min-h-[3.25rem] lg:py-1.5', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)}>
+            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className={cn('flex min-h-[3.5rem] w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3 lg:min-h-[2.5rem] lg:py-1', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)}>
               {/* a phone (and a small screen): its picture, what it is, and under it the rest */}
               <span className="flex min-w-0 flex-1 items-start gap-3 lg:hidden">
                 {tile ? <TileImg tile={tile} size={44} radius={6} />

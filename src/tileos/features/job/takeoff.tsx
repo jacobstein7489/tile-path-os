@@ -37,7 +37,8 @@ const QFIRST = 'flex min-w-0 items-center gap-3'
 /** the tile: what · how much we need · where it's at (and its button) */
 /** Tile · Where it goes · We need · Where it's at (a smaller screen: where it goes under the tile's name) */
 const TGRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_17rem_1rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_1rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
-const ROWPAD = 'min-h-12 border-t border-line-2 px-5 py-2 max-sm:px-4'
+/* one slim line a material — more of the list on one screen */
+const ROWPAD = 'min-h-[2.625rem] border-t border-line-2 px-5 py-1 max-sm:min-h-12 max-sm:px-4 max-sm:py-2'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
@@ -284,7 +285,7 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
           width={360}
           trigger={
             <button className={cn(QFIRST, 'text-left')} aria-expanded={open} title="How it’s worked out">
-              <ItemThumb item={it} size={28} />
+              <ItemThumb item={it} size={24} />
               <span className="min-w-0 leading-tight">
                 <span className="block truncate text-[0.875rem] text-ink">{it?.name || l.itemId}</span>
                 {/* on a phone: how much and where, under the name */}

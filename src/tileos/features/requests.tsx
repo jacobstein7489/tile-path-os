@@ -146,11 +146,13 @@ export function TripButtons({ t, size = 'sm', onDone }: { t: Task; size?: 'sm' |
       ? <Button size="sm" className={ROW_BTN} icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }}>On my way</Button>
       : <Button size="sm" className={ROW_BTN} icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }}>Dropped off</Button>
   }
+  /* in a window's bottom bar: two real buttons, side by side (a phone: half each) */
+  const going = t.req?.trip === 'onway'
   return (
-    <span className="inline-flex items-center gap-1.5">
-      {t.req?.trip !== 'onway' && <Button variant="ghost" icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }}>On my way</Button>}
-      <Button variant="primary" icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }}>Dropped off</Button>
-    </span>
+    <>
+      {!going && <Button icon={<Truck />} onClick={(e) => { e.stopPropagation(); onTheWay(t.id) }} data-trip-onway>On my way</Button>}
+      <Button variant="primary" icon={<PackageCheck />} onClick={(e) => { e.stopPropagation(); s.completeTask(t.id); onDone?.() }} data-trip-dropped>Dropped off</Button>
+    </>
   )
 }
 /** every button at the end of a list row: one size and look — Done, Dropped off, Send update, Open it, all the same width

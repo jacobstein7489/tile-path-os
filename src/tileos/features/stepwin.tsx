@@ -603,6 +603,8 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
         state={whenWords} tone={isWhen ? h.tone : undefined} status={status} statusTone={h.tone} problem={h.problem}
         whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'}
         more={admin ? <StepMore job={job} v={v} /> : undefined}
+        /* one added just for this project: the bin takes it off */
+        remove={admin && v.only ? () => { removeJobStep(job.id, v.key); s.close() } : undefined}
         /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
         whoPick={admin && open ? { people: insidePeople(s), me, current: v.owner, onPick: (p) => setStepOwner(job.id, take, p) } : undefined}
         whenPick={(admin || mine) && open && isWhen && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
@@ -700,14 +702,11 @@ function StepMore({ job, v }: { job: Job; v: StepView }) {
           ...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []),
           { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true), attr: 'data-step-skip' },
         ]
-  /* one added just for this project can go altogether */
-  const removable = !!v.only
+  /* only the few rare ones — one added just for this project goes with the bin on top */
+  if (!items.length) return null
   return (
-    <Menu align="end" width={260} trigger={<button aria-label="More for this step" className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+    <Menu align="end" width={260} trigger={<button aria-label="More for this step" title="More" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
       {items.map((x) => <MenuItem key={x.label} onSelect={x.run} {...(x.attr ? { [x.attr]: '' } : {})}>{x.label}</MenuItem>)}
-      {removable && <MenuItem danger onSelect={() => { removeJobStep(job.id, v.key); s.close() }} data-step-remove>Remove it</MenuItem>}
-      {(items.length > 0 || removable) && <MenuSep />}
-      <MenuItem icon={<Users className="h-4 w-4" />} hint="Who has each step, on every project" onSelect={() => { s.closeAll(); s.go({ page: 'settings', tab: 'checklist' }) }}>Who does what</MenuItem>
     </Menu>
   )
 }
@@ -732,7 +731,7 @@ function Block({ title, right, children, className }: { title: React.ReactNode; 
 const Quiet = ({ children }: { children: React.ReactNode }) => <div className="px-4 py-3 text-[0.84375rem] text-muted">{children}</div>
 /* the work's buttons — on a phone the same size: two share the row, three or more one under the other. In a step's own
    window they sit in its bottom bar, the same place as every window's buttons */
-const ACTS = 'flex flex-wrap items-center justify-end gap-2 max-sm:items-stretch max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto'
+const ACTS = 'flex flex-wrap items-center justify-end gap-2 max-sm:items-stretch max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:min-w-fit max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto'
 /** the window's bottom bar, when the step is in its own window */
 const FootSlot = React.createContext<HTMLElement | null>(null)
 const Actions = ({ children }: { children: React.ReactNode }) => {

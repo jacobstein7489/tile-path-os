@@ -86,3 +86,24 @@ export function moveEvent(id: string, p: { date: string; start: number; people?:
     }
   }, `Moved to ${dayLabel(p.date)} ${timeLabel(p.start)}`, { sub: 'Everyone in it sees the new time.' })
 }
+
+/** who from us is in it — ticked on or off right in its window; the line says it (no pop-up for each one) */
+export function setEventPeople(id: string, people: PersonKey[]) {
+  if (!people.length) return
+  S().commit((s) => {
+    const e = s.events.find((x) => x.id === id)
+    if (!e) return
+    e.people = people
+    if (e.jobId) addHist(s, e.jobId, { who: meOf(s.role), kind: 'schedule', title: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · who’s in it`, detail: people.map((p) => PEOPLE[p]?.short || p).join(', ') })
+  }, undefined, { undo: false })
+}
+/** its name, changed right in its window */
+export function renameEvent(id: string, title: string) {
+  const t = title.trim()
+  if (!t) return
+  S().commit((s) => { const e = s.events.find((x) => x.id === id); if (e) e.title = t }, undefined, { undo: false })
+}
+/** what it's about — the note under its name (empty: none) */
+export function noteEvent(id: string, note: string) {
+  S().commit((s) => { const e = s.events.find((x) => x.id === id); if (!e) return; const n = note.trim(); if (n) e.note = n; else delete e.note }, undefined, { undo: false })
+}

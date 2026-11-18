@@ -10,9 +10,9 @@
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, Paperclip, UserRound } from 'lucide-react'
+import { Building2, CalendarCheck, Check, ChevronLeft, ChevronRight, CircleCheckBig, ClipboardList, ExternalLink, FileText, HardHat, Paperclip, Sparkles, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
-import { Button, TextInput } from '@/tileos/components/ui/core'
+import { Avatar, Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
@@ -63,6 +63,15 @@ const WHERE: { key: Where; label: string }[] = [
   { key: 'done', label: 'Finished' },
 ]
 const whereWord = (w: Where) => WHERE.find((x) => x.key === w)!.label
+/** where it stands, each with its own mark — the same marks and colors as the bubbles on Projects */
+const WHERE_MARK: Record<Where, { icon: React.ReactNode; tint: string; solid: string }> = {
+  new: { icon: <ClipboardList />, tint: '#f1eefb', solid: '#6b55c9' },
+  ready: { icon: <CalendarCheck />, tint: '#eaf0fc', solid: '#2650cf' },
+  installing: { icon: <HardHat />, tint: '#e9f5ee', solid: '#23854f' },
+  touchups: { icon: <Sparkles />, tint: '#fbf2e2', solid: '#b06a0c' },
+  done: { icon: <CircleCheckBig />, tint: '#f1efea', solid: '#646a74' },
+}
+const whereLead = (w: Where) => <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: WHERE_MARK[w].tint, color: WHERE_MARK[w].solid }}>{WHERE_MARK[w].icon}</span>
 /** what's done already, one tap each — the same things, in the same words, as on the project. The estimate isn't one:
  *  it's in once it's uploaded on the project, so the rooms are really there */
 const PARTS: { key: TrackKey; label: string }[] = TRACKS.filter((t) => t.key !== 'estimate').map((t) => ({ key: t.key, label: t.label }))
@@ -343,7 +352,7 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
       </Line>
       <Line label="Where it stands">
         <span data-catchup-where={d.where}>
-          <SearchSelect label="Where it stands" value={d.where} options={WHERE.map((w) => ({ key: w.key, label: w.label }))} onChange={(w) => set({ where: w as Where, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} search={false} width={300} className="w-full" />
+          <SearchSelect label="Where it stands" value={d.where} options={WHERE.map((w) => ({ key: w.key, label: w.label, lead: whereLead(w.key) }))} onChange={(w) => set({ where: w as Where, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} search={false} width={300} className="w-full" />
         </span>
       </Line>
       {getting && (
@@ -364,13 +373,13 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
       {d.where !== 'done' && (
         <Line label="Installer" warn={!d.crew && !getting}>
           <span data-catchup-crew={d.crew || 'none'}>
-            <SearchSelect label="Installer" value={d.crew} options={crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c }))} emptyLabel="Not picked yet" onChange={(c) => set({ crew: c })} placeholder="Type his name" icon={<HardHat />} search width={320} className="w-full" />
+            <SearchSelect label="Installer" value={d.crew} options={crews.map((c) => ({ key: c as string, label: PEOPLE[c]?.name || c, lead: <Avatar who={c as PersonKey} size={22} /> }))} emptyLabel="Not picked yet" onChange={(c) => set({ crew: c })} placeholder="Type his name" icon={d.crew ? undefined : <HardHat />} search width={320} className="w-full" />
           </span>
         </Line>
       )}
       <Line label="Site manager" warn={!d.site && d.where !== 'done'}>
         <span data-catchup-site={d.site || 'none'}>
-          <SearchSelect label="Site manager" value={d.site} options={siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p }))} emptyLabel="Not set" onChange={(p) => set({ site: p })} icon={<UserRound />} search={siteList.length > 8} width={300} className="w-full" />
+          <SearchSelect label="Site manager" value={d.site} options={siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p, lead: <Avatar who={p as PersonKey} size={22} /> }))} emptyLabel="Not set" onChange={(p) => set({ site: p })} icon={d.site ? undefined : <UserRound />} search={siteList.length > 8} width={300} className="w-full" />
         </span>
       </Line>
       {d.where === 'installing' && (
