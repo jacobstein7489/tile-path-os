@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
 import { DOC_GREEN, DOC_GRAY } from '../docpaper'
-import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -424,23 +424,30 @@ function ReachButtons({ r, who, onMessage }: { r: Reachable; who: string; onMess
     <span className="flex shrink-0 items-center gap-1.5">
       {onMessage && <button onClick={onMessage} aria-label={`Message ${who}`} title="Message on this project" className={btn}><MessageCircle /></button>}
       {phone && <a href={telHref(phone)} aria-label={`Call ${who}`} title={`Call ${phone}`} className={btn}><Phone /></a>}
-      {phone && <a href={smsHref(phone)} aria-label={`Text ${who}`} title={`Text ${phone}`} className={cn(btn, 'max-sm:hidden')}><MessageCircle /></a>}
+      {phone && <a href={smsHref(phone)} aria-label={`Text ${who}`} title={`Text ${phone}`} className={cn(btn, 'max-sm:hidden')}><MessageSquareText /></a>}
       {email && <a href={`mailto:${email}`} aria-label={`Email ${who}`} title={`Email ${email}`} className={btn}><Mail /></a>}
     </span>
   )
 }
-/** a person on the job, one line: who (initials in a circle) · what they are on this job · the buttons to reach them
- *  (call, text, email — the number and the address show when you point at them). On a phone what they are goes under
- *  the name. */
-function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string }) {
+/** a person on the job — the same kind of line as every list in the app: their circle and name · what they are · what
+ *  they have on this job · the buttons to reach them (call, text, email — the number and the address show when you
+ *  point at them), each in its own column, lined up top to bottom. On a phone what they are goes under the name. */
+const PEOPLE_COLS = { '--list': 'minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,1.5fr) 7rem' } as React.CSSProperties
+const PERSON_ROW = 'flex min-h-[3.25rem] min-w-0 items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:px-3 md:grid md:gap-x-6'
+function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, noReach }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string; /** you: nothing to reach yourself with */ noReach?: boolean }) {
   return (
-    <div data-person={role} className="flex min-h-[3.25rem] min-w-0 items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:px-3">
-      {who ? <Avatar who={who} size={28} /> : <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
-      <span className="flex min-w-0 flex-1 items-baseline gap-3 max-md:flex-col max-md:gap-0">
-        {onName ? <button onClick={onName} className="max-w-full shrink-0 truncate text-left text-[0.875rem] font-semibold text-ink hover:text-brand-700">{name}</button> : <span className="max-w-full shrink-0 truncate text-[0.875rem] font-semibold text-ink">{name}</span>}
-        <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] text-muted max-md:text-[0.75rem]"><span className="shrink-0">{role}</span>{sub && <><span className="shrink-0 text-faint">·</span><span className="min-w-0 truncate">{sub}</span></>}</span>
+    <div data-person={role} data-subrow className={PERSON_ROW}>
+      <span className="flex min-w-0 flex-1 items-center gap-3">
+        {who ? <Avatar who={who} size={30} /> : <span className={cn('inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
+        <span className="min-w-0 leading-snug">
+          {onName ? <button onClick={onName} className="block max-w-full truncate text-left text-[0.9375rem] text-ink hover:text-brand-700">{name}</button> : <span className="block max-w-full truncate text-[0.9375rem] text-ink">{name}</span>}
+          {/* a phone: what they are, and what they have on this job, under the name */}
+          <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] text-muted md:hidden"><span className="shrink-0">{role}</span>{sub && <><span className="shrink-0 text-faint">·</span><span className="min-w-0 truncate">{sub}</span></>}</span>
+        </span>
       </span>
-      <ReachButtons r={r} who={name} onMessage={onMessage} />
+      <span className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-person-role>{role}</span>
+      <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:truncate" data-person-on>{sub || <span className="text-faint">—</span>}</span>
+      <span className="flex shrink-0 justify-end">{!noReach && <ReachButtons r={r} who={name} onMessage={onMessage} />}</span>
     </div>
   )
 }
@@ -488,27 +495,32 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
   const canContacts = !['client', 'crew'].includes(s.role)
   return (
     <section data-detail="people" className="px-5 pb-8 pt-4 max-sm:px-3">
-      <header className="mb-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+      <header className="mb-3 flex min-h-9 min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
         <h3 className="text-[1rem] font-semibold text-ink">People</h3>
+        {/* someone to call on this job — the homeowner, the designer, the super */}
+        {canContacts && <span className="ml-auto"><Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'jobcontact', jobId: job.id })} data-person="add" data-add-job-contact>Add a person</Button></span>}
       </header>
       {/* one list: the client and their people, the designer, the installer, the stores, then ours — what each one is
-          says it, no headings between them */}
-      <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white [&>[data-person]:first-child]:border-t-0" data-contacts>
+          says it, no headings between them. Its columns lined up, the way every list is */}
+      <div className="overflow-clip rounded-[0.875rem] border border-line bg-white" data-contacts>
+        <div data-even-list style={PEOPLE_COLS}>
+        <div className={cn(HEAD_ROW, 'sticky top-0 z-[5] px-5 md:grid md:gap-x-6 max-md:hidden')} data-list-head data-subrow><span>Name</span><span>Role</span><span>On this job</span><span /></div>
         <Contact initials={initialsOf(job.client)} tone="bg-[#e3ece6] text-[#2c4a3e]" name={job.client} role="Client" r={{ phone: client?.phone, email: client?.email, more: client?.more }} onName={() => s.open({ t: 'customer', id: job.clientId })} />
         {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
         {/* this job's own people — the homeowner, the designer, the super (a client like NJ Private Customer is many
             homeowners) — tap a name to change it */}
         {(job.contacts || []).map((c, i) => <Contact key={'jc' + i} initials={initialsOf(c.name)} tone="bg-[#e6eef8] text-[#1f4f8f]" name={c.name} role={c.role || 'On this job'} r={{ phone: c.phone, email: c.email }} onName={canContacts ? () => s.open({ t: 'jobcontact', jobId: job.id, index: i }) : undefined} />)}
-        {canContacts && (
-          <button type="button" onClick={() => s.open({ t: 'jobcontact', jobId: job.id })} className="flex min-h-11 w-full items-center gap-3 border-t border-line-2 px-5 text-left text-[0.8125rem] font-semibold text-brand-700 hover:bg-wash/60 max-sm:px-3" data-person="add" data-add-job-contact>
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[#c9c2b6] text-[1rem] font-normal">+</span>
-            Someone to call on this job<span className="font-normal text-muted">— the homeowner, the designer, the super</span>
-          </button>
-        )}
         {designer && <Contact initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? designer.contact : undefined} onName={() => s.open({ t: 'designer', id: designer.id })} />}
         {crew
           ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<InstallerPO job={job} />} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />
-          : <div data-person="Installer" className="flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-[0.8125rem] max-sm:px-3"><span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[#d1cbc0] text-faint"><HardHat className="h-3.5 w-3.5" /></span><span className="text-muted">Installer — not picked yet</span><button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(LINK, 'ml-auto')}>Pick</button></div>}
+          : (
+            <div data-person="Installer" data-subrow className={PERSON_ROW}>
+              <span className="flex min-w-0 flex-1 items-center gap-3"><span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#d1cbc0] text-faint"><HardHat className="h-3.5 w-3.5" /></span><span className="truncate text-[0.9375rem] text-muted">Not picked yet<span className="md:hidden"> · installer</span></span></span>
+              <span className="text-[0.875rem] text-muted max-md:hidden">Installer</span>
+              <span className="max-md:hidden"><button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(LINK, '-ml-1.5 text-[0.875rem]')}>Pick the installer</button></span>
+              <span className="flex justify-end md:hidden"><button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={LINK}>Pick</button></span>
+            </div>
+          )}
         {stores.map((x) => <Contact key={x.name} initials={initialsOf(x.name)} tone="bg-[#f6ecdc] text-[#7a4a0c]" name={x.name} role="Supplier" r={x.info || {}} sub={x.info?.supplies} />)}
         {ours.map((p) => {
           const mine = steps.filter((v) => v.owner === p)
@@ -524,9 +536,11 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
               r={{ phone: m?.phone, email: m?.email, more: m?.more }}
               sub={what.length ? <button onClick={() => (mine[0] ? onStep?.(mine[0].key) : theirs[0] && s.open({ t: 'task', id: theirs[0].id }))} title={what.join(' · ')} className="max-w-full truncate text-left hover:text-brand-700">{what.length} open</button> : undefined}
               onMessage={p !== me ? chat : undefined}
+              noReach={p === me}
             />
           )
         })}
+        </div>
       </div>
     </section>
   )

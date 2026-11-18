@@ -156,7 +156,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newrepair': return <NewRepairModal level={level} />
     case 'newproject': return <NewProjectModal level={level} name={m.name} address={m.address} />
     case 'bringin': return <BringInModal level={level} />
-    case 'catchup': return <CatchUpModal level={level} id={m.id} all={m.all} papers={m.papers} />
+    case 'catchup': return <CatchUpModal level={level} id={m.id} all={m.all} />
     case 'punchnew': return <PunchNewModal jobId={m.jobId} level={level} />
     case 'designer': return <DesignerProfile id={m.id} level={level} />
     case 'sub': return <InstallerProfile id={m.id} level={level} />

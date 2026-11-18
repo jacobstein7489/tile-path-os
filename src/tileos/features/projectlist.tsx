@@ -24,6 +24,7 @@ import { TODO } from './stepwin'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
 import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
+import { StarButton, isStarred } from './star'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 export type ProjType = 'hold' | 'coming' | 'progress' | 'touchups' | 'repairs' | 'done'
@@ -84,6 +85,9 @@ export function ProjectsPage() {
   const rank = (j: Job) => (problemsOf(s, j).length ? 0 : 1)
   const startOf = (j: Job) => bookingOf(s, j)?.start || s.prep[j.id]?.targetISO || '9999'
   list.sort((a, b) => PROJ_TYPES.findIndex((t) => t.key === typeOf(a)) - PROJ_TYPES.findIndex((t) => t.key === typeOf(b)) || rank(a) - rank(b) || (typeOf(a) === 'coming' ? startOf(a).localeCompare(startOf(b)) : 0) || TONE_ORDER[a.status] - TONE_ORDER[b.status])
+  /* the ones you starred: on top, in Starred — out of their usual group */
+  const starred = list.filter((j) => isStarred(j, me))
+  const rest = list.filter((j) => !isStarred(j, me))
   const n = (k: ProjType) => won.filter((j) => typeOf(j) === k).length
   const pick = (k: View) => () => setView(view === k ? 'active' : k)
   const clients = Array.from(new Set(won.map((j) => j.clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || won.find((j) => j.clientId === id)!.client }))
@@ -121,9 +125,15 @@ export function ProjectsPage() {
     >
       <div style={{ '--list': listCols(when, false), '--list-xl': listCols(when, true) } as React.CSSProperties} data-even-list>
         {!!list.length && <ListHead when={when} />}
+        {starred.length > 0 && (
+          <section data-starred>
+            <Group label="Starred" count={starred.length} />
+            {starred.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
+          </section>
+        )}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
-              const rows = list.filter((j) => typeOf(j) === t.key)
+              const rows = rest.filter((j) => typeOf(j) === t.key)
               if (!rows.length) return null
               return (
                 <section key={t.key}>
@@ -132,7 +142,9 @@ export function ProjectsPage() {
                 </section>
               )
             })
-          : list.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
+          : starred.length > 0 && rest.length > 0
+            ? <section><Group label={VIEW_LABEL[view]} count={rest.length} />{rest.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}</section>
+            : rest.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
         {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
@@ -154,7 +166,8 @@ const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,0.9fr) minmax(0
 function ListHead({ when }: { when: boolean }) {
   return (
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
-      <span>Project</span>
+      {/* over the names — past each line's star */}
+      <span className="pl-7">Project</span>
       <span className="max-xl:hidden">Client</span>
       <span>Where it stands</span>
       {when && <span className="text-right" data-when-head>Date</span>}
@@ -283,23 +296,27 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
       className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover max-md:px-4 max-md:py-2.5', COLS)}
     >
-      {/* a computer: one line, each thing in its column */}
-      <div className="flex min-w-0 items-center gap-2 max-md:hidden">
+      {/* a computer: one line, each thing in its column — its star, then the name */}
+      <div className="flex min-w-0 items-center gap-1 max-md:hidden">
+        <StarButton j={j} className="-ml-2" />
         {/* the name the same as every list's — Today's size and weight; the client next to it gray */}
         <span className="truncate text-[0.9375rem] text-ink" data-project-name>{j.name}</span>
-        {j.kind === 'repair' && <span className="shrink-0 text-[0.8125rem] text-muted">Repair</span>}
+        {j.kind === 'repair' && <span className="ml-1 shrink-0 text-[0.8125rem] text-muted">Repair</span>}
       </div>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="flex min-w-0 items-center text-[0.875rem] max-md:hidden" data-now>{stand('')}</div>
       {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when>—</span>)}
       {/* a phone: like Today — every row the same two lines: the name (and its date on the right), and under it where it
           stands (its problems in red); the same weight, nothing wrapping */}
-      <div className="hidden min-w-0 max-md:block">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
-          {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
+      <div className="hidden min-w-0 items-center gap-1.5 max-md:flex">
+        <StarButton j={j} className="-ml-2" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
+            {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
+          </div>
+          <div className="truncate text-[0.875rem] leading-5" data-now>{stand('block')}</div>
         </div>
-        <div className="truncate text-[0.875rem] leading-5" data-now>{stand('block')}</div>
       </div>
     </div>
   )

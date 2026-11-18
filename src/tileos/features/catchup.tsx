@@ -1,15 +1,15 @@
 /* Bring projects up to date. The ones brought in (from Asana, or from their estimates) come in with only what Asana
  * knew — not who the site manager is, how far the crew got, which parts of getting ready are done. One project at a
- * time, a few taps each: the client, where it stands, what's done already, the installer, the site manager, how far,
- * the start and the finish — and its estimate and tile paperwork if they're handy (the rooms and the tiles fill in by
- * themselves).
+ * time, a few taps each — just the basics: the client, where it stands, what's done already, the installer, the site
+ * manager, how far, the start and the finish. Its papers (the estimate, the tile paperwork) aren't asked for here: they go
+ * on the project itself, later, for the projects picked for it.
  * It opens on the list: every one of them, what's set up (✓) and what isn't yet — and what's still missing on it (the
  * client, the installer, the site manager, the start). Tap any one; Save & close saves it and goes back to the list,
  * where it's ticked — you pick the next one yourself. Nothing's laid out as a wall of choices: each answer is one box you tap (the installer is typed to
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, FileText, HardHat, Sparkles, Upload, UserRound } from 'lucide-react'
+import { Building2, Check, ChevronLeft, ChevronRight, ExternalLink, HardHat, UserRound } from 'lucide-react'
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
@@ -22,8 +22,6 @@ import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { companySteps, FOLLOW_UPS, BEFORE_TILE_OS } from './steps'
 import { tracksFor, TRACKS, type TrackKey } from './tracks'
 import { isOff } from './active'
-import { estimateInto } from './bringin'
-import { readPaperworkFor, useReadWords } from './paperread'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
 const BEFORE_START: Stage[] = ['awarded', 'setup', 'verification', 'ready', 'scheduled']
@@ -64,7 +62,7 @@ const WHERE: { key: Where; label: string }[] = [
 ]
 const whereWord = (w: Where) => WHERE.find((x) => x.key === w)!.label
 /** what's done already, one tap each — the same things, in the same words, as on the project. The estimate isn't one:
- *  it's in once it's uploaded (Papers, below — or on the project), so the rooms are really there */
+ *  it's in once it's uploaded on the project, so the rooms are really there */
 const PARTS: { key: TrackKey; label: string }[] = TRACKS.filter((t) => t.key !== 'estimate').map((t) => ({ key: t.key, label: t.label }))
 /** ready for the crew = every one of them is done */
 const READY_PARTS: TrackKey[] = PARTS.map((p) => p.key)
@@ -185,7 +183,7 @@ export function missingOf(s: Store, j: Job): string[] {
 }
 
 /** one project (id) — from its ··· menu; every open project (all) — from Settings → Bring in projects; or else the brought-in ones */
-export function CatchUpModal({ level, id: one, all, papers }: { level: number; id?: string; all?: boolean; /** one project, from Set up projects: its papers too */ papers?: boolean }) {
+export function CatchUpModal({ level, id: one, all }: { level: number; id?: string; all?: boolean }) {
   const s = useStore()
   /* the list as it was when it opened — saving one doesn't shuffle the rest */
   const [ids] = React.useState(() => (one ? [one] : (all ? allOpenList : broughtOpenList)(useStore.getState()).map((j) => j.id)))
@@ -208,8 +206,7 @@ export function CatchUpModal({ level, id: one, all, papers }: { level: number; i
         footer={<><div className="ml-auto" aria-hidden /><Button className="max-sm:flex-1" variant="primary" icon={<Check />} onClick={() => save(job.id, d, 'Saved', { close: true })} data-catchup-save>Save</Button></>}
         bodyClass="px-6 py-5 max-sm:px-4"
       >
-        {/* from Set up projects: its papers too — the estimate and the tile paperwork, if they're handy */}
-        <CatchUpForm job={job} d={d} set={set} papers={papers} />
+        <CatchUpForm job={job} d={d} set={set} />
       </Modal>
     )
   }
@@ -311,14 +308,14 @@ export function CatchUpModal({ level, id: one, all, papers }: { level: number; i
       }
       bodyClass="px-6 py-5 max-sm:px-4"
     >
-      <CatchUpForm key={job.id} job={job} d={d} set={set} papers />
+      <CatchUpForm key={job.id} job={job} d={d} set={set} />
     </Modal>
   )
 }
 
 /** the answers for one project, one line each — the question on the left, one box to tap on the right: whose it is,
  *  where it stands, what's done, who's on it, how far, the dates, on hold */
-function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Partial<Draft>) => void; papers?: boolean }) {
+function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Draft>) => void }) {
   const s = useStore()
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c) || c === d.crew)
   const sites = s.team.filter((m) => m.role === 'site' && m.status !== 'off').map((m) => m.key as PersonKey)
@@ -399,7 +396,6 @@ function CatchUpForm({ job, d, set, papers }: { job: Job; d: Draft; set: (p: Par
           </div>
         </Line>
       )}
-      {papers && <Papers key={job.id} job={job} />}
     </div>
   )
 }
@@ -419,40 +415,3 @@ function Line({ label, hint, warn, children }: { label: string; hint?: string; w
 function DateBox({ value, min, onChange, label, data }: { value: string; min?: string; onChange: (v: string) => void; label: string; data: string }) {
   return <input type="date" value={value} min={min || undefined} onChange={(e) => onChange(e.target.value)} aria-label={label} data-catchup-date={data} className="h-10 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.9375rem] text-ink focus:border-brand-300 focus:outline-none" />
 }
-
-/** its estimate and tile paperwork, when they're handy — read in the background while you go on to the next one */
-function Papers({ job }: { job: Job }) {
-  const s = useStore()
-  const est = React.useRef<HTMLInputElement>(null)
-  const pap = React.useRef<HTMLInputElement>(null)
-  const [estNow, setEstNow] = React.useState<'' | 'reading' | 'bad'>('')
-  const paper = useReadWords(job.id)
-  const rooms = (s.rooms[job.id] || []).length
-  const tiles = Object.keys(s.tiles[job.id] || {}).length
-  const readEstimate = (files: File[]) => {
-    if (!files[0]) return
-    setEstNow('reading')
-    void estimateInto(job.id, files[0]).then(() => setEstNow(''), () => setEstNow('bad'))
-  }
-  const readPaper = (files: File[]) => {
-    const j = useStore.getState().jobs[job.id]
-    if (j && files.length) void readPaperworkFor(j, files)
-  }
-  return (
-    <div className="rounded-xl border border-line bg-[#fbfaf7] px-4 py-3" data-catchup-papers>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2"><span className="text-[0.875rem] font-semibold text-ink">Papers</span><span className="text-[0.8125rem] text-muted">If they’re handy. AI fills in the rooms and the tiles — you can go on to the next project while it reads.</span></div>
-      <input ref={est} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Its estimate" data-catchup-estimate onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; readEstimate(f) }} />
-      <input ref={pap} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Its tile paperwork" data-catchup-paperwork onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; readPaper(f) }} />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" icon={estNow === 'reading' ? <FileText /> : rooms ? <Check /> : <Upload />} disabled={estNow === 'reading'} onClick={() => est.current?.click()} data-catchup-est-btn>
-          {estNow === 'reading' ? 'Reading the estimate…' : rooms ? `Estimate · ${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : 'Add its estimate'}
-        </Button>
-        <Button size="sm" icon={paper === 'reading' ? <FileText /> : tiles ? <Check /> : <Sparkles />} disabled={paper === 'reading'} onClick={() => pap.current?.click()} data-catchup-paper-btn>
-          {paper === 'reading' ? 'Reading the paperwork…' : tiles ? `Tile paperwork · ${tiles} ${tiles === 1 ? 'tile' : 'tiles'}` : 'Add its tile paperwork'}
-        </Button>
-      </div>
-      {(estNow === 'bad' || (paper && paper !== 'reading')) && <div className="mt-2 text-[0.8125rem] text-bad-700">{estNow === 'bad' ? 'Couldn’t read the estimate just now — try again.' : paper}</div>}
-    </div>
-  )
-}
-
