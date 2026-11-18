@@ -140,6 +140,8 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     recordEvent({ jobId, type, label: tpl!.label, kind, where: type === 'delivery' ? dl?.title : where, from, to, waitingOn: needWait ? waitOn : '', back, note: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || undefined })
   }
   const withText = others.map((o) => (o === 'Installer' ? (installer ? `${PEOPLE[installer].name} (installer)` : 'the installer') : o === 'Designer' ? (designer ? `${designer} (designer)` : 'the designer') : o)).join(', ')
+  /* its name says who, short — "Meeting with Ivy Lane Interiors" (what they are is in the meeting itself) */
+  const withNames = others.map((o) => (o === 'Installer' ? (installer ? PEOPLE[installer].name : 'the installer') : o === 'Designer' ? designer || 'the designer' : o)).join(', ')
   /* the designers to pick from — this project's own on top, then the Designers list (the person, and their studio) */
   const designerOpts = (() => {
     const out: { key: string; label: string; hint?: string }[] = []
@@ -150,7 +152,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     return out
   })()
   const kindLabel = meetKind === 'walkthrough' ? 'Walkthrough' : 'Meeting'
-  const autoTitle = withText ? `${kindLabel} with ${withText}` : job ? `${kindLabel} · ${job.name}` : kindLabel
+  const autoTitle = withNames ? `${kindLabel} with ${withNames}` : job ? `${kindLabel} · ${job.name}` : kindLabel
   const clash = date ? clashesWith(s, { date, start, dur }, people) : []
   const free = date && clash.length ? nextFree(s, date, start, dur, people) : null
   const saveMeeting = () => {
