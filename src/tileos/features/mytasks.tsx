@@ -449,7 +449,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       star={!done ? taskStarPick(s, t, me0) : undefined}
       whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
-      whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
+      whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       project={job ? job.name : 'Company'}
       when={w.text}
       whenTone={w.tone}
@@ -719,7 +719,7 @@ const teamPlateNow = (() => {
 })()
 
 /** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
-const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following|is watching it( now)?|stopped watching)$/
+const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following|is watching it( now)?|stopped watching| can do it too| taken off it)$/
 export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** the billing person's week: last week's progress, ready to bill (it works like installer pay) */
@@ -1576,7 +1576,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
      delete it; the buttons at the bottom. ··· keeps only the two rare ones */
   const items: React.ReactNode[] = [
     /* two can have it — whoever gets to it first */
-    (admin || t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it — whoever gets to it first</MenuItem>,
+    /* the admin shares it right in Who ("More than one can do it"); whoever has it, here */
+    !admin && (t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it — whoever gets to it first</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
   ].filter(Boolean)
   const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
@@ -1629,7 +1630,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       star={t.state !== 'done' ? taskStarPick(s, t, me) : undefined}
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
-      whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
+      whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       whenPick={gcw && canMove ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) }
         : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) }
           : t.state === 'waiting' && canMove ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) }
@@ -1717,13 +1718,13 @@ function TaskRecord({ t, me }: { t: Task; me: PersonKey }) {
     <div className="mt-5 text-[0.8125rem] text-faint" data-task-record>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="-mx-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition hover:text-ink-2" data-record-toggle>
         <History className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 truncate" data-record-made>Created {first.date} by {who(by)}</span>
+        <span className="min-w-0 truncate" data-record-made>Created {first.date}{first.time ? `, ${first.time}` : ''} by {who(by)}</span>
         {log.length > 1 && <><span aria-hidden>·</span><span className="shrink-0 font-medium">{open ? 'Hide' : 'History'}</span></>}
       </button>
       {open && log.length > 1 && (
         <ol className="ml-[0.4375rem] mt-1.5 flex flex-col gap-1 border-l border-line-2 pl-3.5" data-record-list>
           {[...log].reverse().map((l, i) => (
-            <li key={i} className="text-muted"><span className="tnum text-faint">{l.date}</span> · <span className="font-medium text-ink-2">{who(l.who).replace(/^you$/, 'You')}</span> — {l.text}</li>
+            <li key={i} className="text-muted"><span className="tnum text-faint">{l.date}{l.time ? `, ${l.time}` : ''}</span> · <span className="font-medium text-ink-2">{who(l.who).replace(/^you$/, 'You')}</span> — {l.text}</li>
           ))}
         </ol>
       )}

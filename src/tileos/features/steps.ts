@@ -8,7 +8,7 @@
  * A step opens when the steps it waits for are done — and then it's on its owner's Today. That's the hand-off:
  * nobody has to tell the next person; the list moves by itself. Anything we're waiting on (the store, the installer,
  * a delivery) comes back on that person's Today on the day it's due: "did it come?" */
-import { useStore, meOf, newTask, NOW, type Store } from '@/tileos/store'
+import { useStore, meOf, newTask, NOW, clockNow, type Store } from '@/tileos/store'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Role } from '@/tileos/data/model'
 import { needWithWaste, type Task } from '@/tileos/data/work'
 import { hasTile, sfFor, type Room } from '@/tileos/data/jobs'
@@ -69,6 +69,8 @@ export interface StepDef { key: string; label: string; short: string; owner: Per
   named?: boolean }
 export interface StepRec {
   done?: string; by?: PersonKey; owner?: PersonKey; due?: string; na?: boolean; note?: string
+  /** the time of day it got done ("3:42 PM") */
+  doneTime?: string
   /** the site check, one answer per thing looked at: yes, no (with what's wrong) or not needed here */
   checks?: Record<string, SiteAnswer>
   /** answered "No" on the project's checklist — something's wrong, and what */
@@ -92,7 +94,7 @@ export interface StepRec {
   /** the admin checked in on it when it was late past the company's line */
   checkIn?: { by: PersonKey; day: string; note?: string }
   /** what people wrote on it — the same notes a task has */
-  notes?: { date: string; who: PersonKey; text: string }[]
+  notes?: { date: string; who: PersonKey; text: string; time?: string }[]
   /** who's watching it — they see it and hear when it moves; it waits under their Waiting on others until it's done */
   followers?: PersonKey[]
   /** who starred it — on top of their own list, in Starred */
@@ -160,6 +162,8 @@ export interface StepView {
   taskId?: string
   doneOn?: string
   doneBy?: PersonKey
+  /** the time of day it got done, when it's known ("3:42 PM") */
+  doneTime?: string
   /** shown as part of another step (Enter tile & grout is part of Enter paperwork) — open that one instead */
   into?: string
   phase: string
@@ -318,7 +322,7 @@ export function paperQty(s: Store, jobId: string, t: { tag: string; paper?: { qt
   return { tag: t.tag, on: on.length, need, have, unit, short: have != null && need != null ? Math.max(0, need - have) : 0 }
 }
 
-type Raw = { state: StepState; note?: string; due?: string; action?: StepAction; /** who has it now, when that isn't the step's own person */ owner?: PersonKey }
+type Raw = { state: StepState; note?: string; due?: string; action?: StepAction; /** who has it now, when that isn't the step's own person */ owner?: PersonKey; /** done: the day (and time, and who) it happened, when the thing itself says so — a PO sent, his yes */ on?: string; onTime?: string; by?: PersonKey }
 function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
   const rooms = s.rooms[j.id] || []
   const flat = rooms.flatMap((r) => r.surfaces)
@@ -488,7 +492,11 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'installer': {
       const crew = installerOf(s, j)
       const ipo = [...s.ipos].reverse().find((p) => p.jobId === j.id)
-      if (ipo?.status === 'Accepted' || ipo?.status === 'Sent') return { state: 'done', note: `${ipo.id} sent to ${PEOPLE[ipo.crew].name}` }
+      if (ipo?.status === 'Accepted' || ipo?.status === 'Sent') {
+        /* the day it went out — when the next step ("Did he say yes?") came on the list */
+        const sent = [...ipo.log].reverse().find((l) => /sent/i.test(l.text))
+        return { state: 'done', note: `${ipo.id} sent to ${PEOPLE[ipo.crew].name}`, on: sent?.date || (ipo.status === 'Sent' ? ipo.date : undefined), onTime: sent?.time, by: sent?.who as PersonKey | undefined }
+      }
       /* on the job without a PO — unless a PO with prices was drafted since */
       if (rec.done && crew && !(ipo?.status === 'Draft' && ipo.lines.some((l) => (l.amount || 0) > 0))) return { state: 'done', note: rec.note || `${PEOPLE[crew].name} — no PO` }
       if (ipo?.status === 'Draft') return { state: 'now', note: `${ipo.id} for ${PEOPLE[ipo.crew].short} — saved, not sent yet`, action: { label: 'Send his PO', run: () => s.open({ t: 'ipo', id: ipo.id }) } }
@@ -498,7 +506,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     }
     case 'confirmed': {
       const ipo = [...s.ipos].reverse().find((p) => p.jobId === j.id)
-      if (ipo?.status === 'Accepted') return { state: 'done', note: `${PEOPLE[ipo.crew].name} took ${ipo.id}${ipo.date ? ` · ${ipo.date}` : ''}` }
+      if (ipo?.status === 'Accepted') return { state: 'done', note: `${PEOPLE[ipo.crew].name} took ${ipo.id}${ipo.date ? ` · ${ipo.date}` : ''}`, on: ipo.date }
       if (rec.done) return { state: 'done', note: rec.note || 'Confirmed' }
       if (ipo?.status === 'Sent') {
         const sent = [...ipo.log].reverse().find((l) => /sent/i.test(l.text))?.date || ipo.date
@@ -620,7 +628,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     const owner = realOwner(s, asked)
     const view: StepView = {
       key: d.key, label: d.label, short: d.short, owner, state: raw.state, note: raw.note, due: raw.due || rec.due, custom: !BUILT_IN.has(d.key) || d.only, only: d.only,
-      after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done, doneBy: rec.by, phase: d.only ? 'own' : d.phase || 'own',
+      after: d.after || [], action: raw.action, taskId: task?.id, doneOn: rec.done || (raw.state === 'done' ? raw.on : undefined), doneBy: rec.by || (raw.state === 'done' ? raw.by : undefined), doneTime: rec.doneTime || (raw.state === 'done' ? raw.onTime : undefined), phase: d.only ? 'own' : d.phase || 'own',
       no: rec.no && !rec.na ? rec.no : undefined, group: d.group, named: d.named,
       cover: owner !== asked && emptySpot(s, asked) ? SPOT[asked] : undefined,
     }
@@ -719,6 +727,7 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
     r.done = NOW
+    r.doneTime = clockNow()
     r.by = me()
     if (dueWas) r.dueWas = dueWas
     if (note) r.note = note
@@ -793,6 +802,7 @@ export function materialsCame(jobId: string) {
     })
     const r = ((st.stepRecs[jobId] ||= {}).matin ||= {})
     r.done = NOW
+    r.doneTime = clockNow()
     r.by = me()
     r.note = open.length ? `${open.map((p) => p.id).join(', ')} on site · ${NOW}` : `On site · ${NOW}`
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Our materials delivered', detail: open.map((p) => `${p.id} · ${p.supplier}`).join(' · ') || undefined } as any)
@@ -832,6 +842,7 @@ export function logChanges(jobId: string, items: { what: string; where?: string;
     const r = ((st.stepRecs[jobId] ||= {}).change ||= {})
     r.changes = items
     r.done = NOW
+    r.doneTime = clockNow()
     r.by = me()
     r.note = `${n} change${n === 1 ? '' : 's'} — sent to ${PEOPLE[who]?.short} to update the estimate`
     newTask(st, { jobId, title: `Update the estimate · ${j.name}`, detail: lines.join('\n'), type: 'Pricing', owner: who, for: [role], state: 'now', due: 'Today', tone: 'warn', where: `From the meeting: ${lines.join(' · ').slice(0, 140)}`, action: est ? { label: 'Open the estimate', kind: 'estchange:' + est.id } : { label: 'Open', kind: 'open-job' }, log: [{ date: NOW, who: me(), text: `Changed from the estimate: ${lines.join(' · ')}` }] })
@@ -936,7 +947,7 @@ export function setStepOwner(jobId: string, key: string, owner: PersonKey) {
 }
 /** a note on a step — always the writer's own, like a task's */
 export function noteStep(jobId: string, key: string, text: string) {
-  S().commit((st) => { (((st.stepRecs[jobId] ||= {})[key] ||= {}).notes ||= []).push({ date: NOW, who: me(), text }) }, 'Note added', { undo: false })
+  S().commit((st) => { (((st.stepRecs[jobId] ||= {})[key] ||= {}).notes ||= []).push({ date: NOW, time: clockNow(), who: me(), text }) }, 'Note added', { undo: false })
 }
 /** who's watching a step — the same as on a task: ticked in its window's Watching line (the line says it — no pop-up) */
 export function toggleStepFollow(jobId: string, key: string, who: PersonKey) {
@@ -978,6 +989,7 @@ export function checkInTile(jobId: string) {
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {}).delivered ||= {})
     r.done = NOW
+    r.doneTime = clockNow()
     r.by = me()
     r.note = `All here · checked in ${NOW}`
     if (st.prep[jobId]) st.prep[jobId].tile = 'yes'

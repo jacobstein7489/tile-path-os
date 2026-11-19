@@ -21,7 +21,7 @@ import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 export type WinTone = 'late' | 'warn' | 'ok' | 'quiet'
 
 /** who it can be given to: you first ("Me"), then the rest */
-export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void }
+export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void; /** more than one can do it — whoever gets to it first (a task; a step has one) */ also?: PersonKey[]; onAlso?: (p: PersonKey) => void }
 /** the day it's on: tap it, pick another */
 export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string }
 /** who's watching it: their circles; + to add someone or take them off (you only yourself, unless it's yours to say) */
@@ -46,9 +46,9 @@ export function WinLine({ k, label, top, children }: { k: string; label: string;
 
 /** one person in a list of people — the same row in Who does it and in Who's watching: the mark (round: one; square:
  *  any), their circle, their name */
-function PersonOption({ p, me, on, round, onClick, attrs }: { p: PersonKey; me: PersonKey; on: boolean; round?: boolean; onClick: () => void; attrs: Record<string, string> }) {
+function PersonOption({ p, me, on, round, lock, onClick, attrs }: { p: PersonKey; me: PersonKey; on: boolean; round?: boolean; lock?: boolean; onClick: () => void; attrs: Record<string, string> }) {
   return (
-    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} onClick={onClick} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
+    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} aria-disabled={lock || undefined} title={lock ? 'It’s theirs — to give it to someone else, turn off “More than one”' : undefined} onClick={lock ? undefined : onClick} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition', lock ? 'cursor-default' : 'hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
       {round
         ? <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
         : <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>}
@@ -68,14 +68,33 @@ const PeopleHead = ({ title, sub }: { title: string; sub: string }) => (
  *  Who's watching */
 export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.ReactElement }) {
   const [open, setOpen] = React.useState(false)
+  const also = (pick.also || []).filter((p) => p !== pick.current)
+  /* one person (tap: they do it), or more than one — tick each: it's on each one's Today, whoever gets to it first */
+  const [many, setMany] = React.useState(also.length > 0)
+  React.useEffect(() => { if (open) setMany(also.length > 0) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tap = (p: PersonKey) => {
+    if (!many) { setOpen(false); if (p !== pick.current) pick.onPick(p); return }
+    if (p !== pick.current) pick.onAlso?.(p)
+  }
+  const flip = () => {
+    /* back to one: the others come off it */
+    if (many) also.forEach((p) => pick.onAlso?.(p))
+    setMany(!many)
+  }
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={trigger}>
-      <PeopleHead title="Who does it" sub="One person — it’s on their Today." />
-      <div className="-mx-1 flex flex-col" role="radiogroup" data-who-options>
+      <PeopleHead title="Who does it" sub={many ? 'Each one ticked has it — whoever gets to it first.' : 'One person — it’s on their Today.'} />
+      <div className="-mx-1 flex flex-col" role={many ? 'group' : 'radiogroup'} data-who-options>
         {[pick.me, ...pick.people.filter((p) => p !== pick.me)].map((p) => (
-          <PersonOption key={p} p={p} me={pick.me} on={p === pick.current} round onClick={() => { setOpen(false); if (p !== pick.current) pick.onPick(p) }} attrs={{ 'data-who-option': p }} />
+          <PersonOption key={p} p={p} me={pick.me} on={p === pick.current || (many && also.includes(p))} round={!many} lock={many && p === pick.current} onClick={() => tap(p)} attrs={{ 'data-who-option': p }} />
         ))}
       </div>
+      {pick.onAlso && (
+        <button type="button" role="switch" aria-checked={many} onClick={flip} className="-mx-1 mt-1.5 flex min-h-10 w-[calc(100%+0.5rem)] items-center gap-3 rounded-lg border-t border-line-2 px-2 pt-1.5 text-left text-[0.875rem] text-ink-2 transition hover:bg-wash" data-who-many>
+          <span className={cn('relative inline-flex h-[1.125rem] w-8 shrink-0 rounded-full transition-colors', many ? 'bg-brand-600' : 'bg-[#d5d0c7]')}><span className={cn('absolute top-0.5 h-[0.875rem] w-[0.875rem] rounded-full bg-white shadow-sm transition-all', many ? 'left-[0.9375rem]' : 'left-0.5')} /></span>
+          <span className="min-w-0 flex-1">More than one can do it</span>
+        </button>
+      )}
     </Pop>
   )
 }

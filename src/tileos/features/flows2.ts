@@ -1,7 +1,7 @@
 /* The v8 flows: estimates → projects, the installer PO loop, materials from the estimate,
  * tile selection, recurring tasks and the daily crew report. Every step logs itself with a link to its record. */
 import { SURFACES, SCOPE_NAME, floorName } from '@/tileos/data/areas'
-import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask } from '@/tileos/store'
+import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask, clockNow } from '@/tileos/store'
 import type { PersonKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE, PRICING_STAGES } from '@/tileos/data/model'
 import type { Room } from '@/tileos/data/jobs'
@@ -20,7 +20,7 @@ import { shiftText, labelFromIso, workday, addDays, dayShort, TODAY } from '@/ti
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
-const L = (who: PersonKey, text: string) => ({ date: NOW, who, text })
+const L = (who: PersonKey, text: string) => ({ date: NOW, time: clockNow(), who, text })
 let lid = 900
 /** new estimate line numbers carry on after the saved ones */
 export const seedLines = (n: number) => { if (n > lid) lid = n }

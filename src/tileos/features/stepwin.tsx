@@ -6,7 +6,8 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import type { Task } from '@/tileos/data/work'
-import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2, BellRing, UserRound, ListChecks } from 'lucide-react'
+import type { IPO } from '@/tileos/data/field'
+import { Check, ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Plus, Camera, Mail, Copy, Send, Truck, PackageCheck, PackageX, Ruler, Zap, Droplets, Wrench, HardHat, Plug, X, Sparkles, Clock3, Upload, FileText, Hourglass, Users, Lock, MoreHorizontal, Grid2x2, BellRing, UserRound, ListChecks, History } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, Tip } from '@/tileos/components/ui/overlay'
@@ -30,7 +31,7 @@ import { methodOf, suggestMethod, methodsFor, takeoff, materialStatus, qtyLabel,
 import { confirmSetting } from './setting'
 import { isWall } from './heights'
 import { installerOf, crewFree } from './upcoming'
-import { pickInstaller, pencilInstaller, putOnNoPO, sendDraftIPO, setSurfaceTile } from './flows2'
+import { pickInstaller, pencilInstaller, putOnNoPO, sendDraftIPO, setSurfaceTile, answerIPO } from './flows2'
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
 import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
@@ -183,6 +184,23 @@ const HIST_OF: Record<string, RegExp> = {
 function stepHistory(s: Store, job: Job, v: StepView) {
   const own = (t: string) => t.toLowerCase().startsWith(`${v.short.toLowerCase()}:`) || !!HIST_OF[v.key]?.test(t)
   return (s.hist[job.id] || []).filter((e: any) => typeof e.title === 'string' && own(e.title)).slice(0, 5) as { date: string; who: PersonKey | string; title: string; detail?: string }[]
+}
+
+/** a step's record: when it came on the list — the step before it got done — or when it got done, and by whom */
+function StepRecord({ job, v, me }: { job: Job; v: StepView; me: PersonKey }) {
+  const s = useStore()
+  const recs = s.stepRecs[job.id] || {}
+  const who = (p?: PersonKey) => (!p ? '' : p === me ? 'you' : PEOPLE[p]?.short || p)
+  const at = (k: string) => { const t = recs[k]?.doneTime || stepsFor(s, job).find((x) => x.key === k)?.doneTime; return t ? `, ${t}` : '' }
+  let text = ''
+  if (v.state === 'done' && v.doneOn && v.note !== BEFORE_TILE_OS) text = `Done ${v.doneOn}${at(v.key)}${v.doneBy ? ` by ${who(v.doneBy)}` : ''}`
+  else if (v.state !== 'done' && v.state !== 'na') {
+    const prev = stepsFor(s, job).filter((x) => v.after.includes(x.key) && x.state === 'done' && x.doneOn && x.note !== BEFORE_TILE_OS)
+      .sort((a, b) => (isoFromLabel(b.doneOn!) || '').localeCompare(isoFromLabel(a.doneOn!) || ''))[0]
+    if (prev) text = `On the list since ${prev.doneOn}${at(prev.key)}`
+  }
+  if (!text) return null
+  return <div className="mt-5 flex items-center gap-1.5 text-[0.8125rem] text-faint" data-step-record><History className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0">{text}</span></div>
 }
 
 /** what's happening with a step — the same block on top of every step: done (when, who), your turn, someone else's
@@ -628,6 +646,8 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
           </FootSlot.Provider>
           {/* what people wrote on it, and a box to add one — the same as on a task */}
           <Notes kind="step" me={me} notes={notes} onAdd={open ? (x) => noteStep(job.id, v.key, x) : undefined} className="mt-5" />
+          {/* when it came on the list (or got done), and by whom — the same quiet line as a task's */}
+          <StepRecord job={job} v={v} me={me} />
         </div>
       </div>
     </Modal>
@@ -1323,6 +1343,25 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
   )
 }
 
+/** his answer to his PO — the same three buttons wherever it's asked (this step, and his PO itself): Called him —
+ *  waiting · He said no (and why) · He said yes */
+export function InstallerAnswer({ ipo, job }: { ipo: IPO; job: Job }) {
+  const [noOpen, setNoOpen] = React.useState(false)
+  const name = PEOPLE[ipo.crew]?.short || 'him'
+  return (
+    <>
+      <WaitFor job={job} k="confirmed" who={name} label="Called him — waiting" />
+      <Pop open={noOpen} onOpenChange={setNoOpen} side="top" align="end" width={300} trigger={<Button icon={<X />} data-ipo-no>He said no</Button>}>
+        <div className="text-[0.875rem] font-semibold text-ink">Why did {name} say no?</div>
+        <div className="-mx-1 mt-2 flex flex-col">
+          {['Booked on another job', 'Price too low', 'Too far', 'Something else'].map((r) => <button key={r} type="button" onClick={() => { setNoOpen(false); answerIPO(ipo.id, false, r === 'Something else' ? undefined : r) }} className="rounded-lg px-2.5 py-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash" data-ipo-no-why={r}>{r}</button>)}
+        </div>
+      </Pop>
+      <Button variant="primary" icon={<Check />} onClick={() => answerIPO(ipo.id, true)} data-ipo-yes>He said yes</Button>
+    </>
+  )
+}
+
 /* ================= his yes ================= */
 function Confirmed({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
@@ -1342,8 +1381,7 @@ function Confirmed({ job, v }: { job: Job; v: StepView }) {
       </OpenRow>
       {ipo.status === 'Sent' && v.state !== 'done' && (
         <Actions>
-          <WaitFor job={job} k="confirmed" who={PEOPLE[ipo.crew].short} label="Called him — waiting" />
-          <Button variant="primary" icon={<Check />} onClick={() => acceptIPO(ipo.id)}>He said yes</Button>
+          <InstallerAnswer ipo={ipo} job={job} />
         </Actions>
       )}
     </div>

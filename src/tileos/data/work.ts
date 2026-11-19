@@ -4,7 +4,7 @@ import type { PersonKey, Role, Tone } from './model'
 export type TaskType = 'Pricing' | 'Setup' | 'Materials' | 'Field' | 'Changes' | 'Schedule' | 'Money'
 export type TaskState = 'now' | 'waiting' | 'later' | 'done'
 /** note: written by a person on purpose (not something the app did — Created, Reminded, Moved…) */
-export interface LogLine { date: string; who: PersonKey; text: string; note?: boolean }
+export interface LogLine { date: string; who: PersonKey; text: string; note?: boolean; /** the time of day it happened ("3:42 PM") — kept from now on */ time?: string }
 export interface Task {
   id: string
   jobId: string

@@ -10,7 +10,7 @@ import type { Task } from '@/tileos/data/work'
 
 const S = () => useStore.getState()
 const ROLE_PERSON: Partial<Record<Role, PersonKey>> = { owner: 'ys', pm: 'ys', site: 'yakov', office: 'office', estimator: 'estimator', takeoff: 'takeoff', materials: 'materials', accounting: 'accounting' }
-export const followersOf = (t: Task): PersonKey[] => Array.from(new Set(t.followers || [])).filter((p) => p !== t.owner)
+export const followersOf = (t: Task): PersonKey[] => Array.from(new Set(t.followers || [])).filter((p) => p !== t.owner && !t.also?.includes(p))
 
 export function toggleFollow(id: string, who: PersonKey, quiet = false) {
   const t0 = S().tasks.find((x) => x.id === id)
@@ -30,7 +30,7 @@ export function toggleFollow(id: string, who: PersonKey, quiet = false) {
   )
 }
 /** someone else can do it too: it's on their Today as well, and whoever does it first closes it for both */
-export function toggleAlso(id: string, who: PersonKey) {
+export function toggleAlso(id: string, who: PersonKey, quiet = false) {
   const t0 = S().tasks.find((x) => x.id === id)
   if (!t0 || who === t0.owner) return
   const on = !(t0.also || []).includes(who)
@@ -40,12 +40,15 @@ export function toggleAlso(id: string, who: PersonKey) {
       const cur = (t.also || []).filter((p) => p !== t.owner)
       const next = on ? [...cur, who] : cur.filter((p) => p !== who)
       t.also = next.length ? next : undefined
+      /* doing it — so not watching it */
+      if (on && t.followers?.includes(who)) { t.followers = t.followers.filter((p) => p !== who); if (!t.followers.length) delete t.followers }
       const r = s.team.find((m) => m.key === who)?.role as Role | undefined
       if (on && r && !t.for.includes(r)) t.for = [...t.for, r]
       t.log.push({ date: NOW, who: meOf(s.role), text: on ? `${PEOPLE[who].name} can do it too` : `${PEOPLE[who].name} taken off it` })
     },
-    on ? `On ${PEOPLE[who].short}’s Today too` : `Off ${PEOPLE[who].short}’s Today`,
-    { undo: false, sub: on ? 'Whoever does it first closes it for both.' : undefined },
+    /* ticked right in Who: you see it change there — nothing pops up */
+    quiet ? undefined : on ? `On ${PEOPLE[who].short}’s Today too` : `Off ${PEOPLE[who].short}’s Today`,
+    { undo: false, sub: !quiet && on ? 'Whoever does it first closes it for both.' : undefined },
   )
 }
 export function setEveryone(id: string, on: boolean) {

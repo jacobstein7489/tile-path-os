@@ -9,7 +9,7 @@ import { Mic, addSaid } from '@/tileos/components/ui/mic'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { cn } from '@/tileos/lib/utils'
 
-export type NoteLine = { date: string; who: string; text: string }
+export type NoteLine = { date: string; who: string; text: string; time?: string }
 
 export function Notes({ notes, onAdd, me, kind, className }: {
   notes: NoteLine[]
@@ -38,7 +38,7 @@ export function Notes({ notes, onAdd, me, kind, className }: {
             <li key={i} className="flex min-w-0 items-start gap-3">
               {PEOPLE[l.who as PersonKey] ? <Avatar who={l.who as PersonKey} size={26} /> : <span className="inline-flex h-[1.625rem] w-[1.625rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-[0.625rem] font-semibold text-muted">OS</span>}
               <span className="min-w-0 flex-1">
-                <span className="block text-[0.8125rem] leading-tight text-muted"><b className="font-semibold text-ink-2">{name(l.who)}</b><span className="tnum"> · {l.date}</span></span>
+                <span className="block text-[0.8125rem] leading-tight text-muted"><b className="font-semibold text-ink-2">{name(l.who)}</b><span className="tnum"> · {l.date}{l.time ? `, ${l.time}` : ''}</span></span>
                 <span className="mt-0.5 block text-[0.9375rem] leading-snug text-ink">{l.text}</span>
               </span>
             </li>

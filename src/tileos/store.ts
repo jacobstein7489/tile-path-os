@@ -507,6 +507,9 @@ export const useStore = create<Store>()(
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
         t.owner = owner
+        /* they do it now — not one of the others on it, and not watching it */
+        if (t.also?.includes(owner)) { t.also = t.also.filter((p) => p !== owner); if (!t.also.length) delete t.also }
+        if (t.followers?.includes(owner)) { t.followers = t.followers.filter((p) => p !== owner); if (!t.followers.length) delete t.followers }
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Handed to ${PEOPLE[owner].name}` })
       }, `Handed to ${PEOPLE[owner].name}`),
     setTaskDue: (id, due) =>
@@ -526,7 +529,7 @@ export const useStore = create<Store>()(
         if (!t) return
         const me = meOf(s.role)
         /* a note is always yours — nobody writes one in someone else's name */
-        ;(t.log ||= []).push({ date: NOW, who: me, text, note: true })
+        ;(t.log ||= []).push({ date: NOW, time: clockNow(), who: me, text, note: true })
       }, 'Note added', { undo: false }),
     addTask: (p) => {
       const me = meOf(get().role)
@@ -534,8 +537,9 @@ export const useStore = create<Store>()(
       get().commit((s) => {
         const id = 'n' + tid++ + ID.sfx
         s.tasks.unshift({
-          id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, who: meOf(s.role), text: p.urgent ? 'Created — urgent' : 'Created' }], ...p,
+          id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: meOf(s.role), text: p.urgent ? 'Created — urgent' : 'Created' }], ...p,
         } as Task)
+        if (s.tasks[0].log?.[0] && !s.tasks[0].log[0].time) s.tasks[0].log[0] = { ...s.tasks[0].log[0], time: clockNow() }
         /* urgent, for someone else: it pops up for them too, and opens the task */
         if (p.urgent && other) s.notices.unshift({ id: 'nu' + Date.now(), jobId: p.jobId || undefined, text: `Urgent from ${PEOPLE[me]?.short || 'the office'}: ${p.title}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id }, for: [p.owner as PersonKey] })
       }, p.urgent ? 'Urgent — on top of the list' : other ? `On ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s list` : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : other && (p.by === me || (p.followers || []).includes(me)) ? { sub: 'You follow it: it’s under your Waiting on others, and on your Today the day it’s due.' } : undefined)
@@ -544,6 +548,8 @@ export const useStore = create<Store>()(
 )
 
 /* ---------- helpers used inside commits ---------- */
+/** the time of day now, the way people say it: "3:42 PM" — on a task's first line, so its record says when */
+export const clockNow = () => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 export function addHist(s: Data, jobId: string, e: Omit<HistEntry, 'date'> & { date?: string }) {
   if (!s.hist[jobId]) s.hist[jobId] = []
   s.hist[jobId].unshift({ date: e.date || NOW, ...e } as HistEntry)
@@ -554,14 +560,16 @@ export function kindOfTask(type: string): HistEntry['kind'] {
 /** a request from the site — something to bring over there; it's "Dropped off", not "Done" */
 export const isRequest = (t?: Task) => !!t && (!!t.req || (t.type === 'Materials' && /^(Get to the site|Short on site) · /.test(t.title)))
 export function newTask(s: Data, p: Partial<Task> & { jobId: string; title: string }) {
-  const t: Task = { id: 'n' + tid++ + ID.sfx, type: 'Setup', owner: 'ys', for: ['owner'], state: 'now', tone: 'info', log: [{ date: NOW, who: 'system', text: 'Created' }], ...p } as Task
+  const t: Task = { id: 'n' + tid++ + ID.sfx, type: 'Setup', owner: 'ys', for: ['owner'], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: 'system', text: 'Created' }], ...p } as Task
+  /* its first line says what time it was made, whatever made it */
+  if (t.log?.[0] && !t.log[0].time) t.log[0] = { ...t.log[0], time: clockNow() }
   s.tasks.unshift(t)
   return t
 }
 /** a recurring task: when one is done, the next one is created */
 export function repeatTask(s: Data, t: Task) {
   const next = t.repeat === 'weekly' ? 'Next Mon' : t.repeat === 'monthly' ? 'Oct 28' : 'Tomorrow'
-  s.tasks.push({ ...JSON.parse(JSON.stringify(t)), id: 'n' + tid++ + ID.sfx, state: 'now', due: next, dueTone: 'neutral', doneAt: undefined, result: undefined, log: [{ date: NOW, who: 'system', text: `Repeats — created when the last one was done` }] })
+  s.tasks.push({ ...JSON.parse(JSON.stringify(t)), id: 'n' + tid++ + ID.sfx, state: 'now', due: next, dueTone: 'neutral', doneAt: undefined, result: undefined, log: [{ date: NOW, time: clockNow(), who: 'system', text: `Repeats — created when the last one was done` }] })
 }
 export function closeTasks(s: Data, ids: string[], text = 'Done') {
   s.tasks.forEach((t) => {
@@ -586,7 +594,7 @@ export function moveStage(s: Data, jobId: string, stage: Stage) {
   if (!j) return
   j.stage = stage
 }
-export const L = (who: PersonKey, text: string): LogLine => ({ date: NOW, who, text })
+export const L = (who: PersonKey, text: string): LogLine => ({ date: NOW, time: clockNow(), who, text })
 /* recompute room and project progress after surfaces change */
 export function recalc(s: Data, jobId: string, touched?: string[]) {
   const rs = s.rooms[jobId]

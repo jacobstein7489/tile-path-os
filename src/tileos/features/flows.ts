@@ -3,7 +3,7 @@
  * stage, tasks for the right people, money, materials, schedule, and history. */
 import { toast, showPop } from '@/tileos/lib/pop'
 import { isoOfDay, parseTime } from '@/tileos/data/calendar'
-import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, type Store } from '@/tileos/store'
+import { useStore, addHist, newTask, closeTasks, setIssues, NOW, meOf, recalc, clockNow, type Store } from '@/tileos/store'
 import type { PersonKey, Stage, SwatchKey, Role, Member } from '@/tileos/data/model'
 import { siteSpotHolder } from '@/tileos/lib/twins'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
@@ -21,7 +21,7 @@ import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, iso
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
-const L = (who: PersonKey, text: string) => ({ date: NOW, who, text })
+const L = (who: PersonKey, text: string) => ({ date: NOW, time: clockNow(), who, text })
 
 /* ---------------- task actions ---------------- */
 /** who orders our materials and takes deliveries (Settings → Company rules; the site manager by default) */

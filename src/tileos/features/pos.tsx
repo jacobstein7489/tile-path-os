@@ -16,7 +16,8 @@ import { ipoTotal, poRatio, type Ratio } from './poratio'
 import { allSubs, kindsOf } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs } from './flows'
 import { mailLive, emailPO, emailIPO } from './mailout'
-import { sendDraftIPO, answerIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
+import { InstallerAnswer } from './stepwin'
+import { sendDraftIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
 import { METHODS } from '@/tileos/data/takeoff'
 import { crewFree } from './upcoming'
@@ -478,7 +479,6 @@ export function BookInstallerModal({ jobId, crew: first, level }: { jobId: strin
 export function IPOModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const p = s.ipos.find((x) => x.id === id)
-  const [rejOpen, setRejOpen] = React.useState(false)
   /* changing a PO he already has: the lines are worked on here, then go to him as a new revision */
   const [draft, setDraft] = React.useState<IPOLine[] | null>(null)
   if (!p) return null
@@ -531,16 +531,11 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
         </>
       )}
       {!draft && p.status === 'Sent' && (
+        /* his answer — the same three buttons as on the step "Did the installer say yes?" */
         <>
           <Button variant="ghost" icon={<FilePen />} onClick={() => setDraft(p.lines.map((l) => ({ ...l })))}>Change it</Button>
-          <span className="text-[0.84375rem] text-muted max-md:hidden">Record what {name} told you:</span>
-          <Pop open={rejOpen} onOpenChange={setRejOpen} side="top" width={300} trigger={<Button className="ml-auto">He turned it down</Button>}>
-            <div className="text-[0.875rem] font-medium text-ink">Why?</div>
-            <div className="mt-2 flex flex-col gap-1">
-              {['Booked on another job', 'Price too low', 'Too far'].map((r) => <button key={r} onClick={() => { setRejOpen(false); answerIPO(p.id, false, r) }} className="rounded-md px-2.5 py-2 text-left text-[0.875rem] text-ink-2 hover:bg-wash-2">{r}</button>)}
-            </div>
-          </Pop>
-          <Button variant="primary" icon={<Check />} onClick={() => answerIPO(p.id, true)}>He accepted</Button>
+          <div className="ml-auto" aria-hidden />
+          {job && <InstallerAnswer ipo={p} job={job} />}
         </>
       )}
       {!draft && p.status === 'Accepted' && (
