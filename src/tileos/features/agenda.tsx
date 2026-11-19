@@ -4,14 +4,14 @@ import * as React from 'react'
 import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, ChevronDown, Trash2, Building2, Clock3, Users, MapPin, History, Check, ArrowRight } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented, Button, IconButton } from '@/tileos/components/ui/core'
-import { Modal, Tip, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
+import { Modal, Tip } from '@/tileos/components/ui/overlay'
 import { Card, AvatarStack } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
-import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLabel, workDays } from '@/tileos/data/calendar'
+import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLabel, workDays, parseTime, type CalEvent } from '@/tileos/data/calendar'
 import { busyFor, removeEvent, moveEvent, setEventPeople, renameEvent, noteEvent, addEventNote, doneEvent } from './calendar'
 import { Notes } from './notes'
-import { WinHead, WinLine, WatchPop, WhenPop, CHIP } from './winhead'
+import { WinHead, WinLine, WatchPop, WhenPop, CHIP, clock, type WhenPick } from './winhead'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
 import { realOwner } from './steps'
@@ -136,6 +136,20 @@ export function Agenda({ who }: { who: 'me' | 'all' | PersonKey }) {
  * (tap: tick people on or off), when (tap the day, tap the time), where. The bin cancels it — after a "sure?" at the
  * bottom. Nothing else to go into: everything is changed right where it's shown. */
 const EV_TIMES = Array.from({ length: 25 }, (_, i) => 7 * 60 + i * 30)
+/** a meeting's When: its day and its time, picked together on a calendar — the same in its window and on Today */
+export function eventWhen(e: CalEvent): WhenPick {
+  return {
+    title: 'When',
+    value: labelFromIso(e.date),
+    presets: ['Today', 'Tomorrow', 'Next Mon'],
+    time: clock(e.start),
+    times: EV_TIMES.map(clock),
+    needTime: true,
+    onPick: () => { /* the day and the time go together (onSet) */ },
+    onSet: (label, t) => moveEvent(e.id, { date: isoFromLabel(label) || e.date, start: (t ? parseTime(t) : null) ?? e.start }),
+  }
+}
+
 export function EventModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const e = s.events.find((x) => x.id === id)
@@ -163,15 +177,12 @@ export function EventModal({ id, level }: { id: string; level: number }) {
         </span>
       </WinLine>
       <WinLine k="when" label="When">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1">
-          <WhenPop pick={{ title: 'Move it to', value: labelFromIso(e.date), presets: ['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => moveEvent(e.id, { date: isoFromLabel(d) || e.date, start: e.start }) }} trigger={
-            <button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The day · move it" data-event-day><span>{dayLabel(e.date)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>
-          } />
-          <span className="text-faint" aria-hidden>·</span>
-          <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The time · change it" data-event-time><span className="tnum">{rangeLabel(e.start, e.dur)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-            {EV_TIMES.map((m) => <MenuItem key={m} checked={m === e.start} onSelect={() => moveEvent(e.id, { date: e.date, start: m })}>{timeLabel(m)}</MenuItem>)}
-          </Menu>
-        </span>
+        {/* the day and the time in one: tap it — the calendar, the times beside it */}
+        <WhenPop pick={eventWhen(e)} trigger={
+          <button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="When · change it" data-event-day data-event-time>
+            <span>{dayLabel(e.date)}</span><span className="tnum">· {rangeLabel(e.start, e.dur)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" />
+          </button>
+        } />
       </WinLine>
       {where && <WinLine k="where" label="Where"><span className="min-w-0 text-[0.9375rem] leading-snug text-ink">{where}</span></WinLine>}
     </>
@@ -183,7 +194,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
       size="md"
       onClose={s.close}
       title={e.title}
-      header={<WinHead kind={{ icon: <CalendarDays />, label: what }} place={job ? job.name : 'Company'} onPlace={job ? () => s.swap({ t: 'job', id: job.id }) : undefined} title={e.title}
+      inlineClose header={<WinHead kind={{ icon: <CalendarDays />, label: what }} place={job ? job.name : 'Company'} onPlace={job ? () => s.swap({ t: 'job', id: job.id }) : undefined} title={e.title}
         edit={{ title: e.title, sub: e.note, onTitle: (v) => renameEvent(e.id, v), onSub: (v) => noteEvent(e.id, v) }}
         remove={() => setCanceling(true)} lines={lines} attrs={{ 'data-event-win': e.id }} />}
       footer={canceling ? (

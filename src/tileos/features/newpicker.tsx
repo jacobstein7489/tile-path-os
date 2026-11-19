@@ -144,8 +144,11 @@ export const PART_TINT: Record<Part | 'bad', { bg: string; fg: string; dot: stri
 }
 const partOf = (k: string): Part => KIND[k]?.g || 'office'
 
+/** the phone's tile is small: a shorter name where the whole one doesn't fit */
+const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More tile', question: 'Site question' }
 /** a choice on + New: a white card with its icon in its part's soft color, every one the same size; Problem is red.
- *  On the phone each is a big square-ish tile — the icon large on top, the name under it — easy to hit with a thumb */
+ *  A computer: the icon and the name on one line. A phone: a small tile — the icon on top, the name under it, three
+ *  across — so every choice is on the screen at once, nothing to scroll */
 function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
   const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
   return (
@@ -155,13 +158,13 @@ function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () =
       title={x.h}
       data-new={x.k}
       data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
-      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', 'max-sm:h-[7.5rem] max-sm:min-h-0 max-sm:flex-col max-sm:justify-center max-sm:gap-2 max-sm:rounded-2xl max-sm:px-2 max-sm:py-3 max-sm:text-center max-sm:shadow-[0_1px_2px_rgba(20,26,36,.05)] max-sm:hover:translate-y-0 max-sm:active:scale-[0.97] max-sm:active:bg-wash', big ? 'min-h-[3.75rem] py-2' : 'min-h-12 py-1.5')}
+      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', 'max-sm:h-[4.25rem] max-sm:min-h-0 max-sm:flex-col max-sm:justify-center max-sm:gap-1 max-sm:rounded-xl max-sm:px-1 max-sm:py-1.5 max-sm:text-center max-sm:hover:translate-y-0 max-sm:active:scale-[0.97] max-sm:active:bg-wash', big ? 'min-h-[3.75rem] py-2' : 'min-h-11 py-1.5')}
     >
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition max-sm:h-11 max-sm:w-11 max-sm:rounded-[0.8125rem]" style={{ background: tint.bg, color: tint.fg }}>
-        <x.i className="h-4 w-4 max-sm:h-[1.375rem] max-sm:w-[1.375rem]" strokeWidth={2.1} />
+      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition max-sm:h-8 max-sm:w-8 max-sm:rounded-[0.625rem]" style={{ background: tint.bg, color: tint.fg }}>
+        <x.i className="h-4 w-4 max-sm:h-[1.125rem] max-sm:w-[1.125rem]" strokeWidth={2.1} />
       </span>
       <span className="min-w-0 leading-tight max-sm:w-full">
-        <span className="block text-[0.84375rem] font-semibold text-ink max-sm:line-clamp-2 max-sm:text-[1rem] max-sm:leading-snug">{x.l}</span>
+        <span className="block text-[0.84375rem] font-semibold text-ink max-sm:line-clamp-2 max-sm:text-[0.78125rem] max-sm:leading-[1.15]"><span className={cn(SHORT[x.k] && 'max-sm:hidden')}>{x.l}</span>{SHORT[x.k] && <span className="sm:hidden">{SHORT[x.k]}</span>}</span>
         {big && <span className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted max-sm:hidden">{x.h}</span>}
       </span>
     </button>
@@ -192,7 +195,7 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const starts = given ? [] : STARTS.filter((x) => ok(x) && x.k !== 'bringin' && x.k !== 'newreq')
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
-  const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted'
+  const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:mb-1.5 max-sm:text-[0.6875rem]'
   const dot = (p: Part) => <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PART_TINT[p].dot }} />
   /* a short list (the site manager's) is one grid — no headings; a long one keeps its three parts */
   const few = groups.reduce((n, x) => n + x.list.length, 0) + starts.length <= 8
@@ -206,21 +209,21 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       sub={job ? <span className="flex flex-wrap items-center gap-x-2">For {job.name}<button type="button" onClick={() => setJobId('')} className="font-semibold text-brand-700 hover:underline" data-new-unpick>Not for this project</button></span> : undefined}
     >
       {/* the easy way: say it — it makes the right things by itself. Or pick one below */}
-      <div className="mb-5"><SayItBar jobId={jobId || undefined} /></div>
+      <div className="mb-5 max-sm:mb-3"><SayItBar jobId={jobId || undefined} /></div>
       {few ? (
-        <div className="grid grid-cols-2 gap-2 max-sm:gap-2.5" data-new-group="all">{[...groups.flatMap((x) => x.list), ...starts].map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+        <div className="grid grid-cols-3 gap-2 max-sm:gap-2" data-new-group="all">{[...groups.flatMap((x) => x.list), ...starts].map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
       ) : (
         <>
           {groups.map((x, i) => (
-            <section key={x.g} className={cn(i > 0 && 'mt-4')} data-new-group={x.g}>
+            <section key={x.g} className={cn(i > 0 && 'mt-4 max-sm:mt-3.5')} data-new-group={x.g}>
               <div className={head}>{dot(x.g)}{x.label}</div>
-              <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2 max-sm:gap-2.5">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+              <div className="grid grid-cols-3 gap-1.5 max-sm:gap-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
             </section>
           ))}
           {starts.length > 0 && (
-            <section className="mt-4" data-new-group="start">
+            <section className="mt-4 max-sm:mt-3.5" data-new-group="start">
               <div className={head}>{dot('start')}Start something new</div>
-              <div className="grid grid-cols-3 gap-1.5 max-sm:grid-cols-2 max-sm:gap-2.5">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+              <div className="grid grid-cols-3 gap-1.5 max-sm:gap-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
             </section>
           )}
         </>

@@ -2,10 +2,11 @@
  * Each week is the site manager's daily updates × the rates on the installer's PO; his bill sits next to it. */
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
-import { ArrowRight, Check, HardHat, MessageCircleQuestion, Undo2, TriangleAlert, ClipboardList, ChevronRight, ChevronLeft, ChevronDown, CircleCheckBig, FileText, CalendarDays } from 'lucide-react'
-import { useStore, type Store } from '@/tileos/store'
+import { HandCoins, ArrowRight, Check, HardHat, MessageCircleQuestion, Undo2, TriangleAlert, ClipboardList, ChevronRight, ChevronLeft, ChevronDown, CircleCheckBig, FileText, CalendarDays } from 'lucide-react'
+import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Pop } from '@/tileos/components/ui/overlay'
+import { ListHead } from './winhead'
 import { Page, Status, Row, Col, Meta, PX, STICKY_HEAD, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
@@ -203,7 +204,7 @@ export function PayWeekModal({ level }: { level: number }) {
   const rows = payRows(s, week)
   const total = rows.reduce((n, r) => n + r.owe, 0)
   return (
-    <Modal level={level} size="lg" onClose={s.close} title={`Installer pay · week of ${week.label}`} sub={`From the site manager’s daily updates × the rates on each PO${smp(' · sample amounts')}`}>
+    <Modal level={level} size="lg" onClose={s.close} title={`Installer pay · week of ${week.label}`} inlineClose header={<ListHead kind={{ icon: <HandCoins />, label: 'Installer pay' }} title={`Installer pay · week of ${week.label}`} sub={`From the site manager’s daily updates × the rates on each PO${smp(' · sample amounts')}`} who={meOf(s.role)} me={meOf(s.role)} when="Today" attrs={{ 'data-payweek-head': '' }} />}>
       <div className="flex flex-col divide-y divide-line-2 overflow-hidden rounded-2xl border border-line">
         {rows.map((r) => {
           const st = PAY_STATE[r.state]

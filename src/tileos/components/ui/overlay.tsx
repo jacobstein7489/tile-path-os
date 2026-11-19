@@ -4,10 +4,11 @@ import * as DM from '@radix-ui/react-dropdown-menu'
 import * as CM from '@radix-ui/react-context-menu'
 import * as PO from '@radix-ui/react-popover'
 import * as TT from '@radix-ui/react-tooltip'
-import { Check, ChevronLeft } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 import { CloseButton, Chip, Button } from './core'
-import { TODAY, addDays, dow } from '@/tileos/lib/today'
+import { TODAY, addDays, dow, isoFromLabel, labelFromIso, pickedLabel } from '@/tileos/lib/today'
+import { useSmall } from '@/tileos/lib/phone'
 
 /* ---------------- Center popup ---------------- */
 const WIDTHS = {
@@ -48,8 +49,11 @@ function useWinStack(level: number, size: keyof typeof WIDTHS) {
   }
 }
 export function Modal({
-  level = 0, size = 'md', onClose, title, sub, header, children, footer, footerClass, bodyClass, tall, className,
+  level = 0, size = 'md', onClose, title, sub, header, children, footer, footerClass, bodyClass, tall, className, inlineClose,
 }: {
+  /** a phone: the ✕ sits on the header's own first line (top right) — no bar of its own above it; once the header has
+   *  scrolled away it becomes a bar with the window's name */
+  inlineClose?: boolean
   level?: number
   size?: keyof typeof WIDTHS
   onClose: () => void
@@ -67,6 +71,7 @@ export function Modal({
   const z = 60 + level * 4
   /* a window opened from another window: Back takes you to that one — never closed and opened again */
   const stacked = level > 0
+  const inline = !!inlineClose && !stacked
   const { hidden, noShade } = useWinStack(level, size)
   /* a phone: pull the window down by its top to close it — like any app */
   const sheet = React.useRef<HTMLDivElement | null>(null)
@@ -152,13 +157,13 @@ export function Modal({
                     <CloseButton onClick={onClose} />
                   </div>
                 )}
-                <div className={cn('hidden shrink-0 items-center gap-3 bg-white pb-1 pl-4 pr-3 pt-2.5 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]')} data-phone-bar>
+                <div className={cn('hidden shrink-0 items-center gap-3 bg-white pb-1 pl-4 pr-3 pt-2.5 max-sm:flex', tall && size === 'full' && 'pt-[max(0.5rem,env(safe-area-inset-top,0px))]', inline && 'max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-20 max-sm:transition-colors', inline && !past && 'max-sm:pointer-events-none max-sm:bg-transparent', inline && past && 'max-sm:shadow-[0_1px_0_rgba(20,26,36,.08)]')} data-phone-bar>
                   {stacked && back}
-                  <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink transition-opacity duration-150', !past && 'opacity-0')} aria-hidden={!past} data-phone-bar-title>{tall && typeof title === 'string' ? title : ''}</span>
-                  {!stacked && <CloseButton onClick={onClose} />}
+                  <span className={cn('min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink transition-opacity duration-150', !past && 'opacity-0')} aria-hidden={!past} data-phone-bar-title>{(tall || inline) && typeof title === 'string' ? title : ''}</span>
+                  {!stacked && <CloseButton onClick={onClose} className={inline ? 'pointer-events-auto' : undefined} />}
                 </div>
                 <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Details'}</Dialog.Title>
-                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE} onScroll={tall ? onScroll : undefined}>
+                <div className="scroll-soft flex min-h-0 flex-1 flex-col max-sm:overflow-y-auto" style={INSIDE} onScroll={tall || inline ? onScroll : undefined}>
                   <div className="shrink-0" ref={headRef}>{header}</div>
                   <div className={cn('scroll-soft min-h-0 flex-1 overflow-y-auto max-sm:flex-none max-sm:overflow-visible', bodyClass ?? 'px-6 py-5 max-sm:px-4 max-sm:py-5', !footer && 'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0))]')}>{children}</div>
                 </div>
@@ -247,16 +252,100 @@ export const MenuLabel = ({ children }: { children: React.ReactNode }) => <DM.La
 export const MenuSep = () => <DM.Separator className="my-1 h-px bg-line-2" />
 
 /* ---------------- Popover ---------------- */
-export function Pop({ trigger, children, align = 'start', side = 'bottom', width = 340, open, onOpenChange }: { trigger: React.ReactNode; children: React.ReactNode; align?: 'start' | 'end' | 'center'; side?: 'top' | 'bottom' | 'left' | 'right'; width?: number; open?: boolean; onOpenChange?: (v: boolean) => void }) {
+export function Pop({ trigger, children, align = 'start', side = 'bottom', width = 340, open, onOpenChange, onEscape, className, sheet }: { trigger: React.ReactNode; children: React.ReactNode; align?: 'start' | 'end' | 'center'; side?: 'top' | 'bottom' | 'left' | 'right'; width?: number; open?: boolean; onOpenChange?: (v: boolean) => void; /** Esc: before it closes (to leave what was picked) */ onEscape?: () => void; className?: string; /** a phone: it comes up from the bottom, the whole width (a calendar — too tall to hang off a line) */ sheet?: boolean }) {
+  const small = useSmall()
+  if (sheet && small) return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[300] animate-overlay-in bg-[rgba(17,19,24,.3)]" />
+        <Dialog.Content aria-describedby={undefined} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} onOpenAutoFocus={(e) => e.preventDefault()}
+          className={cn('fixed inset-x-0 bottom-0 z-[301] max-h-[90dvh] overflow-y-auto rounded-t-[1.25rem] bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-modal outline-none animate-modal-in', className)} data-pop-sheet>
+          <Dialog.Title className="sr-only">Pick</Dialog.Title>
+          <span className="mx-auto mt-1.5 block h-1 w-9 rounded-full bg-[#d9d4cb]" aria-hidden />
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
   return (
     <PO.Root open={open} onOpenChange={onOpenChange}>
       <PO.Trigger asChild>{trigger}</PO.Trigger>
       <PO.Portal>
-        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} className="z-[300] rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} className={cn('z-[300] rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in', className)} style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </PO.Content>
       </PO.Portal>
     </PO.Root>
+  )
+}
+
+/* ---------------- a calendar and the times of a day ---------------- */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const ym = (iso: string) => iso.slice(0, 7)
+/** a month to pick a day from, like any calendar: Monday first (like the schedule), today ringed, the day picked filled,
+ *  days gone by faded and not picked */
+export function MonthCal({ value, onPick, min = TODAY, className }: { value?: string; onPick: (iso: string) => void; min?: string; className?: string }) {
+  const [at, setAt] = React.useState(ym(value || TODAY))
+  React.useEffect(() => { if (value) setAt(ym(value)) }, [value])
+  const y = +at.slice(0, 4)
+  const m = +at.slice(5, 7)
+  const lead = (dow(`${at}-01`) + 6) % 7
+  const n = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: n }, (_, i) => `${at}-${String(i + 1).padStart(2, '0')}`)]
+  while (cells.length % 7) cells.push(null)
+  const go = (k: number) => { const d = new Date(Date.UTC(y, m - 1 + k, 1)); setAt(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`) }
+  const arrow = 'inline-flex h-8 w-8 items-center justify-center rounded-full text-ink-2 transition hover:bg-wash-2 disabled:opacity-30 disabled:hover:bg-transparent'
+  return (
+    <div className={cn('select-none', className)} data-month-cal={at}>
+      <div className="mb-1 flex items-center justify-between pl-1">
+        <span className="text-[0.9375rem] font-semibold text-ink" data-cal-month>{MONTHS[m - 1]} {y}</span>
+        <span className="flex items-center">
+          <button type="button" onClick={() => go(-1)} disabled={at <= ym(min)} aria-label="The month before" className={arrow} data-cal-prev><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" onClick={() => go(1)} aria-label="The next month" className={arrow} data-cal-next><ChevronRight className="h-4 w-4" /></button>
+        </span>
+      </div>
+      <div className="grid grid-cols-7 text-center text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-faint" aria-hidden>
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i} className="py-1">{d}</span>)}
+      </div>
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((iso, i) => {
+          if (!iso) return <span key={'x' + i} />
+          const on = iso === value
+          const past = iso < min
+          return (
+            <button key={iso} type="button" disabled={past && !on} onClick={() => onPick(iso)} aria-pressed={on} aria-label={iso} data-cal-day={iso}
+              className={cn('mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-[0.875rem] tnum transition max-sm:text-[0.9375rem]',
+                on ? 'bg-brand-600 font-semibold text-white shadow-[0_0.375rem_0.875rem_-0.5rem_rgba(38,80,207,.9)]'
+                  : past ? 'text-[#cbc6bd]'
+                    : iso === TODAY ? 'font-semibold text-brand-700 ring-1 ring-inset ring-brand-300 hover:bg-brand-50'
+                      : 'text-ink hover:bg-wash-2')}>
+              {+iso.slice(8)}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+/** the times of a day: the one picked filled; it opens on that one (or 9 in the morning). A column beside the calendar
+ *  on a computer, a row under it on a phone */
+export function TimeList({ value, times, anyTime, onPick }: { value?: string; times: string[]; anyTime?: boolean; onPick: (t?: string) => void }) {
+  const box = React.useRef<HTMLDivElement>(null)
+  React.useLayoutEffect(() => {
+    const el = box.current
+    const on = (el?.querySelector('[data-time-on]') || el?.querySelector('[data-time="9:00 AM"]')) as HTMLElement | null
+    if (!el || !on) return
+    if (el.scrollHeight > el.clientHeight + 2) el.scrollTop = on.offsetTop - el.clientHeight / 2 + on.offsetHeight / 2
+    if (el.scrollWidth > el.clientWidth + 2) el.scrollLeft = on.offsetLeft - el.clientWidth / 2 + on.offsetWidth / 2
+  }, [])
+  const btn = (on: boolean) => cn('shrink-0 rounded-lg px-3 text-left text-[0.875rem] tnum transition sm:h-9 max-sm:inline-flex max-sm:h-10 max-sm:items-center max-sm:rounded-full max-sm:border',
+    on ? 'bg-brand-600 font-semibold text-white max-sm:border-brand-600' : 'text-ink hover:bg-wash-2 max-sm:border-line')
+  return (
+    <div ref={box} className="no-scrollbar relative flex gap-0.5 sm:max-h-[17.75rem] sm:flex-col sm:overflow-y-auto max-sm:gap-1.5 max-sm:overflow-x-auto" role="listbox" aria-label="The time" data-time-list>
+      {anyTime && <button type="button" role="option" aria-selected={!value} onClick={() => onPick(undefined)} className={cn(btn(!value), !value ? '' : 'text-muted')} data-time="" {...(!value ? { 'data-time-on': '' } : {})}>Any time</button>}
+      {times.map((t) => <button key={t} type="button" role="option" aria-selected={t === value} onClick={() => onPick(t)} className={btn(t === value)} data-time={t} {...(t === value ? { 'data-time-on': '' } : {})}>{t}</button>)}
+    </div>
   )
 }
 
@@ -284,25 +373,21 @@ export const DATE_PRESETS = (() => {
 })()
 
 export function DatePresets({ value, onPick, presets = DATE_PRESETS }: { value?: string; onPick: (v: string) => void; presets?: string[] }) {
+  /* the usual days as one tap each; any other day from the calendar, right here (no second window) */
+  const [cal, setCal] = React.useState(false)
+  const iso = isoFromLabel(value)
+  const other = !!value && !presets.includes(value)
   return (
-    <div className="flex flex-wrap gap-2">
-      {presets.map((p) => (
-        <Chip key={p} on={value === p} onClick={() => onPick(p)} className="h-9 px-3 text-[0.84375rem]">
-          {p}
-        </Chip>
-      ))}
-      <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[0.5625rem] border border-dashed border-[#CDD4DE] px-3 text-[0.84375rem] font-semibold text-muted hover:bg-wash">
-        Pick a date
-        <input
-          type="date"
-          className="w-0 opacity-0"
-          onChange={(e) => {
-            if (!e.target.value) return
-            const d = new Date(e.target.value + 'T12:00:00')
-            onPick(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
-          }}
-        />
-      </label>
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {presets.map((p) => (
+          <Chip key={p} on={value === p} onClick={() => onPick(p)} className="h-9 px-3 text-[0.84375rem]">
+            {p}
+          </Chip>
+        ))}
+        <Chip on={other} onClick={() => setCal(!cal)} icon={<CalendarDays className="h-4 w-4" />} className="h-9 px-3 text-[0.84375rem]">{other && iso ? labelFromIso(iso) : 'Pick a date'}</Chip>
+      </div>
+      {cal && <MonthCal value={iso} onPick={(d) => { setCal(false); onPick(pickedLabel(d)) }} className="mt-3 max-w-[18.5rem]" />}
     </div>
   )
 }

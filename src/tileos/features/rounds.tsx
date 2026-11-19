@@ -7,7 +7,8 @@
  *   Skip a stop for today (×), or add a project that isn't on it. The row on Today goes once every stop has its video. */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Navigation, Video, Send, Check, X, Plus } from 'lucide-react'
+import { Navigation, Video, Send, Check, X, Plus, MapPinned } from 'lucide-react'
+import { ListHead } from './winhead'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, btnClass } from '@/tileos/components/ui/core'
@@ -177,7 +178,8 @@ export function RoundsModal({ level }: { level: number }) {
       size="md"
       onClose={s.close}
       title="Visit the jobs"
-      sub={left.length ? `${dayShort(TODAY)} · ${left.length} ${left.length === 1 ? 'job' : 'jobs'} ${how}` : `${dayShort(TODAY)} · every job has its video`}
+      inlineClose
+      header={<ListHead kind={{ icon: <MapPinned />, label: 'Site visits' }} title="Visit the jobs" sub={left.length ? `${left.length} ${left.length === 1 ? 'job' : 'jobs'} ${how}` : 'Every job has its video'} who={me} me={me} when={`Today · ${dayShort(TODAY)}`} attrs={{ 'data-rounds-head': '' }} />}
       footer={
         left.length ? (
           <a href={route} target="_blank" rel="noopener noreferrer" className={cn(btnClass('primary', 'md'), 'ml-auto gap-2', small && 'h-12 flex-1 text-[1rem]')} data-rounds-start>

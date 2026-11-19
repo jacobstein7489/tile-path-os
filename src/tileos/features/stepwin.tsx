@@ -618,7 +618,7 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
       size="md"
       onClose={s.close}
       title={title}
-      header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}
+      inlineClose header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}
         state={whenWords} tone={isWhen ? h.tone : undefined} status={status} statusTone={h.tone} problem={h.problem}
         whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'}
         more={admin ? <StepMore job={job} v={v} /> : undefined}

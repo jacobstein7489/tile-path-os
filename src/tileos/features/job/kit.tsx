@@ -39,7 +39,8 @@ export function PaperBar({ lead, children, className, mark, buttonsMark }: { lea
     <div className={cn('mb-3 flex min-h-9 min-w-0 flex-wrap items-center gap-x-3 gap-y-2', className)} {...(mark ? { [mark]: '' } : {})}>
       {lead}
       {children && (
-        <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>*]:w-full max-sm:[&>*:last-child:nth-child(odd)]:col-span-2" {...(buttonsMark ? { [buttonsMark]: '' } : {})}>
+        /* a phone: two to a row, every one whole (nothing cut off) — the page puts the rare ones in its ··· */
+        <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>*]:w-full max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 max-sm:[&_button]:h-10" {...(buttonsMark ? { [buttonsMark]: '' } : {})}>
           {children}
         </span>
       )}

@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { Mic as MicIcon, Square } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
-import { useVoice, canListen } from './voice'
+import { useVoice, canListen, IN_FRAME, openOwnTab } from './voice'
 
 /** the browser can listen (or record, for the AI to write down) */
 export { canListen }
@@ -32,7 +32,13 @@ export function Mic({ onText, className, size = 'md', label = 'Talk instead of t
       >
         {v.on ? <Square className="h-3 w-3 fill-current" /> : <MicIcon className="h-4 w-4" />}
       </button>
-      {say && <span role="status" className="pointer-events-none absolute bottom-full right-0 z-10 mb-1.5 w-max max-w-[18rem] rounded-md bg-ink px-2 py-1 text-[0.71875rem] font-medium leading-snug text-white shadow-pop">{say}</span>}
+      {say && msg === IN_FRAME ? (
+        /* inside the Lovable editor: the way out, one tap */
+        <span role="status" className="absolute bottom-full right-0 z-10 mb-1.5 flex w-max max-w-[18rem] flex-col items-start gap-1.5 rounded-lg bg-ink px-2.5 py-2 text-[0.75rem] font-medium leading-snug text-white shadow-pop">
+          {say}
+          <button type="button" onClick={openOwnTab} className="rounded-md bg-white px-2 py-1 text-[0.75rem] font-semibold text-ink" data-mic-own-tab>Open Tile OS in its own tab</button>
+        </span>
+      ) : say && <span role="status" className="pointer-events-none absolute bottom-full right-0 z-10 mb-1.5 w-max max-w-[18rem] rounded-md bg-ink px-2 py-1 text-[0.71875rem] font-medium leading-snug text-white shadow-pop">{say}</span>}
     </span>
   )
 }

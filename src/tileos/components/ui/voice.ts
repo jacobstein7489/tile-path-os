@@ -31,9 +31,23 @@ const onPhone = () => apple() || /Android/.test(typeof navigator !== 'undefined'
 /** what's wrong with the microphone, and what to do — the words for each */
 /** inside another page (the Lovable editor's preview): the browser keeps the microphone off there */
 export const inFrame = () => { try { return typeof window !== 'undefined' && window.self !== window.top } catch { return true } }
+/** said when the mic is pressed inside the Lovable editor's preview — the browser keeps it off there, whatever you allow */
+export const IN_FRAME = 'The mic can’t work inside the Lovable editor. Open Tile OS in its own tab and it works there.'
+/** the same app, in a tab of its own (out of the editor): there the browser asks for the mic and it works */
+export const openOwnTab = () => { try { window.open(window.location.href, '_blank', 'noopener') } catch { /* blocked */ } }
+const windows = () => typeof navigator !== 'undefined' && /Windows/.test(navigator.userAgent)
+const mac = () => typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent)
 function micProblem(e: any): string {
   const n = String(e?.name || '')
-  if (inFrame() && (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError' || n === 'NotFoundError' || !n)) return 'The mic is off inside the Lovable editor. Open the app on its own (your published link) and it works there.'
+  const msg = String(e?.message || '')
+  if (inFrame() && (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError' || !n)) return IN_FRAME
+  /* the computer itself has the mic off for the browser (not the site): said with where to turn it on */
+  if (n === 'NotAllowedError' && /system/i.test(msg))
+    return windows()
+      ? 'Windows has the microphone off for your browser. Start → Settings → Privacy & security → Microphone → turn on Microphone access and Let desktop apps access your microphone. Then tap the mic again.'
+      : mac()
+        ? 'The Mac has the microphone off for your browser. Apple menu → System Settings → Privacy & Security → Microphone → turn your browser on. Then tap the mic again.'
+        : 'The computer has the microphone off for your browser. Turn it on in the computer’s privacy settings, then tap the mic again.'
   if (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError')
     return apple()
       ? 'The microphone is off for Tile OS. On the iPhone: Settings → Apps → Safari → Microphone → Allow. Then tap the mic again.'
@@ -336,7 +350,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     const open = stream.current?.getAudioTracks().some((t) => t.readyState === 'live') ? stream.current : null
     if (open) s = open
     else if (navigator.mediaDevices?.getUserMedia) {
-      const slow = setTimeout(() => { if (starting.current && alive.current) setErr(inFrame() ? 'The mic is off inside the Lovable editor. Open the app on its own (your published link) and it works there.' : 'Allow the microphone. Your browser is asking at the top of the window.') }, 3500)
+      const slow = setTimeout(() => { if (starting.current && alive.current) setErr(inFrame() ? IN_FRAME : 'Allow the microphone. Your browser is asking at the top of the window.') }, 3500)
       try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }); clearTimeout(slow); if (alive.current) setErr('') } catch (e) { clearTimeout(slow); starting.current = false; try { made?.close?.() } catch { /* closed */ } if (alive.current) setErr(micProblem(e)); return }
     }
     starting.current = false

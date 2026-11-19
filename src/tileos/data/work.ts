@@ -93,8 +93,8 @@ export const TASKS0: Task[] = [
   },
   /* ---- recurring: the site manager's report, every weekday ---- */
   {
-    id: 't-crewreport', jobId: '', title: 'Daily crew report. Who is working where, and how far each job is', type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner', 'pm'],
-    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', repeat: 'weekdays', repeatAt: '4 PM', where: 'Every weekday at 4 PM',
+    id: 't-crewreport', jobId: '', title: 'Daily crew report', type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner', 'pm'],
+    state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', repeat: 'weekdays', repeatAt: '4 PM',
     detail: 'For every job with a crew today: how many people are working there, and where the job is up to. It goes straight to Yanky.',
     action: { label: 'Send the report', kind: 'crewreport' },
     log: [L('Sep 1', 'ys', 'Set up to repeat every weekday at 4 PM'), L('Sep 25', 'yakov', 'Sent Friday’s report · 4 jobs, 12 people')],

@@ -13,8 +13,9 @@
 import * as React from 'react'
 import { WinStar, type StarPick } from './star'
 import { Building2, CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, Eye, HardHat, Hash, Mail, MapPin, Plus, Receipt, Trash2, UserRound, Users } from 'lucide-react'
-import { Avatar } from '@/tileos/components/ui/core'
-import { Pop, DatePresets, Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { Avatar, Button } from '@/tileos/components/ui/core'
+import { Pop, MonthCal, TimeList } from '@/tileos/components/ui/overlay'
+import { isoFromLabel, pickedLabel, dayShort } from '@/tileos/lib/today'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
@@ -23,13 +24,44 @@ export type WinTone = 'late' | 'warn' | 'ok' | 'quiet'
 /** who it can be given to: you first ("Me"), then the rest */
 export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void; /** more than one can do it — whoever gets to it first (a task; a step has one) */ also?: PersonKey[]; onAlso?: (p: PersonKey) => void }
 /** the day it's on: tap it, pick another */
-export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string; /** its time of day ("9:00 AM"), and how to change it — none: any time */ time?: string; onTime?: (t?: string) => void }
+export type WhenPick = {
+  value?: string
+  onPick: (label: string) => void
+  presets?: string[]
+  /** over the days: "Move it to" unless it says */
+  title?: string
+  /** its time of day ("9:00 AM"), and how to change it — none: any time */
+  time?: string
+  onTime?: (t?: string) => void
+  /** the day and the time together, in one change (a meeting) — instead of onPick and onTime */
+  onSet?: (label: string, time?: string) => void
+  /** the times to pick from (every half hour unless it says) */
+  times?: string[]
+  /** a time is a must (a meeting): no "Any time" */
+  needTime?: boolean
+}
+/** "9:00 AM" — minutes from midnight in the words a time is picked in */
+export const clock = (m: number) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`
 /** the times a thing can be at — every half hour, 6 in the morning to 8 at night */
-const TIMES = Array.from({ length: 29 }, (_, i) => 6 * 60 + i * 30).map((m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`)
+export const TIMES = Array.from({ length: 29 }, (_, i) => 6 * 60 + i * 30).map(clock)
 /** who's watching it: their circles; + to add someone or take them off (you only yourself, unless it's yours to say) */
 export type WatchPick = { people: PersonKey[]; me: PersonKey; current: PersonKey[]; onToggle: (p: PersonKey) => void; /** anyone can be added (its person, the admin) — else only you */ anyone: boolean; /** whoever does it — not on the list: they do it, they don't watch it */ doers?: PersonKey[] }
 /** what kind of thing it is — its icon and its name */
 export type WinKind = { icon?: React.ReactNode; label: string }
+
+/** what kind of thing it is, in its own soft color — the same colors as + New: the job site warm, the paperwork blue,
+ *  getting ready green, a meeting indigo, the money green, a problem red (red only for problems) */
+const KIND_TONES: [RegExp, { background: string; color: string }][] = [
+  [/problem/i, { background: '#fdecea', color: '#c4311f' }],
+  [/waiting/i, { background: '#fcf1de', color: '#9c5c0b' }],
+  [/bring|on site|touch|site visit|daily update|crew/i, { background: '#fdf0e6', color: '#b0521b' }],
+  [/getting ready/i, { background: '#e6f4f1', color: '#12766a' }],
+  [/meeting|walkthrough|schedule/i, { background: '#eeeffc', color: '#3f46c2' }],
+  [/material|tile|\bpo\b|order|delivery/i, { background: '#e7f4f8', color: '#13768f' }],
+  [/change|everyone/i, { background: '#f3effd', color: '#6449cc' }],
+  [/billing|pay|invoice|money|check-in/i, { background: '#e6f4ec', color: '#1b7443' }],
+]
+const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(label))?.[1] || { background: '#ebf1fd', color: '#2c53c0' }
 
 export const CHIP = '-mx-2 inline-flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
@@ -100,13 +132,68 @@ export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.React
     </Pop>
   )
 }
-/** its day: tap, pick another — the same in a window and on a list */
+/** the top of a window that's a list of things (Visit the jobs, Installer pay, a check-in, the daily updates, things to
+ *  bring, one step on many projects): the same top as a to-do's — what it is and where, the thing to do, who and when */
+export function ListHead({ kind, title, sub, who, me, when, whenTone, status, statusTone, place = 'Company', onPlace, attrs }: {
+  kind: WinKind; title: React.ReactNode; sub?: React.ReactNode; who?: PersonKey; me?: PersonKey; when?: React.ReactNode; whenTone?: WinTone
+  status?: React.ReactNode; statusTone?: WinTone; place?: React.ReactNode; onPlace?: () => void; attrs?: Record<string, string | undefined>
+}) {
+  return <WinHead kind={kind} place={place} onPlace={onPlace} title={title} sub={sub} who={who} whoText={who ? (who === me ? 'You' : PEOPLE[who]?.short || who) : undefined} state={when} tone={whenTone} status={status} statusTone={statusTone} attrs={attrs} />
+}
+
+/** its day (and its time): tap, pick — like any calendar. The usual days as one tap each on top, the month under them,
+ *  the times beside it. Without times a day is one tap and it's set; with them, the day and then the time (the time
+ *  sets both), or Done — tapping away keeps what's picked, Esc leaves it as it was. The same in a window and on a list */
 export function WhenPop({ pick, trigger }: { pick: WhenPick; trigger: React.ReactElement }) {
   const [open, setOpen] = React.useState(false)
+  const timed = !!(pick.onTime || pick.onSet)
+  const day0 = isoFromLabel(pick.value)
+  const [day, setDay] = React.useState(day0)
+  const [time, setTime] = React.useState(pick.time)
+  const esc = React.useRef(false)
+  /* what's picked goes in: only what changed; a meeting's day and time in one go */
+  const finish = (d = day, t = time) => {
+    const dayMoved = !!d && d !== day0
+    const timeMoved = timed && (t || '') !== (pick.time || '')
+    if (!dayMoved && !timeMoved) return
+    const label = d ? pickedLabel(d) : pick.value || 'Today'
+    if (pick.onSet) { pick.onSet(label, t); return }
+    if (dayMoved) pick.onPick(label)
+    if (timeMoved) pick.onTime?.(t)
+  }
+  const change = (o: boolean) => {
+    if (o) { setDay(isoFromLabel(pick.value)); setTime(pick.time); esc.current = false }
+    else if (!esc.current) finish()
+    setOpen(o)
+  }
+  const close = () => setOpen(false)
+  const pickDay = (iso: string) => { if (timed) setDay(iso); else { close(); finish(iso) } }
+  const presets = pick.presets || ['Today', 'Tomorrow', 'Next Mon', 'In 2 weeks']
+  const said = [day ? dayShort(day) : '', time || (timed && !pick.needTime ? 'Any time' : '')].filter(Boolean).join(' · ')
   return (
-    <Pop open={open} onOpenChange={setOpen} align="start" width={330} trigger={trigger}>
-      <div className="mb-2.5 text-[0.875rem] font-semibold text-ink">{pick.title || 'Move it to'}</div>
-      <DatePresets value={pick.value} presets={pick.presets} onPick={(d) => { setOpen(false); pick.onPick(d) }} />
+    <Pop open={open} onOpenChange={change} onEscape={() => { esc.current = true }} align="start" width={timed ? 492 : 332} trigger={trigger} className="p-0" sheet>
+      <div className="px-4 pb-1 pt-3.5 text-[0.875rem] font-semibold text-ink">{pick.title || (timed ? 'When' : 'Move it to')}</div>
+      <div className="flex flex-wrap gap-1.5 px-4 pb-3 pt-1.5 no-scrollbar max-sm:flex-nowrap max-sm:overflow-x-auto" data-when-presets>
+        {presets.map((p) => {
+          const iso = isoFromLabel(p)
+          const on = !!iso && iso === day
+          return <button key={p} type="button" onClick={() => iso && pickDay(iso)} className={cn('inline-flex h-8 items-center rounded-full border px-3 text-[0.8125rem] font-medium transition max-sm:px-2.5', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink-2 hover:border-[#d1cbc0] hover:bg-wash')} data-when-preset={p}>{p}</button>
+        })}
+      </div>
+      <div className={cn('flex border-t border-line-2', timed ? 'max-sm:flex-col' : '')}>
+        <MonthCal value={day} onPick={pickDay} className={cn('px-3 pb-3 pt-2.5', timed && 'sm:w-[18.75rem] sm:shrink-0')} />
+        {timed && (
+          <div className="min-w-0 flex-1 border-line-2 px-2 py-2.5 sm:border-l max-sm:border-t max-sm:px-3" data-when-times>
+            <TimeList value={time} times={pick.times || TIMES} anyTime={!pick.needTime} onPick={(t) => { setTime(t); close(); finish(day, t) }} />
+          </div>
+        )}
+      </div>
+      {timed && (
+        <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5">
+          <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink" data-when-said>{said}</span>
+          <Button size="sm" variant="primary" onClick={() => { close(); finish() }} data-when-done>Done</Button>
+        </div>
+      )}
     </Pop>
   )
 }
@@ -203,12 +290,12 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   )
   const stateCls = toneCls(tone)
   return (
-    <div className="px-6 pb-2 pt-5 max-sm:px-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
-      {/* what it is, and its project — clear of the window's ✕ */}
-      <div className="flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:pr-0 [[data-stacked]_&]:pr-0">
+    <div className="px-6 pb-2 pt-5 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
+      {/* what it is, and its project — clear of the window's ✕ (a phone too: the ✕ is on this line) */}
+      <div className="flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:items-center max-sm:pr-12 [[data-stacked]_&]:pr-0">
         {/* the project goes on to the next line when there isn't room — never cut short */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-wash-2 px-2.5 text-[0.8125rem] font-semibold text-ink-2 [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:text-muted" data-win-kind>{kind.icon}{kind.label}</span>}
+          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-semibold [&_svg]:h-3.5 [&_svg]:w-3.5" style={kindTone(kind.label)} data-win-kind>{kind.icon}{kind.label}</span>}
           {onPlace ? (
             <button type="button" onClick={onPlace} className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-0.5 text-left text-[0.875rem] font-medium text-muted transition hover:text-brand-700" data-win-place aria-label="Open the project"><span className="min-w-0">{place}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" /></button>
           ) : <span className="inline-flex min-h-7 min-w-0 items-center text-[0.875rem] font-medium text-muted" data-win-place>{place}</span>}
@@ -242,19 +329,16 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
         {state && (
           <WinLine k="when" label="When">
             <span className="flex min-w-0 flex-wrap items-center gap-x-2">
+              {/* the day and its time in one: tap it — the calendar, and the times beside it */}
               {whenPick ? (
-                <WhenPop pick={whenPick} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When · change it" data-when-pick><span className="min-w-0" data-win-state>{state}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
+                <WhenPop pick={whenPick} trigger={
+                  <button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When · change it" data-when-pick>
+                    <span className="min-w-0" data-win-state>{state}</span>
+                    {(whenPick.onTime || whenPick.onSet) && whenPick.time && <span className="shrink-0 tnum text-ink" data-when-time>· {whenPick.time}</span>}
+                    <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
+                  </button>
+                } />
               ) : <span className={cn('text-[0.9375rem]', stateCls)} data-win-state>{state}</span>}
-              {/* its time, right next to its day — tap it for another (or none) */}
-              {whenPick?.onTime && (
-                <>
-                  <span className="text-faint" aria-hidden>·</span>
-                  <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', whenPick.time ? 'text-ink' : 'text-muted')} aria-label="The time · change it" data-when-time><span className="tnum">{whenPick.time || 'Any time'}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
-                    <MenuItem checked={!whenPick.time} onSelect={() => whenPick.onTime?.(undefined)}>Any time</MenuItem>
-                    {TIMES.map((t) => <MenuItem key={t} checked={t === whenPick.time} onSelect={() => whenPick.onTime?.(t)}>{t}</MenuItem>)}
-                  </Menu>
-                </>
-              )}
               {extra && <span className="text-[0.875rem] text-muted">· {extra}</span>}
             </span>
           </WinLine>

@@ -253,7 +253,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
     )
 
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} title={m.title} bodyClass="px-6 pb-6 pt-4 max-sm:px-4">
+    <Modal level={level} size="lg" onClose={s.close} inlineClose header={header} title={m.title} bodyClass="px-6 pb-6 pt-4 max-sm:px-4">
       {/* where it is, step by step */}
       <div className="mb-6">
         {m.step >= 0 || m.state === 'paid' ? (

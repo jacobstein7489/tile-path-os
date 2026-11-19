@@ -35,16 +35,17 @@ function MatTabs({ job, part, setPart }: { job: Job; part: MatPart; setPart: (p:
   const matHere = t.lines.filter((l) => l.toOrder <= 0 && l.onSite >= l.need).length
   const tileWords = !tiles.length ? '' : tileShort ? `${tileShort} short` : `${tileHere} of ${tiles.length} here`
   const ourWords = !t.lines.length ? '' : matOrder ? `${matOrder} to order` : `${matHere} of ${t.lines.length} here`
-  const tab = (k: MatPart, label: string, words: string, bad?: boolean) => (
-    <button key={k} type="button" role="tab" aria-selected={part === k} onClick={() => setPart(k)} data-mat-tab={k} className={cn('inline-flex h-full min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.4375rem] px-3 text-[0.84375rem] font-semibold transition max-sm:flex-col max-sm:gap-0 max-sm:leading-tight sm:flex-none sm:px-3.5', part === k ? 'bg-white text-ink shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.12)]' : 'text-muted hover:text-ink-2')}>
-      <span className="max-w-full truncate">{label}</span>
+  /* a phone: the short name and its count on one line — one slim switch, like a computer's */
+  const tab = (k: MatPart, label: string, short: string, words: string, bad?: boolean) => (
+    <button key={k} type="button" role="tab" aria-selected={part === k} onClick={() => setPart(k)} data-mat-tab={k} className={cn('inline-flex h-full min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.4375rem] px-3 text-[0.84375rem] font-semibold transition max-sm:gap-1.5 max-sm:px-2 sm:flex-none sm:px-3.5', part === k ? 'bg-white text-ink shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.12)]' : 'text-muted hover:text-ink-2')}>
+      <span className="max-w-full truncate"><span className="max-sm:hidden">{label}</span><span className="sm:hidden">{short}</span></span>
       {words && <span className={cn('max-w-full shrink-0 truncate text-[0.75rem] font-medium tnum', bad ? 'text-bad-600' : 'text-muted')}>{words}</span>}
     </button>
   )
   return (
-    <div role="tablist" className="flex h-9 w-full items-center gap-1 rounded-[0.625rem] border border-line bg-wash-2 p-[0.1875rem] max-md:h-11 max-sm:h-14 sm:w-auto" data-mat-tabs>
-      {tab('tile', 'Tile selection', tileWords, tileShort > 0)}
-      {tab('ours', 'Setting materials', ourWords)}
+    <div role="tablist" className="flex h-9 w-full items-center gap-1 rounded-[0.625rem] border border-line bg-wash-2 p-[0.1875rem] max-md:h-11 sm:w-auto" data-mat-tabs>
+      {tab('tile', 'Tile selection', 'Tile', tileWords, tileShort > 0)}
+      {tab('ours', 'Setting materials', 'Materials', ourWords)}
     </div>
   )
 }

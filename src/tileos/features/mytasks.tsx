@@ -18,7 +18,7 @@ import { REPEAT_LABEL, type Task, type TaskType } from '@/tileos/data/work'
 import { runTaskAction } from './flows'
 import { sendCrewReport } from './flows2'
 import { ActivityRow } from './activity'
-import { agendaFor } from './agenda'
+import { agendaFor, eventWhen } from './agenda'
 import { timeLabel, rangeLabel, parseTime, type CalEvent } from '@/tileos/data/calendar'
 import { payDue } from './pay-page'
 import { payOpen, PAY_WEEKS } from './pay'
@@ -38,7 +38,7 @@ import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead, WhoMenu, WhenPop, WatchPop, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
 import { namesOf } from './estpeople'
 import { useSmall } from '@/tileos/lib/phone'
 import { roundsToday, roundsOn } from './rounds'
@@ -451,7 +451,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* a computer: who's watching, its day and (the admin) who does it — tapped right on the row */
       watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       star={!done ? taskStarPick(s, t, me0) : undefined}
-      whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
+      whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
       whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       project={job ? job.name : 'Company'}
       when={w.text}
@@ -750,9 +750,13 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
   const s = useStore()
   const job = e.jobId ? s.jobs[e.jobId] : undefined
   const open = () => s.open({ t: 'event', id: e.id })
+  const me = meOf(s.role)
+  const admin = s.role === 'owner' || s.role === 'pm'
   return (
     <TodoRow
       onClick={open}
+      /* its day and time, right on the line: the calendar and the times — the meeting doesn't open */
+      whenPick={admin || e.people.includes(me) || e.by === me ? eventWhen(e) : undefined}
       icon={<CalendarDays />}
       title={e.title}
       detail={[e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting', rangeLabel(e.start, e.dur), e.with ? `with ${e.with}` : '', showOwner ? e.people.map((p) => PEOPLE[p]?.short).join(', ') : ''].filter(Boolean).join(' · ')}
@@ -1324,9 +1328,9 @@ function WhoPick() {
 }
 /** Everyone: one person's list under their name — their circle, their name, how many — the same lines as on their own
  *  phone; the next person after it. Never mixed */
-function PersonList({ l, view, job, me }: { l: ListOf; view: View; job: string; me: PersonKey }) {
+function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: string; me: PersonKey; q?: string }) {
   const s = useStore()
-  const parts = partsOf(s, l.role, l.person, view, job)
+  const parts = findIn(s, partsOf(s, l.role, l.person, view, job), q)
   const n = countOf(parts)
   if (!n) return null
   return (
@@ -1468,6 +1472,52 @@ function JobPickPop({ picked }: { picked?: Job }) {
     </Pop>
   )
 }
+/* ---------------- find a to-do: type, and the list is only what matches ---------------- */
+/** what's typed in the list's search — kept while the app is open */
+export const useTodayFind = create<{ q: string; set: (q: string) => void }>((set) => ({ q: '', set: (q) => set({ q }) }))
+/** the words a line is found by: what it says, its project (name, address, client), whose it is */
+function lineWords(s: Store, l: Line): string {
+  const jn = (id?: string) => { const j = id ? s.jobs[id] : undefined; return j ? `${j.name} ${j.address || ''} ${j.client || ''}` : '' }
+  const pn = (p?: string) => { const x = p ? PEOPLE[p as PersonKey] : undefined; return x ? `${x.name} ${x.short}` : '' }
+  const task = (t: Task) => `${t.title} ${t.detail || ''} ${t.where || ''} ${t.waitingOn || ''} ${jn(t.jobId)} ${pn(t.owner)} ${(t.also || []).map(pn).join(' ')}`
+  if (l.k === 'task' || l.k === 'gc') return task(l.t)
+  if (l.k === 'wait') return `${todoOf(l.v)} ${jn(l.job.id)} ${pn(l.v.owner)}`
+  const x = l.x
+  return [
+    x.t ? task(x.t) : '',
+    x.e ? `${x.e.title} ${x.e.kind === 'walkthrough' ? 'walkthrough' : 'meeting'} ${x.e.with || ''} ${jn(x.e.jobId)} ${x.e.people.map(pn).join(' ')}` : '',
+    x.v ? todoOf(x.v) : '',
+    x.job ? jn(x.job.id) : '',
+    x.d ? `daily update ${jn(x.d.jobId)}` : '',
+    x.ds ? `daily updates ${x.ds.map((d) => jn(d.jobId)).join(' ')}` : '',
+    x.ts ? `bring to the job ${x.ts.map(task).join(' ')}` : '',
+    x.vs ? x.vs.map((y) => `${todoOf(y.v)} ${jn(y.job.id)}`).join(' ') : '',
+    x.ci ? `check in with ${pn(x.ci.who)}` : '',
+    ({ crew: 'crew report', rounds: 'visit the jobs', pay: 'installer pay', bill: 'progress billing bill the week' } as Record<string, string>)[x.kind] || '',
+  ].join(' ')
+}
+/** only the lines that match every word typed — the parts with none go */
+export function findIn(s: Store, parts: Part[], q: string): Part[] {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return parts
+  return parts.map((p) => ({ ...p, lines: p.lines.filter((l) => { const k = lineWords(s, l).toLowerCase(); return words.every((w) => k.includes(w)) }) })).filter((p) => p.lines.length)
+}
+/** the search on top of the list — a computer's. A phone has Search on top of the screen, which finds to-dos (and
+ *  everything else): one search there, not two */
+function FindBox() {
+  const q = useTodayFind((x) => x.q)
+  const set = useTodayFind((x) => x.set)
+  const small = useSmall()
+  if (small) return null
+  return (
+    <label className="relative block w-[15.5rem] min-w-0" data-today-find>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+      <input {...NO_SUGGEST} value={q} onChange={(e) => set(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') set('') }} placeholder="Search to-dos" aria-label="Search to-dos" className="h-9 w-full rounded-[0.625rem] border border-[#d9d3c9] bg-white pl-9 pr-8 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-300 focus:ring-[0.1875rem] focus:ring-brand-50" data-today-find-input />
+      {q && <button type="button" onClick={() => set('')} aria-label="Clear the search" className="absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink" data-today-find-clear><X className="h-3.5 w-3.5" /></button>}
+    </label>
+  )
+}
+
 function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
   const s = useStore()
   return (
@@ -1478,6 +1528,8 @@ function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
       {reportOn(s) && <WhoPick />}
       <span className="flex-1" />
       {picked && <button type="button" onClick={() => s.open({ t: 'job', id: picked.id })} className="inline-flex shrink-0 items-center text-[0.875rem] font-semibold text-brand-700 hover:underline" data-job-open>Open the project<ChevronRight className="ml-0.5 h-4 w-4" /></button>}
+      {/* a computer: search the to-dos — only what matches stays */}
+      <FindBox />
     </div>
   )
 }
@@ -1497,8 +1549,13 @@ export function MyTasksPage() {
   const me = lists[0].person || meOf(role)
   /* each number is what its list shows — with a job picked, its */
   /* the number on each tab is what you see under it — Everyone: each person's lines added up */
-  const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(partsOf(s, l.role, l.person, v, job)), 0) : countOf(partsFor(s, lists, v, job)))
-  const parts = partsFor(s, lists, view, job)
+  /* typed in the search: only what matches — and each tab's number is how many match on it */
+  const q0 = useTodayFind((x) => x.q).trim()
+  /* (a phone has no list search — Search on top of the screen instead) */
+  const q = useSmall() ? '' : q0
+  const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(findIn(s, partsOf(s, l.role, l.person, v, job), q)), 0) : countOf(findIn(s, partsFor(s, lists, v, job), q)))
+  const parts = findIn(s, partsFor(s, lists, view, job), q)
+  const found = q ? n(view) : 0
   const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
     today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up. See Coming up.` : 'New work lands here the moment it’s yours.' },
     coming: { title: 'Nothing coming up', sub: 'Tomorrow’s things, and anything with a day after it, show here.' },
@@ -1532,11 +1589,13 @@ export function MyTasksPage() {
       <WaitView.Provider value={view === 'waiting'}>
       <div data-even-list data-list-scope="mine" style={todoColsOf(true)}>
         {/* Waiting on others, in one line: only what you're waiting for */}
-        {view === 'waiting' && n(view) > 0 && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch. By whom it’s with.</div>}
+        {view === 'waiting' && n(view) > 0 && !q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch. By whom it’s with.</div>}
+        {/* searching: how many match, on this list */}
+        {q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] text-muted', PX)} data-today-found={found}>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : 'waiting'} matches “${q}”`}</div>}
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who />}
         {/* one person's list — or Everyone: each person's under their own name, never mixed */}
-        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
-        {n(view) === 0 && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
+        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
+        {n(view) === 0 && !q && <EmptyState icon={<Check />} title={empty[view].title} sub={empty[view].sub} />}
       </div>
       </WaitView.Provider>
       </Multi.Provider>
@@ -1654,7 +1713,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   /* what people wrote — not what the app did */
   const notesOnly = log.filter(isNote)
   const when =
-    t.state === 'now' ? { text: b === 'overdue' ? (/late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${t.due}` : 'No date', cls: b === 'overdue' ? 'text-bad-700' : b === 'today' ? 'text-warn-700' : 'text-ink-2' }
+    t.state === 'now' ? { text: b === 'overdue' ? (/late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${/^(Tomorrow|This week|Next week|Next Mon|In 2 weeks)$/.test(t.due) ? t.due.charAt(0).toLowerCase() + t.due.slice(1) : t.due}` : 'No date', cls: b === 'overdue' ? 'text-bad-700' : b === 'today' ? 'text-warn-700' : 'text-ink-2' }
       : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
         : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
           : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
@@ -1793,7 +1852,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
 
   return (
     /* the same size as every window that opens from a list — a task, a step, waiting on the GC */
-    <Modal level={level} size="md" onClose={s.close} header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
+    <Modal level={level} size="md" onClose={s.close} inlineClose header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
       {body}
     </Modal>
   )
@@ -2062,7 +2121,8 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
       size="md"
       onClose={s.close}
       title={`Where the crews are ${crewWhen(day)}`}
-      sub={`${dayShort(day)} · how many people on each project. It goes to ${boss}`}
+      inlineClose
+      header={<ListHead kind={{ icon: <HardHat />, label: 'Crew report' }} title={`Where the crews are ${crewWhen(day)}`} sub={`How many people on each project. It goes to ${boss}`} who={meOf(s.role)} me={meOf(s.role)} when={dayShort(day)} attrs={{ 'data-crew-head': '' }} />}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted max-sm:hidden">{on} {on === 1 ? 'project' : 'projects'} · {people} {people === 1 ? 'person' : 'people'}</span>

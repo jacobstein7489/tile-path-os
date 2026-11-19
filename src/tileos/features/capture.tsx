@@ -8,7 +8,7 @@
  * The AI is the company's own (Lovable AI, on the server). Where it isn't on, the words are split into lines by
  * themselves — the same box to check, just less clever. */
 import * as React from 'react'
-import { ArrowLeftRight, ArrowUp, AudioLines, Building2, CalendarDays, Check, ChevronDown, HardHat, HelpCircle, ListTodo, Mic, Plus, Ruler, Sparkles, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowUp, AudioLines, Building2, CalendarDays, Check, ChevronDown, ExternalLink, HardHat, HelpCircle, ListTodo, Mic, Plus, Ruler, Sparkles, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useStore, meOf, NOW, newTask, addHist, clockNow, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -26,7 +26,7 @@ import { lateOf } from './late'
 import { typeOf } from './projectlist'
 import { ProjectChip, PICK_CHIP, projectsFor } from './formkit'
 import { Helper, Listening } from './helper'
-import { useVoice } from '@/tileos/components/ui/voice'
+import { useVoice, IN_FRAME, openOwnTab } from '@/tileos/components/ui/voice'
 import { needByFor, startOf } from './gcwait'
 import { stepsFor } from './steps'
 import { setTaskTime } from './taskshare'
@@ -513,8 +513,9 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
       size="md"
       onClose={s.close}
       title="Tile OS"
+      inlineClose
       header={
-        <div className="flex items-center gap-3 px-6 pb-2 pt-5 pr-16 max-sm:px-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-capture-head>
+        <div className="flex items-center gap-3 px-6 pb-2 pt-5 pr-16 max-sm:px-4 max-sm:pr-14 max-sm:pt-3 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-capture-head>
           <Helper size={44} mood={busy || mic.busy ? 'thinking' : mic.on ? 'listening' : 'idle'} />
           <div className="min-w-0">
             <h2 className="font-display text-[1.125rem] font-semibold leading-tight text-ink">Tile OS</h2>
@@ -525,7 +526,13 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
       footer={
         <div className="w-full" data-capture-composer>
           {mic.on && mic.quiet && <div className="mb-2 text-center text-[0.8125rem] text-warn-700" data-capture-quiet>I don’t hear anything. Is the right microphone on?</div>}
-          {mic.err && <div className="mb-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>{mic.err}</div>}
+          {mic.err && (
+            <div className="mb-2 flex flex-col items-center gap-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-center text-[0.84375rem] leading-snug text-warn-800" role="alert" data-capture-err>
+              <span>{mic.err}</span>
+              {/* inside the Lovable editor: one tap opens the app in its own tab, where the mic works */}
+              {mic.err === IN_FRAME && <Button size="sm" variant="primary" icon={<ExternalLink />} onClick={openOwnTab} data-capture-own-tab>Open Tile OS in its own tab</Button>}
+            </div>
+          )}
           {/* the box, like ChatGPT's: the pictures going with it on top, what you write or say (it grows with it), and under
               it + on the left (a photo, a file), the mic and send on the right. Talking: ✕ on the left, the sound in the
               middle, ✓ on the right — ✓ sends it */}
@@ -761,13 +768,13 @@ export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => voi
   const open = (listen?: boolean) => { onOpen?.(); s.open({ t: 'capture', jobId, listen }) }
   return (
     <div role="button" tabIndex={0} onClick={() => open()} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
-      className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-3.5 py-3 transition hover:border-brand-200" data-say-it>
+      className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-3.5 py-3 transition hover:border-brand-200 max-sm:py-2" data-say-it>
       <Helper size={40} mood="idle" />
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block text-[0.9375rem] font-semibold text-ink">What’s going on?</span>
         <span className="block truncate text-[0.8125rem] text-muted">Ask me, or tell me what to do</span>
       </span>
-      <button type="button" onClick={(e) => { e.stopPropagation(); open(true) }} aria-label="Talk" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95" data-say-mic><Mic className="h-5 w-5" /></button>
+      <button type="button" onClick={(e) => { e.stopPropagation(); open(true) }} aria-label="Talk" className="inline-flex h-11 w-11 max-sm:h-10 max-sm:w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95" data-say-mic><Mic className="h-5 w-5" /></button>
     </div>
   )
 }

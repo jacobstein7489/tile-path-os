@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
 import { DOC_GRAY } from '../docpaper'
-import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -33,9 +33,10 @@ import { ScopeDoc } from './scopedoc'
 import { RoomScope, plainLines } from './roomscope'
 import { firstName, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
 import { printNode } from '@/tileos/lib/print'
+import { useSmall } from '@/tileos/lib/phone'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
-import { edgeWords } from '@/tileos/data/catalog'
+import { edgeWords, parseMetal, finishOf } from '@/tileos/data/catalog'
 import { isWall } from '../heights'
 import { detailsOf, setRoomDetails, surfaceDetailLines, edgeShort } from '../roomdetails'
 import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
@@ -96,8 +97,8 @@ const heightShort = (h?: string) => {
   if (!b) return a
   return /^(fully|half) tiled$/i.test(a) ? b.charAt(0).toUpperCase() + b.slice(1) : `${a}, ${b}`
 }
-/** one Print: the scope of work, or the room sheets to hang in each room */
-function PrintMenu({ job }: { job: Job }) {
+/** printing the scope of work, or the room sheets to hang in each room — from Print (a computer) or the ··· (a phone) */
+function usePrint(job: Job) {
   const s = useStore()
   const [what, setWhat] = React.useState<'scope' | 'sheets' | null>(null)
   const ref = React.useRef<HTMLDivElement>(null)
@@ -111,15 +112,41 @@ function PrintMenu({ job }: { job: Job }) {
     }, 60)
     return () => clearTimeout(t)
   }, [what])
+  /* the scope of work to hang up: room by room, its details and its tiles with their pictures */
+  const node = (
+    <>
+      {what === 'scope' && <div className="hidden"><RoomScope jobId={job.id} innerRef={ref} /></div>}
+      {what === 'sheets' && <div className="hidden" ref={ref}><RoomSheets job={job} /></div>}
+    </>
+  )
+  return { n, print: (w: 'scope' | 'sheets') => { if (w === 'scope' || n) setWhat(w) }, node }
+}
+/** one Print: the scope of work, or the room sheets to hang in each room */
+function PrintMenu({ job }: { job: Job }) {
+  const pr = usePrint(job)
   return (
     <>
       <Menu align="end" width={240} trigger={<Button size="sm" icon={<Printer />} data-print-menu>Print<ChevronDown className="-mr-1 h-3.5 w-3.5 text-faint" /></Button>}>
-        <MenuItem icon={<FileText className="h-4 w-4" />} onSelect={() => setWhat('scope')}>The scope of work</MenuItem>
-        <MenuItem icon={<Printer className="h-4 w-4" />} onSelect={() => n && setWhat('sheets')} hint={n ? `${n} room${n === 1 ? '' : 's'}. One in each` : 'Once the tile is in'}>The room sheets</MenuItem>
+        <MenuItem icon={<FileText className="h-4 w-4" />} onSelect={() => pr.print('scope')}>The scope of work</MenuItem>
+        <MenuItem icon={<Printer className="h-4 w-4" />} onSelect={() => pr.print('sheets')} hint={pr.n ? `${pr.n} room${pr.n === 1 ? '' : 's'}. One in each` : 'Once the tile is in'}>The room sheets</MenuItem>
       </Menu>
-      {/* the scope of work to hang up: room by room, its details and its tiles with their pictures */}
-      {what === 'scope' && <div className="hidden"><RoomScope jobId={job.id} innerRef={ref} /></div>}
-      {what === 'sheets' && <div className="hidden" ref={ref}><RoomSheets job={job} /></div>}
+      {pr.node}
+    </>
+  )
+}
+/** a phone: the scope's one main button, and the rest in its ··· — one slim row, nothing cut off */
+function ScopeMore({ job, canEdit, canChange, onPaper }: { job: Job; canEdit: boolean; canChange: boolean; onPaper: () => void }) {
+  const s = useStore()
+  const pr = usePrint(job)
+  return (
+    <>
+      <Menu align="end" width={260} trigger={<Button icon={<MoreHorizontal />} aria-label="More for the scope" data-scope-more>More</Button>}>
+        {canEdit && <MenuItem icon={<Upload className="h-4 w-4" />} onSelect={onPaper}>Tile paperwork</MenuItem>}
+        <MenuItem icon={<FileText className="h-4 w-4" />} onSelect={() => pr.print('scope')}>Print the scope of work</MenuItem>
+        <MenuItem icon={<Printer className="h-4 w-4" />} onSelect={() => pr.print('sheets')} hint={pr.n ? `${pr.n} room${pr.n === 1 ? '' : 's'}. One in each` : 'Once the tile is in'}>Print the room sheets</MenuItem>
+        {canChange && canEdit && <MenuItem icon={<Plus className="h-4 w-4" />} onSelect={() => s.open({ t: 'sitechange', jobId: job.id })}>Change order</MenuItem>}
+      </Menu>
+      {pr.node}
     </>
   )
 }
@@ -144,6 +171,7 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
      top to check, the rooms waiting under it (one list at a time) */
   const picker = usePaperPicker(job)
   const checking = usePaperReview(job.id) && canEdit
+  const small = useSmall()
   return (
     <section data-detail="scope" className="px-5 pb-8 pt-4 max-sm:px-3">
       {/* one slim bar — the tab already says "Scope of work": how much there is (and, installing, the last daily update)
@@ -163,9 +191,19 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
         >
           {/* the quick way to change it: say what changed — it shows the changes to OK first */}
           {canEdit && <Button variant="primary" icon={<Mic />} onClick={() => s.open({ t: 'scopetalk', jobId: job.id })} data-scope-talk>Change by talking</Button>}
-          {canEdit && <Button icon={<Upload />} onClick={picker.pick} data-scope-paper>Tile paperwork</Button>}
-          <PrintMenu job={job} />
-          {canChange && <Button icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
+          {small ? (
+            /* a phone: the main button and More — one slim row */
+            <>
+              {!canEdit && canChange && <Button icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
+              <ScopeMore job={job} canEdit={canEdit} canChange={canChange} onPaper={picker.pick} />
+            </>
+          ) : (
+            <>
+              {canEdit && <Button icon={<Upload />} onClick={picker.pick} data-scope-paper>Tile paperwork</Button>}
+              <PrintMenu job={job} />
+              {canChange && <Button icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
+            </>
+          )}
         </PaperBar>
       )}
       {canEdit && picker.input}
@@ -209,15 +247,28 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
 /* A computer: the scope is a table — one column for each thing, its name on top (staying there as you scroll):
    Area · Tile · Grout · Height · edge · Notes · SF (and, once the crew is on it, how far). A phone: each wall and floor
    on two short lines. How each is laid isn't said in words here — the layouts come as pictures, from the plans. */
-const SCOPE_GRID = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)_3.5rem] lg:items-center lg:gap-x-4'
-const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)_3.5rem_4.5rem] lg:items-center lg:gap-x-4'
+const SCOPE_GRID = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_3.5rem] lg:items-center lg:gap-x-4'
+const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_3.5rem_4.5rem] lg:items-center lg:gap-x-4'
 function ScopeHead({ inField }: { inField: boolean }) {
   return (
     <div className={cn(HEAD_ROW, 'sticky top-0 z-[6] hidden px-5', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)} data-scope-cols>
-      <span>Area</span><span>Tile</span><span>Grout</span><span title="How high the tile goes · the metal trim at its edge">Height · trim</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
+      <span>Area</span><span>Tile</span><span>Grout</span><span title="How high the tile goes">Height</span><span title="The metal trim at the tile's edge">Trim</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
     </div>
   )
 }
+/** how high a wall goes, just the height: "84″, metal edge on top" → "84″" (the metal is its trim) */
+const heightOnly = (h?: string) => heightShort((h || '').replace(/\s*(?:,|·|—)?\s*metal edge on top\s*$/i, '').trim())
+/** a wall's trim: the metal and its finish ("JOLLY · Satin brass"), mitered, or "Metal edge" when only the height says so */
+function trimOf(x: Surface): { text: string; color?: string } {
+  if (!isWall(x.name)) return { text: '' }
+  const t = edgeShort(x.edge)
+  const m = parseMetal(x.edge)
+  const f = finishOf(m?.finish)
+  if (t) return { text: t.replace(/ · ([a-z])/, (_, c: string) => ` · ${c.toUpperCase()}`), color: f?.color }
+  return /metal edge/i.test(x.height || '') ? { text: 'Metal edge' } : { text: '' }
+}
+/** the trim's finish, as a little bar of its metal */
+const TrimBar = ({ color }: { color?: string }) => <span className="h-3.5 w-1.5 shrink-0 rounded-[2px] ring-1 ring-inset ring-black/10" style={{ background: color ? `linear-gradient(180deg, #fff6 0%, ${color} 45%, ${color} 70%, #0002 100%)` : '#c9ccd0' }} aria-hidden />
 const dash = <span className="text-faint"></span>
 
 const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCase())
@@ -226,15 +277,14 @@ const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCas
 function wordsOf(jobId: string, x: Surface): { where: string; under: string; tile?: Tile } {
   const tiles = tilesOn(x).map((t) => tileOf(jobId, t)).filter(Boolean) as Tile[]
   const wall = isWall(x.name)
-  const where = wall ? [x.walls ? x.walls.replace(/^The /, '').toLowerCase() : '', x.height ? lowFirst(x.height.replace(/\s+—\s+/g, ', ')) : ''].filter(Boolean).join(' · ') : ''
+  /* which walls — how high and the trim are a line of their own (a phone) or columns of their own (a computer) */
+  const where = wall && x.walls ? x.walls.replace(/^The /, '').toLowerCase() : ''
   /* one size for all its tiles (a checkerboard) — said once */
   const sizes = Array.from(new Set(tiles.map((t) => t.size).filter(Boolean)))
   /* the tile by its name — its size is on the tile (Tile & materials, its picture); two sizes on one wall: each said */
   const tileWords = tiles.length ? (sizes.length <= 1 ? tiles.map((t) => t.name).join(' + ') : tiles.map((t) => `${t.name}${t.size ? ` ${t.size}` : ''}`).join(' + ')) : x.tile || ''
   const g = x.grout || tiles[0]?.grout
-  const edge = wall ? edgeShort(x.edge) : ''
-  const edgeWords = edge ? (edge === 'Mitered' ? 'mitered edges' : `${edge.replace(' · ', ' ')} edge`) : ''
-  const under = [tileWords, g ? `${GROUTS[g]?.name || g} grout` : '', edgeWords, x.notes || ''].filter(Boolean).join(' · ')
+  const under = [tileWords, g ? `${GROUTS[g]?.name || g} grout` : '', x.notes || ''].filter(Boolean).join(' · ')
   return { where, under, tile: tiles[0] }
 }
 
@@ -246,7 +296,8 @@ function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: S
   const takes = takesTile(x.name)
   const g = x.grout || tiles[0]?.grout
   const walls = wall && x.walls ? x.walls.replace(/^The /, '') : ''
-  const he = wall ? [heightShort(x.height), edgeShort(x.edge)].filter(Boolean).join(' · ') : ''
+  const he = wall ? heightOnly(x.height) : ''
+  const trim = trimOf(x)
   /* a long one goes on to a second line — never cut short */
   const cell = 'min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug max-lg:hidden'
   return (
@@ -261,6 +312,7 @@ function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: S
       </span>
       <span className="flex min-w-0 items-center gap-1.5 text-[0.875rem] text-ink-2 max-lg:hidden" data-cell="grout">{g ? <><GroutDot grout={g} /><span className="min-w-0 line-clamp-2 leading-snug">{GROUTS[g]?.name || g}</span></> : dash}</span>
       <span className={cn(cell, 'text-ink-2')} data-cell="height">{he || dash}</span>
+      <span className="flex min-w-0 items-center gap-2 text-[0.875rem] text-ink-2 max-lg:hidden" data-cell="trim">{trim.text ? <>{trim.text !== 'Mitered' && <TrimBar color={trim.color} />}<span className="min-w-0 line-clamp-2 leading-snug">{trim.text}</span></> : dash}</span>
       <span className={cn(cell, 'text-ink-2')} title={x.notes || undefined} data-cell="notes">{x.notes || dash}</span>
       <span className={cn(cell, 'text-right tnum text-ink-2')} data-cell="sf">{x.sf ? x.sf.toLocaleString('en-US') : dash}</span>
       {inField && <span className={cn(cell, 'text-right text-[0.8125rem] tnum', right.cls)} data-cell="done">{takes ? right.text : ''}</span>}
@@ -316,6 +368,13 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
                     {right.text && <span className={cn('shrink-0 text-[0.8125rem] tnum', right.cls)} data-surface-right>{right.text}</span>}
                   </span>
                   <span className="block text-[0.8125rem] leading-5 text-muted" data-surface-under>{under || (takes ? (canEdit ? 'Pick its tile' : 'Its tile isn’t picked yet') : 'Not tiled')}</span>
+                  {/* a wall: how high, and its trim — each with its mark */}
+                  {(heightOnly(x.height) || trimOf(x).text) && isWall(x.name) && (
+                    <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.8125rem] leading-5 text-ink-2" data-surface-fit>
+                      {heightOnly(x.height) && <span className="inline-flex items-center gap-1" data-surface-height><MoveVertical className="h-3.5 w-3.5 text-faint" />{heightOnly(x.height)}</span>}
+                      {trimOf(x).text && <span className="inline-flex items-center gap-1.5" data-surface-trim>{trimOf(x).text !== 'Mitered' && <TrimBar color={trimOf(x).color} />}{trimOf(x).text}</span>}
+                    </span>
+                  )}
                 </span>
               </span>
               {/* a computer: one column for each thing */}

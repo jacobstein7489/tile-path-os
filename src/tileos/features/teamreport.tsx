@@ -12,6 +12,7 @@ import { AlarmClock, BellRing, Check, ChevronDown, ChevronRight, SlidersHorizont
 import { useStore, meOf, NOW, DATA_KEYS, type Store } from '@/tileos/store'
 import { Avatar, Button, Field, TextInput } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
+import { ListHead } from './winhead'
 import { Page, Status, PX, ProgressRing, ViewSwitch, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role, type Tone } from '@/tileos/data/model'
@@ -177,8 +178,9 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
       level={level}
       size="sm"
       onClose={s.close}
-      title={<span className="inline-flex items-center gap-2.5"><Avatar who={who} size={28} />Check in with {p?.short || 'them'}</span>}
-      sub={items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} late` : 'Nothing to check in on right now.'}
+      title={`Check in with ${p?.short || 'them'}`}
+      inlineClose
+      header={<ListHead kind={{ icon: <UserRoundCheck />, label: 'Check-in' }} title={`Check in with ${p?.short || 'them'}`} who={meOf(s.role)} me={meOf(s.role)} when="Today" status={items.length ? `${items.length === 1 ? '1 thing' : `${items.length} things`} late` : 'Nothing to check in on right now'} statusTone={items.length ? 'late' : 'quiet'} attrs={{ 'data-checkin-head': '' }} />}
       footer={items.length ? (
         <>
           <Button variant="ghost" icon={<BellRing />} onClick={() => done('remind')} data-checkin-remind>Remind {p?.short}</Button>

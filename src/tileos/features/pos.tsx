@@ -309,7 +309,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
     </>
   )
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
+    <Modal level={level} size="lg" onClose={s.close} inlineClose header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
       {/* cancelling: the words to the store, right here (type over them) — it goes on the order's own email, the lines
           under it as on the order. Nothing goes before the button */}
       {cxl && (
@@ -593,7 +593,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
     </>
   )
   return (
-    <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
+    <Modal level={level} size="lg" onClose={s.close} inlineClose header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
       <Path className="mb-6" steps={steps} />
       <IPOSheet p={p} lines={lines} editing={editing} ratio={ratio} onChange={setLines} />
       <IPOPay p={p} total={total} />

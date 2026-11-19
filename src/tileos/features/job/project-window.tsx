@@ -84,13 +84,13 @@ export function ProjectWindow({ id, tab: initial, level }: { id: string; tab?: s
   if (!job) return null
   if (pricing) {
     return (
-      <Modal level={level} size="xl" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" pricing />} bodyClass="p-0">
+      <Modal level={level} size="xl" tall onClose={close} title={job.name} inlineClose header={<ProjectHeader job={job} mode="modal" pricing />} bodyClass="p-0">
         <div className="p-6"><PricingWorkspace job={job} /></div>
       </Modal>
     )
   }
   return (
-    <Modal level={level} size="full" tall onClose={close} title={job.name} header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => { st.setView(null); st.setTab('billing') }} />} bodyClass="p-0 overflow-hidden">
+    <Modal level={level} size="full" tall onClose={close} title={job.name} inlineClose header={<ProjectHeader job={job} mode="modal" onChat={() => st.setView({ t: 'chat' })} onMoney={() => { st.setView(null); st.setTab('billing') }} />} bodyClass="p-0 overflow-hidden">
       <ProjectBoard job={job} open={st.open} setOpen={st.setOpen} view={st.view} setView={st.setView} onStep={st.onStep} tab={st.tab} setTab={st.setTab} />
     </Modal>
   )

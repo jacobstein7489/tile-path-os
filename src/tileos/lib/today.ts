@@ -101,10 +101,14 @@ export function isoFromLabel(label?: string): string | undefined {
   if (late) return addDays(TODAY, -Number(late[1]))
   const wd = DOW_KEYS.findIndex((k) => l.startsWith(k))
   if (wd >= 0 && l.length <= 9) { let d = TODAY; while (dow(d) !== wd) d = addDays(d, 1); return d }
-  const m = l.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (\d{1,2})$/)
-  if (m) return `${TODAY.slice(0, 4)}-${pad(MON.findIndex((x) => x.toLowerCase() === m[1]) + 1)}-${pad(Number(m[2]))}`
+  /* "Oct 21" is this year; "Jan 5, 2027" says its year (a day picked in another year) */
+  const m = l.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (\d{1,2})(?:,? (\d{4}))?$/)
+  if (m) return `${m[3] || TODAY.slice(0, 4)}-${pad(MON.findIndex((x) => x.toLowerCase() === m[1]) + 1)}-${pad(Number(m[2]))}`
   return undefined
 }
+/** a day picked on a calendar, in the words it's kept in: "Today", "Wed", "Oct 21" — and its year when it isn't this
+ *  one ("Jan 5, 2027"), so it's never read as the January gone by */
+export const pickedLabel = (iso: string) => (iso.slice(0, 4) !== TODAY.slice(0, 4) ? `${md(iso)}, ${iso.slice(0, 4)}` : labelFromIso(iso))
 /** 2026-10-14 → "Wed" this week, "Today", "Tomorrow", or "Oct 21" */
 export function labelFromIso(iso?: string): string {
   if (!iso) return ''

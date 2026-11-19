@@ -74,7 +74,7 @@ export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: 
           {/* where the job's tile comes from — set once; every tile PO and Order more tile goes there */}
           <TileStorePick job={job} canEdit={!simple} />
           {all.length > 6 && (
-            <label className="relative block w-[12rem] max-sm:order-last max-sm:col-span-2 max-sm:w-full">
+            <label className="relative block w-[12rem] max-sm:order-last max-sm:w-[11rem]">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100 max-md:h-11" />
             </label>
@@ -161,9 +161,9 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
         <TileImg tile={t} size={PIC_LG} radius={4} className="max-lg:hidden" />
         <TileImg tile={t} size={PIC_SM} radius={6} className="lg:hidden" />
         <span className="min-w-0 leading-snug">
-          <span className="block truncate text-[0.9375rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size && <span className="text-muted"> · {t.size}</span>}</span>
+          <span className="block truncate text-[0.9375rem] text-ink max-lg:whitespace-normal max-lg:break-words"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size && <span className="whitespace-nowrap text-muted"> · {t.size}</span>}</span>
           {/* a smaller screen: where in the room and its square feet, under it */}
-          <span className="block truncate text-[0.8125rem] text-muted lg:hidden">{[xs.map((x) => x.name).join(' · '), sfHere ? `${sfHere.toLocaleString('en-US')} SF` : '', also].filter(Boolean).join(' · ') || (xs.length ? '' : 'Not on a wall or floor yet')}</span>
+          <span className="block truncate text-[0.8125rem] text-muted lg:hidden max-lg:whitespace-normal max-lg:break-words">{[xs.map((x) => x.name).join(' · '), sfHere ? `${sfHere.toLocaleString('en-US')} SF` : '', also].filter(Boolean).join(' · ') || (xs.length ? '' : 'Not on a wall or floor yet')}</span>
         </span>
       </button>
       <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink-2 max-lg:hidden" data-tile-where>{xs.length ? xs.map((x) => x.name).join(' · ') : <span className="text-faint"></span>}{also && <span className="text-muted" data-tile-also> · {also}</span>}</span>
@@ -195,7 +195,7 @@ function TileStorePick({ job, canEdit }: { job: Job; canEdit: boolean }) {
   const face = (
     <span className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition', store ? 'border-line bg-white text-ink' : 'border-warn-300 bg-[#fffaf0] text-warn-700', may && 'hover:border-[#cfc8bc]')}>
       <Truck className={cn('h-4 w-4 shrink-0', store ? 'text-brand-600' : 'text-warn-600')} />
-      <span className="shrink-0 text-muted">Tile store</span>
+      <span className="shrink-0 text-muted max-sm:hidden">Tile store</span>
       <b className="min-w-0 truncate font-semibold" data-tile-store-name>{store || 'Pick it'}</b>
       {may && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />}
     </span>

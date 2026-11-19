@@ -5,7 +5,8 @@
  *   The same step on many projects (get the tile paperwork from the store): the projects down the left, the one picked
  *     open on the right, done right there. */
 import * as React from 'react'
-import { Check, ChevronLeft, ChevronRight, PackageCheck, Truck } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, PackageCheck, Truck, ClipboardList, ListChecks } from 'lucide-react'
+import { ListHead } from './winhead'
 import { useStore, meOf, isRequest } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -44,7 +45,8 @@ export function DailiesModal({ who, jobs: only, level }: { who?: PersonKey; /** 
       size="md"
       onClose={s.close}
       title="Daily updates"
-      sub={`${theirs ? `${PEOPLE[person]?.name || 'The site manager'} · ` : ''}${sentN} of ${list.length} sent`}
+      inlineClose
+      header={<ListHead kind={{ icon: <ClipboardList />, label: 'Daily updates' }} title="Daily updates" sub={`${sentN} of ${list.length} sent`} who={person} me={me} when="Today" attrs={{ 'data-dailies-head': '' }} />}
       footer={<Button className="ml-auto max-sm:flex-1" variant="primary" onClick={s.close} data-dailies-done>Done</Button>}
       bodyClass="p-0"
     >
@@ -91,7 +93,8 @@ export function TripsModal({ who, day, level }: { who?: PersonKey; day?: string;
       size="md"
       onClose={s.close}
       title="Things to bring"
-      sub={`${mine ? '' : `${PEOPLE[person]?.name || ''} · `}${left ? `${left} still to drop off` : 'All dropped off'}`}
+      inlineClose
+      header={<ListHead kind={{ icon: <Truck />, label: 'Bring to the job' }} title="Things to bring" sub={left ? `${left} still to drop off` : 'All dropped off'} who={person} me={me} when="Today" attrs={{ 'data-trips-head': '' }} />}
       footer={<Button className="ml-auto max-sm:flex-1" variant="primary" onClick={s.close} data-trips-done>Done</Button>}
       bodyClass="p-0"
     >
@@ -139,7 +142,7 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
   const cur = items.find((x) => x.job.id === at) || items[0]
   const doneN = items.filter((x) => x.v.state === 'done' || x.v.state === 'na').length
   return (
-    <Modal level={level} size="lg" onClose={s.close} title={todoOf(items[0].v)} sub={doneN ? `${items.length} projects · ${doneN} done` : `${items.length} projects`} bodyClass="p-0">
+    <Modal level={level} size="lg" onClose={s.close} title={todoOf(items[0].v)} inlineClose header={<ListHead kind={{ icon: <ListChecks />, label: 'Getting ready' }} title={todoOf(items[0].v)} sub={doneN ? `${items.length} projects · ${doneN} done` : `${items.length} projects`} who={me} me={me} when="Today" attrs={{ 'data-batch-head': '' }} />} bodyClass="p-0">
       <div className="grid md:grid-cols-[17.5rem_minmax(0,1fr)]" data-step-batch={k}>
         {(!small || picking) && (
           <nav className="border-line py-2 md:border-r" aria-label="The projects" data-batch-list>
