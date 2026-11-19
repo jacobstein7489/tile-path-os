@@ -35,6 +35,15 @@ export interface MatRules {
   wp: number
   foam: number
   skim: number
+  /** grout: pounds in a bag */
+  groutBag: number
+  /** cement board screws: sheets a box covers */
+  screwsBox: number
+  /** mesh tape: SF of board a roll covers */
+  tapeRoll: number
+  /** leveling clips (tile 24″ and up): clips a tile, clips a bag */
+  clipsTile: number
+  clipsBag: number
   waste: number
 }
 
@@ -42,6 +51,7 @@ export const MAT_RULES0: MatRules = {
   thinSmall: 95, thinMed: 70, thinLarge: 40, thinBond: 60,
   mudIn: 1.5, panIn: 2, sand: 15, portland: 1.5, mesh: 18,
   slu: 25, primer: 300, roll: 150, board: 15, wp: 100, foam: 32, skim: 60,
+  groutBag: 25, screwsBox: 12, tapeRoll: 300, clipsTile: 3, clipsBag: 250,
   waste: 10,
 }
 
@@ -54,6 +64,12 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
       { key: 'thinMed', label: 'Tile up to 15″', unit: 'SF a bag', step: 5, min: 30, max: 150 },
       { key: 'thinLarge', label: 'Large format, back-buttered', unit: 'SF a bag', step: 5, min: 20, max: 120 },
       { key: 'thinBond', label: 'Setting a membrane', unit: 'SF a bag', step: 5, min: 20, max: 150 },
+    ],
+  },
+  {
+    group: 'Grout',
+    rows: [
+      { key: 'groutBag', label: 'Grout bag', unit: 'lb a bag — worked out from each tile’s size and joint', step: 1, min: 5, max: 50 },
     ],
   },
   {
@@ -70,9 +86,26 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
     group: 'Underlayment and waterproofing',
     rows: [
       { key: 'slu', label: 'Self-leveler at ¼″', unit: 'SF a bag', step: 5, min: 10, max: 100 },
+      { key: 'primer', label: 'Primer under the self-leveler', unit: 'SF a gallon', step: 10, min: 50, max: 600 },
       { key: 'roll', label: 'Uncoupling membrane', unit: 'SF a roll', step: 5, min: 30, max: 330 },
-      { key: 'board', label: 'Cement board 3×5', unit: 'SF a sheet', step: 1, min: 8, max: 32 },
       { key: 'wp', label: 'Liquid waterproofing, 2 coats', unit: 'SF a pail', step: 5, min: 30, max: 250 },
+    ],
+  },
+  {
+    group: 'Walls — board and skim',
+    rows: [
+      { key: 'board', label: 'Cement board 3×5', unit: 'SF a sheet', step: 1, min: 8, max: 32 },
+      { key: 'screwsBox', label: 'Board screws', unit: 'sheets a box', step: 1, min: 4, max: 40 },
+      { key: 'tapeRoll', label: 'Mesh tape', unit: 'SF of board a roll', step: 25, min: 50, max: 1000 },
+      { key: 'foam', label: 'Foam board', unit: 'SF a sheet', step: 1, min: 8, max: 40 },
+      { key: 'skim', label: 'Skim coat', unit: 'SF a bag', step: 5, min: 20, max: 150 },
+    ],
+  },
+  {
+    group: 'Leveling clips — tile 24″ and up',
+    rows: [
+      { key: 'clipsTile', label: 'Clips a tile', unit: 'clips', step: 1, min: 1, max: 8 },
+      { key: 'clipsBag', label: 'Clips a bag', unit: 'clips', step: 50, min: 50, max: 1000 },
     ],
   },
   {

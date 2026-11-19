@@ -17,13 +17,13 @@ import { Status, HEAD_ROW } from '@/tileos/components/ui/page'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { needWithWaste } from '@/tileos/data/work'
-import { tilesOf, tileOf, hasTile, sfFor, GROUTS } from '@/tileos/data/jobs'
+import { tilesOf, tileOf, hasTile, sfFor, GROUTS, floorsOf, type Room } from '@/tileos/data/jobs'
 import { sellsTile } from '@/tileos/data/directory'
 import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
-import { Section, Empty, Group, Word } from './kit'
+import { Word, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
 import { openTilePOs } from '../tilepo'
 import { tileStoreOf } from '../tiles'
 import { scopeLock } from '../steps'
@@ -38,7 +38,8 @@ const QFIRST = 'flex min-w-0 items-center gap-3'
 /** Tile · Where it goes · We need · Where it's at (a smaller screen: where it goes under the tile's name) */
 const TGRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_17rem_1rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_1rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 /* one slim line a material — more of the list on one screen */
-const ROWPAD = 'min-h-[2.625rem] border-t border-line-2 px-5 py-1 max-sm:min-h-12 max-sm:px-4 max-sm:py-2'
+/* one slim line a material — the same 40px as the tile's and the scope's */
+const ROWPAD = 'min-h-[2.5rem] border-t border-line-2 px-5 py-1 max-sm:min-h-12 max-sm:px-3 max-sm:py-2'
 const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
@@ -49,7 +50,7 @@ const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
  * tile on no wall or floor yet is said at the end. The rooms' bands the same as the scope's: the name in bold capitals.
  * On top, staying there as you scroll: the tile store (every tile PO goes there), Order more tile, and Tile came in. */
 const TROW = 'grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_6rem_15rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-x-3'
-export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => void; simple?: boolean }) {
+export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: () => void; simple?: boolean; /** what goes on the left of the bar on top (the switch) */ lead?: React.ReactNode }) {
   const s = useStore()
   const reading = useReadingOf('paperwork', job.id)
   const rooms = s.rooms[job.id] || []
@@ -59,58 +60,68 @@ export function TileOrders({ job, onScope, simple }: { job: Job; onScope: () => 
   const ws = q.toLowerCase().split(/\s+/).filter(Boolean)
   const roomsOfTag = (tag: string) => rooms.filter((r) => r.surfaces.some((x) => hasTile(x, tag))).map((r) => r.name)
   const tags = ws.length ? all.filter((tag) => { const t = tileOf(job.id, tag); const hay = [tag, t?.name, t?.size, t?.supplier, t?.grout && GROUTS[t.grout]?.name, ...roomsOfTag(tag)].filter(Boolean).join(' ').toLowerCase(); return ws.every((w) => hay.includes(w)) }) : all
-  /* each room, the tiles in it (the ones a search keeps) */
-  const byRoom = rooms.map((r) => ({ room: r, uses: tags.flatMap((tag) => { const xs = r.surfaces.filter((x) => hasTile(x, tag)); return xs.length ? [{ tag, xs }] : [] }) })).filter((g) => g.uses.length)
+  /* each room, the tiles in it (the ones a search keeps) — floor by floor, in the scope's order */
+  const usesOf = (r: Room) => tags.flatMap((tag) => { const xs = r.surfaces.filter((x) => hasTile(x, tag)); return xs.length ? [{ tag, xs }] : [] })
+  const groups = floorsOf(rooms.filter((r) => usesOf(r).length))
+  const floors = groups.length > 1 || (!!groups[0] && groups[0].floor !== 'Rooms')
   const unused = tags.filter((tag) => !rooms.some((r) => r.surfaces.some((x) => hasTile(x, tag))))
   return (
-    <Section
-      sticky
-      title="Tile selection"
-      count={all.length}
-      action={all.length > 0 || !simple ? (
-        <span className="flex min-w-0 flex-wrap items-center gap-2">
+    <>
+      {/* the bar on top — the same as the scope's: the switch on the left; the tile store (every tile PO goes there),
+          a search, Order more tile and Tile came in on the right */}
+      <PaperBar lead={lead} mark="data-tile-bar">
+        {(all.length > 0 || !simple) && <>
           {/* where the job's tile comes from — set once; every tile PO and Order more tile goes there */}
           <TileStorePick job={job} canEdit={!simple} />
           {all.length > 6 && (
-            <label className="relative block w-[12rem] max-sm:order-last max-sm:w-full">
+            <label className="relative block w-[12rem] max-sm:order-last max-sm:col-span-2 max-sm:w-full">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tiles" aria-label="Search tiles" data-tile-search className="h-9 w-full rounded-full border border-line bg-white pl-8 pr-3 text-[0.8125rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-100 max-md:h-11" />
             </label>
           )}
           {/* more tile from the store — a tile PO for the extra, with a number to follow */}
           {all.length > 0 && <Button icon={<PackagePlus />} onClick={() => s.open({ t: 'moretile', jobId: job.id })} data-tile-more>Order more tile</Button>}
           {/* the tile came — count the boxes */}
           {all.length > 0 && <Button variant="primary" icon={<Truck />} onClick={() => s.open({ t: 'receivetile', jobId: job.id })} data-tile-in>Tile came in</Button>}
-        </span>
-      ) : undefined}
-    >
-      <div data-tile-list>
-        {tags.length > 0 && <div className={cn(HEAD_ROW, TROW, 'sticky top-[7.75rem] z-[5] px-5 max-lg:hidden')} data-tile-cols><span>Tile</span><span>Where in the room</span><span className="text-right">SF</span><span className="text-right">Where it’s at</span></div>}
-        {byRoom.map((g) => (
-          <section key={g.room.name} data-tile-room-group={g.room.name}>
-            {/* the room's band — the same as on the scope of work: its name in bold capitals */}
-            <div className="flex min-h-10 items-center gap-2.5 border-t border-line px-5 py-1.5 lg:sticky lg:top-[10.25rem] lg:z-[4] max-sm:px-4" style={{ background: DOC_GRAY }} data-band data-tile-room-band>
-              <b className="min-w-0 truncate text-[0.8125rem] font-bold uppercase tracking-[0.02em] text-[#222]">{g.room.name}</b>
-              <span className="text-[0.8125rem] text-[#555] tnum">{g.uses.length}</span>
-            </div>
-            {g.uses.map((u) => <TileLine key={u.tag} job={job} tag={u.tag} xs={u.xs} room={g.room.name} simple={simple} />)}
+        </>}
+      </PaperBar>
+      <div className={PAPER} data-tile-list>
+        {tags.length > 0 && <div className={cn(HEAD_ROW, TROW, 'sticky top-0 z-[6] px-5 max-lg:hidden')} data-tile-cols><span>Tile</span><span>Where in the room</span><span className="text-right">SF</span><span className="text-right">Where it’s at</span></div>}
+        {groups.map((fg) => (
+          <section key={fg.floor} data-floor={fg.floor} className="[&+&]:border-t [&+&]:border-line">
+            {/* each floor in the scope's dark green band */}
+            {floors && <FloorBand floor={fg.floor} rooms={fg.rooms.length} />}
+            {fg.rooms.map((r, i) => {
+              const uses = usesOf(r)
+              return (
+                <section key={r.name} data-tile-room-group={r.name}>
+                  {/* the room's band — the same as on the scope of work: its name in bold capitals; it stays under the
+                      column names while its tiles go by */}
+                  <div className={cn(ROOM_BAND, 'px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]', (i > 0 || !floors) && 'border-t border-line')} style={{ background: DOC_GRAY }} data-band data-tile-room-band>
+                    <b className={cn(ROOM_NAME, 'min-w-0 truncate')}>{r.name}</b>
+                    <span className="text-[#555] tnum">{uses.length}</span>
+                  </div>
+                  {uses.map((u) => <TileLine key={u.tag} job={job} tag={u.tag} xs={u.xs} room={r.name} simple={simple} />)}
+                </section>
+              )
+            })}
           </section>
         ))}
         {unused.length > 0 && (
           <section data-tile-room-group="">
-            <div className="flex min-h-10 items-center gap-2.5 border-t border-line px-5 py-1.5 max-sm:px-4" style={{ background: DOC_GRAY }} data-band data-tile-room-band><b className="min-w-0 truncate text-[0.8125rem] font-bold uppercase tracking-[0.02em] text-warn-700">Not on a wall or floor yet</b><span className="text-[0.8125rem] text-[#555] tnum">{unused.length}</span></div>
+            <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3')} style={{ background: DOC_GRAY }} data-band data-tile-room-band><b className={cn(ROOM_NAME, 'min-w-0 truncate text-warn-700')}>Not on a wall or floor yet</b><span className="text-[#555] tnum">{unused.length}</span></div>
             {unused.map((tag) => <TileLine key={tag} job={job} tag={tag} xs={[]} simple={simple} />)}
           </section>
         )}
         {!all.length && (
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4" data-tiles-empty>
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-3" data-tiles-empty>
             <span className="min-w-0 flex-1">{reading ? 'The tile paperwork is being read — on the Scope of work.' : 'No tiles yet — they come from the tile paperwork, on the Scope of work (or a wall’s “Add a new tile”).'}</span>
             <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         )}
-        {all.length > 0 && !tags.length && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-4">No tile matches “{q}”.</div>}
+        {all.length > 0 && !tags.length && <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-muted max-sm:px-3">No tile matches “{q}”.</div>}
       </div>
-    </Section>
+    </>
   )
 }
 
@@ -143,10 +154,12 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
   if (t) acts.push({ label: 'Order more of this tile', run: () => s.open({ t: 'moretile', jobId: job.id, tags: [tag] }) })
   const tone = st.tone === 'bad' ? 'text-bad-600 font-medium' : st.tone === 'ok' ? 'text-[#2c8a5b] font-medium' : 'text-ink-2'
   return (
-    <div data-tile={tag} className={cn(TROW, 'min-h-[3.25rem] border-t border-line-2 px-5 py-1.5 max-sm:px-4')}>
-      {/* the tile: its picture, name and size — tap it for everything about it */}
+    <div data-tile={tag} className={cn(TROW, PAPER_ROW)}>
+      {/* the tile: its picture, name and size — tap it for everything about it. The picture the scope's size: small on
+          a computer, big on a phone */}
       <button type="button" disabled={simple || !t} onClick={() => s.open({ t: 'tile', jobId: job.id, tag })} className="flex min-w-0 items-center gap-3 text-left enabled:hover:[&_b]:text-brand-700" data-tile-open={tag}>
-        <TileImg tile={t} size={40} radius={6} />
+        <TileImg tile={t} size={PIC_LG} radius={4} className="max-lg:hidden" />
+        <TileImg tile={t} size={PIC_SM} radius={6} className="lg:hidden" />
         <span className="min-w-0 leading-snug">
           <span className="block truncate text-[0.9375rem] text-ink"><b className="font-semibold tnum">{tag}</b> {t?.name || 'Tile'}{t?.size && <span className="text-muted"> · {t.size}</span>}</span>
           {/* a smaller screen: where in the room and its square feet, under it */}
@@ -196,7 +209,7 @@ function TileStorePick({ job, canEdit }: { job: Job; canEdit: boolean }) {
 }
 
 /* ---------------- our materials ---------------- */
-export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode; /** the Materials tab: "Order what's missing" is on the line on top */ orderOnTop?: boolean }) {
+export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }: { job: Job; onScope: () => void; simple?: boolean; orders?: React.ReactNode; /** the Materials tab: "Order what's missing" is on the line on top */ orderOnTop?: boolean; /** what goes on the left of the bar on top (the switch) */ lead?: React.ReactNode }) {
   const s = useStore()
   const save = useSaveStatus()
   const t = takeoff(s, job.id)
@@ -207,57 +220,66 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop }: { jo
   const canEdit = !simple && ['owner', 'pm', 'office', 'estimator', 'materials'].includes(s.role)
   const shownCount = t.lines.length
   return (
-    <Section
-      sticky
-      title="Our materials"
-      count={t.counted || shownCount ? shownCount : undefined}
-      action={simple ? undefined : <>
-        {canEdit && <AddMaterial jobId={job.id} />}
-        {miss.length > 0 && !orderOnTop
-          ? <Button size="sm" variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {miss.length}</Button>
-          : canEdit && <Button size="sm" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id })}>New PO</Button>}
-      </>}
-    >
-      {!t.counted && !shownCount ? (
-        <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4">
-          <span className="min-w-0 flex-1">{t.total ? 'They work themselves out once the walls and floors have their square feet.' : 'No rooms yet — they come over from the estimate.'}</span>
-          <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
-        </div>
-      ) : (
-        <div>
-          <div className={cn(HEAD_ROW, QGRID, 'sticky top-[7.75rem] z-[5] px-5 max-lg:hidden')}><span>Material</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>
-          {GROUPS.map((g) => {
-            const ls = t.lines.filter((l) => l.group === g)
-            if (!ls.length) return null
-            return (
-              <section key={g}>
-                <Group label={g} />
-                {ls.map((l) => <Line key={l.itemId} l={l} jobId={job.id} open={open === l.itemId} onToggle={() => toggle(l.itemId)} waste={t.rules.waste} canEdit={canEdit} />)}
-              </section>
-            )
-          })}
-        </div>
-      )}
-      {orders && <><Group label="Orders" />{orders}</>}
-      {t.off.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-muted max-sm:px-4">
-          <span className="font-semibold text-ink-2">Taken off the list</span>
-          {t.off.map((id) => {
-            const nm = s.items.find((i) => i.id === id)?.name || id
-            return canEdit
-              ? <button key={id} onClick={() => restoreMat(job.id, id)} className="inline-flex h-7 items-center gap-1 rounded-full border border-line bg-white px-2.5 text-[0.78125rem] font-medium text-ink-2 hover:bg-wash" title="Put it back on the list"><RotateCcw className="h-3 w-3" />{nm}</button>
-              : <span key={id} className="text-[0.78125rem]">{nm}</span>
-          })}
-        </div>
-      )}
-      {t.skipped.length > 0 && t.counted > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-4">
-          <span className="font-semibold text-ink">Not counted yet</span>
-          <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
-          <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
-        </div>
-      )}
-    </Section>
+    <>
+      {/* the bar on top — the same as the tile's and the scope's: the switch on the left, its buttons on the right */}
+      <PaperBar lead={lead} mark="data-mat-bar">
+        {!simple && canEdit && <AddMaterial jobId={job.id} />}
+        {!simple && (miss.length > 0 && !orderOnTop
+          ? <Button variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })} data-mat-order>Order what’s missing · {miss.length}</Button>
+          : canEdit && <Button icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id })} data-mat-newpo>New PO</Button>)}
+      </PaperBar>
+      <div className={PAPER} data-mat-list>
+        {!t.counted && !shownCount ? (
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-3">
+            <span className="min-w-0 flex-1">{t.total ? 'They work themselves out once the walls and floors have their square feet.' : 'No rooms yet — they come over from the estimate.'}</span>
+            <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
+          </div>
+        ) : (
+          <div>
+            <div className={cn(HEAD_ROW, QGRID, 'sticky top-0 z-[6] px-5 max-lg:hidden')} data-mat-cols><span>Material</span><span>Where it goes</span><span className="text-right">We need</span><span className="text-right">Where it’s at</span><span /></div>
+            {GROUPS.map((g) => {
+              const ls = t.lines.filter((l) => l.group === g)
+              if (!ls.length) return null
+              return (
+                <section key={g}>
+                  <MatBand label={g} n={ls.length} />
+                  {ls.map((l) => <Line key={l.itemId} l={l} jobId={job.id} open={open === l.itemId} onToggle={() => toggle(l.itemId)} waste={t.rules.waste} canEdit={canEdit} />)}
+                </section>
+              )
+            })}
+          </div>
+        )}
+        {orders && <><MatBand label="Orders" /><div data-mat-orders>{orders}</div></>}
+        {t.off.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line-2 px-5 py-2.5 text-[0.8125rem] text-muted max-sm:px-3">
+            <span className="font-semibold text-ink-2">Taken off the list</span>
+            {t.off.map((id) => {
+              const nm = s.items.find((i) => i.id === id)?.name || id
+              return canEdit
+                ? <button key={id} onClick={() => restoreMat(job.id, id)} className="inline-flex h-7 items-center gap-1 rounded-full border border-line bg-white px-2.5 text-[0.78125rem] font-medium text-ink-2 hover:bg-wash" title="Put it back on the list"><RotateCcw className="h-3 w-3" />{nm}</button>
+                : <span key={id} className="text-[0.78125rem]">{nm}</span>
+            })}
+          </div>
+        )}
+        {t.skipped.length > 0 && t.counted > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-3">
+            <span className="font-semibold text-ink">Not counted yet</span>
+            <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
+            <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+/** a kind of material (Setting, Grout, Waterproofing…) in the same gray band as a room's on the tile and the scope —
+ *  its name in bold capitals, how many next to it; it stays under the column names while its lines go by */
+function MatBand({ label, n }: { label: string; n?: number }) {
+  return (
+    <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]')} style={{ background: DOC_GRAY }} data-band data-mat-band={label}>
+      <b className={cn(ROOM_NAME, 'min-w-0 truncate')}>{label}</b>
+      {n != null && <span className="text-[#555] tnum">{n}</span>}
+    </div>
   )
 }
 

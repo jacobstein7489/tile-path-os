@@ -16,6 +16,46 @@ import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 /** Cobblestone's green — the bands on the scope of work */
 export const GREEN = '#2c4a3e'
 export const SHEET = 'overflow-hidden rounded-[0.875rem] border border-line bg-white'
+
+/* The two paper lists — the Scope of work and Tile & materials — are one design, the same sizes to the pixel: a slim bar
+ * on top (what it is on the left, its buttons on the right — it scrolls away), then the paper: the column names (they
+ * stay on top), each floor in Cobblestone's dark green band, each room in its gray band (it stays under the column names
+ * while its lines go by), each line 40px with a 24px picture (a phone: two lines, a 44px picture). */
+/** the paper: rounded, and its column names and bands still stay on top as you scroll (clip, not hidden) */
+export const PAPER = 'overflow-clip rounded-[0.875rem] border border-line bg-white'
+/** a line on the paper — a computer: 40px; a phone: two lines with the big picture */
+export const PAPER_ROW = 'min-h-[3.5rem] border-t border-line-2 px-5 py-2.5 max-sm:px-3 lg:min-h-[2.5rem] lg:py-1'
+/** a room's gray band (the scope's and the tile's) */
+export const ROOM_BAND = 'flex min-h-9 min-w-0 items-center gap-2.5 text-[0.8125rem] text-[#222]'
+export const ROOM_NAME = 'font-bold uppercase tracking-[0.02em]'
+/** the picture on a line: small on a computer, big on a phone */
+export const PIC_LG = 24
+export const PIC_SM = 44
+
+/** the slim bar over a paper list: what it is (or the switch) on the left, its buttons on the right — a phone: the
+ *  buttons two by two under it, each as wide as its half */
+export function PaperBar({ lead, children, className, mark, buttonsMark }: { lead?: React.ReactNode; children?: React.ReactNode; className?: string; /** its mark for the checks */ mark?: string; buttonsMark?: string }) {
+  return (
+    <div className={cn('mb-3 flex min-h-9 min-w-0 flex-wrap items-center gap-x-3 gap-y-2', className)} {...(mark ? { [mark]: '' } : {})}>
+      {lead}
+      {children && (
+        <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>*]:w-full max-sm:[&>*:last-child:nth-child(odd)]:col-span-2" {...(buttonsMark ? { [buttonsMark]: '' } : {})}>
+          {children}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** a floor in Cobblestone's dark green band — a heading, nothing to open — and how many rooms on it */
+export function FloorBand({ floor, rooms }: { floor: string; rooms: number }) {
+  return (
+    <div className="flex h-9 w-full items-center gap-2.5 px-5 text-[0.78125rem] font-bold uppercase tracking-[0.06em] text-white max-sm:px-3" style={{ background: GREEN }} data-floor-band>
+      <span className="min-w-0 flex-1 truncate">{floor}</span>
+      <span className="shrink-0 font-semibold normal-case tracking-normal text-white/80">{rooms} {rooms === 1 ? 'room' : 'rooms'}</span>
+    </div>
+  )
+}
 /** a person's first name — "Mordcha", not "Mordcha Shapiro" */
 export const firstName = (p?: PersonKey) => (p ? PEOPLE[p]?.short || PEOPLE[p]?.name || '' : '')
 

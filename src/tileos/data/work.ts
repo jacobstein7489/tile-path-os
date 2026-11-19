@@ -410,7 +410,8 @@ export interface POLine { item: string; qty: string; itemId?: string; n?: number
   unit?: string
   /** how many came so far — a part delivery leaves the rest open on the same PO */
   got?: number }
-export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string; /** the last time Tile OS emailed it, and to whom */ mailed?: { at: string; to: string }
+export interface PO { id: string; jobId: string; supplier: string; what: string; lines: POLine[]; amount: number; step: number; late?: boolean; eta?: string; note: string; log: LogLine[]; date?: string; /** the last time Tile OS emailed it, and to whom — and the email's thread: its subject and the emails in it (the first
+ *  is the order; a change, a follow-up, the cancel go on the same thread) */ mailed?: { at: string; to: string; subject?: string; thread?: string[] }
   /** tile from the store (a tile order, or our call for the delivery of the client's tile) — not our materials */
   kind?: 'tile'
   /** who pays the store: us (it has prices and a bill), or the client — then the PO is the delivery, with no prices */

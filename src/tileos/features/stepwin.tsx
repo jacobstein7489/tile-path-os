@@ -418,10 +418,11 @@ function StepPanel({ job, v, roomy, goTo, bare }: { job: Job; v: StepView; roomy
           <StepResult job={job} v={v} />
           {mine && <DoneChange job={job} v={v} />}
         </div>
-      ) : mine ? (
+      ) : mine || (bare && admin && !locked) ? (
+        /* yours — or, in a window of the same step on many projects, the admin's to do for whoever has it */
         <fieldset className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)}><Body job={job} v={v} /></fieldset>
-      ) : v.state === 'bad' ? (
-        <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)} data-problem-view><Body job={job} v={v} /></fieldset>
+      ) : v.state === 'bad' || (bare && !locked) ? (
+        <fieldset disabled className={cn('m-0 min-w-0 border-0 p-0', !bare && gap)} {...(v.state === 'bad' ? { 'data-problem-view': '' } : { 'data-view-only': '' })}><Body job={job} v={v} /></fieldset>
       ) : null}
       {/* in its own window only what people wrote shows (the notes) — the app's own log is the project's History */}
       {!bare && hist.length > 0 && (

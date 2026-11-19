@@ -7,7 +7,8 @@ export const mailKey = () => (process.env["RESEND_API_KEY"] || "").trim();
 export const mailConfigured = () => !!mailKey();
 
 export type Attachment = { filename: string; content: string /* base64 */; /** shown inside the email: <img src="cid:…"> */ content_id?: string; content_type?: string };
-export type Mail = { from: string; to: string[]; cc?: string[]; bcc?: string[]; replyTo?: string[]; subject: string; html: string; text?: string; attachments?: Attachment[]; /** false: no copy to the sender (an invite — its link is theirs alone) */ copy?: boolean };
+export type Mail = { from: string; to: string[]; cc?: string[]; bcc?: string[]; replyTo?: string[]; subject: string; html: string; text?: string; attachments?: Attachment[]; /** false: no copy to the sender (an invite — its link is theirs alone) */ copy?: boolean; /** a reply on an email that went out before: the ids Resend gave the emails already on that thread (oldest
+ *  first) — the reply carries their Message-IDs, so it lands on that same thread, in their inbox and in ours */ thread?: string[] };
 
 const EMAIL = /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/;
 const clean = (list?: string[]) => Array.from(new Set((list || []).map((x) => String(x || "").trim().toLowerCase()).filter((x) => EMAIL.test(x)))).slice(0, 20);
@@ -29,7 +30,22 @@ export async function domains(): Promise<{ name: string; status: string }[] | nu
   }
 }
 
-export async function send(m: Mail): Promise<{ ok: true; id: string; from: string } | { ok: false; why: string }> {
+/** the Message-ID an email we sent went out with (Resend keeps it) — "" when it can't be had (a key that may only send) */
+const UA = "cobblestone-tile-os/1.0";
+async function messageIdOf(id: string): Promise<string> {
+  if (!/^[\w-]{6,80}$/.test(id)) return "";
+  try {
+    const res = await fetch(`${RESEND}/emails/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${mailKey()}`, "User-Agent": UA } });
+    if (!res.ok) return "";
+    const j: any = await res.json().catch(() => ({}));
+    const mid = String(j.message_id || "").trim();
+    return /^<[^<>\s]+@[^<>\s]+>$/.test(mid) ? mid : "";
+  } catch {
+    return "";
+  }
+}
+
+export async function send(m: Mail): Promise<{ ok: true; id: string; from: string; threaded?: boolean } | { ok: false; why: string }> {
   if (!mailConfigured()) return { ok: false, why: "nokey" };
   const to = clean(m.to);
   if (!to.length) return { ok: false, why: "No email address to send it to" };
@@ -56,14 +72,23 @@ export async function send(m: Mail): Promise<{ ok: true; id: string; from: strin
   if (replyTo.length) body.reply_to = replyTo;
   if (m.text) body.text = m.text;
   if (m.attachments?.length) body.attachments = m.attachments.slice(0, 10);
+  /* a reply: on the same thread as the emails before it — In-Reply-To the last one, References all of them */
+  let threaded = false;
+  if (m.thread?.length) {
+    const ids = (await Promise.all(m.thread.slice(-8).map(messageIdOf))).filter(Boolean);
+    if (ids.length) {
+      body.headers = { "In-Reply-To": ids[ids.length - 1], References: ids.join(" ") };
+      threaded = true;
+    }
+  }
   try {
-    const res = await fetch(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${mailKey()}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${mailKey()}`, "Content-Type": "application/json", "User-Agent": UA }, body: JSON.stringify(body) });
     const j: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = String(j.message || j.error || `Resend said ${res.status}`);
       return { ok: false, why: /domain/i.test(msg) && /verif/i.test(msg) ? `${domainOf(from) || "The domain"} isn’t verified in Resend yet — finish the DNS step there` : msg };
     }
-    return { ok: true, id: String(j.id || ""), from };
+    return { ok: true, id: String(j.id || ""), from, threaded };
   } catch (e: any) {
     return { ok: false, why: String(e?.message || e).slice(0, 200) };
   }

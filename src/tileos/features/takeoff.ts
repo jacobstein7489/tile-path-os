@@ -136,7 +136,7 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
         const T = big >= 16 ? 0.375 : big >= 6 ? 0.3125 : 0.25
         /* 12 ≈ grout weight per cubic inch × 144, with the mixing loss the grout makers' charts include */
         const lb = x.sf * ((L + W) / (L * W)) * J * T * 12
-        add('m-grout', lb / 25, { ...base, note: `${size} tile with a ${jl} joint → ${lb < 10 ? lb.toFixed(1) : Math.round(lb)} lb` })
+        add('m-grout', lb / (R.groutBag || 25), { ...base, note: `${size} tile with a ${jl} joint → ${lb < 10 ? lb.toFixed(1) : Math.round(lb)} lb · ${R.groutBag || 25} lb a bag` })
       }
       /* what's under it */
       if (m === 'mud' || m === 'mudpan') {
@@ -157,16 +157,16 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
       if (m === 'cbuwp' || m === 'cbu') {
         const sheets = x.sf / R.board
         add('m-board', sheets, { ...base, note: `${x.sf} SF ÷ ${R.board} SF a sheet` })
-        add('m-screws', sheets / 12, { ...base, note: 'A box for every 12 sheets' })
-        add('m-tape', x.sf / 300, { ...base, note: 'A roll for every 300 SF' })
+        add('m-screws', sheets / (R.screwsBox || 12), { ...base, note: `A box for every ${R.screwsBox || 12} sheets` })
+        add('m-tape', x.sf / (R.tapeRoll || 300), { ...base, note: `A roll for every ${R.tapeRoll || 300} SF` })
         if (m === 'cbuwp') add('m-wp', x.sf / R.wp, { ...base, note: `${x.sf} SF ÷ ${R.wp} SF a pail, 2 coats` })
       }
       if (m === 'foam') add('m-foam', x.sf / R.foam, { ...base, note: `${x.sf} SF ÷ ${R.foam} SF a sheet` })
       if (m === 'skim') add('m-skim', x.sf / R.skim, { ...base, note: `${x.sf} SF ÷ ${R.skim} SF a bag` })
       /* large format gets leveling clips */
       if (x.tile && big >= 24) {
-        const clips = x.sf * (144 / (L * W)) * 3
-        add('m-clips', clips / 250, { ...base, note: `About ${Math.round(clips)} clips · 3 a tile` })
+        const clips = x.sf * (144 / (L * W)) * (R.clipsTile || 3)
+        add('m-clips', clips / (R.clipsBag || 250), { ...base, note: `About ${Math.round(clips)} clips · ${R.clipsTile || 3} a tile · ${R.clipsBag || 250} a bag` })
       }
       const metal = metalOf(x, (s as any).items)
       if (metal) add(metal.itemId, metal.pcs, { ...base, note: metal.note })

@@ -36,13 +36,13 @@ function MatTabs({ job, part, setPart }: { job: Job; part: MatPart; setPart: (p:
   const tileWords = !tiles.length ? '' : tileShort ? `${tileShort} short` : `${tileHere} of ${tiles.length} here`
   const ourWords = !t.lines.length ? '' : matOrder ? `${matOrder} to order` : `${matHere} of ${t.lines.length} here`
   const tab = (k: MatPart, label: string, words: string, bad?: boolean) => (
-    <button key={k} type="button" role="tab" aria-selected={part === k} onClick={() => setPart(k)} data-mat-tab={k} className={cn('inline-flex h-full min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.5rem] px-3 text-[0.875rem] font-semibold transition max-sm:flex-col max-sm:gap-0 max-sm:leading-tight sm:flex-none sm:px-4', part === k ? 'bg-white text-ink shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.12)]' : 'text-muted hover:text-ink-2')}>
+    <button key={k} type="button" role="tab" aria-selected={part === k} onClick={() => setPart(k)} data-mat-tab={k} className={cn('inline-flex h-full min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.4375rem] px-3 text-[0.84375rem] font-semibold transition max-sm:flex-col max-sm:gap-0 max-sm:leading-tight sm:flex-none sm:px-3.5', part === k ? 'bg-white text-ink shadow-[0_0.0625rem_0.125rem_rgba(17,19,24,.12)]' : 'text-muted hover:text-ink-2')}>
       <span className="max-w-full truncate">{label}</span>
       {words && <span className={cn('max-w-full shrink-0 truncate text-[0.75rem] font-medium tnum', bad ? 'text-bad-600' : 'text-muted')}>{words}</span>}
     </button>
   )
   return (
-    <div role="tablist" className="flex h-11 w-full items-center gap-1 rounded-[0.6875rem] border border-line bg-wash-2 p-1 max-sm:h-14 sm:w-auto sm:self-start" data-mat-tabs>
+    <div role="tablist" className="flex h-9 w-full items-center gap-1 rounded-[0.625rem] border border-line bg-wash-2 p-[0.1875rem] max-md:h-11 max-sm:h-14 sm:w-auto" data-mat-tabs>
       {tab('tile', 'Tile selection', tileWords, tileShort > 0)}
       {tab('ours', 'Setting materials', ourWords)}
     </div>
@@ -54,12 +54,10 @@ export function MaterialsTab({ job, onScope }: { job: Job; onScope: () => void }
   if (s.role === 'site') return <DeliveriesTab job={job} onScope={onScope} part={part} setPart={setPart} />
   const pos = s.pos.filter((p) => p.jobId === job.id)
   return (
-    <div className="flex flex-col gap-4" data-materials data-mat-part={part}>
-      {/* the switch stays on top as you scroll — and the list's header under it */}
-      <div className="sticky top-0 z-[7] -mx-5 -mt-4 bg-[#f7f5f1] px-5 pb-3 pt-4 max-sm:-mx-3 max-sm:px-3" data-mat-sticky>
-        <MatTabs job={job} part={part} setPart={setPart} />
-      </div>
-      {part === 'tile' ? <TileOrders job={job} onScope={onScope} /> : <MaterialsNeed job={job} onScope={onScope} orders={
+    <div className="flex flex-col" data-materials data-mat-part={part}>
+      {/* the switch on the left of the slim bar, the list's buttons on the right — the same bar as the scope's; it
+          scrolls away, the column names stay */}
+      {part === 'tile' ? <TileOrders job={job} onScope={onScope} lead={<MatTabs job={job} part={part} setPart={setPart} />} /> : <MaterialsNeed job={job} onScope={onScope} lead={<MatTabs job={job} part={part} setPart={setPart} />} orders={
         pos.length ? pos.map((p) => (
           <PORow
             key={p.id}
@@ -147,10 +145,9 @@ function DeliveriesTab({ job, onScope, part, setPart }: { job: Job; onScope: () 
         ))}
         {!coming.length && <Empty>Nothing on the way to this project.</Empty>}
       </Section>
-      <div className="sticky top-0 z-[7] -mx-5 -mt-4 bg-[#f7f5f1] px-5 pb-3 pt-4 max-sm:-mx-3 max-sm:px-3" data-mat-sticky>
-        <MatTabs job={job} part={part} setPart={setPart} />
+      <div data-materials data-mat-part={part}>
+        {part === 'tile' ? <TileOrders job={job} onScope={onScope} simple lead={<MatTabs job={job} part={part} setPart={setPart} />} /> : <MaterialsNeed job={job} onScope={onScope} simple lead={<MatTabs job={job} part={part} setPart={setPart} />} />}
       </div>
-      {part === 'tile' ? <TileOrders job={job} onScope={onScope} simple /> : <MaterialsNeed job={job} onScope={onScope} simple />}
     </div>
   )
 }

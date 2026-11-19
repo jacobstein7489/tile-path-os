@@ -231,6 +231,10 @@ export function InboxPage() {
                     <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', on ? 'from-[#eef2fd]' : 'from-white')} aria-hidden />
                     <button aria-label={c.unread ? `Mark ${c.name} as read` : `Mark ${c.name} as unread`} title={c.unread ? 'Mark as read' : 'Mark as unread'} onClick={() => (c.unread ? markRead(c.key, c.jobId) : markUnread(c.key, c.jobId))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink">{c.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
                     <button aria-label={c.away ? `Move ${c.name} back to the inbox` : `Archive ${c.name}`} title={c.away ? 'Move back to the inbox' : 'Archive'} onClick={() => { putAway(c.key, c.jobId, !c.away); if (on && !c.away) setPicked(null) }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-archive>{c.away ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+                    {/* and ··· — everything for it, the same as everywhere else */}
+                    <Menu align="end" width={230} trigger={<button aria-label={`More for ${c.name}`} title="More" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-convo-more-desk><MoreHorizontal className="h-4 w-4" /></button>}>
+                      {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} hint={it!.hint} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
+                    </Menu>
                   </span>
                   {/* a phone: the ··· (or a long press) */}
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 lg:hidden" data-convo-more>
@@ -299,6 +303,9 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
           <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', n.unread ? 'from-[#f6f8fe]' : 'from-white')} aria-hidden />
           <button aria-label={n.unread ? 'Mark as seen' : 'Mark as unread'} title={n.unread ? 'Mark as seen' : 'Mark as unread'} onClick={() => (n.unread ? readUpdate(n.id) : unreadUpdate(n.id))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink">{n.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
           <button aria-label={archived ? 'Move back to Updates' : 'Archive'} title={archived ? 'Move back to Updates' : 'Archive'} onClick={() => archiveUpdate(n.id, !archived)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-archive-update>{archived ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
+          <Menu align="end" width={230} trigger={<button aria-label="More for this update" title="More" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+            {items.filter(Boolean).map((it) => <MenuItem key={it!.label} icon={it!.icon} onSelect={it!.onSelect}>{it!.label}</MenuItem>)}
+          </Menu>
         </span>
         {/* a phone: the ··· (or a long press) */}
         <span className="absolute right-2 top-2.5 lg:hidden" data-update-more>

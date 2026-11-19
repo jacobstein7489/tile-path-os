@@ -3,7 +3,7 @@
  * project's parts one tab at a time (job/board): Where it stands · Scope of work · Layouts · Materials · Billing ·
  * People · Documents. The window is the same size on every tab — nothing grows or shrinks as you go. */
 import * as React from 'react'
-import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks } from 'lucide-react'
+import { CalendarDays, Printer, HardHat, Play, ClipboardList, Receipt, ArrowRight, MoreHorizontal, Pencil, Trash2, MessageCircle, Lock, ListChecks, Building2, MapPin, Palette, UserRound } from 'lucide-react'
 import { useStore, historyOf, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuSep, Pop } from '@/tileos/components/ui/overlay'
@@ -162,26 +162,30 @@ function StageBar({ job }: { job: Job }) {
     const words = (x.sub || '').split(' · ').filter((w) => !/problem/.test(w))
     return <>{words.join(' · ')}{n > 0 && <b className="font-medium text-bad-600" data-stands-problems={n}>{words.length ? ' · ' : ''}{n} {n === 1 ? 'problem' : 'problems'}</b>}</>
   }
+  /* slim: a thin bar for each stage, and its name with its day on one line under it — the one going on in bold with
+     how far it's got. Half the height it was, so the project itself has the room */
   return (
-    <div className="mt-3.5" data-project-line>
+    <div className="mt-2.5" data-project-line>
       <ol className="grid grid-cols-6 gap-1.5" aria-label="Where the project is">
         {line.map((x, i) => {
           const on = i === at
           return (
             <li key={x.key} data-line={x.key} data-state={x.state} aria-current={on ? 'step' : undefined} className="min-w-0">
-              <span className="block h-2 overflow-hidden rounded-full bg-[#ebe7e0]">
+              <span className="block h-1 overflow-hidden rounded-full bg-[#ebe7e0]">
                 {/* green when it's done, blue as far as it's got — a problem is said in red under it, not by the bar */}
                 <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
               </span>
-              <span className={cn('mt-1.5 block truncate text-[0.8125rem] max-sm:hidden', on ? 'font-semibold text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-muted')} data-stage-word={on ? '' : undefined}>{x.label}</span>
-              {/* the day it got there, under its name — and, for the one going on, how far it's got */}
-              {on ? <span className="block truncate text-[0.75rem] text-muted max-sm:hidden">{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
-                : x.date ? <span className="block truncate text-[0.75rem] tnum text-muted max-sm:hidden" data-stage-date>{x.date}</span> : null}
+              <span className={cn('mt-1 flex min-w-0 items-baseline gap-1.5 text-[0.75rem] leading-tight max-sm:hidden', on ? 'text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-faint')}>
+                <span className={cn('shrink-0', on && 'font-semibold')} data-stage-word={on ? '' : undefined}>{x.label}</span>
+                {/* its day — and, for the one going on, how far it's got */}
+                {on ? <span className="min-w-0 truncate text-muted">{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
+                  : x.date ? <span className="min-w-0 truncate tnum text-faint" data-stage-date>{x.date}</span> : null}
+              </span>
             </li>
           )
         })}
       </ol>
-      {cur && <div className="mt-1.5 truncate text-[0.8125rem] text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
+      {cur && <div className="mt-1 truncate text-[0.8125rem] text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
     </div>
   )
 }
@@ -193,6 +197,9 @@ function keyDate(s: Store, job: Job): { text: string; late?: boolean } | null {
   if (/^(Starts|No start)/.test(w.big)) return { text: [w.big, w.meta].filter(Boolean).join(' · '), late: w.late }
   return w.meta && !/billed|paid/.test(w.meta) ? { text: w.meta, late: w.late } : null
 }
+
+const META = 'inline-flex min-w-0 max-w-full items-center gap-1.5'
+const META_ICON = 'h-3.5 w-3.5 shrink-0 text-faint'
 
 /** the header, the same as an estimate's: the name, the client and the address, the installer; on the right the
  *  conversation, + Add and ···. Under it where it's up to, in words. No money up here — it's in Billing. */
@@ -224,7 +231,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
   const date = !pricing ? keyDate(s, job) : null
   const hold = !pricing && job.hold
   return (
-    <div className={cn('relative bg-white px-5 pb-3.5 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')} data-stands-head>
+    <div className={cn('relative bg-white px-5 pb-3 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')} data-stands-head>
       {/* the name — on the right the conversation, + Add (the same window as + New) and ··· */}
       <div className="flex min-w-0 items-center gap-2.5">
         <h2 className="font-display min-w-0 truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.012em] text-ink max-sm:text-[1.125rem]">{job.name}</h2>
@@ -240,19 +247,20 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
           {!pricing && more}
         </span>
       </div>
-      {/* who it's for, where, who installs it, the date that matters */}
+      {/* who it's for, where, who installs it, the date that matters — each with its own small mark (the same marks as
+          a window's lines), the installer in his circle; no dots between them */}
       {pricing && <div className="mt-1.5 sm:hidden">{statusChip}</div>}
-      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[0.8125rem] text-muted max-sm:flex-col max-sm:items-start max-sm:gap-0 sm:[&>*+*]:before:mr-1.5 sm:[&>*+*]:before:content-['·']">
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] text-ink-2 max-sm:gap-x-3" data-project-meta>
         {hold && <span className="font-medium text-bad-600" data-on-hold>{statusChip}</span>}
-        <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="truncate text-ink-2 hover:text-brand-700">{meta[0]}</button>
+        <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className={cn(META, 'hover:text-brand-700')} data-project-client><Building2 className={META_ICON} /><span className="truncate">{meta[0]}</span></button>
         {/* this job's own person to call (the homeowner on a "Private customer" job) — a tap calls them on a phone */}
-        {job.contacts?.[0] && <span className="inline-flex min-w-0 items-center gap-1 truncate" data-job-contact><span className="truncate font-medium text-ink-2">{job.contacts[0].name}</span>{job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}</span>}
-        {meta[1] && <span className="truncate">{meta[1]}</span>}
+        {job.contacts?.[0] && <span className={META} data-job-contact><UserRound className={META_ICON} /><span className="truncate font-medium">{job.contacts[0].name}</span>{job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}</span>}
+        {meta[1] && <span className={META}><MapPin className={META_ICON} /><span className="truncate">{meta[1]}</span></span>}
         {!pricing && (crew
-          ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className="inline-flex items-center gap-1 hover:text-ink"><HardHat className="h-3.5 w-3.5 text-faint" /><span className="font-medium text-ink-2">{PEOPLE[crew].short}</span></button>
-          : !['closeout', 'complete'].includes(job.stage) && <span className="inline-flex items-center gap-1"><HardHat className="h-3.5 w-3.5 text-faint" />No installer yet</span>)}
-        {designer && <span className="truncate">Designer: <span className="font-medium text-ink-2">{designer.name}</span></span>}
-        {date && <span className={cn('inline-flex items-center gap-1', date.late ? 'font-medium text-warn-700' : 'text-ink-2')} data-key-date><CalendarDays className="h-3.5 w-3.5 text-faint" />{date.text}</span>}
+          ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(META, 'hover:text-brand-700')} title="The installer" data-project-installer><Avatar who={crew} size={20} /><span className="truncate font-medium">{PEOPLE[crew].short}</span></button>
+          : !['closeout', 'complete'].includes(job.stage) && <span className={cn(META, 'text-muted')}><HardHat className={META_ICON} />No installer yet</span>)}
+        {designer && <span className={META} title="The designer"><Palette className={META_ICON} /><span className="truncate">{designer.name}</span></span>}
+        {date && <span className={cn(META, date.late && 'font-medium text-warn-700')} data-key-date><CalendarDays className={META_ICON} />{date.text}</span>}
       </div>
       {/* where it is, like a parcel's tracking — six stages, clean */}
       {!pricing && <StageBar job={job} />}

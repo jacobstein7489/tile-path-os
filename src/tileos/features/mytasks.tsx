@@ -7,7 +7,7 @@ import { create } from 'zustand'
 import { History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
-import { Button, Avatar, TextInput, Field, Chip, Stepper } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
 import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
@@ -24,6 +24,7 @@ import { payDue } from './pay-page'
 import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { LinkedPO, poOfTask } from './linkedpo'
+import { POFollowUp, canEmailFollow } from './pofollow'
 import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask } from './taskshare'
 import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
@@ -1380,16 +1381,66 @@ export function JobPickModal({ level }: { level: number }) {
   )
 }
 /** on top of the list: the job you're looking at — all of them, or one with the way into its project */
-function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
+/** which job: a small list over the button, the same as Whose list — a box to type in on top, All jobs, then only the
+ *  jobs with something on your list (how many on each). Typing finds any job at all. Never a long list */
+function JobPickPop({ picked }: { picked?: Job }) {
   const s = useStore()
+  const cur = useTodayJob((x) => x.job)
+  const set = useTodayJob((x) => x.set)
+  const who = useTodayWho((x) => x.who)
+  const [open, setOpen] = React.useState(false)
+  const [q, setQ] = React.useState('')
+  const small = useSmall()
+  const mine = new Map<string, number>()
+  if (open) listsOf(s, who).forEach((l) => yourJobs(s, l.role, l.person).forEach((n, id) => mine.set(id, (mine.get(id) || 0) + n)))
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const hit = (j: Job) => { const k = `${j.name} ${j.client} ${j.address}`.toLowerCase(); return words.every((w) => k.includes(w)) }
+  const yours = open ? Object.values(s.jobs).filter((j) => mine.has(j.id) && hit(j)).sort(byJobName) : []
+  /* typed: any other job that matches — an estimate, a finished one — the first few */
+  const others = open && words.length ? Object.values(s.jobs).filter((j) => !mine.has(j.id) && hit(j)).sort(byJobName) : []
+  const SHOW = 8
+  const pick = (id: string) => { set(id); setOpen(false); setQ('') }
+  const dot = (on: boolean) => <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
+  const rowCls = (on: boolean) => cn('flex min-h-10 w-full min-w-0 items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', on && 'bg-brand-50/60 font-medium hover:bg-brand-50')
+  const row = (j: Job, n?: number) => (
+    <button key={j.id} type="button" onClick={() => pick(j.id)} className={rowCls(cur === j.id)} role="radio" aria-checked={cur === j.id} data-pick-job={j.id} title={[j.client, j.address].filter(Boolean).join(' · ')}>
+      {dot(cur === j.id)}
+      <span className="min-w-0 flex-1 truncate">{j.name}{PRICING_STAGES.includes(j.stage) ? <span className="font-normal text-muted"> · estimate</span> : null}</span>
+      {n ? <span className="shrink-0 text-[0.8125rem] font-normal tnum text-muted" data-pick-n>{n}</span> : null}
+    </button>
+  )
+  const head = (t: string) => <div className="px-2 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{t}</div>
   return (
-    <div className="flex w-full min-w-0 flex-wrap items-center gap-2" data-today-bar>
-      <button type="button" onClick={() => s.open({ t: 'jobpick' })} aria-label={picked ? `Job: ${picked.name} — pick another` : 'Pick a job'}
+    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }} align="start" width={320} trigger={
+      <button type="button" aria-label={picked ? `Job: ${picked.name} — pick another` : 'Pick a job'}
         className={cn('inline-flex h-9 min-w-0 max-w-[22rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', picked ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-job-pick>
         <Building2 className={cn('shrink-0', picked ? 'text-brand-600' : 'text-faint')} />
         <span className="min-w-0 truncate" data-job-picked={picked?.id || 'all'}>{picked ? picked.name : 'All jobs'}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
+    }>
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+        <input {...NO_SUGGEST} autoFocus={!small} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { const first = yours[0] || others[0]; if (first) pick(first.id) } }} placeholder="Find a job" aria-label="Find a job" className="h-10 w-full rounded-[0.625rem] border border-line bg-white pl-9 pr-3 text-[0.9375rem] text-ink outline-none focus:border-brand-300 focus:ring-[0.1875rem] focus:ring-brand-50" data-pick-search />
+      </label>
+      <div className="-mx-1 mt-1.5 flex max-h-[min(22rem,55vh)] flex-col overflow-y-auto" role="radiogroup" aria-label="Which job" data-pick-list>
+        {!words.length && (
+          <button type="button" onClick={() => pick('all')} className={rowCls(cur === 'all')} role="radio" aria-checked={cur === 'all'} data-pick-job="all">
+            {dot(cur === 'all')}<span className="min-w-0 flex-1">All jobs</span>
+          </button>
+        )}
+        {yours.length > 0 && <section data-pick-yours>{head(words.length ? 'On your list' : 'With something on your list')}{yours.map((j) => row(j, mine.get(j.id)))}</section>}
+        {others.length > 0 && <section data-pick-rest>{head('Other jobs')}{others.slice(0, SHOW).map((j) => row(j))}{others.length > SHOW && <div className="px-2 py-1.5 text-[0.8125rem] text-muted">{others.length - SHOW} more — type more of the name</div>}</section>}
+        {words.length > 0 && !yours.length && !others.length && <div className="px-2 py-3 text-[0.875rem] text-muted">No job matches “{q.trim()}”.</div>}
+      </div>
+    </Pop>
+  )
+}
+function JobBar({ picked, onClear }: { picked?: Job; onClear: () => void }) {
+  const s = useStore()
+  return (
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2" data-today-bar>
+      <JobPickPop picked={picked} />
       {picked && <button type="button" onClick={onClear} aria-label="All jobs" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] text-muted hover:bg-wash hover:text-ink" data-job-clear><X className="h-4 w-4" /></button>}
       {/* the admin: whose list — his own, or anyone's */}
       {reportOn(s) && <WhoPick />}
@@ -1641,6 +1692,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
 
   /* the buttons at the bottom — together on the right, the main one last (blue); every one a real button */
   const right = <div className="ml-auto" aria-hidden />
+  const poRef = poOfTask(t)
+  const linkedPo = poRef?.t === 'po' ? s.pos.find((x) => x.id === poRef.id && !/cancelled/i.test(x.note)) : undefined
   const footer = panel === 'answer' ? undefined : panel ? (
     <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
   ) : t.state === 'done' ? (
@@ -1656,7 +1709,10 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   ) : (
     <>
       {right}
-      {t.state === 'waiting' ? (
+      {t.state === 'waiting' && linkedPo && canEmailFollow() ? (
+        /* waiting on the store for a PO: follow up by email, right here — on the order's own email */
+        <POFollowUp po={linkedPo} onSent={() => s.closeLevel(level)} />
+      ) : t.state === 'waiting' ? (
         <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
           <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
         </Pop>

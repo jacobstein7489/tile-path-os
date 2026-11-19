@@ -60,19 +60,21 @@ const SECTIONS: { group: string; items: { key: Section; label: string; about: st
     { key: 'email', label: 'Email', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
     { key: 'connections', label: 'QuickBooks', about: 'Invoices, estimates and payments go to QuickBooks by themselves.', icon: Plug },
   ] },
+  /* one company, its own real work: no practice projects, no samples, and nothing that wipes everything out */
   { group: 'Tools', items: [
     { key: 'bringin', label: 'Bring in projects', about: 'The projects from before Tile OS: bring them in from their estimates, then go through them.', icon: Upload },
-    { key: 'practice', label: 'Practice and samples', about: 'Try anything — nothing reaches a client or QuickBooks.', icon: RotateCcw },
-    { key: 'startover', label: 'Start over', about: 'Delete every project, estimate, client and task. The team and settings stay.', icon: Trash2 },
     { key: 'device', label: 'This device', about: 'The app’s version here, and how fast it opens and answers on this device.', icon: Smartphone },
   ] },
 ]
+const SHOWN = new Set(SECTIONS.flatMap((g) => g.items.map((x) => x.key)))
+/** a link to a part that isn't there any more (practice, start over) opens Team */
+const sectionOf = (t?: string): Section => { const k = SECTION_OF[t as Tab]; return k && SHOWN.has(k) ? k : 'team' }
 
 export function SettingsPage() {
   const s = useStore()
-  const [tab, setTab] = React.useState<Section>(() => SECTION_OF[(s.route.tab as Tab) || 'team'] || 'team')
+  const [tab, setTab] = React.useState<Section>(() => sectionOf(s.route.tab as string))
   /* a link to one part of Settings (Who does what, from a step's ···) opens it even when Settings is already open */
-  React.useEffect(() => { const t = SECTION_OF[s.route.tab as Tab]; if (t) setTab(t) }, [s.route.tab])
+  React.useEffect(() => { if (s.route.tab) setTab(sectionOf(s.route.tab as string)) }, [s.route.tab])
   const cur = SECTIONS.flatMap((g) => g.items).find((x) => x.key === tab)!
   /* the one button each part has, next to its name */
   const action = tab === 'team' ? <Button size="sm" variant="primary" icon={<UserPlus className="h-4 w-4" />} onClick={() => s.open({ t: 'addperson' })}>Add a person</Button>
@@ -82,7 +84,7 @@ export function SettingsPage() {
   return (
     <Page title="Settings" bare>
       <div className="grid grid-cols-[14rem_minmax(0,1fr)] items-start gap-8 max-lg:grid-cols-1 max-lg:gap-4" data-settings>
-        <nav aria-label="Settings" className="sticky top-[calc(var(--app-top)+1rem)] flex flex-col gap-5 max-lg:static max-lg:flex-row max-lg:flex-wrap max-lg:gap-1.5 max-lg:pb-1">
+        <nav aria-label="Settings" className="sticky top-[calc(var(--app-top,0px)+var(--head,0px)+0.5rem)] flex flex-col gap-5 max-lg:top-[var(--app-top,0px)] max-lg:z-[14] max-lg:-mx-1 max-lg:flex-row max-lg:gap-1.5 max-lg:overflow-x-auto max-lg:bg-canvas max-lg:px-1 max-lg:py-2 max-lg:[scrollbar-width:none]">
           {SECTIONS.map((g) => (
             <div key={g.group} className={cn('flex flex-col max-lg:contents', g.group === 'Tools' && 'border-t border-line pt-4')}>
               <div className="px-3 pb-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.06em] text-faint max-lg:hidden">{g.group}</div>
@@ -99,7 +101,7 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="min-w-0" data-settings-section={tab}>
-          <div className="mb-4 flex items-end gap-3 max-lg:mb-3" data-settings-head>
+          <div className="mb-4 flex items-end gap-3 max-lg:mb-3 lg:sticky lg:top-[calc(var(--app-top,0px)+var(--head,0px))] lg:z-[14] lg:-mt-2 lg:bg-canvas lg:pb-3 lg:pt-2" data-settings-head>
             <div className="min-w-0 flex-1">
               <h2 className="text-[1.25rem] font-semibold leading-tight tracking-[-0.01em] text-ink">{cur.label}</h2>
               <div className="mt-1 text-[0.84375rem] leading-snug text-muted">{cur.about}</div>
@@ -964,9 +966,9 @@ function NumbersTab() {
               <div key={row.key} className="flex items-center justify-between gap-3 border-b border-line-2 py-2.5 last:border-0">
                 <div className="min-w-0">
                   <div className="text-[0.84375rem] font-medium leading-snug text-ink">{row.label}</div>
-                  <div className="text-[0.75rem] text-muted">{row.unit}{r.mat[row.key] !== MAT_RULES0[row.key] ? ` · standard ${MAT_RULES0[row.key]}` : ''}</div>
+                  <div className="text-[0.75rem] text-muted">{row.unit}{(r.mat[row.key] ?? MAT_RULES0[row.key]) !== MAT_RULES0[row.key] ? ` · standard ${MAT_RULES0[row.key]}` : ''}</div>
                 </div>
-                <DecStepper value={r.mat[row.key]} step={row.step} min={row.min} max={row.max} onChange={(v) => s.commit((st) => { st.rules.mat[row.key] = v }, undefined, { undo: false })} />
+                <DecStepper value={r.mat[row.key] ?? MAT_RULES0[row.key]} step={row.step} min={row.min} max={row.max} onChange={(v) => s.commit((st) => { st.rules.mat[row.key] = v }, undefined, { undo: false })} />
               </div>
             ))}
           </div>

@@ -16,6 +16,7 @@ import { ipoTotal, poRatio, type Ratio } from './poratio'
 import { allSubs, kindsOf } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs, cancelPO } from './flows'
 import { mailLive, emailPO, emailIPO, cancelWords, emailCancel, supplierEmails } from './mailout'
+import { POFollowUp } from './pofollow'
 import { InstallerAnswer } from './stepwin'
 import { sendDraftIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
@@ -253,11 +254,21 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       </>}
     />
   )
+  /* cancelling: one tap — it's cancelled, the email goes on the order's own thread, and the window closes by itself */
+  const cancelIt = () => {
+    const w = cxl
+    setCxl(null)
+    const live = mailLive() && supplierEmails(s, p.supplier).length > 0
+    cancelPO(p.id, { quiet: live })
+    if (live && w) void emailCancel(p.id, w)
+    s.closeLevel(level)
+  }
+  const followable = !cancelled && (p.step === 1 || (p.step === 2 && p.late)) && mailLive() && allowedFor(s.role, 'po')
   const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Cancelled — kept for the record.</span> : cxl ? (
     <>
       <Button variant="ghost" icon={<ArrowLeft />} onClick={() => setCxl(null)}>Back</Button>
       <div className="ml-auto" aria-hidden />
-      <Button variant="danger" icon={<XCircle />} onClick={() => { const w = cxl; setCxl(null); cancelPO(p.id); if (mailLive()) void emailCancel(p.id, w) }} data-po-cancel-go>{mailLive() ? `Cancel it and email ${p.supplier}` : 'Cancel it'}</Button>
+      <Button variant="danger" icon={<XCircle />} onClick={cancelIt} data-po-cancel-go>{mailLive() ? `Cancel it and email ${p.supplier}` : 'Cancel it'}</Button>
     </>
   ) : edit ? (
     <>
@@ -268,6 +279,8 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   ) : (
     <>
       {canChange && <Button variant="ghost" icon={<FilePen />} onClick={() => setEdit(p.lines.map((l) => ({ ...l, n: l.n ?? (Number(String(l.qty).match(/\d+/)?.[0]) || 1) })))}>Change it</Button>}
+      {/* no answer yet: follow up by email, on the order's own email — the window closes once it went */}
+      {followable && <POFollowUp po={p} onSent={() => s.closeLevel(level)} />}
       {p.step === 1 && (
         <>
           <span className="text-[0.84375rem] text-muted">They confirmed — arriving</span>
@@ -277,7 +290,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       )}
       {p.step === 2 && (
         <>
-          {p.late && (
+          {p.late && !followable && (
             <Pop open={fu} onOpenChange={setFu} side="top" width={340} trigger={<Button>Log a follow-up</Button>}>
               <div className="text-[0.875rem] font-medium text-ink">What did {p.supplier} say?</div>
               <TextInput className="mt-2" value={said} onChange={(e) => setSaid(e.target.value)} placeholder="e.g. Ships Thursday" />
@@ -297,17 +310,17 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
-      {/* cancelling: to whom, the words (type over them) — nothing goes before the button */}
+      {/* cancelling: the words to the store, right here (type over them) — it goes on the order's own email, the lines
+          under it as on the order. Nothing goes before the button */}
       {cxl && (
-        <div className="mb-6 flex flex-col gap-4 rounded-xl border border-bad-100 bg-bad-50/40 p-4" data-po-cancel-review>
+        <div className="mb-6 rounded-xl border border-bad-100 bg-bad-50/40 p-4" data-po-cancel-review>
           <div className="text-[0.9375rem] font-semibold text-ink">Cancel {p.id}?</div>
           {mailLive() ? (
             <>
-              <FormRow label="To"><div className="flex min-h-10 items-center rounded-[0.625rem] border border-line bg-white px-3 text-[0.9375rem] text-ink">{supplierEmails(s, p.supplier).join(', ') || `${p.supplier} has no email in Tile OS — call them`}</div></FormRow>
-              <FormRow label="Subject"><TextInput value={cxl.subject} onChange={(e) => setCxl({ ...cxl, subject: e.target.value })} aria-label="Subject" /></FormRow>
-              <FormRow label="Message"><TextArea rows={8} value={cxl.message} onChange={(e) => setCxl({ ...cxl, message: e.target.value })} aria-label="Message" data-po-cancel-message /></FormRow>
+              <div className="mb-3 mt-0.5 text-[0.8125rem] leading-snug text-muted" data-po-cancel-to>{supplierEmails(s, p.supplier).length ? <>To {supplierEmails(s, p.supplier).join(', ')} · on the same email as the order</> : `${p.supplier} has no email in Tile OS. Call them. Here it’s marked Cancelled and kept for the record.`}</div>
+              {supplierEmails(s, p.supplier).length > 0 && <TextArea rows={8} value={cxl.message} onChange={(e) => setCxl({ ...cxl, message: e.target.value })} aria-label="The email" data-po-cancel-message />}
             </>
-          ) : <div className="text-[0.875rem] text-ink-2">Email isn’t set up in the app yet — call {p.supplier} to cancel it. Here it’s marked Cancelled and kept for the record.</div>}
+          ) : <div className="mt-0.5 text-[0.875rem] text-ink-2">Email isn’t set up in the app yet. Call {p.supplier} to cancel it. Here it’s marked Cancelled and kept for the record.</div>}
         </div>
       )}
       {/* where it is: sent → confirmed → delivered (→ bill in → paid) */}

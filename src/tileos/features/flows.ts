@@ -1085,7 +1085,7 @@ export function createPO(jobId: string, o: { supplier: string; lines: { item: st
 }
 /** a PO called off: it stays for the record, marked Cancelled; the tile on it isn't counted as ordered any more, and
  *  its to-dos (the store's yes) are done */
-export function cancelPO(id: string) {
+export function cancelPO(id: string, o: { /** the email's pop-up says it (it goes on the order's own email) */ quiet?: boolean } = {}) {
   const p0 = S().pos.find((x) => x.id === id)
   if (!p0) return
   S().commit((s) => {
@@ -1099,7 +1099,7 @@ export function cancelPO(id: string) {
     })
     closeTasks(s, s.tasks.filter((t) => t.state !== 'done' && t.action?.kind === 'po:' + id).map((t) => t.id), 'Cancelled')
     addHist(s, p.jobId, { who: me(), kind: 'material', title: `${id} cancelled · ${p.supplier}`, ref: { t: 'po', id } })
-  }, `${id} cancelled`, { sub: 'It stays on the list, marked Cancelled — for the record.' })
+  }, o.quiet ? undefined : `${id} cancelled`, { sub: 'It stays on the list, marked Cancelled — for the record.' })
 }
 export function confirmPO(id: string, eta: string) {
   S().commit((s) => {

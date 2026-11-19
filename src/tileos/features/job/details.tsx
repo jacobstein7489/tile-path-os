@@ -7,7 +7,7 @@
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
-import { DOC_GREEN, DOC_GRAY } from '../docpaper'
+import { DOC_GRAY } from '../docpaper'
 import { Camera, Check, ChevronDown, ChevronRight, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
@@ -31,7 +31,7 @@ import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
 import { ScopeDoc } from './scopedoc'
 import { RoomScope, plainLines } from './roomscope'
-import { firstName } from './kit'
+import { firstName, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
 import { printNode } from '@/tileos/lib/print'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
@@ -139,44 +139,47 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
   const [lines, setLines] = React.useState<string | null>(null)
   const [adding, setAdding] = React.useState<string | null>(null)
   const last = (s.diary[job.id] || [])[0]
+  const totalSf = rooms.reduce((n, r) => n + (r.sf || 0), 0)
   /* the tile paperwork comes in here: read, its tiles matched to the walls and floors — and what it entered shows on
      top to check, the rooms waiting under it (one list at a time) */
   const picker = usePaperPicker(job)
   const checking = usePaperReview(job.id) && canEdit
   return (
     <section data-detail="scope" className="px-5 pb-8 pt-4 max-sm:px-3">
-      {/* just the name and its buttons — the rooms say the rest */}
-      <header className="mb-3 flex min-h-8 min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <h3 className="text-[1rem] font-semibold text-ink">Scope of work</h3>
-        {rooms.length > 0 && (
-          <span className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:[&>*]:w-full max-sm:[&>*:nth-child(3):last-child]:col-span-2" data-scope-buttons>
-            {/* the quick way to change it: say what changed — it shows the changes to OK first */}
-            {canEdit && <Button size="sm" variant="primary" icon={<Mic />} onClick={() => s.open({ t: 'scopetalk', jobId: job.id })} data-scope-talk>Change by talking</Button>}
-            {canEdit && <Button size="sm" icon={<Upload />} onClick={picker.pick} data-scope-paper>Tile paperwork</Button>}
-            <PrintMenu job={job} />
-            {canChange && <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
-          </span>
-        )}
-        {canEdit && picker.input}
-      </header>
-      {/* installing: when the last daily update came */}
-      {inField && rooms.length > 0 && <div className="-mt-1 mb-3 text-[0.8125rem] text-muted" data-scope-last-update>{last ? <>Last daily update <b className="font-semibold text-ink-2">{last.date}</b> · {last.who === meOf(s.role) ? 'you' : firstName(last.who)}</> : 'No daily update yet — it’s on the site manager’s Today every day'}</div>}
+      {/* one slim bar — the tab already says "Scope of work": how much there is (and, installing, the last daily update)
+          on the left, its buttons on the right. The rooms say the rest */}
+      {rooms.length > 0 && (
+        <PaperBar
+          mark="data-scope-bar"
+          buttonsMark="data-scope-buttons"
+          lead={
+            <span className="min-w-0 text-[0.8125rem] leading-snug text-muted" data-scope-sum>
+              <b className="font-semibold text-ink-2">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'}</b>
+              {totalSf > 0 && <span className="tnum"> · {totalSf.toLocaleString('en-US')} SF</span>}
+              {/* installing: when the last daily update came */}
+              {inField && <span data-scope-last-update> · {last ? <>Last daily update <b className="font-semibold text-ink-2">{last.date}</b> · {last.who === meOf(s.role) ? 'you' : firstName(last.who)}</> : 'No daily update yet'}</span>}
+            </span>
+          }
+        >
+          {/* the quick way to change it: say what changed — it shows the changes to OK first */}
+          {canEdit && <Button variant="primary" icon={<Mic />} onClick={() => s.open({ t: 'scopetalk', jobId: job.id })} data-scope-talk>Change by talking</Button>}
+          {canEdit && <Button icon={<Upload />} onClick={picker.pick} data-scope-paper>Tile paperwork</Button>}
+          <PrintMenu job={job} />
+          {canChange && <Button icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })} data-new-change>Change order</Button>}
+        </PaperBar>
+      )}
+      {canEdit && picker.input}
       {canEdit && rooms.length > 0 && <PaperPanel job={job} className="mb-4" />}
       {/* building it by hand: the first room goes on, and it's built on from here (a room added by hand opens with its
           walls and floors to tick) */}
       {!rooms.length && <ScopeStart job={job} onAdded={(room) => setLines(room)} />}
       {rooms.length > 0 && !checking && (
-        <div data-paper className="overflow-clip rounded-[0.875rem] border border-line bg-white">
+        <div data-paper className={PAPER}>
           <ScopeHead inField={inField} />
           {groups.map((g) => (
             <section key={g.floor} data-floor={g.floor} className="[&+&]:border-t [&+&]:border-line">
               {/* each floor in a dark green band, as on Cobblestone's scope of work — a heading, nothing to open */}
-              {floors && (
-                <div className="flex h-10 w-full items-center gap-2.5 px-5 text-[0.78125rem] font-bold uppercase tracking-[0.06em] text-white max-sm:px-3" style={{ background: DOC_GREEN }} data-floor-band>
-                  <span className="min-w-0 flex-1 truncate">{g.floor}</span>
-                  <span className="shrink-0 font-semibold normal-case tracking-normal text-white/80">{g.rooms.length} {g.rooms.length === 1 ? 'room' : 'rooms'}</span>
-                </div>
-              )}
+              {floors && <FloorBand floor={g.floor} rooms={g.rooms.length} />}
               {g.rooms.map((room, i) => (
                 <ScopeRoom
                   key={room.name}
@@ -250,7 +253,7 @@ function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: S
     <>
       <span className={cn(cell, 'text-[0.9375rem] text-ink')} data-cell="area">{x.name}{walls && <span className="text-muted"> · {walls}</span>}</span>
       <span className="flex min-w-0 items-center gap-2.5 max-lg:hidden" data-cell="tile">
-        {tiles.length ? <TileImg tile={tiles[0]} size={22} radius={4} /> : takes ? <span className="h-[1.375rem] w-[1.375rem] shrink-0 rounded-[4px] border border-dashed border-[#cfc8bc] bg-[#faf9f6]" /> : null}
+        {tiles.length ? <TileImg tile={tiles[0]} size={PIC_LG} radius={4} /> : takes ? <span className="h-6 w-6 shrink-0 rounded-[4px] border border-dashed border-[#cfc8bc] bg-[#faf9f6]" /> : null}
         <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink">
           {tiles.length ? tiles.map((t, i) => <React.Fragment key={t.tag}>{i > 0 && ' + '}<b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="whitespace-nowrap text-muted"> {t.size}</span> : null}</React.Fragment>)
             : x.tile ? x.tile : takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>}
@@ -279,9 +282,9 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
     <div data-room={room.name} data-room-state={view.state} className={cn(!first && 'border-t border-line')}>
       {/* the band: its name in capitals and its short note — then where it stands and its square feet. Tap it for the room */}
       <div className="sticky top-0 z-[5] flex min-h-9 min-w-0 items-center pr-2 max-sm:pr-1 lg:top-10" style={{ background: DOC_GRAY }} data-room-band>
-        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className="group flex min-h-9 min-w-0 flex-1 items-center gap-3 py-1 pl-5 pr-2 text-left max-sm:gap-2 max-sm:pl-3">
+        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1 pl-5 pr-2 text-left max-sm:gap-2 max-sm:pl-3')}>
           {/* a phone: the name and its note wrap rather than end in "…" */}
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222] max-sm:whitespace-normal max-sm:leading-snug"><b className="font-bold uppercase tracking-[0.02em] group-hover:text-brand-700">{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
+          <span className="min-w-0 flex-1 truncate max-sm:whitespace-normal max-sm:leading-snug"><b className={cn(ROOM_NAME, 'group-hover:text-brand-700')}>{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
           {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
           {w.text && <span data-room-why className={cn('min-w-0 max-w-[45%] truncate text-right text-[0.8125rem] max-sm:max-w-[40%] max-sm:whitespace-normal max-sm:leading-snug', w.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{w.text}</span>}
@@ -301,10 +304,10 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
             ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted' }
             : { text: x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '', cls: 'text-muted' }
           return (
-            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className={cn('flex min-h-[3.5rem] w-full items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3 lg:min-h-[2.5rem] lg:py-1', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)}>
+            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className={cn(PAPER_ROW, 'flex w-full items-start gap-3 text-left transition row-hover first:border-t-0', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)}>
               {/* a phone (and a small screen): its picture, what it is, and under it the rest */}
               <span className="flex min-w-0 flex-1 items-start gap-3 lg:hidden">
-                {tile ? <TileImg tile={tile} size={44} radius={6} />
+                {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} />
                   : takes ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-[#cfc8bc] bg-[#faf9f6] text-[0.625rem] font-semibold leading-tight text-muted" data-surface-notile>No tile</span>
                     : <span className="h-11 w-11 shrink-0 rounded-md bg-[#f3f1ec]" />}
                 <span className="min-w-0 flex-1">

@@ -3,10 +3,10 @@
  * It comes from the address Settings → Email has for "Everything else" (else the person sending it), copying who it
  * says there; replies go back to that address. When it can't go — no email for them, email not set up — the PO says
  * so on its window, which has "Email it". */
-import { useStore, meOf, type Store } from '@/tileos/store'
+import { useStore, meOf, clockNow, type Store } from '@/tileos/store'
 import { REAL, PUBLISHED } from '@/tileos/lib/save'
 import { showPop } from '@/tileos/lib/pop'
-import { NOW } from '@/tileos/lib/today'
+import { NOW, TOMORROW, md, isoFromLabel } from '@/tileos/lib/today'
 import { fmtMoney, PEOPLE, crewInfo, type PersonKey } from '@/tileos/data/model'
 import type { PO } from '@/tileos/data/work'
 import { matBy } from './flows'
@@ -55,16 +55,22 @@ ${total ? `<tr><td colspan="${head.length - 1}" style="text-align:right;padding:
 </table>`
 
 type Pic = { filename: string; content: string; content_id?: string; content_type?: string }
-async function go(m: { to: string[]; subject: string; html: string; text?: string; attachments?: Pic[] }, s: Store): Promise<{ ok: true; from: string } | { ok: false; why: string }> {
+async function go(m: { to: string[]; subject: string; html: string; text?: string; attachments?: Pic[]; /** a reply: the emails already on its thread */ thread?: string[] }, s: Store): Promise<{ ok: true; from: string; id: string; threaded?: boolean } | { ok: false; why: string }> {
   if (!REAL.mail) return { ok: false, why: 'Email isn’t set up in the app yet' }
   const who = sender(s)
   if (!who.from) return { ok: false, why: 'No address to send it from — add one in Settings → Email' }
-  const r = await REAL.mail.send({ from: who.from, to: m.to, cc: who.cc.filter((x) => !m.to.includes(x)), replyTo: who.replyTo, subject: m.subject, html: m.html, text: m.text, ...(m.attachments?.length ? { attachments: m.attachments } : {}) }).catch(() => ({ ok: false as const, why: 'Couldn’t reach the server' }))
+  const r = await REAL.mail.send({ from: who.from, to: m.to, cc: who.cc.filter((x) => !m.to.includes(x)), replyTo: who.replyTo, subject: m.subject, html: m.html, text: m.text, ...(m.attachments?.length ? { attachments: m.attachments } : {}), ...(m.thread?.length ? { thread: m.thread } : {}) }).catch(() => ({ ok: false as const, why: 'Couldn’t reach the server' }))
   if (!r.ok) return { ok: false, why: r.why === 'nokey' ? 'Email isn’t set up in Lovable yet (the Resend key)' : r.why }
-  return { ok: true, from: r.from }
+  return { ok: true, from: r.from, id: r.id, threaded: r.threaded }
 }
 
 /* ---------------- a purchase order to the supplier ---------------- */
+/** the day it's needed on site, as a date (an email is read later — never “Today” or “Thu”) */
+function neededOn(p: PO) {
+  const w = (p.eta || '').replace(/^Asked for /, '').replace(/^Was /, '').trim()
+  const iso = w ? isoFromLabel(w) : ''
+  return iso ? md(iso) : w
+}
 /** a message typed in a box, as the email's paragraphs — a blank line between paragraphs, a line break kept */
 const paras = (text: string) => text.trim().split(/\n\s*\n/).map((x) => `<p>${esc(x.trim()).replace(/\n/g, '<br>')}</p>`).join('\n')
 /** a tile's photo in the email, next to its line: the picture goes along with it, shown in place */
@@ -78,7 +84,7 @@ function tilePic(s: Store, jobId: string, tag?: string): Pic | null {
 export function poWords(s: Store, p: PO, o: { changed?: boolean; many?: boolean } = {}): { subject: string; message: string } {
   const j = s.jobs[p.jobId]
   const who = sender(s)
-  const needed = (p.eta || '').replace(/^Asked for /, '').replace(/^Was /, '')
+  const needed = neededOn(p)
   const tile = p.kind === 'tile'
   const priced = !tile || p.paidBy === 'us'
   const intro = o.changed ? `${p.id} has changed — this replaces the one we sent before.`
@@ -96,7 +102,7 @@ export function poMail(s: Store, p: PO, o: { changed?: boolean; subject?: string
   const words = poWords(s, p, o)
   const site = PEOPLE[matBy(s)]
   const sitePhone = s.team.find((x) => x.key === matBy(s))?.phone
-  const needed = (p.eta || '').replace(/^Asked for /, '').replace(/^Was /, '')
+  const needed = neededOn(p)
   const tile = p.kind === 'tile'
   const priced = !tile || p.paidBy === 'us'
   const pics: Pic[] = []
@@ -140,37 +146,89 @@ export async function emailPO(poId: string, o: { changed?: boolean; quietOk?: bo
     return false
   }
   const who = sender(s)
-  const r = await go({ to, subject: m.subject, html: m.html, attachments: m.attachments }, s)
+  /* a change goes on the same email as the order (a reply to it) — the store sees one thread for the PO */
+  const reply = !!o.changed && !!p.mailed?.thread?.length
+  const subject = reply ? reSubject(p.mailed!.subject || m.subject) : m.subject
+  const r = await go({ to, subject, html: m.html, attachments: m.attachments, ...(reply ? { thread: p.mailed!.thread } : {}) }, s)
   if (!r.ok) {
     note(`The email didn’t go out — ${r.why}`)
     showPop({ title: `${p.id} saved — the email didn’t go out`, sub: `${r.why}. Try “Email it” on the PO again.`, tone: 'warn' })
     return false
   }
-  useStore.setState((st: any) => { const x = st.pos.find((y: any) => y.id === poId); if (x) { x.mailed = { at: new Date().toISOString(), to: to.join(', ') }; x.log.push({ date: NOW, who: who.me, text: `Emailed to ${to.join(', ')}${who.cc.length ? ` · copied ${who.cc.join(', ')}` : ''}` }) } })
+  useStore.setState((st: any) => {
+    const x = st.pos.find((y: any) => y.id === poId)
+    if (!x) return
+    const was = x.mailed
+    x.mailed = reply && was ? { ...was, at: new Date().toISOString(), to: to.join(', '), thread: [...(was.thread || []), r.id].filter(Boolean) } : { at: new Date().toISOString(), to: to.join(', '), subject, thread: r.id ? [r.id] : [] }
+    x.log.push({ date: NOW, time: clockNow(), who: who.me, text: `Emailed to ${to.join(', ')}${who.cc.length ? ` · copied ${who.cc.join(', ')}` : ''}` })
+  })
   if (!o.quietOk) showPop({ title: `${p.id} emailed to ${p.supplier}`, sub: `To ${to.join(', ')}. Their reply comes to ${who.replyTo[0] || 'you'}.` })
   return true
 }
-/** cancelling a PO: the words to the store (typed over before it goes) */
+/* ---------------- on the order's own email: a follow-up, the cancel ---------------- */
+/** "Re: " once — the subject a reply on a thread carries */
+const reSubject = (subject: string) => (/^re:/i.test(subject.trim()) ? subject.trim() : `Re: ${subject.trim()}`)
+/** the subject a reply on the PO's email goes out with — the order's own subject, so it lands on that thread */
+export function poThreadSubject(s: Store, p: PO) { return reSubject(p.mailed?.subject || poWords(s, p).subject) }
+/** cancelling a PO: the words to the store (typed over before it goes) — the lines under them, the same table as the
+ *  order's, so the store sees exactly what's off */
 export function cancelWords(s: Store, p: PO): { subject: string; message: string } {
   const j = s.jobs[p.jobId]
   const who = sender(s)
-  const what = p.lines.map((l) => `• ${l.item} — ${l.qty}`).join('\n')
   return {
-    subject: `Please cancel ${p.id} · ${j?.name || ''}`,
-    message: `Hi ${p.supplier} team,\n\nPlease cancel our order ${p.id}${p.storeRef ? ` (your order ${p.storeRef})` : ''} for ${j?.name || 'the project'}:\n${what}\n\nPlease reply to confirm it’s cancelled.\n\nThank you,\n${who.name}\nCobblestone Tile`,
+    subject: poThreadSubject(s, p),
+    message: `Hi ${p.supplier} team,\n\nPlease cancel our order ${p.id}${p.storeRef ? ` (your order ${p.storeRef})` : ''} for ${j?.name || 'the project'}, below.\nPlease reply to confirm it’s cancelled.\n\nThank you,\n${who.name}\nCobblestone Tile`,
   }
 }
-export async function emailCancel(poId: string, words: { subject: string; message: string }): Promise<boolean> {
-  if (!mailLive()) return false
+/** following up on a PO they haven't confirmed: the words (typed over before it goes) */
+export function followWords(s: Store, p: PO): string {
+  const who = sender(s)
+  const sent = p.mailed?.at ? new Date(p.mailed.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : p.date || ''
+  return `Hi ${p.supplier} team,\n\nFollowing up on our order ${p.id}${sent ? ` from ${sent}` : ''}${p.storeRef ? ` (your order ${p.storeRef})` : ''}, below.\nCan you please confirm it and the delivery date?\n\nThank you,\n${who.name}\nCobblestone Tile`
+}
+/** a reply on the PO's own email — the same look as the order (the words, the details, each line with its picture),
+ *  on the same thread in their inbox and in ours */
+async function poReply(poId: string, message: string, what: 'cancel' | 'follow'): Promise<{ ok: true; to: string[]; threaded: boolean } | { ok: false; why: string }> {
   const s = useStore.getState()
   const p = s.pos.find((x) => x.id === poId)
-  if (!p) return false
+  if (!p) return { ok: false, why: 'No such PO' }
   const to = supplierEmails(s, p.supplier)
-  if (!to.length) { showPop({ title: `${p.id} cancelled — not emailed`, sub: `${p.supplier} has no email in Tile OS — call them.`, tone: 'warn' }); return false }
-  const r = await go({ to, subject: words.subject, html: frame(paras(words.message)) }, s)
+  if (!to.length) return { ok: false, why: `${p.supplier} has no email in Tile OS` }
+  const subject = poThreadSubject(s, p)
+  const m = poMail(s, p, { subject, message })
+  const r = await go({ to, subject, html: m.html, attachments: m.attachments, thread: p.mailed?.thread }, s)
+  if (!r.ok) return r
+  useStore.setState((st: any) => {
+    const x = st.pos.find((y: any) => y.id === poId)
+    if (!x) return
+    x.mailed = { ...(x.mailed || { subject }), at: new Date().toISOString(), to: to.join(', '), subject: x.mailed?.subject || subject, thread: [...(x.mailed?.thread || []), r.id].filter(Boolean) }
+    x.log.push({ date: NOW, time: clockNow(), who: meOf(st.role), text: what === 'cancel' ? `Cancel emailed to ${to.join(', ')}` : `Followed up by email · ${to.join(', ')}` })
+  })
+  return { ok: true, to, threaded: !!r.threaded }
+}
+export async function emailCancel(poId: string, words: { subject?: string; message: string }): Promise<boolean> {
+  if (!mailLive()) return false
+  const p = useStore.getState().pos.find((x) => x.id === poId)
+  if (!p) return false
+  const r = await poReply(poId, words.message, 'cancel')
   if (!r.ok) { showPop({ title: `${p.id} cancelled — the email didn’t go out`, sub: `${r.why}. Call ${p.supplier}.`, tone: 'warn' }); return false }
-  useStore.setState((st: any) => { const x = st.pos.find((y: any) => y.id === poId); if (x) x.log.push({ date: NOW, who: meOf(st.role), text: `Cancel emailed to ${to.join(', ')}` }) })
-  showPop({ title: `${p.id} cancelled`, sub: `${p.supplier} got the email — their reply comes to you.` })
+  showPop({ title: `${p.id} cancelled`, sub: `${p.supplier} got it on the order’s own email. Their reply comes to you.` })
+  return true
+}
+/** follow up by email, on the order's own email — the to-do comes back tomorrow if they still don't answer */
+export async function emailFollow(poId: string, message: string): Promise<boolean> {
+  if (!mailLive()) return false
+  const p = useStore.getState().pos.find((x) => x.id === poId)
+  if (!p) return false
+  const r = await poReply(poId, message, 'follow')
+  if (!r.ok) { showPop({ title: 'The follow-up didn’t go out', sub: `${r.why}. Call ${p.supplier}.`, tone: 'warn' }); return false }
+  useStore.getState().commit((st) => {
+    st.tasks.filter((t) => t.state === 'waiting' && t.action?.kind === 'po:' + poId).forEach((t) => {
+      t.followUp = md(TOMORROW)
+      t.followUps = (t.followUps || 0) + 1
+      ;(t.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(st.role), text: `Followed up by email · back ${md(TOMORROW)}` })
+    })
+  }, `Followed up with ${p.supplier}`, { tone: 'wait', sub: `On the order’s own email. If they don’t answer, it’s back on your list tomorrow.` })
   return true
 }
 

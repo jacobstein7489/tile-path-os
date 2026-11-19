@@ -77,7 +77,7 @@ export const REAL: {
   /** email from the app itself (the real app, once it's set up in Lovable): purchase orders to suppliers, a test */
   mail?: {
     status: () => Promise<MailStatus>
-    send: (m: MailIn) => Promise<{ ok: true; id: string; from: string } | { ok: false; why: string }>
+    send: (m: MailIn) => Promise<{ ok: true; id: string; from: string; threaded?: boolean } | { ok: false; why: string }>
   }
   /** pull down to refresh (the real app): send what's waiting, bring the newest down — 'offline' with no signal */
   refresh?: () => Promise<'ok' | 'offline' | 'none'>

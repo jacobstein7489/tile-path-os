@@ -5,9 +5,9 @@
  *   The same step on many projects (get the tile paperwork from the store): the projects down the left, the one picked
  *     open on the right, done right there. */
 import * as React from 'react'
-import { Check, ChevronLeft, PackageCheck, Truck } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, PackageCheck, Truck } from 'lucide-react'
 import { useStore, meOf, isRequest } from '@/tileos/store'
-import { Button } from '@/tileos/components/ui/core'
+import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { BAND_STRONG, bandStyle, bandLabel } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
@@ -150,7 +150,8 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
                 <button key={x.job.id} type="button" onClick={() => { setAt(x.job.id); setPicking(false) }} data-batch-job={x.job.id} data-state={x.v.state} {...(on ? { 'data-on': '' } : {})} className={cn('mx-2 flex min-h-11 w-[calc(100%-1rem)] min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left transition', on ? 'bg-brand-50 text-brand-800' : 'hover:bg-[rgba(17,19,24,0.035)]')}>
                   <span className="min-w-0 flex-1">
                     <span className={cn('block truncate text-[0.9375rem] leading-snug', on ? 'font-semibold text-brand-800' : 'font-medium text-ink')}>{x.job.name}</span>
-                    {x.v.state !== 'now' && <span className={cn('block truncate text-[0.8125rem] leading-snug', w.tone)}>{w.text}</span>}
+                    {/* where it's at on that project, in a few words ("4 to order", "Not yet") */}
+                    {w.text && <span className={cn('block truncate text-[0.8125rem] leading-snug', x.v.state === 'now' ? 'text-muted' : w.tone)}>{x.v.state === 'now' && x.v.note ? x.v.note.split(' — ')[0] : w.text}</span>}
                   </span>
                   {(x.v.state === 'done' || x.v.state === 'na') && <Check className="h-4 w-4 shrink-0 text-[#2c8a5b]" strokeWidth={2.5} />}
                 </button>
@@ -161,7 +162,16 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
         {(!small || !picking) && (
           <div className="min-w-0 px-6 pb-6 pt-5 max-sm:px-4 max-sm:pt-3" data-batch-open={cur.job.id}>
             {small && <button type="button" onClick={() => setPicking(true)} className="mb-3 inline-flex min-h-10 items-center gap-1 text-[0.875rem] font-semibold text-brand-700" data-batch-all><ChevronLeft className="h-4 w-4" />All {items.length} projects</button>}
-            <h3 className="mb-3 text-[1.0625rem] font-semibold leading-snug text-ink" data-batch-name>{cur.job.name}</h3>
+            {/* the project — and the way into it */}
+            <div className="mb-1 flex min-w-0 items-center gap-3">
+              <h3 className="min-w-0 flex-1 truncate text-[1.0625rem] font-semibold leading-snug text-ink" data-batch-name>{cur.job.name}</h3>
+              <button type="button" onClick={() => s.open({ t: 'job', id: cur.job.id })} className="inline-flex shrink-0 items-center gap-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-batch-project>Open the project<ChevronRight className="h-4 w-4" /></button>
+            </div>
+            {/* whose it is and where it stands, in a line — never an empty side */}
+            <div className="mb-4 flex min-w-0 items-center gap-2 text-[0.875rem] text-muted" data-batch-status>
+              <Avatar who={cur.v.owner} size={22} />
+              <span className="min-w-0"><b className="font-semibold text-ink-2">{cur.v.owner === me ? 'You' : PEOPLE[cur.v.owner]?.short || 'Someone'}</b> · {cur.v.state === 'later' ? (cur.v.waitsFor ? `Not yet — after “${cur.v.waitsFor}”` : 'Not yet') : cur.v.note || stepWords(s, cur.job, cur.v, me).text}</span>
+            </div>
             <StepInline key={cur.job.id + ':' + k} job={cur.job} v={cur.v} onClose={STAY} bare />
           </div>
         )}
