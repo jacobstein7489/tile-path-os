@@ -23,6 +23,7 @@ import { timeLabel, rangeLabel, parseTime, type CalEvent } from '@/tileos/data/c
 import { payDue } from './pay-page'
 import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
+import { LinkedPO, poOfTask } from './linkedpo'
 import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask } from './taskshare'
 import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
@@ -1690,6 +1691,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     <>
       {t.state === 'done' && t.result && <p className="flex items-start gap-2 text-[0.875rem] leading-relaxed text-ink" data-task-result><Check className="mt-1 h-4 w-4 shrink-0 text-[#2c8a5b]" />{t.result}</p>}
       {gcw && !theirs && <GcMessageBox t={t} />}
+      {/* a to-do about a PO shows the PO itself: what was ordered, from whom — and Open the PO */}
+      {poOfTask(t) && <div className="mb-5" data-task-po><LinkedPO t={t} /></div>}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
           one quiet box to add one. The same on a step */}
       <Notes kind="task" me={me} notes={notesOnly} onAdd={t.state !== 'done' ? (x) => s.noteTask(t.id, x) : undefined} className={cn(((gcw && !theirs) || (t.state === 'done' && t.result)) && 'mt-5')} />

@@ -6,7 +6,7 @@ const RESEND = "https://api.resend.com";
 export const mailKey = () => (process.env["RESEND_API_KEY"] || "").trim();
 export const mailConfigured = () => !!mailKey();
 
-export type Attachment = { filename: string; content: string /* base64 */ };
+export type Attachment = { filename: string; content: string /* base64 */; /** shown inside the email: <img src="cid:…"> */ content_id?: string; content_type?: string };
 export type Mail = { from: string; to: string[]; cc?: string[]; bcc?: string[]; replyTo?: string[]; subject: string; html: string; text?: string; attachments?: Attachment[]; /** false: no copy to the sender (an invite — its link is theirs alone) */ copy?: boolean };
 
 const EMAIL = /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/;
@@ -55,7 +55,7 @@ export async function send(m: Mail): Promise<{ ok: true; id: string; from: strin
   if (bcc.length) body.bcc = bcc;
   if (replyTo.length) body.reply_to = replyTo;
   if (m.text) body.text = m.text;
-  if (m.attachments?.length) body.attachments = m.attachments.slice(0, 5);
+  if (m.attachments?.length) body.attachments = m.attachments.slice(0, 10);
   try {
     const res = await fetch(`${RESEND}/emails`, { method: "POST", headers: { Authorization: `Bearer ${mailKey()}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j: any = await res.json().catch(() => ({}));

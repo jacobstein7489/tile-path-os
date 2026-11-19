@@ -4,13 +4,13 @@
  *     site. It goes to the store by email with its number in the subject.
  *   Part came: how much of each line came — counted on each tile, and the rest stays open on the same PO. */
 import * as React from 'react'
-import { Send, Truck, PackageCheck, Mail } from 'lucide-react'
-import { useStore, type Store } from '@/tileos/store'
+import { Send, Truck, PackageCheck, Mail, Eye, ChevronLeft, CircleAlert } from 'lucide-react'
+import { useStore, NOW, type Store } from '@/tileos/store'
 import { Button, TextInput, TextArea, Segmented } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { TileImg } from '@/tileos/components/ui/swatch'
 import { SearchSelect } from '@/tileos/components/ui/select'
-import { cn } from '@/tileos/lib/utils'
+import { cn, peekPO } from '@/tileos/lib/utils'
 import { fmtMoney } from '@/tileos/data/model'
 import { tilesOf, tileOf, hasTile, sfFor, tilesOn, floorsOf, type Room } from '@/tileos/data/jobs'
 import { takesTile } from './steps'
@@ -19,7 +19,7 @@ import type { PO } from '@/tileos/data/work'
 import { createTilePO, receivePOPart } from './flows'
 import { paperQty } from './steps'
 import { sellsTile } from '@/tileos/data/directory'
-import { mailLive } from './mailout'
+import { mailLive, poWords, poMail, supplierEmails } from './mailout'
 import { FormHead, FormRow, ProjectField, DAY_OPTIONS, byDay } from './formkit'
 
 /** the tile POs on a project that are still open — for one tile, when a tag is given */
@@ -166,19 +166,35 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       </label>
     )
   }
+  const paidBy = pays === 'us' ? 'us' : first?.suppliedBy === 'Owner' ? 'Owner' : 'GC'
+  /* one PO for each store the checked tile comes from (more tile from two stores) — else one */
+  const groups = (): [string, Draft[]][] => {
+    if (!each) return [[store, picked]]
+    const g = new Map<string, Draft[]>()
+    picked.forEach((l) => { const st = storeOf(l.tag) || store; g.set(st, [...(g.get(st) || []), l]) })
+    return [...g.entries()]
+  }
+  /* the POs as they'll go out — for the review, before anything is sent (their numbers aren't used up yet) */
+  const drafts = (): PO[] => groups().map(([st, ls], k) => ({
+    id: peekPO(k), jobId: job, kind: 'tile', paidBy, supplier: st, what: '', step: 1, date: NOW, eta: 'Asked for ' + needed, note: '', log: [],
+    ...(pays === 'client' && !each && ref.trim() ? { storeRef: ref.trim() } : {}), ...(memo.trim() ? { memo: memo.trim() } : {}), ...(more ? { more: true } : {}),
+    amount: Math.round(ls.reduce((n, l) => n + (pays === 'us' ? l.n * l.price : 0), 0)),
+    lines: ls.map((l) => ({ item: `${l.tag} ${l.name}`.trim(), qty: `${l.n.toLocaleString('en-US')} ${l.unit}`, n: l.n, unit: l.unit, tag: l.tag, got: 0, ...(pays === 'us' ? { price: l.price } : {}) })),
+  }) as PO)
+  /* nothing goes out before it's looked at: the email's words, to whom, and the PO as the store gets it */
+  const [rev, setRev] = React.useState<null | { subject: string; message: string }>(null)
+  const review = () => { const ds = drafts(); if (ds.length) setRev(poWords(s, ds[0], { many: ds.length > 1 })) }
   const send = () => {
     if (!job || !picked.length) return
-    const paidBy = pays === 'us' ? 'us' : first?.suppliedBy === 'Owner' ? 'Owner' : 'GC'
     const lineOf = (l: Draft) => ({ tag: l.tag, name: l.name, n: l.n, unit: l.unit, ...(pays === 'us' ? { price: l.price } : {}) })
-    if (each) {
-      /* one PO for each store the checked tile comes from */
-      const groups = new Map<string, Draft[]>()
-      picked.forEach((l) => { const st = storeOf(l.tag) || store; groups.set(st, [...(groups.get(st) || []), l]) })
-      const list = [...groups.entries()]
-      list.forEach(([st, ls], i) => createTilePO(job, { supplier: st, paidBy, neededBy: needed, more, shortId, lines: ls.map(lineOf), quiet: i < list.length - 1, says: list.length > 1 ? `${list.length} POs sent — ${list.map(([x]) => x).join(' and ')}` : undefined }))
-      return
-    }
-    createTilePO(job, { supplier: store, paidBy, storeRef: pays === 'client' ? ref : undefined, neededBy: needed, memo, more, shortId, lines: picked.map(lineOf) })
+    const list = groups()
+    const first0 = peekPO(0)
+    list.forEach(([st, ls], i) => {
+      const id = peekPO(0)
+      /* the words as reviewed — each PO with its own number in them */
+      const mail = rev ? { subject: list.length === 1 ? rev.subject : undefined, message: rev.message.split(first0).join(id) } : undefined
+      createTilePO(job, { supplier: st, paidBy, storeRef: pays === 'client' && !each ? ref : undefined, neededBy: needed, memo: list.length === 1 ? memo : undefined, more, shortId, lines: ls.map(lineOf), mail, quiet: i < list.length - 1, says: list.length > 1 ? `${list.length} POs sent — ${list.map(([x]) => x).join(' and ')}` : undefined })
+    })
   }
   return (
     <Modal
@@ -188,15 +204,23 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       title={j ? `${more ? 'Order more tile' : 'Tile PO'} · ${j.name}` : more ? 'Order more tile' : 'Tile PO'}
       header={<FormHead k={more ? 'moretile' : 'po'} kicker={j ? j.name : 'Tile'} title={more ? 'Order more tile' : 'Tile PO'} />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={
+      footer={rev ? (
+        /* the review: back to change it, or send it as it is */
+        <>
+          <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setRev(null)} data-tile-po-back>Back</Button>
+          <div className="ml-auto" aria-hidden />
+          <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} onClick={send} data-send-tile-po>{mailLive() ? (each ? 'Send them' : `Send it to ${store}`) : 'Save the PO'}</Button>
+        </>
+      ) : (
         <>
           <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices — the client’s tile'}</span>
           <div className="ml-auto" aria-hidden />
-          <Button variant="primary" icon={mailLive() ? <Send /> : <PackageCheck />} disabled={!job || !picked.length || (!each && !store.trim())} onClick={send} data-send-tile-po>{mailLive() ? (each ? 'Send it' : `Send it to ${store}`) : 'Save the PO'}</Button>
+          <Button variant="primary" icon={<Eye />} disabled={!job || !picked.length || (!each && !store.trim())} onClick={review} data-review-tile-po>Review it</Button>
         </>
-      }
+      )}
     >
-      <div data-tile-po-form>
+      {rev && <POReview pos={drafts()} rev={rev} setRev={setRev} />}
+      <div data-tile-po-form className={rev ? 'hidden' : undefined}>
         {!jobId && (
           <FormRow label="Project">
             <ProjectField value={job} onChange={setJob} keep={(x) => !['request', 'estimating', 'proposal', 'followup'].includes(x.stage)} autoFocus />
@@ -276,9 +300,61 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
             <TextArea rows={2} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Optional" aria-label="A line for the store" />
           </FormRow>
         )}
-        {mailLive() && <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted"><Mail className="h-3.5 w-3.5" />It goes to {store} by email, with its number in the subject — they reply to confirm the day.</div>}
+        {mailLive() && <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted"><Mail className="h-3.5 w-3.5" />Next you see the email and the PO, the way {store} gets them — nothing goes out before you send it.</div>}
       </div>
     </Modal>
+  )
+}
+
+/** the review before a PO goes out: to whom, the words (type over them), and the PO as the store gets it — the real
+ *  email, pictures and all */
+function POReview({ pos, rev, setRev }: { pos: PO[]; rev: { subject: string; message: string }; setRev: (r: { subject: string; message: string }) => void }) {
+  const s = useStore()
+  const live = mailLive()
+  return (
+    <div className="flex flex-col gap-4" data-tile-po-review>
+      {!live && (
+        <div className="flex items-start gap-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-[0.875rem] text-warn-700"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />Email isn’t set up in the app yet — the PO is saved, and you send it yourself (Print or Email it on the PO).</div>
+      )}
+      {pos.map((p) => {
+        const to = supplierEmails(s, p.supplier)
+        return (
+          <FormRow key={p.id} label={pos.length > 1 ? `To ${p.supplier} · ${p.id}` : 'To'}>
+            <div className={cn('flex min-h-10 items-center rounded-[0.625rem] border px-3 text-[0.9375rem]', to.length ? 'border-line bg-wash text-ink' : 'border-warn-100 bg-warn-50 text-warn-700')} data-review-to>
+              {to.length ? `${p.supplier} · ${to.join(', ')}` : `${p.supplier} has no email in Tile OS — add it (Suppliers → ${p.supplier}), or call them`}
+            </div>
+          </FormRow>
+        )
+      })}
+      {pos.length === 1 && (
+        <FormRow label="Subject">
+          <TextInput value={rev.subject} onChange={(e) => setRev({ ...rev, subject: e.target.value })} aria-label="Subject" data-review-subject />
+        </FormRow>
+      )}
+      <FormRow label="Message" hint="Type over it — the PO's lines and the tile pictures go under it by themselves.">
+        <TextArea rows={8} value={rev.message} onChange={(e) => setRev({ ...rev, message: e.target.value })} aria-label="Message" data-review-message />
+      </FormRow>
+      {pos.map((p) => <MailPreview key={p.id} html={previewHtml(s, p, pos.length > 1 ? { message: rev.message.split(pos[0].id).join(p.id) } : rev)} label={pos.length > 1 ? `What ${p.supplier} gets` : `What ${p.supplier} gets`} />)}
+    </div>
+  )
+}
+/** the email as the store sees it — its pictures shown here in place */
+function previewHtml(s: Store, p: PO, o: { subject?: string; message?: string }) {
+  const m = poMail(s, p, o)
+  /* its pictures in place, and the logo from here (the email has it from the published app) */
+  return m.attachments.reduce((h, a) => h.split(`cid:${a.content_id}`).join(`data:${a.content_type};base64,${a.content}`), m.html).replace(/src="[^"]*\/logo-email\.png"/, 'src="/logo-email.png"')
+}
+function MailPreview({ html, label }: { html: string; label: string }) {
+  const ref = React.useRef<HTMLIFrameElement>(null)
+  const [h, setH] = React.useState(420)
+  const fit = () => { const d = ref.current?.contentDocument; if (d?.body) setH(Math.min(1400, d.documentElement.scrollHeight + 4)) }
+  return (
+    <div data-review-preview>
+      <div className="mb-1.5 text-[0.875rem] font-semibold text-ink">{label}</div>
+      <div className="overflow-hidden rounded-xl border border-line bg-white px-4 py-3">
+        <iframe ref={ref} title={label} srcDoc={`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}img{max-width:100%}</style></head><body>${html}</body></html>`} onLoad={fit} className="block w-full border-0" style={{ height: h }} sandbox="allow-same-origin" />
+      </div>
+    </div>
   )
 }
 

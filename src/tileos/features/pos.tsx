@@ -3,9 +3,9 @@
 import { smp } from '@/tileos/lib/save'
 import * as React from 'react'
 import { SearchSelect } from '@/tileos/components/ui/select'
-import { Mail, Plus, Send, Truck, Check, Trash2, FilePen, Hourglass, AlarmClock, PackageCheck, Layers, Package, HardHat, Building2, ArrowLeft, MapPin, CalendarCheck, Calculator } from 'lucide-react'
+import { Mail, Plus, Send, Truck, Check, Trash2, FilePen, Hourglass, AlarmClock, PackageCheck, Layers, Package, HardHat, Building2, ArrowLeft, MapPin, CalendarCheck, Calculator, MoreHorizontal, XCircle } from 'lucide-react'
 import { useStore, meOf, addHist, NOW } from '@/tileos/store'
-import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, TextArea, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow, Status, Path, Bubbles, Row, Col, Meta, IconTile, EmptyState } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
@@ -14,8 +14,8 @@ import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
 import type { IPO, IPOLine } from '@/tileos/data/field'
 import { ipoTotal, poRatio, type Ratio } from './poratio'
 import { allSubs, kindsOf } from '@/tileos/data/directory'
-import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs } from './flows'
-import { mailLive, emailPO, emailIPO } from './mailout'
+import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs, cancelPO } from './flows'
+import { mailLive, emailPO, emailIPO, cancelWords, emailCancel, supplierEmails } from './mailout'
 import { InstallerAnswer } from './stepwin'
 import { sendDraftIPO, pickInstaller, materialsFromEstimate, bookInstaller, draftIPOLines, setIPOLines } from './flows2'
 import { takeoff, qtyLabel, methodOf } from './takeoff'
@@ -208,6 +208,8 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   const [fu, setFu] = React.useState(false)
   /* changing it after it went out: the lines are worked on here, then the change goes to the supplier */
   const [edit, setEdit] = React.useState<POLine[] | null>(null)
+  /* cancelling it: the email to the store, looked at (and typed over) before anything goes */
+  const [cxl, setCxl] = React.useState<null | { subject: string; message: string }>(null)
   if (!p) return null
   const canChange = (p.step === 1 || p.step === 2) && allowedFor(s.role, 'po') && p.kind !== 'tile'
   const editTotal = edit ? edit.reduce((n, l) => n + (l.price || 0) * (l.n || 0), 0) : 0
@@ -231,6 +233,12 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       title={`${p.id} · ${p.supplier}`}
       sub={tile ? `${p.what} · ${p.more ? (bills ? 'more tile — we buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile — delivery'}` : p.what}
       attrs={{ 'data-po-win': p.id }}
+      /* one rare thing under ···: call it off (before it's here) */
+      more={!cancelled && p.step < 3 && allowedFor(s.role, 'po') ? (
+        <Menu align="end" width={240} trigger={<button aria-label="More" title="More" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink" data-po-more><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
+          <MenuItem danger icon={<XCircle className="h-4 w-4" />} onSelect={() => setCxl(cancelWords(s, p))} data-po-cancel>Cancel the order</MenuItem>
+        </Menu>
+      ) : undefined}
       lines={<>
         <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem] leading-snug', toneCls(ms.tone === 'bad' ? 'late' : ms.tone === 'warn' ? 'warn' : ms.tone === 'ok' ? 'ok' : undefined))} data-po-status>{ms.label}</span></WinLine>
         {p.eta && !cancelled && p.step < 3 && <WinLine k="when" label="Coming"><span className={cn('text-[0.9375rem]', p.late ? 'font-medium text-bad-600' : 'text-ink')}>{p.eta}</span></WinLine>}
@@ -245,7 +253,13 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       </>}
     />
   )
-  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Replaced — kept for the record.</span> : edit ? (
+  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Cancelled — kept for the record.</span> : cxl ? (
+    <>
+      <Button variant="ghost" icon={<ArrowLeft />} onClick={() => setCxl(null)}>Back</Button>
+      <div className="ml-auto" aria-hidden />
+      <Button variant="danger" icon={<XCircle />} onClick={() => { const w = cxl; setCxl(null); cancelPO(p.id); if (mailLive()) void emailCancel(p.id, w) }} data-po-cancel-go>{mailLive() ? `Cancel it and email ${p.supplier}` : 'Cancel it'}</Button>
+    </>
+  ) : edit ? (
     <>
       <Button variant="ghost" onClick={() => setEdit(null)}>Cancel</Button>
       <span className="ml-auto text-[0.84375rem] text-muted">{fmtMoney(p.amount)} → <b className="font-semibold text-ink">{fmtMoney(editTotal)}</b></span>
@@ -283,6 +297,19 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title={p.id} bodyClass="px-6 pb-5 pt-2 max-sm:px-4">
+      {/* cancelling: to whom, the words (type over them) — nothing goes before the button */}
+      {cxl && (
+        <div className="mb-6 flex flex-col gap-4 rounded-xl border border-bad-100 bg-bad-50/40 p-4" data-po-cancel-review>
+          <div className="text-[0.9375rem] font-semibold text-ink">Cancel {p.id}?</div>
+          {mailLive() ? (
+            <>
+              <FormRow label="To"><div className="flex min-h-10 items-center rounded-[0.625rem] border border-line bg-white px-3 text-[0.9375rem] text-ink">{supplierEmails(s, p.supplier).join(', ') || `${p.supplier} has no email in Tile OS — call them`}</div></FormRow>
+              <FormRow label="Subject"><TextInput value={cxl.subject} onChange={(e) => setCxl({ ...cxl, subject: e.target.value })} aria-label="Subject" /></FormRow>
+              <FormRow label="Message"><TextArea rows={8} value={cxl.message} onChange={(e) => setCxl({ ...cxl, message: e.target.value })} aria-label="Message" data-po-cancel-message /></FormRow>
+            </>
+          ) : <div className="text-[0.875rem] text-ink-2">Email isn’t set up in the app yet — call {p.supplier} to cancel it. Here it’s marked Cancelled and kept for the record.</div>}
+        </div>
+      )}
       {/* where it is: sent → confirmed → delivered (→ bill in → paid) */}
       {cancelled ? <div className="mb-5 rounded-lg bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">{p.note}</div> : <Path className="mb-6" steps={steps} />}
       {edit ? <POLinesEdit lines={edit} onChange={setEdit} /> : <POLines lines={p.lines} total={p.amount} priced={bills} />}

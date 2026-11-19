@@ -38,5 +38,7 @@ let seq = 1050
 export const nextRef = () => '#' + ++seq
 let poSeq = 1046
 export const nextPO = () => 'PO-' + poSeq++
+/** the number the next PO will get — for the review before it's sent (nothing is used up) */
+export const peekPO = (k = 0) => 'PO-' + (poSeq + k)
 /** invoice and PO numbers carry on after the saved ones */
 export const seedRefs = (ref: number, po: number) => { if (ref > seq) seq = ref; if (po >= poSeq) poSeq = po + 1 }

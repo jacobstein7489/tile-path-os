@@ -133,7 +133,7 @@ export function EstimatesPage() {
           {/* the bubble on top says which ones these are — All open takes you back */}
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <Filter icon={<Building2 />} label="Client" value={client} options={clients} onChange={setClient} width={280} />
-            <Filter icon={<UserRound />} label="Whose turn" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
+            <Filter icon={<UserRound />} label="Who" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
             <ClearFilters show={client !== 'all' || who !== 'all' || !!q} onClear={() => { setClient('all'); setWho('all'); setQ('') }} />
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search estimates" />
           </div>
@@ -182,7 +182,8 @@ function EstHead() {
   return (
     <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>Estimate</span>
-      <span>Whose turn</span>
+      {/* the same word as Today: who does the next thing on it */}
+      <span>Who</span>
       <span className="text-right max-lg:hidden">Date</span>
       <span className="text-right">Amount</span>
     </div>

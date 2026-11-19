@@ -1083,6 +1083,24 @@ export function createPO(jobId: string, o: { supplier: string; lines: { item: st
   if (mailLive()) void emailPO(id)
   return id
 }
+/** a PO called off: it stays for the record, marked Cancelled; the tile on it isn't counted as ordered any more, and
+ *  its to-dos (the store's yes) are done */
+export function cancelPO(id: string) {
+  const p0 = S().pos.find((x) => x.id === id)
+  if (!p0) return
+  S().commit((s) => {
+    const p = s.pos.find((x) => x.id === id)!
+    p.note = `Cancelled ${NOW}`
+    p.late = false
+    p.log.push(L(me(), 'Cancelled'))
+    if (p.kind === 'tile') p.lines.forEach((l) => {
+      const c = s.checks.find((x) => x.jobId === p.jobId && x.tag === l.tag)
+      if (c && l.n) { c.ordered = Math.max(c.received, c.ordered - Math.max(0, l.n - (l.got || 0))); if (c.note === p.id) c.note = undefined }
+    })
+    closeTasks(s, s.tasks.filter((t) => t.state !== 'done' && t.action?.kind === 'po:' + id).map((t) => t.id), 'Cancelled')
+    addHist(s, p.jobId, { who: me(), kind: 'material', title: `${id} cancelled · ${p.supplier}`, ref: { t: 'po', id } })
+  }, `${id} cancelled`, { sub: 'It stays on the list, marked Cancelled — for the record.' })
+}
 export function confirmPO(id: string, eta: string) {
   S().commit((s) => {
     const p = s.pos.find((x) => x.id === id)
@@ -1177,7 +1195,7 @@ export const billsUs = (p?: PO) => !!p && (p.kind !== 'tile' || p.paidBy === 'us
  * order number goes on it), the PO is our call for the delivery. What comes is checked in against it — all of it, or
  * part (how much of each tile), and whatever didn't come stays open on the same PO until it does. */
 export type TilePOLine = { tag: string; name: string; n: number; unit: string; price?: number }
-export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string; /** more of the same tile, on top of what was ordered */ more?: boolean; /** the shortage it reorders */ shortId?: string; /** one of several POs sent together (tile from two stores) — no pop-up, the window stays */ quiet?: boolean; /** what the last one's pop-up says instead */ says?: string }) {
+export function createTilePO(jobId: string, o: { supplier: string; lines: TilePOLine[]; paidBy: 'us' | 'GC' | 'Owner'; storeRef?: string; neededBy: string; memo?: string; /** more of the same tile, on top of what was ordered */ more?: boolean; /** the shortage it reorders */ shortId?: string; /** one of several POs sent together (tile from two stores) — no pop-up, the window stays */ quiet?: boolean; /** what the last one's pop-up says instead */ says?: string; /** the email's words, as reviewed before it went */ mail?: { subject?: string; message?: string } }) {
   const id = nextPO()
   const us = o.paidBy === 'us'
   const amount = us ? Math.round(o.lines.reduce((n, l) => n + (l.price || 0) * l.n, 0) * 100) / 100 : 0
@@ -1225,7 +1243,7 @@ export function createTilePO(jobId: string, o: { supplier: string; lines: TilePO
     addHist(s, jobId, { who: me(), kind: 'material', title: `${id} sent to ${o.supplier} · tile ${tags.join(', ')}`, detail: o.lines.map((l) => `${l.tag} ${l.n} ${l.unit}`).join(', ') + (ref ? ` · their order ${ref}` : ''), ref: { t: 'po', id } })
   }, o.quiet ? undefined : o.says || `${id} sent to ${o.supplier}`, o.quiet ? { undo: false } : { sub: `${o.more ? 'More tile' : 'Tile'} ${tags.join(', ')} · needed on site ${o.neededBy}.`, to: poTo(id, o.supplier) })
   if (!o.quiet) S().close()
-  if (mailLive()) void emailPO(id)
+  if (mailLive()) void emailPO(id, o.mail || {})
   return id
 }
 /** a shortage reordered on a tile PO: where it is, its task waits on the store, the hold says when */
