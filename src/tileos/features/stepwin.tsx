@@ -609,7 +609,7 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
         whoPick={admin && open ? { people: insidePeople(s), me, current: v.owner, onPick: (p) => setStepOwner(job.id, take, p) } : undefined}
         whenPick={(admin || mine) && open && isWhen && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
         /* who's watching — the same as on a task */
-        watch={open ? { people: insidePeople(s), me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: mine || admin } : undefined}
+        watch={open ? { people: insidePeople(s), me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: mine || admin, doers: v.owner ? [v.owner] : [] } : undefined}
         /* its star — on top of your list */
         star={open ? { on: starredBy(rec?.stars, me), toggle: () => toggleStepStar(job.id, v.key) } : undefined}
         attrs={{ 'data-step-status': '', 'data-step-state': v.state, ...(theirs && v.state !== 'later' ? { 'data-not-mine': '' } : {}), ...(v.state === 'later' ? { 'data-locked': '' } : {}) }} />}

@@ -25,7 +25,7 @@ export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey;
 /** the day it's on: tap it, pick another */
 export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string }
 /** who's watching it: their circles; + to add someone or take them off (you only yourself, unless it's yours to say) */
-export type WatchPick = { people: PersonKey[]; me: PersonKey; current: PersonKey[]; onToggle: (p: PersonKey) => void; /** anyone can be added (its person, the admin) — else only you */ anyone: boolean }
+export type WatchPick = { people: PersonKey[]; me: PersonKey; current: PersonKey[]; onToggle: (p: PersonKey) => void; /** anyone can be added (its person, the admin) — else only you */ anyone: boolean; /** whoever does it — not on the list: they do it, they don't watch it */ doers?: PersonKey[] }
 /** what kind of thing it is — its icon and its name */
 export type WinKind = { icon?: React.ReactNode; label: string }
 
@@ -97,7 +97,7 @@ export function WatchPop({ pick, trigger, align = 'start', title = 'Who’s watc
     <Pop open={open} onOpenChange={setOpen} align={align} width={300} trigger={trigger}>
       <PeopleHead title={title} sub={sub} />
       <div className="-mx-1 flex flex-col" data-watch-list>
-        {[pick.me, ...pick.people.filter((p) => p !== pick.me)].filter((p) => pick.anyone || p === pick.me).map((p) => (
+        {[pick.me, ...pick.people.filter((p) => p !== pick.me)].filter((p) => (pick.anyone || p === pick.me) && !pick.doers?.includes(p)).map((p) => (
           <PersonOption key={p} p={p} me={pick.me} on={pick.current.includes(p)} onClick={() => pick.onToggle(p)} attrs={{ 'data-watch-person': p }} />
         ))}
       </div>

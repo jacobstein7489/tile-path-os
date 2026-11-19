@@ -149,10 +149,11 @@ export const isMine = (t: Task, role: Role, me: PersonKey | null = meOf(role)) =
   if (me && (t.owner === me || t.also?.includes(me))) return true
   if (!t.for.some((r) => r === role || loginOf(r) === role)) return false
   if (!me || !t.owner) return true
-  /* someone else with the same login has it — a built-in spot nobody took ("Yakov" from the clean start) isn't anyone,
-     so what's still on it is the login's own */
+  /* it has someone's name on it: it's theirs (and whoever shares it) — not everyone's on a login it's "for". Only a
+     name that isn't anyone — a built-in spot nobody took ("Yakov" from the clean start), or someone who's off — leaves
+     it to the login */
   const st = useStore.getState()
-  return !st.team.some((m) => m.key === t.owner && m.status !== 'off' && loginOf(m.role) === loginOf(role) && !(REAL.cloud && emptySpot(st, m.key)))
+  return !st.team.some((m) => m.key === t.owner && m.status !== 'off' && !(REAL.cloud && emptySpot(st, m.key)))
 }
 
 /* ---------------- when: one word for each section ---------------- */
@@ -445,7 +446,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* waiting on someone: it's their turn — Alex, the plumber, the client */
       turn={t.state === 'waiting' ? turnNamed(t.waitingOn) : undefined}
       /* a computer: who's watching, its day and (the admin) who does it — tapped right on the row */
-      watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin } : undefined}
+      watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       star={!done ? taskStarPick(s, t, me0) : undefined}
       whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
       whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
@@ -485,7 +486,7 @@ function StepRowToday({ job, v, when, flag }: { job: Job; v: StepView; showOwner
       watch={rec?.followers || []}
       /* waiting on someone outside (the store, the installer): it's their turn */
       turn={v.state === 'wait' ? turnNamed(stepWaitOn(rec?.wait?.on, v.note)) : undefined}
-      watchPick={open ? { people: team, me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: v.owner === me || admin } : undefined}
+      watchPick={open ? { people: team, me, current: rec?.followers || [], onToggle: (p) => toggleStepFollow(job.id, v.key, p), anyone: v.owner === me || admin, doers: v.owner ? [v.owner] : [] } : undefined}
       star={open ? { on: starredBy(rec?.stars, me), toggle: () => toggleStepStar(job.id, v.key) } : undefined}
       whenPick={(v.owner === me || admin) && (v.state === 'now' || v.state === 'bad') && v.due ? { value: labelFromIso(v.due), onPick: (d) => setStepDue(job.id, v.key, d) } : undefined}
       whoPick={admin && open ? { people: team, me, current: v.owner, onPick: (p) => setStepOwner(job.id, v.key === 'fixes' && v.state === 'now' ? 'heights' : v.key, p) } : undefined}
@@ -676,7 +677,7 @@ function GcRow({ t }: { t: Task }) {
         /* it's the GC's turn — by name when the project has one */
         turn={{ name: gcNameOf(job) }}
         star={taskStarPick(s, t, me)}
-        watchPick={{ people: team, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: true }}
+        watchPick={{ people: team, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: true, doers: [t.owner, ...(t.also || [])] }}
         whoPick={admin ? { people: team, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) } : undefined}
         detail={gcSoFar(t)}
         project={job?.name || 'Company'}
@@ -1120,12 +1121,15 @@ function LineRow({ l, me, showOwner }: { l: Line; me: PersonKey; showOwner?: boo
   return <PlateRow x={l.x} showOwner={showOwner} overdue={l.x.b === 'overdue'} followed={!!t && t.owner !== me && followersOf(t).includes(me)} />
 }
 const timedLine = (l: Line): l is Extract<Line, { k: 'plate' }> => l.k === 'plate' && l.x.kind !== 'crew' && l.x.time != null
+/** Everyone: the line for now would show once for each person — it's left out there */
+const ShowNow = React.createContext(true)
 /** a list's lines — today's with the line for now between what's before it and what's after */
 function Lines({ lines, me, day, showOwner, on }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]> }) {
   const d = new Date()
   const nowMin = d.getHours() * 60 + d.getMinutes()
+  const showNow = React.useContext(ShowNow)
   let at = -1
-  if (day === TODAY && lines.some(timedLine)) {
+  if (showNow && day === TODAY && lines.some(timedLine)) {
     const after = lines.findIndex((l) => timedLine(l) && (l.x.time ?? 0) > nowMin)
     at = after >= 0 ? after : lines.reduce((n, l, i) => (timedLine(l) ? i + 1 : n), 0)
   }
@@ -1300,7 +1304,9 @@ function PersonList({ l, view, job, me }: { l: ListOf; view: View; job: string; 
       </div>
       <Viewer.Provider value={l.key}>
         <Multi.Provider value={false}>
-          {parts.map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} />)}
+          <ShowNow.Provider value={false}>
+            {parts.map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} />)}
+          </ShowNow.Provider>
         </Multi.Provider>
       </Viewer.Provider>
     </section>
@@ -1406,7 +1412,8 @@ export function MyTasksPage() {
   const multi = lists.length > 1
   const me = lists[0].person || meOf(role)
   /* each number is what its list shows — with a job picked, its */
-  const n = (v: View) => countOf(partsFor(s, lists, v, job))
+  /* the number on each tab is what you see under it — Everyone: each person's lines added up */
+  const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(partsOf(s, l.role, l.person, v, job)), 0) : countOf(partsFor(s, lists, v, job)))
   const parts = partsFor(s, lists, view, job)
   const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
     today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up — see Coming up.` : 'New work lands here the moment it’s yours.' },
@@ -1610,7 +1617,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')} — whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
-      watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin } : undefined}
+      watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       state={whenWords ? <span data-task-when {...(gcw ? { 'data-gc-needby': t.needBy || '' } : {})}>{whenWords}</span> : undefined}
       tone={gcw ? 'warn' : t.state === 'now' ? (b === 'overdue' ? 'late' : b === 'today' ? 'warn' : undefined) : t.state === 'waiting' && followDue(t) ? 'warn' : undefined}
       status={status}
