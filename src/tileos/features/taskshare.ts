@@ -4,7 +4,7 @@
  *   followers — it waits under their "Waiting on others" until it's done, and they're told when it moves (only who
  *               asked to follow it — the one who asked for it or handed it over follows it by itself) 
  *   everyone  — pinned to the top of every login's Today until it's done */
-import { useStore, NOW, meOf, clockNow } from '@/tileos/store'
+import { useStore, NOW, meOf, clockNow, addHist, kindOfTask } from '@/tileos/store'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
 
@@ -79,7 +79,11 @@ export function setTaskTime(id: string, at?: string) {
 export function removeTask(id: string) {
   const t = S().tasks.find((x) => x.id === id)
   if (!t) return
-  S().commit((s) => { s.tasks = s.tasks.filter((x) => x.id !== id) }, 'Removed', { sub: t.title })
+  S().commit((s) => {
+    s.tasks = s.tasks.filter((x) => x.id !== id)
+    /* never gone without a trace: on a project it's written in What happened, like a done one */
+    if (t.jobId && s.jobs[t.jobId]) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Deleted · ${t.title}` })
+  }, 'Deleted', { sub: t.title })
 }
 
 /** its words changed right in its window — what to do, and what it's about (empty: nothing under it) */
